@@ -48,12 +48,20 @@ function semanticNote(state: SearchState, lane: SearchLane): string | null {
       // The limit names WHY where it can; an identifier query falls back to the
       // general sentence, since the lexical lane answered it exactly.
       if (lane !== "semantic") return null;
+      if (state.heldWords?.length) return heldNote(state.heldWords);
       return limitNote(state.query) ?? "nothing to score by meaning — showing wording matches";
     default:
       // The leg ran. Say something only where it could not honour the query as
       // typed — a filter that has no string to act on here.
       return lane === "semantic" ? limitNote(state.query) : null;
   }
+}
+
+/** Why a meaning query was not sent, and the one key that sends it anyway. */
+function heldNote(words: string[]): string {
+  const quoted = words.map((w) => `“${w}”`).join(", ");
+  const verb = words.length === 1 ? "doesn't look like a word" : "don't look like words";
+  return `${quoted} ${verb} — showing wording matches, press Enter to search by meaning anyway`;
 }
 
 /**

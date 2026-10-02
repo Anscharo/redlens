@@ -11,11 +11,12 @@
 // themselves and restore the PINNED empty state (not ambient) in afterEach,
 // so the pin holds for every case that follows them.
 import { test, expect, describe, it, beforeAll, afterAll, afterEach } from "bun:test";
-import { rrfMerge, semanticScopeSql, embedFailureReason, SCOPED_SCAN_SETTING, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, runLexical, filterByType, type Hit } from "./search.ts";
+import { rrfMerge, fuseBriefings, semanticScopeSql, embedFailureReason, SCOPED_SCAN_SETTING, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, runLexical, filterByType, type Hit } from "./search.ts";
 import { attributeSemanticHits, lexicalResidual, buildLeafScorer } from "./leaf-attribution.ts";
-import { fuseLeafScores, GROUP_ECHO_PENALTY, residualQuery, type LeafRow } from "./leaf-scores.ts";
+import { fuseLeafScores, GROUP_ECHO_PENALTY, leafRuleFor, residualQuery, type LeafRow } from "./leaf-scores.ts";
 import { _clearQueryEmbedCache } from "./embed.ts";
 import { config } from "../config.ts";
+import { sql } from "../db.ts";
 import type { AtlasNode, Indexes } from "./indexes.ts";
 import { MINISEARCH_OPTIONS } from "../../lib/searchOptions.ts";
 import MiniSearch from "minisearch";
@@ -59,7 +60,7 @@ afterEach(() => {
 test("runSemantic returns skipped:null (no reason) when no API key is configured — permanent config state, not degradation", async () => {
   config.openrouterApiKey = "";
   const res = await runSemantic(ix, "governance", undefined, 5);
-  expect(res).toEqual({ hits: [], skipped: null });
+  expect(res).toEqual({ hits: [], briefingHits: [], skipped: null });
 });
 
 test("runSemantic reports a skip reason when the embed call times out", async () => {
@@ -201,6 +202,16 @@ describe("fuseLeafScores", () => {
       { doc_id: "b", anchor_id: "A", residual_sim: "0.10" as never, query_sim: "0.10" as never, group_sim: "0.1" as never },
     ]);
     expect(fused.get("a")!).toBeGreaterThan(fused.get("b")!);
+  });
+
+  it("ranks by the residual alone under the residual rule, which gemini-embedding-2 uses", () => {
+    const rows = [row("byResidual", "A", 0.9, 0.1, 0.1), row("byEcho", "A", 0.1, 0.9, 0.1)];
+    expect(leafRuleFor("google/gemini-embedding-2")).toEqual({ rankings: "residual" });
+    const fused = fuseLeafScores(rows, leafRuleFor("google/gemini-embedding-2"));
+    expect(fused.get("byResidual")!).toBeGreaterThan(fused.get("byEcho")!);
+    // A model with no rule of its own fuses both, and the two tie here.
+    const both = fuseLeafScores(rows, leafRuleFor("qwen/qwen3-embedding-8b"));
+    expect(both.get("byResidual")).toBeCloseTo(both.get("byEcho")!, 12);
   });
 
   it("keeps the penalty a documented constant rather than a magic number", () => {
@@ -539,5 +550,128 @@ describe("embedFailureReason", () => {
 
   it("survives a non-Error rejection", () => {
     expect(embedFailureReason("plain string", {})).toBe("plain string");
+  });
+});
+
+// ── briefings: the second ranking ────────────────────────────────────────────
+describe("fuseBriefings", () => {
+  const leaf = (id: string, rank: number, score: number): Hit => ({ id, rank, score, source: "semantic", via: { group_id: "g", group_title: "G", match_scope: "child" } });
+  const brief = (id: string, rank: number, score: number): Hit => ({ id, rank, score, source: "briefing" });
+
+  it("returns the leaves unchanged when there are no briefings", () => {
+    const leaves = [leaf("a", 0, 0.9), leaf("b", 1, 0.8)];
+    expect(fuseBriefings(leaves, [])).toEqual(leaves);
+  });
+
+  it("adds a briefing-only hit, marked as such, with its own cosine", () => {
+    const out = fuseBriefings([leaf("a", 0, 0.9)], [brief("z", 0, 0.41)]);
+    const z = out.find((h) => h.id === "z")!;
+    expect(z.source).toBe("briefing");
+    expect(z.score).toBe(0.41);
+    expect(z.memberIds).toBeUndefined();
+  });
+
+  it("keeps the semantic source, score and via for an id in both lists", () => {
+    const out = fuseBriefings([leaf("a", 0, 0.9), leaf("b", 1, 0.8)], [brief("b", 0, 0.5)]);
+    const b = out.find((h) => h.id === "b")!;
+    expect(b.source).toBe("semantic");
+    expect(b.score).toBe(0.8);
+    expect(b.via?.match_scope).toBe("child");
+  });
+
+  it("orders by fused score and numbers the ranks by position", () => {
+    // b is rank 1 in leaves and rank 0 in briefings, so it passes a.
+    const out = fuseBriefings([leaf("a", 0, 0.9), leaf("b", 1, 0.8)], [brief("b", 0, 0.5), brief("c", 1, 0.4)]);
+    expect(out.map((h) => h.id)).toEqual(["b", "a", "c"]);
+    expect(out.map((h) => h.rank)).toEqual([0, 1, 2]);
+  });
+});
+
+describe("rrfMerge with a briefing list", () => {
+  const lex: Hit[] = [{ id: "a", rank: 0, score: 9, source: "lexical" }, { id: "b", rank: 1, score: 8, source: "lexical" }];
+  const sem: Hit[] = [{ id: "b", rank: 0, score: 0.9, source: "semantic" }];
+
+  it("is identical with an empty or omitted third list", () => {
+    expect(rrfMerge(lex, sem, [])).toEqual(rrfMerge(lex, sem));
+  });
+
+  it("fuses all three lists in one stage", () => {
+    const merged = rrfMerge(lex, sem, [{ id: "c", rank: 0, score: 0.3, source: "briefing" }, { id: "a", rank: 1, score: 0.2, source: "briefing" }]);
+    expect(merged.map((m) => m.id).sort()).toEqual(["a", "b", "c"]);
+    expect(merged.find((m) => m.id === "c")!.sources).toEqual(["briefing"]);
+    expect(merged.find((m) => m.id === "a")!.sources.sort()).toEqual(["briefing", "lexical"]);
+    const base = rrfMerge(lex, sem).find((m) => m.id === "a")!.rrf_score;
+    expect(merged.find((m) => m.id === "a")!.rrf_score).toBeGreaterThan(base);
+  });
+});
+
+// Assigned, not spied: once an earlier test file has `mock.module`d db.ts, `sql`
+// is that file's stub and `spyOn(sql, "unsafe")` has nothing to wrap — the
+// statement then fails for the wrong reason. A plain property assignment works
+// on the real client and on any stub alike.
+function stubUnsafe(impl: (text: string) => Promise<unknown>): () => void {
+  const target = sql as unknown as { unsafe?: unknown };
+  const had = Object.prototype.hasOwnProperty.call(target, "unsafe");
+  const prev = target.unsafe;
+  target.unsafe = impl;
+  return () => {
+    if (had) target.unsafe = prev;
+    else delete target.unsafe;
+  };
+}
+
+describe("runSemantic briefing statement", () => {
+  it("a failing briefing statement leaves the unit hits and returns no briefing hits", async () => {
+    config.openrouterApiKey = "test-key";
+    config.semanticEmbedTimeoutMs = 5_000;
+    globalThis.fetch = ((_u: string, init: { body: string }) => {
+      const input = (JSON.parse(init.body) as { input: string[] }).input;
+      return Promise.resolve(
+        new Response(JSON.stringify({ data: input.map((_t, i) => ({ index: i, embedding: Array.from({ length: 1024 }, () => 0.01) })) }), {
+          status: 200, headers: { "content-type": "application/json" },
+        }),
+      );
+    }) as unknown as typeof fetch;
+    const restore = stubUnsafe((text) => {
+      if (text.includes("atlas_doc_briefings")) return Promise.reject(new Error('relation "atlas_doc_briefings" does not exist'));
+      return Promise.resolve([{ id: "u1", type: "Core", score: 0.8, member_ids: null }]);
+    });
+    try {
+      const res = await runSemantic(ix, "briefing failure query", undefined, 5);
+      expect(res.skipped).toBeNull();
+      expect(res.hits.map((h) => h.id)).toEqual(["u1"]);
+      expect(res.briefingHits).toEqual([]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("returns briefing hits, floor-free and ranked by position, when the statement answers", async () => {
+    config.openrouterApiKey = "test-key";
+    config.semanticEmbedTimeoutMs = 5_000;
+    globalThis.fetch = ((_u: string, init: { body: string }) => {
+      const input = (JSON.parse(init.body) as { input: string[] }).input;
+      return Promise.resolve(
+        new Response(JSON.stringify({ data: input.map((_t, i) => ({ index: i, embedding: Array.from({ length: 1024 }, () => 0.01) })) }), {
+          status: 200, headers: { "content-type": "application/json" },
+        }),
+      );
+    }) as unknown as typeof fetch;
+    const restore = stubUnsafe((text) =>
+      Promise.resolve(
+        text.includes("atlas_doc_briefings")
+          ? [{ id: "b1", score: 0.12 }, { id: "b2", score: 0.1 }]
+          : [],
+      ),
+    );
+    try {
+      const res = await runSemantic(ix, "briefing ok query", undefined, 5);
+      expect(res.briefingHits).toEqual([
+        { id: "b1", rank: 0, score: 0.12, source: "briefing" },
+        { id: "b2", rank: 1, score: 0.1, source: "briefing" },
+      ]);
+    } finally {
+      restore();
+    }
   });
 });

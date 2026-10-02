@@ -18,7 +18,7 @@
 import { json } from "./http.ts";
 import { config } from "./config.ts";
 import { getIndexes } from "./retrieval/indexes.ts";
-import { runLexical, runSemantic, filterByType, type Via } from "./retrieval/search.ts";
+import { runLexical, runSemantic, filterByType, fuseBriefings, type Via } from "./retrieval/search.ts";
 import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "./retrieval/leaf-attribution.ts";
 import { rateLimited } from "./feedback-limits.ts";
 import { spendSemanticBudget } from "./search-semantic-limit.ts";
@@ -94,7 +94,11 @@ export async function semanticDocSearch(
   // The SQL scope clause is permissive on purpose (it keeps ancestor anchors);
   // this is the exact test, and it runs on the LEAF the hit was attributed to,
   // which is the id the reader will actually open.
-  const typed = filterByType(attributed, ix, opts.type);
+  // One more ranking, fused once with the attributed leaves: a thin document
+  // (a one-line parameter) is found by what its briefing says it is. No extra
+  // embed call: the briefing statement reuses the query vector.
+  const fused = fuseBriefings(attributed, semResult.briefingHits);
+  const typed = filterByType(fused, ix, opts.type);
   const scoped = opts.scope
     ? typed.filter((h) => {
         const n = ix.docMap.get(h.id);

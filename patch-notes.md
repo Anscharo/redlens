@@ -35,6 +35,7 @@
 
 ## 2026-10-02
 
+- Meaning search now pauses on text that doesn't look like words; press Enter to search anyway
 - Fixed search so words with underscores, like erc4626_redeem, are searched as one word.
 - Showed equivalent documents from other Prime Agents and owning-agent labels when viewing a preview.
 
@@ -42,6 +43,8 @@
 - Made the light theme the default for new visitors instead of following the device setting
 - Stopped the chat's verification badge from failing an answer for its own summary callouts
 - The chat assistant can now see the verification results and citation marks shown under its earlier answers, so it can explain them when asked
+- Meaning search now also matches a short briefing written for each document, so a one-line document is found by what it is about
+- Meaning search now starts sooner after you stop typing and answers in about half a second
 
 ## 2026-09-30
 - Made previews catch a longer document that was replaced by a different one even when the two share most of their wording

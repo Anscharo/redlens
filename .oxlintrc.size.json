@@ -128,7 +128,7 @@
     { "files": ["scripts/eval/eval-census.ts"], "rules": { "max-lines-per-function": ["error", { "max": 69, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/eval/eval-facts.ts"], "rules": { "max-lines": ["error", { "max": 202, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 143, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/eval/eval-retrieval-queries.ts"], "rules": { "max-lines": ["error", { "max": 217, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 169, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["scripts/eval/eval-retrieval.ts"], "rules": { "max-lines": ["error", { "max": 512, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 71, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["scripts/eval/eval-retrieval.ts"], "rules": { "max-lines": ["error", { "max": 278, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/eval/eval-tools-print.ts"], "rules": { "max-lines-per-function": ["error", { "max": 57, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/eval/eval-tools-run.ts"], "rules": { "max-lines-per-function": ["error", { "max": 58, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/eval/eval-verifier.ts"], "rules": { "max-lines": ["error", { "max": 191, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 64, "skipBlankLines": true, "skipComments": true }] } },
@@ -165,7 +165,7 @@
     { "files": ["scripts/lib/run-thread.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 62, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/settlement-xlsx.mjs"], "rules": { "max-lines": ["error", { "max": 341, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 92, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/prehist/genesis-bridge.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 69, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["scripts/required/atlas-worker.mjs"], "rules": { "max-lines": ["error", { "max": 262, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 185, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["scripts/required/atlas-worker.mjs"], "rules": { "max-lines": ["error", { "max": 268, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 185, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/required/build-doc-versions.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 54, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/required/build-graph.mjs"], "rules": { "max-lines": ["error", { "max": 452, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/required/build-history.mjs"], "rules": { "max-lines": ["error", { "max": 299, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 214, "skipBlankLines": true, "skipComments": true }] } },
@@ -202,9 +202,9 @@
     { "files": ["src/server/chat/tools/tool-registry.ts"], "rules": { "max-lines": ["error", { "max": 607, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/tools/tools-graph.ts"], "rules": { "max-lines": ["error", { "max": 416, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 69, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/tools/tools-history.ts"], "rules": { "max-lines": ["error", { "max": 453, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 97, "skipBlankLines": true, "skipComments": true }] } },
-    // Raised by 3: atlasSearch now runs the lexical leg first and threads its residual into
-    // runSemantic, which is the call site itself — see retrieval/leaf-attribution.ts.
-    { "files": ["src/server/chat/tools/tools.ts"], "rules": { "max-lines": ["error", { "max": 193, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 54, "skipBlankLines": true, "skipComments": true }] } },
+    // atlasSearch runs the lexical leg first and threads its residual into runSemantic,
+    // which is the call site itself — see retrieval/leaf-attribution.ts.
+    { "files": ["src/server/chat/tools/tools.ts"], "rules": { "max-lines": ["error", { "max": 189, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 54, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/citation-marks.ts"], "rules": { "max-lines": ["error", { "max": 203, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 93, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/completeness.ts"], "rules": { "max-lines": ["error", { "max": 194, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/definition-block-gate.ts"], "rules": { "max-lines-per-function": ["error", { "max": 80, "skipBlankLines": true, "skipComments": true }] } },
@@ -242,8 +242,6 @@
     // anywhere else.
     { "files": ["src/server/retrieval/indexes.ts"], "rules": { "max-lines": ["error", { "max": 275, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/retrieval/query.ts"], "rules": { "max-lines": ["error", { "max": 315, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 172, "skipBlankLines": true, "skipComments": true }] } },
-    // Lowered: leaf attribution moved to leaf-attribution.ts + leaf-scores.ts.
-    { "files": ["src/server/retrieval/search.ts"], "rules": { "max-lines": ["error", { "max": 194, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/sync-embeddings.ts"], "rules": { "max-lines": ["error", { "max": 216, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 102, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/sync.ts"], "rules": { "max-lines-per-function": ["error", { "max": 122, "skipBlankLines": true, "skipComments": true }] } }
   ]

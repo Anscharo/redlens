@@ -18,7 +18,7 @@ import {
   MCD_VAT_ADDR,
 } from "../test/workerFixtures";
 import type { SearchHit } from "@/types";
-import { SEMANTIC_DEBOUNCE_MS, SEMANTIC_PARTIAL_DEBOUNCE_MS } from "@/lib/searchSemantic";
+import { SEMANTIC_DEBOUNCE_MS } from "@/lib/searchSemantic";
 
 let harness: WorkerHarness | null = null;
 
@@ -616,7 +616,7 @@ describe("semantic lane", () => {
     // switch to rows that share no word with the query.
     const calls: string[] = [];
     const h = await withSemantic({ hits: [{ id: IDS.facilitatorCore, score: 0.8 }], skipped: null, available: true }, { calls });
-    const id = ask(h, "zzzznothingmatchesthis", { lane: "lexical" });
+    const id = ask(h, "nothingmatchesthis", { lane: "lexical" });
     const msg = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
     expect(msg.hits).toEqual([]);
     expect(msg.semantic).toBe("none");
@@ -630,7 +630,7 @@ describe("semantic lane", () => {
       skipped: null,
       available: true,
     });
-    const id = ask(h, "zzzznothingmatchesthis", { lane: "semantic" });
+    const id = ask(h, "nothingmatchesthis", { lane: "semantic" });
     const done = (await h.waitFor((m) => m.type === "results" && m.id === id && m.semantic === "done")) as Results;
     expect(done.hits.map((x) => x.id)).toEqual([IDS.facilitatorCore]);
     expect(done.hits[0].semantic).toBe(true);
@@ -649,7 +649,7 @@ describe("semantic lane", () => {
     });
     // "the" occurs in this fixture's content; under term highlighting it would
     // be marked, asserting a wording match the row's own label denies.
-    const id = ask(h, "the zzzznothingmatches", { lane: "semantic" });
+    const id = ask(h, "the nothingmatches", { lane: "semantic" });
     const done = (await h.waitFor((m) => m.type === "results" && m.id === id && m.semantic === "done")) as Results;
     const hit = done.hits[0];
     expect(hit.snippet).not.toContain("<mark>");
@@ -663,7 +663,7 @@ describe("semantic lane", () => {
       skipped: null,
       available: true,
     });
-    const id = ask(h, "zzzznothingmatchesthis", { lane: "semantic" });
+    const id = ask(h, "nothingmatchesthis", { lane: "semantic" });
     const done = (await h.waitFor((m) => m.type === "results" && m.id === id && m.semantic === "done")) as Results;
     // The meaning lane answers with the semantic list alone, never interleaved
     // with the wording one.
@@ -671,51 +671,48 @@ describe("semantic lane", () => {
     expect(done.hits.every((x) => x.semantic)).toBe(true);
   });
 
-  it("holds the embed back while the last word is still being typed", async () => {
-    // The wait is decided by asking MiniSearch's own term dictionary whether the
-    // trailing word is a whole word or only the start of one — so this also pins
-    // the probe against a REAL index: if it stopped reading the dictionary, every
-    // query would fire at the short debounce and the first assertion would fail.
+  const semCalls = (calls: string[]) => calls.filter((u) => u.includes("/api/search/semantic"));
+
+  it("holds a query whose words do not look like words: wording hits, held words named, no request", async () => {
     const calls: string[] = [];
     const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
-    const sem = () => calls.filter((u) => u.includes("/api/search/semantic"));
-
-    ask(h, "governan", { lane: "semantic" }); // on the way to "governance"
+    const id = ask(h, "xkcdq quorum", { lane: "semantic" });
+    const msg = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results & { heldWords?: string[] };
+    expect(msg.semantic).toBe("none");
+    expect(msg.heldWords).toEqual(["xkcdq"]);
+    expect(msg.hits.map((x) => x.id)).toContain(IDS.facilitatorCore);
     await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
-    expect(sem()).toHaveLength(0);
-    // But it is a WAIT, not a refusal: a reader who stops mid-word still gets an
-    // answer, or the lane would hang on a query it never resolves. Polled rather
-    // than slept for, so a loaded runner slipping the timer is not a failure —
-    // the assertion above is the one that has to be exact.
-    const deadline = Date.now() + SEMANTIC_PARTIAL_DEBOUNCE_MS;
-    while (sem().length === 0 && Date.now() < deadline) await new Promise((r) => setTimeout(r, 25));
-    expect(sem()).toHaveLength(1);
+    expect(semCalls(calls)).toHaveLength(0);
   });
 
-  it("does not delay an ordinary English word that merely STARTS an atlas term", async () => {
-    // "slipper" is a whole English word, and also the first seven letters of
-    // "slippery", which is the only form this corpus uses. Judged by the atlas
-    // index alone it is indistinguishable from a half-typed word, and 5.5% of
-    // the 10k most frequent English words sit in that position — they are also
-    // disproportionately the words a meaning search is phrased in. The English
-    // list (src/data/common-words.txt) is what tells the two apart.
+  it("judges the words when the pause ends, so a word still being typed is never held", async () => {
+    // "str" has no vowel yet, but the reader is on the way to "strategy": the
+    // next keystroke cancels the pause before the first is ever judged.
     const calls: string[] = [];
     const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
-    ask(h, "slipper", { lane: "semantic" });
-    await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
-    expect(calls.filter((u) => u.includes("/api/search/semantic"))).toHaveLength(1);
+    const first = ask(h, "quorum str", { lane: "semantic" });
+    const second = ask(h, "quorum strategy", { lane: "semantic" });
+    const msg = (await h.waitFor((m) => m.type === "results" && m.id === second && m.semantic === "done")) as Results & { heldWords?: string[] };
+    expect(h.ofType("results").filter((m) => m.id === first)).toHaveLength(0);
+    expect(msg.heldWords).toBeUndefined();
+    expect(semCalls(calls)).toHaveLength(1);
   });
 
-  it("treats an underscore identifier as finished, not half typed", async () => {
-    // The INDEXING processTerm returns an array for a `_` word — the whole token
-    // plus its parts — so a probe that only accepts a string reads every one of
-    // them as a word in progress and buys the long wait. The probe asks the QUERY
-    // side, which returns the whole token, and the dictionary holds it.
+  it("sends the same held query once the reader forces it", async () => {
     const calls: string[] = [];
     const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
-    ask(h, "erc4626_redeem", { lane: "semantic" });
+    const id = ask(h, "xkcdq quorum", { lane: "semantic", force: true });
+    const msg = (await h.waitFor((m) => m.type === "results" && m.id === id && m.semantic === "done")) as Results & { heldWords?: string[] };
+    expect(msg.heldWords).toBeUndefined();
+    expect(semCalls(calls)).toHaveLength(1);
+  });
+
+  it("does not hold a letter-number term the index holds", async () => {
+    const calls: string[] = [];
+    const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
+    ask(h, `who holds ${MCD_VAT_ADDR}`, { lane: "semantic" });
     await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
-    expect(calls.filter((u) => u.includes("/api/search/semantic"))).toHaveLength(1);
+    expect(semCalls(calls)).toHaveLength(1);
   });
 
   it("a finished word buys its embed at the short debounce", async () => {
@@ -762,7 +759,7 @@ describe("semantic lane", () => {
 
   it("reports an unconfigured backend rather than staying silent", async () => {
     const h = await withSemantic({ hits: [], skipped: null, available: false });
-    const id = ask(h, "zzzznothingmatchesthis", { lane: "semantic" });
+    const id = ask(h, "nothingmatchesthis", { lane: "semantic" });
     const done = (await h.waitFor(
       (m) => m.type === "results" && m.id === id && m.semantic === "unavailable",
     )) as Results;
@@ -780,15 +777,15 @@ describe("semantic lane", () => {
     const semanticCalls = () => calls.filter((u) => u.includes("/api/search/semantic"));
 
     // Wording lane, fallback: wording finds nothing, the leg runs, answer cached.
-    const first = ask(h, "zzzznothingmatchesthis", { lane: "semantic" });
+    const first = ask(h, "nothingmatchesthis", { lane: "semantic" });
     await h.waitFor((m) => m.type === "results" && m.id === first && m.semantic === "done");
     expect(semanticCalls()).toHaveLength(1);
 
     // Flip to meaning, then back. Same query text, so the scored ids are the
     // same answer — neither flip may re-embed or re-query pgvector.
-    const second = ask(h, "zzzznothingmatchesthis", { lane: "semantic" });
+    const second = ask(h, "nothingmatchesthis", { lane: "semantic" });
     const onMeaning = (await h.waitFor((m) => m.type === "results" && m.id === second)) as Results;
-    const third = ask(h, "zzzznothingmatchesthis", { lane: "semantic" });
+    const third = ask(h, "nothingmatchesthis", { lane: "semantic" });
     const backOnWording = (await h.waitFor((m) => m.type === "results" && m.id === third)) as Results;
 
     expect(semanticCalls()).toHaveLength(1);
@@ -808,11 +805,11 @@ describe("semantic lane", () => {
     const h = await withSemantic({ hits: [], skipped: "embed timed out", available: true }, { calls });
     const semanticCalls = () => calls.filter((u) => u.includes("/api/search/semantic"));
 
-    const first = ask(h, "zzzznothingmatchesthis", { lane: "semantic" });
+    const first = ask(h, "nothingmatchesthis", { lane: "semantic" });
     await h.waitFor((m) => m.type === "results" && m.id === first && m.semantic === "skipped");
     expect(semanticCalls()).toHaveLength(1);
 
-    const second = ask(h, "zzzznothingmatchesthis", { lane: "semantic" });
+    const second = ask(h, "nothingmatchesthis", { lane: "semantic" });
     await h.waitFor((m) => m.type === "results" && m.id === second && m.semantic === "skipped");
     expect(semanticCalls()).toHaveLength(2);
   });

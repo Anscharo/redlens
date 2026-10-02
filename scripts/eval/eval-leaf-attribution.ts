@@ -17,7 +17,8 @@
 // Measured over 98 grouped-target queries:
 //
 //   lexical                     29.6%   no vectors at all
-//   plain query vector          13.3%   worse than lexical — see below
+//   plainQuery                  15.3%   worse than lexical — see below (the scratch
+//                                       run this was ported from reported 13.3%)
 //   lexResid                    39.8%   residual from the lexical leg
 //   rrfU0.25                    43.9%   SHIPPED — one round trip
 //   rrf(lexResid,demoteA0.5)    44.9%   needs a vector that does not exist
@@ -25,8 +26,8 @@
 //
 // Do not "simplify" attribution to the plain query vector: subtracting a
 // per-GROUP constant cannot reorder that group's members, so it collapses ICD
-// disambiguation to 2.5%. The per-MEMBER `cos(m, anchor)` penalty is what makes
-// a free arm work at all — "prefer the member that answers the question over
+// disambiguation to 5.0% (2 of 40; the scratch run reported 2.5%). The
+// per-MEMBER `cos(m, anchor)` penalty is what makes a free arm work at all — "prefer the member that answers the question over
 // the one that merely echoes the group's name".
 //
 //   pnpm eval:leaf-attribution                 # uses .cache vectors, embeds misses
@@ -45,8 +46,8 @@ import { generateRetrievalQueries, type RetrievalQuery } from "./eval-retrieval-
 import { MINISEARCH_OPTIONS } from "../../src/lib/searchOptions.ts";
 import { expandQueryTokens, partitionByOriginalTerms } from "../../src/lib/searchInflect.ts";
 import { config } from "../../src/server/config.ts";
-import { openVectorCache, cos } from "./eval-vector-cache.ts";
-import { formatPaired, pairedBootstrap } from "./eval-bootstrap.ts";
+import { openVectorCache, cos } from "./eval-leaf-cache.ts";
+import { formatBootstrap, pairedBootstrap } from "./eval-bootstrap.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const argv = process.argv.slice(2);
@@ -90,9 +91,7 @@ const wanted = new Map<string, string>();
 for (const u of units) wanted.set(`H\u0000${unitHash(u.text)}`, u.text);
 for (const c of cases) {
   wanted.set(`Q\u0000${c.x.query}`, config.embedQueryPrefix + c.x.query);
-  const anchor = byId.get(c.unit.anchorId);
-  if (anchor) wanted.set(`H\u0000${contentHash(anchor)}`, buildEmbedText(anchor));
-  for (const id of c.unit.memberIds) {
+  for (const id of [c.unit.anchorId, ...c.unit.memberIds]) {
     const m = byId.get(id);
     if (m) wanted.set(`H\u0000${contentHash(m)}`, buildEmbedText(m));
   }
@@ -143,7 +142,7 @@ console.log(`cache: ${Object.keys(vecs).length} vectors → ${path.relative(ROOT
 
 // ---- arms ------------------------------------------------------------------
 const LAMBDAS = [0.25, 0.5, 0.75];
-const ARMS = ["lexical", "semResid", "lexResid", ...LAMBDAS.map((l) => `demoteU${l}`),
+const ARMS = ["lexical", "plainQuery", "semResid", "lexResid", ...LAMBDAS.map((l) => `demoteU${l}`),
   ...LAMBDAS.map((l) => `rrfU${l}`), "rrf(lexResid,demoteA0.5)"];
 const hit: Record<string, number> = Object.fromEntries(ARMS.map((a) => [a, 0]));
 const bySlice = new Map<string, Record<string, number>>();
@@ -176,6 +175,8 @@ for (const c of cases) {
 
   const picks: Record<string, string> = {
     lexical: pickLeaf(c.x.query, members, anchor).node.id,
+    // The header's "plain query vector" row: the arm nobody should simplify to.
+    plainQuery: best((r) => cos(qv, r.v)),
     semResid: rv ? best((r) => cos(rv, r.v)) : "",
     lexResid: lv ? best((r) => cos(lv, r.v)) : "",
   };
@@ -209,5 +210,5 @@ for (const [s, b] of bySlice) {
 console.log(`\npaired bootstrap (${R} resamples of the same ${n} queries):`);
 for (const pair of [["lexResid", "semResid"], ["rrfU0.25", "semResid"], ["rrfU0.25", "lexResid"],
   ["lexResid", "lexical"], ["rrfU0.25", "lexical"]] as const) {
-  console.log(`  ${formatPaired(pair[0], pair[1], pairedBootstrap(trace, pair[0], pair[1], R))}`);
+  console.log(`  ${formatBootstrap(pair[0], pair[1], pairedBootstrap(trace, pair[0], pair[1], { resamples: R }))}`);
 }

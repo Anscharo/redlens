@@ -27,12 +27,16 @@ export type SearchState =
       semanticNote?: string;
       /** A verified spelling correction, when this query found nothing. */
       didYouMean?: string;
+      /** Query words the meaning lane held back; Enter sends the query anyway. */
+      heldWords?: string[];
     }
   | { status: "error"; message: string };
 
 /** Which index to query. Meaning-matched rows come back on `semantic` only. */
 export interface SearchOptions {
   lane: SearchLane;
+  /** Send a meaning query the word-shape check would hold back. */
+  force?: boolean;
 }
 
 const DEFAULT_OPTIONS: SearchOptions = { lane: "lexical" };
@@ -49,6 +53,7 @@ function doneState(msg: Extract<WorkerOutMessage, { type: "results" }>, query: s
     semantic: msg.semantic,
     ...(msg.semanticNote ? { semanticNote: msg.semanticNote } : {}),
     ...(msg.didYouMean ? { didYouMean: msg.didYouMean } : {}),
+    ...(msg.heldWords?.length ? { heldWords: msg.heldWords } : {}),
   };
 }
 

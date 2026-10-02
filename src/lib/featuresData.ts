@@ -143,7 +143,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Entities — Agents, Conservers, Instances, Primitives and the rest — are on the entities pill; they no longer appear above wording results.",
           "A result the meaning index found is labelled semantic match and shows its similarity score; it can share no word at all with your query.",
           "Add in:<doc number> to scope meaning search to one subtree — in:A.6 who approves rewards searches only the Agent Scope.",
-          "On the meaning pill the a* / \"a\" / Aa mode buttons are greyed out, and any other search syntax you type — type:, title:, -word, ~2, quotes — is dropped, with a note above the results naming what it dropped. in: is the exception and still applies.",
+          "On the meaning pill the a* / \"a\" / Aa mode buttons are greyed out, and any other search syntax you type — type:, title:, -word, ~2, quotes — is dropped, with a note above the results naming what it dropped. in: is the exception and still applies. If a word you typed doesn't look like a word (xkcdq, a1b2c), the meaning pill shows wording matches and a note naming it instead of searching; press Enter to search by meaning anyway.",
         ],
         note: "Meaning-matched results appear on the meaning pill and nowhere else — wording searches stay wording searches. That pill needs a deployment configured for it; where it is not, it is disabled and says so.",
       },

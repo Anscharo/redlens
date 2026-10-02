@@ -1,46 +1,66 @@
-// Paired bootstrap over per-query hit vectors.
+// Paired bootstrap shared by the eval harnesses.
 //
-// Resamples the SAME queries for every arm, so the comparison is within-query:
-// an arm that wins only on the queries it happens to be shown is not separated
-// from the one it beats. A few points of difference over ~100 queries is worth
-// nothing if the resampling distribution straddles zero, so an arm ships only
-// when the interval clears it.
-export interface PairedResult {
-  /** The observed difference, in percentage points of accuracy. */
-  point: number;
-  /** 95% interval over the resamples, in the same units. */
-  lo: number;
-  hi: number;
-  /** Share of resamples in which `a` scored higher. */
-  pBetter: number;
+// Resample the SAME rows for both arms, so the comparison is within-query. A
+// 4-point gap on 98 queries is worth nothing if the resampling distribution
+// straddles zero.
+
+/** Small seeded RNG (mulberry32) so tests can pin the resampling. */
+export function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
-/** `trace` holds one record per query: arm name → 1 for a hit, 0 for a miss. */
+export interface BootstrapResult {
+  /** Mean of a − b over the rows, in percentage points. */
+  point: number;
+  lo: number;
+  hi: number;
+  /** Share of resamples where arm a beat arm b. */
+  pBetter: number;
+  n: number;
+}
+
 export function pairedBootstrap(
-  trace: readonly Record<string, number>[],
+  trace: Record<string, number>[],
   a: string,
   b: string,
-  resamples = 4000,
-): PairedResult {
+  opts: { resamples?: number; rng?: () => number } = {},
+): BootstrapResult {
+  const R = opts.resamples ?? 4000;
+  const rng = opts.rng ?? Math.random;
   const n = trace.length;
   const diffs: number[] = [];
   let wins = 0;
-  for (let r = 0; r < resamples; r++) {
+  for (let r = 0; r < R; r++) {
     let d = 0;
-    for (let i = 0; i < n; i++) { const t = trace[(Math.random() * n) | 0]!; d += t[a]! - t[b]!; }
+    for (let i = 0; i < n; i++) {
+      const t = trace[(rng() * n) | 0]!;
+      d += t[a]! - t[b]!;
+    }
     diffs.push((100 * d) / n);
     if (d > 0) wins++;
   }
   diffs.sort((x, y) => x - y);
+  const point = (100 * trace.reduce((s, t) => s + t[a]! - t[b]!, 0)) / n;
   return {
-    point: (100 * trace.reduce((s, t) => s + t[a]! - t[b]!, 0)) / n,
-    lo: diffs[Math.floor(resamples * 0.025)]!,
-    hi: diffs[Math.floor(resamples * 0.975)]!,
-    pBetter: wins / resamples,
+    point,
+    lo: diffs[Math.floor(R * 0.025)]!,
+    hi: diffs[Math.floor(R * 0.975)]!,
+    pBetter: wins / R,
+    n,
   };
 }
 
-/** One line of report for a pair, as the eval rigs print it. */
-export function formatPaired(a: string, b: string, r: PairedResult): string {
-  return `${a} − ${b}: ${r.point.toFixed(1)} pts  95% CI [${r.lo.toFixed(1)}, ${r.hi.toFixed(1)}]  P(${a} better)=${r.pBetter.toFixed(2)}`;
+export function formatBootstrap(a: string, b: string, r: BootstrapResult): string {
+  return (
+    `${a} − ${b}: ${r.point.toFixed(1)} pts  95% CI ` +
+    `[${r.lo.toFixed(1)}, ${r.hi.toFixed(1)}]  ` +
+    `P(${a} better)=${r.pBetter.toFixed(2)}`
+  );
 }

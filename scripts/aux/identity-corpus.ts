@@ -10,6 +10,7 @@ import path from "node:path";
 import { makeAtlasGitSource } from "../lib/atlas-git-source.mjs";
 import { cleanContent } from "../lib/atlas-parser.mjs";
 import { embedBatch } from "../../src/server/retrieval/embed.ts";
+import { config } from "../../src/server/config.ts";
 import { resolve } from "../../src/server/preview/embeddings-store.ts";
 import { lines, sameTitle, words, type SwapNode } from "../../src/server/preview/identity.ts";
 import { fetchRemoteNodes } from "./fetchNodes.ts";
@@ -92,9 +93,15 @@ export function quantile(xs: number[], p: number): number {
   return s[Math.floor(p * (s.length - 1))];
 }
 
-const QWEN_CACHE = `${CACHE_DIR}/qwen-cosine.json`;
+// `--model <id>` on any script that imports this file embeds with that model
+// instead of the configured one. Each model has its own vector cache; the
+// default model keeps the original file name.
+const modelArg = process.argv.indexOf("--model");
+if (modelArg >= 0 && process.argv[modelArg + 1]) config.embedModel = process.argv[modelArg + 1];
+export const EMBED_MODEL_ID = config.embedModel;
+const QWEN_CACHE = EMBED_MODEL_ID === "qwen/qwen3-embedding-8b" ? `${CACHE_DIR}/qwen-cosine.json` : `${CACHE_DIR}/${EMBED_MODEL_ID.replace(/[^\w.-]+/g, "_")}-cosine.json`;
 
-/** Qwen3 vectors for `texts`, keyed by the text. Cached on disk one vector per
+/** Vectors (Qwen3 unless `--model` names another) for `texts`, keyed by the text. Cached on disk one vector per
  *  line, so a rerun costs nothing. With `embed` false it reads the cache only
  *  and makes no network call; texts without a vector are then absent from the
  *  map. The batching and the provider client are the preview build's own

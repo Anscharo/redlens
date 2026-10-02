@@ -68,6 +68,9 @@ const sqlDispatch = new Proxy(sqlCall, {
   get(target, prop, receiver) {
     const base = baseSql;
     if (prop === "unsafe") {
+      // A later file that assigns `sql.unsafe` itself (search.test.ts's
+      // stubUnsafe) lands on the target; that stub wins over this dispatcher.
+      if (Object.prototype.hasOwnProperty.call(target, "unsafe")) return (target as { unsafe?: unknown }).unsafe;
       return (query: string, params?: unknown[]) => {
         if (unsafeImpl) {
           lastParams = params ?? [];
@@ -217,6 +220,8 @@ describe("atlasQuery — semantic search leg (DB-backed, mocked)", () => {
     const ix = buildIndexes([lexOnly, semOnly], [], [], { atlasCommit: "t" });
 
     unsafeImpl = (query) => {
+      // The briefing statement rides the same connection; this case has none.
+      if (query.includes("atlas_doc_briefings")) return Promise.resolve([]);
       expect(query).toContain("atlas_doc_embeddings");
       return Promise.resolve([{ id: "sem-only", type: "Core", score: 0.9 }]);
     };
@@ -236,8 +241,8 @@ describe("atlasQuery — semantic search leg (DB-backed, mocked)", () => {
     const prevMin = config.semanticMinScore;
     config.semanticMinScore = 0.5;
     try {
-      unsafeImpl = () =>
-        Promise.resolve([
+      unsafeImpl = (query) =>
+        Promise.resolve(query.includes("atlas_doc_briefings") ? [] : [
           { id: "a", type: "Core", score: 0.9 },
           { id: "b", type: "Core", score: 0.1 }, // below floor — and everything after it too
         ]);

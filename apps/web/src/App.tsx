@@ -83,7 +83,7 @@ export default function App() {
   // box filters that report's rows (query stays in ?q= on the same route).
   const reportScopeCfg = REPORT_SCOPE_CONFIG[location];
 
-  const { query, activeMode, isMixed, inputRef, handleChange, clearQuery, wrapModeClick, broadSearch, state, handleHintClick, recentSearches, selectRecent, lane, selectLane } =
+  const { query, activeMode, isMixed, inputRef, handleChange, clearQuery, wrapModeClick, broadSearch, state, handleHintClick, recentSearches, selectRecent, lane, selectLane, searchAnyway } =
     useSearchInput(location, navigate, scope);
   const { navigateToNode, handleViewChange } = useNavigation({
     navigate,
@@ -187,7 +187,7 @@ export default function App() {
         modesDisabledReason={lane === "semantic" ? MEANING_LANE_MODES_OFF : undefined}
         recentSearches={recentSearches}
         onRecentSelect={selectRecent}
-        onSubmit={focusFirstResult}
+        onSubmit={() => searchAnyway() || focusFirstResult()}
       />
       <div className={`flex-1 flex ${windowScroll ? "" : "overflow-hidden"}`}>
         {showTree && (

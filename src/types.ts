@@ -94,7 +94,8 @@ export type WorkerInMessage =
   // `lane` picks which index to query, and picking the semantic one IS the
   // request for a meaning search. Absent means the wording lane, so an older
   // main thread and this worker stay compatible.
-  | { type: "query"; id: number; q: string; lane?: SearchLane }
+  // `force` sends a meaning query the word-shape check would hold back.
+  | { type: "query"; id: number; q: string; lane?: SearchLane; force?: boolean }
   | { type: "ping" }
   | { type: "preload"; docs: Record<string, AtlasNode>; addresses: Record<string, AddressInfo> };
 
@@ -118,6 +119,9 @@ export type WorkerOutMessage =
       // to return results, so offering it is never a dead end. Absent whenever
       // there were hits, or nothing better than the query itself was found.
       didYouMean?: string;
+      // Query words the meaning lane declined to embed because they do not look
+      // like words. Present only with semantic === "none".
+      heldWords?: string[];
     }
   | { type: "error"; id?: number; message: string }; // no id for init-time failures
 
