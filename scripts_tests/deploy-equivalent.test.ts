@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { ancestorsFromGit, deployEquivalentShas } from "../scripts/lib/deploy-equivalent.mjs";
+import { ancestorsFromGit, deployEquivalentShas, deployEquivalentShasFromGit } from "../scripts/lib/deploy-equivalent.mjs";
 
 describe("deployEquivalentShas", () => {
   it("adds older commits while their diff to head is markdown the app does not read", () => {
@@ -64,5 +64,15 @@ describe("ancestorsFromGit", () => {
     const head = commit("NOTES.md");
     expect(ancestorsFromGit(head, base, 20, git)).toEqual([{ sha: code, changedSinceHead: ["NOTES.md"] }]);
     fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("deployEquivalentShasFromGit", () => {
+  it("is head alone without a base", () => {
+    expect(deployEquivalentShasFromGit("abc", undefined)).toEqual(["abc"]);
+  });
+
+  it("is head alone when git cannot resolve the range", () => {
+    expect(deployEquivalentShasFromGit("abc", "no-such-ref-for-this-test")).toEqual(["abc"]);
   });
 });
