@@ -63,8 +63,8 @@ const DEFAULT_DEPS: ToolAccessDeps = {
 
 const PR_URL_RE = /^https?:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/pull\/(\d+)(?:[/?#].*)?$/i;
 
-/** What a model or user writes for a PR — 412, "#412", "PR 412", "pull-412", a
- *  GitHub PR URL — as a preview id. Anything else passes through as a raw id
+/** What a model or user writes for a PR — a bare number, "#N", "PR N",
+ *  "pull-N", a GitHub PR URL — as a preview id. Anything else passes through as a raw id
  *  (a sha, `owner:branch`, `owner:repo:pull-N`, a canonical branch). */
 export function normalizePreviewId(arg: unknown): string | null {
   const raw = String(arg ?? "").trim();

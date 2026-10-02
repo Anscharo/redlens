@@ -175,3 +175,16 @@ test("a turn with no change-log evidence gets the prompt byte-for-byte unchanged
   expect(system.content).toBe(REFUTE_PROMPT);
   expect(String(system.content)).not.toContain("CHANGE LOG");
 });
+
+test("buildRefutePrompt marks PR preview evidence as a proposal and adds the proposal rule only then", () => {
+  const [system, user] = buildRefutePrompt({
+    question: "q",
+    answer: "a",
+    evidence: [{ label: "[E1]", tool: "atlas_preview_diff", args: "{}", content: '{"source_class":"preview"}', sourceClass: "preview" }],
+  });
+  expect(String(user.content)).toContain("[E1] [PROPOSED PR TEXT, not the live Atlas]");
+  expect(String(system.content)).toContain("unmerged pull request");
+  expect(String(system.content)).not.toContain("CHANGE LOG");
+  const [plain] = buildRefutePrompt({ question: "q", answer: "a", evidence: [ev("some atlas text", "atlas")] });
+  expect(String(plain.content)).not.toContain("PROPOSED PR TEXT");
+});

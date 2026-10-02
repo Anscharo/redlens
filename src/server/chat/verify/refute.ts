@@ -11,7 +11,7 @@
 // before: it now guards against a FABRICATED contradiction rather than a
 // fabricated support claim.
 import type OpenAI from "openai";
-import type { EvidenceEntry } from "./verifier.ts";
+import type { EvidenceEntry, SourceClass } from "./verifier.ts";
 import type { Contradiction } from "./verifier.ts";
 import { normalizeForMatch } from "./verify-checks.ts";
 import { locateSpan, spanOverlap, stripLinkMarkup, tokenize, SPAN_MATCH_THRESHOLD } from "./span-match.ts";
@@ -43,25 +43,30 @@ export const REFUTE_PROMPT = [
 const CHANGE_LOG_RULE =
   "Entries marked [CHANGE LOG, not Atlas text] are commit metadata — dates, pull-request titles, commit messages, change counts. They say WHEN a document changed, never what it says; never read them as the atlas stating something.";
 
+// How each non-atlas evidence class is marked for the judge. "unknown" is
+// anything the source allowlist did not recognise as a registry atlas tool
+// (verifier.ts's classifyToolSource). It must be marked, not left bare: an
+// unmarked entry reads as retrieved atlas text, which is exactly the promotion
+// the allowlist exists to stop.
+const SOURCE_TAGS: Partial<Record<SourceClass, string>> = {
+  reference: " [REFERENCE]",
+  user: " [USER NOTE, not Atlas]",
+  history: " [CHANGE LOG, not Atlas text]",
+  preview: " [PROPOSED PR TEXT, not the live Atlas]",
+  unknown: " [NOT ATLAS]",
+};
+
+// Appended only when a PR preview's text is in the evidence, for the same
+// byte-identical-prompt reason as CHANGE_LOG_RULE.
+const PROPOSAL_RULE =
+  "Entries marked [PROPOSED PR TEXT, not the live Atlas] are an unmerged pull request's version of the Atlas. An answer that reports what the PR proposes is faithful to them even where live Atlas text says otherwise; only contradict a claim about the PR's text with that PR text, and a claim about the live Atlas with live Atlas text.";
+
 export function buildRefutePrompt(params: { question: string; answer: string; evidence: EvidenceEntry[] }): Msg[] {
   const { question, answer, evidence } = params;
   const evidenceBlock = evidence.length
     ? evidence
         .map((e) => {
-          // "unknown" is anything the source allowlist did not recognise as a
-          // registry atlas tool (verifier.ts's classifyToolSource). It must be
-          // marked, not left bare: an unmarked entry reads as retrieved atlas
-          // text, which is exactly the promotion the allowlist exists to stop.
-          const tag =
-            e.sourceClass === "reference"
-              ? " [REFERENCE]"
-              : e.sourceClass === "user"
-                ? " [USER NOTE, not Atlas]"
-                : e.sourceClass === "history"
-                  ? " [CHANGE LOG, not Atlas text]"
-                  : e.sourceClass === "unknown"
-                    ? " [NOT ATLAS]"
-                    : "";
+          const tag = (e.sourceClass && SOURCE_TAGS[e.sourceClass]) ?? "";
           return `${e.label}${tag} ${e.tool}(${e.args}) →\n${e.content}`;
         })
         .join("\n\n")
@@ -73,7 +78,11 @@ export function buildRefutePrompt(params: { question: string; answer: string; ev
   return [
     {
       role: "system",
-      content: evidence.some((e) => e.sourceClass === "history") ? `${REFUTE_PROMPT}\n${CHANGE_LOG_RULE}` : REFUTE_PROMPT,
+      content: [
+        REFUTE_PROMPT,
+        ...(evidence.some((e) => e.sourceClass === "history") ? [CHANGE_LOG_RULE] : []),
+        ...(evidence.some((e) => e.sourceClass === "preview") ? [PROPOSAL_RULE] : []),
+      ].join("\n"),
     },
     {
       role: "user",

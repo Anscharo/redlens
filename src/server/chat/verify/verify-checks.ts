@@ -7,6 +7,7 @@
 import { UUID_RE, EVM_ADDRESS_SRC, SOL_ADDRESS_SRC, DOC_NO_CORE } from "../../../lib/patterns.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import { findParamMismatches, type ParamMismatch } from "./param-checks.ts";
+import { previewEvidence } from "./preview-evidence.ts";
 import { completenessFailuresOf, type CompletenessEvidence } from "./completeness.ts";
 import { answerHasMscDisclaimer } from "../../external/envelope.ts";
 
@@ -778,12 +779,13 @@ export function runDeterministicChecks(
   const externalTexts = split?.externalTexts ?? [];
   const citations = extractCitations(answer);
   const invalidCitations = findInvalidCitationUuids(citations, ix);
-  const invalidDocNos = findInvalidDocNos(answer, ix);
+  const proposal = previewEvidence(atlasTexts);
+  const invalidDocNos = findInvalidDocNos(answer, ix).filter(proposal.unknownDocNo);
   const docNoMismatches = findDocNoMismatches(citations, ix);
   const ungroundedQuotes = findUngroundedQuotes(answer, atlasTexts, ix, completeness?.question);
   const ungroundedAddresses = findUngroundedAddresses(answer, evidenceTexts);
   const ungroundedCitationValues = findUngroundedCitationValues(answer, atlasTexts, ix);
-  const paramMismatches = findParamMismatches(answer, ix);
+  const paramMismatches = findParamMismatches(answer, ix).filter(proposal.unproposed);
   const completenessFailures = completenessFailuresOf(completeness?.question, answer, completeness?.evidence);
   const missingExternalDisclaimer = externalTexts.length > 0 && !answerHasMscDisclaimer(answer);
   const mscCitedAsAtlas = findMscCitedAsAtlas(answer, externalTexts, ix);
