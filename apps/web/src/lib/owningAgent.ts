@@ -41,8 +41,8 @@ export function findOwningAgent(
 // Precompute the owning-agent name for every doc, so the reader can look up a
 // pill per row without walking ancestors on each render. Same nearest-agent /
 // self-excluded rule as findOwningAgent, resolved over the doc_no ancestor chain
-// (robust to the depth-6 parentId flattening). Returns an empty map in preview
-// (no graph) or when no agents exist.
+// (robust to the depth-6 parentId flattening). Returns an empty map when the
+// graph hasn't loaded (or failed to) or when no agents exist.
 export function buildOwningAgentMap(
   atlas: Pick<AtlasBundle, "docs" | "docNoToId">,
   graph: GraphData | null,
