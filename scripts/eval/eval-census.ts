@@ -16,7 +16,7 @@
 // DECISION RULE: census payloads are tiny (373B for one census, 1657B for
 // three — measured, vs ~8KB for the features guide the facts bakeoff
 // protects). Over-firing here is 5-20x cheaper than there, so the
-// recall-favoring policy (CLAUDE.md's chat-facts section) applies even
+// recall-favoring policy (src/server/facts/CLAUDE.md) applies even
 // harder: adopt similarity if it recovers regex-missed routes at a
 // false-fire rate that stays low relative to that cheap payload — it does
 // not need to hit zero the way the features lane's decision rule demanded.
