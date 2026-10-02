@@ -8,7 +8,7 @@
 // atlas's vocabulary would otherwise read as half-typed ("home", "care",
 // "govern"). That is ~1.4k words / 8 KB, against 344 KB for the 44k-word
 // frequency list it is cut from, and it rescues every one of them rather than
-// 98% (measured 2026-09-29).
+// the measured 98% a bare frequency cut-off reaches.
 //
 // DRIFT is by design and costs nothing that matters: when the atlas gains a
 // term some English word is now a prefix of, that word is missing here and the

@@ -160,16 +160,17 @@ export const config = {
   // Qwen3-Embedding is an ASYMMETRIC, instruct-tuned model: its own model card
   // specifies `Instruct: <task>\nQuery: <text>` on the query side with documents
   // embedded raw, and reports a 1-5% retrieval drop when the instruction is
-  // omitted. Until 2026-09-29 this codebase embedded queries and documents
-  // through the identical path with no prefix, which is the omitted case.
+  // omitted. Embedding queries and documents through one prefix-free path is
+  // that omitted case, so the query path must apply this and the document path
+  // must not.
   //
   // Query-side only, so changing it re-embeds NOTHING — the stored document
   // vectors are already raw, which is what this model wants. That also makes it
   // instantly reversible: set EMBED_QUERY_PREFIX="" to go back.
   //
   // The text is the model card's GENERIC retrieval instruction, not a
-  // domain-specific one. Measured 2026-09-29 (`pnpm eval:retrieval --reuse-db`,
-  // 179 queries, kv_records_breadcrumbs, local Qwen vectors), semantic-only:
+  // domain-specific one. Measured with `pnpm eval:retrieval --reuse-db` over
+  // 179 queries, kv_records_breadcrumbs, local Qwen vectors, semantic-only:
   //
   //                         recall  exact  disambig   mrr   control(prose) recall
   //   no prefix              0.771  0.575    0.450   0.547        0.725
@@ -217,8 +218,8 @@ export const config = {
   // and atlas_query. Conservative default — good matches sit well above it;
   // raise it (env) to be stricter, lower it if paraphrase recall suffers.
   //
-  // Re-fitted 2026-09-29 on production's Qwen vectors with the generic query
-  // prefix, 179 labeled queries, top-200 anchors each: the correct anchor's
+  // Fitted on production's Qwen vectors with the generic query prefix, over
+  // 179 labeled queries, top-200 anchors each: the correct anchor's
   // cosine is p10 0.627 / p50 0.761 / min 0.349, the rank-10 cosine p10 0.471 /
   // min 0.319, the rank-200 cosine min 0.264. At 0.30 no correct anchor is lost
   // and only the deep tail is cut; 0.40 already loses 2 correct anchors and

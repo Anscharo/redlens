@@ -48,7 +48,7 @@ describe("useEntitySearch", () => {
     const { useEntitySearch } = await import("./useEntitySearch");
     const { result } = renderHook(() => useEntitySearch("keel"));
     await waitFor(() => expect(searchEntities).toHaveBeenCalled());
-    // A failed lookup is "found nothing", and crucially no longer pending.
+    // A failed lookup is "found nothing", and crucially not pending.
     await waitFor(() => expect(result.current).toEqual({ hits: [], loading: false }));
   });
 

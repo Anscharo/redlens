@@ -1,12 +1,12 @@
 // Search: lexical (minisearch, in-memory) + semantic (pgvector) + RRF merge.
 // Both legs return id+rank+score; callers resolve full nodes from the doc map.
 import { type Indexes } from "./indexes.ts";
-import { sql, toVectorLiteral, toUuidArrayLiteral } from "../db.ts";
+import { sql, toVectorLiteral } from "../db.ts";
 import { fromUuidArray } from "../pg-array.ts";
 import { embedQueries, type EmbedDiag } from "./embed.ts";
 import { config } from "../config.ts";
 import { compactProse } from "../../lib/shortenTitle.ts";
-import { rewriteSemanticHit, type Via, type LeafSemanticScore, fuseLeafScores, type LeafRow } from "./embed-units.ts";
+import { type Via } from "./embed-units.ts";
 import { expandQueryTokens, partitionByOriginalTerms } from "../../lib/searchInflect.ts";
 import { rrfFuse } from "../../lib/searchSemantic.ts";
 export type { Via };
@@ -98,6 +98,36 @@ export function embedFailureReason(err: unknown, diag: EmbedDiag): string {
   return `${raced} — provider said: ${cause}`;
 }
 
+interface ScoredRow {
+  id: string;
+  type: string;
+  score: number;
+  member_ids?: unknown;
+}
+
+// Rows are ordered by ascending distance (descending cosine), so once one falls
+// below the relevance floor every later row does too — stop rather than filter.
+//
+// Deliberately NOT type-filtered: a grouped parent may have a different type
+// from the leaf attribution rewrites it to, so callers filter after
+// `attributeSemanticHits`.
+function scoredRowsToHits(rows: ScoredRow[], overFetch: number): Hit[] {
+  const out: Hit[] = [];
+  for (const r of rows) {
+    if (r.score < config.semanticMinScore) break;
+    const memberIds = fromUuidArray(r.member_ids);
+    out.push({
+      id: r.id,
+      rank: out.length,
+      score: r.score,
+      source: "semantic",
+      memberIds: memberIds.length > 0 ? memberIds : undefined,
+    });
+    if (out.length >= overFetch) break;
+  }
+  return out;
+}
+
 export async function runSemantic(
   _ix: Indexes,
   query: string,
@@ -117,9 +147,9 @@ export async function runSemantic(
    * A second text to embed IN THE SAME ROUND TRIP as the query — the residual
    * leaf attribution scores group members against (see `lexicalResidual`). It is
    * embedded here rather than by `buildLeafScorer` because the cost of an embed
-   * is the round trip and not the payload (measured 2026-09-30: two texts ~2.3s
-   * p50, the same as one), so a residual computed AFTER this call cost a second
-   * 2.3s — half the request — for a vector that could have ridden along.
+   * is the round trip and not the payload (two texts measure ~2.3s p50, the same
+   * as one), so a residual computed AFTER this call costs a second 2.3s — half
+   * the request — for a vector that could have ridden along.
    */
   residualText?: string,
 ): Promise<SemanticResult> {
@@ -164,25 +194,9 @@ export async function runSemantic(
             return tx.unsafe(stmt, [lit, overFetch, scope]);
           })
         : await sql.unsafe(stmt, [lit, overFetch])
-    ) as { id: string; type: string; score: number; member_ids?: unknown }[];
+    ) as ScoredRow[];
 
-    const out: Hit[] = [];
-    for (const r of rows) {
-      // Rows are ordered by ascending distance (descending cosine), so once one
-      // falls below the relevance floor, every later row does too — stop.
-      if (r.score < config.semanticMinScore) break;
-      // Do not type-filter here: a grouped parent may have a different type
-      // from the leaf we rewrite to. Callers filter after attributeSemanticHits.
-      const memberIds = fromUuidArray(r.member_ids);
-      out.push({
-        id: r.id,
-        rank: out.length,
-        score: r.score,
-        source: "semantic",
-        memberIds: memberIds.length > 0 ? memberIds : undefined,
-      });
-      if (out.length >= overFetch) break;
-    }
+    const out = scoredRowsToHits(rows, overFetch);
     return { hits: out, skipped: null, vecs: { query: vec, ...(residualVec ? { residual: residualVec } : {}) } };
   } catch (err) {
     ac.abort(); // no-op if the failure was past the embed stage
@@ -214,9 +228,9 @@ export async function runSemantic(
  * An HNSW index scan is approximate in a way that breaks a filtered query: it
  * walks the graph for `hnsw.ef_search` (default 40) nearest candidates and
  * Postgres applies the WHERE clause to THOSE, so `in:A.6` with LIMIT 40
- * returned 3 rows — the 3 of the 40 globally nearest anchors that happened to
- * sit under A.6 (measured 2026-09-29 with EXPLAIN ANALYZE: index scan 38 rows,
- * 3 survive the join). Every scope narrower than the whole atlas is hit, and
+ * returns 3 rows — the 3 of the 40 globally nearest anchors that happen to sit
+ * under A.6 (EXPLAIN ANALYZE: index scan 38 rows, 3 survive the join). Every
+ * scope narrower than the whole atlas is hit, and
  * the wider the scope the more it looks like it worked.
  *
  * Disabling the index scan for the statement forces an exact pass over every
@@ -254,120 +268,6 @@ export function rrfMerge(lex: Hit[], sem: Hit[]): MergedHit[] {
     }
   }
   return [...acc.values()].sort((a, b) => b.rrf_score - a.rrf_score);
-}
-
-// Number of retrieved anchor titles whose words are stripped to build the residual
-// query. Measured 2026-08-18 (scripts/aux/leaf-attribution-experiment.ts): attribution
-// accuracy rises 40% (top-1) -> 50% (top-10) -> 51% (top-20) and falls back to 46% by
-// top-50 as genuine question words start being stripped. 20 is the measured peak.
-const RESIDUAL_ANCHOR_K = 20;
-
-// The question minus the words the retrieved groups already account for.
-//
-// A query names the thing it is about ("… Ethereum Mainnet - Fluid sUSDS ERC4626
-// Vault …"), and that long name dominates the embedding: members win by echoing the
-// instance name rather than by answering the question, so the anchor itself and
-// same-named values outrank the member that holds the answer. INSIDE a group the
-// instance name discriminates nothing. Stripping the union of the top-K anchor titles
-// leaves the part that actually chooses between members.
-export function residualQuery(query: string, anchorTitles: string[]): string {
-  const strip = new Set<string>();
-  for (const t of anchorTitles) for (const w of t.toLowerCase().match(/[a-z0-9]+/g) ?? []) strip.add(w);
-  const kept = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => !strip.has(w));
-  // Everything stripped => nothing left to discriminate on; keep the original.
-  return kept.length ? kept.join(" ") : query;
-}
-
-// Attribute grouped semantic hits to a leaf (term overlap) and fuse a
-// parent/child pair onto the more specific id before RRF, so lexical child +
-// semantic parent become one hit.
-export function attributeSemanticHits(
-  query: string,
-  lex: Hit[],
-  sem: Hit[],
-  ix: Indexes,
-  semantic?: LeafSemanticScore,
-): Hit[] {
-  const lexNos = lex.map((h) => {
-    const n = ix.docMap.get(h.id);
-    return { id: h.id, doc_no: n?.doc_no ?? "" };
-  });
-  return sem.map((h) => {
-    const rw = rewriteSemanticHit(query, h.id, h.memberIds, lexNos, ix.docMap, semantic);
-    return { ...h, id: rw.id, via: rw.via };
-  });
-}
-
-/**
- * The residual text to score group members against, built from the LEXICAL leg.
- *
- * Inside a group the instance name discriminates nothing — every member carries
- * it — so the question minus those words is what picks the leaf. That rule is
- * load-bearing: measured 2026-09-30 over 98 queries whose target is folded into
- * a group, scoring members against the plain query vector instead of a residual
- * collapses ICD disambiguation from 62.5% to 2.5%, worse than no semantic
- * attribution at all.
- *
- * The titles come from the lexical leg rather than the semantic one, and that is
- * the whole latency fix: `runLexical` is in-memory MiniSearch, so its titles
- * exist BEFORE the embed, which lets the residual ride in the query's own round
- * trip. Stripping the semantic leg's titles needs its results first, which is a
- * second 2.3s round trip — half the request.
- */
-export function lexicalResidual(query: string, lex: Hit[], docMap: Indexes["docMap"]): string {
-  const titles = lex
-    .slice(0, RESIDUAL_ANCHOR_K)
-    .map((h) => docMap.get(h.id)?.title)
-    .filter((t): t is string => !!t);
-  return residualQuery(query, titles);
-}
-
-/**
- * Score group members so `pickLeaf` can choose one, using only vectors the
- * request already has — see `fuseLeafScores` for the rule and its measurement.
- *
- * Best-effort by design: no vectors, no DB, or fewer than two scorable members
- * returns undefined and attribution falls back to the lexical pick. It no longer
- * embeds anything, so it can no longer time out.
- */
-export async function buildLeafScorer(
-  sem: Hit[],
-  vecs: SemanticResult["vecs"],
-): Promise<LeafSemanticScore | undefined> {
-  if (!vecs?.residual) return undefined;
-  const grouped = sem.filter((h) => (h.memberIds?.length ?? 0) > 1);
-  if (grouped.length === 0) return undefined;
-  // member → its anchor, so the group-echo term and the ranks are per group. A
-  // member belongs to one group (embed-units folds it once), so first wins.
-  const anchorOf = new Map<string, string>();
-  for (const h of grouped) for (const id of h.memberIds ?? []) if (!anchorOf.has(id)) anchorOf.set(id, h.id);
-  if (anchorOf.size === 0) return undefined;
-  const members = [...anchorOf.keys()];
-  try {
-    const rows = (await sql.unsafe(
-      // One round trip, three cosines per member: against the residual, against
-      // the query, and against its own anchor's stored (grouped) vector.
-      `SELECT m.doc_id, p.anchor_id,
-              1 - (m.embedding <=> $1::vector) AS residual_sim,
-              1 - (m.embedding <=> $2::vector) AS query_sim,
-              1 - (m.embedding <=> a.embedding) AS group_sim
-         FROM unnest($3::uuid[], $4::uuid[]) AS p(member_id, anchor_id)
-         JOIN atlas_doc_embeddings m ON m.doc_id = p.member_id
-         JOIN atlas_doc_embeddings a ON a.doc_id = p.anchor_id`,
-      [
-        toVectorLiteral(vecs.residual),
-        toVectorLiteral(vecs.query),
-        toUuidArrayLiteral(members),
-        toUuidArrayLiteral(members.map((id) => anchorOf.get(id)!)),
-      ],
-    )) as LeafRow[];
-    if (rows.length < 2) return undefined;
-    const fused = fuseLeafScores(rows);
-    return (id: string) => fused.get(id);
-  } catch (err) {
-    console.warn(`  leaf attribution fell back to lexical: ${(err as Error).message}`);
-    return undefined;
-  }
 }
 
 // Type / phrase filters run AFTER leaf-pick so a quoted leaf value is not

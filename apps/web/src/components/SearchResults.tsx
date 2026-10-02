@@ -82,12 +82,11 @@ export const SearchResults = memo(function SearchResults({
     [hits.length],
   );
 
-  // Entities are their OWN lane now, and appear nowhere else. They used to ride
-  // above every wording search as an overlay; once the lane existed that became
-  // the same list in two places, pushing the document hits down the page on
-  // every query that happened to share a word with an actor's name. Passing an
-  // empty query off-lane also stops the graph worker doing the matching work at
-  // all, rather than matching and then discarding.
+  // Entities are their OWN lane, and appear nowhere else: an overlay above every
+  // wording search is the same list in two places, pushing the document hits
+  // down the page on every query that happens to share a word with an actor's
+  // name. Passing an empty query off-lane also stops the graph worker doing the
+  // matching work at all, rather than matching and then discarding.
   const entitiesOnly = lane === "graph";
   const { hits: entityHits, loading: entitiesLoading } = useEntitySearch(entitiesOnly ? query : "");
 

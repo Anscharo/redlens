@@ -11,8 +11,9 @@
 // themselves and restore the PINNED empty state (not ambient) in afterEach,
 // so the pin holds for every case that follows them.
 import { test, expect, describe, it, beforeAll, afterAll, afterEach } from "bun:test";
-import { rrfMerge, semanticScopeSql, embedFailureReason, SCOPED_SCAN_SETTING, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, runLexical, attributeSemanticHits, residualQuery, lexicalResidual, buildLeafScorer, filterByType, type Hit } from "./search.ts";
-import { fuseLeafScores, GROUP_ECHO_PENALTY, type LeafRow } from "./embed-units.ts";
+import { rrfMerge, semanticScopeSql, embedFailureReason, SCOPED_SCAN_SETTING, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, runLexical, filterByType, type Hit } from "./search.ts";
+import { attributeSemanticHits, lexicalResidual, buildLeafScorer } from "./leaf-attribution.ts";
+import { fuseLeafScores, GROUP_ECHO_PENALTY, residualQuery, type LeafRow } from "./leaf-scores.ts";
 import { _clearQueryEmbedCache } from "./embed.ts";
 import { config } from "../config.ts";
 import type { AtlasNode, Indexes } from "./indexes.ts";
@@ -83,12 +84,11 @@ test("runSemantic reports a skip reason when the embed call times out", async ()
 
 // ── one round trip, not two ─────────────────────────────────────────────────
 //
-// The point of the 2026-09-30 change. Leaf attribution needs a SECOND query
-// vector (the residual), and the cost of an embed is the round trip, not the
-// payload — measured 2.3s p50 for one text and the same for two. So the residual
-// has to ride in the query's own call, which is only possible because its text
-// comes from the LEXICAL leg (in-memory, available before the embed) rather than
-// from the semantic results.
+// Leaf attribution needs a SECOND query vector (the residual), and the cost of
+// an embed is the round trip, not the payload — 2.3s p50 for one text and the
+// same for two. So the residual rides in the query's own call, which is only
+// possible because its text comes from the LEXICAL leg (in-memory, available
+// before the embed) rather than from the semantic results.
 test("runSemantic embeds the query and the residual in ONE request, and hands both vectors back", async () => {
   config.openrouterApiKey = "test-key";
   config.semanticEmbedTimeoutMs = 5_000;
@@ -133,9 +133,9 @@ test("runSemantic sends ONE text when the residual came back identical to the qu
   expect(inputs).toHaveLength(1);
 });
 
-test("buildLeafScorer never embeds — it cannot time out any more", async () => {
-  // It used to make the second call itself, with its own timeout and its own
-  // EmbedDiag. Any fetch from here is that call coming back.
+test("buildLeafScorer never embeds — so it cannot time out", async () => {
+  // The residual rides in the query's own call, so the scorer makes none of its
+  // own. Any fetch from here is a second call that should not exist.
   let calls = 0;
   globalThis.fetch = (() => { calls++; return Promise.reject(new Error("no")); }) as unknown as typeof fetch;
   const grouped: Hit[] = [{ id: "g", rank: 0, score: 0.8, source: "semantic", memberIds: ["m1", "m2"] }];
@@ -493,8 +493,8 @@ describe("semanticScopeSql", () => {
 
   it("runs a scoped statement under an exact scan, inside its own transaction", () => {
     // An HNSW scan finds ef_search (40) global neighbours and THEN filters them:
-    // measured 2026-09-29, `in:A.6` LIMIT 40 returned 3 rows through the index and
-    // 40 with the index scan disabled. The setting must be SET LOCAL so the pooled
+    // `in:A.6` with LIMIT 40 returns 3 rows through the index and 40 with the
+    // index scan disabled. The setting must be SET LOCAL so the pooled
     // connection does not carry it into the next, unscoped query.
     expect(SCOPED_SCAN_SETTING).toMatch(/^SET LOCAL /);
     const src = fs.readFileSync(path.join(import.meta.dir, "./search.ts"), "utf8");

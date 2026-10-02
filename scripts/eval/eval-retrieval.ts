@@ -19,7 +19,7 @@
  * (offline proxy for grouping architecture — not a substitute for the neural
  * bakeoff). Writes .cache/eval-retrieval.json.
  *
- * ══ RERANKERS (2026-09-29) — one Jev CHOICE over the whole list wins; pairwise scoring loses ══
+ * ══ RERANKERS — one Jev CHOICE over the whole list wins; pairwise scoring loses ══
  * --reuse-db, generic prefix, --rerank-pool 30: the reranker reorders the final
  * 30-leaf list the shipped path returns and the top 10 is scored. `control` is that
  * list's own top 10; the exact ceiling@30 (a relevant leaf anywhere in the 30) is
@@ -94,7 +94,7 @@
  * -0.033 and disambiguation -0.175. Qwen3-Reranker-4B semantic-only was below control
  * on every headline metric (directory mrr was the one slice it won, 0.850 vs 0.804).
  *
- * ══ QUERY PREFIX (2026-09-29) — generic Qwen instruction, config.embedQueryPrefix ══
+ * ══ QUERY PREFIX — generic Qwen instruction, config.embedQueryPrefix ══
  * --reuse-db on a local DB holding production's Qwen vectors, 179 queries, one policy.
  *
  *   semantic-only           recall  exact  disambig   mrr   control
@@ -383,13 +383,13 @@ import {
   isDocNoDescendant,
   type GroupPolicy,
   type EmbedUnit,
-  fuseLeafScores,
-  type LeafRow,
 } from "../../src/server/retrieval/embed-units.ts";
+import { RESIDUAL_ANCHOR_K, fuseLeafScores, residualQuery, type LeafRow } from "../../src/server/retrieval/leaf-scores.ts";
 import { generateRetrievalQueries, type RetrievalQuery } from "./eval-retrieval-queries.ts";
 import { lexicalOverlap } from "./eval-retrieval-paraphrase.ts";
 import { contentHash as oneToOneHash } from "../../src/server/retrieval/embed-text.ts";
 import { rerank, type Reranker } from "./eval-rerankers.ts";
+import { bm25Rerank, idfMap, rankTfidf, tfidfVec, tokenize } from "./eval-retrieval-tfidf.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const argv = process.argv.slice(2);
@@ -428,67 +428,7 @@ const PREFIX = config.embedQueryPrefix;
 const SUBSET = flag("subset")[0] ? Number(flag("subset")[0]) : undefined;
 const K = Number(flag("k")[0] ?? 10);
 const RERANK_POOL = 50;
-// Matches search.ts's RESIDUAL_ANCHOR_K — the measured peak (51% at top-20).
-const RESIDUAL_ANCHOR_K = 20;
-
-// Local copy of search.ts's residualQuery (importing search.ts would drag in Bun's
-// SQL and the whole server DB layer for a pure string helper).
-function residualQueryText(query: string, anchorTitles: string[]): string {
-  const strip = new Set<string>();
-  for (const t of anchorTitles) for (const w of t.toLowerCase().match(/[a-z0-9]+/g) ?? []) strip.add(w);
-  const kept = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => !strip.has(w));
-  return kept.length ? kept.join(" ") : query;
-}
 const OUT = flag("out")[0] ?? path.join(ROOT, ".cache", "eval-retrieval.json");
-
-function tokenize(s: string): string[] {
-  return (s.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((t) => t.length >= 2);
-}
-
-function idfMap(docs: string[][]): Map<string, number> {
-  const df = new Map<string, number>();
-  for (const toks of docs) {
-    for (const t of new Set(toks)) df.set(t, (df.get(t) ?? 0) + 1);
-  }
-  const n = docs.length;
-  const idf = new Map<string, number>();
-  for (const [t, c] of df) idf.set(t, Math.log((n + 1) / (c + 1)) + 1);
-  return idf;
-}
-
-function tfidfVec(toks: string[], idf: Map<string, number>): Map<string, number> {
-  const tf = new Map<string, number>();
-  for (const t of toks) tf.set(t, (tf.get(t) ?? 0) + 1);
-  const v = new Map<string, number>();
-  let n = 0;
-  for (const [t, c] of tf) {
-    const w = (c / toks.length) * (idf.get(t) ?? 0);
-    v.set(t, w);
-    n += w * w;
-  }
-  const norm = Math.sqrt(n) || 1;
-  for (const [t, w] of v) v.set(t, w / norm);
-  return v;
-}
-
-function cosine(a: Map<string, number>, b: Map<string, number>): number {
-  let s = 0;
-  const [small, large] = a.size < b.size ? [a, b] : [b, a];
-  for (const [t, w] of small) s += w * (large.get(t) ?? 0);
-  return s;
-}
-
-function bm25Rerank(query: string, pool: { id: string; text: string; score: number }[]): { id: string; text: string; score: number }[] {
-  const q = tokenize(query);
-  return [...pool]
-    .map((p) => {
-      const toks = tokenize(p.text);
-      let s = 0;
-      for (const t of q) s += toks.includes(t) ? 1 : 0;
-      return { ...p, score: s + p.score * 0.01 };
-    })
-    .sort((a, b) => b.score - a.score);
-}
 
 function metrics(ranked: string[][], queries: RetrievalQuery[], docMap: Map<string, AtlasNode>) {
   let rec = 0;
@@ -633,14 +573,6 @@ async function embedMissesByHash(units: EmbedUnit[], cache: Map<string, number[]
     config.embedModel = prev;
   }
   return fresh;
-}
-
-function rankTfidf(query: string, units: EmbedUnit[], vecs: Map<string, number>[], idf: Map<string, number>, k: number): { id: string; text: string; score: number }[] {
-  const qv = tfidfVec(tokenize(query), idf);
-  return units
-    .map((u, i) => ({ id: u.anchorId, text: u.text, score: cosine(qv, vecs[i]!) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, k);
 }
 
 function attributeRank(
@@ -928,7 +860,7 @@ for (const policy of POLICIES) {
             .slice(0, RESIDUAL_ANCHOR_K)
             .map((r) => docMap.get(r.id)?.title)
             .filter((t): t is string => !!t);
-          const residual = residualQueryText(q.query, anchorTitles);
+          const residual = residualQuery(q.query, anchorTitles);
           const prev2 = config.embedModel;
           config.embedModel = model;
           let rv: number[];

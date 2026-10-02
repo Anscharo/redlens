@@ -1,9 +1,9 @@
 import { memo } from "react";
 import { AtlasLink } from "./AtlasLink";
 import { SearchResultSelectBox } from "./SearchResultSelectBox";
+import { SearchResultMatchNote } from "./SearchResultMatchNote";
 import { realDepth, depthColor } from "@/lib/depth";
 import { atlasHref } from "@/lib/routes";
-import { shortAddr } from "../lib/format";
 import type { HitLabel, SearchHit } from "@/types";
 
 interface Props {
@@ -65,17 +65,6 @@ function GutterLabel({ label }: { label: HitLabel }) {
 
 export const SearchResult = memo(function SearchResult({ hit, rank, onResultClick }: Props) {
   const color = depthColor(realDepth(hit.doc_no));
-  const shortAddress = hit.chainlogAddress ? shortAddr(hit.chainlogAddress) : "";
-
-  const reason = hit.chainlogId ? hit.matchReason.replace(/^chainlog \+ /, "") : hit.matchReason;
-
-  // A semantic hit has a non-empty matchReason only if the wording matched too.
-  // Nothing produces that today (the leg replaces rather than merges), but the
-  // row stays able to say "found both ways", which is the stronger result.
-  const semanticTitle = hit.viaTitle
-    ? `Matched by meaning, retrieved under "${hit.viaTitle}"`
-    : "Matched by meaning, not by the words you typed";
-
   return (
     <div className="search-result relative" data-semantic={hit.semantic ? "true" : undefined}>
       {/* Per-result selection checkbox — hidden until hover (or when checked),
@@ -92,50 +81,7 @@ export const SearchResult = memo(function SearchResult({ hit, rank, onResultClic
       )}
       {/* Match info — floats right on wide screens, inline on narrow */}
       <div className="lg:absolute lg:left-full lg:ml-3 lg:top-3 lg:flex-col lg:text-center flex items-center gap-1.5 mono px-4 pt-2 lg:p-0 lg:w-[96px]">
-        {hit.chainlogId ? (
-          <>
-            <span className="text-[9px] text-tan-3">via chainlog</span>
-            <span className="text-[10px] font-medium text-accent">{hit.chainlogId}</span>
-            <span className="text-[9px] text-tan-3">{shortAddress}</span>
-          </>
-        ) : hit.semantic ? (
-          // Deliberately louder than every other match note on the page: a
-          // semantic hit can share no word with the query, so a reader who
-          // can't see WHY it is here needs the answer without hunting for it.
-          <>
-            <span className="search-semantic-mark text-[10px]" title={semanticTitle}>
-              semantic match
-            </span>
-            {hit.semanticScore !== undefined && (
-              // The raw cosine, two places — enough to rank neighbours against
-              // each other, which is the whole use for it, without implying a
-              // precision the embedding does not have.
-              //
-              // WHOSE score it is depends on how the row was found. A hit
-              // retrieved through a grouped embedding anchor keeps the ANCHOR's
-              // cosine (attributeSemanticHits rewrites the id to the leaf and
-              // leaves the score alone), so for those the honest reading is
-              // "the group this came from", not "this document" — and `viaTitle`
-              // is exactly the flag for that, since it is set on the same rows.
-              <span
-                className="text-[10px] text-tan-2"
-                title={
-                  hit.viaTitle
-                    ? `Cosine similarity between your query and "${hit.viaTitle}", the group this document was found in: ${hit.semanticScore} (0–1)`
-                    : `Cosine similarity between your query and this document: ${hit.semanticScore} (0–1)`
-                }
-              >
-                cos {hit.semanticScore.toFixed(2)}
-              </span>
-            )}
-            {reason && <span className="text-[9px] text-tan-3">+ {reason}</span>}
-          </>
-        ) : (
-          <>
-            <span className="text-[9px] text-tan-3">matched</span>
-            <span className="text-[10px] text-tan-2">{reason}</span>
-          </>
-        )}
+        <SearchResultMatchNote hit={hit} />
       </div>
       <AtlasLink
         to={atlasHref(hit.id)}

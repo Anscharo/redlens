@@ -12,17 +12,15 @@
 /**
  * Which index the results page is querying — the three pills on the count line.
  *
- * Meaning-matched results appear on the `semantic` lane and NOWHERE else. There
- * used to be a second knob (`?sem=`, `off` | `fallback` | `woven`) letting the
- * leg run under the wording lane too: `woven` fused both result sets and was
- * dropped 2026-09-29 for making the list harder to read, and `fallback` ran the
- * leg whenever wording found nothing. `fallback` went the same way 2026-09-30,
- * for the reason that killed `woven`: a reader on the wording lane asked for a
- * wording search, and quietly answering with a different index — one whose rows
- * can share no word with the query — is a worse answer than an honest empty one
- * next to a pill that offers the other index. It also cost the spelling
- * correction, which is only offered for a wording search that found nothing and
- * so never survived the leg replacing that result set.
+ * Meaning-matched results appear on the `semantic` lane and NOWHERE else. The
+ * lane is the ONLY knob: the leg never blends into the wording lane, neither by
+ * fusing both result sets (which reads worse than either list alone) nor by
+ * answering a wording search that found nothing. A reader on the wording lane
+ * asked for a wording search, and quietly answering with a different index —
+ * one whose rows can share no word with the query — is a worse answer than an
+ * honest empty one next to a pill that offers the other index. It also costs the
+ * spelling correction, which is only offered for a wording search that found
+ * nothing, and so cannot survive the leg replacing that result set.
  */
 export const SEARCH_LANES = ["lexical", "graph", "semantic"] as const;
 export type SearchLane = (typeof SEARCH_LANES)[number];

@@ -37,6 +37,21 @@ export interface SearchOptions {
 
 const DEFAULT_OPTIONS: SearchOptions = { lane: "lexical" };
 
+/** One `results` message as the `done` state, with its optional fields omitted
+ *  rather than set to undefined. */
+function doneState(msg: Extract<WorkerOutMessage, { type: "results" }>, query: string): SearchState {
+  return {
+    status: "done",
+    hits: msg.hits,
+    durationMs: msg.durationMs,
+    query,
+    lane: msg.lane,
+    semantic: msg.semantic,
+    ...(msg.semanticNote ? { semanticNote: msg.semanticNote } : {}),
+    ...(msg.didYouMean ? { didYouMean: msg.didYouMean } : {}),
+  };
+}
+
 export function useSearch() {
   const { base } = useDataSource();
   const workerRef = useRef<Worker | null>(null);
@@ -85,18 +100,7 @@ export function useSearch() {
         // A query can answer TWICE under one id: the lexical half arrives with
         // semantic "pending", then the fused set replaces it. Both are current,
         // so this compares ids only — never "have I already answered this id".
-        if (msg.id === pendingId.current) {
-          setState({
-            status: "done",
-            hits: msg.hits,
-            durationMs: msg.durationMs,
-            query: lastQuery.current,
-            lane: msg.lane,
-            semantic: msg.semantic,
-            ...(msg.semanticNote ? { semanticNote: msg.semanticNote } : {}),
-            ...(msg.didYouMean ? { didYouMean: msg.didYouMean } : {}),
-          });
-        }
+        if (msg.id === pendingId.current) setState(doneState(msg, lastQuery.current));
       } else if (msg.type === "error") {
         setState({ status: "error", message: msg.message });
       }

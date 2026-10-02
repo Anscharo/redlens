@@ -594,10 +594,9 @@ describe("semantic lane", () => {
   });
 
   it("the wording lane never embeds, not even for a query it answered with nothing", async () => {
-    // The `fallback` strategy used to run the leg here. Dropped 2026-09-30:
-    // a reader on this lane asked for a wording search, and an empty one that
-    // offers a spelling correction and a pill to the other index beats a
-    // silent switch to rows that share no word with the query.
+    // A reader on this lane asked for a wording search, so an empty answer that
+    // offers a spelling correction and a pill to the other index beats a silent
+    // switch to rows that share no word with the query.
     const calls: string[] = [];
     const h = await withSemantic({ hits: [{ id: IDS.facilitatorCore, score: 0.8 }], skipped: null, available: true }, { calls });
     const id = ask(h, "zzzznothingmatchesthis", { lane: "lexical" });
@@ -649,7 +648,8 @@ describe("semantic lane", () => {
     });
     const id = ask(h, "zzzznothingmatchesthis", { lane: "semantic" });
     const done = (await h.waitFor((m) => m.type === "results" && m.id === id && m.semantic === "done")) as Results;
-    // Interleaving the two lists was the `woven` strategy, dropped 2026-09-29.
+    // The meaning lane answers with the semantic list alone, never interleaved
+    // with the wording one.
     expect(done.hits.map((x) => x.id)).toEqual([IDS.facilitatorCore, IDS.addrOnly]);
     expect(done.hits.every((x) => x.semantic)).toBe(true);
   });

@@ -135,11 +135,11 @@ export function _clearQueryEmbedCache(): void {
 /**
  * Embed SEVERAL queries in one round trip, cache included.
  *
- * The cost of an embed here is the round trip, not the payload: measured
- * 2026-09-30, two texts in one call take the same ~2.3s p50 as one. So anything
- * that needs a second query vector should ask for it HERE, alongside the first,
- * rather than in its own call — see `runSemantic`, whose leaf attribution used to
- * pay a second 2.3s for the residual query it scores members against.
+ * The cost of an embed here is the round trip, not the payload: two texts in one
+ * call measure the same ~2.3s p50 as one. So anything that needs a second query
+ * vector asks for it HERE, alongside the first, rather than in its own call —
+ * see `runSemantic`, which takes the residual its leaf attribution scores
+ * members against this way instead of paying a second 2.3s for it.
  *
  * Per-text LRU semantics are preserved: cached texts are served without touching
  * the network, and only the misses go into the batch.

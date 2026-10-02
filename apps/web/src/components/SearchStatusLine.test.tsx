@@ -103,9 +103,9 @@ describe("SearchStatusLine", () => {
 describe("a lane still loading", () => {
   it("says searching, not 'no results', while the caller reports work in flight", () => {
     // The entities lane is the case this exists for: its hits come from the
-    // graph worker, which has no `state.semantic` to report through, so the
-    // page used to say "no results for …" on every keystroke until
-    // relations.json finished loading.
+    // graph worker, which has no `state.semantic` to report through. Without the
+    // caller's `pending` the page says "no results for …" on every keystroke
+    // until relations.json has loaded.
     setup(done({ semantic: "none" }), { total: 0, pending: true, lane: "graph" });
     expect(screen.getByText("searching…")).toBeInTheDocument();
     expect(screen.queryByText(/no results/)).toBeNull();

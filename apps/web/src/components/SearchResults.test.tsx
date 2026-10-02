@@ -220,8 +220,8 @@ describe("SearchResults entity hits", () => {
   });
 
   it("shows no entities, and asks the graph worker for none, off the entities lane", async () => {
-    // They used to ride above every wording search; once the lane existed that
-    // was the same list in two places, pushing the document hits down the page.
+    // Listing them above a wording search too would be the same list in two
+    // places, pushing the document hits down the page.
     mocks.searchEntities.mockResolvedValue([
       { participant: makeGraphEntity({ id: "e-1", slug: "keel", name: "Keel", et: "agent" }), score: 3, href: "/radar/keel" },
     ]);

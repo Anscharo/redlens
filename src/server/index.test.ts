@@ -557,8 +557,8 @@ describe("handleRequest — SPA fallback + OG tag substitution", () => {
     // leave the client comparing against a literal "{{SEMANTIC_SEARCH}}".
     expect(html).toContain(`window.__SEMANTIC_SEARCH__="${semanticSearchAvailable()}"`);
     expect(html).not.toContain("{{SEMANTIC_SEARCH}}");
-    // The retired blend strategy left no placeholder behind: an injection the
-    // server no longer replaces would reach the browser as a literal.
+    // There is no second semantic placeholder: an injection the server does not
+    // replace reaches the browser as a literal.
     expect(html).not.toContain("SEMANTIC_STRATEGY");
   });
 

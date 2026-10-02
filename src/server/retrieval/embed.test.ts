@@ -101,8 +101,7 @@ test("embedQuery cache is bypassed when size is 0", async () => {
 
 // ─── query instruction prefix ───────────────────────────────────────────────
 // Qwen3-Embedding is asymmetric: the query carries an instruction, the document
-// does not. Embedding both raw — which this codebase did until 2026-09-29 — is
-// the documented 1-5% retrieval loss.
+// does not. Embedding both raw is the documented 1-5% retrieval loss.
 
 /** Capture the exact `input` array each embeddings request sent. */
 function captureEmbedInput() {
