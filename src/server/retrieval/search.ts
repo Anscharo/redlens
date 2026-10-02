@@ -59,10 +59,8 @@ export function runLexical(ix: Indexes, query: string, type: string | undefined,
   const expansion = expandQueryTokens(tokens);
   const q = expansion.extra.length > 0 ? `${query} ${expansion.extra.join(" ")}` : query;
   let results = ix.mini.search(q, {
-    ...MINISEARCH_SEARCH_OPTIONS,
-    boost: { title: 10, doc_no: 5, type: 2 },
-    prefix: true,
-    fuzzy: false,
+    ...MINISEARCH_SEARCH_OPTIONS, boost: { title: 10, doc_no: 5, type: 2 },
+    prefix: true, fuzzy: false,
     combineWith: "OR",
   });
   if (expansion.extra.length > 0) {

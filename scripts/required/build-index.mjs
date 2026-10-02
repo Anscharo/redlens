@@ -100,25 +100,16 @@ function indexTerms(term) {
   // `delegatedSigners` index as "delegatedsigners" not "`delegatedsigners`".
   const whole = term.replace(/^[^a-zA-Z0-9_]+|[^a-zA-Z0-9_]+$/g, "").toLowerCase();
   if (whole.length < 2) return null;
-  if (!whole.includes("_")) return whole;
-  return [whole, ...whole.split("_").filter((p) => p.length >= 2)];
+  return whole.includes("_") ? [whole, ...whole.split("_").filter((p) => p.length >= 2)] : whole;
 }
 
 function buildIndex(nodes) {
   const ms = new MiniSearch({
-    fields: ["title", "doc_no", "type", "content"],
-    idField: "id",
-    tokenize: (text) => text.split(/(?:[\n\r\p{Z}]|(?!_)\p{P})+/u),
-    processTerm: indexTerms,
+    fields: ["title", "doc_no", "type", "content"], idField: "id",
+    tokenize: (text) => text.split(/(?:[\n\r\p{Z}]|(?!_)\p{P})+/u), processTerm: indexTerms,
   });
   ms.addAll(
-    nodes.map((n) => ({
-      id: n.id,
-      title: n.title,
-      doc_no: n.doc_no,
-      type: n.type,
-      content: n.content,
-    })),
+    nodes.map((n) => ({ id: n.id, title: n.title, doc_no: n.doc_no, type: n.type, content: n.content })),
   );
   return ms.toJSON();
 }
