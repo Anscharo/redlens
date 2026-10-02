@@ -13,6 +13,26 @@ const RATE_LIMIT_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MD_LINK_RE = /\[([^\]]+)\]\(([^)]+)\)/g;
 const PLACEHOLDER_RE = /will be specified in a future iteration/i;
+
+/** Markdown `[text](href)` links inside a param value: a UUID href is an
+ * in-app atlas link, anything else opens externally. */
+function renderMarkdownLinks(value: string): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  for (const m of value.matchAll(MD_LINK_RE)) {
+    const idx = m.index ?? 0;
+    if (idx > last) parts.push(value.slice(last, idx));
+    const [, text, href] = m;
+    parts.push(UUID_RE.test(href)
+      ? <AtlasLink key={idx} to={atlasHref(href)} className="text-accent hover:underline">{text}</AtlasLink>
+      : <a key={idx} href={href} target="_blank" rel="noopener" className="text-accent hover:underline">{text}</a>
+    );
+    last = idx + m[0].length;
+  }
+  if (last < value.length) parts.push(value.slice(last));
+  return <>{parts}</>;
+}
+
 function renderValue(
   value: string,
   chainHint?: Array<string | undefined>,
@@ -33,22 +53,7 @@ function renderValue(
   if (PLACEHOLDER_RE.test(value)) {
     return <span style={{ color: "var(--tan-3)", fontStyle: "italic" }}>To Be Specified</span>;
   }
-  if (value.includes("](")) {
-    const parts: React.ReactNode[] = [];
-    let last = 0;
-    for (const m of value.matchAll(MD_LINK_RE)) {
-      const idx = m.index ?? 0;
-      if (idx > last) parts.push(value.slice(last, idx));
-      const [, text, href] = m;
-      parts.push(UUID_RE.test(href)
-        ? <AtlasLink key={idx} to={atlasHref(href)} className="text-accent hover:underline">{text}</AtlasLink>
-        : <a key={idx} href={href} target="_blank" rel="noopener" className="text-accent hover:underline">{text}</a>
-      );
-      last = idx + m[0].length;
-    }
-    if (last < value.length) parts.push(value.slice(last));
-    return <>{parts}</>;
-  }
+  if (value.includes("](")) return renderMarkdownLinks(value);
   return value;
 }
 

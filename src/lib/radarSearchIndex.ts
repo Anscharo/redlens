@@ -3,7 +3,7 @@ import type { GraphData } from "@/lib/graphData";
 import { parseMeta } from "@/lib/meta";
 import { actorHref } from "@/lib/routes";
 import { EVM_ADDRESS_EXACT_RE, SOL_ADDRESS_EXACT_RE } from "@/lib/patterns";
-import { buildOwnerIndex, instanceOwner, instanceSignalParams, isRelationEdge } from "@/lib/radarRules";
+import { buildOwnerIndex, instanceOwner, instanceSignalParams, isRelationEdge, type InstanceParam } from "@/lib/radarRules";
 import { RADAR_SECTION, instanceAnchor } from "@/lib/radarAnchors";
 
 export type RadarHitKind = "actor" | "instance" | "param" | "address" | "relationship";
@@ -58,6 +58,25 @@ function makeHit(
   return { kind, label, context, slug, anchor, href: actorHref(slug, anchor) };
 }
 
+/** Where an instance's rows link to, and the breadcrumb its param rows show. */
+type InstancePlace = { slug: string; anchor: string; where: string };
+
+// One param row per (owner page, instance anchor, key); an address-valued param
+// also yields an address row.
+function paramRows(params: InstanceParam[], at: InstancePlace, seen: Set<string>, out: RadarSearchIndex): void {
+  for (const p of params) {
+    const value = p.value.replace(MD_LINK, "$1");
+    const dedupe = `${at.slug}#${at.anchor}|${p.key}`;
+    if (seen.has(dedupe)) continue;
+    seen.add(dedupe);
+    out.params.push({ key: p.key, value, hit: makeHit("param", p.key, at.where, at.slug, at.anchor) });
+    if (isAddress(value.trim())) {
+      const hit = makeHit("address", value.trim(), `${at.where} › ${p.key}`, at.slug, at.anchor);
+      out.addresses.push({ address: value.trim(), hit });
+    }
+  }
+}
+
 function instanceRows(graph: GraphData, out: RadarSearchIndex): void {
   const owners = buildOwnerIndex(graph);
   const seenParam = new Set<string>();
@@ -66,27 +85,17 @@ function instanceRows(graph: GraphData, out: RadarSearchIndex): void {
     if (!found || !found.owner.slug) continue;
     const { owner, meta } = found;
     const anchor = instanceAnchor(inst.id);
-    const where = `${owner.name} › ${inst.name}`;
     out.instances.push({
       name: inst.name,
       hit: makeHit("instance", inst.name, `${owner.name} › ${words(inst.st ?? "")}`, owner.slug, anchor),
     });
-    for (const p of instanceSignalParams(meta)) {
-      const value = p.value.replace(MD_LINK, "$1");
-      const dedupe = `${owner.slug}#${anchor}|${p.key}`;
-      if (seenParam.has(dedupe)) continue;
-      seenParam.add(dedupe);
-      out.params.push({ key: p.key, value, hit: makeHit("param", p.key, where, owner.slug, anchor) });
-      if (isAddress(value.trim())) {
-        const hit = makeHit("address", value.trim(), `${where} › ${p.key}`, owner.slug, anchor);
-        out.addresses.push({ address: value.trim(), hit });
-      }
-    }
+    const at = { slug: owner.slug, anchor, where: `${owner.name} › ${inst.name}` };
+    paramRows(instanceSignalParams(meta), at, seenParam, out);
   }
 }
 
-function entityRows(graph: GraphData, out: RadarSearchIndex): void {
-  const byId = new Map<string, GraphEntity>(graph.participants.map((e) => [e.id, e]));
+// An actor row per participant page, plus an address row when its meta carries one.
+function actorRows(graph: GraphData, out: RadarSearchIndex): void {
   for (const p of graph.participants) {
     if (!p.slug) continue;
     out.actors.push({ name: p.name, hit: makeHit("actor", p.name, words(p.et), p.slug) });
@@ -95,13 +104,17 @@ function entityRows(graph: GraphData, out: RadarSearchIndex): void {
       out.addresses.push({ address, hit: makeHit("address", address, p.name, p.slug) });
     }
   }
+}
+
+// A relation edge is listed on both ends' pages, naming the other end, once per
+// (page, other, edge type).
+function relationshipRows(graph: GraphData, out: RadarSearchIndex): void {
+  const byId = new Map<string, GraphEntity>(graph.participants.map((e) => [e.id, e]));
   const seen = new Set<string>();
   for (const edge of graph.edges) {
     if (!isRelationEdge(edge, byId)) continue;
-    const ends: [GraphEntity, GraphEntity][] = [
-      [byId.get(edge.f)!, byId.get(edge.t)!],
-      [byId.get(edge.t)!, byId.get(edge.f)!],
-    ];
+    const [from, to] = [byId.get(edge.f)!, byId.get(edge.t)!];
+    const ends: [GraphEntity, GraphEntity][] = [[from, to], [to, from]];
     for (const [page, other] of ends) {
       const key = `${page.id}|${other.id}|${edge.e}`;
       if (!page.slug || seen.has(key)) continue;
@@ -117,7 +130,8 @@ function entityRows(graph: GraphData, out: RadarSearchIndex): void {
 
 export function buildRadarSearchIndex(graph: GraphData): RadarSearchIndex {
   const out: RadarSearchIndex = { actors: [], instances: [], relationships: [], params: [], addresses: [] };
-  entityRows(graph, out);
+  actorRows(graph, out);
+  relationshipRows(graph, out);
   instanceRows(graph, out);
   return out;
 }
