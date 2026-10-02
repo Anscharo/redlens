@@ -12,7 +12,7 @@
 // so the pin holds for every case that follows them.
 import { test, expect, describe, it, beforeAll, afterAll, afterEach } from "bun:test";
 import { rrfMerge, fuseBriefings, semanticScopeSql, embedFailureReason, SCOPED_SCAN_SETTING, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, runLexical, attributeSemanticHits, residualQuery, lexicalResidual, buildLeafScorer, filterByType, type Hit } from "./search.ts";
-import { fuseLeafScores, GROUP_ECHO_PENALTY, type LeafRow } from "./embed-units.ts";
+import { fuseLeafScores, GROUP_ECHO_PENALTY, leafRuleFor, type LeafRow } from "./embed-units.ts";
 import { _clearQueryEmbedCache } from "./embed.ts";
 import { config } from "../config.ts";
 import { sql } from "../db.ts";
@@ -202,6 +202,16 @@ describe("fuseLeafScores", () => {
       { doc_id: "b", anchor_id: "A", residual_sim: "0.10" as never, query_sim: "0.10" as never, group_sim: "0.1" as never },
     ]);
     expect(fused.get("a")!).toBeGreaterThan(fused.get("b")!);
+  });
+
+  it("ranks by the residual alone under the residual rule, which gemini-embedding-2 uses", () => {
+    const rows = [row("byResidual", "A", 0.9, 0.1, 0.1), row("byEcho", "A", 0.1, 0.9, 0.1)];
+    expect(leafRuleFor("google/gemini-embedding-2")).toEqual({ rankings: "residual" });
+    const fused = fuseLeafScores(rows, leafRuleFor("google/gemini-embedding-2"));
+    expect(fused.get("byResidual")!).toBeGreaterThan(fused.get("byEcho")!);
+    // A model with no rule of its own fuses both, and the two tie here.
+    const both = fuseLeafScores(rows, leafRuleFor("qwen/qwen3-embedding-8b"));
+    expect(both.get("byResidual")).toBeCloseTo(both.get("byEcho")!, 12);
   });
 
   it("keeps the penalty a documented constant rather than a magic number", () => {

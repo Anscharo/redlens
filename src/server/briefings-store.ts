@@ -1,6 +1,7 @@
 // The SQL side of sync:briefings: the store contract and its real Postgres
 // implementation (split from sync-briefings.ts).
 import { createHash } from "node:crypto";
+import { config } from "./config.ts";
 import { sql, toVectorLiteral } from "./db.ts";
 import { docRowToNode, loadDocMetaSnapshot, type AtlasNode } from "./retrieval/indexes.ts";
 import { briefingEmbedText } from "../../scripts/lib/doc-briefings.mjs";
@@ -87,18 +88,20 @@ async function chunked<T>(items: T[], size: number, fn: (chunk: T[]) => Promise<
   for (let i = 0; i < items.length; i += size) await fn(items.slice(i, i + size));
 }
 
-// The vector survives only when the text it was made from did not change.
+// The vector, and the marker naming the model that made it, survive only when
+// the text it was made from did not change.
 const SEED_CONFLICT = `ON CONFLICT (doc_id) DO UPDATE SET
   briefing = excluded.briefing, questions = excluded.questions, digest = excluded.digest,
   context_digest = excluded.context_digest, model = excluded.model, source = excluded.source,
   embedding = CASE WHEN excluded.briefing_hash = atlas_doc_briefings.briefing_hash THEN atlas_doc_briefings.embedding ELSE NULL END,
   embedded_hash = CASE WHEN excluded.briefing_hash = atlas_doc_briefings.briefing_hash THEN atlas_doc_briefings.embedded_hash ELSE NULL END,
+  embed_model = CASE WHEN excluded.briefing_hash = atlas_doc_briefings.briefing_hash THEN atlas_doc_briefings.embed_model ELSE NULL END,
   briefing_hash = excluded.briefing_hash, failures = 0, failed_context = NULL, updated_at = now()`;
 
 const WORKER_CONFLICT = `ON CONFLICT (doc_id) DO UPDATE SET
   briefing = excluded.briefing, questions = excluded.questions, digest = excluded.digest,
   context_digest = excluded.context_digest, model = excluded.model, source = excluded.source,
-  briefing_hash = excluded.briefing_hash, embedding = NULL, embedded_hash = NULL,
+  briefing_hash = excluded.briefing_hash, embedding = NULL, embedded_hash = NULL, embed_model = NULL,
   failures = 0, failed_context = NULL, updated_at = now()`;
 
 async function insertRows(tx: Tx, rows: BriefingWrite[], source: "seed" | "worker"): Promise<void> {
@@ -173,7 +176,8 @@ export const realStore: BriefingStore = {
   async loadToEmbed() {
     return (await sql`
       SELECT doc_id, briefing, questions, briefing_hash FROM atlas_doc_briefings
-      WHERE briefing <> '' AND embedded_hash IS DISTINCT FROM briefing_hash
+      WHERE briefing <> ''
+        AND (embedded_hash IS DISTINCT FROM briefing_hash OR embed_model IS DISTINCT FROM ${config.embedModel})
     `) as ToEmbed[];
   },
 
@@ -181,7 +185,8 @@ export const realStore: BriefingStore = {
   // slice was in flight is not stamped as embedded.
   async writeVector(docId, briefingHash, vec) {
     await sql`
-      UPDATE atlas_doc_briefings SET embedding = ${toVectorLiteral(vec)}::vector, embedded_hash = briefing_hash
+      UPDATE atlas_doc_briefings SET embedding = ${toVectorLiteral(vec)}::vector, embedded_hash = briefing_hash,
+        embed_model = ${config.embedModel}
       WHERE doc_id = ${docId} AND briefing_hash = ${briefingHash}
     `;
   },

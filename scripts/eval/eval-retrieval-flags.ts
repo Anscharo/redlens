@@ -2,7 +2,7 @@
 // validates them, so a bad flag stops the run before any data loads. The header of
 // eval-retrieval.ts documents what each flag does.
 import path from "node:path";
-import { config } from "../../src/server/config.ts";
+import { config, queryPrefixFor } from "../../src/server/config.ts";
 import type { GroupPolicy } from "../../src/server/retrieval/embed-units.ts";
 import type { Reranker } from "./eval-rerankers.ts";
 
@@ -56,8 +56,10 @@ export const CRUMB_STRATS = flag("crumb-strategies")[0]?.split(",").map((x) => x
 const PREFIX_FLAG = flag("prefix")[0];
 if (argv.includes("--no-prefix")) config.embedQueryPrefix = "";
 else if (PREFIX_FLAG !== undefined) config.embedQueryPrefix = PREFIX_FLAG;
-// The configured prefix is Qwen3's instruction. ternlight is symmetric, so it is noise there.
+// ternlight is symmetric, so a prefix is noise there; otherwise the first
+// model's own prefix unless EMBED_QUERY_PREFIX pins one.
 else if (BACKEND === "ternlight") config.embedQueryPrefix = "";
+else if (process.env.EMBED_QUERY_PREFIX === undefined) config.embedQueryPrefix = queryPrefixFor(MODELS[0] ?? config.embedModel);
 export const PREFIX = config.embedQueryPrefix;
 export const SUBSET = flag("subset")[0] ? Number(flag("subset")[0]) : undefined;
 // --query-style keywords rewrites every generated query to the shape readers
@@ -79,7 +81,16 @@ export const BRIEFING_ARMS = listFlag("briefings", ["none"]);
 export const BRIEFING_TEXTS = listFlag("briefing-text", ["both"]);
 export const BRIEFING_FILE = path.resolve(ROOT, flag("briefing-file")[0] ?? "public/doc-briefings.json");
 export const POOL_FLAG = flag("pool")[0];
+// A stratified sample (eval-retrieval-sample.ts): this share of each top-level
+// scope and of each agent artifact, plus every document a query competes over.
+export const SAMPLE_SCOPE = flag("sample-scope")[0] ? Number(flag("sample-scope")[0]) : undefined;
+export const SAMPLE_AGENT = flag("sample-agent")[0] ? Number(flag("sample-agent")[0]) : SAMPLE_SCOPE;
 export const OFFLINE = argv.includes("--offline");
+// Leaf attribution rule (fuseLeafScores): unset runs the model's production
+// rule (leafRuleFor); both rankings fused, one alone, or `lexical`, which builds
+// no semantic scorer and so takes the lexical fallback.
+export const LEAF_RULE = flag("leaf-rule")[0] as "both" | "residual" | "echo" | "lexical" | undefined;
+if (LEAF_RULE && !["both", "residual", "echo", "lexical"].includes(LEAF_RULE)) die(`unknown --leaf-rule "${LEAF_RULE}"; expected both, residual, echo or lexical`);
 for (const a of BRIEFING_ARMS) {
   if (!(BRIEFING_ARM_NAMES as readonly string[]).includes(a)) {
     die(`unknown --briefings value "${a}"; expected ${BRIEFING_ARM_NAMES.join(", ")}`);
@@ -102,6 +113,7 @@ export const NEEDS_BRIEFINGS = BRIEFING_ARMS.some((a) => a !== "none");
 if (NEEDS_BRIEFINGS && (RERANK !== "none" || (HYBRID && BRIEFING_ARMS.some((a) => a !== "none" && a !== "s2docs")))) {
   die("briefing arms do not support --rerank; --hybrid is supported for s2docs only (the chat's three-way fusion).");
 }
+if (SAMPLE_SCOPE !== undefined && POOL_FLAG === "covered") die("--sample-scope sets its own pool; drop --pool covered.");
 if (OFFLINE && BACKEND === "tfidf") die("--offline reads a vector cache; pass --backend openrouter, ternlight or ollama.");
 if (OFFLINE && REUSE_DB) die("--offline and --reuse-db conflict: run --reuse-db once to fill the cache, then --offline.");
 // Matches search.ts's RESIDUAL_ANCHOR_K, the measured peak (51% at top-20).

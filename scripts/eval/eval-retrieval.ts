@@ -44,6 +44,12 @@
  *       uses into the cache, so a later --offline run needs no database. Briefing arms do not combine with --rerank;
  *       --hybrid works with s2docs only (the chat's three-way fusion: whole corpus, exact +4.5 [1.7, 7.8] on
  *       questions and +3.4 [0.6, 6.7] on keywords).
+ *   pnpm eval:retrieval -- --models google/gemini-embedding-2 --no-prefix --briefings none,s2docs --sample-scope 0.10 --sample-agent 0.08
+ *     ^ a stratified sample: that share of each top-level scope and of each agent artifact (by UUID hash, the same every
+ *       run), plus every document a query competes over, so all queries score. Embedding-model comparison over it,
+ *       with latency from eval-embed-latency.ts: docs/research/embedding-model-comparison.md. No model tested beats
+ *       qwen3-embedding-8b; the Gemini models come within 4 points (intervals include zero) with no slow tail, and
+ *       production switched to gemini-embedding-2. --leaf-rule both|residual|echo|lexical overrides the model's own rule.
  *   pnpm eval:retrieval -- --backend ternlight --briefings none,s1,s2,s2docs --briefing-file .cache/atlas-briefings/pilot-sonnet.json
  *   pnpm eval:retrieval -- --backend ollama --models qwen3-embedding:8b --briefings none,s2docs     (--doc-prefix for models that want one)
  *     ^ LOCAL embedders, for when there is no API credit: ternlight (the 384-dim WASM model the chat facts use, 128-token
@@ -421,17 +427,17 @@ import {
   unitHash,
   GROUP_POLICIES,
   type EmbedUnit,
-  fuseLeafScores,
+  fuseLeafScores, leafRuleFor,
   type LeafRow,
 } from "../../src/server/retrieval/embed-units.ts";
 import { generateRetrievalQueries, type RetrievalQuery } from "./eval-retrieval-queries.ts";
 import { buildEmbedText, contentHash as oneToOneHash } from "../../src/server/retrieval/embed-text.ts";
 import { rerank } from "./eval-rerankers.ts";
 import { runBootstrap, writeReport } from "./eval-retrieval-bootstrap.ts";
-import { ARMS, blockIndexFor, blockOf, loadBriefingPool, prependBlocks, selectPool } from "./eval-retrieval-briefings.ts";
+import { ARMS, blockIndexFor, blockOf, choosePool, loadBriefingPool, prependBlocks } from "./eval-retrieval-briefings.ts";
 import {
   BACKEND, CAP, CAPS, COLLAPSE, CRUMB_DEPTH, CRUMB_STRATS, HYBRID, K, LEAF_RERANK, LOCAL, MODELS, OFFLINE, OUT, POLICIES,
-  PREFIX, QUERY_STYLE, RERANK, RERANK_N, RERANK_POOL, RESIDUAL_ANCHOR_K, REUSE_DB, ROOT, SUBSET,
+  LEAF_RULE, PREFIX, QUERY_STYLE, RERANK, RERANK_N, RERANK_POOL, RESIDUAL_ANCHOR_K, REUSE_DB, ROOT, SUBSET,
 } from "./eval-retrieval-flags.ts";
 import { attributeRank, metrics } from "./eval-retrieval-metrics.ts";
 import {
@@ -496,7 +502,7 @@ for (const policy of POLICIES) {
       `policy=${policy} cap=${cap ?? "none"}${strat ? ` crumb=${strat}` : CRUMB_DEPTH ? ` crumbDepth=${CRUMB_DEPTH}` : ""} units=${allUnits.length} backend=${BACKEND}`,
     );
 
-    const { poolUnits, scoredQueries } = selectPool(docs, allUnits, queries, covered, POOL);
+    const { poolUnits, scoredQueries } = choosePool(docs, allUnits, queries, covered, POOL);
     if (scoredQueries.length === 0 || poolUnits.length === 0) {
       console.log(`  no queries scored under pool=${POOL} (${poolUnits.length} units, ${scoredQueries.length} queries): the briefings do not cover any query's whole competing set. Skipping this policy.`);
       continue;
@@ -526,8 +532,10 @@ for (const policy of POLICIES) {
         failIfOfflineMissing();
         neural = units.map((u) => got.get(u.hash)!);
         // Leaf attribution reads each member's own one-to-one vector. With
-        // --reuse-db those come from the DB; a local embedder has to make them.
-        if (LOCAL) {
+        // --reuse-db those come from the DB and --offline reads what the cache
+        // holds; every other run makes them, or a model would be scored with
+        // lexical attribution and the DB model without.
+        if (!REUSE_DB && !OFFLINE) {
           const members = new Map<string, string>();
           for (const u of units) {
             if (u.memberIds.length <= 1) continue;
@@ -588,7 +596,7 @@ for (const policy of POLICIES) {
             .map((r) => docMap.get(r.id)?.title)
             .filter((t): t is string => !!t),
         );
-      const attributes = BACKEND !== "tfidf" && Boolean(vectorState.cachedVectors || OFFLINE || LOCAL);
+      const attributes = BACKEND !== "tfidf";
       if (BACKEND !== "tfidf" && neural) {
         await prefetchQueryVectors(scoredQueries.map((q) => q.query), model, `${arm.label} queries`);
         if (attributes) {
@@ -643,10 +651,9 @@ for (const policy of POLICIES) {
         // one_to_one every unit is a single doc, so there is nothing to attribute and
         // the residual call would be 179 wasted round-trips per run.
         const poolHasGroup = hasGroup(pool);
-        // Attribution reads member vectors from the DB (--reuse-db) or the cache a
-        // --reuse-db run filled (--offline). A plain openrouter run has neither, so it
-        // attributes lexically, as before.
-        if (attributes && poolHasGroup && queryVec && neural) {
+        // Attribution reads member vectors from the DB (--reuse-db), from the
+        // cache (--offline), or from the member embed above.
+        if (attributes && LEAF_RULE !== "lexical" && poolHasGroup && queryVec && neural) {
           const residual = residualFor(q, pool);
           const rv = await getQueryVector(residual, model, []);
           const rows: LeafRow[] = [];
@@ -670,7 +677,7 @@ for (const policy of POLICIES) {
             }
           }
           if (rows.length >= 2) {
-            const fused = fuseLeafScores(rows);
+            const fused = fuseLeafScores(rows, LEAF_RULE ? { rankings: LEAF_RULE } : leafRuleFor(model));
             leafScorer = (id: string) => fused.get(id);
           }
         }

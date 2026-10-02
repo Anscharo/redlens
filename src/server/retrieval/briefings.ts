@@ -5,7 +5,7 @@ import { sql, toVectorLiteral, toUuidArrayLiteral } from "../db.ts";
 import { fromUuidArray } from "../pg-array.ts";
 import { config } from "../config.ts";
 import { rrfFuse } from "../../lib/searchSemantic.ts";
-import { fuseLeafScores, type LeafRow, type LeafSemanticScore } from "./embed-units.ts";
+import { fuseLeafScores, leafRuleFor, type LeafRow, type LeafSemanticScore } from "./embed-units.ts";
 import type { Hit, SemanticResult } from "./search.ts";
 
 /**
@@ -168,7 +168,7 @@ export async function buildLeafScorer(
       ],
     )) as LeafRow[];
     if (rows.length < 2) return undefined;
-    const fused = fuseLeafScores(rows);
+    const fused = fuseLeafScores(rows, leafRuleFor(config.embedModel));
     return (id: string) => fused.get(id);
   } catch (err) {
     console.warn(`  leaf attribution fell back to lexical: ${(err as Error).message}`);

@@ -1283,11 +1283,18 @@ routing chains, not the primary's 256k, because an OpenRouter failover sends the
 same full context and the honest ceiling is the chain minimum. Swap it alongside
 `CHAT_MODEL` / `CHAT_MODEL_*` when the chains change.
 
-Embeddings use `EMBED_MODEL` (default `qwen/qwen3-embedding-8b`, native 4096
-dims) sliced + L2-renormalized client-side to `EMBED_DIM = 1024` — a constant
+Embeddings use `EMBED_MODEL` (default `google/gemini-embedding-2`, asked for
+1024 dims and L2-renormalized client-side) at `EMBED_DIM = 1024` — a constant
 locked to the `vector(1024)` column and HNSW index. `sync-embeddings.ts` is a
-separate best-effort lane, incremental by unit `content_hash`, that keeps
-`atlas_doc_embeddings` current. Embeddings are a derived recall index, not atlas
+separate best-effort lane, incremental by unit `content_hash` and by the
+`embed_model` each row records (migration 038), that keeps
+`atlas_doc_embeddings` current; a model change re-embeds every row, resumably.
+Three settings follow the model: the query prefix (`queryPrefixFor`, Qwen's
+instruction or none), the cosine floor (`semanticMinScore`: 0.55 for Gemini,
+0.30 for Qwen) and the leaf rule (`leafRuleFor`). Gemini replaced
+`qwen/qwen3-embedding-8b` because every host serving Qwen took 7 to 36 s for one
+call in ten at equal quality; the measurement is in
+`docs/research/embedding-model-comparison.md`. Embeddings are a derived recall index, not atlas
 truth: a stale vector only means that doc leans on lexical search for a while,
 so the lane never blocks structural sync or the deploy/health gate.
 

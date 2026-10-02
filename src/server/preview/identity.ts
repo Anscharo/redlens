@@ -43,8 +43,10 @@ export function detectIdentitySwaps(args: {
   previewById: Map<string, SwapNode>;
   /** Optional: see BodySimilarity. Absent, every body is judged by lines and words. */
   similarity?: BodySimilarity;
+  /** The cosine bar for the model behind `similarity` (replaceMaxCosineFor). */
+  maxCosine?: number;
 }): { identitySwap: Record<string, IdentitySwap>; formerUuid: Record<string, FormerUuid> } {
-  const { changed, added, mainById, previewById, similarity } = args;
+  const { changed, added, mainById, previewById, similarity, maxCosine } = args;
   const identitySwap: Record<string, IdentitySwap> = {};
   const formerUuid: Record<string, FormerUuid> = {};
   const addedIds = [...added];
@@ -57,7 +59,7 @@ export function detectIdentitySwaps(args: {
     const main = mainById.get(id);
     const prev = previewById.get(id);
     if (!main || !prev || !isRetitleCandidate(main, prev)) continue;
-    if (!bodyReplaced(main.content, prev.content, similarity?.(id))) continue; // body largely preserved → edit
+    if (!bodyReplaced(main.content, prev.content, similarity?.(id), maxCosine)) continue; // body largely preserved → edit
 
     const moved = relocationTarget(main.content, mainById, addedIds, previewById);
     // Three ways the title shows a rename and not a swap. Each yields to a

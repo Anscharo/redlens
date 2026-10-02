@@ -9,8 +9,9 @@ import { competingSets, fullyCovered } from "./eval-briefing-coverage.ts";
 import type { RetrievalQuery } from "./eval-retrieval-queries.ts";
 import { cosine, dot, idfMap, tfidfVec, tokenize } from "./eval-retrieval-rank.ts";
 import { resolveVectors } from "./eval-retrieval-vectors.ts";
+import { sampleDocs, samplePool } from "./eval-retrieval-sample.ts";
 import {
-  BACKEND, BRIEFING_ARMS, BRIEFING_FILE, BRIEFING_TEXTS, NEEDS_BRIEFINGS, POOL_FLAG, ROOT,
+  BACKEND, BRIEFING_ARMS, BRIEFING_FILE, BRIEFING_TEXTS, NEEDS_BRIEFINGS, POOL_FLAG, ROOT, SAMPLE_AGENT, SAMPLE_SCOPE,
   type BriefingArmName, type BriefingText,
 } from "./eval-retrieval-flags.ts";
 
@@ -97,6 +98,20 @@ export function selectPool(
     for (const [sl, c] of perSlice) console.log(`    ${sl}: queries scored ${c.scored}/${c.total}`);
   }
   return { poolUnits, scoredQueries };
+}
+
+let sample: Set<string> | null | undefined;
+
+/** The run's pool: the sample's when --sample-scope is set, else selectPool's. */
+export function choosePool(
+  docs: AtlasNode[],
+  units: EmbedUnit[],
+  queries: RetrievalQuery[],
+  covered: ReadonlySet<string>,
+  pool: "all" | "covered",
+) {
+  if (sample === undefined) sample = SAMPLE_SCOPE === undefined ? null : sampleDocs(docs, SAMPLE_SCOPE, SAMPLE_AGENT ?? SAMPLE_SCOPE);
+  return sample ? samplePool(docs, units, queries, sample) : selectPool(docs, units, queries, covered, pool);
 }
 
 // s1: the block rides in the unit's own text, so one vector carries both.

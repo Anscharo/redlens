@@ -45,7 +45,11 @@ async function loadCachedVectors(): Promise<Map<string, number[]>> {
   const sql = new SQL({ url, max: 2 });
   const out = new Map<string, number[]>();
   try {
-    const rows = (await sql`SELECT DISTINCT ON (content_hash) content_hash, embedding::text AS embedding FROM atlas_doc_embeddings`) as {
+    // Only vectors the requested model made. A row with no marker predates
+    // migration 038, when every vector came from qwen3-embedding-8b.
+    const model = MODELS[0]!;
+    const rows = (await sql`SELECT DISTINCT ON (content_hash) content_hash, embedding::text AS embedding FROM atlas_doc_embeddings
+      WHERE embed_model = ${model} OR (embed_model IS NULL AND ${model} = 'qwen/qwen3-embedding-8b')`) as {
       content_hash: string;
       embedding: string;
     }[];

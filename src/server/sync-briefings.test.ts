@@ -34,6 +34,7 @@ const doc = (n: number, doc_no: string): AtlasNode & { contentHash: string } => 
   contentHash: `hash-${n}`,
   addressRefs: [],
 });
+const MODEL = "test/embed-model"; // the model the fake store treats as current
 const DOCS = [doc(1, "A.1"), doc(2, "A.1.1"), doc(3, "A.1.2")];
 // The embed and off-switch paths read only `docs` (atlas order) from the live view.
 const LIVE = { docs: DOCS } as unknown as Live;
@@ -45,7 +46,7 @@ const good = (n: number) => ({
 });
 
 class FakeStore implements BriefingStore {
-  rows = new Map<string, StoredRow & { questions: unknown; embedded_hash: string | null }>();
+  rows = new Map<string, StoredRow & { questions: unknown; embedded_hash: string | null; embed_model: string | null }>();
   seedHash: string | null = null;
   seedWrites: BriefingWrite[][] = [];
   workerWrites: BriefingWrite[] = [];
@@ -77,12 +78,13 @@ class FakeStore implements BriefingStore {
     this.bumps.push(...docs);
   }
   async loadToEmbed(): Promise<ToEmbed[]> {
-    return [...this.rows.values()].filter((r) => r.briefing !== "" && r.embedded_hash !== r.briefing_hash);
+    return [...this.rows.values()].filter((r) => r.briefing !== "" && (r.embedded_hash !== r.briefing_hash || r.embed_model !== MODEL));
   }
   async writeVector(docId: string, _hash: string, _vec: number[]) {
     this.vectors.push(docId);
     const row = this.rows.get(docId)!;
     row.embedded_hash = row.briefing_hash;
+    row.embed_model = MODEL;
   }
   put(r: BriefingWrite, _source: string) {
     this.rows.set(r.docId, {
@@ -95,6 +97,7 @@ class FakeStore implements BriefingStore {
       failed_context: null,
       briefing_hash: createHash("sha256").update(briefingEmbedText(r)).digest("hex"),
       embedded_hash: null,
+      embed_model: null,
     });
   }
 }
@@ -239,12 +242,27 @@ describe("embed pass", () => {
       store.put({ docId: uuid(n), briefing: `text ${n}`, questions: ["Q?"], digest: "d", contextDigest: "c", model: null }, "seed");
     }
     store.rows.get(uuid(2))!.embedded_hash = store.rows.get(uuid(2))!.briefing_hash; // already embedded
+    store.rows.get(uuid(2))!.embed_model = MODEL;
     store.rows.set(uuid(9), { ...store.rows.get(uuid(1))!, doc_id: uuid(9), briefing: "", embedded_hash: null }); // placeholder
     const d = deps(store);
     const n = await embedPass(d, LIVE);
     expect(n).toBe(2);
     expect(store.vectors).toEqual([uuid(1), uuid(3)]);
     expect(d.embedCalls).toBe(1);
+  });
+
+  it("re-embeds a row whose hash matches but whose embed_model is another model or NULL", async () => {
+    const store = new FakeStore();
+    for (const n of [1, 2, 3]) {
+      store.put({ docId: uuid(n), briefing: `text ${n}`, questions: ["Q?"], digest: "d", contextDigest: "c", model: null }, "seed");
+      store.rows.get(uuid(n))!.embedded_hash = store.rows.get(uuid(n))!.briefing_hash;
+    }
+    store.rows.get(uuid(1))!.embed_model = MODEL;
+    store.rows.get(uuid(2))!.embed_model = "other/model";
+    // uuid(3) stays NULL
+    expect(await embedPass(deps(store), LIVE)).toBe(2);
+    expect(store.vectors).toEqual([uuid(2), uuid(3)]);
+    expect(await embedPass(deps(store), LIVE)).toBe(0);
   });
 
   it("sends the shared embed text", async () => {

@@ -38,7 +38,7 @@
 - Stopped the chat's verification badge from failing an answer for its own summary callouts
 - The chat assistant can now see the verification results and citation marks shown under its earlier answers, so it can explain them when asked
 - Meaning search now also matches a short briefing written for each document, so a one-line document is found by what it is about
-- Meaning search now starts sooner after you stop typing
+- Meaning search now starts sooner after you stop typing and answers in about half a second
 
 ## 2026-09-30
 - Made previews catch a longer document that was replaced by a different one even when the two share most of their wording

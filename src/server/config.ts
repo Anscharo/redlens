@@ -3,6 +3,19 @@
 import { resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "../..");
+
+// Query-side instruction for an embedding model; documents are always embedded
+// raw. Qwen3-Embedding is asymmetric and instruct-tuned, so its queries carry
+// the model card's generic retrieval instruction (the measured table is in
+// docs/research/embedding-model-comparison.md and at `embedQueryPrefix` below).
+// gemini-embedding-2 and bge-m3 take queries raw: the instruction is Qwen's
+// own format and is noise to them.
+const QWEN_QUERY_PREFIX = "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: ";
+export const queryPrefixFor = (model: string): string => (model.toLowerCase().includes("qwen") ? QWEN_QUERY_PREFIX : "");
+const embedModel = process.env.EMBED_MODEL ?? "google/gemini-embedding-2";
+// Cosine floor on semantic unit hits, per model, because each model's cosines
+// sit in their own range (see `semanticMinScore`).
+const SEMANTIC_FLOORS: Record<string, number> = { "google/gemini-embedding-2": 0.55, "qwen/qwen3-embedding-8b": 0.3 };
 const port = Number(process.env.PORT ?? 3000);
 
 // Login/chat gating, resolved once. `usersRequested` is the raw operator intent;
@@ -154,40 +167,30 @@ export const config = {
   // (model calls); the credits endpoint rejects the model key. Unset = the
   // commons meter is simply absent and the shared-pool gate never fires.
   openrouterManagementKey: process.env.OPENROUTER_MANAGEMENT_KEY ?? "",
-  embedModel: process.env.EMBED_MODEL ?? "qwen/qwen3-embedding-8b",
-  // Instruction prefix applied to QUERIES only — never to documents.
-  //
-  // Qwen3-Embedding is an ASYMMETRIC, instruct-tuned model: its own model card
-  // specifies `Instruct: <task>\nQuery: <text>` on the query side with documents
-  // embedded raw, and reports a 1-5% retrieval drop when the instruction is
-  // omitted. Until 2026-09-29 this codebase embedded queries and documents
-  // through the identical path with no prefix, which is the omitted case.
-  //
-  // Query-side only, so changing it re-embeds NOTHING — the stored document
-  // vectors are already raw, which is what this model wants. That also makes it
-  // instantly reversible: set EMBED_QUERY_PREFIX="" to go back.
-  //
-  // The text is the model card's GENERIC retrieval instruction, not a
-  // domain-specific one. Measured 2026-09-29 (`pnpm eval:retrieval --reuse-db`,
-  // 179 queries, kv_records_breadcrumbs, local Qwen vectors), semantic-only:
+  // The model that embeds documents and queries alike; every stored vector is
+  // marked with the model that made it (migration 038), so changing this
+  // re-embeds the corpus on the next sync. gemini-embedding-2 is the default:
+  // over half the corpus it scored level with qwen3-embedding-8b (exact 0.788
+  // and 0.704 against 0.788 and 0.676, questions and keywords, with briefings
+  // and its own leaf rule, `leafRuleFor`) and answered in about 0.4 s at the
+  // median and 0.55 s at the 90th percentile, where qwen3-embedding-8b took 7 to
+  // 36 s for one call in ten on every host that serves it
+  // (docs/research/embedding-model-comparison.md).
+  embedModel,
+  // Instruction prefix applied to QUERIES only, never to documents, so changing
+  // it re-embeds nothing. Follows the model (`queryPrefixFor`) unless
+  // EMBED_QUERY_PREFIX is set. For Qwen the text is the model card's GENERIC
+  // retrieval instruction, measured on Qwen vectors (179 queries,
+  // kv_records_breadcrumbs, semantic-only):
   //
   //                         recall  exact  disambig   mrr   control(prose) recall
   //   no prefix              0.771  0.575    0.450   0.547        0.725
   //   "Sky Atlas governance" 0.777  0.559    0.425   0.607        0.875
   //   generic (this)         0.844  0.670    0.650   0.648        0.925
   //
-  // and hybrid (chat's path): no prefix 0.899/0.615/0.500, governance-worded
-  // 0.922/0.592/0.375, generic 0.922/0.659/0.575 (recall/exact/disambig). The
-  // domain wording steered the model toward prose and AWAY from configuration
-  // documents (icd-disambiguation 0.850 -> 0.700 recall); the generic wording
-  // lifts every slice. On 12 natural prose questions, top-10 hits under A.6 went
-  // 48% (no prefix) -> 20% (generic) and thin (<120 char) hits 48% -> 13%.
-  //
-  // Swap the text if you swap EMBED_MODEL to a symmetric model (text-embedding-3,
-  // bge-m3): for those the prefix is noise, and "" is correct.
-  embedQueryPrefix:
-    process.env.EMBED_QUERY_PREFIX ??
-    "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: ",
+  // The domain wording steered the model toward prose and away from
+  // configuration documents; the generic wording lifts every slice.
+  embedQueryPrefix: process.env.EMBED_QUERY_PREFIX ?? queryPrefixFor(embedModel),
   // Grouping policy for atlas_doc_embeddings. A CODE CONSTANT, not an env var.
   //
   // Decided 2026-08-18 on the paraphrased query set with semantic leaf attribution
@@ -234,16 +237,18 @@ export const config = {
   // and atlas_query. Conservative default — good matches sit well above it;
   // raise it (env) to be stricter, lower it if paraphrase recall suffers.
   //
-  // Re-fitted 2026-09-29 on production's Qwen vectors with the generic query
-  // prefix, 179 labeled queries, top-200 anchors each: the correct anchor's
-  // cosine is p10 0.627 / p50 0.761 / min 0.349, the rank-10 cosine p10 0.471 /
-  // min 0.319, the rank-200 cosine min 0.264. At 0.30 no correct anchor is lost
-  // and only the deep tail is cut; 0.40 already loses 2 correct anchors and
-  // empties rank 10 for 6 queries. So 0.30 stays. For comparison, two RANDOM
-  // atlas docs score p50 0.407 to each other (86% of random pairs clear 0.30):
-  // this floor cannot separate relevant from unrelated on its own, it only
-  // stops a query with no real match from filling k with noise.
-  semanticMinScore: Number(process.env.SEMANTIC_MIN_SCORE ?? 0.3),
+  // Each model's floor is fitted by one rule over 179 labeled queries, top-200
+  // anchors each: the highest value that loses no correct anchor and empties no
+  // query's rank 10, so only the deep tail is cut.
+  //   qwen3-embedding-8b (generic prefix): correct anchor p10 0.627 / p50 0.761 /
+  //     min 0.349; rank-10 min 0.319; rank-200 min 0.264 → 0.30 (0.40 loses 2
+  //     correct anchors). Two random atlas docs score p50 0.407 to each other.
+  //   gemini-embedding-2: correct anchor p10 0.749 / p50 0.806 / min 0.693;
+  //     rank-10 min 0.582; rank-200 min 0.541 → 0.55 (0.60 empties rank 10 for 3).
+  // The floor cannot separate relevant from unrelated on its own; it only stops
+  // a query with no real match from filling k with noise. A model with no fitted
+  // floor gets none (0) rather than another model's.
+  semanticMinScore: Number(process.env.SEMANTIC_MIN_SCORE ?? SEMANTIC_FLOORS[embedModel] ?? 0),
   // Hard ceiling on the query-time embed call. embedBatch retries with backoff
   // (~15s worst case); the retrieve path must not hang on a flaky provider, so
   // if the embed exceeds this we drop the semantic leg and answer lexical-only.
