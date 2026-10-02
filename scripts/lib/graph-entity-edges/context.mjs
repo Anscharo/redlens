@@ -20,10 +20,15 @@ export function buildContext(allDocs, docById, docByDocNo, entityContext, addres
     supportFacilitators: entityMap.get("support-facilitators"),
     entityById: new Map([...entityMap.values()].map((e) => [e.id, e])),
     entityByName: (name) => entityMap.get(slugify(name)),
-    addEdge(fromId, fromType, toId, toType, edgeType, sourceDocNos = [], meta = null) {
-      const edge = { fromId, fromType, toId, toType, edgeType, sourceDocNos, meta };
-      edges.push(edge);
-      return edge;
-    },
+    addEdge: edgeAdder(edges),
+  };
+}
+
+/** The `addEdge` every pattern emits through: appends one edge to `edges` and returns it. */
+function edgeAdder(edges) {
+  return (fromId, fromType, toId, toType, edgeType, sourceDocNos = [], meta = null) => {
+    const edge = { fromId, fromType, toId, toType, edgeType, sourceDocNos, meta };
+    edges.push(edge);
+    return edge;
   };
 }
