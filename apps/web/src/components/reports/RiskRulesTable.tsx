@@ -1,184 +1,46 @@
+// Paged table of Risk Rules Assessment rows; each row expands in place to
+// show its assessment reasoning.
 import type { AtlasNode } from "@/types";
-import type { Preciseness } from "@/lib/riskAssessment";
-import { riskSearchFields, type RiskRow } from "@/lib/riskAssessmentIndex";
-import { RISK_DOMAIN_LABELS, type RiskDomain } from "@/lib/riskRules";
-import { RatingPill } from "./OeaAssessmentTable";
-import { NodeContent } from "../NodeContent";
-import { AtlasLink } from "../AtlasLink";
-import { atlasHref } from "@/lib/routes";
+import type { RiskRow } from "@/lib/riskAssessmentIndex";
 import { usePagedRows } from "../../hooks/usePagedRows";
-import { EMPTY_QUERY, hiddenMatches, type ReportQuery } from "@/lib/reportFilter";
-import { Highlight, MatchAside } from "./Highlight";import { useNavigateToNode } from "../../hooks/useNavigation";
+import { EMPTY_QUERY, type ReportQuery } from "@/lib/reportFilter";
+import { RiskTableRow } from "./RiskTableRow";
 
+export { ScorePill } from "./ScorePill";
 
-const SCORE_STYLE: Record<Preciseness, string> = {
-  1: "bg-[color-mix(in_srgb,var(--red)_35%,transparent)] text-tan",
-  2: "bg-[color-mix(in_srgb,var(--red)_20%,transparent)] text-tan",
-  3: "bg-[var(--hover)] text-tan-2",
-  4: "bg-[color-mix(in_srgb,var(--terminal-green)_18%,transparent)] text-tan",
-  5: "bg-[color-mix(in_srgb,var(--terminal-green)_30%,transparent)] text-tan",
-};
-
-export function ScorePill({ s }: { s: Preciseness | null }) {
-  if (!s) return <span className="mono text-[10px] text-tan-3">—</span>;
-  return <span className={`mono text-[10px] px-1.5 py-0.5 rounded ${SCORE_STYLE[s]}`}>{s}/5</span>;
-}
-
-function ExpandedBody({
-  row, docs, rq,
-}: {
-  row: RiskRow;
-  docs: Record<string, AtlasNode>;
-  rq: ReportQuery;
-}) {
-  const onNavigate = useNavigateToNode();
-  const e = row.entry;
-  // Expanded agent-copy rows (taskKey rewritten to u:<uuid> by joinRisk while
-  // the shared entry keeps its t:… key) show their OWN paragraph, not the
-  // representative's — otherwise a Keel row would quote Spark's copy.
-  const srcQuote = e && e.taskKey === row.candidate.taskKey ? e.quote : row.candidate.quote;
-  if (!e)
-    return (
-      <div className="space-y-3 text-sm">
-        <blockquote className="text-tan-2 border-l-2 border-[var(--border)] rounded-r pl-3 pr-2 py-1.5">
-          <NodeContent content={row.candidate.quote} onNavigate={onNavigate} highlight={rq} />
-        </blockquote>
-        <p className="text-xs text-tan-3">Not yet assessed — run `pnpm risk:assess`.</p>
-      </div>
-    );
-  return (
-    <div className="space-y-3 text-sm">
-      <div>
-        <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">Source paragraph</p>
-        <blockquote className="text-tan-2 border-l-2 border-[var(--accent)] rounded-r pl-3 pr-2 py-1.5 bg-[color-mix(in_srgb,var(--surface)_45%,transparent)]">
-          <NodeContent content={srcQuote} onNavigate={onNavigate} highlight={rq} />
-        </blockquote>
-      </div>
-      <div>
-        <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">
-          Precision <ScorePill s={e.preciseness} />
-        </p>
-        {/* Reasoning is free-form LLM prose (no atlas links), so render it
-            noMath: it carries currency and stray `$a$` spans that the reader's
-            KaTeX path would misrender, while still linkifying any addresses. */}
-        <div className="text-tan-2">
-          <NodeContent content={e.precisenessReasoning} onNavigate={onNavigate} noMath />
-        </div>
-        {e.metrics.length > 0 && (
-          <p className="mono text-[11px] text-tan-3 mt-1">
-            metrics: {e.metrics.map((m) => (
-              <span key={m} className="px-1.5 py-0.5 rounded bg-[var(--hover)] text-tan-2 mr-1.5">{m}</span>
-            ))}
-          </p>
-        )}
-      </div>
-      <div>
-        <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">
-          Penalties / Incentives <RatingPill r={e.enforcement} />
-        </p>
-        <div className="text-tan-2">
-          <NodeContent content={e.enforcementReasoning} onNavigate={onNavigate} noMath />
-        </div>
-        {e.mechanismUuids.length > 0 && (
-          <p className="text-xs mt-1">
-            {e.mechanismUuids.map((u) => (
-              <AtlasLink key={u} to={atlasHref(u)} className="text-accent hover:underline mr-3">
-                {docs[u]?.title ?? u.slice(0, 8)} ↗
-              </AtlasLink>
-            ))}
-          </p>
-        )}
-      </div>
-      <p className="mono text-[10px] text-tan-3">
-        ✳ assessed by {e.model}
-        {row.status === "stale" && " · STALE — the atlas changed since this rating; re-queued on next run"}
-      </p>
-    </div>
-  );
-}
-
-function DomainPills({ row }: { row: RiskRow }) {
-  const domains = (row.triage.domains.length ? row.triage.domains : row.candidate.domains) as RiskDomain[];
-  return (
-    <span className="flex flex-wrap gap-1">
-      {domains.map((d) => (
-        <span key={d} className="mono text-[10px] px-1.5 py-0.5 rounded bg-[var(--hover)] text-tan-2 whitespace-nowrap">
-          {RISK_DOMAIN_LABELS[d]}
-        </span>
-      ))}
-    </span>
-  );
-}
-
-export function RiskTable({
-  rows, docs, expandedKey, onToggle, rq = EMPTY_QUERY,
-}: {
+interface RiskTableProps {
   rows: readonly RiskRow[];
   docs: Record<string, AtlasNode>;
   expandedKey: string | null;
   onToggle: (row: RiskRow) => void;
   rq?: ReportQuery;
-}) {
+}
+
+function RiskTableHead() {
+  return (
+    <thead>
+      <tr className="text-xs mono text-tan-3">
+        <th className="py-1 px-3 font-normal w-40">Doc</th>
+        <th className="py-1 px-3 font-normal">Rule</th>
+        <th className="py-1 px-3 font-normal w-40">Risk Type</th>
+        <th className="py-1 px-3 font-normal w-28">Precision</th>
+        <th className="py-1 px-3 font-normal w-28">Incentives</th>
+      </tr>
+    </thead>
+  );
+}
+
+export function RiskTable({ rows, docs, expandedKey, onToggle, rq = EMPTY_QUERY }: RiskTableProps) {
   const { visible, remaining, showMore } = usePagedRows(rows);
   return (
     <div className="mb-8">
       <table className="w-full text-left">
-        <thead>
-          <tr className="text-xs mono text-tan-3">
-            <th className="py-1 px-3 font-normal w-40">Doc</th>
-            <th className="py-1 px-3 font-normal">Rule</th>
-            <th className="py-1 px-3 font-normal w-40">Risk Type</th>
-            <th className="py-1 px-3 font-normal w-28">Precision</th>
-            <th className="py-1 px-3 font-normal w-28">Incentives</th>
-          </tr>
-        </thead>
+        <RiskTableHead />
         <tbody>
-          {visible.map((row) => {
-            const expanded = expandedKey === row.candidate.taskKey;
-            const e = row.entry;
-            return [
-              // The whole row toggles the assessment; inner links stopPropagation.
-              // The chevron button stays as the keyboard/AT path for the same action.
-              <tr key={row.candidate.taskKey}
-                onClick={() => onToggle(row)}
-                className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors cursor-pointer">
-                <td className="py-2 px-3 align-top relative">
-                  <MatchAside matches={hiddenMatches(riskSearchFields(row), rq)} rq={rq} />
-                  <AtlasLink to={atlasHref(row.candidate.uuid)} onClick={(ev) => ev.stopPropagation()}
-                    className="mono text-xs text-accent hover:underline">
-                    <Highlight text={row.candidate.docNo} rq={rq} />
-                  </AtlasLink>
-                </td>
-                <td className="py-2 px-3 align-top text-sm">
-                  <button
-                    type="button"
-                    className="mono text-xs text-tan-3 mr-1.5 hover:text-accent focus:outline-none focus-visible:ring-1 focus-visible:ring-accent rounded-sm"
-                    aria-expanded={expanded}
-                    aria-label={`${expanded ? "Collapse" : "Expand"} assessment reasoning for ${row.candidate.title}`}
-                    onClick={(ev) => { ev.stopPropagation(); onToggle(row); }}
-                  >
-                    {expanded ? "▾" : "▸"}
-                  </button>
-                  <span className="text-tan"><Highlight text={row.candidate.title} rq={rq} /></span>
-                  {row.candidate.stub && <span className="mono text-[10px] text-tan-3 ml-1.5">[stub]</span>}
-                  {row.status !== "fresh" && (
-                    <span className={`badge ml-1.5 ${row.status === "stale" ? "badge-red" : "badge-muted"}`}>{row.status}</span>
-                  )}
-                  {!expanded && <p className="text-xs text-tan-2 mt-0.5 line-clamp-2"><Highlight text={row.triage.description} rq={rq} /></p>}
-                </td>
-                <td className="py-2 px-3 align-top"><DomainPills row={row} /></td>
-                <td className="py-2 px-3 align-top"><ScorePill s={e?.preciseness ?? null} /></td>
-                <td className="py-2 px-3 align-top"><RatingPill r={e?.enforcement ?? null} /></td>
-              </tr>,
-              expanded && (
-                <tr key={`${row.candidate.taskKey}:x`} className="border-t border-[var(--border)]">
-                  <td colSpan={5} className="py-3 px-3 bg-[color-mix(in_srgb,var(--surface)_60%,transparent)]">
-                    <ExpandedBody row={row} docs={docs} rq={rq} />
-                  </td>
-                </tr>
-              ),
-            ];
-          })}
+          {visible.map((row) => (
+            <RiskTableRow key={row.candidate.taskKey} row={row} docs={docs}
+              expanded={expandedKey === row.candidate.taskKey} onToggle={onToggle} rq={rq} />
+          ))}
         </tbody>
       </table>
       {remaining > 0 && (
