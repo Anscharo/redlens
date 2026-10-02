@@ -110,7 +110,7 @@
     "knip": "knip",
     "pull-atlas": "git submodule update --init --recursive",
     "test:coverage": "vitest run --coverage",
-    "test:server:coverage": "pnpm check:mocks && bun test src/server scripts/eval/eval-verifier-mutations.test.ts scripts/eval/eval-retrieval-queries.test.ts scripts/eval/eval-tools-score.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage/bun",
+    "test:server:coverage": "pnpm check:mocks && bun test src/server scripts/eval/eval-verifier-mutations.test.ts scripts/eval/eval-retrieval-queries.test.ts scripts/eval/eval-bootstrap.test.ts scripts/eval/eval-briefing-coverage.test.ts scripts/eval/eval-vector-cache.test.ts scripts/eval/eval-tools-score.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage/bun",
     "coverage:areas": "node scripts/aux/coverage-areas.mjs"
   },
   "dependencies": {

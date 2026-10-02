@@ -68,6 +68,9 @@ const sqlDispatch = new Proxy(sqlCall, {
   get(target, prop, receiver) {
     const base = baseSql;
     if (prop === "unsafe") {
+      // A later file that assigns `sql.unsafe` itself (search.test.ts's
+      // stubUnsafe) lands on the target; that stub wins over this dispatcher.
+      if (Object.prototype.hasOwnProperty.call(target, "unsafe")) return (target as { unsafe?: unknown }).unsafe;
       return (query: string, params?: unknown[]) => {
         if (unsafeImpl) {
           lastParams = params ?? [];
