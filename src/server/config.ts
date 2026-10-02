@@ -155,6 +155,40 @@ export const config = {
   // commons meter is simply absent and the shared-pool gate never fires.
   openrouterManagementKey: process.env.OPENROUTER_MANAGEMENT_KEY ?? "",
   embedModel: process.env.EMBED_MODEL ?? "qwen/qwen3-embedding-8b",
+  // Instruction prefix applied to QUERIES only — never to documents.
+  //
+  // Qwen3-Embedding is an ASYMMETRIC, instruct-tuned model: its own model card
+  // specifies `Instruct: <task>\nQuery: <text>` on the query side with documents
+  // embedded raw, and reports a 1-5% retrieval drop when the instruction is
+  // omitted. Embedding queries and documents through one prefix-free path is
+  // that omitted case, so the query path must apply this and the document path
+  // must not.
+  //
+  // Query-side only, so changing it re-embeds NOTHING — the stored document
+  // vectors are already raw, which is what this model wants. That also makes it
+  // instantly reversible: set EMBED_QUERY_PREFIX="" to go back.
+  //
+  // The text is the model card's GENERIC retrieval instruction, not a
+  // domain-specific one. Measured with `pnpm eval:retrieval --reuse-db` over
+  // 179 queries, kv_records_breadcrumbs, local Qwen vectors, semantic-only:
+  //
+  //                         recall  exact  disambig   mrr   control(prose) recall
+  //   no prefix              0.771  0.575    0.450   0.547        0.725
+  //   "Sky Atlas governance" 0.777  0.559    0.425   0.607        0.875
+  //   generic (this)         0.844  0.670    0.650   0.648        0.925
+  //
+  // and hybrid (chat's path): no prefix 0.899/0.615/0.500, governance-worded
+  // 0.922/0.592/0.375, generic 0.922/0.659/0.575 (recall/exact/disambig). The
+  // domain wording steered the model toward prose and AWAY from configuration
+  // documents (icd-disambiguation 0.850 -> 0.700 recall); the generic wording
+  // lifts every slice. On 12 natural prose questions, top-10 hits under A.6 went
+  // 48% (no prefix) -> 20% (generic) and thin (<120 char) hits 48% -> 13%.
+  //
+  // Swap the text if you swap EMBED_MODEL to a symmetric model (text-embedding-3,
+  // bge-m3): for those the prefix is noise, and "" is correct.
+  embedQueryPrefix:
+    process.env.EMBED_QUERY_PREFIX ??
+    "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: ",
   // Grouping policy for atlas_doc_embeddings. A CODE CONSTANT, not an env var.
   //
   // Decided 2026-08-18 on the paraphrased query set with semantic leaf attribution
@@ -183,6 +217,16 @@ export const config = {
   // RRF. Dropping hits below this floor tightens ranking for both atlas_search
   // and atlas_query. Conservative default — good matches sit well above it;
   // raise it (env) to be stricter, lower it if paraphrase recall suffers.
+  //
+  // Fitted on production's Qwen vectors with the generic query prefix, over
+  // 179 labeled queries, top-200 anchors each: the correct anchor's
+  // cosine is p10 0.627 / p50 0.761 / min 0.349, the rank-10 cosine p10 0.471 /
+  // min 0.319, the rank-200 cosine min 0.264. At 0.30 no correct anchor is lost
+  // and only the deep tail is cut; 0.40 already loses 2 correct anchors and
+  // empties rank 10 for 6 queries. So 0.30 stays. For comparison, two RANDOM
+  // atlas docs score p50 0.407 to each other (86% of random pairs clear 0.30):
+  // this floor cannot separate relevant from unrelated on its own, it only
+  // stops a query with no real match from filling k with noise.
   semanticMinScore: Number(process.env.SEMANTIC_MIN_SCORE ?? 0.3),
   // Hard ceiling on the query-time embed call. embedBatch retries with backoff
   // (~15s worst case); the retrieve path must not hang on a flaky provider, so
@@ -200,6 +244,13 @@ export const config = {
   // for a repeated query. This caches the last N query vectors per process so a
   // repeat is instant (no network, no cost, no timeout exposure). 0 disables it.
   queryEmbedCacheSize: Number(process.env.QUERY_EMBED_CACHE_SIZE ?? 512),
+
+  // Shared per-minute budget for the reader's meaning lane (see
+  // search-semantic-limit.ts). Sized from what it costs, not from a guess at
+  // traffic: one settled search is one embedding call, and a reader refining a
+  // question runs a handful per minute, so 60 carries roughly 15 people
+  // searching at once. 0 disables the gate entirely.
+  searchSemanticRpm: Number(process.env.SEARCH_SEMANTIC_RPM ?? 60),
 
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.
   chatModel: process.env.CHAT_MODEL ?? "google/gemma-4-31b-it",

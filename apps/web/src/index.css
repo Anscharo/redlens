@@ -2010,6 +2010,75 @@ a.atlas-annotates:focus-visible {
   background: var(--hover);
 }
 
+/* The corrected query offered when a search found nothing. Reads as the link
+   it behaves like — the whole point is that it is obviously clickable. */
+.did-you-mean {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.did-you-mean:hover,
+.did-you-mean:focus-visible {
+  text-decoration-thickness: 2px;
+}
+
+/* ─── Semantic ("meaning") search lane ─── */
+
+/* A semantic hit can share no word at all with the query, so this is
+   deliberately the loudest match note on the results page: accent-coloured,
+   bold, in a tinted pill — where every other note on the row is plain muted
+   text. It uses --accent rather than a token of its own because hue alone
+   cannot carry it in every palette (in giedi --accent is pure white and hue is
+   rationed); the weight and the border are what make it read as different
+   there. --accent is already an audited foreground on --bg and --surface. */
+.search-semantic-mark {
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  white-space: nowrap;
+}
+
+/* The row is marked too, not only its note: a woven result set has to read as
+   two different kinds of hit while SCROLLING, not just on close inspection. */
+.search-result[data-semantic="true"] .search-result-link {
+  border-left: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+/* "scoring by meaning…" / "meaning search is not configured here" — tied to the
+   lane, so accent-coloured, but not bold: it is a status, not a result. */
+.search-semantic-note {
+  color: var(--accent);
+}
+
+/* Lane pills — same visual grammar as the search bar's mode pills (which set
+   the equivalent values inline), driven by data-state instead. */
+.search-lane-pill {
+  color: var(--gray);
+  border-color: var(--border);
+  background: transparent;
+  transition:
+    color 0.1s,
+    border-color 0.1s,
+    background 0.1s;
+}
+.search-lane-pill:hover:not(:disabled) {
+  color: var(--tan-2);
+}
+.search-lane-pill[data-state="active"] {
+  color: var(--tan);
+  border-color: var(--accent);
+  background: var(--hover);
+}
+.search-lane-pill:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* ─── Home page feature cards ─── */
 .home-card {
   background: var(--surface);
@@ -2759,4 +2828,36 @@ a.atlas-annotates:focus-visible {
 }
 .msc-venue-row {
   cursor: pointer;
+}
+
+/* ─── Meaning-lane progress bar (SemanticProgress) ─── */
+/* A 6s fill, not a measurement — see the component for why there is no real
+   progress to report. `forwards` holds it at full if the search outruns the
+   animation; the component unmounts when the leg answers, so a parked full bar
+   always means "still going". The duration is mirrored in SemanticProgress.tsx
+   as SEMANTIC_PROGRESS_MS; a test pins the two together. */
+.semantic-progress-track {
+  height: 3px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--border);
+}
+.semantic-progress-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  animation: semantic-progress-fill 6000ms ease-out forwards;
+}
+@keyframes semantic-progress-fill {
+  to {
+    width: 100%;
+  }
+}
+/* No motion means no bar at all here. A static track reads as a stalled search
+   and a static FULL one reads as a finished one — the stage label below carries
+   the same information without either misreading. */
+@media (prefers-reduced-motion: reduce) {
+  .semantic-progress-track {
+    display: none;
+  }
 }

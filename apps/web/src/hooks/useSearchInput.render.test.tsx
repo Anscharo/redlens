@@ -63,9 +63,43 @@ describe("useSearchInput (rendered)", () => {
 
   it("on HOME, runs search() with the applied-mode query", () => {
     setup("/?q=governance&mode=phrase", "/");
-    // effect fires search() with the phrase-wrapped query.
+    // effect fires search() with the phrase-wrapped query, plus the lane and
+    // blend strategy. No injected window flags in jsdom → the wording lane and
+    // a semantic leg that never runs.
     expect(search).toHaveBeenCalled();
-    expect(search).toHaveBeenLastCalledWith('"governance"');
+    expect(search).toHaveBeenLastCalledWith('"governance"', { lane: "lexical" });
+  });
+
+  it("reads ?lane, and falls back off an unavailable meaning lane", () => {
+    setup("/?q=governance&lane=semantic", "/");
+    // window.__SEMANTIC_SEARCH__ is unset here, so a shared ?lane=semantic link
+    // must not leave the reader searching a permanently empty index.
+    expect(api.lane).toBe("lexical");
+    expect(search).toHaveBeenLastCalledWith("governance", { lane: "lexical" });
+  });
+
+  it("uses the meaning lane when the deployment can answer it", () => {
+    window.__SEMANTIC_SEARCH__ = true;
+    try {
+      setup("/?q=governance&lane=semantic", "/");
+      expect(api.lane).toBe("semantic");
+      expect(search).toHaveBeenLastCalledWith("governance", { lane: "semantic" });
+    } finally {
+      delete window.__SEMANTIC_SEARCH__;
+    }
+  });
+
+  it("does not apply the mode wrap on the meaning lane", () => {
+    // A `?mode=strict` left over from a wording search would quote the query,
+    // and the lane would then strip those quotes and report them back as
+    // ignored syntax the reader never typed.
+    window.__SEMANTIC_SEARCH__ = true;
+    try {
+      setup("/?q=governance&mode=strict&lane=semantic", "/");
+      expect(search).toHaveBeenLastCalledWith("governance", { lane: "semantic" });
+    } finally {
+      delete window.__SEMANTIC_SEARCH__;
+    }
   });
 
   it("off HOME, clears the search worker (search(''))", () => {
@@ -125,6 +159,16 @@ describe("useSearchInput (rendered)", () => {
     act(() => api.wrapModeClick("phrase"));
     expect(track).toHaveBeenCalledWith("search_mode_change", { mode: "phrase" });
     expect(api.query).toBe('"governance"');
+  });
+
+  it("selectLane records the change and re-runs the query against the other index", () => {
+    setup("/?q=governance", "/");
+    act(() => api.selectLane("graph"));
+    expect(track).toHaveBeenCalledWith("search_lane_change", { product: "search", lane: "graph" });
+    expect(api.lane).toBe("graph");
+    // Switching index must not touch the query itself.
+    expect(api.query).toBe("governance");
+    expect(search).toHaveBeenLastCalledWith("governance", { lane: "graph" });
   });
 
   it("wrapModeClick toggles a phrase back off to bare text", () => {

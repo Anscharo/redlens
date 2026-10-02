@@ -21,8 +21,11 @@ describe("useEntitySearch", () => {
     searchEntities.mockResolvedValue(hits);
     const { useEntitySearch } = await import("./useEntitySearch");
     const { result } = renderHook(() => useEntitySearch("keel"));
-    expect(result.current).toEqual([]);
-    await waitFor(() => expect(result.current).toEqual(hits));
+    // Loading from the first render, not from the reply: the entities lane is
+    // the whole page when it is picked, and a render in between must not be
+    // able to observe "done, nothing found".
+    expect(result.current).toEqual({ hits: [], loading: true });
+    await waitFor(() => expect(result.current).toEqual({ hits, loading: false }));
     expect(searchEntities).toHaveBeenCalledWith("keel");
   });
 
@@ -31,11 +34,13 @@ describe("useEntitySearch", () => {
     const { result, rerender } = renderHook(({ q }) => useEntitySearch(q), {
       initialProps: { q: "" },
     });
-    expect(result.current).toEqual([]);
+    expect(result.current).toEqual({ hits: [], loading: false });
     expect(searchEntities).not.toHaveBeenCalled();
     rerender({ q: "/reports" });
     expect(searchEntities).not.toHaveBeenCalled();
-    expect(result.current).toEqual([]);
+    // Nothing was asked for, so nothing is pending — a slash command must not
+    // leave the line saying "searching…" forever.
+    expect(result.current).toEqual({ hits: [], loading: false });
   });
 
   it("swallows a worker failure and stays empty", async () => {
@@ -43,7 +48,8 @@ describe("useEntitySearch", () => {
     const { useEntitySearch } = await import("./useEntitySearch");
     const { result } = renderHook(() => useEntitySearch("keel"));
     await waitFor(() => expect(searchEntities).toHaveBeenCalled());
-    expect(result.current).toEqual([]);
+    // A failed lookup is "found nothing", and crucially not pending.
+    await waitFor(() => expect(result.current).toEqual({ hits: [], loading: false }));
   });
 
   it("ignores a stale reply after the query changes", async () => {
@@ -62,9 +68,9 @@ describe("useEntitySearch", () => {
     });
     await waitFor(() => expect(searchEntities).toHaveBeenCalledTimes(1));
     rerender({ q: "ozone" });
-    await waitFor(() => expect(result.current).toEqual(second));
+    await waitFor(() => expect(result.current).toEqual({ hits: second, loading: false }));
     resolveFirst([{ participant: { id: "e1" }, score: 3, href: "/radar/skybase" }]);
     await Promise.resolve();
-    expect(result.current).toEqual(second);
+    expect(result.current).toEqual({ hits: second, loading: false });
   });
 });

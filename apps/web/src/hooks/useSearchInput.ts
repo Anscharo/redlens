@@ -1,6 +1,8 @@
 import { useEffect, useRef, useCallback, useDeferredValue } from "react";
 import { useSearch } from "./useSearch";
 import { useUrlState, urlString, urlEnum } from "./useUrlState";
+import { SEARCH_LANES, type SearchLane } from "@/lib/searchSemantic";
+import { semanticSearchAvailable } from "../lib/semanticSearchConfig";
 import { ROUTES, PREVIEW_INDEX_PATH, type SearchScope } from "@/lib/routes";
 import { track } from "../lib/analytics";
 import { useRecentSearches, useRecordRecentSearch } from "../lib/recentSearches";
@@ -11,6 +13,7 @@ export type SearchMode = "broad" | "phrase" | "strict";
 
 const MODES: readonly SearchMode[] = ["broad", "phrase", "strict"];
 const modeCodec = urlEnum<SearchMode>("broad", MODES);
+const laneCodec = urlEnum<SearchLane>("lexical", SEARCH_LANES);
 
 // Strips field:value tokens and -exclusions, leaving only the free search text.
 function stripFieldTokens(q: string): string {
@@ -93,10 +96,57 @@ export function runSlashCommand(q: string, navigate: (to: string) => void): bool
   return true;
 }
 
+/**
+ * Which index the results page queries (`?lane=`), and the setter that switches
+ * it.
+ *
+ * Switching lane re-runs the current query against the other index; nothing else
+ * about the search changes, so `?q=` is left alone. A shared `?lane=semantic`
+ * link opened against a deployment that cannot answer it falls back to wording,
+ * rather than searching an index that is permanently empty there.
+ */
+/**
+ * The query text and cursor position a mode pill click produces.
+ *
+ * Pure, so the wrap/unwrap arithmetic is testable without a hook: clicking the
+ * active pill (or `broad`) unwraps to the bare text, and clicking another wraps
+ * it — inserting an empty quote pair when there is no free text to wrap, so the
+ * reader can type inside it.
+ */
+export function modePillClick(
+  query: string,
+  mode: SearchMode,
+  newMode: SearchMode,
+): { newQuery: string; cursorPos: number } {
+  const currEffMode = effectiveMode(query);
+  const mixed = isMixedQuotes(query);
+  const currMode = !mixed && currEffMode !== "broad" ? currEffMode : mode;
+  const bareQuery = currEffMode !== "broad" ? stripModeWrap(query) : query;
+
+  if (newMode === "broad" || newMode === currMode) return { newQuery: bareQuery, cursorPos: bareQuery.length };
+
+  const wrapped = applyMode(bareQuery, newMode);
+  if (wrapped !== bareQuery) return { newQuery: wrapped, cursorPos: wrapped.length - 1 }; // before the closing quote
+  const pair = newMode === "phrase" ? '""' : "''";
+  const newQuery = bareQuery.trim() ? `${bareQuery.trim()} ${pair}` : pair;
+  return { newQuery, cursorPos: newQuery.length - 1 }; // between the quotes
+}
+
+function useSearchLane(): { lane: SearchLane; selectLane: (next: SearchLane) => void } {
+  const [laneParam, setLane] = useUrlState("lane", laneCodec);
+  const lane: SearchLane = laneParam === "semantic" && !semanticSearchAvailable() ? "lexical" : laneParam;
+  const selectLane = useCallback((next: SearchLane) => {
+    track("search_lane_change", { product: "search", lane: next });
+    setLane(next);
+  }, [setLane]);
+  return { lane, selectLane };
+}
+
 export function useSearchInput(location: string, navigate: (to: string) => void, scope: SearchScope) {
   const { state, search, ready } = useSearch();
   const [queryParam, setQueryParam] = useUrlState("q", queryCodec);
   const [mode, setMode] = useUrlState("mode", modeCodec);
+  const { lane, selectLane } = useSearchLane();
   const query = queryParam ?? "";
   const deferredQuery = useDeferredValue(query);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -117,9 +167,13 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
   useEffect(() => {
     if (location !== ROUTES.HOME) { search(""); return; }
     if (deferredQuery.startsWith("/")) { search(""); return; }
-    const withMode = applyMode(deferredQuery, mode);
-    search(withMode.trim() ? withMode : "");
-  }, [deferredQuery, mode, location, search]);
+    // The mode wrap is NOT applied on the meaning lane: `?mode=strict` left over
+    // from a wording search would quote the query, and this lane would then both
+    // strip those quotes and report them back as ignored syntax the reader never
+    // typed. The pills are disabled there for the same reason.
+    const withMode = lane === "semantic" ? deferredQuery : applyMode(deferredQuery, mode);
+    search(withMode.trim() ? withMode : "", { lane });
+  }, [deferredQuery, mode, location, search, lane]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -175,31 +229,7 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
   // the cursor before the closing quote so typing extends the phrase naturally.
   const wrapModeClick = useCallback((newMode: SearchMode) => {
     track("search_mode_change", { mode: newMode });
-    const currEffMode = effectiveMode(query);
-    const mixed = isMixedQuotes(query);
-    const currMode = !mixed && currEffMode !== "broad" ? currEffMode : mode;
-    const bareQuery = currEffMode !== "broad" ? stripModeWrap(query) : query;
-
-    let newQuery: string;
-    let cursorPos: number;
-
-    if (newMode === "broad" || newMode === currMode) {
-      // Toggle off — revert to bare text
-      newQuery = bareQuery;
-      cursorPos = newQuery.length;
-    } else {
-      const wrapped = applyMode(bareQuery, newMode);
-      if (wrapped === bareQuery) {
-        // No free text to wrap — insert an empty quote pair
-        const pair = newMode === "phrase" ? '""' : "''";
-        newQuery = bareQuery.trim() ? `${bareQuery.trim()} ${pair}` : pair;
-        cursorPos = newQuery.length - 1; // between the quotes
-      } else {
-        newQuery = wrapped;
-        cursorPos = newQuery.length - 1; // before the closing quote
-      }
-    }
-
+    const { newQuery, cursorPos } = modePillClick(query, mode, newMode);
     setQueryParam(newQuery || null);
 
     requestAnimationFrame(() => {
@@ -216,5 +246,6 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
     wrapModeClick, broadSearch,
     state, ready, handleHintClick,
     recentSearches, selectRecent,
+    lane, selectLane,
   };
 }

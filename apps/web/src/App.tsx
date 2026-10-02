@@ -30,6 +30,11 @@ import { PreviewBanner } from "./components/preview/PreviewBanner";
 import { useDataSource } from "./lib/dataSource";
 import { chatEnabled } from "./lib/chatEnabled";
 
+// All three mode pills describe how a STRING is matched, and the meaning lane
+// matches no strings — see SearchStatusLine's note, which says the same thing
+// about syntax the reader has already typed.
+const MEANING_LANE_MODES_OFF = "Broad / phrase / strict apply to wording search — the meaning lane scores whole documents";
+
 // Deliberately NOT in lib/lazyRoutes.tsx: this stays local to App.tsx, right
 // next to the __CHAT_ENABLED__ guard it's only ever rendered behind, so the
 // guard's dead-code-elimination reasoning isn't disturbed by crossing a module
@@ -78,7 +83,7 @@ export default function App() {
   // box filters that report's rows (query stays in ?q= on the same route).
   const reportScopeCfg = REPORT_SCOPE_CONFIG[location];
 
-  const { query, activeMode, isMixed, inputRef, handleChange, clearQuery, wrapModeClick, broadSearch, state, handleHintClick, recentSearches, selectRecent } =
+  const { query, activeMode, isMixed, inputRef, handleChange, clearQuery, wrapModeClick, broadSearch, state, handleHintClick, recentSearches, selectRecent, lane, selectLane } =
     useSearchInput(location, navigate, scope);
   const { navigateToNode, handleViewChange } = useNavigation({
     navigate,
@@ -179,6 +184,7 @@ export default function App() {
         scope={scope}
         scopeCfg={reportScopeCfg}
         showModes={scope === "atlas" || !!reportScopeCfg}
+        modesDisabledReason={lane === "semantic" ? MEANING_LANE_MODES_OFF : undefined}
         recentSearches={recentSearches}
         onRecentSelect={selectRecent}
         onSubmit={focusFirstResult}
@@ -226,6 +232,8 @@ export default function App() {
                   state={state}
                   query={query}
                   mode={activeMode}
+                  lane={lane}
+                  onLaneSelect={selectLane}
                   onHintClick={handleHintClick}
                   onBroadSearch={broadSearch}
                 />

@@ -134,7 +134,7 @@ const realEmbedDeps: EmbedDeps = {
   runMigrations,
   // A FRESH signal per call, so each withRetry attempt gets its own full budget
   // rather than sharing one deadline across all three.
-  embedBatch: (texts) => embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv()), 0, "embed-sync"),
+  embedBatch: (texts) => embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv()), 0, undefined, "embed-sync"),
   batch: batchSizeFromEnv(),
   sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
 };

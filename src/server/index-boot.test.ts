@@ -296,6 +296,24 @@ describe("buildRoutes gating", () => {
     expect((await r["/api/chat"](req("http://x/api/chat"))).status).not.toBe(404);
   });
 
+  it("keeps the semantic search route ungated and answering 200 when unconfigured", async () => {
+    // The reader is public, and the client needs to be TOLD the lane cannot be
+    // answered so it can say so — a 404 is indistinguishable from "no such
+    // route", and a gate would produce one on every keyless deployment.
+    const origKey = config.openrouterApiKey;
+    config.openrouterApiKey = "";
+    config.usersEnabled = false;
+    config.chatEnabled = false;
+    try {
+      const r = buildRoutes();
+      const res = await r["/api/search/semantic"](req("http://x/api/search/semantic?q=who%20approves"));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ hits: [], skipped: null, available: false });
+    } finally {
+      config.openrouterApiKey = origKey;
+    }
+  });
+
   it("declares the history/balances routes Bun's dispatcher needs", () => {
     const r = buildRoutes();
     // Static segments must be declared alongside the :id route — Bun matches

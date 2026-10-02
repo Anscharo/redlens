@@ -35,6 +35,11 @@ export const openrouter: EnvGroup = {
       default: "120000",
     },
     {
+      name: "EMBED_QUERY_PREFIX",
+      doc: 'Instruction prefix for QUERY embeds only; stored document vectors stay raw, which is what this asymmetric model wants. Changing it re-embeds nothing, and "" turns it off — correct if EMBED_MODEL becomes a symmetric model. The default is the model card\'s generic retrieval instruction; a domain-worded one measured worse. The \\n below is a dotenv escape, not two characters of the prefix.',
+      default: "Instruct: Given a web search query, retrieve relevant passages that answer the query\\nQuery: ",
+    },
+    {
       name: "SEMANTIC_MIN_SCORE",
       doc: "Cosine floor for semantic hits, so a query with few true matches does not fill top slots with unrelated neighbours.",
       default: "0.3",
@@ -47,5 +52,11 @@ export const openrouter: EnvGroup = {
       key: "semanticEmbedTimeoutMs",
     },
     { name: "QUERY_EMBED_CACHE_SIZE", doc: "In-process LRU of query embeddings. 0 disables it.", default: "512", key: "queryEmbedCacheSize" },
+    {
+      name: "SEARCH_SEMANTIC_RPM",
+      doc: "Shared per-minute budget for the reader's meaning lane, which is public and unauthenticated. One settled search is one embedding call, so 60 carries roughly 15 people searching at once. 0 disables the gate. In process, so N replicas allow N times this.",
+      default: "60",
+      key: "searchSemanticRpm",
+    },
   ],
 };

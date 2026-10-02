@@ -1307,10 +1307,27 @@ Mainnet`, too short to retrieve as its own vector — exact match on that slice 
 from 3 of 40 to 18 of 40. See `scripts/eval/eval-retrieval.ts`'s header.
 
 Folded members keep their own vector, flagged `attribution_only` (migration 023)
-and excluded from search: once a group is retrieved, the query is re-embedded with
-the retrieved anchor titles stripped out — inside a group the instance name
-discriminates nothing — and members are scored against that residual to pick the
-leaf. One extra embed per query, with a lexical fallback on any failure. Hybrid
+and excluded from search: once a group is retrieved, its members are scored to
+pick the leaf, because inside a group the instance name discriminates nothing —
+every member carries it. That rule is load-bearing, not a refinement: scoring
+members against the plain query vector instead collapses ICD disambiguation from
+62.5% to 2.5%, worse than no semantic attribution at all (measured 2026-09-30,
+98 queries whose target is folded).
+
+**It costs no round trip of its own** (changed 2026-09-30). It used to re-embed
+the query with the *retrieved* anchor titles stripped, which needs the semantic
+results and so bought a second embed — and an embed costs a round trip, not a
+payload (~2.3s p50 whether it carries one text or two), so that was half the
+request. The residual is now built from the **lexical** leg's titles, which
+`runLexical` has in memory before the embed, and rides in the query's own call;
+members are then scored by `fuseLeafScores` (`retrieval/leaf-scores.ts`) — an RRF fusion of
+cosine-to-residual with cosine-to-query-minus-a-penalty-for-resembling-its-own-anchor.
+Measured 43.9% against the old rule's 48.0%: −4.1 points, 95% CI [−14.3, +6.1]
+over 4,000 paired resamples, i.e. not distinguishable on this sample, against
++14.3 [+4.1, +24.5] over the lexical fallback. The residual-from-lexical ranking
+alone measured 39.8%, which the same bootstrap *does* separate from the old rule
+(P(better) = 0.01), so the second ranking is what makes one round trip affordable
+rather than a regression. Lexical fallback still covers any failure. Hybrid
 search then fuses ancestor/descendant lexical+semantic pairs onto the more
 specific doc (`via` on the tool result).
 

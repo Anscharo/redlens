@@ -4,6 +4,7 @@ import { renderHook, cleanup, act } from "@testing-library/react";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import type { SearchState } from "./useSearch";
+import type { SemanticLegStatus } from "@/types";
 
 const track = vi.fn();
 const recordVisit = vi.fn();
@@ -33,14 +34,47 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const doneState = (query: string, hits: number): SearchState => ({
+const doneState = (
+  query: string,
+  hits: number,
+  semantic: SemanticLegStatus = "none",
+): SearchState => ({
   status: "done",
   hits: Array.from({ length: hits }, (_, i) => ({ id: String(i) })) as never,
   durationMs: 5,
   query,
+  lane: "lexical",
+  semantic,
 });
 
 describe("useSearchTracking", () => {
+  it("does not log a result_count while a semantic leg is still in flight", async () => {
+    // The fused set arrives under the SAME query, so logging the lexical half
+    // now would record a count the user never saw settle — and the query+mode
+    // dedup would then suppress the real one.
+    const { useSearchTracking } = await import("./useSearchTracking");
+    const { rerender } = renderHook(({ state }) => useSearchTracking(state, "broad"), {
+      wrapper: wrapperFor("/"),
+      initialProps: { state: doneState("rewards", 0, "pending") },
+    });
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(track).not.toHaveBeenCalled();
+
+    rerender({ state: doneState("rewards", 7, "done") });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(track).toHaveBeenCalledTimes(1);
+    expect(track).toHaveBeenCalledWith("atlas_search", {
+      query: "rewards",
+      mode: "broad",
+      result_count: 7,
+      product: "search",
+    });
+  });
+
   it("fires atlas_search after the debounce once state settles to done", async () => {
     const { useSearchTracking } = await import("./useSearchTracking");
     const { rerender } = renderHook(({ state }) => useSearchTracking(state, "broad"), {
