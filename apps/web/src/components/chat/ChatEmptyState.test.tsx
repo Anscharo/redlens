@@ -45,6 +45,7 @@ describe("ChatEmptyState greeting + starters", () => {
     listConversations.mockResolvedValue([]);
     renderEmpty();
     expect(screen.getByText("Ask the Atlas")).toBeInTheDocument();
+    expect(screen.getByText(/\/teach/)).toBeInTheDocument();
     expect(screen.getByText("Trace the governance path for an Atlas amendment.")).toBeInTheDocument();
   });
 

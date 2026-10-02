@@ -50,10 +50,21 @@ interface UnsafeCall {
 let unsafeCalls: UnsafeCall[] = [];
 let ended = false;
 let begins = 0;
+// Advisory-lock recording. lockFree=false simulates another reconcile already
+// holding EMBED_LOCK_KEY; reserveThrows simulates a pool that cannot hand out a
+// dedicated connection at all (the fail-OPEN path).
+let lockFree = true;
+let reserveThrows = false;
+let lockCalls: string[] = [];
+let releases = 0;
 function resetRecording(): void {
   unsafeCalls = [];
   ended = false;
   begins = 0;
+  lockFree = true;
+  reserveThrows = false;
+  lockCalls = [];
+  releases = 0;
 }
 
 async function unsafeMock(query: string, params?: unknown[]): Promise<unknown> {
@@ -79,6 +90,14 @@ async function unsafeMock(query: string, params?: unknown[]): Promise<unknown> {
 
 async function sqlTag(strings: TemplateStringsArray, ..._values: unknown[]): Promise<unknown[]> {
   const text = strings.join("?");
+  if (text.includes("pg_try_advisory_lock")) {
+    lockCalls.push("try");
+    return [{ pg_try_advisory_lock: lockFree }];
+  }
+  if (text.includes("pg_advisory_unlock")) {
+    lockCalls.push("unlock");
+    return [{ pg_advisory_unlock: true }];
+  }
   if (text.includes("FROM atlas_doc_embeddings") && text.includes("content_hash")) {
     return fakeDb.have;
   }
@@ -96,6 +115,12 @@ async function sqlTag(strings: TemplateStringsArray, ..._values: unknown[]): Pro
 
 const sqlMock = Object.assign(sqlTag, {
   unsafe: unsafeMock,
+  // A reserved connection is the same tagged template plus release() — the
+  // advisory lock must be session-scoped, so it cannot go through the pool.
+  reserve: async () => {
+    if (reserveThrows) throw new Error("no connection available");
+    return Object.assign(sqlTag, { release: () => void releases++ });
+  },
   // Same tagged-template shape as `sql` itself — matches atlas-updater.test.ts.
   begin: async <T>(fn: (tx: typeof sqlTag) => Promise<T>): Promise<T> => {
     begins++;
@@ -118,7 +143,7 @@ mock.module("./db.ts", () => ({
   fromUuidArray,
 }));
 
-const { main, batchSizeFromEnv, withRetry } = await import("./sync-embeddings.ts");
+const { main, batchSizeFromEnv, embedTimeoutFromEnv, withRetry } = await import("./sync-embeddings.ts");
 const { config } = await import("./config.ts");
 
 function doc(id: string, doc_no: string, content: string, overrides: Partial<AtlasNode> = {}): AtlasNode {
@@ -179,6 +204,36 @@ describe("batchSizeFromEnv", () => {
 
   it("defaults to the real process.env", () => {
     expect(batchSizeFromEnv()).toBe(Number(process.env.EMBED_BATCH ?? 50));
+  });
+});
+
+// A hung provider socket is the one way this reconcile stops making progress
+// without failing — a fetch that never returns never throws, so withRetry never
+// sees it — and under EMBED_LOCK_KEY that also stands every worker tick down.
+// The ceiling is what makes the lock holder always finish or throw.
+describe("embedTimeoutFromEnv", () => {
+  it("reads EMBED_REQUEST_TIMEOUT_MS from the given env", () => {
+    expect(embedTimeoutFromEnv({ EMBED_REQUEST_TIMEOUT_MS: "5000" })).toBe(5000);
+  });
+
+  it("defaults to 120s — generous enough that a healthy batch never trips it", () => {
+    // A 50-text batch measures ~5s, and embedBatch's own backoff chain adds ~15s
+    // of sleeps; the default must clear both by a wide margin or it turns normal
+    // retry behaviour into skipped batches.
+    expect(embedTimeoutFromEnv({})).toBe(120_000);
+    expect(embedTimeoutFromEnv({})).toBeGreaterThan(20_000);
+  });
+
+  it("defaults to the real process.env", () => {
+    expect(embedTimeoutFromEnv()).toBe(Number(process.env.EMBED_REQUEST_TIMEOUT_MS ?? 120_000));
+  });
+
+  it("the real embedBatch dep passes a FRESH signal per call", async () => {
+    // One shared deadline across all three withRetry attempts would let attempt 1
+    // burn the whole budget and abort 2 and 3 before they were sent. Asserted on
+    // the source because realEmbedDeps dials a real provider.
+    const src = await Bun.file(new URL("./sync-embeddings.ts", import.meta.url)).text();
+    expect(src).toContain('embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv()), 0, "embed-sync")');
   });
 });
 
@@ -692,6 +747,103 @@ describe("main()", () => {
     });
     expect(unsafeCalls.some((c) => c.kind === "embed-upsert")).toBe(false);
     expect(unsafeCalls.some((c) => c.kind === "embed-meta-update")).toBe(false);
+    expect(ended).toBe(true);
+  });
+});
+
+// The reconcile takes a session-scoped advisory lock so the three callers that
+// can overlap on a cold atlas_doc_embeddings — the atlas worker's post-sync
+// tail, atlas-updater.ts's startBootEmbeddings (which fires exactly when the
+// table is empty) and a hand-run `pnpm sync:embeddings` — don't each buy the
+// same ~11.6k vectors. Idempotent upserts meant this was never a correctness
+// bug, only a bill.
+describe("main() — embed advisory lock", () => {
+  const noopMigrations = async () => [];
+  const instantSleep = async () => {};
+  let prevPolicy: string;
+
+  beforeEach(() => {
+    resetFakeDb();
+    resetRecording();
+    prevPolicy = config.embedGroupPolicy;
+    config.embedGroupPolicy = "one_to_one";
+  });
+  afterEach(() => {
+    config.embedGroupPolicy = prevPolicy;
+  });
+
+  /** One stale doc — enough that an unlocked run WOULD embed. */
+  function seedOneStaleDoc(): void {
+    const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    fakeDb.atlasSha = "sha1";
+    fakeDb.docs = [doc(id, "A.1", "body text")];
+    fakeDb.have = [];
+  }
+
+  it("skips the whole reconcile when another process holds the lock", async () => {
+    seedOneStaleDoc();
+    lockFree = false;
+    let embedCalls = 0;
+    const log = captureLog();
+    try {
+      await main({
+        runMigrations: noopMigrations,
+        embedBatch: async () => {
+          embedCalls++;
+          return [[1]];
+        },
+        batch: 50,
+        sleep: instantSleep,
+      });
+    } finally {
+      log.restore();
+    }
+    expect(embedCalls).toBe(0);
+    // Not one query either: bailing before runMigrations/the dim check is the
+    // point — the holder already did all of it.
+    expect(unsafeCalls).toHaveLength(0);
+    expect(log.logs.some((l) => l.includes("another reconcile holds the lock"))).toBe(true);
+    // Still gives the connection back and closes the pool — a skipped run must
+    // not leak the reservation it made to ask.
+    expect(lockCalls).toEqual(["try"]);
+    expect(releases).toBe(1);
+    expect(ended).toBe(true);
+  });
+
+  it("unlocks and releases after a run that did acquire it", async () => {
+    seedOneStaleDoc();
+    await main({
+      runMigrations: noopMigrations,
+      embedBatch: async () => [[1]],
+      batch: 50,
+      sleep: instantSleep,
+    });
+    expect(unsafeCalls.some((c) => c.kind === "embed-upsert")).toBe(true);
+    expect(lockCalls).toEqual(["try", "unlock"]);
+    expect(releases).toBe(1);
+    expect(ended).toBe(true);
+  });
+
+  it("fails OPEN — a pool that cannot reserve a connection still reconciles", async () => {
+    // A missed lock costs tokens; a missed reconcile costs search. So an
+    // unavailable lock must never be read as "someone else is doing it".
+    seedOneStaleDoc();
+    reserveThrows = true;
+    const log = captureLog();
+    try {
+      await main({
+        runMigrations: noopMigrations,
+        embedBatch: async () => [[1]],
+        batch: 50,
+        sleep: instantSleep,
+      });
+    } finally {
+      log.restore();
+    }
+    expect(unsafeCalls.some((c) => c.kind === "embed-upsert")).toBe(true);
+    expect(log.warns.some((w) => w.includes("advisory lock unavailable"))).toBe(true);
+    expect(lockCalls).toEqual([]);
+    expect(releases).toBe(0);
     expect(ended).toBe(true);
   });
 });

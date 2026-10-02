@@ -93,25 +93,23 @@ function extractAddresses(content, titleChain) {
 // canonical copy in src/lib/searchOptions.ts (this .mjs runs under node and
 // can't import that .ts, hence the duplicated literal). Mirror any change there.
 // ---------------------------------------------------------------------------
+// Index-side term processing; the query side drops the `_` parts (see
+// MINISEARCH_SEARCH_OPTIONS in src/lib/searchOptions.ts).
+function indexTerms(term) {
+  // Strip leading/trailing non-word chars so backtick-wrapped tokens like
+  // `delegatedSigners` index as "delegatedsigners" not "`delegatedsigners`".
+  const whole = term.replace(/^[^a-zA-Z0-9_]+|[^a-zA-Z0-9_]+$/g, "").toLowerCase();
+  if (whole.length < 2) return null;
+  return whole.includes("_") ? [whole, ...whole.split("_").filter((p) => p.length >= 2)] : whole;
+}
+
 function buildIndex(nodes) {
   const ms = new MiniSearch({
-    fields: ["title", "doc_no", "type", "content"],
-    idField: "id",
-    processTerm: (term) => {
-      // Strip leading/trailing non-alphanumeric chars so backtick-wrapped tokens
-      // like `delegatedSigners` index as "delegatedsigners" not "`delegatedsigners`".
-      const lower = term.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, "").toLowerCase();
-      return lower.length >= 2 ? lower : null;
-    },
+    fields: ["title", "doc_no", "type", "content"], idField: "id",
+    tokenize: (text) => text.split(/(?:[\n\r\p{Z}]|(?!_)\p{P})+/u), processTerm: indexTerms,
   });
   ms.addAll(
-    nodes.map((n) => ({
-      id: n.id,
-      title: n.title,
-      doc_no: n.doc_no,
-      type: n.type,
-      content: n.content,
-    })),
+    nodes.map((n) => ({ id: n.id, title: n.title, doc_no: n.doc_no, type: n.type, content: n.content })),
   );
   return ms.toJSON();
 }

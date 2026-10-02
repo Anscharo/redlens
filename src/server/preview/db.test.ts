@@ -31,7 +31,9 @@ const {
   previewsTodayCount,
   previewsTodayCountForOwner,
   previewsTodayCountForRepo,
-  listPreviews,
+  listPreviewsByShas,
+  recordPreviewOpen,
+  listPreviewOpens,
   isBlockedSha,
   blockedShas,
 } = await import("./db.ts");
@@ -97,9 +99,65 @@ test("upsertPreview defaults optional fields, including prBase, to null", async 
     buildMs: 1,
   } as any);
   expect(calls[0]!.values).toContain(null);
-  // pr_base_repo / pr_base_ref / default_branch (the last three interpolated
-  // values, right before last_access = now()) are all null when nothing was resolved.
-  expect(calls[0]!.values.slice(-3)).toEqual([null, null, null]);
+  // pr_base_repo / pr_base_ref / default_branch, then the seven diff-base record
+  // columns (the last ten interpolated values, right before last_access =
+  // now()) are all null when nothing was resolved.
+  expect(calls[0]!.values.slice(-10)).toEqual(Array(10).fill(null));
+});
+
+test("upsertPreview records the base actually used: type, LCA flag, branch@commit, every candidate, served atlas, doc-list size", async () => {
+  queued.push([]);
+  const bases = {
+    auto: "repo" as const,
+    sky: { repo: "sky-ecosystem/next-gen-atlas", ref: "main", mergeBase: "f".repeat(40), behindBy: 14 },
+    repo: { repo: "acme/secret-atlas", ref: "main", mergeBase: "a".repeat(40), aheadBy: 3 },
+  };
+  await upsertPreview({
+    sha: "s5",
+    repo: "acme/secret-atlas",
+    ref: "pull-7",
+    kind: "branch",
+    resolvedAt: "t",
+    docCount: 1,
+    buildMs: 5,
+    private: true,
+    defaultBranch: "main",
+    bases,
+    baseAtlasCommit: "c".repeat(40),
+    diffCounts: { added: 2, changed: 9 },
+  } as any);
+  expect(calls[0]!.strings.join("")).toContain("::jsonb"); // Bun.sql needs the cast to encode an object as jsonb
+  // The RAW object is bound (never JSON.stringify'd — that double-encodes into a jsonb string scalar).
+  expect(calls[0]!.values.slice(-7)).toEqual([
+    "fork-default", // ref pull-7 with no declared prBase: the default branch stood in
+    true,
+    `acme/secret-atlas:main@${"a".repeat(40)}`,
+    { candidates: { "nga-main": bases.sky, "fork-default": bases.repo } },
+    "c".repeat(40),
+    2,
+    9,
+  ]);
+});
+
+test("upsertPreview records the no-LCA degrade as nga-main with diff_base_lca false, at the served atlas commit", async () => {
+  queued.push([]);
+  await upsertPreview({
+    sha: "s6",
+    repo: "acme/secret-atlas",
+    ref: "pull-8",
+    kind: "branch",
+    resolvedAt: "t",
+    docCount: 1,
+    buildMs: 5,
+    bases: { auto: "live-main", reason: "no fork point found" },
+    baseAtlasCommit: "c".repeat(40),
+  } as any);
+  expect(calls[0]!.values.slice(-7, -3)).toEqual([
+    "nga-main",
+    false,
+    `sky-ecosystem/next-gen-atlas:main@${"c".repeat(40)}`,
+    { reason: "no fork point found", candidates: {} },
+  ]);
 });
 
 test("upsertPreview persists a fork branch's defaultBranch (the repo candidate a rebuild must keep)", async () => {
@@ -114,7 +172,7 @@ test("upsertPreview persists a fork branch's defaultBranch (the repo candidate a
     buildMs: 5,
     defaultBranch: "develop",
   } as any);
-  expect(calls[0]!.values.slice(-3)).toEqual([null, null, "develop"]);
+  expect(calls[0]!.values.slice(-10, -7)).toEqual([null, null, "develop"]);
 });
 
 test("getPreviewRow returns the row, or null when unknown", async () => {
@@ -175,23 +233,69 @@ test("previewsTodayCountForRepo defaults to 0 when no row comes back", async () 
   expect(await previewsTodayCountForRepo("acme/atlas-fork")).toBe(0);
 });
 
-test("listPreviews returns rows, limit defaults to 50", async () => {
-  queued.push([{ sha: "s1" }, { sha: "s2" }]);
-  const rows = await listPreviews();
-  expect(rows).toHaveLength(2);
-  expect(calls[0]!.values).toContain(50);
+test("listPreviewsByShas queries the given shas as one text[] literal, private rows INCLUDED", async () => {
+  queued.push([{ sha: "s1", private: true }]);
+  const rows = await listPreviewsByShas(["s1", "s2"]);
+  expect(rows).toHaveLength(1);
+  const q = calls[0]!.strings.join("");
+  // Private rows come back (mine.ts's visiblePreviews is what filters them), and
+  // there is no last_access window to fall out of. Blocked rows stay invisible.
+  expect(q).not.toContain("private = false");
+  expect(q).toContain("blocked_at IS NULL");
+  expect(q).toContain("::text[]");
+  // One bound literal, not a JS array parameter (see pg-array.ts).
+  expect(calls[0]!.values).toEqual(["{s1,s2}"]);
 });
 
-test("listPreviews excludes private rows", async () => {
-  queued.push([]);
-  await listPreviews();
-  expect(calls[0]!.strings.join("")).toContain("private = false");
+test("listPreviewsByShas skips the round trip on an empty sha list", async () => {
+  expect(await listPreviewsByShas([])).toEqual([]);
+  expect(calls).toHaveLength(0);
 });
 
-test("listPreviews respects an explicit limit", async () => {
+test("both mine-facing queries project the same disclosed column set", async () => {
+  // MinePreviewRow is the shape that leaves the server; the two SELECT lists are
+  // not type-checked against it, so a column added to one and not the other shows
+  // up as undefined in half the list instead of failing.
+  queued.push([], []);
+  await listPreviewsByShas(["s1"]);
+  await listPreviewOpens("user-1");
+  // "SELECT o.preview_id, o.last_opened_at AS opened_at, p.sha, …" → [opened_at, preview_id, sha, …]
+  const cols = (q: string) =>
+    q
+      .slice(q.indexOf("SELECT") + "SELECT".length, q.indexOf("FROM"))
+      .split(",")
+      .map((c) => c.trim().replace(/^[op]\./, "").replace(/^.*\sAS\s+/i, ""))
+      .filter(Boolean)
+      .sort();
+  const shaCols = cols(calls[0]!.strings.join(""));
+  const openCols = cols(calls[1]!.strings.join(""));
+  // The opens query adds exactly the account-only pair.
+  expect(openCols.filter((c) => !shaCols.includes(c))).toEqual(["opened_at", "preview_id"]);
+  expect(shaCols.filter((c) => !openCols.includes(c))).toEqual([]);
+});
+
+test("recordPreviewOpen upserts one row per (user, preview id), moving the sha forward", async () => {
   queued.push([]);
-  await listPreviews(5);
-  expect(calls[0]!.values).toContain(5);
+  await recordPreviewOpen("user-1", "acme:secret-atlas:main", "s2");
+  const q = calls[0]!.strings.join("");
+  expect(q).toContain("INSERT INTO preview_opens");
+  // A pushed branch must move the existing row's sha, not accrue one row per commit.
+  expect(q).toContain("ON CONFLICT (user_id, preview_id) DO UPDATE");
+  expect(q).toContain("sha = EXCLUDED.sha");
+  expect(calls[0]!.values).toEqual(["user-1", "acme:secret-atlas:main", "s2"]);
+});
+
+test("listPreviewOpens joins previews, hides blocked rows, sorts by the USER's own open", async () => {
+  queued.push([{ preview_id: "pull-1", sha: "s1", opened_at: "2026-09-01T00:00:00Z" }]);
+  const rows = await listPreviewOpens("user-1");
+  expect(rows).toHaveLength(1);
+  const q = calls[0]!.strings.join("");
+  expect(q).toContain("FROM preview_opens o");
+  expect(q).toContain("JOIN previews p ON p.sha = o.sha"); // a gone/unknown sha drops out, no delete needed
+  expect(q).toContain("p.blocked_at IS NULL");
+  // last_access is moved by ANYONE's visit; this list is ordered by the caller's own open.
+  expect(q).toContain("ORDER BY o.last_opened_at DESC");
+  expect(calls[0]!.values).toEqual(["user-1", 50]);
 });
 
 test("isBlockedSha true/false", async () => {

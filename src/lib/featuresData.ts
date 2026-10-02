@@ -17,7 +17,7 @@
 // Accuracy rules, learned the hard way:
 //   - Never hardcode a count that the app derives elsewhere (reports, MCP
 //     tools). Counts drift the day after they ship; the /connect page reads
-//     the tool count live, and ReportsIndex owns the report list.
+//     the tool count live, and reportCatalog.ts owns the report list.
 //   - Sign-in providers are per-environment (authProviders()). Production
 //     offers GitHub; say "sign in", not a fixed provider pair.
 //   - Gesture copy must match src/lib/hintText.ts, which is what the footer
@@ -214,9 +214,19 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "Using a report",
         what: "Extracted, filterable tables you can narrow and export.",
         how: [
-          "Open Reports and pick one — responsibilities by facilitator or GovOps, Active Data, integrator rewards, on-chain addresses, stale dates, modification frequency, processes, and more.",
+          "Open Reports and pick one — they are grouped by subject: roles and duties, on-chain and money, rules and risk, Atlas structure, and Atlas health.",
+          "Most reports are rebuilt from the Atlas every time you open them. A badge on the card marks the ones that are not: \u201cAI-assessed\u201d for rubric-scored ratings, \u201ccurated\u201d for hand-maintained lists that can lag the Atlas.",
           "Use the filter pills to narrow; the URL updates so you can share the exact filtered view.",
           "Click Download CSV to export — full or filtered, with UUIDs and direct Atlas links.",
+        ],
+      },
+      {
+        name: "Finding a report",
+        what: "The Reports list search matches names, categories, and descriptions, including similar phrasing.",
+        how: [
+          "Open Reports and type in the search pill — it filters the list in place.",
+          "A name fragment jumps to that report; a subject group like roles and duties or Atlas health shows that group; a badge label like curated or AI-assessed finds those reports.",
+          "Describing what you want (wallet addresses, outdated dates) finds the matching report even when the title is different. Similar-meaning extras show under Closest meaning, not mixed in with name matches.",
         ],
       },
       {
@@ -227,6 +237,17 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Follow the link to the rubric page to see exactly what the ratings are scored against.",
         ],
         note: "Ratings are AI-drafted and human-reviewed — treat them as a starting point, not a verdict.",
+      },
+      {
+        name: "Potential Mistakes",
+        what: "Suspected typos, grammar slips, broken cross-references, wrong figures and internal contradictions in the Atlas text — each one quoted and linked to its document.",
+        how: [
+          "Open Potential Mistakes and filter by severity, category, which sweep pass found it, or Doc status.",
+          "Read the quoted Atlas text next to the explanation, then follow the document link to check it at the source.",
+          "On a phone, findings show one at a time — swipe left or right, or use the previous/next buttons (or [←][→]). Filters start folded; tap the truncated disclaimer to read it in full.",
+          "Use the Doc status pills to find findings whose document has been renumbered or removed since the sweep ran.",
+        ],
+        note: "LLM-generated and re-run by hand, not when the Atlas updates — so a finding may already be fixed upstream. Each row is a suspicion to check, not a confirmed defect.",
       },
     ],
   },
@@ -259,8 +280,9 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "Turn a proposed Atlas edit into a readable, redlined view before it lands.",
         how: [
           "Open Preview and paste an Atlas PR, branch, or fork URL — or pick one from the open-PRs tab.",
-          "To preview a private repo, paste its GitHub URL or pull-request URL into the private-repo box — a pull request is redlined against its own base branch, and a branch against the closest shared point with sky-ecosystem/next-gen-atlas:main or the fork's own default branch. If a private pull request is missing Pull requests: Read, the preview bar links to GitHub so the person who installed the App can grant it, then reload.",
-          "The preview bar names the base in use and, when it isn't sky main, how far that base has drifted — use the `compare against … instead` link there to switch.",
+          "The `my recent previews` tab lists the previews you've opened — signed in, your own list follows your account to any browser; signed out, it is whatever this browser remembers. Your eight most recent private-repo previews appear too, while you're signed in with an account that can still see those repos.",
+          "To preview a private repo, paste its GitHub URL or pull-request URL into the private-repo box — a pull request is redlined against its own base branch, a branch against the repo's default branch, and the default branch itself against the live sky-ecosystem/next-gen-atlas:main. If a private pull request is missing Pull requests: Read, the preview bar links to GitHub so the person who installed the App can grant it, then reload. If the App was granted every repository on the account, the bar names the one repo it needs and links to GitHub to narrow that grant. Dismiss hides that Access notice on this browser.",
+          "Use the `compare against … instead` link on the preview bar to switch bases.",
           "The Changed-only filter hides untouched sections; the rollup badge counts what moved.",
           "Watch for the ⚠ UUID-swap warning (a document's identity changed) and the build-error detail if the preview failed to build.",
           "History inside a preview is scoped to that preview, so you can see the change against what it edits.",
@@ -282,16 +304,20 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Click the Atlas agent launcher in the bottom-right (it shows ⌘K), or press ⌘K / Ctrl-K — it already knows the document or report you're viewing.",
           "Ask it what the app can do, or what it can do itself — it answers from this guide, and keeps the two apart.",
           "Ask about a Prime Agent's monthly settlement dollars — Chat uses an isolated helper on Soter Labs workbooks / Sky Forum and says those figures are not from the Atlas.",
-          "Ask across every Prime at once — top venues by revenue, ecosystem totals, or a range of months — not just one Prime at a time.",
+          "Ask across every Prime at once — top venues by revenue, ecosystem totals, a range of months, or which month was the largest — not just one Prime at a time.",
           "Ask it to draft a message to someone else explaining what the Atlas says; the draft carries links to the source documents, and you can export it to send.",
+          "Type `/teach` followed by a note at the start of a message to remember a miss on later chats — teachings stay on your account. Keep each note to one fact in a sentence or two (under 60 words); teach two things as two notes. Start a message with / and the composer completes the command in place; press Tab or Space to accept it.",
           "Check the answer's verification badge — it says \"no contradictions found\" when nothing in the answer conflicts with the retrieved atlas text, or lists any disputed statement alongside what the atlas actually says — and click the inline sources to jump to the cited docs; while an answer is still being checked the badge reads \"verifying…\".",
           "While it works the panel shows a checklist of what it is doing, and it stays open through the whole turn — click a step to see the lookups it made, the model's reasoning and its draft; a reopened or previously loaded chat instead starts with that checklist folded to one summary line, and clicking the line unfolds the same steps (click again to fold it back).",
           "Open the Verifying step to see each paragraph's check as it is written — flagged findings, and any possible contradiction still being confirmed.",
+          "Look at the sources chips under an answer. ✓✓ means the check is sure this document states the lines that cite it. ! means this document contradicts the line that cites it — hover the chip for that line, and click the line to jump to it in the answer. ⚠ means the document does not state a line that cites it, or the reply stated what the document says when only a change record was read — hover the chip for the line. A document the reply linked without retrieving it on this turn gets no mark, because that citation was not checked. A check that is not sure enough to show is left unmarked too. The marks stay when you reopen the chat.",
+          "Read the line under the verification badge: it says \"Didn't answer the question\" when the reply only announced a lookup or stalled, \"Asked you a clarifying question\" or \"Said the atlas doesn't cover this\" when that is what it did, and \"Didn't address:\" followed by any part of your question the answer skipped. When a marked citation may say otherwise, that line says so and is highlighted. Nothing is added when the answer simply answers, and the line stays when you reopen the chat.",
           "Formulas quoted from the atlas render as math, the same way they do in the document reader.",
           'Scroll up while a reply is arriving and the thread holds still — the "New messages below" button jumps you to the newest text.',
           "The usage meter under the composer shows your usage / credits; click the pie to see every limit.",
-          "Dock the panel to the side with the dock icon in the header, or pop it out to a floating window.",
+          "Dock the panel to the side with the dock icon in the header — drag its left edge to widen it, up to 55% of the window — or pop it out to a floating window. A wide docked chat folds the tree and notes sidebars so the open document stays readable.",
           'Past chats live under "Conversations" in the profile menu, and as "continue a previous chat" in an empty panel.',
+          "Earlier questions in the same chat stay in the thread. A very long chat is condensed on its own when the conversation is close to the model's context limit.",
         ],
         note: "Asking a question requires signing in — use the sign-in control at the right of the top bar, or the Sign in buttons in the panel.",
       },

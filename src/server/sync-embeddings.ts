@@ -8,12 +8,12 @@
 //   bun src/server/sync-embeddings.ts   # embed all new/changed docs
 import { sql, toVectorLiteral, toUuidArrayLiteral } from "./db.ts";
 import { fromUuidArray } from "./pg-array.ts";
-import { config } from "./config.ts";
 import { runMigrations } from "./migrate.ts";
 import { embedBatch, EMBED_DIM } from "./retrieval/embed.ts";
+import { shutdownPosthog } from "./posthog-node.ts";
 import { docRowToNode, loadDocMetaSnapshot } from "./retrieval/indexes.ts";
-import { buildUnits, foldedIds, GROUP_POLICIES, type EmbedUnit, type GroupPolicy } from "./retrieval/embed-units.ts";
-import { buildEmbedText, contentHash } from "./retrieval/embed-text.ts";
+import type { EmbedUnit } from "./retrieval/embed-units.ts";
+import { byDocNo, planEmbedRows, shippedPolicy } from "./retrieval/embed-rows.ts";
 
 interface HaveRow {
   hash: string;
@@ -21,14 +21,6 @@ interface HaveRow {
   memberIds: unknown;
 }
 
-interface WantedRow {
-  id: string;
-  doc_no: string;
-  text: string;
-  hash: string;
-  memberIds: string[];
-  attributionOnly: boolean;
-}
 
 // Empty uuid[] is the column default and means "this row is itself" (migration 022).
 //
@@ -73,6 +65,32 @@ export function batchSizeFromEnv(env: NodeJS.ProcessEnv = process.env): number {
   return Number(env.EMBED_BATCH ?? 50);
 }
 
+// Wall-clock ceiling on ONE deps.embedBatch call — the signal reaches fetch and
+// also gates embedBatch's own internal retry chain, so all of that fits inside
+// the budget. Without it a fetch that never returns never throws, so withRetry
+// never sees it and the call simply parks forever.
+//
+// PER ATTEMPT, NOT PER RUN, and the difference is the whole operational story. A
+// provider that answers nothing costs 3 x 120s + withRetry's 3s of backoff, then
+// that batch is skipped (`continue`) and the loop walks to the next one. Over a
+// cold 11,584-doc set that is 232 batches x 363s ~= 23 HOURS of walking, with
+// EMBED_LOCK_KEY held throughout — on the boot path (atlas-updater.ts's detached
+// spawn, no deadline of its own) every worker tick stands down for as long as it
+// lasts and `staleEmbeds=` stays flat. So this stops a single call parking
+// forever; it does NOT make a dead provider self-healing, and restarting the web
+// service is still the remedy for a flat count. A run-level circuit breaker (N
+// consecutive skipped batches => give up and free the lock) is what would close
+// that, and is deliberately not here yet.
+//
+// Deliberately generous — a 50-text batch measures ~5s and embedBatch's internal
+// backoff chain adds ~15s of sleeps, so 120s never fires in normal operation and
+// only ever cuts a socket that is already gone. A cut batch is skipped and
+// retried next run, the same as any other failure. Exported for the same reason
+// as batchSizeFromEnv: so a test can assert the env parsing without a provider.
+export function embedTimeoutFromEnv(env: NodeJS.ProcessEnv = process.env): number {
+  return Number(env.EMBED_REQUEST_TIMEOUT_MS ?? 120_000);
+}
+
 // Retry transient embedding failures (flaky OpenRouter) with exponential backoff.
 // Per-batch upserts mean partial progress already persists; a batch that still
 // fails after retries is skipped (stays stale, retried next run) rather than
@@ -114,14 +132,89 @@ export interface EmbedDeps {
 }
 const realEmbedDeps: EmbedDeps = {
   runMigrations,
-  embedBatch: (texts) => embedBatch(texts),
+  // A FRESH signal per call, so each withRetry attempt gets its own full budget
+  // rather than sharing one deadline across all three.
+  embedBatch: (texts) => embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv()), 0, "embed-sync"),
   batch: batchSizeFromEnv(),
   sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
 };
 
+// One reconcile at a time, across every caller — arbitrary fixed key, like
+// migrate.ts's 4711_2026 and preview/diff-base-backfill.ts's 4711_2033; all that
+// matters is that the three callers agree and the three keys stay distinct.
+const EMBED_LOCK_KEY = 4711_2042;
+
+/** Runs `fn` under EMBED_LOCK_KEY, or skips it when another process holds it.
+ *
+ *  Three callers can overlap, and on a COLD atlas_doc_embeddings all three want
+ *  the same ~11.6k vectors: the atlas worker's post-sync tail, the web service's
+ *  startBootEmbeddings (atlas-updater.ts — it fires precisely when the table is
+ *  empty, i.e. exactly the cold case), and a hand-run `pnpm sync:embeddings`.
+ *  The upserts are idempotent so this was never a correctness bug, but a cold
+ *  backfill is the one run long enough (~19 min) for a second walker to pay the
+ *  provider twice for vectors the first is already buying.
+ *
+ *  `pg_try_advisory_lock`, not a blocking wait: a queued second process would
+ *  hold a container open doing nothing until its own deadline killed it. The
+ *  lock is session-scoped, so a killed process or a torn-down cron container
+ *  releases it on disconnect — there is no stale lock to reap, which is what
+ *  makes skipping safe rather than a way to strand the backfill.
+ *
+ *  Fails OPEN. If the lock cannot be taken at all (reserve unsupported, a dead
+ *  connection), the reconcile still runs unlocked: a missed lock costs tokens,
+ *  a missed reconcile costs search.
+ *
+ *  KNOWN EDGE. The holders are not symmetric. A worker that wedges mid-backfill
+ *  is killed by its own tail deadline (atlas-worker.mjs) and the teardown drops
+ *  the lock; startBootEmbeddings is a detached spawn with no deadline of its own.
+ *  embedTimeoutFromEnv stops a single call parking forever there, but it bounds
+ *  an ATTEMPT, not the run: against a provider that answers nothing the holder
+ *  skips each batch after ~363s and keeps walking — ~23 hours for a cold set —
+ *  holding this lock the whole time while every worker tick stands down and
+ *  `staleEmbeds=` sits flat. Bounded rather than silent: it can only start while
+ *  the table is empty (boot-embeddings' own precondition), lexical search is
+ *  unaffected, and every skipped tick logs the line below. The remedy is a web
+ *  restart, per docs/DEPLOYMENT.md; a run-level circuit breaker would make it
+ *  self-healing and is not here yet. */
+async function withEmbedLock(fn: () => Promise<void>): Promise<void> {
+  let reserved: Awaited<ReturnType<typeof sql.reserve>> | null = null;
+  // Tri-state, not a boolean: "could not ask" and "someone else has it" are
+  // opposite answers, and collapsing them is how a fail-open lock turns into a
+  // reconcile that never runs. The skip below therefore sits INSIDE the try, so
+  // one finally hands the reservation back on every path.
+  let state: "mine" | "held" | "unavailable" = "unavailable";
+  try {
+    reserved = await sql.reserve();
+    const rows = (await reserved`SELECT pg_try_advisory_lock(${EMBED_LOCK_KEY})`) as {
+      pg_try_advisory_lock: boolean;
+    }[];
+    state = rows[0]?.pg_try_advisory_lock ? "mine" : "held";
+  } catch (e) {
+    console.warn(`sync:embeddings — advisory lock unavailable (${(e as Error).message}); proceeding unlocked`);
+  }
+  try {
+    if (state === "held") {
+      console.log("sync:embeddings — another reconcile holds the lock; skipping (same stale set, same result)");
+      return;
+    }
+    await fn();
+  } finally {
+    if (reserved) {
+      if (state === "mine") {
+        try {
+          await reserved`SELECT pg_advisory_unlock(${EMBED_LOCK_KEY})`;
+        } catch {
+          /* connection already dead — the lock dies with the session */
+        }
+      }
+      reserved.release();
+    }
+  }
+}
+
 export async function main(deps: EmbedDeps = realEmbedDeps) {
   try {
-    await runEmbedReconcile(deps);
+    await withEmbedLock(() => runEmbedReconcile(deps));
   } finally {
     await sql.end();
   }
@@ -171,55 +264,11 @@ async function runEmbedReconcile(deps: EmbedDeps): Promise<void> {
     ]),
   );
 
-  const byId = new Map(docs.map((d) => [d.id, d]));
+  const policy = shippedPolicy();
+  // Row planning is shared with the preview build (preview/embeddings.ts), so a
+  // preview's vectors stay comparable to the ones stored here.
+  const { rows: wanted, units } = planEmbedRows(docs, policy);
 
-  const policy = (GROUP_POLICIES as readonly string[]).includes(config.embedGroupPolicy)
-    ? (config.embedGroupPolicy as GroupPolicy)
-    : "one_to_one";
-  // No opts: cap and crumb depth/root were env knobs that measured as no-ops and
-  // were removed. Policies carry their own defaults (kv_records_breadcrumbs keeps the
-  // root crumb internally because that one IS load-bearing — without it 13 units come
-  // out byte-identical to another, i.e. duplicate vectors nothing can rank apart).
-  const units = buildUnits(docs, policy, {});
-  const folded = [...foldedIds(units)];
-  // Folded members used to be DELETED. They are now embedded 1:1 and stored with
-  // attribution_only = true (migration 023): excluded from search, read only to decide
-  // WHICH member of an already-retrieved group a query wanted. That step was measured
-  // at 34% accurate with term overlap vs ~51% against vectors, and is the single
-  // largest loss in the pipeline — retrieval finds the right group for essentially
-  // every ICD query and attribution throws two thirds of them away.
-  const foldedSet = new Set(folded);
-  const attributionUnits: WantedRow[] = folded
-    .map((id) => byId.get(id))
-    .filter((d): d is NonNullable<typeof d> => !!d)
-    .map((d) => ({
-      id: d.id,
-      doc_no: d.doc_no,
-      text: buildEmbedText(d),
-      hash: contentHash(d),
-      memberIds: [d.id],
-      attributionOnly: true,
-    }));
-
-  // Folded members keep contentHash(d) — the same 1:1 hash they had before
-  // grouping — so a policy switch (one_to_one → icd_params) is invisible to a
-  // hash-only stale check. Those rows still need attribution_only / member_ids
-  // written or they keep competing in search.ts's WHERE NOT attribution_only.
-  const wanted: WantedRow[] = units
-    .map((u) => {
-      const anchor = byId.get(u.anchorId);
-      return {
-        id: u.anchorId,
-        doc_no: anchor?.doc_no ?? "",
-        text: u.text,
-        hash: u.hash,
-        memberIds: u.memberIds,
-        attributionOnly: foldedSet.has(u.anchorId),
-      };
-    })
-    .concat(attributionUnits);
-
-  const byDocNo = (a: WantedRow, b: WantedRow) => a.doc_no.localeCompare(b.doc_no, "en", { numeric: true });
   const toEmbed = wanted.filter((q) => {
     const h = have.get(q.id);
     return !h || h.hash !== q.hash;
@@ -312,4 +361,6 @@ async function runEmbedReconcile(deps: EmbedDeps): Promise<void> {
 // of module load.
 if (import.meta.main) {
   await main();
+  // Short-lived process: flush the batched embed-sync events before it exits.
+  await shutdownPosthog();
 }

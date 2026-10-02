@@ -110,17 +110,16 @@ describe("buildTitleTranscript", () => {
   });
 
   it("stays capped when a later (non-first) turn is oversized", () => {
-    // windowHistory always admits its NEWEST row unconditionally (the
+    // The title trim always admits its newest row unconditionally (the
     // kept.length===0 escape on its first loop iteration), and that newest
     // row is whatever the caller's most recent message is. In chat.ts's real
     // call site, `history` includes the just-inserted current-turn user
     // message, which is allowed up to MAX_MESSAGE_BYTES (28_000) — so a turn
     // AFTER the first one (where the oversized message isn't firstUser, and
     // therefore isn't caught by the 200-char anchor slice) is the case that
-    // actually exercises windowHistory's unconditional-admission gap. A
-    // single-message conversation would NOT exercise this: with only one
-    // message, it's always classified as firstUser and capped by
-    // FIRST_USER_MAX_CHARS before windowHistory ever sees it.
+    // actually exercises that gap. A single-message conversation would NOT
+    // exercise this: with only one message, it's always classified as
+    // firstUser and capped by FIRST_USER_MAX_CHARS before the trim sees it.
     const history = [
       { role: "user", content: "short first question" },
       { role: "assistant", content: "short reply" },

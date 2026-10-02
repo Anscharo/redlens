@@ -263,7 +263,8 @@ describe("ChatPanel context-size indicator", () => {
 
   it("passes contextTokens/contextWindow through to the composer's LimitsMeter", () => {
     renderPanel({ session: { contextTokens: 12800, contextWindow: 128000 } });
-    expect(screen.getByText("context window · 10% · 12.8k / 128k")).toBeInTheDocument();
+    // "~": the figure is the server's replay-size estimate, not a measured prompt.
+    expect(screen.getByText("context window · 10% · ~12.8k / 128k")).toBeInTheDocument();
   });
 });
 
@@ -389,6 +390,21 @@ describe("ChatPanel header", () => {
   it("shows a float-out control while anchored", () => {
     renderPanel({ placement: "anchored" });
     expect(screen.getByTitle("Pop out to a floating window")).toBeInTheDocument();
+  });
+
+  it("offers a resize handle on the docked panel only", () => {
+    const prev = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: 1200 });
+    try {
+      renderPanel();
+      expect(screen.queryByRole("separator", { name: "Resize chat" })).not.toBeInTheDocument();
+      cleanup();
+      renderPanel({ placement: "anchored" });
+      expect(screen.getByRole("separator", { name: "Resize chat" })).toBeInTheDocument();
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: prev });
+      document.documentElement.style.removeProperty("--rlc-anchored-w");
+    }
   });
 });
 

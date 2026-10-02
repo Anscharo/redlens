@@ -35,12 +35,16 @@ mock.module("./access.ts", () => ({
 }));
 
 // A queued Error rejects instead of resolving — lets a test drive a query's
-// failure branch (e.g. /api/preview/list's catch → []) without every OTHER
-// test in this file needing to think about it (a plain array is still the
+// failure branch (e.g. one of /api/preview/mine's two sources) without every
+// OTHER test in this file needing to think about it (a plain array is still the
 // common case and behaves exactly as before).
 let dbQueued: unknown[] = [];
+// Every query the handler issues, so a test can assert a WRITE happened (the
+// account-history INSERT) and not only what a read returned.
+let dbCalls: { sql: string; values: unknown[] }[] = [];
 mock.module("../db.ts", () => ({
-  sql(_strings: TemplateStringsArray, ..._values: unknown[]) {
+  sql(strings: TemplateStringsArray, ...values: unknown[]) {
+    dbCalls.push({ sql: [...strings].join("?"), values });
     const next = dbQueued.shift();
     if (next instanceof Error) return Promise.reject(next);
     return Promise.resolve(next ?? []);
@@ -57,11 +61,40 @@ mock.module("../db.ts", () => ({
 
 afterAll(() => mock.restore());
 
-beforeEach(() => {
+beforeEach(async () => {
   accessDecision = "ok";
   accessCalls = [];
   dbQueued = [];
+  dbCalls = [];
+  sessionUser = null;
+  // /mine's per-user interval is module state, so one test's request would
+  // otherwise 429 the next test that reuses the same account id.
+  const { mineHits } = await import("./handler.ts");
+  mineHits.clear();
 });
+
+// The signed-in visitor for the current test, applied as a REAL signed session
+// cookie below rather than a mock.module("../session.ts"): bun's module mocks are
+// process-global and survive mock.restore(), so a partial session factory would
+// strip signSession/SESSION_COOKIE from sibling suites that build their own auth
+// cookies. Same reasoning, same approach as access.test.ts.
+let sessionUser: { id: string; provider: string } | null = null;
+config.jwtSecret ||= "test-jwt-secret";
+const { signSession, SESSION_COOKIE } = await import("../session.ts");
+/** Poll `cond` until it holds or the deadline passes. For assertions on work the
+ *  server deliberately does NOT await (the account-history write), where a fixed
+ *  sleep is either flaky or needlessly slow. */
+async function settles(cond: () => boolean, timeoutMs = 1000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (!cond() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 5));
+  return cond();
+}
+
+async function authHeaders(): Promise<Headers> {
+  const headers = new Headers();
+  if (sessionUser) headers.set("cookie", `${SESSION_COOKIE}=${await signSession(sessionUser)}`);
+  return headers;
+}
 
 const SHA = "a".repeat(40);
 const stubServer = { requestIP: () => ({ address: "1.2.3.4" }) } as any;
@@ -175,16 +208,16 @@ async function freshHandler() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pv-h2-"));
   process.env.PREVIEW_DIR = dir;
   const { handlePreview } = await import("./handler.ts");
-  const { previewPaths, writeMeta } = await import("./cache.ts");
+  const { previewPaths, writeMeta, readMeta } = await import("./cache.ts");
   const call = (pathname: string) => Promise.resolve(handlePreview(new Request("http://x" + pathname), stubServer, pathname));
-  return { call, handlePreview, previewPaths, writeMeta };
+  return { call, handlePreview, previewPaths, writeMeta, readMeta };
 }
 
 function makeReadyBundle(
   previewPaths: (sha: string) => { outDir: string },
   writeMeta: (sha: string, meta: PreviewMeta, root?: string) => void,
   sha: string,
-  opts: { private?: boolean; repo?: string } = {},
+  opts: { private?: boolean; repo?: string; defaultBranch?: string; extra?: Partial<PreviewMeta> } = {},
 ): void {
   const p = previewPaths(sha);
   fs.mkdirSync(p.outDir, { recursive: true });
@@ -201,6 +234,8 @@ function makeReadyBundle(
     docCount: 0,
     buildMs: 1,
     private: opts.private,
+    ...(opts.defaultBranch ? { defaultBranch: opts.defaultBranch } : {}),
+    ...opts.extra,
   });
 }
 
@@ -850,6 +885,232 @@ test("/events: a ready Contents-only private-PR bundle is not rebuilt while Pull
   }
 });
 
+// A Contents-only private PR (no Pull requests:read) whose repo metadata IS
+// readable, so resolve hands back the default branch as the stand-in base.
+async function contentsOnlyEvents(sha: string, bundle: { defaultBranch?: string }, dbRows: unknown[][]): Promise<any[]> {
+  const { handlePreview, previewPaths, writeMeta } = await freshHandler();
+  const { __resetCachesForTest } = await import("./github-app.ts");
+  __resetCachesForTest();
+  const orig = { enabled: config.privatePreviewsEnabled, appId: config.githubAppId, key: config.githubAppPrivateKey, fetch: globalThis.fetch };
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  config.privatePreviewsEnabled = true;
+  config.githubAppId = "123";
+  config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+  makeReadyBundle(previewPaths, writeMeta, sha, { private: true, repo: "octocat/grant-atlas", ...bundle });
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.endsWith("/installation")) return Response.json({ id: 77, permissions: { contents: "read", metadata: "read" } });
+    if (u.endsWith("/access_tokens")) return Response.json({ token: "inst-tok" });
+    if (u.includes("/git/ref/")) return Response.json({ object: { sha } });
+    if (u.includes("/commits/")) return Response.json({ commit: { committer: { date: "2026-01-01T00:00:00Z" } } });
+    if (/\/repos\/[^/]+\/[^/]+$/.test(u)) return Response.json({ default_branch: "main" });
+    return new Response("no", { status: 404 }); // Pulls 404s; so does the tarball, which ends a started build
+  }) as unknown as typeof fetch;
+  try {
+    accessDecision = "ok";
+    dbQueued = dbRows;
+    const pathname = `/api/preview/${encodeURIComponent("octocat:grant-atlas:pull-4")}/events`;
+    return await readSSE(handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response);
+  } finally {
+    globalThis.fetch = orig.fetch;
+    config.privatePreviewsEnabled = orig.enabled;
+    config.githubAppId = orig.appId;
+    config.githubAppPrivateKey = orig.key;
+    accessDecision = "ok";
+  }
+}
+
+test("/events: a ready Contents-only bundle that recorded NO base rebuilds once resolve has a default branch to stand in", async () => {
+  // The upgrade case: a bundle built before the default branch stood in for a
+  // missing prBase (or while its lookup failed) was redlined vs sky / live main.
+  const SHA = "3".repeat(40);
+  const events = await contentsOnlyEvents(SHA, {}, [[], [], [{ sha: SHA }]]);
+  expect(events).toContainEqual({ phase: "fetching", sha: SHA });
+  expect(events.some((e) => e.phase === "ready")).toBe(false);
+});
+
+test("/events: a ready Contents-only bundle that already redlines against the default branch is served, not rebuilt", async () => {
+  const SHA = "2".repeat(40);
+  const events = await contentsOnlyEvents(SHA, { defaultBranch: "main" }, [[], []]);
+  expect(events).toContainEqual({ phase: "ready", sha: SHA });
+  expect(events.some((e) => e.phase === "fetching")).toBe(false);
+});
+
+test("syncBroadGrantMeta: clears, sets, and no-ops", async () => {
+  const { syncBroadGrantMeta } = await import("./handler.ts");
+  const base: PreviewMeta = {
+    sha: "x", repo: "o/r", ref: "main", kind: "branch", resolvedAt: "t", docCount: 0, buildMs: 1,
+    grantTooBroad: true, installSettingsUrl: "https://github.com/settings/installations/1",
+  };
+  expect(syncBroadGrantMeta(base, {})).toEqual({
+    sha: "x", repo: "o/r", ref: "main", kind: "branch", resolvedAt: "t", docCount: 0, buildMs: 1,
+  });
+  const added = syncBroadGrantMeta(
+    { sha: "x", repo: "o/r", ref: "main", kind: "branch", resolvedAt: "t", docCount: 0, buildMs: 1 },
+    { grantTooBroad: true, installSettingsUrl: "https://github.com/settings/installations/1" },
+  );
+  expect(added?.grantTooBroad).toBe(true);
+  expect(added?.installSettingsUrl).toBe("https://github.com/settings/installations/1");
+  expect(syncBroadGrantMeta(base, { grantTooBroad: true, installSettingsUrl: "https://github.com/settings/installations/1" })).toBeNull();
+});
+
+test("/events: a ready private bundle drops grantTooBroad once the install is narrowed, without rebuilding", async () => {
+  const { handlePreview, previewPaths, writeMeta, readMeta } = await freshHandler();
+  const { inflightShas } = await import("./build.ts");
+  const { __resetCachesForTest } = await import("./github-app.ts");
+  __resetCachesForTest();
+
+  const orig = {
+    enabled: config.privatePreviewsEnabled,
+    appId: config.githubAppId,
+    key: config.githubAppPrivateKey,
+    fetch: globalThis.fetch,
+  };
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  config.privatePreviewsEnabled = true;
+  config.githubAppId = "123";
+  config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+
+  const SHA = "ab".repeat(20);
+  makeReadyBundle(previewPaths, writeMeta, SHA, {
+    private: true,
+    repo: "octocat/grant-atlas",
+    extra: { grantTooBroad: true, installSettingsUrl: "https://github.com/settings/installations/77" },
+  });
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.endsWith("/installation")) {
+      return Response.json({
+        id: 77,
+        html_url: "https://github.com/settings/installations/77",
+        permissions: { contents: "read", metadata: "read" },
+        repository_selection: "selected",
+      });
+    }
+    if (u.endsWith("/access_tokens")) return Response.json({ token: "inst-tok" });
+    if (u.includes("/branches/")) return Response.json({ commit: { sha: SHA, commit: { committer: { date: "2026-01-01T00:00:00Z" } } } });
+    if (/\/repos\/[^/]+\/[^/]+$/.test(u)) return new Response("no", { status: 404 });
+    return new Response("no", { status: 404 });
+  }) as unknown as typeof fetch;
+
+  try {
+    accessDecision = "ok";
+    dbQueued = [[], []];
+    const id = encodeURIComponent("octocat:grant-atlas:main");
+    const pathname = `/api/preview/${id}/events`;
+    const res = handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response;
+    const events = await readSSE(res);
+    expect(events).toContainEqual({ phase: "ready", sha: SHA });
+    expect(events.some((e) => e.phase === "fetching")).toBe(false);
+    expect(inflightShas().size).toBe(0);
+    const meta = readMeta(SHA);
+    expect(meta?.grantTooBroad).toBeUndefined();
+    expect(meta?.installSettingsUrl).toBeUndefined();
+  } finally {
+    globalThis.fetch = orig.fetch;
+    config.privatePreviewsEnabled = orig.enabled;
+    config.githubAppId = orig.appId;
+    config.githubAppPrivateKey = orig.key;
+    accessDecision = "ok";
+  }
+});
+
+test("/events: a ready private bundle gains grantTooBroad when the install is All repositories, without rebuilding", async () => {
+  const { handlePreview, previewPaths, writeMeta, readMeta } = await freshHandler();
+  const { inflightShas } = await import("./build.ts");
+  const { __resetCachesForTest } = await import("./github-app.ts");
+  __resetCachesForTest();
+
+  const orig = {
+    enabled: config.privatePreviewsEnabled,
+    appId: config.githubAppId,
+    key: config.githubAppPrivateKey,
+    fetch: globalThis.fetch,
+  };
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  config.privatePreviewsEnabled = true;
+  config.githubAppId = "123";
+  config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+
+  const SHA = "ac".repeat(20);
+  makeReadyBundle(previewPaths, writeMeta, SHA, { private: true, repo: "octocat/grant-atlas" });
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.endsWith("/installation")) {
+      return Response.json({
+        id: 77,
+        html_url: "https://github.com/settings/installations/77",
+        permissions: { contents: "read", metadata: "read" },
+        repository_selection: "all",
+      });
+    }
+    if (u.endsWith("/access_tokens")) return Response.json({ token: "inst-tok" });
+    if (u.includes("/branches/")) return Response.json({ commit: { sha: SHA, commit: { committer: { date: "2026-01-01T00:00:00Z" } } } });
+    if (/\/repos\/[^/]+\/[^/]+$/.test(u)) return new Response("no", { status: 404 });
+    return new Response("no", { status: 404 });
+  }) as unknown as typeof fetch;
+
+  try {
+    accessDecision = "ok";
+    dbQueued = [[], []];
+    const id = encodeURIComponent("octocat:grant-atlas:main");
+    const pathname = `/api/preview/${id}/events`;
+    const res = handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response;
+    const events = await readSSE(res);
+    expect(events).toContainEqual({ phase: "ready", sha: SHA });
+    expect(events.some((e) => e.phase === "fetching")).toBe(false);
+    expect(inflightShas().size).toBe(0);
+    const meta = readMeta(SHA);
+    expect(meta?.grantTooBroad).toBe(true);
+    expect(meta?.installSettingsUrl).toBe("https://github.com/settings/installations/77");
+  } finally {
+    globalThis.fetch = orig.fetch;
+    config.privatePreviewsEnabled = orig.enabled;
+    config.githubAppId = orig.appId;
+    config.githubAppPrivateKey = orig.key;
+    accessDecision = "ok";
+  }
+});
+
+test("/events: a pinned-sha visit does not wipe grantTooBroad (it never re-derives the flag)", async () => {
+  const { handlePreview, previewPaths, writeMeta, readMeta } = await freshHandler();
+  const SHA = "ad".repeat(20);
+  makeReadyBundle(previewPaths, writeMeta, SHA, {
+    private: true,
+    extra: { grantTooBroad: true, installSettingsUrl: "https://github.com/settings/installations/1" },
+  });
+
+  dbQueued = [
+    [
+      {
+        sha: SHA,
+        repo: TEST_REPO,
+        ref: "main",
+        kind: "branch",
+        pr_number: null,
+        pr_title: null,
+        pr_author: null,
+        pr_state: null,
+        doc_count: 0,
+        build_ms: 0,
+        blocked_at: null,
+        trust_tier: null,
+        private: true,
+      },
+    ],
+    [],
+    [],
+  ];
+  accessDecision = "ok";
+  const pathname = `/api/preview/${SHA}/events`;
+  const res = handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response;
+  const events = await readSSE(res);
+  expect(events).toContainEqual({ phase: "ready", sha: SHA });
+  const meta = readMeta(SHA);
+  expect(meta?.grantTooBroad).toBe(true);
+  expect(meta?.installSettingsUrl).toBe("https://github.com/settings/installations/1");
+});
+
 test("/events: authorized deferred-private branch with no ready bundle completes the branch lookup and starts a real background build", async () => {
   const { handlePreview } = await freshHandler();
   const { inflightShas } = await import("./build.ts");
@@ -1023,18 +1284,209 @@ test("resolveId: sha rebuild of a plain branch row (null base columns) reconstru
 });
 
 // ---------------------------------------------------------------------------
-// /api/preview/list — untested by any existing case.
+// /api/preview/mine — the HTTP shell only: status, headers, and that it wires
+// the session + sha list into preview/mine.ts. The collection and disclosure
+// rules (two sources, the private cap, fail-closed authorization) are mine.ts's
+// own suite — mine.test.ts.
 // ---------------------------------------------------------------------------
 
-test("/api/preview/list returns the live rows on success, or [] if the query throws", async () => {
-  const { call } = await freshHandler();
-  dbQueued = [[{ sha: "abc", repo: "r/r", ref: "main" }]];
-  const ok = await call("/api/preview/list");
-  expect(ok.status).toBe(200);
-  expect(await ok.json()).toEqual([{ sha: "abc", repo: "r/r", ref: "main" }]);
+const PUB_SHA = "b".repeat(40);
+const PRIV_SHA = "c".repeat(40);
+const pubRow = { sha: PUB_SHA, repo: "blimpa/next-gen-atlas", ref: "pull-9", private: false };
+const privRow = { sha: PRIV_SHA, repo: TEST_REPO, ref: "main", private: true };
 
-  dbQueued = [new Error("connection reset")];
-  const failed = await call("/api/preview/list");
-  expect(failed.status).toBe(200); // never surfaces the DB error to the client
-  expect(await failed.json()).toEqual([]);
+async function mine(query: string) {
+  const { handlePreview } = await freshHandler();
+  const path = "/api/preview/mine";
+  const req = new Request(`http://x${path}?${query}`, { headers: await authHeaders() });
+  return Promise.resolve(handlePreview(req, stubServer, path));
+}
+
+test("/api/preview/mine answers a browser's sha list, session-scoped and uncacheable", async () => {
+  dbQueued = [[pubRow]];
+  const res = await mine(`shas=${PUB_SHA}`);
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual([pubRow]);
+  // No allow-origin and no-store: the body varies per session, so a shared proxy
+  // must never hold it for the next visitor.
+  expect(res.headers.get("cache-control")).toBe("private, no-store");
+  expect(res.headers.get("access-control-allow-origin")).toBeNull();
+});
+
+test("/api/preview/mine reads the session, so a signed-in caller gets their account history", async () => {
+  sessionUser = { id: "user-1", provider: "github" };
+  const openRow = { ...pubRow, preview_id: "pull-9", opened_at: "2026-09-20T00:00:00Z" };
+  dbQueued = [[openRow]]; // opens only — no shas sent, so no second query
+  const res = await mine("");
+  expect(await res.json()).toEqual([openRow]); // preview_id/opened_at survive the response
+  expect(dbCalls.some((c) => c.sql.includes("FROM preview_opens o"))).toBe(true);
+});
+
+test("/api/preview/mine applies the disclosure filter before answering", async () => {
+  sessionUser = { id: "user-1", provider: "github" };
+  accessDecision = "forbidden";
+  dbQueued = [[{ ...privRow, preview_id: "acme:secret-atlas:main", opened_at: "2026-09-20T00:00:00Z" }]];
+  const res = await mine("");
+  expect(res.status).toBe(200); // never 401/403 — that would confirm the preview exists
+  expect(await res.json()).toEqual([]);
+  expect(accessCalls).toEqual([{ repo: TEST_REPO }]);
+});
+
+test("/api/preview/mine asks nothing of the DB for an anonymous caller with no shas", async () => {
+  dbQueued = [new Error("must not be queried")];
+  const res = await mine("shas=not-a-sha");
+  expect(await res.json()).toEqual([]);
+  expect(dbCalls).toHaveLength(0);
+});
+
+test("/api/preview/mine absorbs a burst, then refuses past the window's limit", async () => {
+  const { MINE_LIMIT } = await import("./handler.ts");
+  sessionUser = { id: "user-1", provider: "github" };
+
+  // A person opening tabs or refreshing must never be refused.
+  for (let i = 0; i < MINE_LIMIT; i++) {
+    dbQueued = [[pubRow]];
+    expect((await mine("")).status).toBe(200);
+  }
+  expect(dbCalls.filter((c) => c.sql.includes("FROM preview_opens o"))).toHaveLength(MINE_LIMIT);
+
+  // Past the limit, the expensive work (DB + up to 6 GitHub checks) is skipped.
+  dbCalls = [];
+  dbQueued = [new Error("must not be queried again")];
+  const limited = await mine("");
+  expect(limited.status).toBe(429);
+  expect(limited.headers.get("retry-after")).toBe("2");
+  expect(limited.headers.get("cache-control")).toBe("private, no-store"); // still never shared-cacheable
+  expect(dbCalls).toHaveLength(0);
+});
+
+test("/api/preview/mine's interval is per account, and leaves anonymous callers alone", async () => {
+  sessionUser = { id: "user-1", provider: "github" };
+  dbQueued = [[pubRow]];
+  expect((await mine("")).status).toBe(200);
+
+  // A second account is unaffected by the first one's request.
+  sessionUser = { id: "user-2", provider: "github" };
+  dbQueued = [[pubRow]];
+  expect((await mine("")).status).toBe(200);
+
+  // Anonymous callers cost one DB query and no GitHub call, so they are not
+  // keyed here at all — back-to-back requests both answer.
+  sessionUser = null;
+  dbQueued = [[pubRow], [pubRow]];
+  expect((await mine(`shas=${PUB_SHA}`)).status).toBe(200);
+  expect((await mine(`shas=${PUB_SHA}`)).status).toBe(200);
+});
+
+test("mineRateLimited counts a window, and opens a fresh one when it expires", async () => {
+  const { mineRateLimited, MINE_WINDOW_MS, MINE_LIMIT } = await import("./handler.ts");
+  const t0 = 1_000_000;
+  for (let i = 0; i < MINE_LIMIT; i++) expect(mineRateLimited("user-1", t0)).toBe(false);
+  expect(mineRateLimited("user-1", t0)).toBe(true); // one past the limit, same window
+  expect(mineRateLimited("user-1", t0 + MINE_WINDOW_MS + 1)).toBe(false); // window rolled
+});
+
+test("there is no public preview listing route any more", async () => {
+  const { handlePreview } = await freshHandler();
+  const res = await Promise.resolve(handlePreview(new Request("http://x/api/preview/list"), stubServer, "/api/preview/list"));
+  expect(res.status).toBe(404);
+  expect(dbCalls).toHaveLength(0);
+});
+
+test("rememberPreviewOpen records against the account, and does nothing when signed out", async () => {
+  await freshHandler();
+  const { rememberPreviewOpen } = await import("./handler.ts");
+
+  sessionUser = { id: "user-1", provider: "github" };
+  dbQueued = [[]];
+  await rememberPreviewOpen(new Request("http://x/", { headers: await authHeaders() }), "pull-9", PUB_SHA);
+  const write = dbCalls.find((c) => c.sql.includes("INSERT INTO preview_opens"));
+  expect(write?.values).toEqual(["user-1", "pull-9", PUB_SHA]);
+
+  // Anonymous: localStorage is the only record — nothing is written server-side.
+  dbCalls = [];
+  sessionUser = null;
+  await rememberPreviewOpen(new Request("http://x/"), "pull-9", PUB_SHA);
+  expect(dbCalls).toHaveLength(0);
+});
+
+test("a ready SSE open records the account history for a signed-in visitor", async () => {
+  const { handlePreview, previewPaths, writeMeta } = await freshHandler();
+  const sha = "e".repeat(40);
+  makeReadyBundle(previewPaths, writeMeta, sha, { repo: "blimpa/next-gen-atlas" });
+  sessionUser = { id: "user-1", provider: "github" };
+  // resolveId's sha branch reads the previews row; then touchPreview + the INSERT.
+  dbQueued = [
+    [{ sha, repo: "blimpa/next-gen-atlas", ref: "main", kind: "branch", private: false, pr_base_repo: null, pr_base_ref: null, default_branch: null }],
+    [], // isBlockedSha
+    [], // touchPreview
+    [], // recordPreviewOpen
+  ];
+  const path = `/api/preview/${sha}/events`;
+  const res = await Promise.resolve(
+    handlePreview(new Request(`http://x${path}`, { headers: await authHeaders() }), stubServer, path),
+  );
+  const body = await res.text();
+  expect(body).toContain('"phase":"ready"');
+  // The write is fire-and-forget (an open must never wait on it) and goes through
+  // an async JWT verify first, so poll to a deadline rather than assuming it has
+  // landed after one tick — a single setTimeout(0) here was flaky under load.
+  expect(await settles(() => dbCalls.some((c) => c.sql.includes("INSERT INTO preview_opens")))).toBe(true);
+});
+
+// ---------------------------------------------------------------------------
+// identity.json is written AFTER the bundle is ready. The reader must be able
+// to tell "not yet" from "never", and a private bundle's verdict is as private
+// as the rest of it.
+
+const SHA_IDENTITY = "8".repeat(40);
+const SHA_IDENTITY_PRIVATE = "9".repeat(40);
+
+test("identity.json: 202 while the verdict is being made, the file once written, 404 when none is coming", async () => {
+  const { call, previewPaths, writeMeta } = await freshHandler();
+  const { startRefine, stopRefine } = await import("./identity-refine.ts");
+  makeReadyBundle(previewPaths, writeMeta, SHA_IDENTITY, { private: false });
+  const url = `/api/preview/${SHA_IDENTITY}/identity.json`;
+
+  // No lane, no file: nothing is coming (no API key, or a bundle built before this).
+  expect((await call(url)).status).toBe(404);
+
+  let finish!: () => void;
+  const lane = startRefine(SHA_IDENTITY, previewPaths(SHA_IDENTITY).outDir, [{ files: ["identity.json"], reference: new Map(), head: new Map(), added: [], changed: [] }], () => new Promise<void>((r) => (finish = r)));
+  try {
+    const pending = await call(url);
+    expect(pending.status).toBe(202);
+    expect(pending.headers.get("retry-after")).toBe("2");
+    expect(await pending.json()).toEqual({ status: "pending" });
+    // Only the identity files answer 202. Any other missing file is a 404.
+    expect((await call(`/api/preview/${SHA_IDENTITY}/patches.json`)).status).toBe(404);
+
+    fs.writeFileSync(path.join(previewPaths(SHA_IDENTITY).outDir, "identity.json"), JSON.stringify({ identitySwap: { x: { oldTitle: "A", newTitle: "B" } }, formerUuid: {} }));
+    const done = await call(url);
+    expect(done.status).toBe(200);
+    expect(((await done.json()) as any).identitySwap.x.newTitle).toBe("B");
+  } finally {
+    await Promise.resolve();
+    finish?.();
+    await lane;
+    stopRefine(SHA_IDENTITY);
+  }
+});
+
+test("identity.json: a private bundle's pending answer is gated like its files", async () => {
+  const { call, previewPaths, writeMeta } = await freshHandler();
+  const { startRefine, stopRefine } = await import("./identity-refine.ts");
+  makeReadyBundle(previewPaths, writeMeta, SHA_IDENTITY_PRIVATE, { private: true });
+  const lane = startRefine(SHA_IDENTITY_PRIVATE, previewPaths(SHA_IDENTITY_PRIVATE).outDir, [{ files: ["identity.json"], reference: new Map(), head: new Map(), added: [], changed: [] }], () => new Promise<void>(() => {}));
+  void lane;
+  try {
+    accessDecision = "forbidden";
+    expect((await call(`/api/preview/${SHA_IDENTITY_PRIVATE}/identity.json`)).status).toBe(403);
+    accessDecision = "ok";
+    const res = await call(`/api/preview/${SHA_IDENTITY_PRIVATE}/identity.json`);
+    expect(res.status).toBe(202);
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
+  } finally {
+    stopRefine(SHA_IDENTITY_PRIVATE);
+  }
 });

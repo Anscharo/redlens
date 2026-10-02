@@ -2,11 +2,15 @@
 //
 // A preview has up to two diff-base candidates:
 //   sky  = merge base of the head with sky-ecosystem/next-gen-atlas:main (the
-//          fork point). Public: a canonical compare (fork commits are reachable
-//          through the canonical network even when the head repo isn't itself a
-//          registered GitHub fork). Private: never a true fork (shared history
-//          is mirrored, not forked, so a cross-repo compare 404s) — found by
-//          walking commit lists instead (fork-point.ts).
+//          fork point). Public only: a canonical compare (fork commits are
+//          reachable through the canonical network even when the head repo
+//          isn't itself a registered GitHub fork). A PRIVATE preview has none:
+//          it is never a true fork, so a cross-repo compare 404s, and the only
+//          other way to find an ancestor — intersecting commit lists — needs
+//          shared commit SHAs. nga main is squash-merged, so a mirror that
+//          takes upstream by copying content shares none, or only its original
+//          import: the "ancestor" found was absent or ancient, and redlined
+//          the whole repo's history as the preview's change. Removed 2026-09.
 //   repo = merge base of the head with the head repo's OWN base: the PR's
 //          declared base branch (`resolved.prBase`) for a PR, or the repo's
 //          default branch (`resolved.defaultBranch`) for a branch preview.
@@ -26,7 +30,6 @@
 
 import { makeGhClient, CANONICAL_REPO, CANONICAL_MAIN_REF, type Resolved, type GhClient } from "./resolve.ts";
 import { config } from "../config.ts";
-import { resolveForkPoint } from "./fork-point.ts";
 import type { BaseKey, BaseCandidateMeta } from "./cache.ts";
 import { pickAuto } from "./pr-diff-auto.ts";
 
@@ -65,22 +68,17 @@ export interface Candidates {
  * sky candidate. Public: canonical compare of the served atlasCommit (falls
  * back to COMPARE_BASE when unknown) against the bare head sha, on
  * CANONICAL_REPO — throws CompareError on failure exactly as the old
- * fetchCompare did. Private: found by walking commit lists (fork-point.ts);
- * null (never a throw) when no fork point turns up.
+ * fetchCompare did. Private: always null, with no GitHub call at all (see the
+ * header) — a private preview is redlined against its own base branch, or
+ * against live nga main.
  */
 export async function skyCandidate(
   resolved: Resolved,
   opts: { canonicalGh: GhClient; repoGh: GhClient; priv: boolean; atlasCommit?: string | null },
 ): Promise<Candidate | null> {
-  const { canonicalGh, repoGh, priv, atlasCommit } = opts;
+  const { canonicalGh, priv, atlasCommit } = opts;
+  if (priv) return null;
   const base = atlasCommit ?? COMPARE_BASE;
-
-  if (priv) {
-    const fp = await resolveForkPoint({ repoGh, canonicalGh, repo: resolved.repo, tip: resolved.sha, atlasCommit: base });
-    return fp
-      ? { key: "sky", repo: CANONICAL_REPO, ref: "main", mergeBase: fp.mergeBase, aheadBy: fp.aheadBy, behindBy: fp.behindBy }
-      : null;
-  }
 
   const r = await canonicalGh.fetchJson(
     `/repos/${CANONICAL_REPO}/compare/${encodeURIComponent(base)}...${encodeURIComponent(resolved.sha)}`,
@@ -127,8 +125,8 @@ export async function repoCandidate(resolved: Resolved, repoGh: GhClient): Promi
 /**
  * Resolves both candidates concurrently, then picks `auto`. Never rejects: a
  * `CompareError` from the public sky compare (or any other throw) becomes
- * `compareOk: false` with no sky candidate; a `null` from the private
- * fork-point walk still counts as ok. `token` is the BUILD token (installation
+ * `compareOk: false` with no sky candidate; a private preview's (always null)
+ * sky candidate still counts as ok. `token` is the BUILD token (installation
  * token for private, service token for public); canonical-side calls always
  * use `config.githubToken` — an installation token can't read canonical.
  */

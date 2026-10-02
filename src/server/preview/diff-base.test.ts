@@ -106,6 +106,7 @@ describe("writeDiffBases", () => {
       });
       expect(result.artifactsSkipped).toBeDefined();
       expect(result.bases).toEqual({ auto: "live-main", reason: "indexes not loaded" });
+      expect(result.refine).toEqual([]); // no diff written, nothing to judge later
       expect(fs.existsSync(path.join(paths.outDir, "diff.json"))).toBe(false);
     } finally {
       restore();
@@ -126,6 +127,8 @@ describe("writeDiffBases", () => {
           { resolved: RESOLVED, token: "t", priv: false, sha: "nolm1", paths, fetchTree: async () => ({ srcDir: "" }) },
         );
         expect(result.bases).toEqual({ auto: "live-main", reason: "compare failed" });
+        // One job for the one diff written, under the `auto` name.
+        expect(result.refine.map((j) => j.files)).toEqual([["identity.json"]]);
         expect(fs.existsSync(path.join(paths.outDir, "diff.json"))).toBe(true);
         expect(fs.existsSync(path.join(paths.outDir, "patches.json"))).toBe(true);
         expect(fs.existsSync(path.join(paths.outDir, "diff.sky.json"))).toBe(false);
@@ -180,6 +183,8 @@ describe("writeDiffBases", () => {
         });
 
         expect(result.bases.auto).toBe("repo");
+        // One job for each base, and the `auto` one is also identity.json.
+        expect(result.refine.map((j) => j.files)).toEqual([["identity.sky.json"], ["identity.repo.json", "identity.json"]]);
         // No /branches/<ref> lookup succeeded (404), so base-drift never resolved a tip.
         expect(result.bases.repo?.drift).toBeUndefined();
         expect(result.bases.sky).toMatchObject({ repo: "sky-ecosystem/next-gen-atlas", ref: "main", mergeBase: "sky-mb" });
@@ -291,6 +296,7 @@ describe("writeDiffBases", () => {
         expect(result.bases.sky).toBeUndefined();
         expect(result.bases.auto).toBe("live-main");
         expect(result.bases.reason).toContain("base unreacha unavailable");
+        expect(result.refine.map((j) => j.files)).toEqual([["identity.json"]]);
         expect(fs.existsSync(path.join(paths.outDir, "diff.sky.json"))).toBe(false);
         expect(fs.existsSync(path.join(paths.outDir, "diff.json"))).toBe(true);
         expect(warnings.some((w) => w.includes("unavailable") && w.includes("diffing against live main"))).toBe(true);
@@ -326,18 +332,24 @@ describe("startCandidates", () => {
     }
   });
 
-  test("private preview attempts resolution even with no service token configured", async () => {
+  test("private preview resolves its in-repo candidate with no service token configured (the installation token is enough)", async () => {
     config.githubToken = "";
     const origFetch = globalThis.fetch;
-    let hit = false;
-    globalThis.fetch = (async () => {
-      hit = true;
+    const fetched: string[] = [];
+    globalThis.fetch = (async (url: string | URL) => {
+      const u = String(url);
+      fetched.push(u);
+      if (u.endsWith("/repos/acme/secret-atlas/compare/main...headsha")) return Response.json({ merge_base_commit: { sha: "mainmb" }, ahead_by: 2 });
       return new Response("not found", { status: 404 });
     }) as unknown as typeof fetch;
     try {
-      const result = await startCandidates({ ...RESOLVED, private: true }, "inst-tok", true);
-      expect(hit).toBe(true); // attempted the fork-point walk, unlike the public no-token stub above
-      expect(result.auto).toBe("live-main"); // no fork point turned up (every call 404s)
+      const resolved = { repo: "acme/secret-atlas", sha: "headsha", kind: "branch" as const, ref: "pull-7", defaultBranch: "main", private: true };
+      const result = await startCandidates(resolved, "inst-tok", true);
+      // Unlike the public no-token stub above, the compare ran — and it is the
+      // ONLY call: no nga-main commit list is walked for a private preview.
+      expect(fetched).toEqual(["https://api.github.com/repos/acme/secret-atlas/compare/main...headsha"]);
+      expect(result).toMatchObject({ auto: "repo", repo: { ref: "main", mergeBase: "mainmb" }, compareOk: true });
+      expect(result.sky).toBeUndefined();
     } finally {
       globalThis.fetch = origFetch;
     }

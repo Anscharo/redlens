@@ -5,10 +5,14 @@ import type OpenAI from "openai";
 import { sql } from "../db.ts";
 import { config } from "../config.ts";
 import { callWithTimeout, makeOpenrouterJson, type JsonCall } from "./llm.ts";
-import { windowHistory, type HistoryRow } from "./chat-history.ts";
 import { captureError, type ErrorContext } from "../posthog-node.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
+
+interface HistoryRow {
+  role: string;
+  content: string;
+}
 
 const TITLE_SYSTEM = [
   "You title chat conversations for a governance research assistant grounded in the Sky Atlas.",
@@ -55,38 +59,71 @@ export function parseTitle(raw: string): string | null {
   return title || null;
 }
 
-// ~2k char hard cap — reuses windowHistory (chat-history.ts) but with
-// EXPLICIT tight options, never its defaults (keepRecent:8/oldMaxChars:600/
-// budgetChars:24_000 — the CHAT REPLAY budget). Inheriting those would make
-// three ~24k-char prompts per conversation, not the "very cheap call" this
-// feature asks for. DO NOT remove these explicit options / let this call
-// site drift onto windowHistory's defaults.
+// ~2k char hard cap for the titling call only. Chat replay is a different
+// path (context-compact.ts) and does not use this. Titling is a side call
+// that must stay cheap even when the conversation itself is near the model
+// window.
 //
 // `history` is the DB row set loaded in chat.ts BEFORE the assistant reply
 // was persisted (so it never includes the just-produced answer) —
 // `latestAssistantContent` (done.content) is passed separately and appended.
 // The first user message is re-added explicitly: it anchors the topic, and
-// budgetChars:2_000 can push it out of a turn-10 window entirely (that's
-// exactly what keepRecent:2 drops once enough newer turns exist).
+// the 2_000-char budget can push it out of a turn-10 window entirely.
 const TITLE_WINDOW = { keepRecent: 2, oldMaxChars: 200, budgetChars: 2_000 };
 const FIRST_USER_MAX_CHARS = 200;
 const LATEST_ANSWER_MAX_CHARS = 500;
 // Defensive final backstop, NOT redundant with TITLE_WINDOW.budgetChars above.
-// windowHistory always admits its newest row unconditionally (kept.length===0
-// on the first iteration of its loop), and the newest row of `rest` is the
-// user's own just-inserted message — which chat.ts allows up to
-// MAX_MESSAGE_BYTES (28_000 bytes). A single legal 28KB question on turn 1 of
-// a brand-new conversation would otherwise produce a ~28KB titling prompt,
-// exactly the cost windowHistory's options were supposed to prevent. Slice
-// the fully-assembled transcript too so no single oversized row can defeat
-// the cap.
+// windowTitleHistory always admits its newest row unconditionally (kept.length
+// === 0 on the first iteration of its loop), and the newest row of `rest` is
+// the user's own just-inserted message — which chat.ts allows up to
+// MAX_MESSAGE_BYTES (28_000 bytes). A single legal 28KB question on a later
+// turn would otherwise produce a ~28KB titling prompt. Slice the
+// fully-assembled transcript too so no single oversized row can defeat the cap.
 const TITLE_TRANSCRIPT_MAX_CHARS = 2_500;
+
+const TITLE_TRUNCATION_MARK = "\n…[earlier message truncated]";
+const TITLE_STRUCTURAL_LINE_RE = /^(#{1,6}\s+\S|(?:-{3,}|\*{3,}|_{3,})$|\*\*[^*\n]+\*\*$)/;
+
+function titleTruncate(content: string, maxChars: number): string {
+  let searchFrom = 0;
+  for (;;) {
+    const nextBreak = content.indexOf("\n\n", searchFrom);
+    if (nextBreak === -1) break;
+    const para = content.slice(searchFrom, nextBreak);
+    const lines = para.split("\n").map((l) => l.trim()).filter((l) => l !== "");
+    const structural = lines.length > 0 && lines.every((l) => TITLE_STRUCTURAL_LINE_RE.test(l));
+    if (!structural) break;
+    searchFrom = nextBreak + 2;
+  }
+  const paraEnd = content.indexOf("\n\n", searchFrom);
+  const cut = Math.min(paraEnd === -1 ? content.length : paraEnd, maxChars);
+  if (cut >= content.length) return content;
+  return content.slice(0, cut) + TITLE_TRUNCATION_MARK;
+}
+
+// Newest-first trim used ONLY by the titling prompt. Not the chat replay.
+function windowTitleHistory(history: HistoryRow[]): HistoryRow[] {
+  const { keepRecent, oldMaxChars, budgetChars } = TITLE_WINDOW;
+  // No empty-row filter: buildTitleTranscript, the only caller, already dropped
+  // them before slicing out the first user message.
+  const rows = history;
+  const kept: HistoryRow[] = [];
+  let spent = 0;
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const recent = rows.length - i <= keepRecent;
+    const content = recent ? rows[i].content : titleTruncate(rows[i].content, oldMaxChars);
+    if (spent + content.length > budgetChars && kept.length > 0) break;
+    spent += content.length;
+    kept.unshift({ role: rows[i].role, content });
+  }
+  return kept;
+}
 
 export function buildTitleTranscript(history: HistoryRow[], latestAssistantContent: string): string {
   const nonEmpty = history.filter((m) => m.content.trim() !== "");
   const firstUser = nonEmpty.find((m) => m.role === "user");
   const rest = firstUser ? nonEmpty.filter((m) => m !== firstUser) : nonEmpty;
-  const windowed = windowHistory(rest, TITLE_WINDOW);
+  const windowed = windowTitleHistory(rest);
   const rows: HistoryRow[] = [
     ...(firstUser ? [{ role: firstUser.role, content: firstUser.content.slice(0, FIRST_USER_MAX_CHARS) }] : []),
     ...windowed,

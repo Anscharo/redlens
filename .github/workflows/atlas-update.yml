@@ -137,6 +137,36 @@ jobs:
             "${{ steps.atlas.outputs.old_full }}" "${{ steps.atlas.outputs.new_full }}" \
             -- ATLAS_MARKDOWN_SYNTAX.md > /tmp/spec-diff.txt || true
 
+      # Fetch the pull-request metadata (title, body, author, review counts) for
+      # the atlas commits, so the committed .cache/github-prs records stay
+      # current. Every atlas commit is a PR, and this is the only job that can
+      # commit what it fetched — the Railway worker has `gh` and a token, but
+      # its container is discarded.
+      #
+      # `--all`, not this bump's range: the range a bump adds is asked for once,
+      # and the next bump starts where this one ended, so a PR skipped by a
+      # rejected token would never be requested again. `--all` re-derives the
+      # missing set from the files on disk, so the next hour retries the gap and
+      # an already-cached PR costs one existsSync.
+      #
+      # TOKEN: `github.token`, measured rather than assumed. The read is against
+      # sky-ecosystem/next-gen-atlas, another org's repository, and review here
+      # argued that an installation token cannot reach it. A probe on this
+      # branch says otherwise: `gh pr view --repo sky-ecosystem/next-gen-atlas
+      # --json title` returned the title, as did the REST pull and reviews
+      # endpoints. Its permissions stop at this repository for WRITES; public
+      # reads elsewhere are allowed. Run 36396641101, 2026-09-28.
+      #
+      # Degrades gracefully like the address refresh above: the warmer exits 1
+      # when a record could not be written, so a rejected token shows up as a
+      # failed step, and continue-on-error still lets the bump land.
+      - name: Cache PR metadata for the atlas commits
+        if: steps.atlas.outputs.proceed == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pnpm history:prs --all
+
       - name: Commit and push to atlas-update branch
         if: steps.atlas.outputs.proceed == 'true'
         id: push
@@ -150,11 +180,15 @@ jobs:
           # address step above (no-op when ETHERSCAN_API_KEY is absent, so the
           # add is harmless then). Keeping them in the bump commit prevents
           # addresses.json from drifting out of sync with docs.json over time.
+          # .cache/github-prs holds the PR records fetched by the step above
+          # (nothing to add when that step was skipped or found none). They are
+          # committed because build:history must also run where nothing can
+          # fetch them: a `pnpm dev` preflight offline, and the canary job.
           git add vendor/next-gen-atlas graph-snapshots/__snapshots__ \
             .github/atlas-census-baseline.json .github/govops-census-baseline.json \
             .github/risk-census-baseline.json .github/concepts-census-baseline.json \
             .github/chains-census-baseline.json \
-            public/addresses.json .cache/etherscan
+            public/addresses.json .cache/etherscan .cache/github-prs
           git commit -m "chore: bump atlas submodule → ${SHORT}"
           git push origin "$BRANCH" --force
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"

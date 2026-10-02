@@ -99,6 +99,27 @@ describe("prNumberFromRailwayEnv", () => {
     expect(prNumberFromRailwayEnv("production")).toBeNull();
     expect(prNumberFromRailwayEnv("Redline Atlas / production")).toBeNull();
   });
+
+  // `pnpm env:prune` DELETES an environment on the strength of this parse, so a
+  // name that merely contains "pr-<n>" inside a word must not read as a PR env.
+  it("requires a boundary before pr-, so a substring match cannot trigger a delete", () => {
+    expect(prNumberFromRailwayEnv("expr-12")).toBeNull();
+    expect(prNumberFromRailwayEnv("Redline Atlas / expr-12")).toBeNull();
+    expect(prNumberFromRailwayEnv("my-pr-review-env")).toBeNull();
+    // The environments this repo actually relies on, none of which may parse.
+    for (const keep of [
+      "github-pages",
+      "CI",
+      "atlas-update-main-bypass",
+      "Redline Atlas / redlens-development",
+    ]) {
+      expect(prNumberFromRailwayEnv(keep)).toBeNull();
+    }
+    // The boundary may be a dash, a slash-segment start, or the string start.
+    expect(prNumberFromRailwayEnv("redlens-pr-292")).toBe(292);
+    expect(prNumberFromRailwayEnv("Redline Atlas / pr-292")).toBe(292);
+    expect(prNumberFromRailwayEnv("pr-292")).toBe(292);
+  });
 });
 
 describe("allowlist stays honest", () => {

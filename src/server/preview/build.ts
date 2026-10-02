@@ -15,7 +15,9 @@ import { config } from "../config.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { fetchAndExtract, CapExceededError, SourceGoneError } from "./tarball.ts";
 import { startCandidates, writeDiffBases } from "./diff-base.ts";
+import { readDiffCounts, diffBaseLogLine } from "./diff-base-record.ts";
 import { previewPaths, writeMeta, evictLru, type PreviewMeta } from "./cache.ts";
+import { refineIdentity, startRefine, stopRefine, type RefineJob } from "./identity-refine.ts";
 import {
   upsertPreview,
   isKnownSha,
@@ -285,6 +287,12 @@ export function baseMeta(resolved: Resolved, sha: string, docCount: number, t0: 
     ...(resolved.needsPullsPermission
       ? { needsPullsPermission: true as const, ...(resolved.permissionsUrl ? { permissionsUrl: resolved.permissionsUrl } : {}) }
       : {}),
+    // Banner-only too: the install covers every repo on its account. Re-derived
+    // on every resolvePrivateBranch; handler.ts overlays it onto a ready
+    // bundle's meta.json so the ACCESS row clears once the owner narrows.
+    ...(resolved.grantTooBroad
+      ? { grantTooBroad: true as const, ...(resolved.installSettingsUrl ? { installSettingsUrl: resolved.installSettingsUrl } : {}) }
+      : {}),
     resolvedAt: new Date().toISOString(),
     docCount,
     buildMs: Date.now() - t0,
@@ -307,6 +315,7 @@ export interface BuildDeps {
   fetchAndExtract: typeof fetchAndExtract;
   spawnBuild: typeof spawnBuild;
   upsertPreview: (meta: PreviewMeta) => Promise<void>;
+  refineIdentity: (outDir: string, jobs: RefineJob[], signal?: AbortSignal) => Promise<void>;
 }
 
 const realBuildDeps: BuildDeps = {
@@ -318,6 +327,7 @@ const realBuildDeps: BuildDeps = {
   fetchAndExtract,
   spawnBuild,
   upsertPreview,
+  refineIdentity,
 };
 
 async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realBuildDeps): Promise<void> {
@@ -327,12 +337,12 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
   // Private previews (branch or private-PR `pull-N` grammar, see resolve.ts) are
   // gated on GitHub App installation, not fork/trust screening — installation
   // IS the trust grant, since only someone who can install the App on the repo
-  // can produce a preview of it at all. Unlike before, a private preview DOES
-  // compare now: in-repo via the installation token (a canonical-network cross-
-  // repo compare still isn't possible, but a private branch's own base or a
-  // private PR's declared base is reachable), and its fork point with sky main
-  // is found by walking commit lists (fork-point.ts) since a private repo is
-  // never a registered GitHub fork of canonical. See diff-base.ts.
+  // can produce a preview of it at all. A private preview compares INSIDE its
+  // own repo via the installation token (a private branch's default branch, a
+  // private PR's declared base). It never looks for an ancestor shared with
+  // nga main — a cross-repo compare isn't possible, and intersecting commit
+  // lists is meaningless for a mirror of a squash-merged upstream — so with no
+  // base branch it is redlined against live nga main. See pr-diff.ts.
   const priv = !!resolved.private;
   try {
     // Admin takedown: a blocked sha never rebuilds.
@@ -370,10 +380,13 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
     // `== null` proves `token: string` below without a non-null assertion.
     if (token == null) {
       // Carry the install URL so the client can offer a one-click install action.
-      fail(f, sha, "app-not-installed", (await appInstallUrl().catch(() => null)) ?? undefined);
+      fail(f, sha, "app-not-installed", (await appInstallUrl(resolved.repo).catch(() => null)) ?? undefined);
       return;
     }
     await acquire();
+    // A rebuild replaces the bundle: a verdict still being made for the old one
+    // must not land in the new directory.
+    stopRefine(sha);
     try {
       emit(f, { phase: "fetching", sha });
       // Diff-base candidate resolution is an independent GitHub round-trip (or,
@@ -419,9 +432,9 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       // Shared-history screen: a public fork whose compare vs main failed (no
       // common ancestor / unknown commit) is not a derivative of the atlas —
       // reject. `fork` already implies `!priv`, but the explicit `!priv` is
-      // kept because pr-diff.ts's own note says `compareOk: false` IS
-      // reachable on the private path too (a raw network error in the
-      // fork-point walk) — private previews must never hit this branch.
+      // kept because `compareOk: false` IS reachable on the private path too
+      // (startCandidates' catch-all) — private previews must never hit this
+      // branch.
       if (fork && !priv && !candidates.compareOk) return fail(f, sha, "not-derived");
 
       // Doc-level diff + per-doc patches, written into the bundle as artifacts:
@@ -475,21 +488,28 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
         else meta.newAddresses = newAddrs;
       }
       // The sky candidate's ahead/behind counts ride on meta whenever one
-      // resolved — no longer fork-only: a private branch's fork-point walk
-      // (and a canonical branch's ordinary sky compare) now populate these too.
+      // resolved — a public fork's or a canonical branch's canonical compare.
+      // Never for a private preview: it has no sky candidate (pr-diff.ts).
       if (db.bases.sky) {
         meta.aheadBy = db.bases.sky.aheadBy;
         meta.behindBy = db.bases.sky.behindBy;
       }
       meta.bases = db.bases;
+      if (!db.artifactsSkipped) meta.diffCounts = readDiffCounts(paths.outDir);
       // Meta is written LAST, after every diff artifact: bundleReady() only
       // checks for meta.json, so writing it earlier would let a concurrent
       // viewer receive `ready` (or find the bundle already "ready" on a fresh
       // request) with no diff.json on disk yet.
       writeMeta(sha, meta);
       await deps.upsertPreview(meta);
+      // The one POSITIVE record of the pick — until now only a degrade logged.
+      console.log(diffBaseLogLine(meta));
       emit(f, { phase: "ready", sha });
       evictLru(undefined, undefined, inflightShas());
+      // The preview is ready and served from here on. The identity verdict by
+      // meaning waits on the embedding provider, so it is made now, detached,
+      // and lands in identity.json for the reader to pick up.
+      void startRefine(sha, paths.outDir, db.refine, deps.refineIdentity);
     } finally {
       release();
     }
@@ -545,6 +565,8 @@ export async function __runBuildForTest(resolved: Resolved, deps: Partial<BuildD
     done: false,
     promise: Promise.resolve(),
   };
-  await runBuild(f, resolved, { ...realBuildDeps, ...deps });
+  // No verdict by meaning unless a test asks for it: the real lane reaches
+  // Postgres and the embedding provider.
+  await runBuild(f, resolved, { ...realBuildDeps, refineIdentity: async () => {}, ...deps });
   return f.current;
 }

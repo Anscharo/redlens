@@ -130,3 +130,32 @@ test("segmenter: definitions() accumulates only recognised reference-definition 
     "[a]: /atlas/11111111-1111-1111-1111-111111111111\n[b]: /atlas/22222222-2222-2222-2222-222222222222",
   );
 });
+
+test("a callout's lead-in carries into the NEXT paragraph's check, so no finding flickers", () => {
+  // The lead-in and the blockquote it introduces are separate paragraphs, so the
+  // block arrives at checkParagraph alone. Without the carried lead-in the
+  // streaming check reports a quote the final whole-answer pass clears, and the
+  // user watches a finding appear and then vanish.
+  const stream = createParagraphStream({
+    ix,
+    question: "how much does atlas churn matter?",
+    evidence: () => ({ atlasTexts: [], externalTexts: [], allTexts: [] }),
+  });
+  const checks = [
+    ...stream.push("Most atlas churn is renumbering rather than substantive change.\n\n"),
+    ...stream.push("The practical lesson is:\n\n"),
+    ...stream.push("> Treat a changed document number as a label change until the body digest moves.\n\n"),
+  ];
+  const flushed = stream.flush();
+  const all = [...checks, ...(flushed ? [flushed] : [])];
+  expect(all.flatMap((c) => c.findings)).toEqual([]);
+});
+
+test("the lead-in is what makes the difference — same paragraph, with and without", () => {
+  const block = "> Treat a changed document number as a label change until the body digest moves.";
+  const ctx = { ix, question: "how much does atlas churn matter?", evidence: emptyEvidence };
+  // Alone, the block is an unattributed quotation of text in no source.
+  expect(checkParagraph(block, "", ctx).findings).toHaveLength(1);
+  // Introduced by a self-authorship lead-in, it is the model's own summary.
+  expect(checkParagraph(block, "", { ...ctx, leadIn: "The practical lesson is:" }).findings).toEqual([]);
+});

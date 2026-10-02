@@ -80,7 +80,7 @@ renamed**. Added: thread it through all six lists — `KNOWN_DOC_TYPES`
 (`scripts/lib/atlas-parser.mjs`), `NON_PROCESS_TYPES`
 (`scripts/lib/process-keywords.mjs`), `NON_STEP_TYPES`
 (`src/lib/processesIndex.ts`), `EXCLUDED_TYPES` (`src/lib/riskRules.ts`), the
-duty-scan skip list (`scripts/lib/graph-entity-edges.mjs`, pattern 2s-ter),
+duty-scan skip list (`scripts/lib/graph-entity-edges/duty-for.mjs`, pattern 2s-ter),
 `TYPE_ALIASES` (`src/lib/conceptsCensus.ts`). Renamed: additionally every
 `type ===` filter keyed to the old name silently empties — the type tripwires
 in `graph-tripwires.mjs` catch "Active Data Controller" / "Active Data" /

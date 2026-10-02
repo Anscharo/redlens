@@ -53,7 +53,7 @@ describe("CrossView route registration", () => {
 });
 
 describe("REPORT_DESCRIPTIONS", () => {
-  it("has exactly one entry per REPORT_TITLES id — ReportsIndex.tsx's card() reads it unguarded", () => {
+  it("has exactly one entry per REPORT_TITLES id — reportCatalog.ts reads it unguarded", () => {
     // A report id with a title but no description renders `undefined` as the
     // card's body text on /reports instead of failing a build check.
     expect(Object.keys(REPORT_DESCRIPTIONS).sort()).toEqual(Object.keys(REPORT_TITLES).sort());

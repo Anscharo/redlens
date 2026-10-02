@@ -21,6 +21,7 @@ import { resolveCandidates, type Candidates } from "./pr-diff.ts";
 import { snapshotFromDocsJson, type Snapshot } from "./snapshot.ts";
 import { computeDiffArtifacts, writeDiffArtifacts } from "./diff-artifacts.ts";
 import { writeCandidateDiffs } from "./diff-base-write.ts";
+import { refineJob, type RefineJob } from "./identity-refine.ts";
 import type { Resolved } from "./resolve.ts";
 import type { PreviewBases, PreviewPaths } from "./cache.ts";
 
@@ -30,6 +31,9 @@ export interface DiffBasesResult {
   /** Set when the artifacts could not be written at all (cold start:
    *  getIndexes() threw) — the reader falls back to the serve-time vs-main diff. */
   artifactsSkipped?: string;
+  /** What the later verdict by meaning needs, one entry for each diff written
+   *  (identity-refine.ts). Empty when no diff was written. */
+  refine: RefineJob[];
 }
 
 /**
@@ -84,23 +88,27 @@ export async function writeDiffBases(
   } catch (e) {
     const msg = (e as Error).message;
     console.warn(`[preview] ${sha8}: diff artifacts skipped (${msg}) — reader falls back to the serve-time diff`);
-    return { candidates, bases: { auto: "live-main", reason: "indexes not loaded" }, artifactsSkipped: msg };
+    return { candidates, bases: { auto: "live-main", reason: "indexes not loaded" }, artifactsSkipped: msg, refine: [] };
   }
 
   const head = snapshotFromDocsJson(opts.paths.outDir);
   const mainDocs = live.docMap as Snapshot;
 
-  // No candidate resolved at all (pickAuto only returns "live-main" when
-  // neither sky nor repo came back) — today's plain vs-live-main diff.
+  // No usable base: a PR whose own base did not resolve, a private preview
+  // with no base branch to compare against (its default branch itself), or a
+  // public one whose compares failed — the plain vs-live-nga-main diff. The
+  // cause is RECORDED (banner, meta.json, previews row), not only logged: it
+  // is the first thing anyone diagnosing a surprising redline needs.
   if (candidates.auto === "live-main") {
     const why =
-      candidates.reason ?? (opts.priv ? "no fork point found" : candidates.compareOk ? "no merge base" : "compare failed");
+      candidates.reason ?? (opts.priv ? "no base branch to compare against" : candidates.compareOk ? "no merge base" : "compare failed");
     console.warn(`[preview] ${sha8}: ${why} — diffing against live main`);
-    writeDiffArtifacts(opts.paths.outDir, computeDiffArtifacts(mainDocs, head, mainDocs));
-    return { candidates, bases: { auto: "live-main", reason: candidates.reason } };
+    const a = computeDiffArtifacts(mainDocs, head, mainDocs);
+    writeDiffArtifacts(opts.paths.outDir, a);
+    return { candidates, bases: { auto: "live-main", reason: why }, refine: [refineJob(["identity.json"], mainDocs, head, a.diff)] };
   }
 
-  const bases = await writeCandidateDiffs(candidates, {
+  const { bases, refine } = await writeCandidateDiffs(candidates, {
     resolved: opts.resolved,
     token: opts.token,
     priv: opts.priv,
@@ -111,5 +119,5 @@ export async function writeDiffBases(
     mainDocs,
     live,
   });
-  return { candidates, bases };
+  return { candidates, bases, refine };
 }

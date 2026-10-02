@@ -1,19 +1,39 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { flexTokenSource, type HiddenMatch, type ReportQuery } from "@/lib/reportFilter";
+import { flexTokenSource, punctTokenSource, type HiddenMatch, type ReportQuery } from "@/lib/reportFilter";
 import { fitAsideMatches } from "./asideFit";
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function needleSource(flex: boolean, punct: boolean) {
+  if (punct) return punctTokenSource;
+  if (flex) return flexTokenSource;
+  return escapeRe;
+}
 
 // Wraps every query-needle occurrence in `text` in a <mark>. Matching mirrors
 // the filter: case-insensitive unless the query is strict (rq.cased). Exact
 // substring by default; `flex` (for entity-name cells only) also bridges
 // internal whitespace so a de-spaced query ("skybase") highlights "Sky Base".
 // Never set flex on prose — it would mark junk like "dss" ↔ "recorDS Show".
-// Longest needle first so overlapping needles prefer the long match.
-export function Highlight({ text, rq, flex = false }: { text: string | null | undefined; rq: ReportQuery; flex?: boolean }) {
+// `punct` treats `-`/`&`/etc as separators so "on chain" marks "On-chain"
+// (the /reports index filter does the same). Longest needle first so
+// overlapping needles prefer the long match.
+export function Highlight({
+  text,
+  rq,
+  flex = false,
+  punct = false,
+}: {
+  text: string | null | undefined;
+  rq: ReportQuery;
+  flex?: boolean;
+  punct?: boolean;
+}) {
   if (!text || rq.needles.length === 0) return <>{text}</>;
+  const needles =
+    punct && rq.needles.length > 1 ? [rq.needles.join(" "), ...rq.needles] : rq.needles;
   const re = new RegExp(
-    [...rq.needles].sort((a, b) => b.length - a.length).map(flex ? flexTokenSource : escapeRe).join("|"),
+    [...needles].sort((a, b) => b.length - a.length).map(needleSource(flex, punct)).join("|"),
     rq.cased ? "g" : "gi",
   );
   const parts: ReactNode[] = [];

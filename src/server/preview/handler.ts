@@ -4,6 +4,10 @@
 //   GET /:id/events           SSE build-status stream (drives the build)
 //   GET /:sha/diff.json        added/changed doc ids vs current main
 //   GET /:sha/<artifact>.json  allowlisted bundle artifact
+//   GET /mine?shas=…&at=…      the caller's own previews: their account history
+//                              plus the shas their browser remembers (with that
+//                              browser's open time), private rows released only
+//                              once access is authorized
 
 import fs from "node:fs";
 import path from "node:path";
@@ -24,10 +28,14 @@ import {
   type PendingPrivate,
 } from "./resolve.ts";
 import { getOrStartBuild, subscribeBuild, type PreviewEvent } from "./build.ts";
-import { previewPaths, artifactPath, bundleReady, readMeta, touch, remove as removeBundle } from "./cache.ts";
+import { previewPaths, artifactPath, bundleReady, readMeta, writeMeta, touch, remove as removeBundle, type PreviewMeta } from "./cache.ts";
+import { IDENTITY_FILES, isRefining } from "./identity-refine.ts";
 import { PREVIEW_STORE, serveBundleArtifact } from "../bundle-store.ts";
-import { getPreviewRow, touchPreview, isBlockedSha, listPreviews } from "./db.ts";
+import { getPreviewRow, touchPreview, isBlockedSha, recordPreviewOpen } from "./db.ts";
+import { parseLocalOpens, visiblePreviews } from "./mine.ts";
+import { fillPrivateDiffBaseOnOpen } from "./diff-base-backfill.ts";
 import { authorizePreviewAccess } from "./access.ts";
+import { getSessionUser } from "../session.ts";
 import { appInstallUrl } from "./github-app.ts";
 
 const SHA_RE = /^[0-9a-f]{40}$/i;
@@ -70,6 +78,37 @@ export function rateLimited(ip: string): boolean {
   }
   w.n++;
   return w.n > IP_LIMIT;
+}
+
+// Per-USER window on /mine, keyed on the account rather than the IP because the
+// cost it protects is per account: up to MINE_MAX_PRIVATE live GitHub permission
+// checks per request, which only a signed-in caller can trigger. An anonymous
+// /mine is one DB query and no GitHub call, so it stays on the ordinary limits.
+//
+// Deliberately BURST-TOLERANT, not a minimum interval. With a warm decision
+// cache a request costs two DB queries and NO GitHub call (access.ts caches
+// ok/forbidden per user+repo for ~60s), so the common case needs no protection
+// at all. What is left uncached is the degraded case: "unavailable" is never
+// cached, by design, so while GitHub is failing every request re-asks it, once
+// per private repo. A limit only has to stop a runaway loop from riding that —
+// it must not punish a person opening a second tab, another device, or
+// refreshing, which an interval-per-request does (see the 429-on-first-fetch
+// bug that shipped with the 2s version).
+export const mineHits = new Map<string, { n: number; reset: number }>();
+export const MINE_WINDOW_MS = 2_000;
+export const MINE_LIMIT = 8; // more than a person can produce in two seconds; far under a loop
+export function mineRateLimited(userId: string, now = Date.now()): boolean {
+  const w = mineHits.get(userId);
+  if (!w || now > w.reset) {
+    // Sweep expired entries when the map grows large (same shape as rateLimited above).
+    if (mineHits.size > 5000) {
+      for (const [k, v] of mineHits) if (now > v.reset) mineHits.delete(k);
+    }
+    mineHits.set(userId, { n: 1, reset: now + MINE_WINDOW_MS });
+    return false;
+  }
+  w.n++;
+  return w.n > MINE_LIMIT;
 }
 
 // Diff cache keyed by (preview sha, current main atlas sha).
@@ -235,8 +274,59 @@ function eventsResponse(req: Request, rawId: string, ip: string): Response {
 // An app-not-installed failure carries the App's install URL so the client can
 // offer a one-click "Install the Sky Atlas by Redline GitHub App" action instead of dead-end copy;
 // every other failure code has no attached message.
-async function failInstallMessage(code: string): Promise<string | undefined> {
-  return code === "app-not-installed" ? ((await appInstallUrl().catch(() => null)) ?? undefined) : undefined;
+async function failInstallMessage(code: string, repo: string | undefined): Promise<string | undefined> {
+  return code === "app-not-installed" ? ((await appInstallUrl(repo).catch(() => null)) ?? undefined) : undefined;
+}
+
+/** The repo a preview id names, for targeting the install link at its owner. */
+function repoOfId(rawId: string): string | undefined {
+  const p = decodeId(rawId);
+  return p?.kind === "branch" ? p.repo : undefined;
+}
+
+/** Overlay a freshly-resolved All-repos grant flag onto a ready bundle's meta.
+ *  The banner reads meta.json, not the resolve, and a same-sha ready bundle
+ *  does not rebuild — so without this the ACCESS row would stick until the
+ *  commit moved. Only call after resolvePrivateBranch (a SHA/DB resolve never
+ *  re-derives the flag, and applying this there would wipe a still-valid row).
+ *  Returns the patched meta, or null when nothing changed. */
+export function syncBroadGrantMeta(
+  meta: PreviewMeta,
+  r: Pick<Resolved, "grantTooBroad" | "installSettingsUrl">,
+): PreviewMeta | null {
+  const want = !!r.grantTooBroad;
+  const have = !!meta.grantTooBroad;
+  const wantUrl = want ? r.installSettingsUrl : undefined;
+  const haveUrl = have ? meta.installSettingsUrl : undefined;
+  if (want === have && wantUrl === haveUrl) return null;
+  const next: PreviewMeta = { ...meta };
+  if (want) {
+    next.grantTooBroad = true;
+    if (r.installSettingsUrl) next.installSettingsUrl = r.installSettingsUrl;
+    else delete next.installSettingsUrl;
+  } else {
+    delete next.grantTooBroad;
+    delete next.installSettingsUrl;
+  }
+  return next;
+}
+
+/** Record a signed-in visitor's open against their ACCOUNT, so /preview's recent
+ *  list follows them to their next browser. Anonymous visitors get nothing here —
+ *  their localStorage record (previewLocal.ts) is the only one, by design.
+ *
+ *  Called once per `ready`, which is the earliest point that is true: the sha is
+ *  resolved, the takedown check has passed, a private repo has been authorized,
+ *  and the build (which upserts the previews row this later JOINs to) is done.
+ *  Exported for the test that drives it without an SSE stream. */
+export async function rememberPreviewOpen(req: Request, previewId: string, sha: string): Promise<void> {
+  const session = await getSessionUser(req);
+  if (!session) return;
+  // A bare-sha id is case-insensitive (resolveId already lowercases it), so record
+  // it lowercased or `/preview/ABC…` and `/preview/abc…` become two rows for one
+  // preview. Every other id form keeps its case: a branch name is case-SENSITIVE
+  // in git, so `owner:repo:Fix` and `owner:repo:fix` are genuinely different refs.
+  await recordPreviewOpen(session.user.id, SHA_RE.test(previewId) ? previewId.toLowerCase() : previewId, sha);
 }
 
 // Returns the unsubscribe fn for the SSE stream (noop if it terminated synchronously).
@@ -248,7 +338,7 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
   send({ phase: "resolving" });
   const resolved = await resolveId(rawId);
   if ("error" in resolved) {
-    send({ phase: "failed", code: resolved.error, message: await failInstallMessage(resolved.error) });
+    send({ phase: "failed", code: resolved.error, message: await failInstallMessage(resolved.error, repoOfId(rawId)) });
     return () => {};
   }
   // G3/G7: for a private repo, authorize BEFORE any sha-bearing event
@@ -267,7 +357,7 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
     }
     const done = await resolvePrivateBranch(resolved.repo, resolved.ref);
     if ("error" in done) {
-      send({ phase: "failed", code: done.error, message: await failInstallMessage(done.error) });
+      send({ phase: "failed", code: done.error, message: await failInstallMessage(done.error, resolved.repo) });
       return () => {};
     }
     r = done;
@@ -282,6 +372,14 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
     }
   }
   const sha = r.sha;
+  // Every `ready` this stream emits — from the cached bundle below or from a
+  // build — is an open by this visitor, so route them all through one wrapper
+  // rather than remembering to record at each site. Fire-and-forget: the
+  // account history must never delay, or fail, opening a preview.
+  const sendRecording = (ev: PreviewEvent) => {
+    if (ev.phase === "ready") void rememberPreviewOpen(req, rawId, sha).catch(() => {});
+    send(ev);
+  };
   // Admin takedown: a blocked sha neither serves its cached bundle nor rebuilds.
   if (await isBlockedSha(sha).catch(() => false)) {
     removeBundle(sha);
@@ -294,18 +392,34 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
     // rebuild so the redline switches onto the PR's own base instead of
     // serving the fallback bundle. Same-sha, so the quota (new-sha) gate
     // doesn't fire. A bundle that already recorded a prBase is left alone.
+    // Same for a bundle that recorded NO base at all (a Contents-only private
+    // PR built before the default branch stood in for the missing prBase, or
+    // one whose default-branch lookup failed that day): once resolve has a
+    // default branch, rebuild so the `repo` candidate exists. Never downgrades
+    // — a bundle that holds a real prBase keeps it even if Pulls later 403s.
     const meta = readMeta(sha);
-    if (r.prBase && !meta?.prBase) {
+    if ((r.prBase && !meta?.prBase) || (r.defaultBranch && !meta?.defaultBranch && !meta?.prBase)) {
       getOrStartBuild(r);
-      return subscribeBuild(sha, send);
+      return subscribeBuild(sha, sendRecording);
+    }
+    // Banner-only: keep ACCESS in sync with the live install without a rebuild.
+    // `authRequired` is the tell that r came from resolvePrivateBranch this
+    // request (fresh repository_selection). A SHA/DB resolve must not run this
+    // — it never carries grantTooBroad, and would clear a still-valid row.
+    if (meta && "authRequired" in resolved) {
+      const synced = syncBroadGrantMeta(meta, r);
+      if (synced) writeMeta(sha, synced);
     }
     touch(sha);
     void touchPreview(sha).catch(() => {});
-    send({ phase: "ready", sha });
+    // Disk wiped → the rebuild below records the diff base. Disk still here
+    // and the row predates the columns → fill it without making this open wait.
+    if (r.private) fillPrivateDiffBaseOnOpen(r, meta);
+    sendRecording({ phase: "ready", sha });
     return () => {};
   }
   getOrStartBuild(r);
-  return subscribeBuild(sha, send);
+  return subscribeBuild(sha, sendRecording);
 }
 
 // Resolve serveability + privacy for a sha-keyed response. Gating on bundleReady
@@ -365,6 +479,8 @@ async function diffResponse(req: Request, sha: string): Promise<Response> {
   return json(diff, 200, headers);
 }
 
+const isIdentityFile = (name: string) => (IDENTITY_FILES as readonly string[]).includes(name);
+
 async function artifactResponse(req: Request, sha: string, name: string): Promise<Response> {
   const gated = await gateSha(req, sha);
   if ("deny" in gated) return gated.deny;
@@ -383,9 +499,35 @@ async function artifactResponse(req: Request, sha: string, name: string): Promis
   }
   // Plain artifacts go through the shared bundle reader (path + gzip + 404).
   const res = await serveBundleArtifact(PREVIEW_STORE, sha, name, req, headers);
+  // identity*.json is written after the bundle is ready. While it is being
+  // made the answer is "not yet", which the reader retries; a 404 is final.
+  if (!res && isIdentityFile(name) && isRefining(sha)) return json({ status: "pending" }, 202, { ...headers, "Retry-After": "2" });
   if (!res) return json({ error: "not-found" }, 404, headers);
   touch(sha);
   return res;
+}
+
+// GET /api/preview/mine?shas=<comma-separated 40-hex>&at=<epoch ms, aligned> —
+// the /preview index's "my recent previews" list. What it collects, and what a
+// visitor is allowed to see of it, lives in mine.ts; this is only the HTTP shell.
+// Session-scoped, so PRIVATE_HEADERS (no allow-origin, no-store): never
+// cacheable by a shared proxy.
+async function minePreviews(req: Request): Promise<Response> {
+  const url = new URL(req.url);
+  const local = parseLocalOpens(url.searchParams.get("shas"), url.searchParams.get("at"));
+  const session = await getSessionUser(req).catch(() => null);
+  if (local.length === 0 && !session) return json([], 200, PRIVATE_HEADERS);
+  if (session && mineRateLimited(session.user.id)) {
+    // 429 rather than an empty 200: the client must be able to tell "nothing to
+    // show" from "ask again", and it leaves the list it already has on screen.
+    return json({ error: "rate-limited" }, 429, { ...PRIVATE_HEADERS, "retry-after": "2" });
+  }
+  const browserAt = new Map(local.map((l) => [l.sha, l.at]));
+  return json(
+    await visiblePreviews(req, session?.user.id ?? null, local.map((l) => l.sha), authorizePreviewAccess, browserAt),
+    200,
+    PRIVATE_HEADERS,
+  );
 }
 
 // Local shorthand over the shared helper (http.ts): every preview response
@@ -399,12 +541,11 @@ function json(body: unknown, status: number, headers: Record<string, string> = C
 export function handlePreview(req: Request, server: Server<unknown>, pathname: string): Response | Promise<Response> {
   const rest = pathname.slice("/api/preview/".length);
   const segs = rest.split("/").filter(Boolean);
-  // GET /api/preview/list — live previews for the /preview index page.
-  if (segs.length === 1 && segs[0] === "list") {
-    return listPreviews()
-      .then((rows) => json(rows, 200))
-      .catch(() => json([], 200));
-  }
+  // GET /api/preview/mine — the caller's OWN previews (private ones included,
+  // each behind its repo's access check). There is deliberately no public
+  // listing route: the one that existed ranked every preview anyone had opened,
+  // and nothing consumed it once this one landed.
+  if (segs.length === 1 && segs[0] === "mine") return minePreviews(req);
   // GET /api/preview/open-prs — open PRs against the canonical atlas, for the
   // /preview index "open atlas prs" tab.
   if (segs.length === 1 && segs[0] === "open-prs") {

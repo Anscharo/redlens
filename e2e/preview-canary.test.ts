@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { changedDocIds, splitByUuid } from "./atlas-sections";
-import { CONTENT_FILE_RE, rawUrl } from "./preview-canary";
+import { CONTENT_FILE_RE, isPreviewDiffResponse, rawUrl } from "./preview-canary";
 
 const SCOPE = [
   "# A.1 - The Governance Scope [Scope]  <!-- UUID: 18ac7dd3-c646-4352-9b0d-d01a2932d7d1 -->",
@@ -92,5 +92,36 @@ describe("rawUrl", () => {
     expect(rawUrl("sky-ecosystem/next-gen-atlas", "abc123", "content/A.2 - The-Support-Scope.md")).toBe(
       "https://raw.githubusercontent.com/sky-ecosystem/next-gen-atlas/abc123/content/A.2%20-%20The-Support-Scope.md",
     );
+  });
+});
+
+function resp(url: string, status: number) {
+  return { url: () => url, status: () => status };
+}
+
+describe("isPreviewDiffResponse", () => {
+  const sha = "abc123def456";
+  const host = `https://example.test/api/preview/${sha}`;
+
+  it("settles on a 200 keyed auto pair (the usual fetch after per-base diffs)", () => {
+    expect(isPreviewDiffResponse(resp(`${host}/diff.sky.json`, 200))).toBe(true);
+    expect(isPreviewDiffResponse(resp(`${host}/diff.repo.json`, 200))).toBe(true);
+  });
+
+  it("settles on plain diff.json at any status so a 5xx fails fast", () => {
+    expect(isPreviewDiffResponse(resp(`${host}/diff.json`, 200))).toBe(true);
+    expect(isPreviewDiffResponse(resp(`${host}/diff.json`, 503))).toBe(true);
+  });
+
+  it("ignores a non-200 keyed file so the client fallback to plain diff.json can win", () => {
+    expect(isPreviewDiffResponse(resp(`${host}/diff.sky.json`, 404))).toBe(false);
+    expect(isPreviewDiffResponse(resp(`${host}/diff.repo.json`, 500))).toBe(false);
+  });
+
+  it("ignores other preview artifacts and unknown keyed names", () => {
+    expect(isPreviewDiffResponse(resp(`${host}/meta.json`, 200))).toBe(false);
+    expect(isPreviewDiffResponse(resp(`${host}/patches.json`, 200))).toBe(false);
+    expect(isPreviewDiffResponse(resp(`${host}/diff.auto.json`, 200))).toBe(false);
+    expect(isPreviewDiffResponse(resp(`${host}/docs.json`, 200))).toBe(false);
   });
 });

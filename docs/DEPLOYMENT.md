@@ -148,7 +148,7 @@ e. **Set the worker variables:**
 | `DATABASE_URL` | **yes** | Same Postgres as the web service |
 | `GITHUB_TOKEN` | **yes** | `gh pr view` for history PR metadata — no stored creds in container |
 | `OPENROUTER_API_KEY` | optional | Embeddings — skipped gracefully if unset |
-| `ATLAS_WORKER_FULL=1` | optional | Force a full history rebuild from the beginning |
+| `ATLAS_WORKER_FULL=1` | optional | Force a full history rebuild from the beginning. **Not needed to seed a fresh DB** — an empty `atlas_history` / `atlas_doc_versions` gives a null cursor and both walks run in full by themselves. Leaving it set costs a full rewalk (~174 `gh pr view` calls, uncached — no volume) plus a disabled fast-exit on *every* tick |
 | `CHAINSTATE_REFRESH_SECONDS` | optional | Age past which the worker re-runs the contract-state multicall sweep (default `86400`, daily; `604800` for the weekly cadence the old committed-file workflow had) |
 | `ETH_RPC_URL` | optional | Mainnet RPC for that sweep; the public `CHAIN_RPC.ethereum` default is used when unset |
 | `BALANCES_REFRESH_SECONDS` | optional | Age past which an address's token balances are eligible for the worker's rolling refresh (default `86400`, daily). A lookup still happens at most hourly |
@@ -204,12 +204,14 @@ a. **Health check:**
    #     | "degraded"                (DB unreachable)
    ```
    Tunables (all optional, sane defaults): `ATLAS_STALE_SECONDS` (default 1h)
-   — `sync_state.synced_at` doubles as the worker heartbeat: every 12-min cron
-   tick touches it, including no-op runs where the atlas SHA hasn't advanced
-   (the worker's lightweight-check fast exit still issues an `UPDATE
-   sync_state SET synced_at = now()` before returning), so "stale" now
-   genuinely means the worker hasn't run in over an hour, not just that the
-   atlas hasn't changed. `ATLAS_STUCK_SECONDS` (default 30m),
+   — `sync_state.synced_at` doubles as the worker heartbeat: every successful
+   12-min cron tick touches it, including no-op runs where the atlas SHA
+   hasn't advanced. That includes the lightweight-check fast exit *and* the
+   rebuild path (a leftover stale embedding forces a rebuild even when the
+   SHA matches; `sync.ts` then no-ops without writing `synced_at`, so the
+   worker has to heartbeat after `publish-artifacts`). "stale" therefore means the
+   worker hasn't completed a tick in over an hour, not just that the atlas
+   hasn't changed. `ATLAS_STUCK_SECONDS` (default 30m),
    `ATLAS_UPDATE_MAX_BACKOFF_MS` (default 30m), `ATLAS_UPDATE_ESCALATE_AFTER`
    (default 3).
 
@@ -534,6 +536,57 @@ service. Check worker logs for `atlas-worker: done`.
 → Worker `DATABASE_URL` points to a different Postgres than the web service.
 Both must reference `${{Postgres.DATABASE_URL}}` from the same Postgres
 instance in the same Railway project.
+
+**Worker service looks healthy (no stuck/failed runs) but `/api/freshness` is stale**
+→ A hung tick is only one failure mode, and Railway would show it as still
+running. Check three other things, in order:
+1. You are on the **worker** service (`railway.worker.toml` / cron `*/12`),
+   not the web service. Cron ticks are short-lived executions; between them
+   nothing is running, which looks idle rather than failed.
+2. The latest cron execution's **timestamp** is within ~12 minutes. If the
+   last run is days old, cron is not firing (dashboard overrode
+   `cronSchedule`, or this environment has no worker service).
+3. That run's logs contain `atlas-worker: heartbeat ok`. If they do not, the
+   tick never reached the heartbeat. A SHA-current rebuild (`staleEmbeds>0`
+   then `sync:atlas — already current`) used to skip it entirely while
+   exiting 0; both the fast-exit and the rebuild path now heartbeat, and a
+   wrong `DATABASE_URL` / empty `sync_state` **fails** the run instead of
+   logging a warning.
+
+**Worker log ends in `hard cap (15m)` or `tail budget (11m) spent`**
+→ Two different things. `tail budget` is **not** a failure: the tick already
+logged `heartbeat ok`, so docs, addresses and the published artifact set are
+committed, and only the best-effort tails were still running. The run exits 0.
+Expect it on the first one or two ticks of a **new environment**, where
+`atlas_doc_embeddings` starts empty: ~11.6k docs at the measured ~620/min is ~19
+minutes of backfill, more than one tick holds. Confirm it is converging by
+watching `staleEmbeds=` fall between runs.
+
+Only **embeddings** resume where they stopped (upserted per batch). `build-history`
+and `build-doc-versions` buffer their walk and write once at the end, so a tail
+kill mid-walk repeats that walk next tick — work lost, never committed data. Both
+finish far inside the budget (112s and 22s cold, vs 660s), so in practice only
+embeddings ever span ticks.
+
+`hard cap (15m)` **is** a failure (exit 1): the tick never reached the heartbeat,
+so something before it hung — see the entry above.
+
+**`staleEmbeds=` is flat across ticks and the log says `another reconcile holds the lock`**
+→ Not the backfill converging slowly — something else holds `EMBED_LOCK_KEY` and
+this tick stood down. Normally that is the *other* legitimate writer finishing its
+own pass and the count resumes falling. If it stays flat over several ticks, the
+holder is wedged: **restart the web service**, whose `boot-embeddings` spawn is
+detached and holds the lock for as long as its process lives. Waiting for another
+worker tick cannot clear it.
+
+`EMBED_REQUEST_TIMEOUT_MS` (default 120s) does **not** rescue this on its own — it
+bounds one embed attempt, not the run. Against a provider that answers nothing
+each batch costs ~363s (3 attempts plus backoff) and is then skipped, so the
+holder keeps walking: ~23 hours for a cold 11.6k-doc set, lock held throughout.
+Restarting the web service is the remedy, not waiting it out. Lower the timeout
+only if you have a reason — under ~20s it starts cutting healthy batches
+mid-retry. Lexical search is unaffected throughout; only semantic retrieval
+degrades.
 
 **atlas-update workflow pushes fail**
 → The bot isn't a branch-protection bypass actor (step 8d), or the

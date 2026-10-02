@@ -29,8 +29,8 @@
     </script>
     <script>
       // Applies the persisted theme before first paint, so a light-mode user
-      // never sees a dark flash (and vice versa). Kept as a plain string read
-      // (not JSON) and a hardcoded default of "dark" — no prefers-color-scheme
+      // never sees a flash of the wrong palette. Kept as a plain string read
+      // (not JSON) with a hardcoded "light" initial theme — no prefers-color-scheme
       // fallback, matching src/lib/theme.ts exactly, since that module can't
       // run yet. Must come BEFORE the palette-overrides script below: that
       // script only overrides individual CSS variables and doesn't touch
@@ -41,8 +41,7 @@
       // src/lib/theme.ts (this script runs before any module can load, so it
       // cannot import it). theme-html-sync.test.ts parses this file and fails
       // if the two ever disagree — same arrangement as build-steps.mjs. It
-      // also checks the prefers-color-scheme fallback below still names the
-      // same theme as SYSTEM_LIGHT_THEME.
+      // also checks the fallback below still names the same theme as INITIAL_THEME.
       (function () {
         var THEMES = {
           dark: { bg: "#160e0d", scheme: "dark" },
@@ -52,14 +51,9 @@
         try {
           var id = localStorage.getItem("redline-sky-atlas:theme");
           if (!id || !Object.prototype.hasOwnProperty.call(THEMES, id)) {
-            // No stored pick: follow the device. Must happen HERE and not in
-            // theme.ts, or a light-mode visitor gets a dark flash on every
-            // cold load while the module graph resolves. Kept in sync with
-            // systemTheme() / SYSTEM_LIGHT_THEME in src/lib/theme.ts.
-            id =
-              window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches
-                ? "light"
-                : "dark";
+            // No stored pick: INITIAL_THEME in src/lib/theme.ts (the OS
+            // preference is deliberately ignored).
+            id = "light";
           }
           var t = THEMES[id];
           var root = document.documentElement;

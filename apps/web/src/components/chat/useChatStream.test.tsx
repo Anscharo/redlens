@@ -153,7 +153,6 @@ describe("useChatStream event dispatch", () => {
         type: "verify_result",
         overall: "warn",
         contradictions: [],
-        notFound: [],
         rulingIssued: true,
         invalidCitations: [],
         invalidDocNos: [],
@@ -172,7 +171,7 @@ describe("useChatStream event dispatch", () => {
     expect(verify?.rulingIssued).toBe(true);
   });
 
-  it("parses a verify_result missing notFound/rulingIssued (older server) as empty/false", async () => {
+  it("parses a verify_result missing rulingIssued (older server) as false", async () => {
     mockChat([
       { type: "meta", conversationId: "c1" },
       {
@@ -192,7 +191,6 @@ describe("useChatStream event dispatch", () => {
       await result.current.send("question");
     });
     const verify = result.current.messages.at(-1)?.verify;
-    expect(verify?.notFound).toEqual([]);
     expect(verify?.rulingIssued).toBe(false);
   });
 
@@ -394,6 +392,28 @@ describe("useChatStream event dispatch", () => {
     });
     expect(result.current.messages.at(-1)?.failed).toBeUndefined();
     expect(result.current.messages.at(-1)?.content).toBe("ok");
+  });
+
+  it("meters contextUsed (the next turn's replay) in preference to the measured round", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      {
+        type: "done",
+        content: "ok",
+        usage: { input: 1, output: 1 },
+        generationId: null,
+        toolCalls: [],
+        // A tool-heavy turn measures far above what the conversation carries:
+        // its tool results are not replayed next turn, only ~1.8k cards are.
+        contextTokens: 140_000,
+        contextUsed: 32_000,
+      },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.contextTokens).toBe(32_000);
   });
 
   it("sets contextTokens from the 'done' event's contextTokens field", async () => {

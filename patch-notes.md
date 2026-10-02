@@ -33,6 +33,53 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-02
+
+- Fixed search so words with underscores, like erc4626_redeem, are searched as one word.
+
+## 2026-10-01
+- Made the light theme the default for new visitors instead of following the device setting
+- Stopped the chat's verification badge from failing an answer for its own summary callouts
+- The chat assistant can now see the verification results and citation marks shown under its earlier answers, so it can explain them when asked
+
+## 2026-09-30
+- Made previews catch a longer document that was replaced by a different one even when the two share most of their wording
+
+## 2026-09-29
+- Chat keeps earlier questions in a long conversation, and condenses the thread only when it is close to the model's context limit
+- The chat's context meter now measures the whole conversation, so it rises as you talk and only falls when the thread is condensed
+- Stopped previews marking documents "identity changed" when a pull request only renamed or reformatted them, whether by respelling one title, applying the same rename across several documents, or re-indenting a list
+- Changed previews to say a document was "rewritten" rather than "identity changed" when there is no sign of where its previous content went
+- Recent previews now follow your signed-in account across browsers, and include previews of private repositories
+
+## 2026-09-28
+- Added a drag handle on the docked chat so it can be widened up to 55% of the window, and the sidebars fold so the open document stays readable
+- Reorganised the search help page into categories and dropped the rarely used hints
+- Chat answers now put a double check on a source when the check is sure the document states the citing lines, mark a source with ! when it says otherwise, and say when a reply didn't answer the question or skipped part of it
+- Source checks and disputed statements now stay on a chat answer after a reload, and you can ask the chat about a statement it flagged
+
+## 2026-09-24
+- Reworded the preview bar and browser tab to name the pull request or branch, and added a Dismiss control on the Access notice that stays hidden in this browser
+
+## 2026-09-23
+- Fixed the reader's expand control going missing from deeply nested sections while the Changed only filter was on
+
+## 2026-09-22
+- Gave atlas pull-request previews five minutes to finish building, so large PRs no longer time out at two minutes.
+
+## 2026-09-21
+- Private previews no longer compare against an old shared point in the repo's history; a pull request compares against its own base, a branch against the repo's default branch, and anything else against the live Atlas
+
+## 2026-09-17
+- Pointed the private preview install screen at the repo's own GitHub account, named the one repository to grant, and flagged installs granted to every repository.
+- Fixed private pull request previews showing changes from the rest of the repo when the GitHub App can't read pull requests; they now compare against the repo's main branch
+
+## 2026-09-16
+- Reports search now matches categories and descriptions, including similar phrasing, not just report names
+- Chat now remembers notes you teach it with `/teach`; type `/` in the composer and it completes the command for you (Tab or Space to accept)
+- Chat can now say which month had the largest settlement flow across every Prime, and no longer reports empty settlement figures when its helper returns nothing
+- Grouped the Reports index by subject and added a badge showing which reports are AI-assessed or hand-curated rather than rebuilt from the Atlas
+- Added a Potential Mistakes report listing suspected typos, broken references, wrong figures and contradictions in the Atlas text, each quoted and linked; on a phone, swipe between findings one at a time.
 
 ## 2026-09-15
 - Previews now redline a change against the branch it was actually made on, the preview bar shows how far that base has drifted from the main atlas, and a private pull request missing Pull requests: Read asks the owner to grant it on GitHub

@@ -1,0 +1,10 @@
+{
+  "number": 325,
+  "title": "Atlas Edit Proposal — 2026-09-07",
+  "body": "On behalf of Core GovOps, we are submitting the Atlas Edit Weekly Cycle proposal below.\n\nThis proposal includes the following edits:\n\n- **Express Atlas Rates As Annual Percentage Rates With Monthly Compounding** - Changes the default convention for rates defined in the Atlas from annual percentage yields to annual percentage rates with monthly compounding. Updates the Base Rate, the Sky Savings Rate formula, and the Agent Credit Line Borrow Rate to match.\n- **Add Core Council Risk Advisor Fallback For Independent Governance Risk Assessment** - Specifies that under the Independent Governance path, if a Prime Agent has no designated independent risk assessor, the Core Council Risk Advisor conducts the Prime Spell's financial risk assessment instead.\n- **Add 1inch And Kyber Distribution Reward Instances To Skybase** - Adds Instances of the Distribution Reward Primitive for 1inch and Kyber.\n- **Update Osero SparkLend USDS Instance Off-Chain Parameters** - Updates the off-chain parameters for Osero's SparkLend allocation: reduces the CRR from 10% to 5% and increases the maximum exposure from 25 million USDS to 100 million USDS.\n- **Housekeeping Updates** - Corrects tense and dates in several Atlas documents now that the cycles and events they describe have concluded, standardizes contract terminology, and formats code excerpts in several Prime Agent Artifacts as fenced code blocks.\n",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/325",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

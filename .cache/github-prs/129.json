@@ -1,0 +1,10 @@
+{
+  "number": 129,
+  "title": "Always run the `validate` check to satisfy branch protection rules",
+  "body": "Remove unnecessary paths section from `pull_request` trigger to satisfy the branch protection rules (`validate` check must pass) - the Atlas validator runs on every PR, even when the Atlas markdown file doesn't change",
+  "author": "pppdns",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/129",
+  "commentCount": 1,
+  "reviewCount": 3,
+  "approvalCount": 1
+}

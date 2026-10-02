@@ -33,6 +33,8 @@ describe("features fact triggers", () => {
       "can i download the multisig table?",
       "where is the keyboard shortcut list?",
       "how do i open chat?",
+      "how do i teach the chat something it missed?",
+      "where do i use /teach?",
     ]) {
       expect(matchesFeaturesQuestion(q)).toBe(true);
     }
@@ -120,5 +122,12 @@ describe("features fact payload", () => {
     const v = block("how do i open chat?")!;
     const chat = v.app.find((a) => a.area === "Chat")!;
     expect(chat.features[0].how!.length).toBeGreaterThan(0);
+  });
+
+  it("names /teach in Chat how-steps when the question is about teaching", () => {
+    const v = block("how do i teach the chat something it missed?")!;
+    const chat = v.app.find((a) => a.area === "Chat")!;
+    expect(chat.features[0].how!.some((s) => s.includes("/teach"))).toBe(true);
+    expect(v.chat.i_can.join(" ")).toContain("/teach");
   });
 });

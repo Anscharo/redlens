@@ -31,6 +31,9 @@ import {
   parseNameList,
   extractListItems,
   primitiveRootFor,
+  PRIME_FOUNDATION_RE,
+  PROVIDES_SERVICES_RE,
+  cleanOrgProseName,
 } from "./graph-patterns.mjs";
 import { normalizeAddress } from "./address-chains.mjs";
 import {
@@ -524,6 +527,94 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
       status,
       is_unknown_primitive: isUnknown || undefined,
     });
+  }
+
+  // --- 1p. Agent Foundation & Development Company (dedicated legal-entity docs) ---
+  // Runs last, after every other entity source (accord parties, ERG, grants)
+  // has had first claim on a name — this step only fills a gap or corrects a
+  // type, never overwrites an existing entity's provenance.
+  // Every Agent artifact subtree (A.6.1.1.N.*) carries a "Foundation" doc
+  // ("<Name> is the Prime Foundation associated with <Agent>.") and usually a
+  // sibling "Development Company" doc ("<Name> is a|the ... company that
+  // provides services to <Foundation|Agent>."). The org-prose edge extractor
+  // (Phase 2w, prime_foundation_of / provides_services_to) reads these same
+  // sentences but only creates EDGES — it requires both named entities to
+  // already exist, and several agents' foundations/dev companies were never
+  // otherwise named anywhere (no accord party list, no ERG membership), so
+  // those facts were silently dropped (atlas-health sweep 2026-09-28: Grove's
+  // "Grove Development Company" A.6.1.1.2.2.1.1.3.1.1.5, Skybase's "Ekliptyka"
+  // A.6.1.1.4.2.1.1.3.1.1.6). Anchoring on the doc's own title (rather than
+  // scanning all content) keeps this precise.
+  {
+    // fragile: doc_no prefix
+    const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
+
+    // A dedicated legal-entity doc is the atlas's own canonical statement of
+    // what this entity is — more reliable than the "Foundation" name-suffix
+    // heuristic used to classify accord party members above (1m), which
+    // mislabels a foundation branded without the word "Foundation" itself
+    // (e.g. Obex's "Rubicon", named a development_company by that heuristic
+    // until corrected here). Correction is intentionally narrow: only an
+    // entity the accord heuristic could plausibly have produced
+    // (development_company or ecosystem_actor) gets retyped. Anything else —
+    // an agent, composite_party, delegate_org, etc. whose slug happens to
+    // collide with this doc's name — is left alone and warned about, since a
+    // silent retype there would be a real graph corruption, not a fix. The
+    // entity's original defining_doc_id/meta (e.g. the accord party doc that
+    // first named it) is left untouched; the correction is recorded
+    // alongside it, not over it.
+    const RETYPABLE = new Set(["development_company", "ecosystem_actor"]);
+    function registerLegalEntity(slug, name, entity_type, docId, meta) {
+      const existing = entityMap.get(slug);
+      if (existing) {
+        if (existing.entity_type === entity_type) return existing;
+        if (!RETYPABLE.has(existing.entity_type)) {
+          console.warn(
+            `  [drift] agent legal-entity doc (${docId}) names "${name}", but an existing ` +
+              `${existing.entity_type} entity already holds that slug (${slug}) — not retyping it.`,
+          );
+          return existing;
+        }
+        existing.entity_type = entity_type;
+        const priorMeta = JSON.parse(existing.meta || "{}");
+        existing.meta = JSON.stringify({ ...priorMeta, corrected_type_by: meta.source, corrected_type_source_doc_no: meta.source_doc_no });
+        return existing;
+      }
+      return addEntity(slug, name, entity_type, null, docId, meta);
+    }
+
+    // Both title-anchored docs use ONE sentence each (Pattern 20's two
+    // shapes) — a single `exec` per doc, not `matchAll`, since a second
+    // "Foundation"-shaped sentence later in the doc (there isn't one today)
+    // would not be this doc's own subject.
+    for (const d of allDocs) {
+      if (!AGENT_ARTIFACT_RE.test(d.doc_no)) continue;
+      if (d.title === "Foundation") {
+        PRIME_FOUNDATION_RE.lastIndex = 0;
+        const m = PRIME_FOUNDATION_RE.exec(d.content ?? "");
+        if (!m) {
+          console.warn(`  [drift] agent Foundation doc (${d.doc_no}) found but its naming sentence did not parse`);
+          continue;
+        }
+        const name = cleanOrgProseName(m[1]);
+        registerLegalEntity(slugify(name), name, "foundation", d.id, {
+          source: "agent_foundation_doc",
+          source_doc_no: d.doc_no,
+        });
+      } else if (d.title === "Development Company") {
+        PROVIDES_SERVICES_RE.lastIndex = 0;
+        const m = PROVIDES_SERVICES_RE.exec(d.content ?? "");
+        if (!m) {
+          console.warn(`  [drift] agent Development Company doc (${d.doc_no}) found but its naming sentence did not parse`);
+          continue;
+        }
+        const name = cleanOrgProseName(m[1]);
+        registerLegalEntity(slugify(name), name, "development_company", d.id, {
+          source: "agent_dev_co_doc",
+          source_doc_no: d.doc_no,
+        });
+      }
+    }
   }
 
   const entityByDocId = new Map();

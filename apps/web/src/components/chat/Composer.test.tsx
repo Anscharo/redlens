@@ -135,6 +135,56 @@ describe("Composer", () => {
 
 });
 
+// Slash-command autocomplete. The matching rule itself is covered in
+// src/lib/chatSlashCommands.test.ts; this proves the composer's wiring —
+// overlay, hint, and the two accept keys.
+describe("Composer slash completion", () => {
+  it("shows the typed prefix and the ghost remainder for a lone /t", () => {
+    const { container } = setup({ draft: "/t" });
+    const ghost = container.querySelector(".rlc-slash-ghost")!;
+    expect(ghost).toHaveTextContent("/teach");
+    expect(ghost.querySelector(".rlc-slash-typed")).toHaveTextContent("/t");
+    expect(ghost.querySelector(".rlc-slash-rest")).toHaveTextContent("each");
+    expect(container.querySelector(".rlc-inputwrap")).toHaveAttribute("data-state", "completing");
+    expect(screen.getByText("⇥ to complete")).toBeInTheDocument();
+  });
+
+  it("shows no ghost once the command is spelled out or has an argument", () => {
+    setup({ draft: "/teach my note" });
+    expect(screen.queryByText("each")).toBeNull();
+    expect(screen.getByText("↵ to send")).toBeInTheDocument();
+  });
+
+  it("accepts the completion on Tab without leaving the textarea", () => {
+    const { onDraftChange } = setup({ draft: "/t" });
+    const ta = screen.getByPlaceholderText("Ask…");
+    const ev = fireEvent.keyDown(ta, { key: "Tab" });
+    expect(ev).toBe(false); // default prevented — focus stays put
+    expect(onDraftChange).toHaveBeenCalledWith("/teach ");
+  });
+
+  it("accepts the completion on Space instead of inserting a space", () => {
+    const { onDraftChange } = setup({ draft: "/T" });
+    const ev = fireEvent.keyDown(screen.getByPlaceholderText("Ask…"), { key: " " });
+    expect(ev).toBe(false);
+    expect(onDraftChange).toHaveBeenCalledWith("/teach ");
+  });
+
+  it("leaves Tab alone when nothing is being completed", () => {
+    const { onDraftChange } = setup({ draft: "hello" });
+    const ev = fireEvent.keyDown(screen.getByPlaceholderText("Ask…"), { key: "Tab" });
+    expect(ev).toBe(true);
+    expect(onDraftChange).not.toHaveBeenCalled();
+  });
+
+  it("still sends on Enter while a completion is offered", () => {
+    const { onSend, onDraftChange } = setup({ draft: "/t" });
+    fireEvent.keyDown(screen.getByPlaceholderText("Ask…"), { key: "Enter", shiftKey: false });
+    expect(onSend).toHaveBeenCalled();
+    expect(onDraftChange).not.toHaveBeenCalled();
+  });
+});
+
 // The limits meter reaches the composer by COMPOSITION — ChatPanel builds
 // <LimitsMeter …/> and passes it as children, so the composer never sees the
 // meter's data. Meter behavior is covered in LimitsMeter.test.tsx; ChatPanel's

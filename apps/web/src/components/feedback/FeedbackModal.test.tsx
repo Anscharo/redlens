@@ -42,7 +42,8 @@ function openViaButton() {
 }
 
 function fillAndSend(text = "the sidebar is broken on mobile") {
-  fireEvent.change(screen.getByLabelText(/what.s broken/i), { target: { value: text } });
+  // Role, not label text — the prompt copy is free to change.
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: text } });
   fireEvent.click(screen.getByRole("button", { name: "send" }));
 }
 

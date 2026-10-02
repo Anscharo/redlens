@@ -8,16 +8,22 @@
 // collections), tests seed the fake conversations/messages arrays directly.
 import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { toUuidArrayLiteral, fromUuidArray } from "../pg-array.ts";
+import { CONTEXT_OVERHEAD_TOKENS, contextUsedTokens } from "./context-compact.ts";
 import { SignJWT } from "jose";
 
-interface Conv { id: string; user_id: string; title: string | null; title_source: string; updated_at: string }
+interface Conv {
+  id: string; user_id: string; title: string | null; title_source: string; updated_at: string;
+  summary: string | null; summary_upto_id: string | null;
+}
 interface StoredMsg {
   id: string; conversation_id: string; role: string; content: string; created_at: string; tool_calls: unknown;
   context_tokens: number | null;
 }
+interface StoredCheck { message_id: string; kind: string; verdict: unknown; overall?: string | null }
 
 let conversations: Conv[] = [];
 let msgs: StoredMsg[] = [];
+let msgChecks: StoredCheck[] = [];
 let queryLog: { text: string; values: unknown[] }[] = [];
 let idCounter = 0;
 function nowIso(): string {
@@ -25,13 +31,17 @@ function nowIso(): string {
   return new Date(Date.now() + idCounter).toISOString();
 }
 
-// The newest assistant message's context_tokens for a conversation — mirrors
-// the LATERAL/subselect both real queries use (newest by created_at DESC).
-function newestAssistantContextTokens(convId: string): number | null {
-  const assistants = msgs
-    .filter((m) => m.conversation_id === convId && m.role === "assistant")
-    .sort((a, b) => b.created_at.localeCompare(a.created_at));
-  return assistants[0]?.context_tokens ?? null;
+// Mirrors the list query's replay_chars: the content of every row AFTER the
+// compaction cursor, plus the stored summary that stands in for what came
+// before. Rows already compacted away are not part of a replay and must not be
+// counted — the whole point of the cursor FILTER in the real SQL.
+function replayChars(c: Conv): number {
+  const convMsgs = msgs
+    .filter((m) => m.conversation_id === c.id)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const cut = c.summary_upto_id ? convMsgs.find((m) => m.id === c.summary_upto_id) : undefined;
+  const replayed = cut ? convMsgs.filter((m) => m.created_at > cut.created_at) : convMsgs;
+  return replayed.reduce((n, m) => n + m.content.length, 0) + (c.summary?.length ?? 0);
 }
 
 function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
@@ -39,9 +49,7 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
   queryLog.push({ text, values });
 
   if (text.includes("FROM conversations c") && text.includes("JOIN messages m")) {
-    // Value order mirrors the template: the LEAST() budget param precedes the
-    // WHERE user_id param.
-    const [budget, userId] = values as [number, string];
+    const [userId] = values as [string];
     const rows = conversations
       .filter((c) => c.user_id === userId)
       .filter((c) => msgs.some((m) => m.conversation_id === c.id && m.role === "assistant"))
@@ -50,8 +58,7 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
         return {
           id: c.id, title: c.title, updated_at: c.updated_at,
           message_count: convMsgs.length,
-          context_tokens: newestAssistantContextTokens(c.id),
-          history_chars: Math.min(convMsgs.reduce((s, m) => s + m.content.length, 0), budget),
+          replay_chars: replayChars(c),
         };
       })
       .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
@@ -62,7 +69,7 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
     const [id, userId] = values as [string, string];
     const c = conversations.find((x) => x.id === id && x.user_id === userId);
     return Promise.resolve(
-      c ? [{ id: c.id, title: c.title, updated_at: c.updated_at, context_tokens: newestAssistantContextTokens(c.id) }] : [],
+      c ? [{ id: c.id, title: c.title, updated_at: c.updated_at, summary: c.summary, summary_upto_id: c.summary_upto_id }] : [],
     );
   }
   if (text.includes("FROM messages WHERE conversation_id") && text.includes("LIMIT 200")) {
@@ -72,8 +79,27 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .slice(0, 200)
       .sort((a, b) => a.created_at.localeCompare(b.created_at))
-      .map((m) => ({ role: m.role, content: m.content, created_at: m.created_at, tool_calls: m.tool_calls }));
+      .map((m) => ({ id: m.id, role: m.role, content: m.content, created_at: m.created_at, tool_calls: m.tool_calls }));
     return Promise.resolve(rows);
+  }
+  if (text.includes("FROM message_checks") && text.includes("kind = 'citation_check'")) {
+    // The real toUuidArrayLiteral/fromUuidArray impls are wired in below (not
+    // re-stubbed), so this round-trips exactly like Postgres would.
+    const [idsLiteral] = values as [string];
+    const ids = fromUuidArray(idsLiteral);
+    const rows = msgChecks.filter((c) => c.kind === "citation_check" && ids.includes(c.message_id));
+    return Promise.resolve(rows.map((c) => ({ message_id: c.message_id, verdict: c.verdict })));
+  }
+  if (text.includes("FROM message_checks") && text.includes("kind IN")) {
+    // Shared by verifyFor + answerCoverageFor (conversations.ts's
+    // checksRowsFor) — one query behind all three kinds, never one per
+    // feature.
+    const [idsLiteral] = values as [string];
+    const ids = fromUuidArray(idsLiteral);
+    const rows = msgChecks.filter(
+      (c) => (c.kind === "verify" || c.kind === "round_checks" || c.kind === "answer_coverage") && ids.includes(c.message_id),
+    );
+    return Promise.resolve(rows.map((c) => ({ message_id: c.message_id, kind: c.kind, verdict: c.verdict, overall: c.overall ?? null })));
   }
   if (text.includes("UPDATE conversations SET title") && text.includes("title_source = 'user'")) {
     const [title, id, userId] = values as [string, string, string];
@@ -125,6 +151,7 @@ afterAll(() => {
 beforeEach(() => {
   conversations = [];
   msgs = [];
+  msgChecks = [];
   queryLog = [];
   idCounter = 0;
 });
@@ -153,7 +180,7 @@ function req(path: string, init: RequestInit & { cookie?: string } = {}): Reques
 }
 
 function seedConversation(over: Partial<Conv> & { id: string; user_id: string }): Conv {
-  const c: Conv = { title: null, title_source: "seed", updated_at: nowIso(), ...over };
+  const c: Conv = { title: null, title_source: "seed", updated_at: nowIso(), summary: null, summary_upto_id: null, ...over };
   conversations.push(c);
   return c;
 }
@@ -162,6 +189,88 @@ function seedMessage(over: Partial<StoredMsg> & { conversation_id: string; role:
   const m: StoredMsg = { id: `msg-${msgs.length}`, content: "hi", created_at: nowIso(), tool_calls: null, context_tokens: null, ...over };
   msgs.push(m);
   return m;
+}
+
+// Seeds a message_checks row of kind citation_check, in the same shape
+// resolveCitationMarks/persistChecks write (chat-orchestrator.ts /
+// verify/citation-marks.ts's CitationMarksRun.judged).
+function seedCitationCheck(messageId: string, judged: { uuid: string; claim: string; verdict: string | null; confidence?: number | null; lane?: "content" | "record" }[]): void {
+  msgChecks.push({ message_id: messageId, kind: "citation_check", verdict: { judged, counts: {}, confirm: null } });
+}
+
+// One agreed/unagreed contradiction, in the shape verifier.ts's Verdict.contradictions
+// stores (ALL validated candidates — the confirm gate's calibration record).
+interface SeedContradiction {
+  answer_span: string;
+  evidence_span: string;
+  why?: string;
+  uuid?: string | null;
+  agreed: boolean;
+}
+
+// Seeds a message_checks row of kind 'verify', in the shape chat-orchestrator.ts's
+// checksMeta.push({kind:"verify", verdict: run.verdict, overall: computeOverall(...)})
+// writes (verify/verifier.ts's Verdict).
+function seedVerifyCheck(
+  messageId: string,
+  opts: { contradictions?: SeedContradiction[]; rulingIssued?: boolean; overall?: string; verdict?: unknown } = {},
+): void {
+  const verdict = opts.verdict !== undefined
+    ? opts.verdict
+    : {
+        contradictions: (opts.contradictions ?? []).map((c) => ({
+          answer_span: c.answer_span, evidence_span: c.evidence_span, why: c.why ?? "", evidence_label: "[E1]",
+          uuid: c.uuid ?? null, source: "model", agreed: c.agreed,
+        })),
+        ruling_issued: opts.rulingIssued ?? false,
+        notes: "",
+        refuteParsed: true,
+        confirm: { ran: true, model: "m", candidates: (opts.contradictions ?? []).length, agreed: (opts.contradictions ?? []).filter((c) => c.agreed).length, parsed: true },
+      };
+  msgChecks.push({ message_id: messageId, kind: "verify", verdict, overall: opts.overall ?? "pass" });
+}
+
+// Seeds a message_checks row of kind 'round_checks', in the shape
+// chat-orchestrator.ts writes it (verify-checks.ts's CheckReport, with
+// `citations` overwritten to a bare count — see verify/persisted-verdict.ts's
+// deterministicChecksFrom comment).
+function seedRoundChecks(messageId: string, overrides: Record<string, unknown> = {}): void {
+  msgChecks.push({
+    message_id: messageId,
+    kind: "round_checks",
+    verdict: {
+      telemetry: {}, repair: {}, refs: {}, identifiers: {},
+      checks: {
+        citations: 0, invalidCitations: [], invalidDocNos: [], docNoMismatches: [], bareAtlasLinks: [],
+        uncitedParagraphs: 0, ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [],
+        untracedNumbers: [], paramMismatches: [], completenessFailures: [], missingExternalDisclaimer: false,
+        mscCitedAsAtlas: [], lengthCapped: false, failed: false,
+        ...overrides,
+      },
+      incremental: {}, refuteMode: "paragraph",
+    },
+  });
+}
+
+// Seeds a message_checks row of kind 'answer_coverage', in the shape
+// chat-orchestrator.ts's resolveAnswerCoverage writes it (verify/answer-
+// coverage.ts's AnswerCoverage): `parts` stored as `{text,p}[]`, not the
+// `string[]` the wire/client shape uses — see persisted-verdict.ts's
+// answerCoverageFromRow comment for the mapping this exercises.
+function seedAnswerCoverage(
+  messageId: string,
+  opts: { verdict?: unknown; parts?: { text: string; p: number | null }[]; missingParts?: string[] } = {},
+): void {
+  msgChecks.push({
+    message_id: messageId,
+    kind: "answer_coverage",
+    verdict: opts.verdict !== undefined
+      ? opts.verdict
+      : {
+          verdict: "answers", probabilities: { answers: 0.9 }, parts: opts.parts ?? [],
+          missingParts: opts.missingParts ?? [], rawToolOutput: false,
+        },
+  });
 }
 
 describe("handleConversations auth gate", () => {
@@ -231,46 +340,44 @@ describe("GET /api/chat/conversations (list)", () => {
     expect(res.headers.get("set-cookie")).not.toBeNull();
   });
 
-  it("carries the newest assistant message's contextTokens per row", async () => {
+  it("reports the replay size — stored text plus the standing prefix — not a measured round", async () => {
     const token = await authed();
     seedConversation({ id: "c-1", user_id: "user-1" });
-    seedMessage({ conversation_id: "c-1", role: "user" });
-    seedMessage({ conversation_id: "c-1", role: "assistant", context_tokens: 4_200 });
-    // A later assistant reply supersedes the earlier one's context_tokens.
-    seedMessage({ conversation_id: "c-1", role: "assistant", context_tokens: 9_100 });
+    seedMessage({ conversation_id: "c-1", role: "user", content: "a".repeat(1_000) });
+    // A measured prompt of 9,100 tokens on the newest row is DELIBERATELY not
+    // what the meter shows: it counted that turn's tool results, which the next
+    // turn never replays.
+    seedMessage({ conversation_id: "c-1", role: "assistant", content: "b".repeat(7_000), context_tokens: 9_100 });
 
     const res = await handleConversations(req("/api/chat/conversations", { cookie: token }));
-    const body = (await res.json()) as { id: string; contextTokens: number | null; contextEstimated: boolean }[];
-    expect(body.find((c) => c.id === "c-1")!.contextTokens).toBe(9_100);
-    expect(body.find((c) => c.id === "c-1")!.contextEstimated).toBe(false);
-  });
-
-  it("falls back to an estimate (flagged) for legacy rows with no measured context", async () => {
-    const token = await authed();
-    seedConversation({ id: "c-legacy", user_id: "user-1" });
-    seedMessage({ conversation_id: "c-legacy", role: "user", content: "a".repeat(1_000) });
-    // Legacy row (predates the column, or no usage chunk was ever seen): null.
-    seedMessage({ conversation_id: "c-legacy", role: "assistant", content: "b".repeat(7_000), context_tokens: null });
-
-    const res = await handleConversations(req("/api/chat/conversations", { cookie: token }));
-    const body = (await res.json()) as { id: string; contextTokens: number | null; contextEstimated: boolean }[];
-    const row = body.find((c) => c.id === "c-legacy")!;
-    // 8,000 chars of stored text / 4 chars-per-token.
-    expect(row.contextTokens).toBe(2_000);
+    const body = (await res.json()) as { id: string; contextTokens: number; contextEstimated: boolean }[];
+    const row = body.find((c) => c.id === "c-1")!;
+    // 8,000 chars / 4, plus the system prompt + tool schemas every turn carries.
+    expect(row.contextTokens).toBe(2_000 + CONTEXT_OVERHEAD_TOKENS);
+    // Always an estimate now: the list does not load each row's lookup cards.
     expect(row.contextEstimated).toBe(true);
   });
 
-  it("caps the estimate at the windowHistory replay budget", async () => {
+  it("counts only what a turn would replay, so a compacted conversation stops reading at its pre-compaction size", async () => {
     const token = await authed();
-    seedConversation({ id: "c-huge", user_id: "user-1" });
-    // 40k chars stored, but only 24k (the replay budget) can ever re-enter
-    // context — the estimate must reflect the cap, not the raw size.
-    seedMessage({ conversation_id: "c-huge", role: "user", content: "q".repeat(10_000) });
-    seedMessage({ conversation_id: "c-huge", role: "assistant", content: "a".repeat(30_000), context_tokens: null });
+    seedConversation({ id: "c-compacted", user_id: "user-1" });
+    const compactedRows = [
+      seedMessage({ conversation_id: "c-compacted", role: "user", content: "x".repeat(40_000) }),
+      seedMessage({ conversation_id: "c-compacted", role: "assistant", content: "y".repeat(40_000) }),
+    ];
+    seedMessage({ conversation_id: "c-compacted", role: "user", content: "z".repeat(1_000) });
+    seedMessage({ conversation_id: "c-compacted", role: "assistant", content: "w".repeat(1_000) });
+    // The first exchange has been compacted into a 400-char summary.
+    conversations.find((c) => c.id === "c-compacted")!.summary = "s".repeat(400);
+    conversations.find((c) => c.id === "c-compacted")!.summary_upto_id = compactedRows[1].id;
 
     const res = await handleConversations(req("/api/chat/conversations", { cookie: token }));
-    const body = (await res.json()) as { id: string; contextTokens: number | null; contextEstimated: boolean }[];
-    expect(body.find((c) => c.id === "c-huge")!.contextTokens).toBe(6_000); // 24_000 / 4
+    const body = (await res.json()) as { id: string; contextTokens: number; messageCount: number }[];
+    const row = body.find((c) => c.id === "c-compacted")!;
+    // 2,000 replayed chars + 400 of summary, NOT the 82,000 stored.
+    expect(row.contextTokens).toBe(600 + CONTEXT_OVERHEAD_TOKENS);
+    // The message count still counts every stored row — it is a count, not a size.
+    expect(row.messageCount).toBe(4);
   });
 });
 
@@ -289,7 +396,7 @@ describe("GET /api/chat/conversations/:id (detail)", () => {
     seedMessage({ conversation_id: "c-1", role: "user", content: "question" });
     seedMessage({
       conversation_id: "c-1", role: "assistant", content: "answer",
-      tool_calls: [{ name: "atlas_search", args: { q: "x" }, ok: true, bytes: 42 }],
+      tool_calls: [{ name: "atlas_search", args: { q: "x" }, ok: true, bytes: 42, recall: "atlas_search({})", recall_id: "rcall_1" }],
     });
 
     const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
@@ -300,27 +407,398 @@ describe("GET /api/chat/conversations/:id (detail)", () => {
     expect(body.messages[1].toolCalls).toEqual([{ name: "atlas_search", args: { q: "x" }, ok: true, bytes: 42 }]);
   });
 
-  it("carries top-level contextTokens from the newest assistant message", async () => {
+  it("carries the EXACT replay size, lookup cards included, so reopening does not move the meter", async () => {
     const token = await authed();
     seedConversation({ id: "c-1", user_id: "user-1" });
-    seedMessage({ conversation_id: "c-1", role: "user" });
-    seedMessage({ conversation_id: "c-1", role: "assistant", context_tokens: 3_000 });
-    seedMessage({ conversation_id: "c-1", role: "assistant", context_tokens: 7_500 });
+    seedMessage({ conversation_id: "c-1", role: "user", content: "q".repeat(400) });
+    seedMessage({
+      conversation_id: "c-1", role: "assistant", content: "a".repeat(400), context_tokens: 7_500,
+      tool_calls: [{ name: "atlas_get", args: { id: "abc" }, ok: true, bytes: 9, recall: "c".repeat(800), recall_id: "rcall0123456789abcdef0123" }],
+    });
 
     const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
-    const body = (await res.json()) as { contextTokens: number | null };
-    expect(body.contextTokens).toBe(7_500);
+    const body = (await res.json()) as { contextTokens: number };
+    // The card is part of the replay, so it is counted — and the measured
+    // 7,500 is not what is reported.
+    const expected = contextUsedTokens(null, [
+      { id: "m0", role: "user", content: "q".repeat(400) },
+      {
+        id: "m1", role: "assistant", content: "a".repeat(400),
+        toolCalls: [{ name: "atlas_get", args: { id: "abc" }, ok: true, bytes: 9, recall: "c".repeat(800), recall_id: "rcall0123456789abcdef0123" }],
+      },
+    ]);
+    expect(body.contextTokens).toBe(expected);
+    expect(body.contextTokens).toBeGreaterThan(CONTEXT_OVERHEAD_TOKENS + 200);
   });
 
-  it("contextTokens is null when no assistant message has one", async () => {
+  // The review round is real context the next turn is sent, so the meter here has
+  // to include it or a reopened conversation reads lower than the turn it is about
+  // to send. toReplayRow is where that is easy to forget.
+  it("counts the review note in the meter, so reopening still matches the live turn", async () => {
+    const token = await authed();
+    seedConversation({ id: "c-note", user_id: "user-1" });
+    seedMessage({ conversation_id: "c-note", role: "user", content: "who approves budgets?" });
+    const assistant = seedMessage({ conversation_id: "c-note", role: "assistant", content: "The Governance Scope does." });
+    seedVerifyCheck(assistant.id, {
+      overall: "fail",
+      contradictions: [{ answer_span: "The fee is 10 bps.", evidence_span: "The fee is 8 bps.", uuid: "doc-c", agreed: true }],
+    });
+
+    const withNote = (await (await handleConversations(req("/api/chat/conversations/c-note", { cookie: token }))).json()) as {
+      contextTokens: number;
+    };
+    // The same conversation with no check row at all is the control.
+    seedConversation({ id: "c-bare", user_id: "user-1" });
+    seedMessage({ conversation_id: "c-bare", role: "user", content: "who approves budgets?" });
+    seedMessage({ conversation_id: "c-bare", role: "assistant", content: "The Governance Scope does." });
+    const bare = (await (await handleConversations(req("/api/chat/conversations/c-bare", { cookie: token }))).json()) as {
+      contextTokens: number;
+    };
+    expect(withNote.contextTokens).toBeGreaterThan(bare.contextTokens);
+  });
+
+  it("drops compacted rows and counts the summary in their place", async () => {
     const token = await authed();
     seedConversation({ id: "c-2", user_id: "user-1" });
-    seedMessage({ conversation_id: "c-2", role: "user" });
-    seedMessage({ conversation_id: "c-2", role: "assistant" });
+    const cut = seedMessage({ conversation_id: "c-2", role: "assistant", content: "old".repeat(4_000) });
+    seedMessage({ conversation_id: "c-2", role: "user", content: "new" });
+    conversations.find((c) => c.id === "c-2")!.summary = "brief";
+    conversations.find((c) => c.id === "c-2")!.summary_upto_id = cut.id;
 
     const res = await handleConversations(req("/api/chat/conversations/c-2", { cookie: token }));
-    const body = (await res.json()) as { contextTokens: number | null };
-    expect(body.contextTokens).toBeNull();
+    const body = (await res.json()) as { contextTokens: number };
+    // 12,000 chars of compacted content are gone; what is left is the summary pair
+    // plus one short row, so the figure sits just above the standing prefix.
+    expect(body.contextTokens).toBeLessThan(CONTEXT_OVERHEAD_TOKENS + 500);
+    expect(body.contextTokens).toBeGreaterThan(CONTEXT_OVERHEAD_TOKENS);
+  });
+
+  describe("citationMarks (survives reload — reconstructed from message_checks)", () => {
+    it("recomputes marks via aggregateMarks over the persisted judged pairs", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      seedMessage({ conversation_id: "c-1", role: "user" });
+      const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
+      seedCitationCheck(assistant.id, [
+        { uuid: "doc-a", claim: "The threshold is 7 signers.", verdict: "supports", confidence: 0.91 },
+        { uuid: "doc-a", claim: "Signers must be distinct.", verdict: "supports", confidence: 0.62 },
+        { uuid: "doc-b", claim: "Rewards accrue daily.", verdict: null }, // unjudged — withholds the mark
+        { uuid: "doc-c", claim: "The fee is 10 bps.", verdict: "contradicts", confidence: 0.44 },
+        { uuid: "doc-c", claim: "The fee is fixed.", verdict: "contradicts", confidence: 0.8 },
+        { uuid: "doc-d", claim: "Agents publish Artifacts.", verdict: "supports", confidence: 0.99 },
+        { uuid: "doc-e", claim: "Updated in PR 336.", verdict: "supports", confidence: 1, lane: "record" },
+      ]);
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as { messages: { role: string; citationMarks: unknown }[] };
+      const marks = body.messages.find((m) => m.role === "assistant")!.citationMarks as Record<
+        string,
+        { status: string; confidence: number | null }
+      >;
+      // Reload re-folds `judged` and then keeps only what a chip may draw.
+      // doc-a is real support under the cliff: recorded, not returned.
+      // doc-d clears the cliff. doc-e matched a change record, not the document.
+      expect(marks["doc-a"]).toBeUndefined();
+      expect(marks["doc-d"].status).toBe("backed");
+      expect(marks["doc-c"].status).toBe("disputed");
+      expect(marks["doc-c"].confidence).toBe(0.8); // clearest contradiction
+      expect(marks["doc-e"]).toBeUndefined();
+      expect(marks["doc-b"]).toBeUndefined(); // unjudged pair — no mark, not a guess
+    });
+
+    it("is null for a message with no citation_check row", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      seedMessage({ conversation_id: "c-1", role: "user" });
+      seedMessage({ conversation_id: "c-1", role: "assistant" });
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as { messages: { role: string; citationMarks: unknown }[] };
+      expect(body.messages.find((m) => m.role === "assistant")!.citationMarks).toBeNull();
+    });
+
+    it("is null when the judged pairs aggregate to nothing (e.g. all unjudged)", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
+      seedCitationCheck(assistant.id, [{ uuid: "doc-a", claim: "Some claim.", verdict: null }]);
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as { messages: { role: string; citationMarks: unknown }[] };
+      expect(body.messages.find((m) => m.role === "assistant")!.citationMarks).toBeNull();
+    });
+
+    it("does not throw on a malformed/legacy verdict payload — degrades to null", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      const noJudgedField = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-no-judged" });
+      msgChecks.push({ message_id: noJudgedField.id, kind: "citation_check", verdict: { counts: {} } }); // no `judged` array
+      const stringVerdict = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-string-verdict" });
+      msgChecks.push({ message_id: stringVerdict.id, kind: "citation_check", verdict: "not-an-object" });
+      const badItems = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-bad-items" });
+      seedCitationCheck(badItems.id, [
+        { uuid: "doc-a", claim: "ok claim", verdict: "not_a_real_verdict" }, // dropped, not thrown
+        // @ts-expect-error — exercising a malformed row missing required fields
+        { claim: "missing uuid" },
+      ]);
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { messages: { role: string; citationMarks: unknown }[] };
+      for (const m of body.messages) expect(m.citationMarks).toBeNull();
+    });
+
+    it("fires exactly one message_checks query for the whole conversation, not one per message", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      for (let i = 0; i < 5; i++) {
+        const m = seedMessage({ conversation_id: "c-1", role: "assistant", id: `m-${i}` });
+        seedCitationCheck(m.id, [{ uuid: `doc-${i}`, claim: "x", verdict: "supports" }]);
+      }
+      await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      // One query per FEATURE (citationMarksFor, verifyFor) covering the whole
+      // conversation — never one per message. citationMarksFor's own query is
+      // asserted here; verifyFor's sibling query is asserted in the verify
+      // describe block below.
+      const hits = queryLog.filter((q) => q.text.includes("FROM message_checks") && q.text.includes("kind = 'citation_check'"));
+      expect(hits.length).toBe(1);
+    });
+  });
+
+  describe("verify (survives reload — reconstructed from message_checks)", () => {
+    it("never surfaces an unagreed contradiction — the confirm gate's calibration record stays server-side", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
+      seedVerifyCheck(assistant.id, {
+        overall: "fail",
+        contradictions: [
+          { answer_span: "The fee is 10 bps.", evidence_span: "The fee is 8 bps.", uuid: "doc-c", agreed: true },
+          { answer_span: "Rewards accrue daily.", evidence_span: "unclear", uuid: "doc-x", agreed: false },
+        ],
+      });
+      seedRoundChecks(assistant.id, { failed: false });
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as {
+        messages: { role: string; verify: { contradictions: { answer: string; evidence: string; why: string; uuid: string | null }[] } | null }[];
+      };
+      const verify = body.messages.find((m) => m.role === "assistant")!.verify!;
+      expect(verify.contradictions).toEqual([{ answer: "The fee is 10 bps.", evidence: "The fee is 8 bps.", why: "", uuid: "doc-c" }]);
+    });
+
+    it("degrades to no verify (null) rather than throwing on a malformed verdict payload", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
+      seedVerifyCheck(assistant.id, { verdict: "not-an-object" });
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { messages: { role: string; verify: unknown }[] };
+      expect(body.messages.find((m) => m.role === "assistant")!.verify).toBeNull();
+    });
+
+    it("withholds a `backed` Sources mark on a doc an agreed contradiction is sourced to", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
+      // 76405733-…: the doc from the 2026-09-24 collision this reconciliation fixes.
+      const doc = "76405733-0000-0000-0000-000000000000";
+      seedCitationCheck(assistant.id, [{ uuid: doc, claim: "The threshold is 7 signers.", verdict: "supports", confidence: 0.99 }]);
+      seedVerifyCheck(assistant.id, {
+        overall: "fail",
+        contradictions: [{ answer_span: "The threshold is 7 signers.", evidence_span: "The threshold is 5 signers.", uuid: doc, agreed: true }],
+      });
+      seedRoundChecks(assistant.id, { failed: false });
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as { messages: { role: string; citationMarks: Record<string, unknown> | null }[] };
+      const marks = body.messages.find((m) => m.role === "assistant")!.citationMarks;
+      expect(marks?.[doc]).toBeUndefined();
+    });
+
+    it("restores unchanged (null) for a message with no verify row", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
+      seedCitationCheck(assistant.id, [{ uuid: "doc-a", claim: "x", verdict: "supports", confidence: 0.99 }]);
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as { messages: { role: string; verify: unknown; citationMarks: Record<string, unknown> | null }[] };
+      const msg = body.messages.find((m) => m.role === "assistant")!;
+      expect(msg.verify).toBeNull();
+      // citationMarks restore exactly as before this feature existed — no
+      // verify row means nothing to reconcile against.
+      expect(msg.citationMarks?.["doc-a"]).toBeDefined();
+    });
+
+    it("recomputes status via computeOverall over the round_checks + verify rows, not the stored overall column", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
+      // Stored overall says "fail" (as computed live, before the confirm gate
+      // — or from a stale code path), but the deterministic checks are clean
+      // and there are no agreed contradictions: an honest recompute is "pass".
+      seedVerifyCheck(assistant.id, { overall: "fail", contradictions: [] });
+      seedRoundChecks(assistant.id, { failed: false });
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as { messages: { role: string; verify: { status: string } | null }[] };
+      expect(body.messages.find((m) => m.role === "assistant")!.verify!.status).toBe("pass");
+    });
+
+    it("falls back to the stored overall column when the round_checks row is missing", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
+      seedVerifyCheck(assistant.id, { overall: "warn", contradictions: [] }); // no seedRoundChecks
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as { messages: { role: string; verify: { status: string } | null }[] };
+      expect(body.messages.find((m) => m.role === "assistant")!.verify!.status).toBe("warn");
+    });
+
+    it("fires exactly one message_checks query for verify+round_checks+answer_coverage, not one per message/feature", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      for (let i = 0; i < 5; i++) {
+        const m = seedMessage({ conversation_id: "c-1", role: "assistant", id: `m-${i}` });
+        seedVerifyCheck(m.id, {});
+        seedRoundChecks(m.id, {});
+        seedAnswerCoverage(m.id, {});
+      }
+      await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      // checksRowsFor (conversations.ts) is the ONE query behind verifyFor AND
+      // answerCoverageFor — adding the coverage feature must not add a third
+      // round trip beside citationMarksFor's own separate query.
+      const hits = queryLog.filter((q) => q.text.includes("FROM message_checks") && q.text.includes("kind IN"));
+      expect(hits.length).toBe(1);
+    });
+
+    // §2: chat-orchestrator.ts's checksMeta.push({kind:"verify", ...}) only
+    // runs inside `if (auditPromise)`, which requires a configured verifier
+    // model — but `emitVerify = verifierModel !== "" || checks.failed` means
+    // the LIVE client still gets a fail badge on a turn where the model was
+    // off and the deterministic checks alone failed. That turn persists a
+    // 'round_checks' row and NO 'verify' row.
+    it("restores a fail badge from a round_checks row ALONE when its checks failed and there is no verify row", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
+      seedRoundChecks(assistant.id, { failed: true, invalidDocNos: ["A.9.9.9"] }); // no seedVerifyCheck
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as {
+        messages: {
+          role: string;
+          verify: { status: string; contradictions: unknown[]; rulingIssued: boolean; invalidDocNos: string[] } | null;
+        }[];
+      };
+      const verify = body.messages.find((m) => m.role === "assistant")!.verify;
+      expect(verify).not.toBeNull();
+      expect(verify!.status).toBe("fail");
+      expect(verify!.contradictions).toEqual([]); // no audit ran — nothing to show
+      expect(verify!.rulingIssued).toBe(false);
+      expect(verify!.invalidDocNos).toEqual(["A.9.9.9"]); // the deterministic finding still carries over
+    });
+
+    // The mirror image of the case above: getting the gate backwards (restore
+    // a badge whenever a round_checks row exists) would put a badge on every
+    // clean, unverified turn — the live path emits nothing for one of these.
+    it("restores null (not a badge) for a round_checks row alone whose checks did NOT fail", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
+      seedRoundChecks(assistant.id, { failed: false }); // no seedVerifyCheck
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as { messages: { role: string; verify: unknown }[] };
+      expect(body.messages.find((m) => m.role === "assistant")!.verify).toBeNull();
+    });
+
+    // §3: verdictForOverall used to independently decide "does anything have
+    // agreed:true" straight off the raw payload, requiring only that `agreed`
+    // itself be a boolean — NOT that answer_span/evidence_span be strings the
+    // way agreedContradictionsFrom (disputes.ts, what the client's
+    // `contradictions` list is built from) requires. A row with `agreed: true`
+    // but a malformed span produced `status: "fail"` next to an EMPTY
+    // contradictions list — a red badge with nothing to show for it.
+    it("never produces a fail status alongside an empty contradictions list (a malformed agreed span must not fail the badge)", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
+      seedVerifyCheck(assistant.id, {
+        overall: "pass",
+        verdict: {
+          contradictions: [{ answer_span: 123, evidence_span: "The threshold is 5 signers.", why: "", uuid: "doc-c", source: "model", agreed: true }],
+          ruling_issued: false, notes: "", refuteParsed: true,
+          confirm: { ran: true, model: "m", candidates: 1, agreed: 1, parsed: true },
+        },
+      });
+      seedRoundChecks(assistant.id, { failed: false });
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as { messages: { role: string; verify: { status: string; contradictions: unknown[] } | null }[] };
+      const verify = body.messages.find((m) => m.role === "assistant")!.verify!;
+      expect(verify.contradictions).toEqual([]);
+      expect(verify.status).not.toBe("fail");
+    });
+  });
+
+  describe("answerCoverage (survives reload — reconstructed from message_checks)", () => {
+    it("maps the stored {text,p}[] parts to the wire string[] shape", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
+      seedAnswerCoverage(assistant.id, {
+        parts: [{ text: "what is the fee", p: 0.9 }, { text: "when it takes effect", p: 0.12 }],
+        missingParts: ["when it takes effect"],
+      });
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as {
+        messages: { role: string; answerCoverage: { verdict: string; missingParts: string[]; parts?: string[] } | null }[];
+      };
+      const coverage = body.messages.find((m) => m.role === "assistant")!.answerCoverage!;
+      expect(coverage.verdict).toBe("answers");
+      expect(coverage.parts).toEqual(["what is the fee", "when it takes effect"]);
+      expect(coverage.missingParts).toEqual(["when it takes effect"]);
+    });
+
+    it("omits `parts` entirely when the stored parts array is empty (single-part question)", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
+      seedAnswerCoverage(assistant.id, { parts: [] });
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as { messages: { role: string; answerCoverage: { parts?: string[] } | null }[] };
+      const coverage = body.messages.find((m) => m.role === "assistant")!.answerCoverage!;
+      expect(coverage.parts).toBeUndefined();
+      expect("parts" in coverage).toBe(false);
+    });
+
+    it("degrades to null on an unrecognised verdict value rather than passing it through", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
+      seedAnswerCoverage(assistant.id, { verdict: { verdict: "not_a_real_verdict", missingParts: [], parts: [], rawToolOutput: false } });
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as { messages: { role: string; answerCoverage: unknown }[] };
+      expect(body.messages.find((m) => m.role === "assistant")!.answerCoverage).toBeNull();
+    });
+
+    it("is null for a message with no answer_coverage row", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      seedMessage({ conversation_id: "c-1", role: "assistant" });
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as { messages: { role: string; answerCoverage: unknown }[] };
+      expect(body.messages.find((m) => m.role === "assistant")!.answerCoverage).toBeNull();
+    });
   });
 });
 

@@ -102,7 +102,7 @@ describe("getWindowUsage", () => {
   it("filters by user_id and the bucket's start timestamp", async () => {
     nextRows = [{ tokens: 0 }];
     const now = Date.UTC(2026, 5, 1, 9, 30, 0);
-    const { startMs } = bucketBounds(now, TWO_H); // matches the 120min default window
+    const { startMs } = bucketBounds(now, config.rateLimitWindowMinutes * 60_000);
     await getWindowUsage("user-42", now);
     expect(queryLog[0].values).toEqual(["user-42", new Date(startMs)]);
   });

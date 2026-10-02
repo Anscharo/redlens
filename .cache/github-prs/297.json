@@ -1,0 +1,10 @@
+{
+  "number": 297,
+  "title": "Atlas Edit Proposal — 2026-08-17",
+  "body": "On behalf of Core GovOps, we are submitting the Atlas Edit Weekly Cycle proposal below.\n\nThis proposal includes the following edits:\n\n- **Remove The Agent Termination Compliance Deadline** — Removes the September 1, 2026 deadline for existing Prime Agents to incorporate the Agent Termination Process, and requires Sky Governance approval by Governance Poll to use that process in the short term.\n\n- **Add The SubProxyMethods Contract To The Atlas** — Documents the SubProxyMethods contract, which lets a Sky Core Spell move ERC20 tokens out of an Agent's SubProxy, and the governance process for using it.\n\n- **Add Initial Documentation Regarding The Parallelized Allocation System** — Describes the PAS's contracts and records Grove as the first Prime Agent with the PAS enabled.\n\n- **Make The Scope Of Netting Explicit** — Clarifies that netting is an accounting concept that does not change the gross amounts flowing between Sky and a Prime Agent, and that it applies only to sUSDS; yield on a Prime Agent's other allocations, other than Sky Direct Exposures, is its own revenue.\n\n- **Authorize August 2026 Grove Foundation Grant** — Authorizes an 800,000 USDS grant from Grove's Prime Treasury to the Grove Foundation Multisig.\n\n- **Specify Skybase's Development Company** — Names Ekliptyka as a development company providing services to the Skybase Foundation, replacing a placeholder.\n\n- **Clarify A Weekly Cycle Reference** — Corrects a bare \"Weekly Cycle\" reference to read \"Atlas Edit Weekly Cycle\", matching the term used in the parent document.\n",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/297",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

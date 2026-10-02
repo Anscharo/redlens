@@ -7,8 +7,9 @@
  * atlas at that revision and the previous revision, diffs per-node content
  * hashes, and records which nodes changed.
  *
- * PR metadata (title, body, author, review/comment counts) is fetched via
- * `gh api` and cached in .cache/github-prs/<pr>.json.
+ * PR metadata (title, body, author, review/comment counts) comes from the
+ * committed read-through cache in scripts/lib/github-pr-cache.mjs, which
+ * fetches a missing record with `gh` and degrades to null without it.
  *
  * For "Atlas Edit Proposal" PRs, the script attempts to match each bullet in
  * the PR body to the specific nodes it affected (by keyword overlap between
@@ -21,7 +22,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { execSync } from "node:child_process";
 import {
   ATLAS_FILE,
   CONTENT_DIR,
@@ -34,6 +34,11 @@ import {
   matchBulletsToNodes,
   parsePrBullets,
 } from "../lib/history-classify.mjs";
+import {
+  extractPrNumber,
+  fetchPr,
+  PR_CACHE_DIR,
+} from "../lib/github-pr-cache.mjs";
 import { sql, waitForDb } from "../../src/server/db.ts";
 import { runMigrations } from "../../src/server/migrate.ts";
 import { lineDiff } from "../../src/lib/diffCore.ts";
@@ -57,8 +62,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
 const ATLAS_REPO = path.join(ROOT, "vendor/next-gen-atlas");
 const OUT_DIR = path.join(ROOT, "public/history");
-const PR_CACHE_DIR = path.join(ROOT, ".cache/github-prs");
-const REPO = "sky-ecosystem/next-gen-atlas";
 
 // ---------------------------------------------------------------------------
 // Git helpers
@@ -68,22 +71,11 @@ const REPO = "sky-ecosystem/next-gen-atlas";
 // atomized, consolidated), so nothing below needs to know which one a commit is in.
 // ---------------------------------------------------------------------------
 
-const { git, loadSnapshot } = makeAtlasGitSource(ATLAS_REPO);
+const { atlasCommits, loadSnapshot } = makeAtlasGitSource(ATLAS_REPO);
 
-/** Get all commits (oldest-first) that touch either the legacy monolithic
- *  Sky Atlas.md or the content/ tree (both the atomized and consolidated eras). */
-function getCommits() {
-  const raw = git(
-    `log --reverse --format="%H %aI %s" -- "${ATLAS_FILE}" "${CONTENT_DIR}"`,
-  );
-  return raw
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => {
-      const [hash, date, ...rest] = line.split(" ");
-      return { hash, date, message: rest.join(" ") };
-    });
-}
+/** All commits (oldest-first) that touch the atlas — shared with
+ *  build-doc-versions via atlas-git-source, so the two walks agree. */
+const getCommits = () => atlasCommits();
 
 
 // ---------------------------------------------------------------------------
@@ -128,47 +120,6 @@ function diffSnapshots(prev, curr) {
 
   return { added, modified, removed, moved };
 }
-
-// ---------------------------------------------------------------------------
-// PR metadata
-// ---------------------------------------------------------------------------
-
-function extractPrNumber(message) {
-  const m = message.match(/\(#(\d+)\)\s*$/);
-  return m ? parseInt(m[1], 10) : null;
-}
-
-async function fetchPr(prNum) {
-  const cacheFile = path.join(PR_CACHE_DIR, `${prNum}.json`);
-  if (fs.existsSync(cacheFile)) {
-    return JSON.parse(fs.readFileSync(cacheFile, "utf8"));
-  }
-
-  console.error(`  fetching PR #${prNum}…`);
-  try {
-    const raw = execSync(
-      `gh pr view ${prNum} --repo ${REPO} --json title,body,author,comments,reviews,url`,
-      { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
-    );
-    const pr = JSON.parse(raw);
-    const data = {
-      number: prNum,
-      title: pr.title,
-      body: pr.body ?? "",
-      author: pr.author?.login ?? null,
-      url: pr.url,
-      commentCount: pr.comments?.length ?? 0,
-      reviewCount: pr.reviews?.length ?? 0,
-      approvalCount: (pr.reviews ?? []).filter((r) => r.state === "APPROVED").length,
-    };
-    fs.writeFileSync(cacheFile, JSON.stringify(data, null, 2));
-    return data;
-  } catch (e) {
-    console.error(`  warning: could not fetch PR #${prNum}: ${e.message}`);
-    return null;
-  }
-}
-
 
 // ---------------------------------------------------------------------------
 // Main

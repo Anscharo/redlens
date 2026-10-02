@@ -59,11 +59,13 @@ export default defineConfig({
         // (atlas-html/history-identity/ordered-containment) are deliberately NOT
         // excluded — they have real scripts_tests/ coverage already.
         "scripts/lib/run-thread.mjs",
+        // Thin git wrapper for the check:size / check:comments dev gates; no logic worth a test.
+        "scripts/lib/diff-base.mjs",
       ],
     },
     // src/server runs under `bun test` (it imports Bun's SQL, absent in node-vitest).
     // scripts/eval/*.test.ts files that import bun:test run under `test:server`,
-    // not vitest (eval-verifier-mutations + eval-retrieval-queries).
+    // not vitest (eval-verifier-mutations + eval-retrieval-queries + eval-tools-score).
     // e2e/*.spec.ts are Playwright specs (browser/API against a live deploy).
     // The helper *.test.ts files stay in Vitest so readiness/transport parsing
     // can be exercised without a live deployment.
@@ -76,6 +78,7 @@ export default defineConfig({
       "src/server/**",
       "scripts/eval/eval-verifier-mutations.test.ts",
       "scripts/eval/eval-retrieval-queries.test.ts",
+      "scripts/eval/eval-tools-score.test.ts",
       "e2e/**/*.spec.ts",
     ],
   },

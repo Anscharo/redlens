@@ -102,6 +102,8 @@ describe("handleChat", () => {
   let savedOpenrouterKey: string;
   let savedTitleModel: string;
   let savedJudgeModel: string;
+  let savedPrefetchJudgeModel: string;
+  let savedCoverageModel: string;
 
   afterAll(() => {
     // Restore config mutations so later files don't inherit a truthy
@@ -110,6 +112,8 @@ describe("handleChat", () => {
     config.openrouterApiKey = savedOpenrouterKey;
     config.chatTitleModel = savedTitleModel;
     config.chatSmalltalkJudgeModel = savedJudgeModel;
+    config.chatPrefetchJudgeModel = savedPrefetchJudgeModel;
+    config.chatAnswerCoverageModel = savedCoverageModel;
   });
 
   beforeAll(() => {
@@ -117,6 +121,8 @@ describe("handleChat", () => {
     savedOpenrouterKey = config.openrouterApiKey;
     savedTitleModel = config.chatTitleModel;
     savedJudgeModel = config.chatSmalltalkJudgeModel;
+    savedPrefetchJudgeModel = config.chatPrefetchJudgeModel;
+    savedCoverageModel = config.chatAnswerCoverageModel;
     config.jwtSecret ||= "test-jwt-secret";
     config.openrouterApiKey ||= "test-key";
     // Off by default for every pre-existing test (see the file-header note on
@@ -130,6 +136,16 @@ describe("handleChat", () => {
     // of a test's scripted SSE rounds. Bypass behavior is covered in
     // chat-orchestrator.test.ts, not here.
     config.chatSmalltalkJudgeModel = "";
+    // Same reason again, one more Jev slot (also defaults ON): a concurrent
+    // /systemone request from every non-/teach turn would hit this suite's
+    // single-URL fetch mocks (they all assume one chat-completion call) and
+    // burn ~3.5s of askJev retries per test. The "prefetch judge" describe
+    // block below turns it back on, with a mock that tells the two URLs apart.
+    config.chatPrefetchJudgeModel = "";
+    // And the answer-coverage slot (verify/answer-coverage.ts, also defaults
+    // ON): it posts to /systemone after every answered turn. Its behavior is
+    // covered in chat-orchestrator.test.ts.
+    config.chatAnswerCoverageModel = "";
     setIndexes(loadIndexes());
     // Same shared-dispatcher install llm.test.ts performs — idempotent,
     // whichever file's beforeAll runs first wins the install.
@@ -203,6 +219,53 @@ describe("handleChat", () => {
       .map((l) => JSON.parse(l.slice("data: ".length)));
   }
 
+  // The check rows the USER SAW, replayed back to the model (review-round.ts).
+  // Without them "why was verification failed?" has nothing to reason from.
+  describe("review notes", () => {
+    it("reads the newest answers' check rows with the LIMIT inside the subquery", async () => {
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("An answer.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "why was verification failed?" }));
+        await res.text();
+        const q = queryLog.find((row) => row.text.includes("JOIN message_checks"));
+        expect(q).toBeDefined();
+        // Applied to the JOIN this would cap ROWS, not answers, and silently drop
+        // an answer's findings — several kinds exist per message.
+        const sub = q!.text.slice(0, q!.text.indexOf("JOIN message_checks"));
+        expect(sub).toContain("LIMIT");
+        expect(sub).toContain("role = 'assistant'");
+        // All four kinds a note is built from, in ONE query.
+        for (const kind of ["verify", "round_checks", "answer_coverage", "citation_check"]) {
+          expect(q!.text).toContain(kind);
+        }
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("still answers the turn when the check-rows query fails", async () => {
+      // Degrades to "no ledger", exactly as the single-verdict lookup it replaces
+      // did: the answer matters more than the annotation.
+      installHappyHandlers();
+      sqlHandlers.unshift((text) => {
+        if (text.includes("JOIN message_checks")) throw new Error("db hiccup");
+        return undefined;
+      });
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("An answer anyway.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "why was verification failed?" }));
+        const evs = await events(res);
+        expect(evs.some((e) => e.type === "done")).toBe(true);
+        expect(evs.find((e) => e.type === "answer_final").content).toBe("An answer anyway.");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+  });
+
   // Facts inject knowledge before the model runs (src/server/facts). The turn
   // has to SAY so: a trace row per fact, and a stage the ticker shows.
   describe("facts", () => {
@@ -237,6 +300,200 @@ describe("handleChat", () => {
         expect(evs.some((e) => e.stage === "recalling")).toBe(false);
       } finally {
         g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+  });
+
+  // The pre-first-token Jev judge (chat/prefetch-judge.ts, wired in chat.ts
+  // 2026-09-22). Off for every OTHER test in this file (see beforeAll above);
+  // this block turns it back on to prove the one behavior the wiring
+  // guarantees regardless of Jev's health: a late/failed/disabled judge must
+  // leave routing byte-identical to today.
+  describe("prefetch judge (pre-first-token Jev)", () => {
+    let savedModel: string;
+    let savedDeadline: number;
+
+    beforeAll(() => {
+      savedModel = config.chatPrefetchJudgeModel;
+      savedDeadline = config.chatPrefetchJudgeDeadlineMs;
+      config.chatPrefetchJudgeModel = "typesafe/jev-test";
+      config.chatPrefetchJudgeDeadlineMs = 50; // keep the test fast; the deadline itself isn't what's under test
+    });
+    afterAll(() => {
+      config.chatPrefetchJudgeModel = savedModel;
+      config.chatPrefetchJudgeDeadlineMs = savedDeadline;
+    });
+
+    it("a Jev timeout leaves tier routing identical to today", async () => {
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      // One mock, two URLs: /systemone (the Jev call) hangs until the deadline
+      // aborts it — exactly the transport shape judgePrefetch's own test
+      // covers in isolation — while the ordinary chat-completion URL answers
+      // immediately, so only the judge's own deadline is under test here.
+      g.__llmFetchCurrentImpl = (async (url: unknown, init: { signal?: AbortSignal }) => {
+        if (String(url).includes("/systemone")) {
+          return new Promise<Response>((_, reject) => {
+            init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+          });
+        }
+        return sseResponse("Collateral onboarding runs through the Stability Scope's approval process.");
+      }) as unknown as typeof fetch;
+      try {
+        // Same question model-router.test.ts pins as "ordinary mid-size ...
+        // stays default" — the assertion below only holds if Jev genuinely
+        // contributed nothing, not if the question would have routed
+        // "default" anyway for an unrelated reason.
+        const res = await handleChat(
+          await authedRequest({ message: "How does the Stability Scope handle collateral onboarding?" }),
+        );
+        const evs = await events(res);
+        expect(evs.find((e) => e.type === "meta").tier).toBe("default");
+        expect(evs.find((e) => e.type === "done").content).toBe(
+          "Collateral onboarding runs through the Stability Scope's approval process.",
+        );
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+  });
+
+  // /teach: review + persist a note, no atlas harness. The review call is a
+  // non-streaming JSON completion (makeOpenrouterJson), so these tests install
+  // a JSON fetch mock — not the SSE dispatcher the rest of this file uses.
+  describe("/teach", () => {
+    const TEACH_NOTE = "Spark freeze lives under the Spark artifact";
+    let savedReviewModel: string;
+
+    function jsonReview(text: string): typeof fetch {
+      return (async () =>
+        new Response(
+          JSON.stringify({
+            id: "gen-teach",
+            choices: [{ message: { content: text } }],
+            usage: { prompt_tokens: 8, completion_tokens: 4 },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        )) as unknown as typeof fetch;
+    }
+
+    beforeAll(() => {
+      savedReviewModel = config.chatTeachReviewModel;
+      config.chatTeachReviewModel = "google/gemma-4-31b-it";
+    });
+
+    afterAll(() => {
+      config.chatTeachReviewModel = savedReviewModel;
+    });
+
+    it("bare /teach replies with help and does not review or insert", async () => {
+      installHappyHandlers();
+      let fetchCalls = 0;
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = (async () => {
+        fetchCalls++;
+        throw new Error("review must not run for bare /teach");
+      }) as unknown as typeof fetch;
+      try {
+        const res = await handleChat(await authedRequest({ message: "/teach" }));
+        const evs = await events(res);
+        const final = evs.find((e) => e.type === "answer_final");
+        expect(final.content).toContain("/teach");
+        expect(final.content).toContain("remember");
+        expect(evs.find((e) => e.type === "meta").tier).toBe("default");
+        expect(fetchCalls).toBe(0);
+        expect(queryLog.some((q) => q.text.includes("INSERT INTO chat_teachings"))).toBe(false);
+        expect(evs.some((e) => e.type === "token")).toBe(false);
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("rejects an over-long note before review, stores it as rejected, and says the count", async () => {
+      installHappyHandlers();
+      sqlHandlers.push((text) => {
+        if (text.includes("INSERT INTO chat_teachings")) return [{ id: "teach-long" }];
+        return undefined;
+      });
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = (async () => {
+        throw new Error("review must not run for an over-long note");
+      }) as unknown as typeof fetch;
+      try {
+        const long = Array.from({ length: 70 }, (_, i) => `word${i}`).join(" ");
+        const res = await handleChat(await authedRequest({ message: `/teach ${long}` }));
+        const final = (await events(res)).find((e) => e.type === "answer_final");
+        expect(final.content).toContain("70 words");
+        expect(final.content).toContain("two notes");
+        const insert = queryLog.find((q) => q.text.includes("INSERT INTO chat_teachings"));
+        expect(insert?.values).toContain("rejected");
+        expect(insert?.values).toContain("too long");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("saves an accepted note after a JSON review", async () => {
+      installHappyHandlers();
+      sqlHandlers.push((text) => {
+        if (text.includes("INSERT INTO chat_teachings")) return [{ id: "teach-1" }];
+        return undefined;
+      });
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = jsonReview('{"accept":true,"reason":"ok","subject":"Spark freeze"}');
+      try {
+        const res = await handleChat(await authedRequest({ message: `/teach ${TEACH_NOTE}` }));
+        const evs = await events(res);
+        const final = evs.find((e) => e.type === "answer_final");
+        expect(final.content).toContain("Saved");
+        expect(final.content).toContain("Spark freeze");
+        expect(evs.find((e) => e.type === "meta").tier).toBe("default");
+        expect(queryLog.some((q) => q.text.includes("INSERT INTO chat_teachings"))).toBe(true);
+        const insert = queryLog.find((q) => q.text.includes("INSERT INTO chat_teachings"));
+        expect(insert?.values).toContain(TEACH_NOTE);
+        // The on-device vector rides the INSERT itself — no async embed after.
+        expect(insert?.values.some((v: unknown) => typeof v === "string" && /^\[-?\d/.test(v))).toBe(true);
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("injects a matching note on a later question", async () => {
+      installHappyHandlers();
+      sqlHandlers.push((text) => {
+        if (text.includes("FROM chat_teachings") && text.includes("SELECT id, subject, content")) {
+          return [{ id: "t1", subject: "Spark freeze", content: TEACH_NOTE }];
+        }
+        return undefined;
+      });
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("Spark freeze is under the Spark artifact.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "where is the spark freeze documented?" }));
+        const evs = await events(res);
+        const facts = evs.find((e) => e.type === "facts");
+        expect(facts?.facts?.some((s: { id: string }) => s.id === "teachings")).toBe(true);
+        const recalled = evs.find((e) => e.type === "status" && e.stage === "recalling");
+        expect(recalled?.detail).toMatch(/your notes/);
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("ignores /teach when the flag is off", async () => {
+      const prev = config.chatTeach;
+      config.chatTeach = false;
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("ok");
+      try {
+        const res = await handleChat(await authedRequest({ message: `/teach ${TEACH_NOTE}` }));
+        const evs = await events(res);
+        expect(evs.find((e) => e.type === "done").content).toBe("ok");
+        expect(queryLog.some((q) => q.text.includes("INSERT INTO chat_teachings"))).toBe(false);
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+        config.chatTeach = prev;
       }
     });
   });
@@ -352,9 +609,10 @@ describe("handleChat", () => {
     ];
     sqlHandlers.push((text) => {
       if (text.includes("FROM usage_events")) return [{ tokens: opts.tokens ?? 0 }];
+      if (text.includes("SELECT summary, summary_upto_id")) return [{ summary: null, summary_upto_id: null }];
       if (text.includes("conversations WHERE id")) return [{ id: convId }];
       if (text.includes("INSERT INTO conversations")) return [{ id: convId }];
-      if (text.includes("SELECT role, content FROM messages")) return history;
+      if (text.includes("SELECT id, role, content, tool_calls FROM messages")) return history;
       if (text.includes("UPDATE conversations SET updated_at")) return [];
       if (text.includes("INSERT INTO messages") && text.includes("RETURNING id")) return [{ id: "msg-1" }];
       return undefined;

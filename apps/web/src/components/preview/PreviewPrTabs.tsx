@@ -2,10 +2,21 @@ import { useEffect, useState, type ReactNode } from "react";
 import { track } from "../../lib/analytics";
 import type { Entry } from "./types";
 
-// The tabbed list under the /preview input box. "my recent prs" is the
-// browser-local intersection list (passed in as `entries`); "open atlas prs"
-// lazily loads every PR currently open against sky-ecosystem/next-gen-atlas
-// (GET /api/preview/open-prs, server-cached). Both link into the preview gate.
+// The tabbed list under the /preview input box. "my recent previews" is the
+// caller's own list (passed in as `entries`); "open atlas prs" lazily loads every
+// PR currently open against sky-ecosystem/next-gen-atlas (GET
+// /api/preview/open-prs, server-cached). Both link into the preview gate.
+//
+// `accountScoped` is only about the empty state's copy: signed in, the list is
+// the account's and spans browsers, so promising "in this browser" would be wrong.
+//
+// Both lists lead with the PR number. A recent row with no PR (a branch, or a
+// pinned commit) leads with its ref instead — NOT its preview id, which is
+// `owner:repo:branch` and would both repeat the repo column and blow the row's
+// width (measured: 777px of content in a 576px row). The id remains what the
+// link resolves. The repo column matters here and not in the open-PRs tab: those
+// are all PRs against the canonical atlas, while a recent preview can be of any
+// fork or private mirror, whose PR numbers are repo-local and so ambiguous alone.
 
 const ATLAS_PRS_URL = "https://github.com/sky-ecosystem/next-gen-atlas/pulls";
 const href = (pid: string) => `${import.meta.env.BASE_URL}preview/${encodeURIComponent(pid)}`;
@@ -20,7 +31,7 @@ interface OpenPr {
 
 type Tab = "recent" | "open";
 
-export function PreviewPrTabs({ entries }: { entries: Entry[] }) {
+export function PreviewPrTabs({ entries, accountScoped = false }: { entries: Entry[]; accountScoped?: boolean }) {
   const [tab, setTab] = useState<Tab>("recent");
   const [openPrs, setOpenPrs] = useState<OpenPr[] | null>(null); // null = not loaded yet
   const [openErr, setOpenErr] = useState(false);
@@ -49,7 +60,7 @@ export function PreviewPrTabs({ entries }: { entries: Entry[] }) {
   };
 
   return (
-    <section className="w-full max-w-xl mt-10">
+    <section className="w-full max-w-[972px] mt-10">
       <div className="flex items-center gap-4 mb-3 border-b" style={{ borderColor: "var(--border)" }}>
         <TabButton active={tab === "recent"} onClick={() => select("recent")}>
           my recent previews{entries.length ? ` · ${entries.length}` : ""}
@@ -71,7 +82,7 @@ export function PreviewPrTabs({ entries }: { entries: Entry[] }) {
       {tab === "recent" ? (
         entries.length === 0 ? (
           <p className="mono text-xs py-2" style={{ color: "var(--tan-3)" }}>
-            No previews opened in this browser yet.
+            {accountScoped ? "No previews opened yet." : "No previews opened in this browser yet."}
           </p>
         ) : (
           <ul>
@@ -79,11 +90,29 @@ export function PreviewPrTabs({ entries }: { entries: Entry[] }) {
               <li key={e.id} className="border-b" style={{ borderColor: "var(--border)" }}>
                 <a
                   href={href(e.id)}
-                  className="flex items-baseline gap-3 py-2 px-1 hover:bg-hover rounded"
-                  onClick={() => track("preview_recent_click", { product: "preview", preview_id: e.id })}
+                  // Wraps rather than clips: four columns don't fit a phone, and
+                  // a nowrap row pushed 533px of content through 452 and scrolled
+                  // the whole page sideways (measured at 390px).
+                  className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2 px-1 hover:bg-hover rounded"
+                  onClick={() =>
+                    // A private preview's id IS the private owner/repo (and branch),
+                    // so it must not leave the browser — same rule the private-repo
+                    // form follows in PreviewHome. Coarse fields only for those.
+                    track(
+                      "preview_recent_click",
+                      e.private ? { product: "preview", private: true } : { product: "preview", preview_id: e.id },
+                    )
+                  }
                 >
-                  <span className="mono text-sm shrink-0" style={{ color: "var(--accent)" }}>{e.id}</span>
-                  {e.title && <span className="text-sm truncate" style={{ color: "var(--tan)" }}>{e.title}</span>}
+                  <span className="mono text-sm shrink-0 truncate max-w-[16rem]" style={{ color: "var(--accent)" }}>
+                    {e.prNumber ? `#${e.prNumber}` : (e.ref ?? e.id)}
+                  </span>
+                  {e.repo && (
+                    <span className="mono text-xs shrink-0 truncate max-w-[9rem] sm:max-w-[14rem]" style={{ color: "var(--tan-2)" }}>
+                      {e.repo}
+                    </span>
+                  )}
+                  {e.title && <span className="text-sm truncate min-w-0" style={{ color: "var(--tan)" }}>{e.title}</span>}
                   <span className="mono text-[10px] ml-auto shrink-0" style={{ color: "var(--tan-3)" }}>{e.detail}</span>
                 </a>
               </li>

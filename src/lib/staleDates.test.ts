@@ -24,7 +24,10 @@ const report = buildStaleDatesReport(docs, FIXED_TODAY);
 const atlasContent = Object.values(docs)
   .map((d) => d.content)
   .join("\n");
-const hasGenesisClaim = atlasContent.includes("March 26, 2026");
+// Matches the future-tense phrasing specifically (not just the bare date):
+// once the Executive Vote passes, the atlas retenses to "was included in ...",
+// which the extractor correctly treats as historical, not a stale claim.
+const hasGenesisClaim = atlasContent.includes("will be included in the March 26, 2026");
 const hasJune18Claim = atlasContent.includes("June 18, 2026");
 
 describe("stale dates report", () => {
@@ -35,12 +38,12 @@ describe("stale dates report", () => {
   });
 
   it.skipIf(!hasGenesisClaim)("finds the known stale governance claims (as of 2026-06-11)", () => {
-    const staleDocNos = new Set(report.stale.map((c) => c.docNo));
     // Genesis Capital transfers "will be included in the March 26, 2026
     // Executive Vote" — verified stale claims at the fixed date.
+    // Don't pin a corpus-wide stale count: atlas retensing shrinks that
+    // bucket without meaning extraction broke.
     const genesis = report.stale.filter((c) => c.dateISO === "2026-03-26");
     expect(genesis.length).toBeGreaterThanOrEqual(3);
-    expect(staleDocNos.size).toBeGreaterThanOrEqual(20);
   });
 
   it("registry tables produce no false positives", () => {

@@ -313,6 +313,22 @@ describe("AtlasReader unfiltered view", () => {
   });
 });
 
+// The shape the heading-level-6 cap leaves behind, taken from the live atlas:
+// a row (`mid`) with one real child (`deep`) whose parentId was reparented onto
+// the row ABOVE mid, so the raw parentId chain skips mid entirely. flattenTree
+// stamps depth from the doc number, so `deep` still lands one indent below
+// `mid` — visually its child, whatever parentId claims. Shared by both flat
+// views, since filterSet is `changedSet ?? selectionSet` and one code path
+// serves them both.
+function makeCapReparentedTree() {
+  const root = makeNode({ id: "root", doc_no: "A", parentId: null });
+  const par = makeNode({ id: "par", doc_no: "A.1.10.2.5.2", parentId: "root" });
+  const mid = makeNode({ id: "mid", doc_no: "A.1.10.2.5.2.3", parentId: "par" });
+  const deep = makeNode({ id: "deep", doc_no: "A.1.10.2.5.2.3.1", parentId: "par" });
+  const atlas = makeAtlasBundle([root, par, mid, deep]);
+  return makeLoadedData({ atlas, flatNodes: flattenTree(atlas.byParent), complete: true });
+}
+
 describe("AtlasReader selection-filtered view (selected-only)", () => {
   it("shows a gap divider between non-adjacent kept rows and a cradle for the kept descendant", () => {
     const root = makeNode({ id: "root", doc_no: "A", parentId: null });
@@ -356,6 +372,19 @@ describe("AtlasReader selection-filtered view (selected-only)", () => {
     // inSelectedOnly is threaded through to every row in this view.
     expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-in-selected-only", "true");
   });
+
+  // Twin of the changed-only case below. filterSet is `changedSet ??
+  // selectionSet`, so the depth-cap bug reached this view too — and this is the
+  // one reproducible on live, without a preview.
+  it("keeps the chevron on a row whose children were reparented above it by the depth cap", () => {
+    const data = makeCapReparentedTree();
+    useSelectionSetMock.mockReturnValue(new Set(["mid", "deep"]));
+
+    renderReader({ id: "mid", selectedId: "mid", data });
+
+    expect(screen.getByText("pendulum-mid")).toBeInTheDocument();
+    expect(screen.queryByText("pendulum-deep")).toBeNull();
+  });
 });
 
 describe("AtlasReader changed-filtered view (preview diff)", () => {
@@ -380,6 +409,27 @@ describe("AtlasReader changed-filtered view (preview diff)", () => {
     // rung-0 branch never sprouts a working "N hidden" tab in this view.
     expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-hidden", "0");
     expect(screen.queryByText(`reveal-${a.id}`)).toBeNull();
+  });
+
+  // Reported against a fork PR adding a deeply-nested Morpho section: the »
+  // chevron was simply absent in "Changed only" on rows that had a working one
+  // in the ordinary view. filteredParentIds gated the affordance on the raw
+  // node.parentId chain, which the heading-level-6 cap collapses onto the
+  // depth-5 ancestor — so an intermediate row's real children pointed straight
+  // past it and it never landed in the ancestor set. Everything else in the
+  // reader (hiding, counting, reveal-on-nav, and the unfiltered branch's own
+  // hasChildren) keys off the VISUAL span; this branch was the last holdout.
+  it("keeps the chevron on a row whose children were reparented above it by the depth cap", () => {
+    const data = makeCapReparentedTree();
+    usePreviewChangedSetMock.mockReturnValue(new Set(["mid", "deep"]));
+
+    renderReader({ id: "mid", selectedId: "mid", data });
+
+    // The stub only renders a pendulum button when hasChildren is true, so its
+    // presence IS the chevron's presence.
+    expect(screen.getByText("pendulum-mid")).toBeInTheDocument();
+    // …and the leaf still has none, so this isn't just giving every row one.
+    expect(screen.queryByText("pendulum-deep")).toBeNull();
   });
 });
 

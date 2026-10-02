@@ -131,6 +131,11 @@
       "title": "Required Allocation Instance Parameters"
     },
     {
+      "uuid": "dc825d62-60cf-4701-ac8f-b48257b4f9a6",
+      "doc_no": "A.2.2.11.1.4.1",
+      "title": "Integration With Treasury Management Function"
+    },
+    {
       "uuid": "5aeba17d-3869-447d-adcd-8c55f41afc01",
       "doc_no": "A.2.3.1.2.2.2.1.3",
       "title": "Core Council Buffer Multisig Signers"
@@ -266,9 +271,29 @@
       "title": "Root Edit Proposal Review By Operational Facilitator"
     },
     {
+      "uuid": "3afc0502-e0ba-45a1-ae05-fe539053cf07",
+      "doc_no": "A.6.1.1.1.2.6.1.2.1.1.1.3.1.5",
+      "title": "AdministeredAgent Contract"
+    },
+    {
       "uuid": "1563f1ee-0097-4bb3-a03a-01162d00788b",
       "doc_no": "A.6.1.1.1.2.6.1.2.1.2.2.2.3",
       "title": "Signers"
+    },
+    {
+      "uuid": "bd20f786-b4af-4d5b-b29a-d84050a8fa2d",
+      "doc_no": "A.6.1.1.1.2.6.1.2.2.1.1.5.1.4",
+      "title": "Freezer Role"
+    },
+    {
+      "uuid": "64f794c9-db5f-4875-a800-3da12f4c5bec",
+      "doc_no": "A.6.1.1.1.2.6.1.2.2.1.1.5.1.5",
+      "title": "Grantor"
+    },
+    {
+      "uuid": "ea50c8da-008e-4f0f-b2df-ac666d5faf13",
+      "doc_no": "A.6.1.1.1.3.9.6.3.1",
+      "title": "Cancellation Authority Independence"
     },
     {
       "uuid": "cae67502-6f93-462f-82b6-0a6462e71e1c",
@@ -394,6 +419,11 @@
       "uuid": "5476d3cf-1781-46df-95a2-ff86a7965c97",
       "doc_no": "A.6.1.1.7.2.6.1.2.1.2.1.3.3",
       "title": "Signers"
+    },
+    {
+      "uuid": "c2390e13-50af-4008-9474-ed4e99eac308",
+      "doc_no": "A.6.1.1.7.2.6.1.3.1.2.1.4.1.4",
+      "title": "Sentinel Role Address"
     },
     {
       "uuid": "c1f2c961-08b0-4060-abd6-12f4e26dc682",

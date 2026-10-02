@@ -326,6 +326,31 @@ function buildCorpus() {
     content: "The Keel Foundation is the Prime Foundation associated with Keel. Its mandate is to support Keel.",
   });
 
+  const obexDoc = mkDoc({ id: uid(69), doc_no: "A.6.1.1.5", title: "Obex" });
+
+  // Obex/Rubicon/Treadstone: exercises the broadened PROVIDES_SERVICES_RE
+  // "is THE development company" phrasing (2026-09-28 atlas-health sweep) —
+  // Rubicon is corrected foundation vs. development_company by graph-entities'
+  // 1p step before this edge is extracted.
+  const obexAccordPartyDoc = mkDoc({
+    id: uid(66),
+    doc_no: "A.2.8.2.4.1.1.2",
+    title: "Obex Details",
+    content: "The party 'Obex' comprises the Obex Prime Agent, Rubicon, and Treadstone.",
+  });
+  const obexFoundationDoc = mkDoc({
+    id: uid(67),
+    doc_no: "A.6.1.1.5.2.1.1.3.1.1.5",
+    title: "Foundation",
+    content: "Rubicon is the Prime Foundation associated with Obex. Its mandate is to support Obex.",
+  });
+  const obexDevCoDoc = mkDoc({
+    id: uid(68),
+    doc_no: "A.6.1.1.5.2.1.1.3.1.1.6",
+    title: "Development Company",
+    content: "Treadstone is the development company that provides services to Rubicon.",
+  });
+
   const currentPrimitivesDoc = mkDoc({
     id: "203b8c79-c7cf-4fcc-94e3-5bf42f791619",
     doc_no: "A.2.2.3",
@@ -402,6 +427,7 @@ function buildCorpus() {
     stepDoc1, stepDoc2,
     dutyDoc1, dutyDoc2, dutyDoc3, dutyDoc4, dutyDoc5,
     orgDoc1, orgDoc2, orgDoc3,
+    obexDoc, obexAccordPartyDoc, obexFoundationDoc, obexDevCoDoc,
     currentPrimitivesDoc,
     primRootDR, statusDocDR, activeInstancesTier, icdDR, paramsDocDR, rewardCodeLeaf, customParamsLeaf, miscLeaf,
     primRootIB, inProgressTier, icdIB, invocationStatusDoc, paramsDocIB, partnerNameLeaf,
@@ -448,7 +474,7 @@ describe("extractEntityEdges — realistic corpus", () => {
     expect(hits).toContainEqual(
       expect.objectContaining({ fromId: spark.id, toId: skyCore.id, sourceDocNos: ["A.6.1.1.1"] }),
     );
-    expect(hits).toHaveLength(2); // Spark + Grove
+    expect(hits).toHaveLength(3); // Spark + Grove + Obex
   });
 
   it("emits operational/core_executor_agent_for by resolving the UUID citation and walking parentId to the Prime Agent (Pattern 3)", () => {
@@ -523,13 +549,20 @@ describe("extractEntityEdges — realistic corpus", () => {
     const phoenixLabs = e("phoenix-labs")!;
     const ozoneParty = e("ozone-party")!;
     const ozone = e("ozone")!;
+    const obexParty = e("obex-party")!;
+    const obex = e("obex")!;
+    const rubicon = e("rubicon")!;
+    const treadstone = e("treadstone")!;
     const hits = byType("comprises");
     expect(hits).toContainEqual(expect.objectContaining({ fromId: sparkParty.id, toId: spark.id }));
     expect(hits).toContainEqual(expect.objectContaining({ fromId: sparkParty.id, toId: sparkFoundation.id }));
     expect(hits).toContainEqual(expect.objectContaining({ fromId: sparkParty.id, toId: phoenixLabs.id }));
     expect(hits).toContainEqual(expect.objectContaining({ fromId: ozoneParty.id, toId: ozone.id }));
+    expect(hits).toContainEqual(expect.objectContaining({ fromId: obexParty.id, toId: obex.id }));
+    expect(hits).toContainEqual(expect.objectContaining({ fromId: obexParty.id, toId: rubicon.id }));
+    expect(hits).toContainEqual(expect.objectContaining({ fromId: obexParty.id, toId: treadstone.id }));
     expect(hits.some((ed) => ed.toId === e("sky-core")!.id)).toBe(false);
-    expect(hits).toHaveLength(4);
+    expect(hits).toHaveLength(7);
   });
 
   it("emits erg_member_for for every resolvable ERG member", () => {
@@ -637,7 +670,22 @@ describe("extractEntityEdges — realistic corpus", () => {
       expect.objectContaining({ fromId: phoenixLabs.id, toId: sparkFoundation.id }),
     );
     // Keel Foundation / Keel never resolve in this corpus — no edge, just a warning.
-    expect(byType("prime_foundation_of")).toHaveLength(1);
+    // Rubicon / Obex DO resolve (Obex is a Prime Agent in this corpus) — the
+    // second prime_foundation_of edge, asserted in the next test.
+    expect(byType("prime_foundation_of")).toHaveLength(2);
+  });
+
+  it("emits provides_services_to for the 'is THE development company' phrasing (broadened 2026-09-28)", () => {
+    const rubicon = e("rubicon")!;
+    const treadstone = e("treadstone")!;
+    const obex = e("obex")!;
+    expect(rubicon.entity_type).toBe("foundation"); // corrected from the accord's development_company guess
+    expect(byType("prime_foundation_of")).toContainEqual(
+      expect.objectContaining({ fromId: rubicon.id, toId: obex.id }),
+    );
+    expect(byType("provides_services_to")).toContainEqual(
+      expect.objectContaining({ fromId: treadstone.id, toId: rubicon.id }),
+    );
   });
 
   it("emits proxies_to for an address with an implementation field, independent of entity resolution", () => {

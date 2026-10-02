@@ -30,6 +30,7 @@ export const RewardsReport = lazyImport(() => import("../components/reports/Rewa
 export const OnchainAddressesReport = lazyImport(() => import("../components/reports/OnchainAddressesReport"), "OnchainAddressesReport");
 export const ProcessesReport = lazyImport(() => import("../components/reports/ProcessesReport"), "ProcessesReport");
 export const StaleDatesReport = lazyImport(() => import("../components/reports/StaleDatesReport"), "StaleDatesReport");
+export const PotentialMistakesReport = lazyImport(() => import("../components/reports/PotentialMistakesReport"), "PotentialMistakesReport");
 export const ModFrequencyReport = lazyImport(() => import("../components/reports/ModFrequencyReport"), "ModFrequencyReport");
 export const OeaAssessmentReport = lazyImport(() => import("../components/reports/OeaAssessmentReport"), "OeaAssessmentReport");
 export const RiskRulesReport = lazyImport(() => import("../components/reports/RiskRulesReport"), "RiskRulesReport");
@@ -80,6 +81,7 @@ export const SIMPLE_ROUTES: SimpleRoute[] = [
   { path: ROUTES.REPORTS_ONCHAIN_ADDRESSES, Component: OnchainAddressesReport, props: (c) => ({ query: c.query, mode: c.mode }) },
   { path: ROUTES.REPORTS_STALE_DATES, Component: StaleDatesReport, props: (c) => ({ query: c.query, mode: c.mode }) },
   { path: ROUTES.REPORTS_MOD_FREQUENCY, Component: ModFrequencyReport, props: (c) => ({ query: c.query, mode: c.mode }) },
+  { path: ROUTES.REPORTS_POTENTIAL_MISTAKES, Component: PotentialMistakesReport, props: (c) => ({ query: c.query, mode: c.mode }) },
   { path: ROUTES.REPORTS_OEA_ASSESSMENT, Component: OeaAssessmentReport, props: (c) => ({ query: c.query, mode: c.mode }) },
   {
     path: ROUTES.REPORTS_RISK_RULES,

@@ -10,6 +10,7 @@
 // Requires a MANAGEMENT/provisioning key, distinct from the model-call key
 // (openrouterApiKey); the credits endpoint rejects the model key.
 import { config } from "../config.ts";
+import { openrouterAttributionHeaders } from "../openrouter-attribution.ts";
 
 export interface CommonsPool {
   used: number; // dollars spent account-wide (lifetime)
@@ -68,7 +69,7 @@ export async function fetchCommons(
     let pool: CommonsPool | null = null;
     try {
       const res = await fetchImpl(CREDITS_URL, {
-        headers: { authorization: `Bearer ${key}` },
+        headers: { authorization: `Bearer ${key}`, ...openrouterAttributionHeaders() },
         signal: AbortSignal.timeout(4000),
       });
       if (res.ok) {

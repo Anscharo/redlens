@@ -3,16 +3,26 @@
 // localStorage opens and what's still live in the DB (AND-semantics), and parses
 // pasted input into a preview id to gate the Preview button. fetch + localStorage
 // are driven directly; parsePreviewInput runs for real.
+//
+// The DB side must be GET /api/preview/mine (sha-scoped, session-authorized),
+// never the public /list — /list drops every private row, which made private
+// previews vanish from this tab. Asserted below, since the bug is invisible in a
+// test that only mocks "some fetch".
 
+import { StrictMode } from "react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, act, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 // The private-repo form (and the profile button) are gated on usersEnabled(),
 // which is compiled off in the vitest build (__USERS_ENABLED__ = false). Mock it
 // so we can drive both states: `h.usersOn` toggles it per test.
-const h = vi.hoisted(() => ({ usersOn: false }));
+const h = vi.hoisted(() => ({ usersOn: false, user: null as { id: string } | null }));
 vi.mock("../../lib/usersEnabled", () => ({ usersEnabled: () => h.usersOn }));
+// PreviewHome reads useAuth() to know whether there is an account history to ask
+// for (and to word the empty state). The real hook needs an AuthProvider + a
+// /api/auth/me round trip; `h.user` drives it directly instead.
+vi.mock("../chat/auth", () => ({ useAuth: () => ({ user: h.user, loading: false }) }));
 // ProfileButton needs an AuthProvider (supplied by main.tsx in production, not in
 // this isolated render); stub it — these tests are about the private form, not it.
 vi.mock("../chat/ProfileButton", () => ({ ProfileButton: () => null }));
@@ -29,7 +39,7 @@ import { PreviewHome } from "./PreviewHome";
 
 function dbRow(over: Record<string, unknown>) {
   return {
-    sha: "aaa", repo: "sky-ecosystem/next-gen-atlas", ref: "x", kind: "pr",
+    sha: "aaa", repo: "sky-ecosystem/next-gen-atlas", ref: "pull-1", kind: "pr",
     pr_number: 1, pr_title: null, pr_author: null, pr_state: "open",
     doc_count: 0, last_access: "", ...over,
   };
@@ -45,6 +55,7 @@ function mockList(rows: unknown[]) {
 beforeEach(() => {
   localStorage.clear();
   h.usersOn = false;
+  h.user = null;
   mockList([]);
 });
 afterEach(() => {
@@ -52,6 +63,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
   h.usersOn = false;
+  h.user = null;
 });
 
 describe("PreviewHome recent list (AND-semantics)", () => {
@@ -68,10 +80,199 @@ describe("PreviewHome recent list (AND-semantics)", () => {
     render(<PreviewHome />);
 
     expect(await screen.findByText("my recent previews · 1")).toBeInTheDocument();
-    expect(screen.getByText("pull-1")).toBeInTheDocument();
-    expect(screen.queryByText("pull-2")).toBeNull();
+    // The row leads with the PR number, like the open-PRs tab, and names its repo.
+    expect(screen.getByText("#1")).toBeInTheDocument();
+    expect(screen.getByText("sky-ecosystem/next-gen-atlas")).toBeInTheDocument();
     expect(screen.getByText("First PR")).toBeInTheDocument();
     expect(screen.getByText("by alice · 5 docs")).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(1); // the DB-less pull-2 is not rendered
+  });
+
+  it("asks /api/preview/mine for exactly the shas this browser remembers", async () => {
+    localStorage.setItem(
+      "preview-history",
+      JSON.stringify([
+        { id: "pull-1", sha: "aaa", at: 100 },
+        { id: "acme:secret-atlas:main", sha: "bbb", at: 200 },
+      ]),
+    );
+    mockList([]);
+    render(<PreviewHome />);
+    await screen.findByPlaceholderText(/Paste a next-gen-atlas/);
+
+    const url = String(vi.mocked(globalThis.fetch).mock.calls[0]![0]);
+    expect(url).toContain("api/preview/mine?shas=aaa,bbb&at=100,200");
+    expect(url).not.toContain("api/preview/list");
+  });
+
+  it("makes no request at all when this browser has opened nothing and nobody is signed in", async () => {
+    mockList([]);
+    render(<PreviewHome />);
+    await screen.findByPlaceholderText(/Paste a next-gen-atlas/);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it("lists a private preview the server authorized, tagged private", async () => {
+    localStorage.setItem("preview-history", JSON.stringify([{ id: "acme:secret-atlas:main", sha: "bbb", at: 1 }]));
+    mockList([
+      dbRow({ sha: "bbb", repo: "acme/secret-atlas", ref: "main", kind: "branch", pr_number: null, pr_state: null, private: true, doc_count: 12 }),
+    ]);
+    render(<PreviewHome />);
+
+    expect(await screen.findByText("my recent previews · 1")).toBeInTheDocument();
+    // No PR, so the row leads with the ref — the id would only repeat the repo column.
+    expect(screen.getByText("main")).toBeInTheDocument();
+    expect(screen.getByText("acme/secret-atlas")).toBeInTheDocument();
+    expect(screen.getByText("private · 12 docs")).toBeInTheDocument();
+    // The link still resolves the preview id, which is what the server understands.
+    expect(screen.getByText("main").closest("a")).toHaveAttribute("href", "/preview/acme%3Asecret-atlas%3Amain");
+  });
+
+  it("lists a signed-in account's opens even when this browser has no record of them", async () => {
+    h.usersOn = true;
+    h.user = { id: "user-1" };
+    // Nothing in localStorage: this is the other-browser case the account history exists for.
+    mockList([
+      dbRow({ sha: "ccc", repo: "blimpa/next-gen-atlas", pr_number: 7, pr_title: "Opened elsewhere", pr_author: "me", doc_count: 3, preview_id: "pull-7", opened_at: "2026-09-20T00:00:00Z" }),
+    ]);
+    render(<PreviewHome />);
+
+    expect(await screen.findByText("my recent previews · 1")).toBeInTheDocument();
+    expect(screen.getByText("#7")).toBeInTheDocument();
+    expect(screen.getByText("blimpa/next-gen-atlas")).toBeInTheDocument();
+    expect(screen.getByText("Opened elsewhere")).toBeInTheDocument();
+    expect(screen.getByText("Opened elsewhere").closest("a")).toHaveAttribute("href", "/preview/pull-7");
+    // Signed in, the list spans browsers — the empty-state promise must not say otherwise.
+    expect(screen.queryByText(/No previews opened/)).toBeNull();
+  });
+
+  it("asks the server even with an empty localStorage when signed in, and not when signed out", async () => {
+    h.usersOn = true;
+    h.user = { id: "user-1" };
+    mockList([]);
+    render(<PreviewHome />);
+    await screen.findByPlaceholderText(/Paste a next-gen-atlas/);
+    expect(String(vi.mocked(globalThis.fetch).mock.calls[0]![0])).toContain("api/preview/mine?shas=");
+  });
+
+  it("words the empty state for the account, not the browser, when signed in", async () => {
+    h.usersOn = true;
+    h.user = { id: "user-1" };
+    mockList([]);
+    render(<PreviewHome />);
+    expect(await screen.findByText("No previews opened yet.")).toBeInTheDocument();
+  });
+
+  it("clears the account's rows on sign-out instead of leaving them on screen", async () => {
+    h.usersOn = true;
+    h.user = { id: "user-1" };
+    // A private preview from the account history — nothing in localStorage, so
+    // after sign-out there is nothing left to legitimately show.
+    mockList([
+      dbRow({ sha: "ccc", repo: "acme/secret-atlas", private: true, pr_title: "Secret work", preview_id: "acme:secret-atlas:main", opened_at: "2026-09-20T00:00:00Z" }),
+    ]);
+    const view = render(<PreviewHome />);
+    expect(await screen.findByText("Secret work")).toBeInTheDocument();
+
+    h.user = null; // signed out — the next person at this browser must not see it
+    view.rerender(<PreviewHome />);
+    expect(await screen.findByText("No previews opened in this browser yet.")).toBeInTheDocument();
+    expect(screen.queryByText("Secret work")).toBeNull();
+  });
+
+  it("clears on sign-out even while the replacement fetch is still in flight", async () => {
+    h.usersOn = true;
+    h.user = { id: "user-1" };
+    localStorage.setItem("preview-history", JSON.stringify([{ id: "pull-1", sha: "aaa", at: 5 }]));
+    // First load resolves; the post-sign-out refetch never does, standing in for a
+    // slow or failed request. The private row must go the moment the user changes,
+    // not whenever (or if) that fetch lands.
+    let call = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      call++;
+      return call === 1
+        ? Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve([
+                dbRow({ sha: "ccc", repo: "acme/secret-atlas", private: true, pr_title: "Secret work", preview_id: "acme:secret-atlas:main", opened_at: "2026-09-20T00:00:00Z" }),
+              ]),
+          } as Response)
+        : new Promise<Response>(() => {});
+    });
+    const view = render(<PreviewHome />);
+    expect(await screen.findByText("Secret work")).toBeInTheDocument();
+
+    h.user = null;
+    view.rerender(<PreviewHome />);
+    expect(screen.queryByText("Secret work")).toBeNull();
+  });
+
+  it("recovers when the FIRST fetch of a tab is the one rate-limited", async () => {
+    h.usersOn = true;
+    h.user = { id: "user-1" };
+    localStorage.setItem("preview-history", JSON.stringify([{ id: "pull-1", sha: "aaa", at: 5 }]));
+    // A second tab, another device, or a reload inside the per-account window:
+    // this tab has no list to fall back on, so a silently-dropped 429 would leave
+    // the account empty state claiming "No previews opened yet".
+    let call = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      call++;
+      return call === 1
+        ? Promise.resolve({ ok: false, status: 429, headers: new Headers({ "retry-after": "0" }), json: () => Promise.resolve({ error: "rate-limited" }) } as Response)
+        : Promise.resolve({ ok: true, json: () => Promise.resolve([dbRow({ sha: "aaa", pr_title: "First PR" })]) } as Response);
+    });
+
+    render(<PreviewHome />);
+    expect(await screen.findByText("First PR")).toBeInTheDocument();
+    expect(screen.queryByText("No previews opened yet.")).toBeNull();
+  });
+
+  it("still lists previews under StrictMode, whose second fetch the server rate-limits", async () => {
+    h.usersOn = true;
+    h.user = { id: "user-1" };
+    localStorage.setItem("preview-history", JSON.stringify([{ id: "pull-1", sha: "aaa", at: 5 }]));
+    // StrictMode double-invokes the effect in dev, and the server holds an
+    // account to one /mine per interval — so the second call 429s. Neither the
+    // teardown of the first effect nor the refused second answer may blank the
+    // list, or dev permanently reads "you have no recent previews".
+    let call = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      call++;
+      if (call === 1) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([dbRow({ sha: "aaa", pr_title: "First PR" })]) } as Response);
+      }
+      // The refusal LANDS LAST, as a real round trip would. Resolving it inline
+      // would let it settle a microtask ahead of the first answer's .json() hop
+      // and be harmlessly overwritten — hiding whether the list actually
+      // survives a 429 or just wins a race.
+      return new Promise<Response>((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              ok: false,
+              status: 429,
+              headers: new Headers({ "retry-after": "0" }),
+              json: () => Promise.resolve({ error: "rate-limited" }),
+            } as Response),
+          10,
+        ),
+      );
+    });
+
+    render(
+      <StrictMode>
+        <PreviewHome />
+      </StrictMode>,
+    );
+    expect(await screen.findByText("First PR")).toBeInTheDocument();
+    await waitFor(() => expect(call).toBeGreaterThanOrEqual(2)); // the double-invoke really happened
+    // Assert AFTER the refused response has settled — checking only on arrival of
+    // the first would pass even if the 429 then blanked the list.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    expect(screen.getByText("First PR")).toBeInTheDocument();
   });
 
   it("shows an empty recent tab (no count) when there's no intersection", async () => {
@@ -195,12 +396,12 @@ describe("PreviewHome private repo form", () => {
     expect(screen.getByRole("button", { name: "Preview private repo" })).not.toBeDisabled();
   });
 
-  it("notes that a pasted branch will compare against the closest shared point with sky main or the fork's default branch", () => {
+  it("notes that a pasted branch will compare against the repo's default branch, or live sky main when there is none", () => {
     render(<PreviewHome />);
     fireEvent.change(screen.getByPlaceholderText(PLACEHOLDER), { target: { value: "acme/secret-atlas@main" } });
     expect(
       screen.getByText(
-        "will compare with the closest shared point with sky-ecosystem/next-gen-atlas:main or this fork's own default branch",
+        "will compare with this repo's default branch, or with the live sky-ecosystem/next-gen-atlas:main when there is none to compare against",
       ),
     ).toBeInTheDocument();
   });

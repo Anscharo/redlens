@@ -6,11 +6,14 @@
 // indexes from atlas_artifacts (plus docs.json rebuilt from atlas_doc_meta)
 // — no git access needed on the web service.
 //
-// On change, embeddings and history run in parallel after the structural sync:
+// On change, embeddings, history and document versions run in parallel after
+// the structural sync:
 //
 //   build-index → build-graph → sync.ts →
 //     ┌── sync-embeddings.ts   (atlas_doc_embeddings)
-//     └── build-history        (atlas_history — DB sink, reads its own cursor)
+//     ├── build-history        (atlas_history — DB sink, reads its own cursor)
+//     └── build-doc-versions   (atlas_doc_versions — its own cursor; the first
+//                               run backfills the whole history by itself)
 //
 // Lightweight check: if upstream git SHA matches sync_state.atlas_sha, the
 // structural tables are coherent, AND no stale 1:1 embeddings exist, skip the
@@ -90,13 +93,19 @@ async function runPostSyncTail(full) {
         },
       }),
     },
+    {
+      // Upstream's per-document version record (atlas_doc_versions). Its own
+      // cursor: the first run backfills the whole history unprompted.
+      name: "doc-versions",
+      promise: runAsync("bun", ["scripts/required/build-doc-versions.mjs", ...(full ? ["--full"] : [])]),
+    },
   ];
   const results = await Promise.allSettled(jobs.map((job) => job.promise));
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
     if (result.status === "rejected") {
       // Best-effort: structural data is already committed. A later no-change
-      // worker tick retries both lanes, so a transient tail failure self-heals.
+      // worker tick retries every lane, so a transient tail failure self-heals.
       console.warn(`atlas-worker: ${jobs[i].name} reconcile error: ${result.reason?.message ?? result.reason}`);
     }
   }
@@ -127,6 +136,85 @@ async function getUpstreamSha() {
 async function main() {
   const t0 = Date.now();
   const full = process.env.ATLAS_WORKER_FULL === "1";
+  // Not needed to bootstrap an empty DB — build-history and build-doc-versions
+  // both read their own cursor, both get null from an empty (or missing) table,
+  // and both then walk everything anyway. All the flag adds is on every LATER
+  // tick: it makes the fast-exit unreachable, turns doc-versions' append into a
+  // drop-and-rewrite of the whole table, and re-walks all ~175 commits — and
+  // with them ~174 `gh pr view` calls, since .cache/github-prs is local disk and
+  // no Railway service mounts a volume, so every cron container starts cold.
+  // At */12 that is ~870 GitHub API calls an hour against a 5,000/hr budget.
+  if (full) {
+    console.warn(
+      "atlas-worker: ATLAS_WORKER_FULL=1 — forcing full history + doc-versions walks and disabling the fast-exit. " +
+        "Unset it unless you are deliberately rewalking; an empty DB walks fully on its own.",
+    );
+  }
+
+  // One timer, two deadlines, because the run has two halves whose timeouts mean
+  // opposite things.
+  //
+  // BEFORE the heartbeat everything is load-bearing. A hung GitHub/RPC fetch
+  // there blocks every later */12 run and leaves the served snapshot stale
+  // (observed 2026-09-17: four days of it), so the tick is killed and the run
+  // FAILS. Unchanged.
+  //
+  // AFTER it, sync.ts, the integrity gate and publish-artifacts have all
+  // committed and the only work left is runPostSyncTail, which is documented
+  // best-effort. Running out of clock there costs work, never committed state,
+  // so it exits 0. One flat 15m cap reported that as a failed run instead, and a
+  // cold atlas_doc_embeddings could never beat it: 11,584 docs at the measured
+  // ~620/min is ~19 minutes, so the FIRST tick of every new environment was
+  // guaranteed to exit(1) (observed 2026-09-25, ~9,000 embedded, everything
+  // served already committed at T+12s).
+  //
+  // Only ONE of the three lanes actually resumes mid-walk, and the difference
+  // matters for how the budget is sized. sync-embeddings upserts per EMBED_BATCH
+  // slice, so a kill keeps every slice already written and the next tick carries
+  // on — that is the lane the budget exists for. build-history and
+  // build-doc-versions instead buffer the whole walk in memory and write once at
+  // the end (upsertHistory / replace-or-upsertDocVersions), so a kill mid-walk
+  // commits nothing and the next tick repeats it: work lost, not data. Both fit
+  // with room to spare — 112s and 22s cold, measured, against a 660s budget —
+  // and history, the slower one, would need ~1,000 atlas commits (from 175) to
+  // threaten it. If it ever does, it needs a per-commit flush or a budget of its
+  // own; don't just widen this one and call the comment still true.
+  //
+  // The tail deadline also sits under the */12 cron period, so the process is
+  // gone before the next tick claims the same backlog. At 15m it never was: that
+  // tick is either skipped (backfill gets 15m per 24m instead of 11m per 12m) or
+  // it overlaps and re-embeds what this process is already paying for.
+  //
+  // Measured from t0 and floored at a minute, which gives TWO distinct thresholds
+  // — don't conflate them. The floor ENGAGES once the heartbeat lands past minute
+  // 10 (660 - hb < 60), but it only pushes the exit past the */12 TICK once the
+  // heartbeat lands past minute 11 (hb + 60 > 720). In between, minute 10 to 11,
+  // the floor is active and the process still exits inside its own tick. Only a
+  // heartbeat after minute 11 outlives one, and that is the deliberate trade: a
+  // very late heartbeat gets its minute rather than having the tails skipped
+  // outright. Nothing observed comes near either threshold (T+12s), and Railway
+  // skipping the overlapped tick is the benign outcome anyway.
+  const HARD_CAP_MS = 15 * 60 * 1000;
+  const TAIL_CAP_MS = 11 * 60 * 1000;
+  // unref() so a successful exit isn't held open for the remainder.
+  let cap = setTimeout(() => {
+    console.error("atlas-worker: hard cap (15m) — exiting so cron can retry");
+    process.exit(1);
+  }, HARD_CAP_MS);
+  cap.unref();
+  // Call right after touchSyncHeartbeat() on BOTH paths (fast-exit and rebuild):
+  // past that point the served snapshot is committed and only the tails remain.
+  const armTailCap = () => {
+    clearTimeout(cap);
+    cap = setTimeout(() => {
+      console.warn(
+        `atlas-worker: tail budget (${TAIL_CAP_MS / 60000}m) spent — the served snapshot is committed; ` +
+          "stopping cleanly so the next cron tick resumes the tails",
+      );
+      process.exit(0);
+    }, Math.max(60 * 1000, TAIL_CAP_MS - (Date.now() - t0)));
+    cap.unref();
+  };
 
   if (!process.env.DATABASE_URL) {
     console.error("atlas-worker: DATABASE_URL is required");
@@ -285,12 +373,13 @@ async function main() {
   if (!full && alreadyCurrent && noStaleEmbeds && structural.healthy && artifactsPublished) {
     console.log(`atlas-worker: already current at ${(syncState ?? "").slice(0, 12)} — skipping fetch/build`);
     await touchSyncHeartbeat(db);
+    armTailCap();
     await db.close();
     // Reconcile both independently incremental tails. Hash coverage can be
     // complete while grouping metadata is stale, and a failed history branch
     // must recover even when no later Atlas commit arrives.
     if (!NO_FETCH) {
-      console.log("atlas-worker: reconciling embeddings + history");
+      console.log("atlas-worker: reconciling embeddings + history + doc-versions");
       await runPostSyncTail(false);
     }
     process.exit(0);
@@ -337,8 +426,8 @@ async function main() {
     SELECT atlas_sha FROM sync_state WHERE id = 1
   `.then((r) => r[0]?.atlas_sha ?? null).catch(() => null);
   const verified = await inspectStructuralSnapshot(verifyDb, verifiedState);
-  await verifyDb.close();
   if (!verified.healthy) {
+    await verifyDb.close();
     throw new Error(`post-sync structural integrity failed: ${verified.reasons.join("; ")}`);
   }
   console.log(
@@ -353,10 +442,20 @@ async function main() {
   console.log("atlas-worker: publish-artifacts…");
   run("bun", ["scripts/required/publish-artifacts.ts"]);
 
+  // sync.ts no-ops when the pointer already matches and does not touch
+  // synced_at. A leftover stale embedding skips the fast-exit heartbeat,
+  // so a green rebuild tick left production stale for days. Heartbeat
+  // only after publish succeeds, matching the fast-exit guarantee that
+  // web instances can fetch the artifact set. (Tails below are best-effort,
+  // same as the fast-exit path which heartbeats before them.)
+  await touchSyncHeartbeat(verifyDb);
+  armTailCap();
+  await verifyDb.close();
+
   // ── Parallel: embeddings + history ───────────────────────────────────────
   // build-history reads its own incremental cursor from atlas_history and
   // upserts straight into it (DB sink), so no cursor files to seed here.
-  console.log("atlas-worker: parallel — sync-embeddings + build-history…");
+  console.log("atlas-worker: parallel — sync-embeddings + build-history + build-doc-versions…");
   await runPostSyncTail(full);
 
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);

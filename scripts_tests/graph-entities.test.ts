@@ -343,6 +343,42 @@ function buildCorpus() {
     content: "The Keel Foundation is the Prime Foundation associated with Keel. Its mandate is to support Keel.",
   });
 
+  // 1p: dedicated Foundation/Development Company docs, run last so they only
+  // fill a gap or correct a type — never clobber an existing entity's
+  // provenance. Obex's accord (A.2.8.2.4.1.1.2) names "Rubicon" as a plain
+  // party member, which the "Foundation" suffix heuristic (1m) defaults to
+  // development_company; the dedicated Foundation doc corrects it, without
+  // losing the accord's defining_doc_id/meta. Pattern has no accord and no
+  // Foundation doc at all — its Development Company doc is the ONLY place
+  // "Pattern Dev Co." is ever named, exercising the fresh-create branch, and
+  // uses the "is THE development company" phrasing (vs. Spark's "is A").
+  const obexDoc = mkDoc({ id: uid(60), doc_no: "A.6.1.1.5", title: "Obex" });
+  const obexAccordPartyDoc = mkDoc({
+    id: uid(61),
+    doc_no: "A.2.8.2.4.1.1.2",
+    title: "Obex Details",
+    content: "The party 'Obex' comprises the Obex Prime Agent, Rubicon, and Treadstone.",
+  });
+  const obexFoundationDoc = mkDoc({
+    id: uid(62),
+    doc_no: "A.6.1.1.5.2.1.1.3.1.1.5",
+    title: "Foundation",
+    content: "Rubicon is the Prime Foundation associated with Obex. Its mandate is to support the development, growth, and adoption of Obex.",
+  });
+  const obexDevCoDoc = mkDoc({
+    id: uid(63),
+    doc_no: "A.6.1.1.5.2.1.1.3.1.1.6",
+    title: "Development Company",
+    content: "Treadstone is the development company that provides services to Rubicon.",
+  });
+  const patternDoc = mkDoc({ id: uid(64), doc_no: "A.6.1.1.6", title: "Pattern" });
+  const patternDevCoDoc = mkDoc({
+    id: uid(65),
+    doc_no: "A.6.1.1.6.2.1.1.3.1.1.5",
+    title: "Development Company",
+    content: "Pattern Dev Co. is the development company that provides services to Pattern.",
+  });
+
   // Pattern 14: Instance (Active tier, Spark/Distribution Reward) + Invocation
   // (In Progress tier, Grove/Integration Boost) + per-agent Primitive entities.
   const currentPrimitivesDoc = mkDoc({
@@ -421,6 +457,7 @@ function buildCorpus() {
     stepDoc1, stepDoc2,
     dutyDoc1, dutyDoc2, dutyDoc3, dutyDoc4, dutyDoc5,
     orgDoc1, orgDoc2, orgDoc3,
+    obexDoc, obexAccordPartyDoc, obexFoundationDoc, obexDevCoDoc, patternDoc, patternDevCoDoc,
     currentPrimitivesDoc,
     primRootDR, statusDocDR, activeInstancesTier, icdDR, paramsDocDR, rewardCodeLeaf, customParamsLeaf, miscLeaf,
     primRootIB, inProgressTier, icdIB, invocationStatusDoc, paramsDocIB, partnerNameLeaf,
@@ -537,6 +574,31 @@ describe("extractEntities — realistic corpus", () => {
     expect(e("sky-party")).toBeUndefined();
   });
 
+  it("corrects a foundation misclassified as development_company by the accord's name-suffix heuristic (1p, Rubicon/Obex)", () => {
+    // 1m's suffix heuristic defaults "Rubicon" (no "Foundation" in the name)
+    // to development_company; the dedicated Foundation doc is authoritative.
+    const rubicon = e("rubicon")!;
+    expect(rubicon.entity_type).toBe("foundation");
+    // Provenance from the accord (its first source) is preserved, not
+    // overwritten by the correcting step — the correction is recorded
+    // alongside it instead.
+    const meta = JSON.parse(rubicon.meta);
+    expect(meta.source).toBe("accord_party_member");
+    expect(meta.corrected_type_by).toBe("agent_foundation_doc");
+    expect(meta.corrected_type_source_doc_no).toBe("A.6.1.1.5.2.1.1.3.1.1.5");
+  });
+
+  it("leaves an already-correctly-classified accord member alone (1p, Treadstone/Obex)", () => {
+    expect(e("treadstone")).toMatchObject({ entity_type: "development_company" });
+    expect(JSON.parse(e("treadstone")!.meta).source).toBe("accord_party_member");
+  });
+
+  it("creates a Development Company entity that exists nowhere else in the atlas (1p, Pattern Dev Co., 'is THE development company' phrasing)", () => {
+    const devCo = e("pattern-dev-co")!;
+    expect(devCo).toMatchObject({ name: "Pattern Dev Co.", entity_type: "development_company" });
+    expect(devCo.defining_doc_id).toBe(docByDocNo.get("A.6.1.1.6.2.1.1.3.1.1.5")!.id);
+  });
+
   it("models an atomic party ('is the entity owning...') as composite_party with no members resolved", () => {
     expect(e("moonbow-party")).toMatchObject({ entity_type: "composite_party" });
   });
@@ -595,6 +657,49 @@ describe("extractEntities — Aligned Delegates prose fallback", () => {
     const ctx = extractEntities([doc], docById, docByDocNo, {});
     expect(ctx.alignedDelegateNames).toEqual(["BLUE", "Cloaky", "Bonapublica"]);
     expect(ctx.entityMap.get("bonapublica")).toMatchObject({ entity_type: "delegate_org" });
+  });
+});
+
+describe("extractEntities — 1p Agent Foundation/Development Company edge cases", () => {
+  it("refuses to retype an entity a Foundation doc's name collides with, if that entity isn't development_company/ecosystem_actor, and warns (1p collision guard)", () => {
+    const warns: string[] = [];
+    vi.spyOn(console, "warn").mockImplementation((m) => void warns.push(String(m)));
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const sparkDoc = mkDoc({ id: uid(70), doc_no: "A.6.1.1.1", title: "Spark" }); // registers slug "spark" as entity_type "agent"
+    const groveDoc = mkDoc({ id: uid(71), doc_no: "A.6.1.1.2", title: "Grove" });
+    // Deliberately contrived: names the already-registered "Grove" agent as
+    // if it were Spark's Foundation, to exercise the guard — a real atlas
+    // Foundation doc never names an existing agent this way.
+    const collidingFoundationDoc = mkDoc({
+      id: uid(72),
+      doc_no: "A.6.1.1.1.2.1.1.3.1.1.4",
+      title: "Foundation",
+      content: "Grove is the Prime Foundation associated with Spark.",
+    });
+    const allDocs = [sparkDoc, groveDoc, collidingFoundationDoc];
+    const docById = new Map(allDocs.map((d) => [d.id, d]));
+    const docByDocNo = new Map(allDocs.map((d) => [d.doc_no, d]));
+    const ctx = extractEntities(allDocs, docById, docByDocNo, {});
+    expect(ctx.entityMap.get("grove")).toMatchObject({ entity_type: "agent", subtype: "prime" }); // untouched
+    expect(warns.some((w) => w.includes("not retyping"))).toBe(true);
+  });
+
+  it("warns (without throwing) when a title-anchored Foundation/Development Company doc's sentence doesn't parse (1p parse-miss)", () => {
+    const warns: string[] = [];
+    vi.spyOn(console, "warn").mockImplementation((m) => void warns.push(String(m)));
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const sparkDoc = mkDoc({ id: uid(73), doc_no: "A.6.1.1.1", title: "Spark" });
+    const unparsableFoundationDoc = mkDoc({
+      id: uid(74),
+      doc_no: "A.6.1.1.1.2.1.1.3.1.1.4",
+      title: "Foundation",
+      content: "This document does not use the expected sentence shape.",
+    });
+    const allDocs = [sparkDoc, unparsableFoundationDoc];
+    const docById = new Map(allDocs.map((d) => [d.id, d]));
+    const docByDocNo = new Map(allDocs.map((d) => [d.doc_no, d]));
+    extractEntities(allDocs, docById, docByDocNo, {});
+    expect(warns.some((w) => w.includes(unparsableFoundationDoc.doc_no) && w.includes("did not parse"))).toBe(true);
   });
 });
 

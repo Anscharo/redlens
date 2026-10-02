@@ -2,6 +2,7 @@
 //   GET  /api/health         — liveness check (atlas_sha + index counts + rss_mb)
 //   GET  /api/atlas-events  — SSE stream: atlas-update events from in-process updater
 //   GET  /api/history/:id   — node change log from Postgres
+//   GET  /api/reports/search — semantic hits for the /reports index (ternlight)
 //   POST /mcp               — MCP streamable HTTP transport (stateless, no auth)
 //   *                       — static dist/ with SPA fallback to index.html
 // In-memory indexes load once at boot before serving.
@@ -30,6 +31,7 @@ import { handleHistory, handleHistoryBatch } from "./history/history.ts";
 import { handleBalances } from "./balances/balances.ts";
 import { handleChainState } from "./chain-state.ts";
 import { handleForumTopics } from "./forum.ts";
+import { handleReportsSearch } from "./reports-search.ts";
 import { handleModCounts } from "./history/mod-counts.ts";
 import { handleModTimeline } from "./history/mod-timeline.ts";
 import { registerSSEClient, sseClientCount } from "./sse.ts";
@@ -451,6 +453,10 @@ export function buildRoutes() {
     // rows the atlas worker crawls; empty until the first successful sync.
     "/api/forum-topics": (req: Request) => handleForumTopics(req),
 
+    // Semantic hits for the /reports index (ungated, no DB). Lexical matching
+    // stays in the browser; this scores paraphrases with on-device ternlight.
+    "/api/reports/search": (req: Request) => handleReportsSearch(req),
+
     // Auth + collections need only a logged-in session (usersEnabled); chat +
     // usage additionally need chatEnabled (itself AND-gated by usersEnabled).
     "/api/auth/*": (req: Request) => canonicalRedirect(req) ?? auth(req),
@@ -502,6 +508,11 @@ const realBootDeps: BootDeps = {
   startPreviewSweeper: async () => {
     const { startPreviewSweeper } = await import("./preview/sweeper.ts");
     startPreviewSweeper();
+    // Rows built before the diff-base columns existed stay NULL forever if
+    // nobody rebuilds them (a ready bundle only bumps last_access). Fill
+    // those in the background; a no-op once every row has a record.
+    const { startPreviewDiffBaseBackfill } = await import("./preview/diff-base-backfill.ts");
+    startPreviewDiffBaseBackfill();
   },
 };
 

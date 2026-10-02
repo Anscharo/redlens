@@ -262,6 +262,58 @@ test("aggregate takes the latest value_eom rather than summing the stock", () =>
   }
 });
 
+// "Which month was biggest" had no answer: series is per-prime and by_prime
+// sums the months away. by_month is the ecosystem per month, on the same bases
+// as by_prime, and carries how many workbooks each month had.
+test("aggregate emits an ecosystem-by-month series that foots to the fixture", () => {
+  const b = bundle();
+  const out = buildMscView(b, [], { view: "aggregate", from: "0000-00", to: "9999-99" });
+  const rows = out.by_month as { month: string; to_sky: number; supply_kept: number; primes_reported: number }[];
+  expect(rows.map((r) => r.month)).toEqual(out.months as string[]);
+  for (const row of rows) {
+    const reps = b.reports.filter((r) => r.month === row.month);
+    expect(row.primes_reported).toBe(reps.length);
+    expect(row.to_sky).toBeCloseTo(reps.reduce((n, r) => n + r.headline.skyRevenue, 0), 6);
+    expect(row.supply_kept).toBeCloseTo(reps.reduce((n, r) => n + supplyKept(r), 0), 6);
+    expect(row).not.toHaveProperty("cof");
+  }
+  expect(out.months_available).toEqual([...new Set(b.reports.map((r) => r.month))].sort());
+});
+
+test("aggregate month:'all' covers every published month, and the default only the latest", () => {
+  const all = buildMscView(bundle(), [], { view: "aggregate", month: "all" });
+  const ranged = buildMscView(bundle(), [], { view: "aggregate", from: "0000-00", to: "9999-99" });
+  expect(all.months).toEqual(ranged.months);
+  const latest = buildMscView(bundle(), [], { view: "aggregate" });
+  expect((latest.months as string[]).length).toBe(1);
+  expect(latest.months_available).toEqual(all.months); // widening hint is present on the default too
+});
+
+test("aggregate warns when months in range have different workbook coverage", () => {
+  const b = bundle();
+  const months = [...new Set(b.reports.map((r) => r.month))].sort();
+  const extra = { ...b.reports[0]!, prime: "keel", month: months[months.length - 1]! };
+  const uneven = { ...b, reports: [...b.reports, extra] };
+  const out = buildMscView(uneven, [], { view: "aggregate", month: "all" });
+  expect((out.traps as string[]).some((t) => /different numbers of published workbooks/.test(t))).toBe(true);
+  const even = buildMscView(b, [], { view: "aggregate", month: "all" });
+  const counts = new Set((even.by_month as { primes_reported: number }[]).map((r) => r.primes_reported));
+  if (counts.size === 1) expect((even.traps as string[]).some((t) => /different numbers/.test(t))).toBe(false);
+});
+
+// The deterministic brief is what the main model reads when the sub-model
+// contributes nothing. It used to be EMPTY for aggregate (the view keeps its
+// money under ecosystem / by_month / by_prime, not three_way / points / rows),
+// so five identical "aggregate" rounds each came back as source links only.
+test("briefFromView on an aggregate view carries the ecosystem, every month, and every prime", () => {
+  const v = buildMscView(bundle(), [], { view: "aggregate", month: "all" });
+  const figures = briefFromView(v).figures as { name: string; value: number }[];
+  expect(figures.length).toBeGreaterThan(0);
+  expect(figures.some((f) => /^Ecosystem To Sky/.test(f.name))).toBe(true);
+  for (const m of v.months as string[]) expect(figures.some((f) => f.name.startsWith(`To Sky ${m}`))).toBe(true);
+  for (const p of v.primes as string[]) expect(figures.some((f) => f.name.startsWith(`${p} To Sky`))).toBe(true);
+});
+
 test("aggregate reports an empty range instead of inventing zeros", () => {
   const out = buildMscView(bundle(), [], { view: "aggregate", from: "1999-01", to: "1999-12" });
   expect(String(out.error)).toContain("no published workbooks");

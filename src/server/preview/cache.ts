@@ -66,14 +66,20 @@ export interface PreviewMeta {
   /** The PR's base branch (PR previews only). Persisted to the previews row so a
    *  pinned-sha rebuild keeps PR-base treatment without re-asking GitHub. */
   prBase?: { repo: string; ref: string };
-  /** The head repo's default branch (fork branch previews only) — the `repo`
-   *  candidate's ref, persisted for the same rebuild round-trip as prBase. */
+  /** The head repo's default branch (fork branch previews, and private PRs
+   *  built without Pull requests:read) — the `repo` candidate's ref, persisted
+   *  for the same rebuild round-trip as prBase. */
   defaultBranch?: string;
   /** Private PR preview built without Pull requests:read — banner prompts the
    *  install owner to grant it. Not persisted to the previews row. */
   needsPullsPermission?: boolean;
   /** GitHub pending-permission review URL (`html_url/permissions/update`). */
   permissionsUrl?: string;
+  /** The install was granted "All repositories" — banner nudges the owner to
+   *  narrow it to this repo. Not persisted to the previews row. */
+  grantTooBroad?: boolean;
+  /** The install's settings page (GitHub `html_url`), where repo access is changed. */
+  installSettingsUrl?: string;
   /** The diff-base candidates this bundle's redlines were computed against.
    *  `sky` = merge base with sky-ecosystem/next-gen-atlas:main (the fork
    *  point); `repo` = merge base with the head repo's own base (the PR's base
@@ -82,6 +88,10 @@ export interface PreviewMeta {
    *  pair also copied to diff.json / patches.json. "live-main" = degraded: no
    *  candidate could be resolved and the redline is vs the served atlas. */
   bases?: PreviewBases;
+  /** Size of the automatic pair's doc list (diff.json). Persisted to the
+   *  previews row with the base it was computed against — see
+   *  diff-base-record.ts. Absent when the diff artifacts were skipped. */
+  diffCounts?: { added: number; changed: number };
 }
 
 export type BaseKey = "sky" | "repo";
@@ -103,7 +113,9 @@ export interface BaseDrift {
   /** The base branch tip the drift was measured on. */
   sha: string;
   forkPoint?: string;
-  /** Commits on the base branch since the fork point (its own work). */
+  /** Commits on the base branch since the fork point (its own work). This and
+   *  the two fields around it are PUBLIC-only: a private base has no fork point
+   *  with sky main to count from (base-drift.ts) — only `docsDiffer`. */
   commitsAhead?: number;
   /** Commits on sky main since the fork point (what the base hasn't taken). */
   commitsBehind?: number;
@@ -116,7 +128,8 @@ export interface BaseDrift {
 export interface PreviewBases {
   auto: BaseKey | "live-main";
   /** Why `auto` is what it is when that isn't obvious: a degrade cause
-   *  ("no fork point found", "compare failed") or "candidates diverged". */
+   *  ("PR base did not resolve", "no base branch to compare against",
+   *  "compare failed") or "candidates diverged". */
   reason?: string;
   sky?: BaseCandidateMeta;
   repo?: BaseCandidateMeta & { drift?: BaseDrift };

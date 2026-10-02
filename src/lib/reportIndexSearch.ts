@@ -1,0 +1,186 @@
+// Filter for the /reports index. Two lanes:
+//
+//   1. Lexical — case-insensitive substring (and token-AND) over title,
+//      category, description, and provenance badge. A group-title hit keeps
+//      every report in that group, which is what "search over the categories
+//      we now have" means. A hint hit is a fallback for purpose-queries
+//      ("obliges") that name no card. This lane runs in the browser so a
+//      name match is instant.
+//   2. Semantic — extra ids from GET /api/reports/search, which scores the
+//      query with on-device ternlight on the server (the same engine chat
+//      facts already load). The index always asks for these, even when
+//      wording already hit, so a paraphrase that shares a title word
+//      ("facilitator duties") can still surface a meaning-only neighbour.
+//      The UI keeps the two sets apart: wording matches stay in catalog
+//      order; extras-only cards render under "Closest meaning".
+//
+// Ranking is catalog order, not score — the index is a handful of cards, and
+// jumping around as the user types is worse than a stable filter.
+import type { ReportCard, ReportCardGroup } from "./reportCatalog";
+import { PROVENANCE_LABELS, reportEmbedFields } from "./reportCatalog";
+import { counterpartTerm } from "./searchInflect";
+
+// Floor against noise. Re-measured against title+description embeddings
+// (reportIndexSearch.semantic.test.ts): pizza/hello/etherscan top out ~0.28,
+// in-vocabulary paraphrases of titles still clear 0.50, and 0.32 sits in the
+// gap. Group titles are lexical-only — embedding "Atlas health" made any
+// query containing "atlas" light up the whole index. Cap the extras so a
+// query that shares the word "atlas" (in every description) cannot dump
+// the whole catalog into Closest meaning.
+export const SEMANTIC_MIN = 0.32;
+export const SEMANTIC_MAX = 3;
+
+/** Strip mode-wrap quotes and lowercase; empty means "show everything". */
+export function normalizeReportIndexQuery(query: string): string {
+  let t = query.trim();
+  if (
+    t.length >= 2 &&
+    ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'")))
+  ) {
+    t = t.slice(1, -1).trim();
+  }
+  return t.toLowerCase();
+}
+
+function tokens(q: string): string[] {
+  return q.split(/[^a-z0-9]+/).filter(Boolean);
+}
+
+function fieldHasToken(fn: string, t: string): boolean {
+  if (fn.includes(t)) return true;
+  const other = counterpartTerm(t);
+  return other != null && fn.includes(other);
+}
+
+function fieldMatch(field: string, q: string, qTokens: string[]): boolean {
+  const f = field.toLowerCase();
+  if (f.includes(q)) return true;
+  const fn = f.replace(/[^a-z0-9]+/g, " ");
+  const qn = q.replace(/[^a-z0-9]+/g, " ").trim();
+  if (qn && fn.includes(qn)) return true;
+  return qTokens.length > 0 && qTokens.every((t) => fieldHasToken(fn, t));
+}
+
+function badgeLabel(card: ReportCard): string | null {
+  return card.provenance === "live" ? null : PROVENANCE_LABELS[card.provenance];
+}
+
+/**
+ * Filter the catalog by query. `extraIds` is optional: omit it (or pass ids
+ * for a *different* query) and only the lexical lane runs. Same-identity
+ * return for a blank query so memoized consumers don't re-render.
+ */
+export function filterReportGroups(
+  groups: readonly ReportCardGroup[],
+  query: string,
+  extraIds?: ReadonlySet<string>,
+): ReportCardGroup[] {
+  const q = normalizeReportIndexQuery(query);
+  if (!q) return groups as ReportCardGroup[];
+  const qTokens = tokens(q);
+  const out: ReportCardGroup[] = [];
+  for (const group of groups) {
+    // A category-title hit keeps the whole group. Hint is a fallback for
+    // purpose-queries ("obliges") that name no card — not a second whole-group
+    // path, or "reward" would also keep On-Chain Addresses via the group blurb.
+    if (fieldMatch(group.title, q, qTokens)) {
+      out.push(group);
+      continue;
+    }
+    const cards = group.cards.filter((c) => {
+      const label = badgeLabel(c);
+      return (
+        fieldMatch(c.title, q, qTokens) ||
+        fieldMatch(c.description, q, qTokens) ||
+        fieldMatch(c.category, q, qTokens) ||
+        (label != null && fieldMatch(label, q, qTokens)) ||
+        extraIds?.has(c.id) === true
+      );
+    });
+    if (cards.length > 0) out.push({ ...group, cards });
+    else if (fieldMatch(group.hint, q, qTokens)) out.push(group);
+  }
+  return out;
+}
+
+/** Card ids currently shown across groups. */
+export function cardIdsIn(groups: readonly ReportCardGroup[]): Set<string> {
+  return new Set(groups.flatMap((g) => g.cards.map((c) => c.id)));
+}
+
+/** Catalog groups narrowed to a set of card ids, preserving catalog order. */
+export function groupsForIds(
+  groups: readonly ReportCardGroup[],
+  ids: ReadonlySet<string>,
+): ReportCardGroup[] {
+  if (ids.size === 0) return [];
+  const out: ReportCardGroup[] = [];
+  for (const group of groups) {
+    const cards = group.cards.filter((c) => ids.has(c.id));
+    if (cards.length > 0) out.push({ ...group, cards });
+  }
+  return out;
+}
+
+export type EmbedFn = (text: string) => Float32Array;
+export type CosineFn = (a: Float32Array, b: Float32Array) => number;
+
+/** Cosine similarity for L2-normalized vectors (a dot product). */
+export function cosineSim(a: Float32Array, b: Float32Array): number {
+  if (a.length !== b.length) {
+    throw new Error(`vector length mismatch: ${a.length} vs ${b.length}`);
+  }
+  let dot = 0;
+  const len = a.length;
+  for (let i = 0; i < len; i++) dot += a[i]! * b[i]!;
+  return dot;
+}
+
+/** Per-card field vectors, with identical strings sharing one embedding. */
+export function buildReportFieldVecs(cards: readonly ReportCard[], embed: EmbedFn): Map<string, Float32Array[]> {
+  const cache = new Map<string, Float32Array>();
+  const vec = (t: string) => {
+    let v = cache.get(t);
+    if (!v) cache.set(t, (v = embed(t)));
+    return v;
+  };
+  return new Map(cards.map((c) => [c.id, reportEmbedFields(c).map(vec)]));
+}
+
+export function scoreReportQuery(
+  query: string,
+  fieldVecs: ReadonlyMap<string, Float32Array[]>,
+  embed: EmbedFn,
+  cosineSim: CosineFn,
+): Map<string, number> {
+  const qv = embed(query);
+  const scores = new Map<string, number>();
+  for (const [id, vecs] of fieldVecs) {
+    let max = -1;
+    for (const v of vecs) {
+      const s = cosineSim(qv, v);
+      if (s > max) max = s;
+    }
+    scores.set(id, max);
+  }
+  return scores;
+}
+
+/** Highest-scoring ids that clear the semantic floor, capped at `semanticMax`. */
+export function hitsFromScores(
+  scores: ReadonlyMap<string, number>,
+  semanticMin = SEMANTIC_MIN,
+  semanticMax = SEMANTIC_MAX,
+): Set<string> {
+  return new Set(
+    [...scores]
+      .filter(([, s]) => s >= semanticMin)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, semanticMax)
+      .map(([id]) => id),
+  );
+}
+
+export interface ReportIndexSearchResponse {
+  hits: string[];
+}

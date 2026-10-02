@@ -144,16 +144,28 @@ function withModels(verifier: string, fn: () => Promise<void>, refuteMode: "answ
   const pv = config.chatVerifierModel;
   const pj = config.chatSmalltalkJudgeModel;
   const pr = config.chatRefuteMode;
+  const pc = config.chatCitationCheckModel;
+  const pa = config.chatAnswerCoverageModel;
   config.chatVerifierModel = verifier;
   // The judge slot defaults ON in config — zero it here so every test
   // exercises the audit path it was written for; bypass tests opt back in
   // with the nested withJudge wrapper below.
   config.chatSmalltalkJudgeModel = "";
   config.chatRefuteMode = refuteMode;
+  // Citation-marks also defaults ON — zero it too, so the event-order
+  // assertions in this file (written before the feature existed) don't have
+  // to account for an extra citation_marks event on every grounded turn.
+  // Opt-in tests further down restore it explicitly.
+  config.chatCitationCheckModel = "";
+  // Answer coverage too (verify/answer-coverage.ts) — same reason; its own
+  // tests at the end of this file opt back in with withCoverage.
+  config.chatAnswerCoverageModel = "";
   return fn().finally(() => {
     config.chatVerifierModel = pv;
     config.chatSmalltalkJudgeModel = pj;
     config.chatRefuteMode = pr;
+    config.chatCitationCheckModel = pc;
+    config.chatAnswerCoverageModel = pa;
   });
 }
 
@@ -181,26 +193,43 @@ test("no model slots: pass-through + status ticker; done carries checksMeta; san
   }));
 
 // ── Small-talk bypass ──────────────────────────────────────────────────────
-// Config-gates the judge slot the same way withModels gates the verifier.
+// Config-gates the judge slot the same way withModels gates the verifier. The
+// judge is a Jev Noul now, so it does NOT ride the JsonCall — it posts to
+// /systemone — which is why the ruling fixture below stubs fetch rather than
+// dispatching on prompt content.
+const realFetch = globalThis.fetch;
 function withJudge(model: string, fn: () => Promise<void>): Promise<void> {
   const prev = config.chatSmalltalkJudgeModel;
+  const prevKey = config.openrouterApiKey;
   config.chatSmalltalkJudgeModel = model;
+  config.openrouterApiKey = config.openrouterApiKey || "test-key"; // askJev refuses without one
   return fn().finally(() => {
     config.chatSmalltalkJudgeModel = prev;
+    config.openrouterApiKey = prevKey;
+    globalThis.fetch = realFetch;
   });
 }
-// Wraps a JsonCall so the judge's distinctive prompt gets a scripted ruling
-// and every other call falls through to the inner fake — content dispatch,
-// same principle as identifySlice.
+// Scripts the judge's ruling by stubbing the /systemone call, and passes the
+// inner JsonCall through untouched. Signature kept from the chat-model era so
+// the bypass tests below read the same; `ruling` is still the JSON the old
+// judge would have emitted, mapped onto the probability a Noul returns.
 function withJudgeRuling(inner: JsonCall, ruling: string, judgeCalls: { model: string }[] = []): JsonCall {
-  return async (params) => {
-    const sys = typeof params.messages[0]?.content === "string" ? params.messages[0].content : "";
-    if (sys.includes('{"smalltalk"')) {
-      judgeCalls.push({ model: params.model });
-      return { text: ruling, usage: { input: 5, output: 2 }, generationId: "gen-judge", latencyMs: 3 };
-    }
-    return inner(params);
-  };
+  const smalltalk = (JSON.parse(ruling) as { smalltalk: boolean }).smalltalk;
+  globalThis.fetch = (async (url: any, init: any) => {
+    if (!String(url).includes("/systemone")) return realFetch(url, init);
+    judgeCalls.push({ model: JSON.parse(init.body).model });
+    // Either side of SMALLTALK_JEV_THRESHOLD, not a bare 1/0 — the ruling is a
+    // thresholded probability and the fixture should exercise that.
+    return new Response(
+      JSON.stringify({
+        answers: { smalltalk: { type: "noul", noul: smalltalk ? 0.93 : 0.06 } },
+        usage: { input_tokens: 340, output_tokens: 22, cost: 0.0000194 },
+        id: "gen-dec-judge",
+      }),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+  return inner;
 }
 const GREETING = "Hello! How can I help you with the Sky Atlas?";
 
@@ -262,8 +291,8 @@ test("a zero-tool answer with groundable content is never bypassed — even a sm
       expect(events.some((e) => e.type === "verify_result")).toBe(true);
       const meta = lastDone(events).checksMeta;
       expect(meta.map((c) => c.kind).slice(0, 3)).toEqual(["smalltalk_judge", "round_checks", "verify"]);
-      expect(meta[0].inputTokens).toBe(5);
-      expect(meta[0].outputTokens).toBe(2);
+      expect(meta[0].inputTokens).toBe(340);
+      expect(meta[0].outputTokens).toBe(22);
     })));
 
 test("the judge never fires on a groundable QUESTION — 'what is A.1.6?' needs no model to be ruled factual", () =>
@@ -281,7 +310,10 @@ test("the judge never fires on a groundable QUESTION — 'what is A.1.6?' needs 
       expect(events.some((e) => e.type === "verify_result")).toBe(true);
     })));
 
-test("the judge never fires past the first user message — later turns always audit", () =>
+// Reversed 2026-09-22: the judge used to be first-turn only, so a bare
+// "thanks!" on turn 3 always paid a full audit. Later turns are now judged
+// too — see the orchestrator's note for the measurement that allows it.
+test("the judge fires past the first user message — a late 'thanks!' can bypass", () =>
   withModels("strong/verifier", () =>
     withJudge("fast/judge", async () => {
       const judgeCalls: { model: string }[] = [];
@@ -297,8 +329,31 @@ test("the judge never fires past the first user message — later turns always a
           jsonCall: withJudgeRuling(fakeSlicedJson({}), '{"smalltalk": true}', judgeCalls),
         }),
       );
-      expect(judgeCalls).toEqual([]);
+      expect(judgeCalls.length).toBe(1);
+      expect(events.some((e) => e.type === "verify_result")).toBe(false);
+      expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["smalltalk_judge"]);
+    })));
+
+// The other half of the expansion: a later turn that only LOOKS conversational
+// still audits, because the ruling is what gates the bypass — not the turn
+// index. This is the case the first-turn gate used to hide.
+test("a later-turn follow-up ruled factual still gets the full audit", () =>
+  withModels("strong/verifier", () =>
+    withJudge("fast/judge", async () => {
+      const history: Msg[] = [
+        { role: "user", content: "what governs the fee?" },
+        { role: "assistant", content: "The fee is governed by A.1.6." },
+        { role: "user", content: "is that actually true?" },
+      ];
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: history, question: "is that actually true?", maxIterations: 3,
+          stream: fakeStream([[textChunk("Yes, that is correct."), finishChunk("stop")]]),
+          jsonCall: withJudgeRuling(fakeSlicedJson({}), '{"smalltalk": false}'),
+        }),
+      );
       expect(events.some((e) => e.type === "verify_result")).toBe(true);
+      expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["smalltalk_judge", "round_checks", "verify"]);
     })));
 
 test("no judge model configured → bypass disabled outright, greetings get the full audit", () =>
@@ -419,6 +474,47 @@ test("verification disabled: done.content still carries the gate's citation repa
     }
   }));
 
+test("a miss-shaped answer gets the /teach invitation on answer_final and done", () =>
+  withModels("", async () => {
+    const answer = "I couldn't find a document naming the freeze role.";
+    const events = await collect(
+      runVerifiedChat({ ix, messages: [userMsg], stream: fakeStream([[textChunk(answer), finishChunk("stop")]]), question: "hi", maxIterations: 3 }),
+    );
+    const done = lastDone(events);
+    expect(done.content).toContain("/teach");
+    const answerFinal = events.find((e) => e.type === "answer_final");
+    expect(answerFinal?.type === "answer_final" && answerFinal.content).toContain("/teach");
+  }));
+
+// Review of #386: the small-talk bypass was the one exit that skipped the
+// hint. A miss-shaped, uncheckable answer the judge rules small talk still
+// gets the invitation — and still skips the audit.
+test("the small-talk bypass still appends the /teach invitation to a miss-shaped answer", () =>
+  withModels("strong/verifier", () =>
+    withJudge("fast/judge", async () => {
+      const miss = "I couldn't find a document naming the freeze role.";
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "hi", maxIterations: 3,
+          stream: fakeStream([[textChunk(miss), finishChunk("stop")]]),
+          jsonCall: withJudgeRuling(fakeSlicedJson({}), '{"smalltalk": true}'),
+        }),
+      );
+      const done = lastDone(events);
+      expect(done.checksMeta.map((c) => c.kind)).toEqual(["smalltalk_judge"]);
+      expect(done.content).toContain("/teach");
+    })));
+
+test("a found answer is not appended a /teach invitation", () =>
+  withModels("", async () => {
+    const answer = "Spark is a Prime Agent documented under the Spark artifact.";
+    const events = await collect(
+      runVerifiedChat({ ix, messages: [userMsg], stream: fakeStream([[textChunk(answer), finishChunk("stop")]]), question: "hi", maxIterations: 3 }),
+    );
+    expect(lastDone(events).content).toContain("Spark is a Prime Agent");
+    expect(lastDone(events).content).not.toContain("/teach");
+  }));
+
 test("deterministic-only mode flags fabricated doc numbers as hard failures", () =>
   withModels("", async () => {
     const bad = "That rule is defined in Q.99.42.7 of the atlas.";
@@ -450,7 +546,12 @@ test("verifier pass: checking status counts real sources, verify_result pass", (
     ]);
     // One tool result → one evidence entry: singular, and never "0 sources".
     const checking = events.find((e) => e.type === "status" && e.stage === "checking")!;
-    expect(checking.type === "status" && checking.detail).toBe("Cross-checking the answer against 1 source…");
+    expect(checking.type === "status" && checking.detail).toBe("Cross-checking the answer against what 1 lookup returned…");
+    // A cited document is a "citation" on the chip row ("citations · N").
+    // This count is tool results, which is a different number, and using the
+    // same word for both put two counts on one screen with nothing to tell
+    // them apart.
+    expect(checking.type === "status" && checking.detail).not.toContain("source");
     const verify = events.find((e) => e.type === "verify_result")!;
     expect(verify.type === "verify_result" && verify.overall).toBe("pass");
     expect(verify.type === "verify_result" && verify.contradictions).toEqual([]);
@@ -481,7 +582,7 @@ test("comparing status fires on a grounded turn even with no verifier model", ()
 test("ungrounded turn: verification stages are suppressed, the audit still runs", () =>
   withModels("strong/verifier", async () => {
     // Nothing retrieved this turn and no earlier turns to fall back on, so
-    // there is no basis to name — "against 0 sources" must never be announced.
+    // there is no basis to name — "against 0 lookups" must never be announced.
     // The audit itself is unchanged (a no-retrieval answer is the most
     // hallucination-prone case); only the ticker goes quiet.
     const events = await collect(
@@ -493,6 +594,23 @@ test("ungrounded turn: verification stages are suppressed, the audit still runs"
     );
     expect(kinds(events)).toEqual(["status:synthesizing", "token", "paragraph_check", "answer_final", "verify_result", "done"]);
     expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["round_checks", "verify"]);
+  }));
+
+test("small talk: the synthesizing row says Responding, not written from the evidence", () =>
+  withModels("strong/verifier", async () => {
+    // Nothing retrieved, nothing injected and no earlier turn to lean on. The
+    // old copy claimed the answer was "written from the evidence" under a row
+    // with no Sources and no lookups beneath it — a false claim on exactly the
+    // turns a reader is least likely to excuse it on.
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream([[textChunk("Hello! How can I help?"), finishChunk("stop")]]),
+        jsonCall: fakeSlicedJson({}),
+      }),
+    );
+    const details = events.filter((e) => e.type === "status").map((e) => (e.type === "status" ? e.detail : ""));
+    expect(details).toEqual(["Responding…"]);
   }));
 
 test("no tools but earlier turns: the stages name the conversation as the basis", () =>
@@ -598,6 +716,14 @@ test("[E-const] standing evidence: included when the answer mentions a known par
     expect(refutePrompt).toContain("[E-const]");
     expect(refutePrompt).toContain("atlas_param_table");
     expect(refutePrompt).toContain(name);
+    // Parameter rows follow the shared evidence and precede the paragraph,
+    // so a paragraph that names one does not split the cacheable prefix.
+    const schemaAt = refutePrompt.indexOf("[E0]");
+    const constAt = refutePrompt.indexOf("[E-const]");
+    const answerAt = refutePrompt.indexOf("## Answer to audit");
+    expect(schemaAt).toBeGreaterThanOrEqual(0);
+    expect(constAt).toBeGreaterThan(schemaAt);
+    expect(answerAt).toBeGreaterThan(constAt);
     // No candidate was ever produced (SLICE_EMPTY), so confirm never fired.
     expect(capturedBySlice.has("confirm")).toBe(false);
 
@@ -875,7 +1001,7 @@ test("paragraph mode: one paragraph_refute event per paragraph, all landing befo
       const events = await collect(
         runVerifiedChat({
           ix, messages: [userMsg], question: "hi", maxIterations: 3,
-          stream: fakeStream([[textChunk("First paragraph.\n\nSecond paragraph."), finishChunk("stop")]]),
+          stream: fakeStream([[textChunk("First paragraph states a claim.\n\nSecond paragraph states a claim."), finishChunk("stop")]]),
           jsonCall: fakeSlicedJson({}, jsonCalls),
         }),
       );
@@ -901,14 +1027,14 @@ test("paragraph mode: a per-paragraph contradiction is confirmed and reaches the
       const events = await collect(
         runVerifiedChat({
           ix, messages: [userMsg], question: "hi", maxIterations: 3,
-          stream: fakeStream([[textChunk("Bad paragraph."), finishChunk("stop")]]),
-          jsonCall: fakeSlicedJson({ refute: [sliceFail("Bad paragraph.")], confirm: [CONFIRM_AGREE] }),
+          stream: fakeStream([[textChunk("The bad paragraph states a wrong schema fact."), finishChunk("stop")]]),
+          jsonCall: fakeSlicedJson({ refute: [sliceFail("The bad paragraph states a wrong schema fact.")], confirm: [CONFIRM_AGREE] }),
         }),
       );
       const verify = events.find((e) => e.type === "verify_result")!;
       expect(verify.type === "verify_result" && verify.overall).toBe("fail");
       expect(verify.type === "verify_result" && verify.contradictions).toHaveLength(1);
-      expect(verify.type === "verify_result" && verify.contradictions[0]).toMatchObject({ answer: "Bad paragraph.", evidence: REAL_SPAN });
+      expect(verify.type === "verify_result" && verify.contradictions[0]).toMatchObject({ answer: "The bad paragraph states a wrong schema fact.", evidence: REAL_SPAN });
     },
     "paragraph",
   ));
@@ -918,8 +1044,8 @@ test("paragraph mode: a tool_call between bursts drops the earlier burst's refut
     "strong/verifier",
     async () => {
       const rounds = [
-        [textChunk("Pre-tool paragraph.\n\n"), toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
-        [textChunk("Post-tool paragraph."), finishChunk("stop")],
+        [textChunk("Pre-tool paragraph states a claim.\n\n"), toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+        [textChunk("Post-tool paragraph states a claim."), finishChunk("stop")],
       ];
       const events = await collect(
         runVerifiedChat({
@@ -981,3 +1107,609 @@ test("CHAT_REFUTE_MODE=answer (explicit) reproduces the pre-2026-09 sequence —
     },
     "answer",
   ));
+
+// ── Citation marks (per-doc Sources-chip check, verify/citation-marks.ts) ───
+// withModels zeroes chatCitationCheckModel by default (same reasoning as the
+// smalltalk judge slot), so every test above this section runs with the
+// feature off and never has to account for an extra citation_marks event.
+// judgeCitation posts to /systemone (Jev), not the sliced-verifier's jsonCall
+// — same split withJudge/withJudgeRuling exploit for the smalltalk judge.
+function withCitationCheck(model: string, fn: () => Promise<void>): Promise<void> {
+  const prev = config.chatCitationCheckModel;
+  const prevKey = config.openrouterApiKey;
+  config.chatCitationCheckModel = model;
+  config.openrouterApiKey = config.openrouterApiKey || "test-key"; // askJev refuses without one
+  return fn().finally(() => {
+    config.chatCitationCheckModel = prev;
+    config.openrouterApiKey = prevKey;
+  });
+}
+function withCiteJudge(verdict: string, fn: () => Promise<void>): Promise<void> {
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: any, init: any) => {
+    if (!String(url).includes("/systemone")) return prevFetch(url, init);
+    return new Response(
+      JSON.stringify({
+        answers: { support: { type: "choice", choice: verdict, probabilities: { [verdict]: 1 }, confidence: 1 } },
+        usage: { input_tokens: 10, output_tokens: 2, cost: 0.000001 },
+        id: "gen-dec-cite",
+      }),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+  return fn().finally(() => {
+    globalThis.fetch = prevFetch;
+  });
+}
+// A real doc from the loaded ix fixture — any uuid it recognizes will do, and
+// citationPairs needs a claim with ≥3 real words once the link markup is
+// stripped, not a bare "See [Doc](...)".
+const [CITE_UUID] = ix.docMap.keys();
+const ANSWER_WITH_CITE = `This document explains various governance details here [Doc](/atlas/${CITE_UUID}).`;
+// The turn must actually RETRIEVE what it cites. verify/provenance.ts reads
+// the transcript to decide which question each citation gets, and a document
+// the turn never looked up gets no mark at all — so a fixture that cites out
+// of thin air now tests the unretrieved path, not the backed one. This round
+// runs the real atlas_get, which puts the document's content in the transcript.
+const RETRIEVE_CITED = [toolChunk("atlas_get", JSON.stringify({ id: CITE_UUID })), finishChunk("tool_calls")];
+
+test("citation marks: one event after answer_final and before verify_result, backed on a supports verdict", () =>
+  withModels("strong/verifier", () =>
+    withCitationCheck("cite/judge", () =>
+      withCiteJudge("supports", async () => {
+        const events = await collect(
+          runVerifiedChat({
+            ix, messages: [userMsg], question: "hi", maxIterations: 3,
+            stream: fakeStream([RETRIEVE_CITED, [textChunk(ANSWER_WITH_CITE), finishChunk("stop")]]),
+            jsonCall: fakeSlicedJson({}),
+          }),
+        );
+        const markEvents = events.filter((e) => e.type === "citation_marks");
+        expect(markEvents).toHaveLength(1);
+        const marks = (markEvents[0] as Extract<HarnessEvent, { type: "citation_marks" }>).marks;
+        expect(marks[CITE_UUID]?.status).toBe("backed");
+        const finalIdx = events.findIndex((e) => e.type === "answer_final");
+        const markIdx = events.findIndex((e) => e.type === "citation_marks");
+        const verifyIdx = events.findIndex((e) => e.type === "verify_result");
+        expect(finalIdx).toBeLessThan(markIdx);
+        expect(markIdx).toBeLessThan(verifyIdx);
+      }),
+    ),
+  ));
+
+test("citation marks: no citations in the answer — no event and no /systemone call", () =>
+  withModels("strong/verifier", () =>
+    withCitationCheck("cite/judge", async () => {
+      let called = false;
+      const prevFetch = globalThis.fetch;
+      globalThis.fetch = (async (url: any, init: any) => {
+        if (String(url).includes("/systemone")) called = true;
+        return prevFetch(url, init);
+      }) as typeof fetch;
+      try {
+        const events = await collect(
+          runVerifiedChat({
+            ix, messages: [userMsg], question: "hi", maxIterations: 3,
+            stream: fakeStream([[textChunk("An answer with no citations at all."), finishChunk("stop")]]),
+            jsonCall: fakeSlicedJson({}),
+          }),
+        );
+        expect(events.some((e) => e.type === "citation_marks")).toBe(false);
+        expect(called).toBe(false);
+      } finally {
+        globalThis.fetch = prevFetch;
+      }
+    }),
+  ));
+
+test("citation marks: chatCitationCheckModel='' disables the feature — no event even with a citation present", () =>
+  withModels("strong/verifier", () =>
+    withCiteJudge("supports", async () => {
+      // withModels already zeroed chatCitationCheckModel; no withCitationCheck here.
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "hi", maxIterations: 3,
+          stream: fakeStream([RETRIEVE_CITED, [textChunk(ANSWER_WITH_CITE), finishChunk("stop")]]),
+          jsonCall: fakeSlicedJson({}),
+        }),
+      );
+      expect(events.some((e) => e.type === "citation_marks")).toBe(false);
+    }),
+  ));
+
+// Reconciliation against the refute/confirm audit (verify/disputes.ts):
+// observed 2026-09-24, one turn shipped a confirmed dispute AND a green ✓ on
+// the same doc in the Sources chips. withCiteJudge("supports") marks every
+// cited doc "backed" (a blanket /systemone stub, not doc-aware), so the only
+// way a doc ends up NOT backed on the wire is the reconciliation this test
+// exists to cover.
+test("citation marks: an agreed contradiction sourced to a doc withholds that doc's backed mark, but another doc's mark survives", () =>
+  withModels("strong/verifier", () =>
+    withCitationCheck("cite/judge", () =>
+      withCiteJudge("supports", async () => {
+        const uuid2 = [...ix.docMap.keys()].find((u) => u !== CITE_UUID)!;
+        // Two citations, each in its own sentence so citationPairs gives each
+        // its own claim (a shared segment would give both the same claim text
+        // — see cite-pairs.ts). Generic anchor text ("Doc"/"Doc2") matches the
+        // convention ANSWER_WITH_CITE already uses above — no title-mismatch
+        // repair to worry about.
+        const answer = [
+          `This document explains various governance details here [Doc](/atlas/${CITE_UUID}).`,
+          `This other doc explains different governance matters here [Doc2](/atlas/${uuid2}).`,
+        ].join(" ");
+        // A crafted history tool result whose JSON shape mirrors atlas_get's
+        // real `{"id":"<uuid>",...}` output closely enough for refute.ts's
+        // resolveUuid to resolve the contradiction to CITE_UUID specifically
+        // (nearest preceding id/uuid field before the matched evidence_span —
+        // see disputes.ts's header on how that resolution works, and its
+        // caveat that it is best-effort/heuristic).
+        const SNIPPET = "The archived note says the threshold is five of nine.";
+        const toolMsg: Msg = { role: "tool", tool_call_id: "call_1", content: JSON.stringify({ id: CITE_UUID, content: SNIPPET }) };
+        // uuid2 has to be retrieved too, in its OWN entry. A citation to a doc
+        // the turn never looked up now gets no mark at all
+        // (verify/provenance.ts), and keeping it in a separate entry leaves
+        // refute's nearest-preceding-id resolution for CITE_UUID untouched.
+        const toolMsg2: Msg = {
+          role: "tool", tool_call_id: "call_2",
+          content: JSON.stringify({ id: uuid2, content: "A second document with its own unrelated content." }),
+        };
+        const refuteFixture = JSON.stringify({
+          contradictions: [{ answer_span: answer, evidence_span: SNIPPET, why: "contradicts the archived note" }],
+          not_found: [],
+          notes: "",
+        });
+        const events = await collect(
+          runVerifiedChat({
+            ix, messages: [userMsg, toolMsg, toolMsg2], question: "hi", maxIterations: 3,
+            stream: fakeStream([[textChunk(answer), finishChunk("stop")]]),
+            jsonCall: fakeSlicedJson({ refute: [refuteFixture], confirm: [CONFIRM_AGREE] }),
+          }),
+        );
+
+        // The audit agreed a contradiction sourced to CITE_UUID — sanity-check
+        // the fixture actually produced what this test needs before asserting
+        // on the reconciliation itself.
+        const verify = events.find((e) => e.type === "verify_result")!;
+        expect(verify.type === "verify_result" && verify.overall).toBe("fail");
+        expect(verify.type === "verify_result" && verify.contradictions).toHaveLength(1);
+        expect(verify.type === "verify_result" && verify.contradictions[0].uuid).toBe(CITE_UUID);
+
+        const markEvents = events.filter((e) => e.type === "citation_marks");
+        expect(markEvents).toHaveLength(1);
+        const marks = (markEvents[0] as Extract<HarnessEvent, { type: "citation_marks" }>).marks;
+        // Withheld: an agreed contradiction is sourced to this doc — no
+        // `backed` (or any) mark for it reaches the wire.
+        expect(marks[CITE_UUID]).toBeUndefined();
+        // Untouched: the other cited doc has no contradiction against it.
+        expect(marks[uuid2]?.status).toBe("backed");
+
+        // Emission order is unchanged: citation_marks still lands before
+        // verify_result even though the audit is now resolved first.
+        const at = (t: string) => events.findIndex((e) => e.type === t);
+        expect(at("citation_marks")).toBeGreaterThan(-1);
+        expect(at("citation_marks")).toBeLessThan(at("verify_result"));
+      }),
+    ),
+  ));
+
+// ── Answer coverage ("did it answer the question?", verify/answer-coverage.ts) ──
+// withModels zeroes chatAnswerCoverageModel; these opt back in. Coverage and
+// the citation marks both post to /systemone, so the stub dispatches on the
+// request's question ids — `responds` is coverage, `support` is a citation
+// judgment, `smalltalk` the bypass judge — and records which ones were asked.
+type JevHandlers = Partial<Record<"responds" | "support" | "smalltalk", (body: any) => Record<string, unknown>>>;
+function withJevStub(handlers: JevHandlers, fn: (asked: string[]) => Promise<void>): Promise<void> {
+  const prevFetch = globalThis.fetch;
+  const prevKey = config.openrouterApiKey;
+  config.openrouterApiKey = config.openrouterApiKey || "test-key"; // askJev refuses without one
+  const asked: string[] = [];
+  globalThis.fetch = (async (url: any, init: any) => {
+    if (!String(url).includes("/systemone")) return prevFetch(url, init);
+    const body = JSON.parse(init.body);
+    const kind = (["responds", "support", "smalltalk"] as const).find((k) => k in body.questions);
+    if (!kind || !handlers[kind]) throw new Error(`withJevStub: unexpected Jev request ${Object.keys(body.questions).join(",")}`);
+    asked.push(kind);
+    return new Response(
+      JSON.stringify({ answers: handlers[kind]!(body), usage: { input_tokens: 1200, output_tokens: 30, cost: 0.00007 }, id: `gen-dec-${kind}` }),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+  return fn(asked).finally(() => {
+    globalThis.fetch = prevFetch;
+    config.openrouterApiKey = prevKey;
+  });
+}
+function withCoverage(model: string, fn: () => Promise<void>): Promise<void> {
+  const prev = config.chatAnswerCoverageModel;
+  config.chatAnswerCoverageModel = model;
+  return fn().finally(() => {
+    config.chatAnswerCoverageModel = prev;
+  });
+}
+const coverageChoice = (probabilities: Record<string, number>) => ({ type: "choice", choice: "answers", probabilities, confidence: 0.9 });
+const MULTI_Q = "Which agents have paid distribution rewards out and how much?";
+
+test("answer coverage: one event after answer_final and citation_marks, before verify_result, naming a dropped part", () =>
+  withModels("strong/verifier", () =>
+    withCitationCheck("cite/judge", () =>
+      withCoverage("cov/jev", () =>
+        withJevStub(
+          {
+            support: () => ({ support: { type: "choice", choice: "supports", probabilities: { supports: 1 }, confidence: 1 } }),
+            responds: (body) => {
+              expect(body.model).toBe("cov/jev");
+              expect(body.state.question).toBe(MULTI_Q);
+              return {
+                responds: coverageChoice({ answers: 0.97, declines: 0.02, deflects: 0.01, asks: 0 }),
+                part_0: { type: "noul", noul: 0.95 },
+                part_1: { type: "noul", noul: 0.12 },
+              };
+            },
+          },
+          async (asked) => {
+            const events = await collect(
+              runVerifiedChat({
+                ix, messages: [userMsg], question: MULTI_Q, maxIterations: 3,
+                stream: fakeStream([RETRIEVE_CITED, [textChunk(ANSWER_WITH_CITE), finishChunk("stop")]]),
+                jsonCall: fakeSlicedJson({}),
+              }),
+            );
+            expect(asked.filter((k) => k === "responds")).toHaveLength(1);
+            const cov = events.filter((e) => e.type === "answer_coverage");
+            expect(cov).toEqual([
+              { type: "answer_coverage", verdict: "answers", missingParts: ["how much"], parts: ["Which agents have paid distribution rewards out", "how much"] },
+            ]);
+            const at = (t: string) => events.findIndex((e) => e.type === t);
+            expect(at("answer_final")).toBeLessThan(at("citation_marks"));
+            expect(at("citation_marks")).toBeLessThan(at("answer_coverage"));
+            expect(at("answer_coverage")).toBeLessThan(at("verify_result"));
+            const row = lastDone(events).checksMeta.find((c) => c.kind === "answer_coverage")!;
+            expect(row.model).toBe("cov/jev");
+            expect(row.generationId).toBe("gen-dec-responds");
+            expect(row.inputTokens).toBe(1200);
+            expect((row.verdict as { probabilities: Record<string, number> }).probabilities.answers).toBe(0.97);
+          },
+        ),
+      ),
+    ),
+  ));
+
+test("answer coverage: a deflecting answer is ruled `deflects` on the no-verifier path too", () =>
+  withModels("", () =>
+    withCoverage("cov/jev", () =>
+      withJevStub({ responds: () => ({ responds: coverageChoice({ deflects: 0.54, asks: 0.46, answers: 0, declines: 0 }) }) }, async () => {
+        const events = await collect(
+          runVerifiedChat({
+            ix, messages: [userMsg], question: "who signs the multisigs?", maxIterations: 3,
+            stream: fakeStream([[textChunk("Let me get more specific information about the signers."), finishChunk("stop")]]),
+          }),
+        );
+        const cov = events.find((e) => e.type === "answer_coverage");
+        expect(cov).toEqual({ type: "answer_coverage", verdict: "deflects", missingParts: [] });
+        expect(events.at(-1)?.type).toBe("done");
+      }),
+    ),
+  ));
+
+test("answer coverage: raw tool output is ruled in code — no Jev request", () =>
+  withModels("strong/verifier", () =>
+    withCoverage("cov/jev", () =>
+      withJevStub({}, async (asked) => {
+        const events = await collect(
+          runVerifiedChat({
+            ix, messages: [userMsg], question: "how are primitives structured?", maxIterations: 3,
+            stream: fakeStream([[textChunk('{"id": ["A.2.2.5", "A.2.2.6"]}'), finishChunk("stop")]]),
+            jsonCall: fakeSlicedJson({}),
+          }),
+        );
+        expect(asked).toEqual([]);
+        expect(events.find((e) => e.type === "answer_coverage")).toEqual({ type: "answer_coverage", verdict: "deflects", missingParts: [] });
+        const row = lastDone(events).checksMeta.find((c) => c.kind === "answer_coverage")!;
+        expect(row.model).toBeNull();
+        expect((row.verdict as { rawToolOutput: boolean }).rawToolOutput).toBe(true);
+      }),
+    ),
+  ));
+
+test("answer coverage: chatAnswerCoverageModel='' — no event, no row, no request", () =>
+  withModels("strong/verifier", () =>
+    withJevStub({}, async (asked) => {
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "hi", maxIterations: 3,
+          stream: fakeStream([[textChunk("An answer."), finishChunk("stop")]]),
+          jsonCall: fakeSlicedJson({}),
+        }),
+      );
+      expect(asked).toEqual([]);
+      expect(events.some((e) => e.type === "answer_coverage")).toBe(false);
+      expect(lastDone(events).checksMeta.some((c) => c.kind === "answer_coverage")).toBe(false);
+    }),
+  ));
+
+test("answer coverage: a failed Jev call is silent — no event, the turn still finishes", () =>
+  withModels("strong/verifier", () =>
+    withCoverage("cov/jev", () =>
+      withJevStub({ responds: () => ({ responds: { type: "noul", noul: 0.5 } }) }, async () => {
+        const events = await collect(
+          runVerifiedChat({
+            ix, messages: [userMsg], question: "hi", maxIterations: 3,
+            stream: fakeStream([[textChunk("An answer."), finishChunk("stop")]]),
+            jsonCall: fakeSlicedJson({}),
+          }),
+        );
+        expect(events.some((e) => e.type === "answer_coverage")).toBe(false);
+        expect(events.some((e) => e.type === "verify_result")).toBe(true);
+        expect(events.at(-1)?.type).toBe("done");
+      }),
+    ),
+  ));
+
+test("answer coverage: skipped when the judge ruled the message small talk but the audit still runs", () =>
+  withModels("strong/verifier", () =>
+    withCoverage("cov/jev", () =>
+      withJevStub({ smalltalk: () => ({ smalltalk: { type: "noul", noul: 0.93 } }) }, async (asked) => {
+        const prev = config.chatSmalltalkJudgeModel;
+        config.chatSmalltalkJudgeModel = "fast/judge";
+        try {
+          // A link in the answer fails the bypass's answer-side condition, so
+          // the turn is audited even though the judge said small talk.
+          const events = await collect(
+            runVerifiedChat({
+              ix, messages: [userMsg], question: "thanks!", maxIterations: 3,
+              stream: fakeStream([[textChunk(`You're welcome! [Doc](/atlas/${CITE_UUID})`), finishChunk("stop")]]),
+              jsonCall: fakeSlicedJson({}),
+            }),
+          );
+          expect(asked).toEqual(["smalltalk"]);
+          expect(events.some((e) => e.type === "verify_result")).toBe(true);
+          expect(events.some((e) => e.type === "answer_coverage")).toBe(false);
+        } finally {
+          config.chatSmalltalkJudgeModel = prev;
+        }
+      }),
+    ),
+  ));
+
+test("answer coverage: the small-talk bypass never reaches it", () =>
+  withModels("strong/verifier", () =>
+    withCoverage("cov/jev", () =>
+      withJevStub({ smalltalk: () => ({ smalltalk: { type: "noul", noul: 0.93 } }) }, async (asked) => {
+        const prev = config.chatSmalltalkJudgeModel;
+        config.chatSmalltalkJudgeModel = "fast/judge";
+        try {
+          const events = await collect(
+            runVerifiedChat({
+              ix, messages: [userMsg], question: "hello", maxIterations: 3,
+              stream: fakeStream([[textChunk(GREETING), finishChunk("stop")]]),
+              jsonCall: fakeSlicedJson({}),
+            }),
+          );
+          expect(asked).toEqual(["smalltalk"]);
+          expect(events.some((e) => e.type === "answer_final")).toBe(false);
+          expect(events.some((e) => e.type === "answer_coverage")).toBe(false);
+        } finally {
+          config.chatSmalltalkJudgeModel = prev;
+        }
+      }),
+    ),
+  ));
+
+// --- Quote-attribution lane: shadow mode must be behaviour-neutral -----------
+// The lane asks Jev whether an ungrounded quoted span is presented as a
+// quotation at all. Its margin has NEVER been measured (402 on the account the
+// bakeoff needs; no DATABASE_URL for the real-traffic false-fire check), so it
+// ships in "shadow": it records a judgement and changes NOTHING. A shadow lane
+// that moves the badge is a bug, not a soft launch — these tests are what say so.
+const CALLOUT_ANSWER = [
+  "Most atlas churn is renumbering rather than substantive change.",
+  "",
+  "Some other framing entirely:",
+  "",
+  "> This sentence appears in no retrieved source at all, and is long enough to be checked.",
+].join("\n");
+
+async function runCallout(): Promise<HarnessDone> {
+  const events = await collect(
+    runVerifiedChat({
+      ix, messages: [userMsg], question: "how much does atlas churn matter?", maxIterations: 3,
+      stream: fakeStream([[textChunk(CALLOUT_ANSWER), finishChunk("stop")]]),
+    }),
+  );
+  return lastDone(events);
+}
+
+test("shadow: the ungrounded span still fails, exactly as it does without the lane", async () => {
+  const realMode = config.chatQuoteAttribution;
+  const realFetch = globalThis.fetch;
+  const realKey = config.openrouterApiKey;
+  try {
+    // Jev would rule this self-authored (p well under the margin). Under `gate`
+    // that would clear the span; under `shadow` it must change nothing.
+    config.openrouterApiKey = "test-key";
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ answers: { quoted: { type: "noul", noul: 0.02 } } }), { status: 200 })) as unknown as typeof fetch;
+
+    config.chatQuoteAttribution = "shadow";
+    const shadow = await runCallout();
+    config.chatQuoteAttribution = "off";
+    const off = await runCallout();
+
+    const verdictOf = (d: HarnessDone) => {
+      const row = d.checksMeta.find((c) => c.kind === "round_checks")!.verdict as { checks: { ungroundedQuotes: string[]; failed: boolean } };
+      return row.checks;
+    };
+    // Severity is identical with the lane on and off, and the span still fails.
+    expect(verdictOf(shadow)).toEqual(verdictOf(off));
+    expect(verdictOf(shadow).failed).toBe(true);
+    expect(verdictOf(shadow).ungroundedQuotes).toHaveLength(1);
+
+    // The judgement IS recorded, with the raw probability and what `gate` would
+    // have done — that record is the entire point of shadow mode.
+    const qa = shadow.checksMeta.find((c) => c.kind === "quote_attribution");
+    expect(qa).toBeDefined();
+    const v = qa!.verdict as { mode: string; judgements: { p: number | null }[]; wouldPromote: string[] };
+    expect(v.mode).toBe("shadow");
+    expect(v.judgements[0].p).toBe(0.02);
+    expect(v.wouldPromote).toEqual([]); // 0.02 < margin → gate would have cleared it
+    // ...and "off" makes no call at all.
+    expect(off.checksMeta.some((c) => c.kind === "quote_attribution")).toBe(false);
+  } finally {
+    config.chatQuoteAttribution = realMode;
+    config.openrouterApiKey = realKey;
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("shadow: a failed Jev call is recorded as null and still changes nothing", async () => {
+  const realMode = config.chatQuoteAttribution;
+  const realFetch = globalThis.fetch;
+  const realKey = config.openrouterApiKey;
+  try {
+    config.openrouterApiKey = "test-key";
+    // 400 is fatal in askJev — no retries, so this stays fast.
+    globalThis.fetch = (async () => new Response("nope", { status: 400 })) as unknown as typeof fetch;
+    config.chatQuoteAttribution = "shadow";
+    const done = await runCallout();
+    const row = done.checksMeta.find((c) => c.kind === "round_checks")!.verdict as { checks: { failed: boolean } };
+    expect(row.checks.failed).toBe(true);
+    const v = done.checksMeta.find((c) => c.kind === "quote_attribution")!.verdict as {
+      judgements: { p: number | null }[]; wouldPromote: string[];
+    };
+    expect(v.judgements[0].p).toBeNull();
+    expect(v.wouldPromote).toEqual([]); // fail-open: a null never promotes
+  } finally {
+    config.chatQuoteAttribution = realMode;
+    config.openrouterApiKey = realKey;
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("the lane is not asked about a span code already settled (tier A)", async () => {
+  const realMode = config.chatQuoteAttribution;
+  const realFetch = globalThis.fetch;
+  const realKey = config.openrouterApiKey;
+  let calls = 0;
+  try {
+    config.openrouterApiKey = "test-key";
+    // The citation-marks and answer-coverage lanes are Jev calls too, so count
+    // only requests carrying THIS lane's question id.
+    globalThis.fetch = (async (_url: any, init: any) => {
+      if (JSON.parse(init.body).questions?.quoted) calls++;
+      return new Response(JSON.stringify({ answers: { quoted: { type: "noul", noul: 0.9 } } }), { status: 200 });
+    }) as typeof fetch;
+    config.chatQuoteAttribution = "shadow";
+    const uuid = ix.docMap.keys().next().value as string;
+    const attributed = [
+      `[Some Doc](/atlas/${uuid}) states:`,
+      "",
+      "> This sentence appears in no retrieved source at all, and is long enough to be checked.",
+    ].join("\n");
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "what does it say?", maxIterations: 3,
+        stream: fakeStream([[textChunk(attributed), finishChunk("stop")]]),
+      }),
+    );
+    const done = lastDone(events);
+    // Attributed + ungrounded is the real crime: pure code, no model consulted.
+    expect(calls).toBe(0);
+    expect(done.checksMeta.some((c) => c.kind === "quote_attribution")).toBe(false);
+    const row = done.checksMeta.find((c) => c.kind === "round_checks")!.verdict as { checks: { failed: boolean } };
+    expect(row.checks.failed).toBe(true);
+  } finally {
+    config.chatQuoteAttribution = realMode;
+    config.openrouterApiKey = realKey;
+    globalThis.fetch = realFetch;
+  }
+});
+
+// toolTextsOf is what feeds findUngroundedAddresses and findUntracedNumbers, and
+// it took every role:"tool" content — so an address or figure that appeared ONLY
+// in the review round counted as retrieved. verifier.ts:213-226 refuses that round
+// as evidence for the model audit ("the conservative direction"); this silently
+// undid it for the code checks. Closed 2026-10-01.
+//
+// NOTE the quote check was never affected: it reads evidenceSplit.atlasTexts,
+// built by splitFromTranscript -> evidenceFromTranscript, which already excluded
+// the round. An address is the right probe precisely because it cannot be
+// paraphrased or derived — it is copied from a tool result or invented.
+test("an address seen only in the review round is not grounded", async () => {
+  const ADDR = "0x1f2e3d4c5b6a79889776655443322110aabbccdd";
+  const reviewMsgs: Msg[] = [
+    {
+      role: "assistant", content: null,
+      tool_calls: [{ id: "call_review_notes", type: "function", function: { name: "atlas_review_notes", arguments: "{}" } }],
+    },
+    { role: "tool", tool_call_id: "call_review_notes", content: `Atlas text it was flagged against: "the multisig at ${ADDR}"` },
+  ];
+  const events = await collect(
+    runVerifiedChat({
+      ix, messages: [userMsg, ...reviewMsgs], question: "are you sure about that flag?", maxIterations: 3,
+      stream: fakeStream([[textChunk(`You are right — the multisig is ${ADDR}.`), finishChunk("stop")]]),
+    }),
+  );
+  const row = lastDone(events).checksMeta.find((c) => c.kind === "round_checks")!.verdict as {
+    checks: { ungroundedAddresses: string[]; failed: boolean };
+  };
+  expect(row.checks.ungroundedAddresses).toEqual([ADDR]);
+  expect(row.checks.failed).toBe(true);
+});
+
+// `gate` was documented as "promotes on P >= margin" and did nothing — the
+// judgements were recorded and ungroundedQuotes was never filtered (PR #436
+// review). These assert the mode is real, so flipping it can never again be a
+// silent no-op.
+//
+// Asserted on the EMITTED verify_result, not the round_checks row: that row is
+// pushed before answer_final and is the raw deterministic finding, deliberately
+// pre-gate (the quote_attribution row records what the lane then did with it).
+// The event is what the reader sees.
+async function calloutEventsIn(mode: "shadow" | "gate" | "off", noul: number | null): Promise<HarnessEvent[]> {
+  const realMode = config.chatQuoteAttribution;
+  const realFetch = globalThis.fetch;
+  const realKey = config.openrouterApiKey;
+  try {
+    config.openrouterApiKey = "test-key";
+    globalThis.fetch = (async (_u: any, init: any) => {
+      if (noul === null) return new Response("nope", { status: 400 }); // fatal in askJev: no retries
+      const body = JSON.parse(init.body);
+      if (!body.questions?.quoted) return new Response(JSON.stringify({ answers: {} }), { status: 200 });
+      return new Response(JSON.stringify({ answers: { quoted: { type: "noul", noul } } }), { status: 200 });
+    }) as unknown as typeof fetch;
+    config.chatQuoteAttribution = mode;
+    return await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "how much does atlas churn matter?", maxIterations: 3,
+        stream: fakeStream([[textChunk(CALLOUT_ANSWER), finishChunk("stop")]]),
+      }),
+    );
+  } finally {
+    config.chatQuoteAttribution = realMode;
+    config.openrouterApiKey = realKey;
+    globalThis.fetch = realFetch;
+  }
+}
+const verifyOf = (evs: HarnessEvent[]) => evs.find((e) => e.type === "verify_result") as undefined | { overall: string; ungroundedQuotes: string[] };
+
+test("gate: a span the model says is NOT presented as a quotation stops failing the turn", async () => {
+  // No verifier model is configured here, so emitVerify reduces to checks.failed:
+  // a cleared span means no badge at all, which is exactly the user-visible change.
+  expect(verifyOf(await calloutEventsIn("gate", 0.02))).toBeUndefined();
+  // The same answer and the same judgement in shadow still fails — the whole
+  // point of the mode being a mode.
+  const shadowed = verifyOf(await calloutEventsIn("shadow", 0.02));
+  expect(shadowed?.overall).toBe("fail");
+  expect(shadowed?.ungroundedQuotes).toHaveLength(1);
+});
+
+test("gate: a span the model says IS presented as a quotation still fails", async () => {
+  const gated = verifyOf(await calloutEventsIn("gate", 0.99));
+  expect(gated?.overall).toBe("fail");
+  expect(gated?.ungroundedQuotes).toHaveLength(1);
+});
+
+test("gate: a failed judgement is fail-open — a null never clears a span", async () => {
+  const gated = verifyOf(await calloutEventsIn("gate", null));
+  expect(gated?.overall).toBe("fail");
+});

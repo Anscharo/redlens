@@ -184,4 +184,104 @@ describe("atlas artifact store: worker publish is load-bearing (phase 4)", () =>
     expect(worker).not.toContain("web instances keep building their own");
     expect(worker).not.toMatch(/publish-artifacts failed[\s\S]*console\.warn/);
   });
+
+  /** The exit code of the FIRST `process.exit` after `marker` — i.e. the one in
+   *  that log line's own callback. A greedy `/marker[\\s\\S]*exit\\((\\d)\\)/` matches
+   *  any later exit in the file instead, so it passed even with the tail
+   *  callback mutated to exit(1) (the fast-exit path's exit(0) satisfied it).
+   *  Non-greedy pins the callback body. */
+  function exitCodeAfter(worker: string, marker: string): string | undefined {
+    return new RegExp(`${marker}[\\s\\S]*?process\\.exit\\((\\d)\\)`).exec(worker)?.[1];
+  }
+
+  it("atlas-worker kills a hung tick so Railway cron can retry", () => {
+    const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
+    expect(worker).toContain("const HARD_CAP_MS = 15 * 60 * 1000");
+    expect(worker).toContain("atlas-worker: hard cap (15m) — exiting so cron can retry");
+    expect(worker).toContain("cap.unref()");
+    expect(exitCodeAfter(worker, "hard cap \\(15m\\)")).toBe("1");
+  });
+
+  // 2026-09-25: a cold atlas_doc_embeddings is ~19 minutes of backfill, so the
+  // flat 15m cap fired on the first tick of every new environment and reported
+  // exit(1) — a "crashed" worker whose served snapshot had in fact committed at
+  // T+12s. Running out of clock in the best-effort tails is partial progress the
+  // next tick resumes, so the post-heartbeat deadline exits 0 instead.
+  it("atlas-worker's post-heartbeat tail budget is a clean exit, armed on both paths", () => {
+    const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
+    expect(worker).toContain("const TAIL_CAP_MS = 11 * 60 * 1000");
+    expect(exitCodeAfter(worker, "tail budget")).toBe("0");
+    // Both heartbeat sites hand over to the tail deadline — the fast-exit path
+    // runs the same best-effort tails as the rebuild path.
+    const hbs = [...worker.matchAll(/await touchSyncHeartbeat\([^)]*\);\n\s*armTailCap\(\);/g)];
+    expect(hbs.length).toBe(2);
+  });
+
+  // Only sync-embeddings resumes mid-walk; build-history and build-doc-versions
+  // buffer and write once at the end, so a tail kill repeats their walk. The
+  // comment must keep saying so — an "every lane is incremental" claim is what
+  // the 2026-09-25 review caught, and it is the reason the budget is sized off
+  // history's cold walk rather than off the embed rate alone.
+  it("the worker does not claim all three tail lanes resume mid-walk", () => {
+    const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
+    expect(worker).toMatch(/Only ONE of the three lanes actually resumes mid-walk/);
+    expect(worker).toMatch(/instead buffer the whole walk in memory and write once at/);
+    expect(worker).not.toMatch(/every lane of it incremental/);
+  });
+
+  // The whole point of the tail deadline: the process must be gone before the
+  // next tick claims the same backlog. A cron period edited below the budget
+  // would silently reintroduce two workers re-embedding the same docs.
+  it("the tail budget stays under the worker's cron period", () => {
+    const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
+    const toml = fs.readFileSync(path.join(ROOT, "railway.worker.toml"), "utf8");
+    const tailMin = Number(/const TAIL_CAP_MS = (\d+) \* 60 \* 1000/.exec(worker)?.[1]);
+    const everyMin = Number(/cronSchedule = "\*\/(\d+) \* \* \* \*"/.exec(toml)?.[1]);
+    expect(tailMin).toBeGreaterThan(0);
+    expect(everyMin).toBeGreaterThan(0);
+    expect(tailMin).toBeLessThan(everyMin);
+  });
+
+  // `Math.max(FLOOR, TAIL_CAP_MS - elapsed)` has TWO thresholds, and the comment
+  // blended them at first: the floor ENGAGES once the heartbeat passes
+  // TAIL_CAP - FLOOR, but the */12 tick is only OUTLIVED once it passes
+  // CRON - FLOOR. With 660s / 60s / 720s that is minute 10 vs minute 11, and
+  // between them the floor is active while the process still exits inside its own
+  // tick. Asserted as arithmetic so a change to any of the three constants shows
+  // which of the two thresholds moved.
+  it("the floor engages a full minute before it can outlive a tick", () => {
+    const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
+    const toml = fs.readFileSync(path.join(ROOT, "railway.worker.toml"), "utf8");
+    const tail = Number(/const TAIL_CAP_MS = (\d+) \* 60 \* 1000/.exec(worker)?.[1]) * 60;
+    const cron = Number(/cronSchedule = "\*\/(\d+) \* \* \* \*"/.exec(toml)?.[1]) * 60;
+    const floor = Number(/Math\.max\((\d+) \* 1000, TAIL_CAP_MS/.exec(worker)?.[1]);
+    expect(floor).toBe(60);
+
+    const deadline = (hb: number) => hb + Math.max(floor, tail - hb);
+    // Floor inactive: the deadline is exactly the budget, wherever the heartbeat lands.
+    expect(deadline(12)).toBe(tail);
+    expect(deadline(tail - floor)).toBe(tail);
+    // Floor active from there, but still inside the tick all the way to CRON - FLOOR.
+    expect(deadline(tail - floor + 1)).toBeGreaterThan(tail);
+    expect(deadline(cron - floor)).toBe(cron);
+    // Only past CRON - FLOOR does the process outlive its own tick.
+    expect(deadline(cron - floor + 1)).toBeGreaterThan(cron);
+    // The two thresholds are distinct, and the gap between them is CRON - TAIL.
+    expect(cron - floor - (tail - floor)).toBe(cron - tail);
+    expect(cron - tail).toBeGreaterThan(0);
+  });
+
+  it("atlas-worker heartbeats on the rebuild path, not only the fast exit", () => {
+    // 2026-09-22: production cron rebuilt every 12 min (staleEmbeds=1) then
+    // sync.ts no-op'd; heartbeat lived only on the skip path, so freshness
+    // stayed 503 while Railway showed green ticks. After publish, not
+    // after integrity: a failed publish must leave freshness stale.
+    const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
+    const calls = [...worker.matchAll(/await touchSyncHeartbeat\(/g)];
+    expect(calls.length).toBe(2);
+    const publish = worker.indexOf('run("bun", ["scripts/required/publish-artifacts.ts"])');
+    const hb = worker.lastIndexOf("await touchSyncHeartbeat(verifyDb)");
+    expect(publish).toBeGreaterThan(-1);
+    expect(hb).toBeGreaterThan(publish);
+  });
 });

@@ -9,8 +9,14 @@
 import type OpenAI from "openai";
 import { config } from "../../config.ts";
 import type { CheckReport } from "./verify-checks.ts";
+import type { ScreenRecord } from "./refute-screen-record.ts";
 import { isExternalMscTool } from "../../external/envelope.ts";
 import { FACT_TOOL_NAME } from "../../facts/registry.ts";
+import { isUserTeachingTool } from "../teach/inject.ts";
+import { isReviewRound } from "../review-round.ts";
+import { SUMMARY_ACK } from "../context-compact.ts";
+import { isRecallToolId } from "../tool-recall.ts";
+import { TOOLS_BY_NAME } from "../tools/tool-registry.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -25,13 +31,12 @@ export interface Contradiction {
   why: string; // ≤ 20 words
   evidence_label: string; // "[E3]" — the entry the span matched
   uuid: string | null; // nearest `"id":"<uuid>"` (or "uuid") preceding the match inside that entry, else null
-  source: "model" | "param-table";
+  source: "model" | "param-table" | "cited-doc";
   agreed: boolean; // confirm-gate outcome
 }
 
 export interface Verdict {
   contradictions: Contradiction[]; // ALL validated candidates (agreed and not)
-  not_found: string[]; // ≤ 5, text only
   ruling_issued: boolean;
   notes: string; // refute + overreach notes, ≤ 600 chars (persistence only)
   refuteParsed: boolean; // the refute backbone parsed
@@ -45,7 +50,9 @@ export interface Verdict {
   // per-burst stats for the persisted verdict — count of paragraphs submitted,
   // how many parsed, how many raw candidates they produced before span
   // validation, how many were discarded by validation, and how many timed out.
-  paragraphs?: { count: number; parsed: number; candidates: number; discarded: number; timedOut: number };
+  // `screen`: one row per paragraph call when the Jev refute screen ran
+  // (CHAT_REFUTE_SCREEN, verify/refute-screen-record.ts) — its calibration record.
+  paragraphs?: { count: number; parsed: number; candidates: number; discarded: number; timedOut: number; screen?: ScreenRecord[] };
 }
 
 export type VerifyOverall = "pass" | "warn" | "fail" | "unverified";
@@ -89,7 +96,8 @@ export interface EvidenceEntry {
   // injecting it. Deliberately still grouped with atlas (not external) for
   // quote-grounding in splitFromTranscript: glossary definitions genuinely are
   // atlas text, and moving them out would start failing quotes that are real.
-  sourceClass?: "atlas" | "external" | "reference";
+  /** See classifyToolSource: "atlas" is EARNED by a registry tool, never assumed. */
+  sourceClass?: SourceClass;
 }
 
 // Budget a flat list of evidence entries to `maxChars`, newest-first (later
@@ -133,6 +141,91 @@ export function budgetEvidence(entries: EvidenceEntry[], maxChars: number): Evid
 
 // Pull the turn's tool calls + results out of the loop transcript, labeled
 // [E1..En] in chronological order, then budgeted (see budgetEvidence).
+export type SourceClass = "atlas" | "history" | "external" | "reference" | "user" | "unknown";
+
+// The registry tools that return COMMIT METADATA rather than document text:
+// dates, pull-request titles, commit messages, change counts. A document's
+// edit history is not its content — the same distinction cite-pairs.ts draws
+// for claims, applied here to evidence.
+const HISTORY_TOOLS = new Set([
+  "atlas_history",
+  "atlas_recent_changes",
+  "atlas_history_stats",
+  "atlas_pr",
+  "atlas_changed_between",
+  "atlas_first_seen",
+]);
+
+/**
+ * What KIND of text a tool result is. Atlas provenance is an ALLOWLIST —
+ * earned by being a tool in the registry (tools/tool-registry.ts's
+ * ATLAS_TOOLS, via TOOLS_BY_NAME) — and everything unrecognised falls to
+ * "unknown".
+ *
+ * This used to default to "atlas", which had it exactly backwards. Atlas text
+ * is the privileged class: it is what quote-grounding will certify a quote
+ * against and what the refute auditor reads as authoritative. Defaulting to it
+ * meant any tool result the harness did not recognise was silently promoted to
+ * atlas evidence — and that was not hypothetical. `export_findings`
+ * (llm-tools.ts appends it to CHAT_TOOLS outside ATLAS_TOOLS, so it is not in
+ * the registry) was being classed as atlas, as was the `{ tool: "unknown" }`
+ * fallback below for a tool message whose assistant tool_call is missing.
+ *
+ * Order matters: the external-MSC check runs first because ask_external_msc is
+ * appended to CHAT_TOOLS outside ATLAS_TOOLS too, and the facts/teach rounds
+ * are synthetic names that are deliberately not registry tools.
+ */
+export function classifyToolSource(tool: string): SourceClass {
+  if (isExternalMscTool(tool)) return "external";
+  if (tool === FACT_TOOL_NAME) return "reference";
+  if (isUserTeachingTool(tool)) return "user";
+  if (HISTORY_TOOLS.has(tool)) return "history";
+  return TOOLS_BY_NAME.has(tool) ? "atlas" : "unknown";
+}
+
+/**
+ * Does this class count as atlas text for grounding? "reference" is the facts
+ * prefetch round, which is atlas-derived (glossary rows, entity rows,
+ * censuses) and has always been grouped here deliberately.
+ *
+ * "history" is admitted too, and that is a deliberate call against the obvious
+ * reading. The pool's only consumers are FABRICATION checks — findUngroundedQuotes
+ * asks "does this quoted span exist in anything we retrieved", with every cited
+ * document and every atlas title already in the same haystack, and the address
+ * and figure checks ask the same of their own spans. Excluding change-log text
+ * would therefore hard-fail an answer that correctly quotes a real commit
+ * message, which is a false flag on correct behaviour, and the failure it would
+ * prevent — a fabricated atlas quote that happens to appear verbatim in a commit
+ * message — costs only a missed flag. The provenance question that class exists
+ * for is answered where it belongs: refute.ts marks the entries so the judge
+ * never reads a change log as retrieved atlas text, and cite-pairs.ts drops
+ * history CLAIMS before the citation judge ever sees them.
+ *
+ * An ALLOWLIST on purpose, and every caller in chat-orchestrator.ts goes
+ * through it. The three filters that used to spell this out inline were
+ * blacklists ("not external and not user"), so adding a new class would have
+ * silently admitted it to the grounding pool at all three sites at once.
+ */
+export function isAtlasText(cls: SourceClass | undefined): boolean {
+  return cls === "atlas" || cls === "reference" || cls === "history";
+}
+
+// The review round (review-round.ts) is NOT evidence and is dropped from
+// both extractors below. It is a note about the PREVIOUS turn's verifier
+// result, and it quotes the model's own flagged sentence verbatim — so left
+// in, it would fall through to the `"atlas"` default here and land in
+// `atlasTexts` (chat-orchestrator.ts groups "atlas" and "reference" together).
+// Quote-grounding would then certify the very sentence the harness disputed
+// the moment the model repeated it, and the refute auditor would read the
+// flag's own text as retrieved atlas material. A `"reference"` class would
+// not have helped: it is grouped with atlas too.
+//
+// The cost of dropping it is that a model which QUOTES the truncated atlas
+// span out of the dispute block gets an ungrounded-quote flag. That is the
+// conservative direction, and the block's own footer already tells the model
+// to look the source document up with atlas_get rather than quote the excerpt.
+
+
 export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chatVerifierEvidenceMaxChars): EvidenceEntry[] {
   const callById = new Map<string, { tool: string; args: string }>();
   const entries: EvidenceEntry[] = [];
@@ -143,13 +236,18 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
       }
     }
     if (m.role === "tool" && typeof m.content === "string") {
+      // Lookup cards replayed from earlier turns (tool-recall.ts). They are
+      // handles and excerpts, not the documents, and quote-grounding must not
+      // certify a sentence against one.
+      if (isRecallToolId(m.tool_call_id)) continue;
       const call = callById.get(m.tool_call_id) ?? { tool: "unknown", args: "{}" };
+      if (isReviewRound(call.tool)) continue; // not evidence — see the comment above
       entries.push({
         label: `[E${entries.length + 1}]`,
         tool: call.tool,
         args: call.args,
         content: m.content,
-        sourceClass: isExternalMscTool(call.tool) ? "external" : call.tool === FACT_TOOL_NAME ? "reference" : "atlas",
+        sourceClass: classifyToolSource(call.tool),
       });
     }
   }
@@ -163,15 +261,16 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
 // labels/sourceClass rule, same newest-first budget with prefetch reserved —
 // factored through the shared `budgetEvidence` so the two paths cannot diverge
 // on policy. `args` is always "(streamed)": there is no tool_call arguments
-// string to recover mid-stream (or, for history, chat.ts replays only
-// `{role, content}` — see docs/chat-system.md §6's Deferred note).
+// string to recover mid-stream. Lookup cards from earlier turns are skipped
+// by evidenceFromTranscript (recall ids) and never reach this function.
 export function evidenceFromResults(results: { name: string; content: string }[], maxChars = config.chatVerifierEvidenceMaxChars): EvidenceEntry[] {
-  const entries: EvidenceEntry[] = results.map((r, i) => ({
+  // Filtered BEFORE the map so the [E..] labels stay contiguous.
+  const entries: EvidenceEntry[] = results.filter((r) => !isReviewRound(r.name)).map((r, i) => ({
     label: `[E${i + 1}]`,
     tool: r.name,
     args: "(streamed)",
     content: r.content,
-    sourceClass: isExternalMscTool(r.name) ? "external" : r.name === FACT_TOOL_NAME ? "reference" : "atlas",
+    sourceClass: classifyToolSource(r.name),
   }));
   return budgetEvidence(entries, maxChars);
 }
@@ -185,7 +284,7 @@ export function priorTurnsEvidence(transcript: Msg[], maxChars = 8000): Evidence
   const lastUser = transcript.findLastIndex((m) => m.role === "user");
   const answers = transcript
     .slice(0, Math.max(lastUser, 0))
-    .filter((m) => m.role === "assistant" && typeof m.content === "string" && m.content.trim() !== "")
+    .filter((m) => m.role === "assistant" && typeof m.content === "string" && m.content.trim() !== "" && m.content !== SUMMARY_ACK)
     .map((m) => m.content as string);
   if (answers.length === 0) return null;
   // Newest-first budget, same policy as tool evidence: recent turns matter most.

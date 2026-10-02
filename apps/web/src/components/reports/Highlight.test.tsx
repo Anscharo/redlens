@@ -44,6 +44,27 @@ describe("Highlight", () => {
     expect(marks(container)).toEqual(["Sky Base"]);
   });
 
+  it("punct treats hyphens as separators so 'on chain' marks 'On-chain'", () => {
+    const { container } = render(
+      <Highlight text="On-chain & money" rq={parseReportQuery("on chain")} punct />,
+    );
+    expect(marks(container)).toContain("On-chain");
+  });
+
+  it("punct marks a hyphenated query against spaced copy", () => {
+    const { container } = render(
+      <Highlight text="with CSV export." rq={parseReportQuery("csv-export")} punct />,
+    );
+    expect(marks(container)).toEqual(["CSV export"]);
+  });
+
+  it("without punct, a hyphenated query does not mark spaced copy", () => {
+    const { container } = render(
+      <Highlight text="with CSV export." rq={parseReportQuery("csv-export")} />,
+    );
+    expect(marks(container)).toEqual([]);
+  });
+
   it("renders plain text (no marks) when nothing matches", () => {
     const { container } = render(<Highlight text="nothing here" rq={parseReportQuery("rate")} />);
     expect(marks(container)).toEqual([]);

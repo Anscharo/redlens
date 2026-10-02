@@ -1,7 +1,8 @@
-import { callWithTimeout, type JsonCall } from "../llm.ts";
-import { captureError, captureEvent, type ErrorContext } from "../../posthog-node.ts";
-
-// The deterministic half of the small-talk bypass (chat-orchestrator.ts).
+// The deterministic half of the small-talk bypass (chat-orchestrator.ts); the
+// judged half is verify/smalltalk-jev.ts. This file is pure code — no model,
+// no network — and gates BOTH the question (does it even reach the judge?)
+// and the answer (is there anything here worth auditing?).
+//
 // The MODEL judges whether a message needed the atlas — the system prompt
 // tells it plain conversation gets a brief, tool-free reply, and the router
 // never makes pre-flight model calls — so the only safe code-side question
@@ -28,70 +29,18 @@ const GROUNDABLE_RES: RegExp[] = [
 // explanations get audited.
 export const SMALLTALK_MAX_CHARS = 600;
 
+/**
+ * Does this text carry anything the harness could check? The marker half of
+ * the test above, without the small-talk length cap — exported because
+ * refute-screen.ts's gate asks the identical question of a PARAGRAPH, where a
+ * 600-character ceiling would be meaningless. Keeping one list means a leak
+ * class added for the bypass is also one the paragraph gate stops skipping.
+ */
+export function hasGroundableMarker(text: string): boolean {
+  return GROUNDABLE_RES.some((re) => re.test(text));
+}
+
 export function isUncheckableAnswer(content: string): boolean {
   if (content.length > SMALLTALK_MAX_CHARS) return false;
-  return !GROUNDABLE_RES.some((re) => re.test(content));
-}
-
-// ── Question-side judge — the LLM half, and the final gate ────────────────
-// The deterministic predicate above cannot tell "thanks!" from "is the fee
-// governance-controlled?" answered with a marker-free "Yes." — a question can
-// expect facts without the answer showing any. So the bypass's last condition
-// is one tiny classification call on the USER MESSAGE: does it expect factual
-// content? Fail-closed everywhere: timeout, error, or unparseable JSON all
-// return smalltalk:false, which keeps the full audit. The orchestrator fires
-// it CONCURRENTLY with the conversationalist (first user message of a
-// conversation only, and only when the message itself is marker-free), so the
-// ruling has resolved before the answer finishes streaming — it replaces the
-// four verifier slices on greeting turns and blocks nothing. Never rejects,
-// so an unconsumed promise is safe to abandon.
-export interface SmalltalkJudgeRun {
-  smalltalk: boolean;
-  usage: { input: number; output: number } | null;
-  generationId: string | null;
-  latencyMs: number | null;
-}
-
-// The `{"smalltalk"` literal doubles as the call's dispatch signature in the
-// orchestrator tests (content dispatch, like the verifier slices) — reword
-// with care.
-const JUDGE_PROMPT = [
-  "You classify ONE user message from a governance research chat.",
-  'Reply with ONLY this JSON: {"smalltalk": true} or {"smalltalk": false}.',
-  'smalltalk=true ONLY for pure conversation whose reply needs no factual content: a greeting, thanks, a farewell, a courtesy, an emoji, a connectivity test ("are you there?").',
-  'smalltalk=false for EVERYTHING else — anything that expects facts, definitions, numbers, procedures, opinions, or any information about the Sky ecosystem or atlas. Casual phrasings still count: "what\'s new?", "any updates?", or "what changed?" ask about recent changes — facts. When unsure: false.',
-].join("\n");
-
-export async function judgeSmalltalk(params: {
-  call: JsonCall;
-  model: string;
-  question: string;
-  signal?: AbortSignal;
-  timeoutMs?: number;
-  obs?: ErrorContext;
-}): Promise<SmalltalkJudgeRun> {
-  try {
-    const res = await callWithTimeout(
-      params.call,
-      {
-        model: params.model,
-        messages: [
-          { role: "system", content: JUDGE_PROMPT },
-          { role: "user", content: params.question.slice(0, 2000) },
-        ],
-        maxTokens: 50,
-      },
-      params.timeoutMs ?? 5000,
-      params.signal,
-    );
-    const raw = res.text.match(/\{[^}]*\}/)?.[0];
-    const parsed = raw ? (JSON.parse(raw) as { smalltalk?: unknown }) : null;
-    if (!parsed) {
-      captureEvent("chat_smalltalk_judge_unparseable", params.obs, { model: params.model, text_preview: res.text.slice(0, 120) });
-    }
-    return { smalltalk: parsed?.smalltalk === true, usage: res.usage, generationId: res.generationId, latencyMs: res.latencyMs };
-  } catch (err) {
-    captureError(err, params.obs, { stage: "smalltalk_judge", model: params.model });
-    return { smalltalk: false, usage: null, generationId: null, latencyMs: null };
-  }
+  return !hasGroundableMarker(content);
 }

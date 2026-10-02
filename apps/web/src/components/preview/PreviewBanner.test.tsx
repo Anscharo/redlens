@@ -4,7 +4,7 @@
 // the fork-only risk signals (new addresses, untrusted author).
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, waitFor, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
@@ -55,6 +55,7 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   activeBaseValue = null;
+  localStorage.clear();
 });
 beforeEach(() => mockMeta(null));
 
@@ -77,9 +78,20 @@ describe("PreviewBanner", () => {
     renderBanner(PREVIEW_SOURCE);
 
     expect(await screen.findByText("PREVIEW")).toBeTruthy();
-    const link = await screen.findByRole("link", { name: "view PR on GitHub ↗" });
+    const link = await screen.findByRole("link", { name: "view PR 88" });
     expect(link).toHaveAttribute("href", "https://github.com/sky-ecosystem/next-gen-atlas/pull/88");
-    expect(screen.getByText(/proposed by alice/)).toBeTruthy();
+    expect(screen.getByText(/^Comparing/)).toHaveTextContent("Comparing feat/x — Add a thing");
+    expect(screen.getByText("feat/x").tagName).toBe("EM");
+    expect(screen.getByText("Add a thing").tagName).toBe("STRONG");
+    expect(screen.queryByText(/by alice/)).toBeNull();
+    const titles: Array<string | null> = [];
+    cleanup();
+    render(
+      <DataSourceContext.Provider value={PREVIEW_SOURCE}>
+        <PreviewBanner onTabTitle={(t) => titles.push(t)} />
+      </DataSourceContext.Provider>,
+    );
+    await waitFor(() => expect(titles.at(-1)).toBe("PR 88 preview on Sky Atlas by Redline -- feat/x — Add a thing"));
   });
 
   it("renders a FORK PREVIEW header with risk signals for an untrusted fork", async () => {
@@ -104,7 +116,8 @@ describe("PreviewBanner", () => {
     vi.spyOn(globalThis, "fetch").mockReturnValue(new Promise(() => {}) as Promise<Response>);
     renderBanner(PREVIEW_SOURCE);
     expect(screen.getByText("PREVIEW")).toBeTruthy();
-    expect(screen.getByText("pr-88")).toBeTruthy();
+    expect(screen.getByText(/^Comparing/)).toHaveTextContent("Comparing pr-88");
+    expect(screen.getByText("pr-88").tagName).toBe("EM");
   });
 
   it("singularises the new-address warning for a single address", async () => {
@@ -140,7 +153,9 @@ describe("PreviewBanner", () => {
     expect(await screen.findByText("PRIVATE PREVIEW")).toBeTruthy();
     expect(screen.queryByText("PREVIEW")).toBeNull();
     expect(screen.queryByText("FORK PREVIEW")).toBeNull();
-    expect(screen.getByText(/a private preview of/)).toBeTruthy();
+    expect(screen.getByText(/^Comparing/)).toHaveTextContent("Comparing feature");
+    expect(screen.queryByText(/a private preview of/)).toBeNull();
+    expect(screen.queryByText(/redlined against/)).toBeNull();
   });
 
   it("links a private PR preview to the private repo's pull, not canonical", async () => {
@@ -156,8 +171,9 @@ describe("PreviewBanner", () => {
     renderBanner(PREVIEW_SOURCE);
 
     expect(await screen.findByText("PRIVATE PREVIEW")).toBeTruthy();
-    const link = await screen.findByRole("link", { name: "view PR on GitHub ↗" });
+    const link = await screen.findByRole("link", { name: "view PR 42" });
     expect(link).toHaveAttribute("href", "https://github.com/acme/secret-atlas/pull/42");
+    expect(screen.getByText(/^Comparing/)).toHaveTextContent("Comparing feature/spark — Spark the atlas");
   });
 
   it("links a private pull-N ref (Contents-only fallback) to the private repo's pull", async () => {
@@ -170,7 +186,7 @@ describe("PreviewBanner", () => {
     });
     renderBanner(PREVIEW_SOURCE);
 
-    const link = await screen.findByRole("link", { name: "view PR on GitHub ↗" });
+    const link = await screen.findByRole("link", { name: "view PR 7" });
     expect(link).toHaveAttribute("href", "https://github.com/acme/secret-atlas/pull/7");
   });
 
@@ -199,11 +215,12 @@ describe("PreviewBanner", () => {
       },
     });
     renderBanner(PREVIEW_SOURCE);
-    expect(
-      await screen.findByText(
-        /redlined against acme\/fork:main · base forked from sky-ecosystem\/next-gen-atlas:main 3 commits ago · 2 commits behind main · 1 doc differs/,
-      ),
-    ).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByText(/^Comparing/)).toHaveTextContent("Comparing main to acme/fork:main"),
+    );
+    expect(screen.getByText("acme/fork:main").tagName).toBe("EM");
+    expect(screen.queryByText(/redlined against/)).toBeNull();
+    expect(screen.queryByText(/docs differ/)).toBeNull();
   });
 
   it("shows an 'N commits behind main' sky line for a private branch with no forkOwner", async () => {
@@ -213,7 +230,10 @@ describe("PreviewBanner", () => {
       bases: { auto: "sky", sky: { repo: "acme/secret-atlas", ref: "feature", mergeBase: "x", behindBy: 4 } },
     });
     renderBanner(PREVIEW_SOURCE);
-    expect(await screen.findByText(/4 commits behind main/)).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByText(/^Comparing/)).toHaveTextContent("Comparing feature to acme/secret-atlas:feature"),
+    );
+    expect(screen.queryByText(/commits behind/)).toBeNull();
   });
 
   it("shows the switch link only when both base candidates exist, pointing at ?base=", async () => {
@@ -278,7 +298,8 @@ describe("PreviewBanner", () => {
       bases: { auto: "live-main", reason: "no fork point found" },
     });
     renderBanner(PREVIEW_SOURCE);
-    expect(await screen.findByText(/redlined against live main \(no fork point found\)/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/^Comparing/)).toHaveTextContent("Comparing main to live main"));
+    expect(screen.queryByText(/no fork point found/)).toBeNull();
   });
 
   it("prompts to review GitHub App permissions on a private PR built without Pull requests: Read", async () => {
@@ -312,12 +333,44 @@ describe("PreviewBanner", () => {
     expect(screen.queryByRole("link", { name: "Review permissions on GitHub ↗" })).toBeNull();
   });
 
+  it("nudges the install owner to narrow an All-repositories grant, alongside the permission prompt", async () => {
+    mockMeta({
+      sha: "ghi", repo: "acme/secret-atlas", ref: "pull-7", kind: "branch", private: true,
+      needsPullsPermission: true,
+      grantTooBroad: true, installSettingsUrl: "https://github.com/organizations/acme/settings/installations/9",
+    });
+    renderBanner(PREVIEW_SOURCE);
+    expect(await screen.findByText("ACCESS")).toBeTruthy();
+    expect(await screen.findByText("PERMISSION")).toBeTruthy(); // both rows render, one each
+    expect(await screen.findByText(/only needs acme\/secret-atlas/)).toBeTruthy();
+    const link = await screen.findByRole("link", { name: "Narrow repository access on GitHub ↗" });
+    expect(link).toHaveAttribute("href", "https://github.com/organizations/acme/settings/installations/9");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("hides the ACCESS notice after Dismiss, and keeps it hidden on the next render", async () => {
+    const meta = {
+      sha: "ghi", repo: "acme/secret-atlas", ref: "pull-7", kind: "branch", private: true,
+      grantTooBroad: true, installSettingsUrl: "https://github.com/organizations/acme/settings/installations/9",
+    };
+    mockMeta(meta);
+    const { unmount } = renderBanner(PREVIEW_SOURCE);
+    fireEvent.click(await screen.findByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByText("ACCESS")).toBeNull();
+    unmount();
+    mockMeta(meta);
+    renderBanner(PREVIEW_SOURCE);
+    await screen.findByText("PRIVATE PREVIEW");
+    expect(screen.queryByText("ACCESS")).toBeNull();
+  });
+
   it("omits the permission prompt when the flag is off", async () => {
     mockMeta({
       sha: "ghi", repo: "acme/secret-atlas", ref: "feature", kind: "branch", private: true,
     });
     renderBanner(PREVIEW_SOURCE);
     await screen.findByText("PRIVATE PREVIEW");
+    expect(screen.queryByText("ACCESS")).toBeNull();
     expect(screen.queryByText(/Needs Pull requests: Read/)).toBeNull();
   });
 
@@ -327,7 +380,9 @@ describe("PreviewBanner", () => {
       forkOwner: "mallory", behindBy: 5,
     });
     renderBanner(PREVIEW_SOURCE);
-    expect(await screen.findByText(/5 commits behind main/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/^Comparing/)).toHaveTextContent("Comparing sneaky"));
+    expect(screen.queryByText(/by mallory/)).toBeNull();
+    expect(screen.queryByText(/commits behind/)).toBeNull();
     expect(screen.queryByText(/redlined against/)).toBeNull();
   });
 });

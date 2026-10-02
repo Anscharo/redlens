@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { applyMode, isMixedQuotes } from "./useSearchInput";
+import { describe, it, expect, vi } from "vitest";
+import { applyMode, isMixedQuotes, runSlashCommand } from "./useSearchInput";
+import { SLASH_COMMANDS } from "../lib/shortcuts";
 
 // ---------------------------------------------------------------------------
 // applyMode — broad mode is always a no-op
@@ -122,5 +123,53 @@ describe("isMixedQuotes", () => {
 
   it("returns true for scope filter + mixed free text", () => {
     expect(isMixedQuotes('in:A.1.2 "foo" bar')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runSlashCommand — the `/` cheat sheet and the router must agree
+// ---------------------------------------------------------------------------
+
+describe("runSlashCommand", () => {
+  // The cheat sheet (SLASH_COMMANDS) and the destinations (SLASH_TARGETS) are
+  // separate lists in separate files; without this a command could be listed
+  // and then do nothing when typed or clicked.
+  it("resolves every command the cheat sheet advertises", () => {
+    for (const { cmd } of SLASH_COMMANDS) {
+      const navigate = vi.fn();
+      const assign = vi.fn();
+      vi.stubGlobal("window", { location: { assign } });
+      expect(runSlashCommand(cmd, navigate), `${cmd} is listed but resolves nowhere`).toBe(true);
+      expect(
+        navigate.mock.calls.length + assign.mock.calls.length,
+        `${cmd} resolved but navigated nowhere`,
+      ).toBe(1);
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("sends SPA routes through navigate", () => {
+    const navigate = vi.fn();
+    expect(runSlashCommand("/features", navigate)).toBe(true);
+    expect(navigate).toHaveBeenCalledWith("/features");
+  });
+
+  // /preview has no <Route> — main.tsx resolves it from window.location before
+  // the router mounts, so an SPA navigate would render nothing.
+  it("sends /preview through a full page load, not navigate", () => {
+    const navigate = vi.fn();
+    const assign = vi.fn();
+    vi.stubGlobal("window", { location: { assign } });
+    expect(runSlashCommand("/preview", navigate)).toBe(true);
+    expect(assign).toHaveBeenCalledWith("/preview");
+    expect(navigate).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("leaves a normal query alone", () => {
+    const navigate = vi.fn();
+    expect(runSlashCommand("delegate", navigate)).toBe(false);
+    expect(runSlashCommand("/nope", navigate)).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
   });
 });

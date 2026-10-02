@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 // @ts-expect-error — .mjs without types; runtime-only import.
-import { extractMultisigs, parseSignerGroups } from "../scripts/lib/graph-multisigs.mjs";
+import { extractMultisigs, parseSignerGroups, signerCompositionMismatch } from "../scripts/lib/graph-multisigs.mjs";
 import { makeEntity } from "../scripts/lib/graph-patterns.mjs";
 
 afterEach(() => vi.restoreAllMocks());
@@ -74,6 +74,66 @@ describe("parseSignerGroups", () => {
 
   it("does not read a plain bullet roster without the intro sentence", () => {
     expect(parseSignerGroups("- VoteWizard\n- LDR")).toEqual([]);
+  });
+
+  it("parses the '<word> (N) controlled by X' composition shape, dropping an 'including' sub-clause", () => {
+    // A.2.2.10.1.1.1.6.2.1.2 "Required Signers"
+    const groups = parseSignerGroups(
+      "The default signer composition is five (5) signers: four (4) controlled by the Operational Executor Agent, including at least one (1) controlled by Operational GovOps and at least one (1) controlled by the Operational Facilitator, and one (1) controlled by the Prime Agent.",
+    );
+    expect(groups).toEqual([
+      { name: "the Operational Executor Agent", count: 4 },
+      { name: "the Prime Agent", count: 1 },
+    ]);
+  });
+
+  it("emits the named controller with a null count when the roster itself is deferred (placeholder present)", () => {
+    // A.2.2.10.1.1.1.2.4.4.3.1.3 "Grove Operator Multisig Signers", pre-PR#341 shape
+    const groups = parseSignerGroups(
+      "The signers of the Grove Operator Multisig are controlled by Operational GovOps Soter Labs. The specific signers will be specified in a future iteration of the Atlas.",
+    );
+    expect(groups).toEqual([{ name: "Operational GovOps Soter Labs", count: null }]);
+  });
+
+  it("emits the named controller with a null count when the count is omitted with no placeholder at all", () => {
+    // A.2.2.10.1.1.1.2.4.4.3.1.3 "Grove Operator Multisig Signers" and
+    // A.2.2.10.1.1.1.2.4.4.3.2.3 "Osero Operator Multisig Signers", as of atlas
+    // commit 6cd19248 (PR #341) — the "future iteration" placeholder was dropped.
+    const groups = parseSignerGroups(
+      "The signers of the Osero Operator Multisig are controlled by Operational GovOps Soter Labs.",
+    );
+    expect(groups).toEqual([{ name: "Operational GovOps Soter Labs", count: null }]);
+  });
+
+  it("still returns nothing when a deferred placeholder names no controller at all", () => {
+    expect(
+      parseSignerGroups("The specific signers will be specified in a future iteration of the Atlas."),
+    ).toEqual([]);
+  });
+});
+
+describe("signerCompositionMismatch", () => {
+  it("returns false when the parsed groups sum to the stated total", () => {
+    const content =
+      "The default signer composition is five (5) signers: four (4) controlled by the Operational Executor Agent, and one (1) controlled by the Prime Agent.";
+    const groups = parseSignerGroups(content);
+    expect(signerCompositionMismatch(content, groups)).toBe(false);
+  });
+
+  it("returns true when a stripped 'including' clause silently drops a top-level group", () => {
+    // Same fact as the real doc, but with the comma before the final "and" clause
+    // removed — SIGNER_INCLUDING_CLAUSE_RE now swallows the Prime Agent clause too,
+    // so only 4 of the stated 5 signers are parsed.
+    const content =
+      "The default signer composition is five (5) signers: four (4) controlled by the Operational Executor Agent, including at least one (1) controlled by Operational GovOps and one (1) controlled by the Prime Agent.";
+    const groups = parseSignerGroups(content);
+    expect(groups).toEqual([{ name: "the Operational Executor Agent", count: 4 }]);
+    expect(signerCompositionMismatch(content, groups)).toBe(true);
+  });
+
+  it("returns false when the content states no total at all", () => {
+    const content = "The signers are three (3) addresses controlled by Core GovOps.";
+    expect(signerCompositionMismatch(content, parseSignerGroups(content))).toBe(false);
   });
 });
 
@@ -218,6 +278,68 @@ describe("extractMultisigs — warning branches", () => {
     vi.restoreAllMocks();
   });
 
+  it("emits the named controller with a null signer_count when the roster itself is deferred, and does not warn", () => {
+    const rootDocNo = "A.3.7.1.3.11";
+    const root = mkDoc("root-deferred", rootDocNo, "Deferred Signers Multisig");
+    const kids = fiveChildDocs(rootDocNo, "Deferred Signers Multisig", {
+      signers:
+        "The signers of the Deferred Signers Multisig are controlled by Operational GovOps Soter Labs. The specific signers will be specified in a future iteration of the Atlas.",
+      address:
+        "The address of the Deferred Signers Multisig on the Ethereum Mainnet is `0x1111111111111111111111111111111111111a`.",
+      modification: "Operational GovOps Soter Labs can change the signers of the Deferred Signers Multisig.",
+    });
+    const allDocs = [root, kids.threshold, kids.signers, kids.address, kids.usage, kids.modification];
+    const docByDocNo = new Map(allDocs.map((d) => [d.doc_no, d]));
+    const docById = new Map(allDocs.map((d) => [d.id, d]));
+    const entityMap = new Map<string, any>();
+    const soterLabs = makeEntity("soter-labs", "Soter Labs", "ecosystem_actor", {});
+    entityMap.set(soterLabs.slug, soterLabs);
+    const edges: any[] = [];
+    const warns: string[] = [];
+    vi.spyOn(console, "warn").mockImplementation((m) => void warns.push(String(m)));
+
+    const stats = extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges).run(makeAddEntity(entityMap));
+
+    expect(stats.signerEdges).toBe(1);
+    const e = edges.find((e) => e.edgeType === "signer_of");
+    expect(e.fromId).toBe(soterLabs.id);
+    expect(JSON.parse(e.meta)).toMatchObject({ signer_count: null });
+    expect(warns.some((w) => w.includes("signers did not parse"))).toBe(false);
+    expect(stats.warnings).toBe(0);
+    vi.restoreAllMocks();
+  });
+
+  it("emits the named controller with a null signer_count when the count is omitted with no placeholder, and does not warn", () => {
+    // Mirrors the real A.2.2.10.1.1.1.2.4.4.3.2.3 "Osero Operator Multisig Signers" shape.
+    const rootDocNo = "A.3.7.1.3.13";
+    const root = mkDoc("root-sole-controller", rootDocNo, "Sole Controller Multisig");
+    const kids = fiveChildDocs(rootDocNo, "Sole Controller Multisig", {
+      signers: "The signers of the Sole Controller Multisig are controlled by Operational GovOps Soter Labs.",
+      address:
+        "The address of the Sole Controller Multisig on the Ethereum Mainnet is `0x2222222222222222222222222222222222222c`.",
+      modification: "Operational GovOps Soter Labs can change the signers of the Sole Controller Multisig.",
+    });
+    const allDocs = [root, kids.threshold, kids.signers, kids.address, kids.usage, kids.modification];
+    const docByDocNo = new Map(allDocs.map((d) => [d.doc_no, d]));
+    const docById = new Map(allDocs.map((d) => [d.id, d]));
+    const entityMap = new Map<string, any>();
+    const soterLabs = makeEntity("soter-labs", "Soter Labs", "ecosystem_actor", {});
+    entityMap.set(soterLabs.slug, soterLabs);
+    const edges: any[] = [];
+    const warns: string[] = [];
+    vi.spyOn(console, "warn").mockImplementation((m) => void warns.push(String(m)));
+
+    const stats = extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges).run(makeAddEntity(entityMap));
+
+    expect(stats.signerEdges).toBe(1);
+    const e = edges.find((e) => e.edgeType === "signer_of");
+    expect(e.fromId).toBe(soterLabs.id);
+    expect(JSON.parse(e.meta)).toMatchObject({ signer_count: null });
+    expect(warns.some((w) => w.includes("signers did not parse"))).toBe(false);
+    expect(stats.warnings).toBe(0);
+    vi.restoreAllMocks();
+  });
+
   it("warns and leaves address null when the address content doesn't parse", () => {
     const rootDocNo = "A.3.7.1.3.8";
     const root = mkDoc("root4", rootDocNo, "Unparseable Address Multisig");
@@ -316,6 +438,40 @@ describe("extractMultisigs — agent prefix and collisions", () => {
     const created = entityMap.get("chain-split-multisig-ethereum");
     expect(created).toBeTruthy();
     expect(created.name).toBe("Chain Split Multisig (Ethereum)");
+    vi.restoreAllMocks();
+  });
+});
+
+describe("extractMultisigs — plain composition shape (A.2.2.10.1.1.1.6.2.1.2 'Required Signers')", () => {
+  it("resolves the unqualified role names to newly created ecosystem_actor entities with the stated per-group counts", () => {
+    const rootDocNo = "A.3.7.1.3.12";
+    const subject = "Composition Test Multisig";
+    const root = mkDoc("root-composition", rootDocNo, subject);
+    const kids = fiveChildDocs(rootDocNo, subject, {
+      threshold: `The ${subject} has a 4/5 signing requirement.`,
+      signers:
+        "The default signer composition is five (5) signers: four (4) controlled by the Operational Executor Agent, including at least one (1) controlled by Operational GovOps and at least one (1) controlled by the Operational Facilitator, and one (1) controlled by the Prime Agent.",
+      address: `The address of the ${subject} on the Ethereum Mainnet is \`0x2222222222222222222222222222222222222b\`.`,
+    });
+    const allDocs = [root, kids.threshold, kids.signers, kids.address, kids.usage, kids.modification];
+    const docByDocNo = new Map(allDocs.map((d) => [d.doc_no, d]));
+    const docById = new Map(allDocs.map((d) => [d.id, d]));
+    const entityMap = new Map<string, any>();
+    const edges: any[] = [];
+    const warns: string[] = [];
+    vi.spyOn(console, "warn").mockImplementation((m) => void warns.push(String(m)));
+
+    const stats = extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges).run(makeAddEntity(entityMap));
+
+    expect(stats.signerEdges).toBe(2);
+    expect(warns).toEqual([]);
+    const signerEdges = edges.filter((e) => e.edgeType === "signer_of");
+    const byId = new Map([...entityMap.values()].map((e) => [e.id, e]));
+    const byName = new Map(
+      signerEdges.map((e) => [byId.get(e.fromId)?.name, JSON.parse(e.meta).signer_count]),
+    );
+    expect(byName.get("Operational Executor Agent")).toBe(4);
+    expect(byName.get("Prime Agent")).toBe(1);
     vi.restoreAllMocks();
   });
 });

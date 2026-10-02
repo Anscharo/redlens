@@ -1,19 +1,16 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "tags": ["-lintignore"],
+  "tags": [
+    "-lintignore"
+  ],
   "ignoreExportsUsedInFile": true,
-  "ignoreBinaries": ["docker-compose"],
+  "ignoreBinaries": [
+    "docker-compose"
+  ],
   "ignore": [
     "vendor/**",
-    "scripts/aux/ab-parse-check.mjs",
-    "scripts/aux/eval-smalltalk-judge.ts",
-    "scripts/aux/test-addresses.mjs",
-    "scripts/aux/label-quality.mjs",
-    "scripts/aux/unlabeled-addresses.mjs",
-    "scripts/aux/measure-embed.ts",
-    "scripts/aux/leaf-attribution-experiment.ts",
-    "scripts/aux/atlas-history/**",
-    "scripts/aux/load/**",
+    "scripts/aux/**",
+    "scripts/**/*.d.mts",
     "scripts/htmlhist/check-cross-agent.mjs",
     "scripts/htmlhist/export-decisions-judge.mjs",
     "scripts/htmlhist/render-decisions.mjs",
@@ -22,6 +19,7 @@
     "scripts/lib/atlas-sync-health.d.mts",
     "scripts/lib/build-steps.d.mts",
     "scripts/lib/path-aliases.d.mts",
+    "scripts/lib/prune-plan.d.mts",
     "scripts/lib/chain-candidates.d.mts",
     "scripts/lib/chains.d.mts",
     "scripts/lib/report-citations.d.mts",
@@ -31,8 +29,9 @@
     "scripts/lib/deploy-skip.d.mts",
     "scripts/lib/graph-patterns.d.mts",
     "scripts/lib/graph-instances.d.mts",
-    "scripts/aux/coverage-areas.d.mts",
-    "scripts/aux/e2e-gate.d.mts",
+    "scripts/lib/mistakes-sweep.d.mts",
+    "scripts/lib/mistakes-corpus.d.mts",
+    "scripts/lib/ordered-containment.d.mts",
     "scripts/required/check-govops-census.d.mts"
   ],
   "workspaces": {

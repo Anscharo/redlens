@@ -64,7 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  // Permanently delete the account and all associated data (chats, Collections).
+  // Permanently delete the account and all associated data (chats, Collections,
+  // preview history — everything the users-row cascade reaches).
   // The server clears the session cookie; we drop local state on success so the UI
   // returns to the signed-out view. Returns false on failure so the caller can
   // keep the user signed in and surface an error.

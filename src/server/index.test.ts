@@ -78,6 +78,38 @@ mock.module("@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js", () 
   ...realTransportNs,
   WebStandardStreamableHTTPServerTransport: FakeStreamableTransport,
 }));
+
+// /api/health and /api/freshness must observe an UNREACHABLE DB (degraded),
+// not whatever an earlier file's mock.module("./db.ts") left installed. bun
+// walks test files in readdir order (filesystem-dependent), and
+// atlas-updater.test.ts's fake answers `FROM sync_state` with [] instead of
+// throwing — which reads as reachable + never-synced and derives "stuck".
+// Spreading the snapshotted namespace keeps check:mocks happy; sqlImpl is
+// armed only in those two cases and otherwise delegates, so this registration
+// is a no-op for every other route in this file and for later files.
+const baseNs = await import("./db.ts");
+const baseExports: Record<string, unknown> = { ...baseNs };
+const baseSql = baseNs.sql as unknown as Record<PropertyKey, unknown> | undefined;
+type SqlImpl = (...args: unknown[]) => unknown;
+let sqlImpl: SqlImpl | null = null;
+function sqlCall(...args: unknown[]): unknown {
+  if (sqlImpl) return sqlImpl(...args);
+  if (typeof baseSql !== "function") {
+    throw new Error("db.ts `sql` is not callable — an earlier test file replaced it with a non-callable stub");
+  }
+  return (baseSql as SqlImpl)(...args);
+}
+const FN_OWN = new Set<PropertyKey>(["length", "name", "prototype", "constructor", "call", "apply", "bind"]);
+const sqlDispatch = new Proxy(sqlCall, {
+  get(target, prop, receiver) {
+    if (baseSql && !FN_OWN.has(prop)) {
+      const v = baseSql[prop];
+      if (v !== undefined) return typeof v === "function" ? (v as SqlImpl).bind(baseSql) : v;
+    }
+    return Reflect.get(target, prop, receiver);
+  },
+});
+mock.module("./db.ts", () => ({ ...baseExports, sql: sqlDispatch }));
 {
   const { McpServer } = await import("@modelcontextprotocol/sdk/server/mcp.js");
   const proto = (McpServer as unknown as { prototype: Record<string, unknown> }).prototype;
@@ -301,6 +333,13 @@ describe("handleRequest — CORS preflight", () => {
 });
 
 describe("handleRequest — /api/health", () => {
+  beforeEach(() => {
+    sqlImpl = () => Promise.reject(new Error("connection refused"));
+  });
+  afterEach(() => {
+    sqlImpl = null;
+  });
+
   it("always answers 200 (liveness), reflecting the seeded index and an unreachable DB", async () => {
     const req = new Request("http://localhost/api/health");
     const res = await handleRequest(req, stubServer);
@@ -315,9 +354,10 @@ describe("handleRequest — /api/health", () => {
     expect(body.rss_mb).toBeGreaterThanOrEqual(0);
     expect(typeof body.sse_clients).toBe("number");
     expect(body.sse_clients).toBeGreaterThanOrEqual(0);
-    // No Postgres in this test environment (confirmed the same way db.test.ts
-    // does — nothing listens on the configured port) — the sync_state read
-    // fails fast and evaluateFreshness catches it for real; not mocked.
+    // evaluateFreshness catches the armed connection-refused sqlImpl; see the
+    // mock.module("./db.ts") block at the top of this file. Relying on a real
+    // unreachable client is order-dependent: an earlier file's db mock can
+    // answer FROM sync_state with [] and this would read as stuck, not degraded.
     expect(body.db_reachable).toBe(false);
     expect(body.status).toBe("degraded");
   });
@@ -339,6 +379,13 @@ describe("handleRequest — /api/health", () => {
 });
 
 describe("handleRequest — /api/freshness", () => {
+  beforeEach(() => {
+    sqlImpl = () => Promise.reject(new Error("connection refused"));
+  });
+  afterEach(() => {
+    sqlImpl = null;
+  });
+
   it("status-codes 503 for an uptime monitor while the DB is unreachable", async () => {
     const req = new Request("http://localhost/api/freshness");
     const res = await handleRequest(req, stubServer);

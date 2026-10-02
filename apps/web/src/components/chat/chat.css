@@ -211,7 +211,9 @@
 
 /* ── Panel shell + entrance ────────────────────────────────────────────── */
 /* Width of the anchored right column — also the amount the app shell is pushed.
-   One var keeps the fixed drawer and the shell's padding-right in lock-step. */
+   One var keeps the fixed drawer and the shell's padding-right in lock-step.
+   This clamp is the undragged size. AnchoredResizeHandle overrides it with a
+   pixel width while the user has dragged the left edge (up to 55vw). */
 :root { --rlc-anchored-w: clamp(340px, 30vw, 460px); }
 
 .rlc-panel {
@@ -288,8 +290,44 @@
   border-bottom: none;
   border-radius: 0;
   box-shadow: -14px 0 34px -16px rgba(0, 0, 0, 0.6);
+  /* The splitter sits just outside the left edge; hidden would clip it. */
+  overflow: visible;
   animation: rlc-slide 200ms cubic-bezier(0.2, 0.7, 0.3, 1);
 }
+/* Seam between the page and the docked column. Mostly in the gutter so it
+   doesn't cover the context line on the conversation's left edge. */
+.rlc-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -6px;
+  width: 8px;
+  z-index: 2;
+  cursor: col-resize;
+  background: transparent;
+}
+.rlc-resize::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 2px;
+  background: transparent;
+}
+.rlc-resize:hover::before,
+.rlc-resize:focus-visible::before,
+body.rlc-resizing .rlc-resize::before {
+  background: var(--accent);
+}
+.rlc-resize:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* The shell eases its gutter when the column opens. During a drag that ease
+   lags the panel, so the two widths diverge for the transition. */
+body.rlc-resizing .app-shell,
+body.rlc-resizing .app-footer { transition: none; }
 @keyframes rlc-pop {
   from { opacity: 0; transform: scale(0.96) translateY(8px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
@@ -315,6 +353,7 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
      (can't push content to zero width), so it stops pushing the shell. */
   .rlc-panel[data-place="float"] { width: calc(100vw - 24px); right: 12px; bottom: 12px; height: 78vh; }
   .rlc-panel[data-place="anchored"] { width: 100vw; }
+  .rlc-resize { display: none; }
   body.rlc-anchored .app-shell { padding-right: 0; }
   body.rlc-anchored .app-footer { right: 0; }
 }
@@ -486,6 +525,53 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-cite:hover { background: var(--hover); border-color: var(--accent); }
 .rlc-cite-doc { font: 400 11.5px/1 "Source Code Pro", monospace; color: var(--tan-3); }
 .rlc-cite-title { font: 400 14px/1 var(--serif, "Lora", serif); color: var(--tan-2); }
+/* Post-answer citation-check mark, appended after the title. Five states, two
+   colours: every check is green, every warning amber. */
+.rlc-cite-mark { font: 400 12px/1 "Source Code Pro", monospace; }
+.rlc-cite-mark[data-status="backed"],
+.rlc-cite-mark[data-status="backed_weak"],
+.rlc-cite-mark[data-status="mixed"],
+.rlc-cite-mark[data-status="partial"] { color: var(--terminal-green); }
+.rlc-cite-mark[data-status="disputed"],
+.rlc-cite-mark[data-status="unread"],
+.rlc-cite-mark[data-status="uncovered"] { color: var(--warn); }
+/* The warning half of a mark. `mixed` and `partial` pair it with their check —
+   the source backs the line it was cited for and something still wants the
+   reader's eye — and `uncovered` is this glyph on its own. */
+.rlc-cite-warn { color: var(--warn); margin-left: 2px; }
+.rlc-cite-mark[data-status="uncovered"] .rlc-cite-warn,
+.rlc-cite-mark[data-status="unread"] .rlc-cite-warn { margin-left: 0; }
+/* Quoted line inside the source tooltip. The tip is portaled to body, so this
+   cannot nest under .rlc-panel. mousedown is cancelled in JS so taking focus
+   doesn't unmount the tip before the click lands. */
+.rlc-cite-jump {
+  display: block;
+  width: 100%;
+  margin: 2px 0 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--tan-3);
+  text-underline-offset: 2px;
+}
+.rlc-cite-jump:hover { color: var(--tan); }
+/* Brief flash on the sentence a source tooltip just pointed at. */
+.rlc-claim-flash {
+  scroll-margin-top: 64px;
+  border-radius: 2px;
+  background-color: transparent;
+  color: inherit;
+  animation: rlc-claim-flash 1.2s ease-out;
+}
+@keyframes rlc-claim-flash {
+  0%, 40% { background-color: var(--row-pulse-flash); }
+  100% { background-color: transparent; }
+}
 
 /* ── Export / download chips (export_findings tool) ─────────────────────── */
 .rlc-exports { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 8px; }
@@ -637,30 +723,25 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-verify-claims li + li { margin-top: 4px; }
 .rlc-verify-claims li[data-status="contradicted"] code { color: var(--error-text); }
 .rlc-verify-quote { color: var(--tan-2); font-style: italic; }
-.rlc-verify-notfound { margin: 6px 0 0; }
-/* The disclosure toggle reuses .rlc-stage-toggle's plain-row treatment
-   (no border/background, pointer cursor) so it reads as "more detail
-   available" rather than as a warning — see the comment on NotFoundNote. */
-.rlc-verify-notfound-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+/* Answer-confidence facts (AnswerFacts.tsx): one muted mono line in the
+   badge's own type, tucked under it so badge + line read as one unit. The
+   flagged fact ("Didn't answer the question", "Didn't address: …", and the
+   sources count when a checked source is disputed) takes the caution accent;
+   its words carry the meaning, not the colour. */
+.rlc-answer-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin: 8px 0 0;
   padding: 0;
-  border: none;
-  background: transparent;
+  list-style: none;
   color: var(--tan-3);
   font: 400 11.5px/1.4 "Source Code Pro", monospace;
   letter-spacing: 0.03em;
-  cursor: pointer;
 }
-.rlc-verify-notfound-list {
-  margin: 4px 0 0;
-  padding-left: 16px;
-  list-style: disc;
-  color: var(--tan-3);
-  font: 400 11.5px/1.4 "Source Code Pro", monospace;
-}
-.rlc-verify-notfound-list li + li { margin-top: 3px; }
+.rlc-verify + .rlc-answer-facts { margin-top: 5px; }
+.rlc-answer-facts li + li::before { content: "·"; margin-right: 8px; color: var(--tan-3); }
+.rlc-answer-facts li[data-status="flagged"] { color: var(--warn); }
 
 /* ── Trace rows + collapsed-checklist summary head ─────────────────────────
    The old standalone collapsible trace card is gone — trace rows now render
@@ -710,6 +791,7 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   background: rgba(0, 0, 0, 0.18);
 }
 .rlc-inputwrap {
+  position: relative; /* anchors the slash-command ghost overlay */
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
@@ -719,6 +801,14 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
 }
+/* The textarea and its slash-command ghost overlay share ONE font+padding rule
+   so the overlay's `/t` sits exactly over the typed `/t` — split them and the
+   two drift the first time someone retunes the composer type. */
+.rlc-textarea,
+.rlc-slash-ghost {
+  font: 400 15.5px/1.5 var(--serif, "Lora", serif);
+  padding: 10px 12px 4px;
+}
 .rlc-textarea {
   width: 100%;
   resize: none;
@@ -726,11 +816,26 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   outline: none;
   background: transparent;
   color: var(--tan);
-  font: 400 15.5px/1.5 var(--serif, "Lora", serif);
-  padding: 10px 12px 4px;
   max-height: 120px;
 }
 .rlc-textarea::placeholder { color: var(--gray); }
+/* Slash-command autocomplete (SlashGhost.tsx): while a completion is offered
+   the textarea's own text goes transparent (caret kept) and the overlay paints
+   the typed prefix in the accent with the remainder translucent. */
+.rlc-slash-ghost {
+  position: absolute;
+  inset: 0 0 auto 0;
+  pointer-events: none;
+  white-space: pre;
+  overflow: hidden;
+  color: var(--tan);
+}
+.rlc-slash-typed { color: var(--accent); }
+.rlc-slash-rest { color: color-mix(in srgb, var(--tan) 45%, transparent); }
+.rlc-inputwrap[data-state="completing"] .rlc-textarea {
+  color: transparent;
+  caret-color: var(--tan);
+}
 
 .rlc-composer-row { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px 10px; }
 .rlc-chip {
@@ -1034,9 +1139,12 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-nomotion .rlc-twinkle,
 .rlc-nomotion .rlc-verify-dot,
 .rlc-nomotion .rlc-stage-marker,
-.rlc-nomotion .rlc-caret { animation: none !important; }
+.rlc-nomotion .rlc-caret,
+.rlc-nomotion .rlc-claim-flash { animation: none !important; }
+.rlc-nomotion .rlc-claim-flash { background-color: var(--row-pulse-flash); }
 .rlc-nomotion .rlc-caret { opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
-  .rlc-panel, .rlc-turn, .rlc-jump, .rlc-menu, .rlc-limits-popover, .rlc-ember, .rlc-twinkle, .rlc-caret, .rlc-verify-dot, .rlc-stage-marker { animation: none !important; }
+  .rlc-panel, .rlc-turn, .rlc-jump, .rlc-menu, .rlc-limits-popover, .rlc-ember, .rlc-twinkle, .rlc-caret, .rlc-verify-dot, .rlc-stage-marker, .rlc-claim-flash { animation: none !important; }
   .rlc-caret { opacity: 1; }
+  .rlc-claim-flash { background-color: var(--row-pulse-flash); }
 }

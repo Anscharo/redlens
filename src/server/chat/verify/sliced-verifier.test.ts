@@ -96,7 +96,7 @@ test("refute unparsed + overreach clean → refuteParsed:false, computeOverall u
 test("a ruling alone (no candidates) → warn, and confirm is never called", async () => {
   const calls: { model: string; role: string }[] = [];
   const run = await runSlicedVerifier({
-    call: dispatchCall({ refute: '{"contradictions":[],"not_found":[],"notes":""}', overreach: '{"ruling_issued":true,"notes":"adjudicated"}' }, calls),
+    call: dispatchCall({ refute: '{"contradictions":[],"notes":""}', overreach: '{"ruling_issued":true,"notes":"adjudicated"}' }, calls),
     models: { refute: "m", overreach: "m", confirm: "m" },
     ix, question: "q", answer: "The answer.", evidence: [], checks: CLEAN_CHECKS,
   });
@@ -108,7 +108,7 @@ test("a ruling alone (no candidates) → warn, and confirm is never called", asy
 test("confirm runs only when there is ≥1 candidate: 2 calls clean, 3 calls with a candidate", async () => {
   const cleanCalls: { model: string; role: string }[] = [];
   await runSlicedVerifier({
-    call: dispatchCall({ refute: '{"contradictions":[],"not_found":[],"notes":""}', overreach: '{"ruling_issued":false,"notes":""}' }, cleanCalls),
+    call: dispatchCall({ refute: '{"contradictions":[],"notes":""}', overreach: '{"ruling_issued":false,"notes":""}' }, cleanCalls),
     models: { refute: "m", overreach: "m", confirm: "m" },
     ix, question: "q", answer: "The answer.", evidence: [], checks: CLEAN_CHECKS,
   });
@@ -117,7 +117,7 @@ test("confirm runs only when there is ≥1 candidate: 2 calls clean, 3 calls wit
   const withCandidateCalls: { model: string; role: string }[] = [];
   const answer = "X is 5.";
   const evidence = [{ label: "[E1]", tool: "atlas_get", args: "{}", content: "X is 7." }];
-  const refuteText = JSON.stringify({ contradictions: [{ answer_span: "X is 5.", evidence_span: "X is 7.", why: "value differs" }], not_found: [], notes: "" });
+  const refuteText = JSON.stringify({ contradictions: [{ answer_span: "X is 5.", evidence_span: "X is 7.", why: "value differs" }], notes: "" });
   await runSlicedVerifier({
     call: dispatchCall({ refute: refuteText, overreach: '{"ruling_issued":false,"notes":""}', confirm: '{"agree":[],"notes":""}' }, withCandidateCalls),
     models: { refute: "m", overreach: "m", confirm: "m" },
@@ -130,7 +130,7 @@ test("confirm runs only when there is ≥1 candidate: 2 calls clean, 3 calls wit
 test("an AGREED contradiction → fail; a disagreed one still carries the candidate in the verdict (agreed:false) but computeOverall → pass", async () => {
   const answer = "X is 5.";
   const evidence = [{ label: "[E1]", tool: "atlas_get", args: "{}", content: "X is 7." }];
-  const refuteText = JSON.stringify({ contradictions: [{ answer_span: "X is 5.", evidence_span: "X is 7.", why: "value differs" }], not_found: [], notes: "" });
+  const refuteText = JSON.stringify({ contradictions: [{ answer_span: "X is 5.", evidence_span: "X is 7.", why: "value differs" }], notes: "" });
 
   const agreedRun = await runSlicedVerifier({
     call: dispatchCall({ refute: refuteText, overreach: '{"ruling_issued":false,"notes":""}', confirm: '{"agree":[1],"notes":""}' }),
@@ -154,7 +154,7 @@ test("a param-table absence candidate needs the owner token, goes through confir
   const answer = "The atlas does not specify a USDS mint maximum for Keel.";
   const calls: { model: string; role: string }[] = [];
   const run = await runSlicedVerifier({
-    call: dispatchCall({ refute: '{"contradictions":[],"not_found":[],"notes":""}', overreach: '{"ruling_issued":false,"notes":""}', confirm: '{"agree":[1],"notes":""}' }, calls),
+    call: dispatchCall({ refute: '{"contradictions":[],"notes":""}', overreach: '{"ruling_issued":false,"notes":""}', confirm: '{"agree":[1],"notes":""}' }, calls),
     models: { refute: "m", overreach: "m", confirm: "m" },
     ix: paramIx, question: "q", answer, evidence: [], checks: CLEAN_CHECKS,
   });
@@ -169,7 +169,7 @@ test("an absence sentence naming NO owner is never a candidate — confirm never
   const answer = "The atlas does not specify a governance token vesting cliff.";
   const calls: { model: string; role: string }[] = [];
   await runSlicedVerifier({
-    call: dispatchCall({ refute: '{"contradictions":[],"not_found":[],"notes":""}', overreach: '{"ruling_issued":false,"notes":""}' }, calls),
+    call: dispatchCall({ refute: '{"contradictions":[],"notes":""}', overreach: '{"ruling_issued":false,"notes":""}' }, calls),
     models: { refute: "m", overreach: "m", confirm: "m" },
     ix: paramIx, question: "q", answer, evidence: [], checks: CLEAN_CHECKS,
   });
@@ -179,7 +179,7 @@ test("an absence sentence naming NO owner is never a candidate — confirm never
 test("usage sums across every call that ran, including the conditional confirm", async () => {
   const answer = "X is 5.";
   const evidence = [{ label: "[E1]", tool: "atlas_get", args: "{}", content: "X is 7." }];
-  const refuteText = JSON.stringify({ contradictions: [{ answer_span: "X is 5.", evidence_span: "X is 7.", why: "value differs" }], not_found: [], notes: "" });
+  const refuteText = JSON.stringify({ contradictions: [{ answer_span: "X is 5.", evidence_span: "X is 7.", why: "value differs" }], notes: "" });
   const run = await runSlicedVerifier({
     call: dispatchCall({ refute: refuteText, overreach: '{"ruling_issued":false,"notes":""}', confirm: '{"agree":[],"notes":""}' }),
     models: { refute: "m", overreach: "m", confirm: "m" },
@@ -192,7 +192,7 @@ test("usage sums across every call that ran, including the conditional confirm",
 test("confirm outage (unparseable) with a candidate on the table: confirm.parsed:false, computeOverall → unverified (not pass, not fail)", async () => {
   const answer = "X is 5.";
   const evidence = [{ label: "[E1]", tool: "atlas_get", args: "{}", content: "X is 7." }];
-  const refuteText = JSON.stringify({ contradictions: [{ answer_span: "X is 5.", evidence_span: "X is 7.", why: "value differs" }], not_found: [], notes: "" });
+  const refuteText = JSON.stringify({ contradictions: [{ answer_span: "X is 5.", evidence_span: "X is 7.", why: "value differs" }], notes: "" });
   const run = await runSlicedVerifier({
     call: dispatchCall({ refute: refuteText, overreach: '{"ruling_issued":false,"notes":""}', confirm: "not json" }),
     models: { refute: "m", overreach: "m", confirm: "m" },
@@ -209,7 +209,6 @@ function para(p: Partial<ParagraphRefute> & { index: number }): ParagraphRefute 
   return {
     text: `p${p.index}`,
     contradictions: [],
-    notFound: [],
     discarded: 0,
     parsed: true,
     latencyMs: 1,
@@ -224,7 +223,7 @@ const OVERREACH_CLEAN = '{"ruling_issued":false,"notes":""}';
 test("paragraph mode: empty paragraphRefutes → refuteParsed:false, computeOverall unverified, refute slice not called", async () => {
   const calls: { model: string; role: string }[] = [];
   const run = await runSlicedVerifier({
-    call: dispatchCall({ overreach: OVERREACH_CLEAN, refute: '{"contradictions":[],"not_found":[],"notes":""}' }, calls),
+    call: dispatchCall({ overreach: OVERREACH_CLEAN, refute: '{"contradictions":[],"notes":""}' }, calls),
     models: { refute: "m", overreach: "m", confirm: "m" },
     ix, question: "q", answer: "The answer.", evidence: [], checks: CLEAN_CHECKS,
     paragraphRefutes: [],
@@ -264,15 +263,3 @@ test("paragraph mode: every paragraph parsed clean → pass, refute slice not ca
   expect(computeOverall(null, run.verdict)).toBe("pass");
 });
 
-test("not_found is carried from the refute slice, capped at 5 there", async () => {
-  // Full statements, none present in the (empty) evidence — bare tokens would
-  // now be dropped by validateNotFound as topics rather than statements.
-  const stmt = (n: number) => `Statement number ${n} makes a claim the evidence never covers at all`;
-  const refuteText = JSON.stringify({ contradictions: [], not_found: [1, 2, 3, 4, 5, 6].map(stmt), notes: "" });
-  const run = await runSlicedVerifier({
-    call: dispatchCall({ refute: refuteText, overreach: '{"ruling_issued":false,"notes":""}' }),
-    models: { refute: "m", overreach: "m", confirm: "m" },
-    ix, question: "q", answer: "a", evidence: [], checks: CLEAN_CHECKS,
-  });
-  expect(run.verdict?.not_found).toHaveLength(5);
-});

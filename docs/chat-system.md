@@ -33,7 +33,12 @@ embed text, indexes), `src/server/facts/` (auto-injected knowledge). Client:
 
 `ChatWidget` is a floating panel (⌘K/Ctrl-K to open, Esc to close) mounted once
 in the app shell, with `float` (corner card) and `anchored` (right column)
-placements persisted in localStorage. `useChatStream.send(text, pageContext)`
+placements persisted in localStorage. The anchored column starts at
+`clamp(340px, 30vw, 460px)` and can be dragged wider from its left edge, up to
+55% of the window (`AnchoredResizeHandle`; the pixel width is persisted as
+`rlc-anchored-w` and applied as `--rlc-anchored-w`, which the shell gutter
+reads too). Sidebar breakpoints use the width beside that column, and the
+notes panel shrinks (down to 200px) so the open document keeps at least 400px. `useChatStream.send(text, pageContext)`
 POSTs `{ message, conversationId, pageContext }` to `/api/chat`, then reads the
 response as a raw stream (not `EventSource`, since it's a POST), buffering on
 `\n\n` and parsing `data:` SSE frames into typed `ChatEvent`s. A `dispatch()`
@@ -108,8 +113,9 @@ checklist), `Sources`, `LimitsMeter` + `ContextPie` (usage and context size),
    insert/history reload would otherwise leak it silently), and the stream's
    own `finally` once it owns the slot.
 4. **Rate-limit + commons gate** (parallel) — per-user rolling token window
-   (`RATE_LIMIT_TOKENS_PER_WINDOW`, default 750,000 tokens /
-   `RATE_LIMIT_WINDOW_MINUTES`, default 120; 429 with `Retry-After` if
+   (`RATE_LIMIT_TOKENS_PER_WINDOW`, default 1,000,000,000,000 tokens —
+   effectively disabled as of 2026-09-22; 750,000 was the last live value /
+   `RATE_LIMIT_WINDOW_MINUTES`, default 90; 429 with `Retry-After` if
    exceeded). Named GitHub logins get a higher ceiling:
    `RATE_LIMIT_BOOST_LOGINS` (comma-separated, case-insensitive) →
    `RATE_LIMIT_TOKENS_PER_WINDOW_BOOSTED` (default 3,000,000), an explicit
@@ -127,8 +133,13 @@ checklist), `Sources`, `LimitsMeter` + `ContextPie` (usage and context size),
    or `INSERT` a new `conversations` row; 404 `conversation_not_found` if the
    id isn't the caller's.
 6. **Persist the user message** before streaming, then reload full history.
-7. **Build the model input** — system prompt, windowed history, facts prefetch.
-8. **Model tier routing** — `routeTier` + `resolveTierModels`.
+7. **Build the model input** — `prepareTurn` (`turn-setup.ts`): the Jev
+   prefetch judgement, tier routing (`routeTier` + `resolveTierModels`), system
+   prompt, full history, facts round and Jev-filtered `/teach` notes. It is
+   the one assembly `pnpm eval:tools` also runs; the per-user `/teach` lookup
+   stays in `chat.ts` and comes in as an argument.
+8. **Model tier routing** — part of step 7, decided before the prompt is
+   built because the citation format depends on the model.
 9. **SSE stream** — emit `meta`, then run the harness, forwarding every event
    as-is, `data: {json}\n\n` (§8 — there is one delivery shape, not a mode
    switch).
@@ -157,8 +168,114 @@ the literal list of models measured clean for the format (`openai/gpt-5.6-luna`,
 `openai/gpt-5-mini`), independent of whichever model currently sits in
 `CHAT_MODEL_STRONG`, so swapping the strong tier doesn't silently change what
 format an unmeasured model gets asked for. The pipeline accepts both from every
-model regardless; see `docs/plans/reference-citations.md`. History is windowed
-to a hard char budget (`chat-history.ts`).
+model regardless; see `docs/plans/reference-citations.md`. History is the full
+thread (`context-compact.ts` decides what to replay and when to compact,
+`compact-turn.ts` drives it, `context-summary.ts` is the one summarization
+call): every stored message is
+replayed verbatim until the replay reaches 90% of
+`CHAT_CONTEXT_WINDOW_TOKENS` (default 200k, the
+smallest window in the routing chain). That turn summarizes the prefix once
+into `conversations.summary` and keeps a short tail.
+
+**Compaction runs AFTER the answer, not before the first token.** The summary it
+writes is read by the NEXT turn and never by the one that builds it, so the user
+is never waiting on it. It used to run before the turn, and that was a real
+stall: nothing can reach the browser until the route handler has returned its
+Response, so the turn that crossed the line showed a pending request with zero
+bytes for up to `CHAT_SUMMARY_TIMEOUT_MS` (60s) — no stream and no stage ticker,
+indistinguishable from a hang. Running it after `persistAssistant`, unawaited
+(the shape titling already uses), removes that wait rather than narrating it. It
+is safe because a thread at the 90% line still fits the window by design, so the
+turn or two that replay it un-compacted while the summary is being built are
+under the model's limit — and if the estimate was wrong, that is the rejection
+backstop below rather than a new failure mode. One consequence worth knowing:
+the meter reports the pre-compaction size on the turn that crosses the line and
+drops on the next, which is what it already promises — it falls only when the
+thread is condensed.
+
+Only the **recovery** path still compacts before the turn and awaits it: there
+the provider has already rejected the thread, so the turn cannot proceed until
+the prefix is smaller. `compact-turn.ts` is the single entry point for both, and
+it holds one in-flight flag **per conversation, per process** so that several
+turns sent while a summary is running do not each start their own. In-memory is
+deliberate rather than a DB row: across replicas two processes can still
+summarize the same conversation at once, and that is fine, because the summary
+and its cursor are written in ONE statement — a missed guard costs a duplicate
+call and never a mismatch, since whichever write lands last leaves a summary
+covering exactly up to its own cursor. `compactTurn` reports whether the guards
+let it through (`attempted`), and the forced caller passes THAT to
+`context-overflow.ts` rather than its own intent, so a forced compaction skipped
+for an in-flight one does not spend the single attempt per rejection.
+
+Two consequences of running after the answer, both accepted. A turn the client
+**aborts** never reaches the compaction call — it sits inside the same
+`!req.signal.aborted` guard as `persistAssistant`, because the answer it
+summarizes past is only stored on that branch — so a conversation whose turns are
+all cancelled is left to the rejection backstop below. And the turn that crosses
+the line replays the thread un-compacted along with the turn or two after it,
+which is the safety argument above rather than a gap. The summarizer is pinned to
+`openai/gpt-5.6-luna` (`CHAT_SUMMARY_MODEL`) rather than following `CHAT_MODEL`:
+one compaction per thread, reading up to ~140k tokens, whose output every later turn
+of that conversation then answers from and which is never rewritten — so it is
+worth a strong model and should not change whenever the default chat model does. The summary is a stable
+message pair after the system prompt — provider caches match a byte-identical
+prefix, so the summary is not rewritten on the turns in between. A failed
+summary (timeout, error, or unparseable output) leaves the full thread in
+place and is not retried for five minutes, so a model outage does not add
+the summary timeout to every later turn. Earlier tool
+results are not replayed raw. Each call is reduced to a lookup card once, when
+the turn is saved (`tool-recall.ts` for the ids and pairing,
+`tool-recall-card.ts` for the card text), and that card is what later turns see.
+
+That 90% line is an **estimate** (4 chars/token, measured on a real turn — see
+`CHARS_PER_TOKEN`), and it can be wrong in the unsafe direction on a
+JSON-heavy or non-English thread. `context-overflow.ts` is the backstop: when
+the provider itself rejects a request for length, the user gets a
+plain-language message instead of a raw 400, and the conversation is flagged so
+its **next** turn compacts the prefix whether or not the estimate says it fits,
+keeping only `COMPACT_TAIL_FORCED` rows verbatim and overriding the
+five-minute failure cooldown. So the thread heals on the next message. Exactly
+one forced compaction is spent per rejection: if the request is rejected again
+after it, the verbatim tail itself is too large, and the conversation is marked
+`forcedCompactionSpent` so later turns neither pay another summary call for it
+nor promise one — they ask for a new chat. A compaction that does land clears
+both verdicts, since the thread has shrunk. `shouldForceCompaction` and
+`noteContextOverflow` are the whole surface: the flag and the wording are one
+decision, so what the notice promises cannot drift from what the next turn does.
+
+**What the meter shows.** `LimitsMeter`/`ContextPie`'s context figure is
+`contextUsedTokens` — the replay a turn sends plus the standing prefix — carried
+live on the `done` event as `contextUsed` and recomputed from stored rows by the
+conversation-detail route, so reopening a chat does not move it. It is
+deliberately NOT the measured `prompt_tokens` the meter used to show: that
+counts one turn's raw tool results, which the next turn never replays (they come
+back as ≤1.8k lookup cards), so a tool-heavy turn measured far above what the
+conversation actually carries and the number fell again on the next turn that
+needed no tools. It also omitted nothing — it was exact — but exact about the
+wrong quantity, and it could not be compared against the compaction line at all,
+because compaction decides on the estimate. Now one function answers both, and
+the number only drops when a compaction actually happens. The measured
+`messages.context_tokens` is still written per row for cost, telemetry and as
+the calibration signal for the estimate; it just does not drive the meter. The
+conversations LIST approximates the same quantity in SQL (replayed rows after
+the cursor + the summary + the prefix) because loading every row's cards for up
+to 100 conversations is not worth 1%, and marks it `~`.
+
+Compaction also shrinks its own tail rather than trusting the row count:
+`planWithinLine` drops a tail row at a time, down to the question being
+answered, until the rows left verbatim (plus a summary at its cap) are
+themselves under the line. For any ordinary thread the six-row tail is far
+under it and nothing shrinks — it exists so that six messages at
+`MAX_MESSAGE_BYTES`, or a small configured `CHAT_CONTEXT_WINDOW_TOKENS`, cannot
+produce the one outcome the design cannot recover from: a compaction that leaves
+a prompt still over the line, which no later compaction can fix. There is
+deliberately no retry inside the same turn: it would mean re-running everything
+before the first token (Jev judgement, facts round, `/teach` filtering) or
+duplicating `prepareTurn`'s assembly, and the same message re-sent takes the
+healed path. With `CHAT_SUMMARY_MODEL=""` there is no compaction to force, and the
+message says to start a new chat instead. All the flags (summary cooldown,
+overflow, compaction in flight) are per-process and bounded — `conv-flags.ts`, swept and capped, so a
+conversation that fails once and is never reopened cannot hold an entry.
 
 The prompt also carries a **"Drafting messages to a third party"** section:
 composing a message, email, or forum reply about the atlas for someone else is
@@ -200,9 +317,48 @@ suppressed when the question names a real atlas subject. Its margin
 over-injecting costs ~2k discarded tokens a large model can ignore, while
 under-injecting can lose the answer. `CHAT_PREFETCH=0` kills every fact at once.
 
+**User teachings (`/teach`, `src/server/chat/teach/`).** A signed-in user can start
+a message with `/teach`; the rest of the message is a note, capped at
+`TEACH_MAX_WORDS` (60 — set by ternlight's 128-token window; over-cap notes are
+rejected with the count, stored as `rejected`/"too long" so demand for long
+notes is measurable, and every touchpoint says "one fact per note, a sentence
+or two"; the review model reads the whole capped note, no second character
+window). A cheap heuristic rejects empty/spam, then an advanced model (`CHAT_TEACH_REVIEW_MODEL`, defaulting
+to the strong-tier primary) reviews for gibberish and prompt-injection — it does
+not fact-check against the Atlas. Accepted notes land in `chat_teachings`,
+scoped to that `user_id`. Later turns inject matching notes as a **separate**
+synthetic tool round named `user_teachings` (`sourceClass: "user"`), so
+quote-grounding never treats a note as atlas text. Matching is lexical token
+overlap plus on-device ternlight, with a SQL `tsvector` lane for larger
+notebooks. The note's 384-dim ternlight vector is embedded **once, at accept**
+(`ternlight_embedding`, migration 031); a turn embeds only the question and
+Postgres returns each row's cosine (`ternlight_sim`), with a one-time backfill
+for rows that predate the column. (030's 1024-dim OpenRouter vector was never
+read and was dropped in 031 — no network embed anywhere on the teach path.) A note is injected only when a lane clears
+its floor (`TEACH_LEX_FLOOR` term overlap or `TEACH_TERNLIGHT_FLOOR` cosine) —
+there is no small-notebook shortcut, which used to put every note on every turn.
+Small talk skips matching entirely, `CHAT_FACT_SIMILARITY=0` makes it lexical-only
+(the on-device embedder is never loaded), and a partial unique index
+(migration 032) keeps one accepted copy of a note per user under concurrent
+`/teach`. Teachings are excluded from export grounding too (`exportEvidence`),
+mirroring the orchestrator's atlas-evidence split.
+When an answer reads as a miss, the system prompt asks the model to invite
+`/teach`, and `withTeachHint` appends the invitation if the model forgot.
+`CHAT_TEACH=0` turns the command, hint, injection, and prompt section off —
+server-side only; the composer's slash completion (below) still advertises it.
+
+Client-side, the composer autocompletes slash commands: while the draft is a
+lone `/word` token that prefixes a registered command, `SlashGhost.tsx` overlays
+the typed part in the accent and the remainder translucently, and Tab or Space
+accepts it as `/teach `. The list and the pure completion rule live in
+`src/lib/chatSlashCommands.ts` (shared via `@/`, so a future server command has
+one registry); its test asserts every entry is one `parseTeachCommand` accepts.
+Sharing notes across users is deferred.
+
 **Tier routing** (`model-router.ts`) classifies the message by regex signals into
-FAST/DEFAULT/STRONG model chains — free, no pre-flight LLM call; with no env
-config it's a no-op. STRONG fires on comparison, rule interaction, implications,
+FAST/DEFAULT/STRONG model chains; with no env config it's a no-op. Until
+2026-09-22 it made no pre-flight model call at all; it now reads ONE Jev score
+(see "Pre-first-token Jev judgement" below). STRONG fires on comparison, rule interaction, implications,
 governance-risk wording, **enumeration** ("all of the X", or "all … that/which/who"
 within 90 chars), **synthesis** (generate / compile / enumerate / inventory /
 timeline / trends), ≥2 question marks, or >350 chars. The last two signal groups
@@ -225,6 +381,34 @@ deterministic signals (so a regex keeps its own `reason`) but *before* the fast
 check, since whole-corpus questions are often short and lookup-shaped. It gets
 its own `reason` — `"similarity"` — so PostHog's `chat_route_reason` meters the
 lane's fire rate with no new instrumentation.
+
+**Pre-first-token Jev judgement** (`chat/prefetch-judge.ts`, 2026-09-22). The
+old rule, "nothing runs before the first token except code", was changed by
+decision: exactly **one** Jev request may run before the first model call, under
+a hard `CHAT_PREFETCH_JUDGE_DEADLINE_MS` (600) deadline. A late, failed or
+disabled (`CHAT_PREFETCH_JUDGE_MODEL=""`) judgement leaves the turn exactly as
+before. The rule was a reaction to an earlier pre-flight planner that cost
+1.5–4 s per turn; this call measured p50 373 / p95 553 / max 726 ms over 145
+real messages from a dev machine (live latency is unmeasured). One request
+carries a complexity Noul, one Noul per census slug, and one per `/teach` note
+on the shortlist:
+- **Complexity** — STRONG with reason `"jev"` at P ≥ 0.58, **in addition to**
+  the regex and similarity lanes above (checked after them). Held out: 12/14
+  against 4/14. On real traffic it recovers ~23 whole-corpus questions the lanes
+  miss, and the strong-routed share rises from ~17% to ~35% — a token cost,
+  since a false fire lands on the model measured better and faster.
+- **Census** — `routeCensuses` takes the Jev scores and they **replace** the
+  similarity lane: regex matches ∪ the top 3 slugs at P ≥ 0.60. The similarity
+  lane had drifted: on 145 real messages it fired 7 times with none correct,
+  while Jev at 0.60 fired on none and routed 47/50 labeled census questions
+  (similarity: 43/50).
+- **`/teach`** — a filter over today's shortlist at P ≥ 0.5. It only ever removes
+  a note, and a note missing from the judgement is kept. The evidence is thin:
+  20 synthetic pairs and the one real stored note.
+
+The features fact stays on its regex and similarity lanes: Jev reads "how do I
+find <title>?" literally. Numbers and adjudication are in
+[`docs/plans/jev-typesafe.md`](plans/jev-typesafe.md) §"Research round 2026-09-22".
 
 Unlike every other consumer of the embedding, this lane does **not** suppress on
 `namesAtlasSubject`. That suppressor is what holds the features lane to 1 false
@@ -282,7 +466,7 @@ mixed as evidence:
 | History | `atlas_history`, `atlas_history_stats`, `atlas_recent_changes`, `atlas_changed_between`, `atlas_first_seen`, `atlas_pr` |
 | Curated reports | `atlas_report_multisigs`, `atlas_report_primitive_matrix`, `atlas_report_rewards`, `atlas_report_active_data`, `atlas_report_facilitator_responsibilities`, `atlas_report_govops_responsibilities`, `atlas_report_stale_dates`, `atlas_report_processes`, `atlas_report_oea_assessment`, `atlas_report_risk_rules`, `atlas_report_addresses` |
 | Output | `export_findings` (chat-only; emits the `export` SSE event) |
-| External (not Atlas) | `external_msc` (MCP) and `ask_external_msc` (chat-only sub-agent). Curated Monthly Settlement Cycle views from Soter Labs workbooks + Sky Forum permalinks. Views: `month`/`series`/`venues` are per-prime and **require** `prime` (their errors return `available_primes` so a wrong guess self-corrects rather than reading as "no data"); `compare` ranks primes for one month; `aggregate` is the cross-prime, multi-month roll-up (ecosystem + per-prime totals, top venues across every prime); `terms` needs nothing. `aggregate` computes supply-side revenue as `prime_agent_revenue − cof` per prime — never `Σ` per-venue `Profit to Grove`, which drops non-venue revenue and spread reimbursement (a $7.29M gap, all Spark) — nests `cof`/`sde` under `to_sky` rather than beside it, treats `value_eom` as a stock (latest, not summed), and returns a `foot_delta` that re-checks the three-way identity. See `.claude/skills/settlement-reports/SKILL.md`. Tool results carry `source_class: "external"`; the verifier ignores them for Atlas quote-grounding and requires the non-Atlas disclaimer. |
+| External (not Atlas) | `external_msc` (MCP) and `ask_external_msc` (chat-only sub-agent). Curated Monthly Settlement Cycle views from Soter Labs workbooks + Sky Forum permalinks. Views: `month`/`series`/`venues` are per-prime and **require** `prime` (their errors return `available_primes` so a wrong guess self-corrects rather than reading as "no data"); `compare` ranks primes for one month; `aggregate` is the cross-prime, multi-month roll-up (ecosystem + per-prime totals, an ecosystem `by_month` series, top venues across every prime) — it covers only the latest month unless `month: "all"` or `from`/`to` is passed, and always returns `months_available` so a default call can widen on the next round; `terms` needs nothing. `aggregate` computes supply-side revenue as `prime_agent_revenue − cof` per prime — never `Σ` per-venue `Profit to Grove`, which drops non-venue revenue and spread reimbursement (a $7.29M gap, all Spark) — nests `cof`/`sde` under `to_sky` rather than beside it, treats `value_eom` as a stock (latest, not summed), and returns a `foot_delta` that re-checks the three-way identity; it also flags a range whose months have different numbers of published workbooks, since such a "highest month" is partly a coverage artifact. The deterministic brief (`briefFromView`) has a branch for every money view, aggregate included — it is what the main model reads when the sub-model returns nothing usable, and an empty one reads as "the tool returned no figures". See `.claude/skills/settlement-reports/SKILL.md`. Tool results carry `source_class: "external"`; the verifier ignores them for Atlas quote-grounding and requires the non-Atlas disclaimer. |
 
 `atlas_query`, `atlas_entities`, and `atlas_params` take their free-text search
 argument as `query`; `q` still works but is a deprecated alias kept for
@@ -307,6 +491,23 @@ and reports `truncated` so the caller pages or narrows instead of blowing up.
 degrades gracefully — harness flakiness never breaks a turn — and
 `transcript`/`checksMeta` are internal, stripped by `sanitizeDone` before any
 event reaches a client (test-asserted).
+
+**The failure rule, stated once: a Jev miss degrades toward MORE checking and
+LESS assertion.** Every Jev lane in the harness has a `catch`, and which way it
+falls is not a per-site judgement call — it follows from what the lane's answer
+is allowed to do:
+
+- A lane whose answer can **remove** work fails **closed**. The small-talk
+  bypass (§6.4) decides whether to skip the audit, so a failed judgement means
+  audit it. The paragraph screen (§6.6) decides whether to skip gemma, so a
+  null screen means gemma runs.
+- A lane whose answer can only **add** a warning fails **open**. Citation marks,
+  answer coverage and the prefetch judgement can each only put something new in
+  front of the reader, so a failure means no mark, no line, and today's
+  pre-Jev routing — never a fabricated finding.
+
+A new lane inherits one of those two by asking which it is. Each `catch` cites
+this rule rather than re-deriving it.
 
 1. **Conversationalist pass** — runs `runChat`, forwarding token/tool/status
    events (through the streaming citation gate, §7) but holding back `done`.
@@ -372,12 +573,14 @@ prompt.** Every `refute` finding's evidence span is re-checked against the
 actual evidence text; a span that isn't really there is **DISCARDED**, never
 downgraded to a lesser status — refutation-only has no lesser status to
 downgrade to. A finding that survives validation becomes a **candidate**.
-Statements the auditor could not locate in evidence at all go to `notFound`
-(capped at 5), which is informational only and never affects `overall`. It is
-still held to code (`validateNotFound`, refute.ts): an entry whose words occur
-together anywhere in the evidence (overlap ≥ 0.6 — a looser bar than a
-contradiction's, because here overlap REMOVES a claim) is dropped as covered,
-and an entry under five words is dropped as a topic rather than a statement.
+A statement the auditor cannot locate in the evidence is simply not reported.
+The judge used to return those as `not_found` and the reader saw them as "N
+statements the retrieved sources don't cover" — the last surviving channel of
+the pre-2026-09-10 "prove every claim supported" design. It never fed
+`overall`, needed a validation pass the day after it shipped, and was still
+surfacing the answer's own headings and the user's question echoed back a
+fortnight later, so it was removed outright on 2026-09-23. Absence is not
+evidence, which is what refutation-only meant in the first place.
 Observed 2026-09-11 before this: "the savings rate" reported as uncovered while
 the evidence defined the Sky Savings Rate.
 
@@ -435,10 +638,35 @@ verdict is mostly ready by generation end instead of one more whole-answer
 round trip after it). Concurrency is capped (`CHAT_REFUTE_CONCURRENCY`,
 default 3) via a simple semaphore; paragraphs at or beyond
 `CHAT_REFUTE_MAX_PARAGRAPHS` (default 8) are concatenated into ONE extra call
-at flush time, keyed by the first overflowing paragraph's index — every call
-carries the full evidence set, so call count rather than paragraph count is
-what scales input tokens. A `tool_call` or `clear` — the draft being set aside
-— resets the refuter to a new burst; a call still in flight from the old burst
+at flush time, keyed by the first overflowing paragraph's index. Every call
+still carries the full evidence set. `buildRefutePrompt` orders the user
+message as question, then that evidence, then the paragraph, so the paragraph
+is the only suffix that changes and a provider prefix cache can reuse the
+evidence across the calls. `[E-const]` is appended after that shared block,
+because it is the only entry computed from the paragraph itself: a paragraph
+that names a parameter lengthens the tail, and the evidence before it still
+matches. A cache miss still bills the full set once per call, which is why
+call count rather than paragraph count is what scales input tokens when the
+prefix is cold.
+
+A paragraph `hasCheckableContent` rejects never starts a call at all: `submit`
+records it `parsed: true` with no usage and no latency, so the backbone does not
+degrade to `unverified` over a heading. The test runs *before* the
+`CHAT_REFUTE_MAX_PARAGRAPHS` routing, so an uncheckable paragraph costs no call,
+no concurrency slot and no place in that budget — and one past the cap is
+dropped rather than concatenated into the overflow batch and billed with it.
+That test is the same one `needsGemma`
+already applied in `gate` mode — this makes `off` and `shadow` agree with it —
+and it is deliberately loose: fewer than `MIN_CLAIM_WORDS` real words AND no
+groundable marker, where a marker is any figure, link, doc number, address,
+code span or reference label (`hasGroundableMarker`). So `## Signers` and a
+`---` rule are skipped while `It is 3.` is not, because a number is the
+auditor's business however short the sentence. `mergeParagraphRefutes` filters
+null usage rather than summing it, and paragraph-mode latency is the wall-clock
+`settleMs`, so a skipped paragraph reads as zero cost, never as missing data.
+
+A `tool_call` or `clear` — the draft being set aside — resets the refuter to a
+new burst; a call still in flight from the old burst
 writes nothing when it lands (checked at land time via an integer burst tag),
 so a stale paragraph's contradiction can never leak into the shipped verdict.
 `refuteParsed` on the merged `Verdict` now means "every paragraph of the FINAL
@@ -452,6 +680,47 @@ paragraphs plus any absence-contract candidate. Set `CHAT_REFUTE_MODE=answer`
 to fall back to the pre-2026-09 one-call-over-the-finished-answer behavior;
 `pnpm eval:verifier --mode paragraph|answer` (§12) grades either.
 
+**Jev screen in front of the per-paragraph refute (2026-09-22,
+`verify/refute-screen.ts`, `CHAT_REFUTE_SCREEN`).** Each paragraph also goes to
+one Jev request. The state is the paragraph, the documents it cites (read in
+full from the atlas index, not from tool excerpts), the deterministic
+`[E-const]` parameter rows, and the most relevant tool-output records — at most
+8 of them, by IDF-weighted overlap, with cited-matching records always kept.
+The cited docs and the parameter rows are their own classes and do not compete
+for those 8 slots (they did until 2026-09-30: the parameter rows carry `doc_no`
+and `uuid`, so a paragraph citing a doc whose parameter it also named scored
+every row as cited-matching and spent tool-record slots on rows already in the
+state). Each statement gets a Choice over
+consistent / contradicted / unsupported, and a paragraph is flagged at
+P(contradicted) ≥ 0.2. The modes:
+- `shadow` (the default): the screen runs beside gemma and changes nothing the
+  reader sees. Its verdict is recorded per paragraph at
+  `message_checks.verdict->'paragraphs'->'screen'` on the `verify` row, next to
+  what gemma did on the same paragraph, plus a PostHog `chat_refute_screen`
+  event.
+- `gate`: gemma runs only on paragraphs the screen flags, can't fit, or fails
+  on. A clean screen counts as audited, so it never turns the badge
+  "unverified".
+- `off`: no screen.
+
+Jev cannot replace refute: it returns no verbatim evidence span, and `confirm`
+needs one. So the screen only decides whether gemma looks.
+
+Measured with `pnpm eval:refute-screen --gemma`, the first recorded run of
+paragraph-mode gemma, over 248 cases:
+- On 100 planted name/number contradictions, the screen flags **84**; gemma
+  catches **50** before confirm.
+- Gate mode would call gemma on 16 of 75 stored-answer paragraphs instead of 75,
+  and keep 58 of gemma's 61 catches. The losses are two number swaps Jev scored
+  at 0.03 and 0.17, and one spurious gemma candidate.
+- Latency: Jev p50 0.41 s against gemma's 4.4 s, and gemma timed out on 17 of the
+  248. Only one of those timeouts falls on a paragraph the gate would skip, so
+  the gate cuts calls and cost, not timeouts.
+- Blind spot: list completeness (a phantom or duplicate member).
+
+Shadow stays the default until its recorded verdicts have been compared with
+gemma's on real traffic.
+
 ### 6.2 The absence contract (`verify/absence.ts`)
 
 An absence claim ("the atlas does not specify which chains") used to need
@@ -463,8 +732,8 @@ sentence (the same precision bar as §6.3), and it goes through the same
 `confirm` gate before it can ship as an agreed contradiction. There is no more
 three-outcome REFUTED/GROUNDED/UNVERIFIED split: refutation-only only ever
 asserts a contradiction (candidate → confirmed) or says nothing about the
-statement (`notFound` or silence) — it no longer tries to prove a gap is
-genuine, only to catch a false one.
+statement — it no longer tries to prove a gap is genuine, only to catch a
+false one.
 
 The originating call's raw `args` are load-bearing here: an empty search envelope
 (`{"count":0,"results":[]}`) carries no words of its own, so the query is the only
@@ -505,11 +774,11 @@ are gated out — refuting is hard-failure-adjacent, so it needs a high precisio
 bar. `findParamsMentioned` / `formatParamValue` are also consumed directly by the
 absence contract.
 
-### 6.4 Small-talk bypass (`verify/smalltalk.ts`)
+### 6.4 Small-talk bypass (`verify/smalltalk.ts` + `verify/smalltalk-jev.ts`)
 
 Auditing a greeting is pure cost. The bypass has three conditions, and is
-**fail-closed at every one** — timeout, error, or unparseable JSON all return
-`smalltalk: false`, which keeps the full audit:
+**fail-closed at every one** — a timeout, a transport error, or an answer of
+the wrong type all rule `smalltalk: false`, which keeps the full audit:
 
 1. **Answer-side, deterministic** — `isUncheckableAnswer`: the reply is under
    `SMALLTALK_MAX_CHARS` (600) and contains no groundable marker at all. Every
@@ -517,16 +786,27 @@ Auditing a greeting is pure cost. The bypass has three conditions, and is
    links, any markdown link, bare autolinks, reference labels, EVM addresses,
    **any digit**, braces/backticks. A zero-tool answer that cites or quantifies
    is exactly the hallucination case the verifier exists for.
-2. **Question-side, model** — the deterministic predicate can't tell "thanks!"
+2. **Question-side, judged** — the deterministic predicate can't tell "thanks!"
    from "is the fee governance-controlled?" answered with a marker-free "Yes."
-   So one tiny classification call on the user message asks: does it expect
-   factual content? Runs **concurrently** with the conversationalist (first user
-   message of a conversation only, and only when the message itself is
-   marker-free), so the ruling resolves before the answer finishes streaming.
-3. `CHAT_SMALLTALK_JUDGE_MODEL` must be set — default
-   `google/gemma-4-26b-a4b-it`, the 2026-08-13 bakeoff winner (100% on a 42-case
-   set, 0 dangerous errors, p50 722ms). Setting it empty disables the bypass
-   outright: no judge, no skip, every turn audits.
+   So one tiny judgment on the user message asks: does it expect factual
+   content? Runs **concurrently** with the conversationalist, so the ruling
+   resolves before the answer finishes streaming (measured over 45 paired
+   `message_checks` rows it was never the slower of the two). Fires on **every**
+   turn whose message is marker-free — the first-turn-only gate was removed
+   2026-09-22, so a late "thanks!" no longer pays a full audit. The judgment is
+   message-only; the prior turn is deliberately not in state.
+3. `CHAT_SMALLTALK_JUDGE_MODEL` must be set — default `typesafe/jev-1.13`, a
+   **Jev Noul** (`verify/smalltalk-jev.ts`), so the ruling is a probability and
+   the threshold is ours (`SMALLTALK_JEV_THRESHOLD`, 0.65, sitting in a
+   measured 0.50/0.76 separation gap). It replaced `google/gemma-4-26b-a4b-it`
+   on 2026-09-22: the chat-model judge lost 6–8 hard cases in the dangerous
+   direction and failed ~2% of calls outright, and a failed judge silently
+   costs the bypass. Bakeoff and real-traffic numbers:
+   [`docs/plans/jev-typesafe.md`](plans/jev-typesafe.md) §A0;
+   instrument: `bun scripts/aux/eval-smalltalk-judge.ts` (labeled) and
+   `scripts/aux/eval-smalltalk-real.ts` (real traffic, needs `DATABASE_URL`).
+   Setting it empty disables the bypass outright: no judge, no skip, every turn
+   audits.
 
 ### Deferred (2026-09-10)
 
@@ -543,16 +823,106 @@ One follow-up the refutation-only overhaul surfaced but did not build:
   grades either mode against the same corpus, so measure with that rather than
   by feel before adjusting `CHAT_REFUTE_CONCURRENCY` /
   `CHAT_REFUTE_MAX_PARAGRAPHS`.
-- **Prior-turn tool evidence is never replayed to the answerer.** `chat.ts`
-  replays only `{role, content}` for history, so the model that writes a
-  follow-up answer never sees this turn's or earlier turns' raw tool results —
-  only `priorTurnsEvidence` hands the *verifier* a summary of earlier answers
-  (§6.1's `verifier.ts`) as `[E-prev]`. The system prompt tells the model that
-  atlas material already in the conversation counts as grounding, which is
-  true for the verifier's evidence but not for what the answerer itself can
-  see when composing a follow-up — it re-retrieves instead. Left as a
-  separate decision: whether the answerer should get its own prior-tool-result
-  replay, and at what budget cost.
+- **Prior-turn tool results are replayed as lookup cards, not raw payloads.**
+  `tool-recall.ts` writes one deterministic card per call when the assistant
+  row is saved (ids, titles, doc numbers, a short excerpt, and an instruction
+  to re-call before quoting). Later turns expand that stored card into a tool
+  round (`context-compact.ts`'s `historyReplay`). The card is not regenerated
+  on read: a rewritten card would change bytes in the middle of the prompt and
+  drop the provider cache for everything after it. `evidenceFromTranscript`
+  skips recall ids (`rcall` plus 20 hex, or an older `rcall_` id), so a card cannot ground a quote — the answerer
+  still has to retrieve the document on the turn that cites it.
+  `priorTurnsEvidence` still hands the verifier earlier answers as `[E-prev]`.
+- **What a prior turn replays: the check results the user can SEE**
+  (2026-09-24 as disputes only; generalized 2026-10-01, `review-round.ts` +
+  `verify/review-note.ts`). The browser renders a verification badge and its
+  findings, the Sources chips and an answer-coverage line under every answer;
+  the replay carried none of it, because `chat.ts`'s history SELECT reads four
+  columns. So a user pointing at the screen ("why was verification failed?") was
+  asking about something the model had never seen, and it answered with
+  speculation — observed twice: once as a dispute the model asked the user to
+  paste back (2026-09-24), once as three guesses and a clarifying question that
+  only became a correct answer after the user pasted the failure text in by hand.
+  One note per answer is built from the stored `message_checks` rows **through the
+  same readers the browser uses on reload** (`restoreVerify` recomputes
+  `computeOverall` rather than trusting the stored `overall`), so the model and the
+  reader cannot disagree about what the badge said. The findings' wording is not
+  re-authored: `describeFindings` already mirrors `VerifyFindings.tsx` sentence for
+  sentence and is reused.
+  Listed **by exception**, because most answers pass: the newest answer gets a
+  full block (badge, findings, ≤3 agreed contradictions, coverage, the chips that
+  are not a plain ✓) and older ones a single ≤240-char digest line; a passing
+  badge on an older answer is omitted and the lead says so. Bounded at
+  `REVIEW_ROUND_MAX_CHARS` = 8,000 (~2,000 tokens, ≤1.25% of the replay budget)
+  with digests dropped oldest-first, and **O(1) in thread length** — which is why
+  it is one tail round rather than an annotation per row. Answers are anchored by
+  ordinal-from-latest plus a 60-char lead of their own text, never by message id:
+  `ReplayRow.id` exists only as the compaction cursor and never reaches the model.
+  It rides its own round rather than being appended to the prior assistant
+  `content` for three reasons: the model reads its own `content` as its own prose,
+  `priorTurnsEvidence` treats assistant content as evidence (so a note there would
+  ground the answer it audits), and `title.ts` reads assistant `content` verbatim.
+  Two rules the copy and the plumbing enforce together. The block states these are
+  *check results, not rulings* and warns that the checks read sentences in
+  isolation and can misread pronoun antecedents — the originating case was a
+  flag that was itself probably wrong ("who is *they*") — so the model can push
+  back instead of capitulating. And it is **excluded from evidence entirely**, at
+  **four** sites via one shared `isReviewRound` predicate: `verifier.ts`
+  (both `evidenceFromTranscript` and `evidenceFromResults`), `tool-recall.ts`'s
+  `SYNTHETIC_TOOL_IDS`, `chat-orchestrator.ts`'s `toolTextsOf`, and
+  `chat-loop.ts`'s `exportEvidence`. Only the first two excluded the dispute round
+  it replaces; the other two **leaked** until 2026-10-01, so an address or figure
+  appearing only in the round counted as retrieved (the quote check was never
+  affected — it reads `evidenceSplit.atlasTexts`, built by `splitFromTranscript`,
+  which already excluded it). `sourceClass: "reference"` would not have been
+  enough — that class is pooled with atlas.
+  The query reads the newest `REVIEW_LOOKBACK` = 12 answers' rows for the four
+  kinds a note needs, with the `LIMIT` inside the subquery rather than outside an
+  inner join: applied to the join it would cap ROWS, not answers, and several
+  kinds exist per message, so an answer's findings would be silently dropped. It
+  is deliberately NOT a join onto the history SELECT (that would multiply history
+  rows) and it keeps its `.catch(() => [])`, so a DB error degrades to "no
+  ledger". It is **counted by `replayTokens`**, so the meter, the 90% compaction
+  trigger and the tail sizing stay one quantity — and `conversations.ts`'s
+  `toReplayRow` sets it too, or a reopened thread would meter low. Compaction
+  **strips** it: `rowsAfterCursor` drops folded rows before the round is built and
+  `rowPart` reads only content + recalls, so the summarizer never sees a verdict
+  (it would read back as fact, and eat the summary's char cap). Accepted gap: a
+  question about a badge on an answer older than the tail gets speculation again.
+- **A document's edit history is not its content** (2026-09-28,
+  `verifier.ts`'s `HISTORY_TOOLS`). The six registry tools that return commit
+  metadata — `atlas_history`, `atlas_recent_changes`, `atlas_history_stats`,
+  `atlas_pr`, `atlas_changed_between`, `atlas_first_seen` — get
+  `sourceClass: "history"` instead of falling through to `"atlas"`, and
+  `refute.ts` marks those entries `[CHANGE LOG, not Atlas text]` so the judge
+  never reads a pull-request title or a commit message as the atlas stating
+  something. `isAtlasText` ADMITS the class, which is deliberate and against
+  the obvious reading: the pool's only consumers are fabrication checks —
+  `findUngroundedQuotes` asks whether a quoted span exists in anything we
+  retrieved, with every cited document and every atlas title already in the
+  same haystack — so excluding change-log text would hard-fail an answer that
+  correctly quotes a real commit message, while the failure it would prevent
+  costs only a missed flag. The provenance question is answered where it
+  belongs: the marker above, and `cite-pairs.ts` dropping history CLAIMS before
+  the citation judge sees them. The `[CHANGE LOG…]` rule is appended to the
+  refute system prompt ONLY when such an entry is present — history evidence is
+  1 record in 568 across the eval corpora, so injecting it on every turn would
+  spend prompt-interference risk on answers it has nothing to do with.
+
+- **Atlas provenance is an allowlist, never a default** (2026-09-24,
+  `verifier.ts`'s `classifyToolSource`). A tool result is `"atlas"` only if its
+  name is in the registry (`ATLAS_TOOLS`); `"external"`, `"reference"` (the
+  facts round) and `"user"` (/teach) are named explicitly, and everything else
+  is `"unknown"` and marked `[NOT ATLAS]` to the refute judge. This used to
+  default to `"atlas"`, which had it backwards — atlas text is the privileged
+  class quote-grounding certifies against, so anything unrecognised was being
+  promoted into it. Two real cases, not hypotheticals: `export_findings` (which
+  `llm-tools.ts` appends to `CHAT_TOOLS` outside `ATLAS_TOOLS`) and
+  `evidenceFromTranscript`'s own `{ tool: "unknown" }` fallback for a tool
+  message whose assistant `tool_call` is missing. The three filters that decided
+  "is this atlas text?" were separately-spelled blacklists (one of them keyed on
+  tool name rather than class); they now all route through `isAtlasText`, so a
+  new class cannot be silently admitted at three sites at once.
 
 ## 7. Guard rails (pure code, no model in the loop)
 
@@ -595,6 +965,21 @@ answer once (§1), rather than the server picking between two client shapes.
 
 Status rows accumulate every detail line they reported (`StageLogEntry.details`) and keep them after the stage completes — nothing shown in the checklist is ever replaced or removed.
 
+**Synthesizing's detail line is provenance-aware** (2026-09-24): the first token
+of a generation burst is preceded by `status{stage:"synthesizing"}` whose detail
+is "Writing an answer from the evidence…" only when the burst HAS a basis — a
+tool call this turn, material injected before the stream (facts, /teach), or
+`priorTurnsEvidence` from earlier turns. That is `grounded`'s definition from
+the post-answer pass, computed live. Otherwise the detail is "Responding…":
+claiming an answer was written from the evidence under a row with no Sources
+and no lookups beneath it is a false claim on exactly the turns (small talk, a
+conversational follow-up) a reader is least likely to excuse it on. It
+deliberately does NOT consult the small-talk judge, which runs after the answer
+— far too late for a status that precedes the first token. The stage id stays
+`synthesizing`: `stageSlotContent.ts`'s `synthesisSlot` keys the reasoning and
+live-draft slots off it, so a separate "responding" stage would cost those
+turns their draft disclosure.
+
 **Tense and per-paragraph disclosure (`StageList.tsx`, `ParagraphChecks.tsx`)**: a finished stage row reads in the simple past ("Looked for evidence") and only the currently-running row stays present continuous ("Looking for evidence") — a step that already happened shouldn't read as still happening. This is display-only: `stageLabel`/`stripTrailingEllipsis` pick the tense and drop a detail line's trailing "…"/"..." on a done row so it doesn't look like it's still going, but the logged `StageLogEntry.details` strings themselves are untouched, so the never-removed rule above still holds. The per-paragraph audit renders under the Verifying row (or the Comparing row on a deterministic-only turn, which never gets a Verifying row) — it is about checking the answer, not writing it — and follows the same "don't restate the default" instinct: `ParagraphChecks` renders one summary line (`N paragraphs checked`, plus `, no findings` / `, K flagged` / `, model check running` while any paragraph is still `pending`) and a row underneath only for a paragraph that has a deterministic finding or a model state worth naming on its own (`candidate`/`failed`) — a clean (`ok`) or still-pending paragraph gets no row, since the summary already accounts for it. `candidate` means the confirm gate has not resolved yet: `verify_result`/`done` clear it (same as `pending`), so a finished turn never keeps "possible contradiction, being confirmed" next to the badge.
 
 **`answer_final`** is a new `HarnessEvent`, `{ type: "answer_final", content
@@ -609,6 +994,220 @@ is **not** emitted on the early-exit path (`chatVerifyChecks` off, an aborted
 turn, or empty content) — those still repair `done.content` for the wire, but
 skip the `round_checks` block `answer_final` trails, so the client falls back
 to revealing on `done` there, same as it always could.
+
+**`citation_marks`** (2026-09-22) is yielded at most once, after `answer_final`
+and before `verify_result`/`done`: `{ type: "citation_marks", marks:
+Record<uuid, { status, claims: [{ claim, verdict, confidence }] , confidence }> }`,
+where `status` on the wire is one of two: `backed` ✓✓ or `disputed` !. The fold
+still computes five more (`backed_weak`, `mixed`, `partial`, `unread`,
+`uncovered`) and `shownMarks` drops them before the event and again on reload.
+Those judgements stay on the stored `judged` pairs. It is the per-citation check (`verify/citation-marks.ts`):
+every (claim, cited doc) pair from `citationPairs` (`verify/cite-pairs.ts`) is
+judged by a Jev Choice — does *this* document support, contradict, say
+nothing about, or merely get pointed at by the sentence linking it? — which is
+the one thing the pooled-evidence `refute` auditor structurally cannot see
+(repointing a link leaves its input byte-identical). A Jev `contradicts` never
+reaches the chip on its own: it becomes a `Contradiction` with `source:
+"cited-doc"` and must pass the same `confirm` gate as every other candidate.
+Confirm is shown that document's full text — the same text the citation
+check judged — not a prefix of it. Unconfirmed, the pair stays `contradicts`
+with `confirmed: false` and is left off the chip. It is not rewritten to a
+gap: that status is a shown warning, and confirm's refusal is not evidence
+the document is silent. A record-lane contradiction is not sent to confirm.
+Confirm would be shown the document, not the change record, so it draws
+nothing until confirm is given the record. **Provenance picks the question** (2026-09-28, `verify/provenance.ts`). The judge
+used to be handed the FULL indexed document for every citation, whatever the turn
+actually retrieved — so a line written from a 240-character `atlas_search` snippet,
+or from an `atlas_recent_changes` row carrying only a uuid and a title, was judged
+against the whole document and came back "Not stated in this source" about a
+citation that was never sourcing content. Three rounds of regex filters tried to
+pattern-match the wording of such sentences; they kept missing new phrasings and
+were deleted.
+
+`docProvenance(transcript, ix)` walks the turn's parsed tool results and classifies
+each atlas uuid. The rule is per-ROW, not per-tool, because every content-bearing
+result also ships identity-only uuids in the same payload (`parent_id`,
+`ancestors[].id`, `sources[].uuid`): a uuid is **content** when the same object also
+carries a text key — `content`, `snippet`, `quote`, `duty`, `context`, `definition`,
+`diff` — and it is that object's own handle (`id`, `uuid`, `doc_id`, `docId`,
+`node_id`); otherwise **identity**. Matching the uuid VALUE rather than a key name is
+what keeps it from rotting across a surface that spells the key a dozen ways, and
+`ix.docMap.has()` is what excludes entity ids, which are uuid-shaped by construction.
+It reads the RAW transcript, never `evidence`, which is budgeted with newest-first
+eviction and would report a document the model genuinely read as never retrieved.
+
+Then, per citation:
+
+| provenance | question | evidence |
+|---|---|---|
+| content | "does this document state the claim?" (`cite-support.ts`) | the indexed document — a misquote is a misquote however little of it the model read |
+| identity | "does the claim read this record correctly?" (`cite-metadata.ts`) | that one record — one history event, one listing row, never the whole result |
+| none | no question, no mark | — |
+
+The record question's load-bearing option is `states_content`: a claim asserting what
+the document SAYS, when only its having changed is on record. A change record reports
+that a document changed, never its new text, so nothing retrieved can settle such a
+claim — it folds to the `unread` mark, above `uncovered` in the ladder because "you
+stated what this document says and never read it" is more actionable than "the record
+doesn't cover this".
+
+A citation the turn never retrieved gets **silence**. We cannot check what we did not
+see, and the system prompt already forbids linking a document the turn did not
+retrieve, so such a citation is either a legitimate carry-over from an earlier turn
+(a lookup card from an earlier turn is not a retrieval — `evidenceFromTranscript` skips recall ids — so last turn's document text is not in this turn unless the tool is called again)
+or a prompt violation. Neither is checkable. Omitting the map entirely is different
+from an empty one — no map means provenance is not engaged and every citation takes
+the document question, which is what the checks-off path does.
+
+Per document, worst verdict wins, but only among pairs that
+were actually judged: any unjudged pair withholds the mark entirely, and a
+pointer-only document ("the document X changes often") gets none either. The
+marks render on the Sources chips — a ✓ on every backed source, by explicit
+product decision, as an exception to the list-by-exception rule for stage
+rows. Before they reach the wire they are **reconciled against the whole-turn
+verdict** (`verify/disputes.ts`'s `withoutDisputedMarks`): a document an
+*agreed* contradiction is sourced to has its ✓ withheld. The two lanes are
+independent by design and can disagree — observed 2026-09-24, one answer
+shipped a confirmed dispute on a document alongside a green ✓ on that same
+document in a single render. Every check-bearing status is withheld (a `disputed` mark
+means the lanes agree; an `uncovered` one asserts no support and is not in
+conflict), and the mark is dropped rather than flipped, because the chip's tooltip
+carries the citation lane's own per-claim verdicts — which on a collision read
+"supports". The persisted `citation_check` row stays UNRECONCILED as that
+lane's calibration record; reconciliation runs again on reload through the
+same function, so a refresh cannot resurrect the disagreement. A ✓✓ chip reads **High confidence this document states the lines that cite it**.
+That is the question the check asked. "Backs the answer" was a wider claim than
+the evidence. There is no low-confidence chip: below `MIN_BACKED_CONFIDENCE` =
+0.95 the same pass was right 16 of 27 times, and that mark is not sent. The
+threshold is the only one in the lane. It replaced three bands cut at 0.75 and
+0.45 that were picked by feel and never measured.
+
+**0.95 comes from `pnpm eval:citation:calibration`** (2026-09-24, 57 checks
+over 80 real citations and 327 repointed ones). It is a CLIFF, not a scale: at
+or above it a check was right 29 times in 30, below it only 16 in 27, and of
+the 12 citations certified wrongly ELEVEN sat below it. That split is what
+transfers — unlike the raw rates, it does not depend on how many wrong
+citations the corpus holds. The same pass settled a second question: Jev's
+`confidence` and `probabilities[verdict]` differ by 0.034 on average and
+disagree about the threshold in 2 of 57 cases, so which one is displayed makes
+no measurable difference and `confidence` is kept.
+
+Full support then splits on that cliff. Every supporting line over it is
+`backed`, every line under it `backed_weak`, and a document with lines on both
+sides is `mixed`. `partial` is a `supports_in_part` verdict, and `uncovered` a
+`says_nothing` one. A warning is never gated on confidence — the calibration
+found the number carries no information there.
+
+**Four of the seven reach the chip**, and the line between them is what a
+status MEASURES rather than how bad it is. `backed_weak`, `mixed` and
+`partial` are weak CONFIDENCE and stay on the stored `judged` pairs so the
+cliff can be re-measured: a check under it was right 16 of 27 times, so drawing
+one asserts a sureness the measurement does not support. `unread` and
+`uncovered` are categorical FINDINGS, not weak numbers, so they are drawn —
+hiding them would make the harness silent about the very thing it knows.
+
+`backed` is ✓✓ with the sentence above. `disputed` is ! and quotes the
+contradicted line ("This document contradicts this line: …"). `uncovered` is ⚠ and
+quotes the line the document fails to cover; `unread` is ⚠ and quotes the line
+that states what the document says when only a record about it was read. None
+of the three carries a confidence word — 0.95 was measured on checks, and the same pass found the
+number carries no information on a warning. A `supports` from the record
+question (a date or a pull request on a change row) does not become `backed`:
+that match is not the document stating the line. It stays on `judged` with
+`lane: "record"`.
+
+**A contradicted line is a button** that scrolls to that sentence in the answer
+and highlights it. Quotes cut at 140 characters, at the last sentence end inside
+the budget, then the last clause break, then the last word break, never mid-word.
+Confirm
+clearing a contradiction also clears that pair's confidence. Started concurrently with the audit, so it never delays it; bounded by
+its own 8 s deadline and fail-open (a timeout means no marks, never a warning).
+Raw verdicts persist as a `message_checks` row of kind `citation_check`.
+Every post-answer check now rehydrates on reload — the marks first
+(2026-09-23), the verify badge and the answer-coverage line with it
+(2026-09-24), so a refresh no longer silently drops a turn's verification.
+`GET /api/chat/conversations/:id`
+(`conversations.ts`'s `citationMarksFor`) re-runs `aggregateMarks` over each
+assistant message's stored `judged` pairs — the same fold a live turn uses,
+so a later change to the aggregation rule applies to old rows too without a
+backfill — and the client (`hydrate.ts`) restores the result straight into
+`ChatMsg.citationMarks`. A message with no citation_check row, or one whose
+pairs aggregate to zero marks, comes back `null` and renders like a message
+the live registry never judged. Measurement and the residual error classes:
+[`docs/plans/jev-typesafe.md`](plans/jev-typesafe.md) §A1.
+`CHAT_CITATION_CHECK_MODEL=""` turns it off.
+
+The **verify badge** restores the same way (`conversations.ts`'s `verifyFor`,
+parsers in `verify/persisted-verdict.ts`): agreed contradictions from the
+`verify` row, the deterministic findings from the `round_checks` row, and
+`status` recomputed with the live `computeOverall` rather than trusting the
+stored `overall` column. Two rules it must not break. The stored
+`Verdict.contradictions` holds **every** validated candidate, agreed and not,
+as the confirm gate's calibration record — so the restore applies the same hard
+`agreed` filter the wire does (`verify/disputes.ts`'s
+`agreedContradictionsFrom`, shared by both paths precisely so they cannot
+diverge), or a refresh would surface flags the confirm gate rejected. And a
+turn with the verifier model OFF but a FAILED deterministic check emits a red
+badge while persisting only a `round_checks` row — so that case restores from
+`round_checks` alone, mirroring `emitVerify`'s `verifierModel !== "" ||
+checks.failed` exactly; a `round_checks` row whose `failed` is false and which
+has no `verify` row still restores to nothing, because the live path emits
+nothing there either.
+
+**`answer_coverage`** (2026-09-22) is yielded at most once, after
+`answer_final` (and after `citation_marks`) and before `verify_result`/`done`:
+`{ type: "answer_coverage", verdict: "answers" | "declines" | "deflects" |
+"asks", missingParts: string[], parts?: string[] }`. It is the "did it answer
+the question?" check (`verify/answer-coverage.ts`): the audit asks whether
+the answer is *true*, this asks whether it *responds* (the promised-tool guard
+retries one shape of non-answer before it ships; this rules on every answer
+that did). ONE Jev request over `{ question, answer }` (link
+targets stripped — measured 309/311 agreement for −22% tokens): a Choice over
+`answers / declines / deflects / asks`, plus one Noul per question part when
+code splits the question into two or more (`verify/question-parts.ts`: split
+after `?`/`;`/`.`+capital, and within a sentence only before a wh-word or an
+auxiliary — noun conjunctions never split; 87% of real messages are one part).
+There is no `partial` option on purpose: it did not detect under-answering,
+while a Noul per part both detects it and **names** the dropped part. The
+ruling is thresholded in code, not Jev's argmax, and every floor is set so the
+line is only said when Jev is sure: **non-answer** = P(deflects) + P(asks) ≥
+0.5 (the two split their mass on narration-vs-question-back replies, so the
+sum is what separates: every real answer ≤ 0.05, every real non-answer ≥ 0.76,
+every gold announcement ≥ 0.99 — 84/84 announcement × question pairs, 28
+strings × 3 questions, 12 of the strings phrased around the announcement
+guard's regexes); `declines` needs ≥ 0.8 (mixed replies that deliver content and
+note a gap score 0.50–0.79, where "doesn't cover this" would misdescribe
+them); a part is missing below 0.35 (one confirmed drop at 0.17/0.19, the
+nearest non-drop at 0.48). `missingParts` is only ever set on `answers` /
+`declines` — a non-answer scores every part low, and naming them would just
+repeat it. A deterministic pre-check comes first: an answer that is a raw
+tool-call payload (a JSON object, or DSML markup) is ruled `deflects` in code
+with no request — load-bearing, since Jev alone ruled `{"id": [...]}` an
+answer. Started concurrently with the audit and bounded by its own 4 s
+deadline (measured p50 369 / p95 514 ms from a dev machine); fail-open — a
+timeout or a malformed reply means no event, never a warning. Not run on the
+small-talk bypass (it exits before `answer_final`), nor on a turn the judge
+ruled small talk that is audited anyway. The client renders it as the
+"answer confidence" line directly under the verify badge (`AnswerFacts.tsx`,
+copy in `confidenceFacts.ts`): nothing for `answers`; "Didn't answer the
+question" (`deflects`); "Asked you a clarifying question" (`asks`) and "Said
+the atlas doesn't cover this" (`declines`) as neutral facts; "Didn't address:
+“…”" for missing parts; and, only when a chip is `disputed`, "A marked citation may say otherwise"
+(or the plural), flagged. A row of ✓✓ adds no line. The badge itself is the third fact
+(whole-answer contradictions) and is not repeated. Raw distribution, per-part scores and latency persist as a
+`message_checks` row of kind `answer_coverage`, and the line now rehydrates
+from it (2026-09-24, `conversations.ts`'s `answerCoverageFor`) like the marks
+and the badge. Only the wire shape is restored: the stored `parts` are
+`{ text, p }` objects kept for calibration, mapped down to their text exactly
+as the live event does, and `probabilities`/`rawToolOutput` never reach the
+client. **Every threshold is in-sample** (311 real answers
+to 23 of our own bakeoff questions, tuned after reading the first run) and
+**no real-traffic false-fire pass has been run** — the same standing as the
+complexity lane; run one before lowering a floor. Known misfit: an apology
+for a failed tool call ("the history service connection closed") is ruled
+`declines` at 0.98+, so it reads "Said the atlas doesn't cover this".
+Measurement: [`docs/plans/jev-typesafe.md`](plans/jev-typesafe.md) §2.
+`CHAT_ANSWER_COVERAGE_MODEL=""` turns it off.
 
 The client tracks two separate strings per message: `draft` (live tokens,
 shown inside the `synthesizing` stage row once that row is clicked open) and
@@ -646,7 +1245,37 @@ mid-citation.
 `makeOpenrouterStream` sets `stream_options.include_usage: true` (load-bearing —
 otherwise streamed completions carry no usage for the rate limiter);
 `makeOpenrouterJson` provides the non-streamed, temp-0 JSON call for the verifier
-slices and small-talk judge with a true request-cancelling timeout.
+slices with a true request-cancelling timeout. (The small-talk judge moved to Jev
+in 2026-09 and does not use it.)
+
+**Prompt caching (2026-09-22).** Every chat round re-sends ~16.6k tokens of
+fixed overhead — a ~5.5k-token system prompt and ~11k tokens of tool
+definitions. Two changes keep that overhead cacheable without altering a word
+the model reads:
+- `makeOpenrouterStream` and `makeOpenrouterJson` both send `session_id` = a
+  hash of the conversation id (`sessionParam`), so OpenRouter routes every
+  JSON-mode call of a conversation — the verifier slices, and also title
+  generation and teach-review, which share the same factory — to the provider
+  the answer rounds went to, and that provider's prompt cache stays warm.
+  Without it OpenRouter derives the key itself: it "identifies conversations by
+  hashing the first system (or developer) message and the first non-system
+  message in each request"
+  ([sticky routing](https://openrouter.ai/docs/features/prompt-caching)), and
+  the verifier's user message changes with every paragraph, so each paragraph
+  would look like a new conversation. An explicit `session_id` also makes
+  stickiness start on the first successful request instead of only after a
+  cache hit is observed. Sessions expire after 10 minutes idle, so this helps
+  within a turn and across a quick follow-up, not across a long pause.
+- The per-turn date/commit line sits at the end of the system prompt
+  (`## Session`), just before `## Current page`, so two days share a 99.2%
+  identical prefix instead of ~3%.
+
+Baseline before the change (PostHog, 30 days): gemma-4-31b read 15% of its input
+from cache, against 66% for gpt-5.6-luna. Compare `$ai_cache_read_input_tokens`
+and `$ai_time_to_first_token` after deploy. Further trimming of the prompt or
+tool text is deliberately NOT done here: an earlier verbosity cut made tool
+choice worse, and CI can't see tool choice, so any such change needs an
+end-to-end A/B first — `pnpm eval:tools` (§12).
 
 `CHAT_CONTEXT_WINDOW_TOKENS` (default **200,000**) is what the UI context-size
 indicator meters against — sized to the **smallest** model in the deployed
@@ -691,7 +1320,9 @@ specific doc (`via` on the tool result).
 partial; `generation_id` drives async cost backfill), and `message_checks`
 (migration `014_message_checks.sql` — one row per harness activity) hold chat
 state; `users` backs OAuth + JWT sessions. `message_checks.kind` is now always
-one of `round_checks | verify | smalltalk_judge` — `verify_recheck` and
+one of `round_checks | verify | smalltalk_judge | citation_check |
+answer_coverage` (plain `TEXT`, no CHECK constraint — a new kind needs no
+migration) — `verify_recheck` and
 `advisor_recovery` were the advisor/rewrite cycle's rows and nothing writes
 them any more; the table's `action` column (`'annotate' | 'revised' | NULL`
 per the migration comment) is likewise always inserted `NULL` now that
@@ -733,10 +1364,12 @@ cookie.
 { type: "facts",       facts: { id, summary }[], bytes? }
 { type: "status",      stage, detail? }             // "recalling" | "querying" | "synthesizing" | "comparing" | "checking"
 { type: "answer_final", content }                   // the answer reveal point — see §8
+{ type: "citation_marks", marks }                   // per-cited-doc Sources-chip marks — see §8
+{ type: "answer_coverage", verdict, missingParts, parts? }  // "did it answer the question?" — see §8
 { type: "paragraph_check", index, text, findings }  // incremental deterministic checks, per paragraph — see §6
 { type: "paragraph_refute", index, parsed, candidates }  // per-paragraph MODEL audit (CHAT_REFUTE_MODE=paragraph, the default) — see §6.1
 { type: "export",      format, filename, mime, content, bytes }
-{ type: "verify_result", overall, contradictions, notFound?, rulingIssued?,
+{ type: "verify_result", overall, contradictions, rulingIssued?,
                        invalidCitations, invalidDocNos, docNoMismatches,
                        ungroundedQuotes, ungroundedAddresses,
                        ungroundedCitationValues, paramMismatches,
@@ -804,8 +1437,12 @@ parse failure already contributed nothing (`parsed: false`); this extends the
 same fail-toward-silence rule to the individual row.
 
 **Quoted spans that are not quotations.** `findUngroundedQuotes` is a hard
-failure — an inline quotation the sources do not contain is misattribution. But
-`extractQuotedSpans` reads *any* quoted span as a claimed verbatim atlas quote,
+failure — an inline quotation the sources do not contain is misattribution. A
+quote that is a real atlas document title is grounded even with no tool result
+and no markdown link: page context and earlier turns hand the model the title,
+and it quotes that (often beside a parenthetical doc number). Document bodies
+stay limited to retrieved evidence and cited docs, so an invented passage still
+fails. `extractQuotedSpans` still reads *any* other quoted span as a claimed verbatim atlas quote,
 and two shapes are not: a quoted QUESTION (the assistant inviting the reader to
 ask something) and a list item whose entire content is one quoted string (an
 example or suggestion). Both are now excluded. This was a live hard failure: an
@@ -950,6 +1587,7 @@ All are `bun scripts/eval/*.ts`, run manually (none gate CI yet) and most need
 | `pnpm eval:census` | Concept-census routing accuracy. |
 | `pnpm eval:complexity` | Tier-router similarity lane: recall vs false fires over 180 labeled questions. |
 | `pnpm eval:bakeoff`, `eval:wiki-ab` | Model bakeoffs and the constraints-wiki A/B. |
+| `pnpm eval:tools`, `eval:tools:compare` | Tool choice on ~60 synthetic cases through production's own pre-first-token assembly (`prepareTurn`) and loop (`runChat`, no verifier), real models: first call acceptable, required/forbidden tools, rounds, tool errors, empty results, and `atlas_query` params set outside what the question needs. Arms: production routing and a forced tier (default: both, so the default model is always measured). `compare` is the A/B gate for any prompt or tool-definition change: per-case flips plus an exact sign test over paired runs; exits 1 when B is significantly worse. |
 
 Open instrument work: wiring `eval:golden` into CI/release gating still needs a
 decision on where and how often the LLM spend is worth it.

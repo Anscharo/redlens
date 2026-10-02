@@ -89,6 +89,23 @@ function protoVec(tl: Ternlight, text: string): Float32Array {
   return v;
 }
 
+/** On-device embed for callers outside the facts fire/no-fire lane (teachings).
+ *  Deliberately NOT via protoVec: that cache is for the fixed prototype sets
+ *  and holds every key forever, so routing arbitrary questions and notes
+ *  through it grew without bound (one entry per distinct chat message). */
+export function onDeviceEmbed(text: string): Float32Array | null {
+  if (!config.chatFactSimilarity) return null; // the kill switch covers teach matching too
+  const tl = loadTernlight();
+  if (!tl) return null;
+  return tl.embed(text);
+}
+
+export function onDeviceCosine(a: Float32Array, b: Float32Array): number {
+  const tl = loadTernlight();
+  if (!tl) return 0;
+  return tl.cosineSim(a, b);
+}
+
 const bestSim = (tl: Ternlight, v: Float32Array, prototypes: string[]) =>
   Math.max(...prototypes.map((p) => tl.cosineSim(v, protoVec(tl, p))));
 

@@ -63,8 +63,11 @@ export function parsePreviewInput(raw: string): string | null {
  *  commit and redlines it against the PR's own base branch (read via the
  *  installation token, which needs Pull requests:read); without that
  *  permission the HEAD comes from `refs/pull/N/head` with no base info, and
- *  the preview falls back to branch rules — the closest shared point with
- *  sky-ecosystem/next-gen-atlas:main or the repo's own default branch.
+ *  the repo's own default branch stands in for the PR's base. A private
+ *  BRANCH is redlined against the repo's default branch; a private preview
+ *  with no base branch at all (the default branch itself) against live
+ *  sky-ecosystem/next-gen-atlas:main. No ancestor shared with sky main is
+ *  ever searched for — see src/server/preview/pr-diff.ts.
  *  Accepts, in order:
  *    - a full github.com URL, scheme optional, .git optional:
  *        github.com/OWNER/REPO                 → default branch
@@ -112,6 +115,19 @@ export function previewLabel(id: string): string {
   const privatePull = s.match(/^[\w.-]+:[\w.-]+:pull-(\d+)$/);
   if (privatePull) return `PR #${privatePull[1]}`;
   if (SHA_RE.test(s)) return s.slice(0, 7);
+  const parts = s.split(":"); // owner:repo:ref | owner:ref | bare ref (canonical branch)
+  if (parts.length >= 3) return `${parts[0]}/${parts[1]}`;
+  if (parts.length === 2) return `${parts[0]}/${ATLAS_REPO_NAME}`;
+  return `${CANONICAL_OWNER}/${ATLAS_REPO_NAME}`;
+}
+
+/** The "owner/name" repo a preview id names — the one repo an installer should
+ *  grant. Null for a bare SHA: the repo behind it lives in the previews table,
+ *  not the id, so naming the canonical repo there would be a guess. */
+export function previewRepo(id: string): string | null {
+  const s = id.trim();
+  if (SHA_RE.test(s)) return null;
+  if (/^pull-\d+$/.test(s)) return `${CANONICAL_OWNER}/${ATLAS_REPO_NAME}`;
   const parts = s.split(":"); // owner:repo:ref | owner:ref | bare ref (canonical branch)
   if (parts.length >= 3) return `${parts[0]}/${parts[1]}`;
   if (parts.length === 2) return `${parts[0]}/${ATLAS_REPO_NAME}`;

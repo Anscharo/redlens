@@ -94,9 +94,7 @@ owns `useDocumentTitle` and the `report_view` event *so a new report cannot forg
 That centralisation is the point, and 13 pages depend on it. **Don't refactor it, and don't
 cite it as precedent** — it is the shape this section is steering new components away from.
 
-This is also how you satisfy the SAbR size rules — **max ~150 lines per file, max 3
-components per file** (and only if 2 of them are under 8 lines). 31 files currently exceed
-150 lines; those are known debt, to be split when you touch them, not in a big-bang refactor.
+This is also how you stay within the SAbR size rules: max 3 components per file, plus the size limits in CLAUDE.md (`pnpm check:size`). Grandfathered offenders are pinned at their current size in `.oxlintrc.size.json`.
 
 ## 2. Extend the native element's props **[new code]**
 
@@ -274,7 +272,7 @@ component spreads `...props` or it will silently swallow the behaviour.
 
 ## Definition of done
 
-- [ ] One element per exported component; ~6 props as the working budget; file under ~150 lines; ≤3 components per file
+- [ ] One element per exported component; ~6 props as the working budget; within the size limits in CLAUDE.md (`pnpm check:size`); ≤3 components per file
 - [ ] Props extend `React.ComponentProps<…>`; **spread last**; `<Name>Props` exported; custom props JSDoc'd
 - [ ] No prop name collides with a native HTML attribute
 - [ ] Named export; no `React.FC`; `import type` for types

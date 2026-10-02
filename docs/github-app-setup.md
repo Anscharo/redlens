@@ -26,7 +26,6 @@ The server makes exactly these calls, so this is the whole permission surface:
 | `GET /repos/{repo}/pulls/{n}` (private PR → HEAD branch + declared base branch; requires Pull requests:read) | installation token | **Pull requests: read** if granted; otherwise skipped |
 | `GET /repos/{repo}/git/ref/pull/{n}/head` (PR HEAD sha fallback, no base info) | installation token | **Contents: read** |
 | `GET /repos/{repo}/compare/{base}...{head}` (merge base + ahead/behind for a candidate diff base) | installation token | **Contents: read** |
-| `GET /repos/{repo}/commits?sha=` (fork-point walk — a private repo is never a true GitHub fork, so its merge base with sky main is found by intersecting commit lists instead of a cross-repo compare) | installation token | **Contents: read** |
 | `GET /repos/{repo}/tarball/{sha}` (download the private atlas) | installation token | **Contents: read** |
 
 So the App needs exactly three **Repository permissions**:
@@ -40,8 +39,8 @@ So the App needs exactly three **Repository permissions**:
   against its own base branch (the same treatment every canonical, public, and
   fork PR gets). Without it, a pasted private PR URL still resolves — the HEAD
   falls back to `refs/pull/N/head` (Contents:read) — but with no base info, so
-  the preview builds and follows branch rules instead (compared against the
-  closest shared point with sky main or the repo's own default branch), and the
+  the repo's own default branch stands in for the PR's base (right for a PR
+  that targets it, wrong for one that targets another branch), and the
   preview bar says so — with a link to GitHub's permission-review screen
   (`{installation.html_url}/permissions/update`) so the install owner can grant
   Pull requests: Read. After they accept and reload, the preview rebuilds
@@ -74,8 +73,8 @@ GitHub Apps → New GitHub App**.
 6. **Repository permissions** — set **Contents: Read-only**, confirm
    **Metadata: Read-only** is selected, and set **Pull requests: Read-only**
    (required to redline a private PR against its own base branch — without it
-   the preview still builds, but only against the closest shared point with
-   sky main or the repo's default branch). Leave everything else at
+   the preview still builds, with the repo's default branch standing in for
+   the PR's base). Leave everything else at
    *No access*.
 7. **Organization / Account permissions** — leave all at *No access*.
 8. **Subscribe to events** — none.
@@ -148,13 +147,38 @@ any login:
    - Owner-only App: GitHub → the account → **Settings → GitHub Apps → your App →
      Install**, or `https://github.com/apps/<app-slug>/installations/new`.
    - Public App: `https://github.com/apps/<app-slug>` → **Install**.
-2. Choose **"Only select repositories"** and pick the private atlas repo(s).
-   (Granting all repos also works but is broader than needed.)
+2. Choose **"Only select repositories"** and pick **the atlas repo only**. Do
+   not pick "All repositories": the App needs nothing outside that one repo,
+   and the grant is the one permission event in the whole system, so keep it
+   to the repo the preview named.
 3. Install.
 
 SAbR surfaces this: if someone opens a private preview for a repo the App
-isn't on yet, the UI shows an **"install the app"** screen. Viewers never do this
-— only the repo owner, once per repo.
+isn't on yet, the UI shows an **"install the app"** screen naming the
+`owner/name` repo and the "Only select repositories" step. Its link is
+`…/installations/new/permissions?suggested_target_id=<account id>&target_id=<account id>`
+(GitHub documents the first key as required on that path; its own install
+buttons emit the second — both are sent), which opens GitHub's
+permission screen for **that repo's owning account only** (the account id is
+public, `GET /users/<login>`), so the installer is never offered every org they
+belong to. The repo itself can't be pre-ticked: GitHub's `repository_ids[]`
+parameter needs the repo's numeric id, and a private repo's id is invisible to
+the App until it is installed — which is exactly the state that screen is shown
+in. The link therefore carries a placeholder `&repository_ids[]=0` so the
+selector opens on "Only select repositories" (an id the account doesn't own is
+dropped from the list) instead of its "All repositories" default; if GitHub
+ever rejects that, remove `INSTALL_REPO_PLACEHOLDER` in
+`src/server/preview/github-app.ts`. Viewers never do this — only the repo
+owner, once per repo.
+
+If an install was granted **All repositories** anyway, SAbR catches it after the
+fact: every private resolve reads the install's `repository_selection`, and
+when it is `all` the preview bar shows an **ACCESS** row naming the one repo the
+App needs, linking to the install's settings page (`installation.html_url`)
+where repository access is narrowed. Dismiss hides that row on this browser. Reloading the same preview after
+narrowing updates the on-disk meta (no rebuild) and the row clears: a cached
+`repository_selection: all` is always re-checked against GitHub on the next
+private resolve, so the 30-minute installation cache never keeps the row up.
 
 If the App is already installed but was granted before **Pull requests: Read**
 was added to the App's registration, GitHub keeps the old Contents+Metadata
@@ -194,3 +218,53 @@ GitHub's own answer to "can this account read this repo?".
 4. A repo the App isn't installed on → the "install the app" screen.
 5. Direct-hit `/api/preview/<sha>/docs.json` for a private bundle without an
    authorized session → `401`/`403`, never the content.
+
+## Debugging "the preview shows the wrong diff"
+
+Every successful build records what it was redlined against on its `previews`
+row (the bundle's own `meta.json` is on ephemeral disk and does not survive a
+deploy). From a shell in the web container:
+
+```bash
+bun -e 'import {sql} from "bun";console.table(await sql`SELECT left(sha,8) AS sha, repo, ref, diff_base_type AS type, diff_base_lca AS lca, diff_base, diff_added, diff_changed, diff_bases->>$$reason$$ AS reason, last_access FROM previews WHERE private ORDER BY last_access DESC LIMIT 20`)'
+```
+
+Two columns, two questions. `diff_base_type` is WHICH BRANCH the base is:
+
+| `diff_base_type` | The base branch | Healthy for |
+|---|---|---|
+| `pr-base` | the PR's own declared base branch — including nga main itself | every PR whose base could be read |
+| `fork-default` | the repo's default branch | a branch preview; a private PR built without Pull requests: Read (the default branch stands in for the base) |
+| `nga-main` | `sky-ecosystem/next-gen-atlas:main` | a branch of the canonical repo; a public fork branch whose nga-main merge base is the later one; anything compared against live nga main (`diff_base_lca = false`) |
+
+`diff_base_lca` is whether the doc list is computed against a LAST COMMON
+ANCESTOR. `true`: it is, and `diff_base` (`owner/repo:branch@commit`) names that
+ancestor. `false`: the preview was compared against LIVE nga main as served at
+build time, so everything upstream changed since the branch was cut shows up
+too and `diff_changed` is often in the hundreds. **It does not mean an ancestor
+search ran and failed** — read `diff_bases->>'reason'`:
+
+| `reason` | What happened |
+|---|---|
+| `no base branch to compare against` | a private preview of the repo's own default branch — by design, there is nothing in-repo to compare it with |
+| `PR base did not resolve` | the compare against the PR's declared base failed (GitHub error, base branch deleted) |
+| `PR base unreadable and no default branch resolved` | a private PR without Pull requests: Read, whose default-branch lookup also failed |
+| `compare failed` / `no merge base` | a public preview whose canonical compare failed or found no common history |
+
+A PR is never redlined against a fork point with nga main — only against its
+own base, or live nga main. A private preview never searches for an nga-main
+ancestor at all: nga main is squash-merged, so a mirror that takes it by
+copying content shares no commit SHAs with it (or only its original import),
+and the "ancestor" such a search found was absent or ancient.
+
+- A PR declared against nga main itself is `pr-base` (its `diff_base` reads
+  `sky-ecosystem/next-gen-atlas:main@…`), so `diff_base_type = 'pr-base'` finds
+  every PR redlined against its declared base.
+- `nga-main` with `diff_base_lca = true` only ever comes from a PUBLIC branch
+  preview (a canonical branch, or a fork branch whose nga-main merge base is the
+  later one).
+- `SELECT … WHERE NOT diff_base_lca` lists every degraded preview.
+- `diff_bases->'candidates'` holds EVERY candidate that resolved, keyed by the
+  same three types, each with its LCA (`mergeBase`) and ahead/behind.
+- The row is overwritten on a same-sha rebuild; the per-build history is the
+  `[preview] <sha8>: redlined vs …` line in the server log.

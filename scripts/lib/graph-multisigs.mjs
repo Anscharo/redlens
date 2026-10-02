@@ -6,7 +6,7 @@
  *   …Address                       "The address of the X on {Chain} is `0x…`."
  *   …(Required )Number Of Signers  "The X (currently )has a (default )M/N signing requirement." OR
  *                                  "The X's required number of signers is M (M) out of N (N)."
- *   …(Current )Signers             three prose/bullet shapes, see parseSignerGroups
+ *   …(Current )Signers             five prose/bullet shapes, see parseSignerGroups
  *   …Usage Standards               purpose prose
  *   …(Signer )Modification(s)      who may change the signers + invariants
  *
@@ -51,9 +51,38 @@ const SIGNER_GROUP_RE =
   /\((\d+)\)\s*address(?:es)?(?:\s+(?:are|is))?\s+controlled by\s+(.+?)(?=\s*[,;.]|\s+and\s+[a-z]+\s*\(\d+\)|$)/gi;
 // "- Soter Labs: 2 signers"
 const SIGNER_BULLET_COUNT_RE = bulletField(String.raw`([^:\n]+?)`, String.raw`(\d+)\s*signers?`, "gim");
+// "four (4) controlled by the Operational Executor Agent, ... and one (1) controlled by the Prime Agent" —
+// composition breakdown without the word "address(es)" (A.2.2.10.1.1.1.6.2.1.2 "Required Signers").
+// A leading "including at least (N) controlled by …" clause describes how a group's own count is
+// internally composed, not additional signers — stripped before matching so it isn't double-counted.
+const SIGNER_GROUP_PLAIN_RE =
+  /\b[a-z]+\s*\((\d+)\)\s+controlled by\s+(.+?)(?=\s*[,;.]|\s+and\s+[a-z]+\s*\(\d+\)|$)/gi;
+const SIGNER_INCLUDING_CLAUSE_RE = /,?\s*including\s+.*?(?=,\s*and\s+|\.\s|$)/gi;
+// "is five (5) signers" — the composition's own stated total. Compared against the
+// sum of parsed groups below: catches a future rephrase (e.g. the comma before the
+// final "and" clause moving) that would make SIGNER_INCLUDING_CLAUSE_RE strip too
+// much and silently drop a top-level group instead of failing loudly.
+const SIGNER_COMPOSITION_TOTAL_RE = /is\s+[a-z]+\s*\((\d+)\)\s+signers/i;
 // plain bullet roster ("- VoteWizard") — only read when the prose announces it
 const SIGNER_ROSTER_INTRO_RE = /has the following signers/i;
 const SIGNER_BULLET_PLAIN_RE = /^[-*]\s*([A-Za-z0-9_ .'-]+?)\s*$/gm;
+// "The signers of the X are controlled by Y[, optionally: The specific signers
+// will be specified in a future iteration of the Atlas.]" — the controlling
+// party IS known even when the individual roster/count is omitted entirely
+// (A.2.2.10.1.1.1.2.4.4.3.1.3 "Grove Operator Multisig Signers", .3.2.3 "Osero
+// Operator Multisig Signers" — each sibling Modification doc independently
+// names the same party as the one who may change the signers, so this is a
+// real fact, not a guess). The trailing "future iteration" placeholder used to
+// be required (it was the only shape seen, on the Grove doc); atlas PR #341
+// (2026-09-21, commit 6cd19248) dropped that clause from the Grove doc and
+// reused the shorter shape verbatim for the new Osero doc — confirmed
+// atlas-wide as the only two Signers docs (of ~40) omitting an explicit N (N)
+// address(es) count, so this stays a narrow fallback, not a rewrite of the
+// primary shape. Emitted as a group with a null count rather than dropped; a
+// doc with NO named controller at all still falls through to a genuine "did
+// not parse" warning.
+const SIGNERS_SOLE_CONTROLLER_RE =
+  /^The signers of the .+? are controlled by\s+(.+?)\.(?:\s*(?:the\s+)?specific signers will be specified in a future iteration of the atlas\.)?\s*$/i;
 const MODIFICATION_RE = /^(.+?) can change the signers/ms;
 // "addresses controlled by the Core Facilitator" — bare role references
 const ROLE_PREFIX_RE = /^(Operational|Core)\s+(GovOps|Facilitator)\s+(.+)$/i;
@@ -78,12 +107,29 @@ export function parseSignerGroups(content) {
     groups.push({ name: m[1].trim(), count: Number(m[2]) });
   }
   if (groups.length) return groups;
+  const stripped = content.replace(SIGNER_INCLUDING_CLAUSE_RE, "");
+  for (const m of stripped.matchAll(SIGNER_GROUP_PLAIN_RE)) {
+    groups.push({ name: m[2].trim(), count: Number(m[1]) });
+  }
+  if (groups.length) return groups;
+  const soleController = content.match(SIGNERS_SOLE_CONTROLLER_RE);
+  if (soleController) return [{ name: soleController[1].trim(), count: null }];
   if (SIGNER_ROSTER_INTRO_RE.test(content)) {
     for (const m of content.matchAll(SIGNER_BULLET_PLAIN_RE)) {
       groups.push({ name: m[1].trim(), count: 1 });
     }
   }
   return groups;
+}
+
+// Compares a composition's own stated total ("is five (5) signers") against the sum
+// of its parsed groups. Returns false when the content states no total at all — most
+// signer shapes don't — so this only ever adds a warning for the one shape it guards.
+export function signerCompositionMismatch(content, groups) {
+  const stated = content.match(SIGNER_COMPOSITION_TOTAL_RE)?.[1];
+  if (stated == null) return false;
+  const parsed = groups.reduce((sum, g) => sum + (g.count ?? 0), 0);
+  return Number(stated) !== parsed;
 }
 
 export function extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges) {
@@ -213,8 +259,13 @@ export function extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges)
         }
 
         // Signers
-        const groups = parseSignerGroups(slot.signers.content ?? "");
-        if (!groups.length) warn(`signers did not parse: ${slot.signers.doc_no}`);
+        const signersContent = slot.signers.content ?? "";
+        const groups = parseSignerGroups(signersContent);
+        if (!groups.length) {
+          warn(`signers did not parse: ${slot.signers.doc_no}`);
+        } else if (signerCompositionMismatch(signersContent, groups)) {
+          warn(`signers composition total mismatch: ${slot.signers.doc_no}`);
+        }
         for (const g of groups) {
           const r = resolveParty(g.name, slot.signers, addEntity);
           if (!r) { warn(`unresolvable signer "${g.name}" (${slot.signers.doc_no})`); continue; }

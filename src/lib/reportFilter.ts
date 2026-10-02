@@ -159,6 +159,16 @@ export function filterRows<T>(
   return rows.filter((r) => rowMatches(fieldsOf(r), rq));
 }
 
+/** Regex source matching `needle` with non-alphanumerics as separators —
+ * so "on chain" / "on-chain" locates "On-chain" (mirrors report-index fieldMatch). */
+export function punctTokenSource(needle: string): string {
+  const parts = needle
+    .split(/[^a-z0-9]+/i)
+    .filter(Boolean)
+    .map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return parts.length > 0 ? parts.join("[^a-z0-9]+") : needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /** Regex source matching `needle` with optional whitespace between characters —
  * so a de-spaced needle ("skybase") still locates "Sky Base" in original text. */
 export function flexTokenSource(needle: string): string {

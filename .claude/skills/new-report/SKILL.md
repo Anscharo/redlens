@@ -104,9 +104,10 @@ uncited normative claims. See CLAUDE.md "Citation dictate".
    - `src/types.ts` — add the slug to the `ReportId` union.
    - `src/lib/routes.ts` — add `REPORTS_<NAME>: "/reports/<slug>"`.
    - `src/App.tsx` — add a `<Route>` with a lazy `<Suspense fallback={<Loading />}>`.
-   - `src/components/ReportsIndex.tsx` — add a `ReportCard` (`id`/`title`/`description`) to
-     the right section. (`report_open` is auto-tracked in `App.tsx` on route entry — don't
-     re-add it.)
+   - `src/lib/reportCatalog.ts` — add the id to the right section's `ids` list
+     (title + description come from `REPORT_TITLES` / `REPORT_DESCRIPTIONS` in
+     `routes.ts`; the catalog is what the index and its search both read).
+    (`report_open` is auto-tracked in `App.tsx` on route entry — don't re-add it.)
 
 6. **Result count + empty state.** Pass `count` (e.g. `` `${filtered.length} <unit>` ``) and
    `noRows={filtered.length === 0}` to `ReportShell` — it renders the count row and the shared
@@ -165,7 +166,7 @@ uncited normative claims. See CLAUDE.md "Citation dictate".
 
 - Semantic HTML (`<table>`, `<button>`, `<a>`/`<Link>`, headings); `<Link>`/anchors over
   `onNavigate` callbacks for row navigation.
-- Max ~150 lines / ≤3 components per file — split big tables into subcomponents
+- ≤3 components per file and the size limits in CLAUDE.md (`pnpm check:size`). Split big tables into subcomponents.
   (`OGCategoryTable`, `RewardsPrimitiveTable` are examples).
 - **Never hardcode doc_nos as identifiers** — key on UUIDs; doc_nos only in comments.
 - `node:` prefixed stdlib imports in any build-side code.
@@ -181,7 +182,7 @@ uncited normative claims. See CLAUDE.md "Citation dictate".
 - [ ] Filters URL-synced (via the hooks) + rendered with `FilterPills`/`CategoryPills`
 - [ ] Header search filters the report in place (`q` param)
 - [ ] Pure `src/lib/<name>Index.ts` + colocated `.test.ts`
-- [ ] Registered in `types.ts`, `routes.ts`, `App.tsx`, `ReportsIndex.tsx`
+- [ ] Registered in `types.ts`, `routes.ts`, `App.tsx`, `src/lib/reportCatalog.ts`
 - [ ] `count`/`noRows`/`loading` passed to the shell; visible error state on load failure
 - [ ] `report_export` tracked via `DownloadCsvButton` (`report_view`/`report_filter` come from the harness)
 - [ ] Deterministic sort; `patch-notes.md` bullet added

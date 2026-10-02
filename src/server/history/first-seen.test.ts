@@ -19,6 +19,7 @@
 // dispatches to a swappable `sqlImpl` that each test arms and beforeEach/
 // afterEach disarms. Disarmed it delegates to the real client, so the
 // registration is a behavioural no-op for every file scheduled after this one.
+import { SQL } from "bun";
 import { describe, it, expect, mock, beforeEach, afterEach } from "bun:test";
 import { buildIndexes, type AtlasNode, type Entity } from "../retrieval/indexes.ts";
 
@@ -247,7 +248,6 @@ const INCIDENT_UUID = "8414b48b-932e-430e-a236-727807fd73ba";
 describe("first-seen class mode against a populated atlas_history", () => {
   it("Rate Limit modified is older than 2026-07-10 and includes the incident UUID", async () => {
     if (!process.env.DATABASE_URL) return;
-    sqlImpl = null;
     let ix: ReturnType<typeof buildIndexes>;
     try {
       const { loadIndexes } = await import("../retrieval/indexes.ts");
@@ -255,12 +255,32 @@ describe("first-seen class mode against a populated atlas_history", () => {
     } catch {
       return;
     }
-    const result = (await atlasFirstSeen(ix, { title: "Rate Limit", event: "modified" })) as {
+    // Own connection, not the disarmed dispatcher. bun test runs every file in
+    // one process and mock.module("../db.ts") sticks for the rest of the run.
+    // An earlier file (balances.test.ts) replaces db.ts before this one
+    // snapshots it, and its last case leaves dbShouldThrow set — so sqlImpl =
+    // null falls through into `throw new Error("simulated db failure")` instead
+    // of Postgres. Same reason atlas-artifacts.test.ts uses `new SQL(...)`.
+    const live = new SQL(process.env.DATABASE_URL);
+    sqlImpl = live as unknown as SqlImpl;
+    let result: {
       error?: string;
       class_total?: number;
       class_with_history?: number;
       oldest?: Array<{ uuid: string; date: string }>;
     };
+    try {
+      result = (await atlasFirstSeen(ix, { title: "Rate Limit", event: "modified" })) as typeof result;
+    } catch (e) {
+      // Unit tests run before sync:atlas, so a fresh CI Postgres has no
+      // atlas_history yet. That is the documented skip, not a fixture miss.
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/does not exist|connect|ECONNREFUSED|password authentication/i.test(msg)) return;
+      throw e;
+    } finally {
+      sqlImpl = null;
+      await live.end();
+    }
     if (result.error || !result.class_with_history) return;
     expect(result.oldest?.length).toBeGreaterThan(0);
     const min = result.oldest![0]!.date;
