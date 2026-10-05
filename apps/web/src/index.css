@@ -3053,53 +3053,83 @@ a.atlas-annotates:focus-visible {
   height: 100%;
   background: var(--entity-development-company);
 }
-.msc-sankey-frame {
-  margin: 0;
-  width: 100%;
-}
-.msc-sankey {
+/* ─── A Prime's settlement streams (SettlementStreams.tsx) ─── */
+.msc-streams {
   width: 100%;
   height: auto;
   overflow: visible;
 }
-.msc-sankey-link {
-  opacity: 0.75;
-  cursor: pointer;
-  transition: opacity 0.1s;
-}
-.msc-sankey-node {
-  cursor: pointer;
-}
-.msc-sankey-amount {
+.msc-streams-header,
+.msc-stream-amount,
+.msc-stream-sub {
   fill: var(--tan-3);
 }
-/* Per-venue figures ride on the flows and are revealed by the generated
-   per-id rules in SettlementSankey.tsx. Hidden rather than absent so hover
-   costs no layout work; not a hover target, so they never shadow the ribbon
-   they sit on. The halo is what keeps them readable over a bright ribbon. */
-.msc-sankey-amounts {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.1s;
+.msc-stream-name {
+  fill: var(--tan-2);
 }
-.msc-sankey-amounts text {
-  fill: var(--tan);
+.msc-stream-label {
+  fill: var(--tan-2);
   paint-order: stroke;
-  stroke: var(--bg);
+  stroke: var(--bg-deep);
   stroke-width: 3px;
   stroke-linejoin: round;
 }
-.msc-venue-row {
+.msc-stream {
+  opacity: 0.8;
+  transition: opacity 0.1s;
+}
+.msc-stream:hover {
+  opacity: 1;
+}
+.msc-stream-body,
+.msc-stream-flow,
+.msc-stream-hit {
+  fill: none;
+}
+.msc-stream-hit {
+  stroke: transparent;
+  pointer-events: stroke;
+}
+.msc-stream-body,
+.msc-stream-flow {
+  pointer-events: none;
+}
+/* The Prime's bar sits OVER the revenue and Sky Direct Exposure streams, so
+   the exposure reads as passing behind it — never docking at the Prime. */
+.msc-stream-prime {
+  fill: var(--tan-2);
+}
+/* Dashes travel along every stream in the direction its money moves: the
+   path runs from payer to payee and the offset counts down to 0. */
+.msc-stream-flow {
+  stroke: var(--bg-deep);
+  stroke-opacity: 0.5;
+  stroke-dasharray: 3 9;
+  animation: msc-stream-flow 0.9s linear infinite;
+}
+@keyframes msc-stream-flow {
+  from {
+    stroke-dashoffset: 12;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .msc-stream-flow {
+    display: none;
+  }
+}
+.msc-stream-sky-link {
   cursor: pointer;
 }
-/* The Sky sink label doubles as a link to the /radar MSC overview. */
-.msc-sankey-sink-link {
-  cursor: pointer;
-}
-.msc-sankey-sink-link:hover text,
-.msc-sankey-sink-link:focus-visible text {
+.msc-stream-sky-link:hover tspan,
+.msc-stream-sky-link:focus-visible tspan {
   fill: var(--accent);
   text-decoration: underline;
+}
+.msc-venue-row {
+  cursor: pointer;
 }
 /* ─── MSC ecosystem timeseries (radar index overview) ─── */
 /* Chart card — same look as the primitive-stats AgentPanel cards. */
@@ -3240,8 +3270,7 @@ a.atlas-annotates:focus-visible {
   opacity: 1;
 }
 /* ─── MSC ecosystem ring (radar index overview) ───
-   .msc-ring-* is the MARK VOCABULARY both overview charts speak — the
-   orbital pies (MscRing) and the three-stage flow (MscFlow, svg.msc-flow):
+   .msc-ring-* is the pies' MARK VOCABULARY (MscRing):
    .msc-ring-prime[data-prime] groups one Prime, .msc-ring-mark[data-mark]
    is one hoverable figure, .msc-ring-<kind> is a line item's fill,
    .msc-ring-arrow the To-Sky money, .msc-ring-hole the loss, and
@@ -3395,85 +3424,11 @@ a.atlas-annotates:focus-visible {
     transition: opacity 0.1s;
   }
 }
-/* The flow chart's own marks. The general rule: BARS (the endcaps) are
-   bold and full-strength with a hairline card-colored edge; RIBBONS (the
-   flows) are lighter, and come up to full only when lit — hovered, or
-   named by the key or the timeseries. Labels that ribbons pass under get
-   a halo in the card color. */
-/* An invisible hit target that pads a hairline ribbon out to something a
-   pointer can actually land on. `pointer-events: all` is what makes it
-   work: the default (visiblePainted) ignores a transparent stroke, and
-   `all` hits the fill and stroke regions whatever they are painted with.
-   Drawn inside its ribbon's own .msc-ring-mark, so hovering it lights the
-   ribbon; never shown, so the chart is unchanged. */
-.msc-flow .msc-flow-hit {
-  fill: none;
-  stroke: transparent;
-  pointer-events: all;
-}
-.msc-flow .msc-ring-slice,
-.msc-flow .msc-ring-arrow {
-  stroke: none;
-  opacity: 0.75;
-  transition: opacity 0.1s;
-}
-.msc-flow .msc-ring-mark:hover :is(.msc-ring-slice, .msc-ring-arrow),
-.msc-flow .msc-ring-prime:hover :is(.msc-ring-slice, .msc-ring-arrow) {
-  opacity: 0.96; /* LIT in MscRingHoverStyles: a lit ribbon stays a touch under the bars */
-}
-.msc-flow-source rect,
-.msc-flow-agent,
-.msc-flow .msc-ring-sky-wedge {
-  stroke: var(--bg-deep);
-  stroke-width: 1.5;
-}
-/* Column headers over the three node groups — larger than the group
-   headings under SOURCE (those use .msc-flow-group-heading). */
 /* The zoom reset in the chart card's title row. Borrows .scope-pill's
-   surface so it reads as a sibling of the sankey / pies pills beside it. */
+   surface so it reads as a control of the chart beside it. */
 .msc-zoom-reset {
   border-radius: 4px;
   line-height: 1.6;
-}
-.msc-flow-header,
-.msc-flow-group-heading {
-  fill: var(--tan-3);
-  letter-spacing: 0.14em;
-}
-/* The source bars join the key's hover: they fade with everything else and
-   the hovered row's bar comes back lit. */
-.msc-ring-card:has(.msc-key-item:hover) .msc-flow-source rect {
-  opacity: 0.5;
-}
-.msc-ring-card:has(.msc-key-item[data-key="cof"]:hover) .msc-flow-source[data-kind="cof"] rect,
-.msc-ring-card:has(.msc-key-item[data-key="sde"]:hover) .msc-flow-source[data-kind="sde"] rect,
-.msc-ring-card:has(.msc-key-item[data-key="kept"]:hover) .msc-flow-source[data-kind="kept"] rect,
-.msc-ring-card:has(.msc-key-item[data-key="agentRate"]:hover) .msc-flow-source[data-kind="agentRate"] rect,
-.msc-ring-card:has(.msc-key-item[data-key="distributionRewards"]:hover) .msc-flow-source[data-kind="distributionRewards"] rect,
-.msc-ring-card:has(.msc-key-item[data-key="gar"]:hover) .msc-flow-source[data-kind="gar"] rect,
-.msc-ring-card:has(.msc-key-item[data-key="chroniclePoints"]:hover) .msc-flow-source[data-kind="chroniclePoints"] rect {
-  opacity: 1;
-  stroke: var(--tan);
-  stroke-width: 2.5;
-}
-.msc-flow-agent {
-  transition: stroke-width 0.1s;
-}
-.msc-ring-prime:hover .msc-flow-agent,
-a:focus-visible > .msc-ring-prime .msc-flow-agent {
-  stroke: var(--tan);
-  stroke-width: 2.5;
-}
-.msc-flow-halo {
-  paint-order: stroke;
-  stroke: var(--bg-deep);
-  stroke-width: 8px;
-  stroke-linejoin: round;
-}
-/* The flow canvas is ~2:1, the card's own shape, so it may take the card's
-   whole width — the orbit's 950px cap is for a squarer drawing. */
-.msc-flow-frame {
-  max-width: 100%;
 }
 .msc-ts-play {
   background: transparent;

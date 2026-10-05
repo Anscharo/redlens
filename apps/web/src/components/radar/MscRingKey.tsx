@@ -9,8 +9,7 @@ import { KeyGroup, KeyItem } from "./MscKeyParts";
  *  the code is not the label again ("CoF · cost of funds", never
  *  "kept · supply-side kept"); the supply-side rows name the flow the way
  *  the demand-side heading does. */
-export function RingKey({ view = "pies" }: { view?: "pies" | "sankey" }) {
-  const pies = view === "pies";
+export function RingKey() {
   return (
     <div className="mono text-[10px] mt-5" style={{ color: "var(--tan-3)" }}>
       <div className="msc-key">
@@ -20,7 +19,7 @@ export function RingKey({ view = "pies" }: { view?: "pies" | "sankey" }) {
         </KeyGroup>
         <KeyGroup title="Supply-side">
           <KeyItem id="kept" label="supply-side kept" />
-          <KeyItem id="neg" code="striped" label={pies ? "supply-side loss (the hole)" : "supply-side loss"} striped />
+          <KeyItem id="neg" code="striped" label="supply-side loss (the hole)" striped />
         </KeyGroup>
         <KeyGroup title="Demand-side">
           {DEMAND_SERIES.map((s) => (
@@ -30,25 +29,14 @@ export function RingKey({ view = "pies" }: { view?: "pies" | "sankey" }) {
       </div>
       <div className="msc-key-note text-center">
         <p>
-          {pies
-            ? "Every pie is what that party RECEIVED: a Prime's is supply-side kept + demand-side, Sky's is cost of funds + Sky Direct Exposure. Two arrows run between them, one each way. "
-            : "A Prime's bar is what flowed through it — To Sky + supply-side kept + demand-side; ribbons are the money in and out. "}
+          Every pie is what that party RECEIVED: a Prime's is supply-side kept + demand-side, Sky's is cost of funds + Sky Direct Exposure. Two arrows run between them, one each way.{" "}
           Hover for figures; click a Prime for its page.
         </p>
-        {pies && (
-          <p className="mt-1">
-            The two never merge into one pie: what a Prime owes Sky and what Sky
-            owes the Prime are separate settlement amounts running in opposite
-            directions (A.2.4.1.2.2.1.1.2 and A.2.4.1.2.2.1.1.1).
-          </p>
-        )}
-        {!pies && (
-          <p className="mt-1">
-            Sky is at both ends — it owes the demand-side series
-            (A.2.4.1.2.2.1.1.1) and is owed cost of funds and Sky Direct
-            Exposure (A.2.4.1.2.2.1.1.2).
-          </p>
-        )}
+        <p className="mt-1">
+          The two never merge into one pie: what a Prime owes Sky and what Sky
+          owes the Prime are separate settlement amounts running in opposite
+          directions (A.2.4.1.2.2.1.1.2 and A.2.4.1.2.2.1.1.1).
+        </p>
       </div>
     </div>
   );

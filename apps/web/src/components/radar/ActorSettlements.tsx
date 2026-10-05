@@ -4,8 +4,6 @@ import { useUrlState, urlString } from "../../hooks/useUrlState";
 import {
   loadSettlements,
   reportsForPrime,
-  formatUsd,
-  revenueGap,
   demandSideRevenue,
   supplyKept,
   settlementsArtifactMissing,
@@ -23,7 +21,7 @@ import { useMonthAutoplay } from "../../hooks/useMonthAutoplay";
 
 const mscCodec = urlString(null);
 const SOURCE = "https://github.com/soterlabs/settlement-reports";
-/** Autoplay dwell here: the venue Sankey's transition (SETTLE_TWEEN_MS,
+/** Autoplay dwell here: the settlement streams' transition (SETTLE_TWEEN_MS,
  *  ActorSettlementVenues) is slow enough to follow, and a month should
  *  settle and be read before the next one starts. */
 const SETTLE_PLAY_MS = 2400;
@@ -87,7 +85,6 @@ function ActorSettlementsLoaded({ slug, name }: ActorSettlementsProps) {
     );
   }
 
-  const gap = revenueGap(report);
   const workbook = `${SOURCE}/tree/main/reports/${report.prime}/${month}`;
   const forumUrl = forumTopicUrlForMonth(topics ?? [], month);
   const selectMonth = (m: string) => {
@@ -134,12 +131,6 @@ function ActorSettlementsLoaded({ slug, name }: ActorSettlementsProps) {
         play={{ playing: play.playing, onToggle: play.toggle }}
         earner={name}
       />
-      {gap > 1 && (
-        <p className="text-xs mb-3" style={{ color: "var(--tan-3)" }}>
-          Headline prime-agent revenue is {formatUsd(gap)} above the venue rows
-          (unattributed to any venue).
-        </p>
-      )}
       <ActorSettlementVenues report={report} name={name} />
     </>
   );

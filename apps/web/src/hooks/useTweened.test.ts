@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { layoutMscFlow } from "../lib/mscFlowLayout";
 import { useTweened } from "./useTweened";
-import { useTweenedFlow } from "./useTweenedFlow";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -61,25 +59,5 @@ describe("useTweened", () => {
     expect(queued).toHaveLength(1);
     unmount();
     expect(cancel).toHaveBeenCalled();
-  });
-});
-
-describe("useTweenedFlow", () => {
-  it("returns the flow layout, snapping in the test environment", () => {
-    const layout = layoutMscFlow([
-      {
-        prime: "spark",
-        month: "2026-07",
-        sky: 10,
-        kept: 2,
-        demand: 1,
-        cof: 9,
-        sde: 1,
-        demandParts: { agentRate: 1 },
-        latestMonth: "2026-07",
-      },
-    ]);
-    const { result } = renderHook(() => useTweenedFlow(layout));
-    expect(result.current).toBe(layout);
   });
 });

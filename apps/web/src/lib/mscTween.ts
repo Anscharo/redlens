@@ -1,6 +1,7 @@
 // Month-to-month transitions for the charts that lay themselves out from
 // their rows each render — the orbital pies (from PrimeFlowTotals) and a
-// Prime's venue Sankey / AUM bars (from SettlementVenue rows). Rather than
+// Prime's AUM bars (from SettlementVenue rows) and settlement streams
+// (from its StreamModel). Rather than
 // tweening their geometry, these interpolate the INPUT rows and let the
 // chart lay out every frame, so each frame is a valid chart: a pie grows
 // and its orbit shifts, a ribbon thickens, a bar stretches. A row present
@@ -9,6 +10,7 @@
 // the venue id.
 import type { SettlementVenue } from "@/lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
+import type { DemandStream, StreamModel, VenueStream } from "@/lib/settlementStreams";
 
 const mix = (a: number, b: number, k: number) => a + (b - a) * k;
 
@@ -74,4 +76,25 @@ export function tweenVenues(from: readonly SettlementVenue[], to: readonly Settl
     profitToGrove: mix(a.profitToGrove, b.profitToGrove, k),
     valueEom: mix(a.valueEom ?? 0, b.valueEom ?? 0, k),
   }));
+}
+
+const zeroStream = (v: VenueStream): VenueStream => ({ ...v, revenue: 0, sde: 0, cof: 0, kept: 0 });
+const zeroDemand = (d: DemandStream): DemandStream => ({ ...d, value: 0 });
+
+/** A Prime's settlement streams between two months: venue rows paired by
+ *  id and demand series by key, every amount mixed, so each frame is a
+ *  model whose streams still foot. */
+export function tweenStreamModel(from: StreamModel, to: StreamModel, k: number): StreamModel {
+  if (k <= 0) return from;
+  if (k >= 1) return to;
+  const venues = pair(from.venues, to.venues, (v) => v.id, zeroStream, k).map(({ a, b }) => ({
+    ...b,
+    revenue: mix(a.revenue, b.revenue, k),
+    sde: mix(a.sde, b.sde, k),
+    cof: mix(a.cof, b.cof, k),
+    kept: mix(a.kept, b.kept, k),
+  }));
+  const demand = pair(from.demand, to.demand, (d) => d.key, zeroDemand, k).map(({ a, b }) => ({ ...b, value: mix(a.value, b.value, k) }));
+  const num = (key: "revenue" | "cof" | "sde" | "toSky" | "kept" | "demandTotal") => mix(from[key], to[key], k);
+  return { venues, demand, revenue: num("revenue"), cof: num("cof"), sde: num("sde"), toSky: num("toSky"), kept: num("kept"), demandTotal: num("demandTotal") };
 }

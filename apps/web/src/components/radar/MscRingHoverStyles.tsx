@@ -17,7 +17,7 @@ export const DIM = 0.5;
 export const LIT = 0.96;
 
 /* Static CSS can't say "everything that is NOT the hovered prime", so the
-   focus rules are generated per prime (the venue sankey's VenueHoverStyles
+   focus rules are generated per prime (the settlement streams' VenueHoverStyles
    trick). Three things put a prime in focus — hovering its pie, keyboard
    focus on its link, hovering its Sky wedge — and in that state every OTHER
    prime, the Sky disc and every other wedge fade to DIM, the prime's own

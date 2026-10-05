@@ -16,6 +16,8 @@ export interface SettlementVenue {
   cofAlloc: number;
   profitToSky: number;
   profitToGrove: number;
+  /** Sky Direct Exposure revenue on this venue — Sky's, not the Prime's. */
+  sdRevenue?: number;
   /** End-of-month position; parsed from the workbook, 0 when absent. */
   valueEom?: number;
 }
@@ -317,16 +319,6 @@ export function leadCycleTotal(t: CycleTotals): { amount: number; label: string 
  *  owes the Prime, not what the Prime kept out of its own revenue. */
 export function demandSideTotal(reports: readonly SettlementReport[]): number {
   return reports.reduce((sum, r) => sum + demandSideRevenue(r.headline), 0);
-}
-
-export function venuePnlCount(report: SettlementReport): number {
-  return report.venues.filter(
-    (v) => Math.abs(v.profitToSky) + Math.abs(v.profitToGrove) >= NEAR_ZERO,
-  ).length;
-}
-
-export function hasMultiVenuePnl(report: SettlementReport): boolean {
-  return venuePnlCount(report) >= 2;
 }
 
 export function hasVenueAum(report: SettlementReport): boolean {

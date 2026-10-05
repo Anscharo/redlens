@@ -6,7 +6,7 @@ description: >
   Monthly settlement section. Use when running or changing pnpm
   settlements:parse, editing scripts/lib/settlement-xlsx.mjs,
   scripts/aux/parse-settlements.mjs, src/lib/settlements.ts,
-  src/lib/settlementSankey.ts or src/components/radar/ActorSettlement*, when a
+  src/lib/settlementStreams.ts or src/components/radar/ActorSettlement*, when a
   new month or prime is published, or when asked to audit / reconcile / check
   the accounting of settlement figures. Covers what cost of funds is and its
   formula, the two accounting invariants (supply-side basis; CoF is not a
@@ -97,9 +97,23 @@ invisible on them — **always test against Spark.**
 `summary.py` states the reason directly: *"Summing rows would silently drop
 those."*
 
-Per-venue `profitToGrove` is still correct **as a venue breakdown** — the
-Sankey and venue table use it legitimately. Only its *sum* must never become a
-headline.
+Per-venue `profitToGrove` is still correct **as a venue breakdown**. Only its
+*sum* must never become a headline.
+
+The settlement streams (`src/lib/settlementStreams.ts`) split each venue row
+with two identities that hold on every row of all 48 workbooks (checked
+2026-10 to floating-point error):
+
+```
+cof to Sky = profitToSky − sdRevenue        (= cofAlloc − spreadReimb)
+kept       = revenueToPrime − cof to Sky    (= profitToGrove + spreadReimb)
+```
+
+plus a synthetic "Prime-level (no venue)" row for `prime_agent_revenue − Σ
+revenue`. Σ kept then equals `supplyKept()` and Σ cof + Σ sde equals
+`skyRevenue`, so the streams and their table foot to the headline card. The
+spread refund lives only on the synthetic `SPREAD` row (negative CoF), and
+`sdRevenue` is per-venue SDE — Sky's money, drawn passing through the Prime.
 
 ## Invariant 2 — cost of funds is not a fourth flow
 
@@ -192,7 +206,7 @@ For a new month, a new prime, or any change to the parse/display path:
 5. **Check the Spark row specifically.** Any bug in supply-side basis is
    invisible on Grove/Obex/Keel/Skybase/Osero.
 6. **Run the suites.** `npx vitest run src/lib/settlements.test.ts
-   src/lib/settlementSankey.test.ts scripts_tests/settlement-xlsx.test.ts`.
+   apps/web/src/lib/settlementStreams.test.ts scripts_tests/settlement-xlsx.test.ts`.
 
 When upstream adds a prime, `identifyReport` skips `non_msc` and `sky_total`
 (aggregators, not primes) via `SKIP_PRIMES` — extend that set rather than

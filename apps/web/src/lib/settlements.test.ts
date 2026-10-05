@@ -24,7 +24,6 @@ import {
   barFillStyle,
   headlineFigures,
   activeDemandSeries,
-  hasMultiVenuePnl,
   hasVenueAum,
   collapseAum,
   EMPTY_SETTLEMENTS,
@@ -301,15 +300,7 @@ describe("demand-side cycles", () => {
     expect(activeDemandSeries([report()])).toEqual([]);
   });
 
-  it("counts multi-venue PnL and AUM separately", () => {
-    expect(hasMultiVenuePnl(report())).toBe(false);
-    expect(hasMultiVenuePnl(keel)).toBe(false);
-    expect(hasMultiVenuePnl(report({
-      venues: [
-        { id: "a", label: "A", chain: "", synthetic: false, revenueToPrime: 1, cofAlloc: 0, profitToSky: 10, profitToGrove: 0 },
-        { id: "b", label: "B", chain: "", synthetic: false, revenueToPrime: 1, cofAlloc: 0, profitToSky: 5, profitToGrove: 0 },
-      ],
-    }))).toBe(true);
+  it("detects venue AUM", () => {
     expect(hasVenueAum(report({ venues: [{ ...report().venues[0]!, valueEom: 1_000 }] }))).toBe(true);
     expect(hasVenueAum(keel)).toBe(false);
   });

@@ -1,19 +1,16 @@
+import { useMemo } from "react";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
-import {
-  hasMultiVenuePnl,
-  hasVenueAum,
-  isDemandSideCycle,
-  type SettlementReport,
-} from "../../lib/settlements";
+import { hasVenueAum, type SettlementReport } from "../../lib/settlements";
+import { hasStreams, streamModel } from "@/lib/settlementStreams";
 import { Tooltip } from "../Tooltip";
 import { useTweened } from "../../hooks/useTweened";
-import { tweenVenues } from "../../lib/mscTween";
-import { SettlementVenuePnl } from "./SettlementSankey";
+import { tweenStreamModel, tweenVenues } from "../../lib/mscTween";
+import { SettlementStreams } from "./SettlementStreams";
 import { SettlementAum } from "./SettlementAum";
 
 const venuesCodec = urlString(null);
 /** A month change on the venue charts, slower than the overview's: a
- *  Sankey re-threading a dozen ribbons at once needs the time to be seen. */
+ *  dozen streams re-threading at once needs the time to be seen. */
 export const SETTLE_TWEEN_MS = 1500;
 
 export function ActorSettlementVenues({
@@ -23,26 +20,25 @@ export function ActorSettlementVenues({
   report: SettlementReport;
   name: string;
 }) {
-  // A month change is drawn as a transition: the rows tween (mscTween.ts)
-  // and the Sankey and AUM bars lay out from them every frame.
+  // A month change is drawn as a transition: the inputs tween (mscTween.ts)
+  // and the streams and AUM bars lay out from them every frame.
+  const target = useMemo(() => streamModel(report), [report]);
+  const model = useTweened(target, tweenStreamModel, SETTLE_TWEEN_MS);
   const venues = useTweened(report.venues, tweenVenues, SETTLE_TWEEN_MS);
-  const multi = hasMultiVenuePnl(report);
+  const flows = hasStreams(target);
   const aum = hasVenueAum(report);
-  // ?venues=aum; PnL is the default and needs no param.
+  // ?venues=aum; the flows are the default and need no param.
   const [venuesParam, setVenuesParam] = useUrlState("venues", venuesCodec);
   const view: "pnl" | "aum" = venuesParam === "aum" ? "aum" : "pnl";
   const setView = (v: "pnl" | "aum") => setVenuesParam(v === "aum" ? "aum" : null);
-  const toggle = multi && aum;
-  const showPnl = multi && (!toggle || view === "pnl");
-  const showAum = aum && (!multi || view === "aum");
+  const toggle = flows && aum;
+  const showFlows = flows && (!toggle || view === "pnl");
+  const showAum = aum && (!flows || view === "aum");
 
-  if (!showPnl && !showAum) {
+  if (!showFlows && !showAum) {
     return (
       <p className="text-sm italic" style={{ color: "var(--tan-3)" }}>
-        Published workbooks list no venue-level PnL for {name}.
-        {isDemandSideCycle(report)
-          ? " Demand-side figures are agent rate and rewards; Sky's take is zero."
-          : ""}
+        Nothing settled between {name} and Sky this month.
       </p>
     );
   }
@@ -51,16 +47,16 @@ export function ActorSettlementVenues({
     <>
       {toggle && (
         <div role="group" aria-label="Venue view" className="flex gap-2 mb-3">
-          <Tooltip content="Profit & Loss">
+          <Tooltip content="Who paid whom this month">
             <button
               type="button"
               className="scope-pill mono text-[10px] uppercase tracking-wider px-2 py-1"
               data-active={view === "pnl" ? "true" : undefined}
               aria-pressed={view === "pnl"}
-              aria-label="Profit & Loss"
+              aria-label="Settlement flows"
               onClick={() => setView("pnl")}
             >
-              PnL
+              Flows
             </button>
           </Tooltip>
           <Tooltip content="Assets Under Management">
@@ -77,9 +73,7 @@ export function ActorSettlementVenues({
           </Tooltip>
         </div>
       )}
-      {showPnl && (
-        <SettlementVenuePnl venues={venues} primeLabel={name} month={report.month} />
-      )}
+      {showFlows && <SettlementStreams model={model} primeLabel={name} month={report.month} />}
       {showAum && <SettlementAum venues={venues} />}
     </>
   );

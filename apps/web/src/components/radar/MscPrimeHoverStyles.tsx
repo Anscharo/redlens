@@ -7,7 +7,7 @@ import { DIM } from "./MscRingHoverStyles";
    rest of the other chart fades to DIM, so the pairing is unmistakable
    rather than an outline you have to look for. Static CSS can't express
    "same data-prime as the hovered element", so the rules are generated per
-   prime — the same trick as the venue sankey's VenueHoverStyles. */
+   prime — the same trick as the settlement streams' VenueHoverStyles. */
 export function PrimeHoverStyles({ primes }: { primes: string[] }) {
   const css = primes
     .map((p) => {

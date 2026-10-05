@@ -40,7 +40,7 @@ export function SettlementCharts({ reports, selected, onSelect, name, paging }: 
           {" – "}
           {name} sent <span className="mono">{formatUsd(sky)}</span> to Sky,
           {" "}kept <span className="mono">{formatUsd(supply)}</span> supply-side,
-          {" "}earned <span className="mono">{formatUsd(demand)}</span> demand-side
+          {" "}received <span className="mono">{formatUsd(demand)}</span> demand-side from Sky
         </h2>
         {paging && (
           <span className="msc-cycle-paging" role="group" aria-label="Cycles shown">

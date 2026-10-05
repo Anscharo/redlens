@@ -17,15 +17,12 @@ import {
 } from "@/lib/settlementsOverview";
 import { settlementsHref } from "@/lib/routes";
 import { layoutMscRing } from "../../lib/mscOverviewLayout";
-import { layoutMscFlow } from "../../lib/mscFlowLayout";
 import { track } from "../../lib/analytics";
 import { MscHeadline } from "./MscHeadline";
 import { MscRing, type MscRingPrime } from "./MscRing";
-import { MscFlow } from "./MscFlow";
 import type { OverviewPrime } from "./MscRingPrime";
 import { RingKey } from "./MscRingKey";
 import { PrimeHoverStyles } from "./MscPrimeHoverStyles";
-import { MscChartStyle, type ChartStyle } from "./MscChartStyle";
 import { MscZoomReset } from "./MscZoomReset";
 import { MscTimeseries, primeFill } from "./MscTimeseries";
 import { MscOverviewSkeleton, OverviewIntro } from "./MscOverviewSkeleton";
@@ -34,8 +31,6 @@ import { useTweened } from "../../hooks/useTweened";
 import { tweenPrimeFlows } from "../../lib/mscTween";
 
 const mscCodec = urlString(null);
-/** Chart style: the three-stage sankey (default, no param) or the pies. */
-const viewCodec = urlString(null);
 /** The cross-Prime Monthly Settlement Cycle section. Suspends on the
  *  settlements artifact behind a skeleton of the same cards at the same
  *  sizes (MscOverviewSkeleton), so the charts paint into place. */
@@ -71,12 +66,10 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
     [bundle, month],
   );
   // The pies lay themselves out from the rows each render, so a month
-  // change is drawn by tweening the rows (the sankey tweens its own layout).
+  // change is drawn by tweening the rows.
   const drawnFlows = useTweened(flows, tweenPrimeFlows);
-  const [viewParam, setViewParam] = useUrlState("view", viewCodec);
-  const view: ChartStyle = viewParam === "pies" ? "pies" : "sankey";
-  // What both charts know about a Prime: its label, link and identity
-  // color (the same as its timeseries layers, by stack order).
+  // What the pies know about a Prime: its label, link and identity color
+  // (the same as its timeseries layers, by stack order).
   const overviewPrimes = useMemo<OverviewPrime[]>(
     () =>
       drawnFlows.map((flow) => {
@@ -89,7 +82,6 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
     [drawnFlows, actors, month, labelOf, stack.primes],
   );
   const layout = useMemo(() => layoutMscRing(drawnFlows, labelOf), [drawnFlows, labelOf]);
-  const flowLayout = useMemo(() => (view === "sankey" ? layoutMscFlow(flows) : null), [view, flows]);
   const ringPrimes = useMemo<MscRingPrime[]>(
     () => layout.primes.map((ring) => ({ ...overviewPrimes.find((p) => p.flow.prime === ring.prime)!, ring })),
     [layout, overviewPrimes],
@@ -99,8 +91,8 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
     [bundle, month],
   );
 
-  // Reported up by whichever chart is mounted, so the reset control can
-  // live in the title row; null again as soon as that chart unmounts.
+  // Reported up by the pies, so the reset control can live in the title
+  // row; null again as soon as the chart unmounts.
   const [zoom, setZoom] = useState<{ zoomed: boolean; reset: () => void } | null>(null);
 
   const viewed = useRef(false);
@@ -136,13 +128,6 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
         <div className="msc-card msc-ring-card rounded p-4 flex-1 min-w-0 flex flex-col" style={{ flexBasis: 340, maxWidth: "100%" }}>
           <p className="text-sm mb-2 flex flex-wrap items-center gap-3" style={{ color: "var(--tan)" }}>
             <span>Sky System Settlements — {formatMonth(month)}</span>
-            <MscChartStyle
-              value={view}
-              onChange={(v) => {
-                setViewParam(v === "sankey" ? null : v);
-                track("msc_overview_style", { view: v });
-              }}
-            />
             {/* The way out of a zoomed chart sits here, at the end of the
                 title row, rather than floating over the drawing it undoes.
                 The chart still owns its zoom and only reports it up. */}
@@ -152,12 +137,8 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
               </span>
             )}
           </p>
-          {flowLayout ? (
-            <MscFlow layout={flowLayout} primes={overviewPrimes} month={month} centerFigure={formatUsd(eco.sky, true)} onZoom={setZoom} />
-          ) : (
-            <MscRing layout={layout} primes={ringPrimes} month={month} centerFigure={formatUsd(eco.sky, true)} onZoom={setZoom} />
-          )}
-          <RingKey view={view} />
+          <MscRing layout={layout} primes={ringPrimes} month={month} centerFigure={formatUsd(eco.sky, true)} onZoom={setZoom} />
+          <RingKey />
         </div>
       </div>
     </OverviewIntro>

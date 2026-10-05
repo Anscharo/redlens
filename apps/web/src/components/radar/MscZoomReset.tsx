@@ -1,6 +1,5 @@
-/** The way back out of a zoomed MSC chart — shared by the sankey and the
- *  pies. It sits at the end of the card's title row, beside the chart-style
- *  pills, rather than over the drawing it undoes; the chart reports its zoom
+/** The way back out of the zoomed MSC pies. It sits at the end of the
+ *  card's title row rather than over the drawing it undoes; the chart reports its zoom
  *  upward (useZoomReport) and the overview renders this. Only rendered once
  *  the chart is zoomed, so at rest the row is exactly as it was; its title
  *  names the other ways out (double-click, or 0 / Escape from the keyboard),

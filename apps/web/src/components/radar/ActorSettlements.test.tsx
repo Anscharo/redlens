@@ -133,12 +133,12 @@ describe("ActorSettlements", () => {
     expect(skeleton.querySelectorAll(".msc-bar-stack")).toHaveLength(6);
   });
 
-  it("renders Spark figures, the Sankey, and the venue table for the latest month", async () => {
+  it("renders Spark figures, the settlement streams, and the venue table for the latest month", async () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
     await waitFor(() => expect(screen.getByText(/^Supply-side kept by /)).toBeInTheDocument());
     expect(screen.getByRole("heading", { name: "monthly summary" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "demand side" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Trailing 2 Months – Spark sent $110 to Sky, kept $162 supply-side, earned $75 demand-side" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Trailing 2 Months – Spark sent $110 to Sky, kept $162 supply-side, received $75 demand-side from Sky" })).toBeInTheDocument();
     const panes = document.querySelectorAll(".msc-charts-pane");
     expect(panes).toHaveLength(2);
     expect(panes[0]).toContainElement(screen.getByLabelText("Settlement months"));
@@ -152,38 +152,40 @@ describe("ActorSettlements", () => {
     expect(legends[1]).toHaveTextContent("distribution rewards");
     expect(legends[1].querySelector(".msc-bar-rate")).toBeInTheDocument();
     expect(legends[0].querySelector(".msc-bar-demand")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Venue flows to Sky and Spark/)).toBeInTheDocument();
-    // The Sky sink label links back to the ecosystem overview for this month.
+    expect(screen.getByLabelText(/Settlement flows between Spark and Sky/)).toBeInTheDocument();
+    // The To Sky label links back to the ecosystem overview for this month.
     expect(
       screen.getByRole("link", { name: /ecosystem Monthly Settlement Cycle overview/ }),
     ).toHaveAttribute("href", "/radar?msc=2026-07");
     expect(screen.getAllByText("SparkLend USDS").length).toBeGreaterThan(0);
-    expect(screen.getByText("synthetic")).toBeInTheDocument();
-    expect(screen.getByText(/Headline prime-agent revenue is \$100 above/)).toBeInTheDocument();
+    expect(screen.getAllByText("synthetic").length).toBeGreaterThan(0);
+    // Revenue no venue row carries is its own row, so the table reaches the card.
+    expect(screen.getAllByText("Prime-level (no venue)").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Headline prime-agent revenue is/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "2026-07 source" })).toHaveAttribute(
       "href",
       "https://github.com/soterlabs/settlement-reports/tree/main/reports/spark/2026-07",
     );
     expect(screen.getByRole("group", { name: "Venue view" })).toBeInTheDocument();
-    const pnl = screen.getByRole("button", { name: "Profit & Loss" });
+    const pnl = screen.getByRole("button", { name: "Settlement flows" });
     const aum = screen.getByRole("button", { name: "Assets Under Management" });
     expect(pnl).toHaveAttribute("aria-pressed", "true");
     expect(aum).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(aum);
     expect(pnl).toHaveAttribute("aria-pressed", "false");
     expect(aum).toHaveAttribute("aria-pressed", "true");
-    // The choice lives in the URL; PnL is the default and clears it.
+    // The choice lives in the URL; the flows are the default and clear it.
     expect(window.location.search).toContain("venues=aum");
     expect(screen.getByText("Venue AUM (end of month)")).toBeInTheDocument();
     expect(screen.getByText("$753.00M")).toBeInTheDocument();
-    expect(screen.queryByLabelText(/Venue flows/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Settlement flows between/)).not.toBeInTheDocument();
     // Rows carry the key the reorder animation slides them by.
     expect(document.querySelectorAll(".msc-aum-row[data-flip-key]").length).toBeGreaterThan(0);
     fireEvent.click(pnl);
     expect(window.location.search).not.toContain("venues=");
   });
 
-  it("shows the To Sky equation card headed by the month, and paints its Sankey bar supply-side green", async () => {
+  it("shows the To Sky equation card headed by the month, and draws what stays with the Prime supply-side green", async () => {
     const { container } = render(<ActorSettlements slug="spark" name="Spark" />);
     await waitFor(() => screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure"));
     expect(screen.getByText("cost of funds")).toBeInTheDocument();
@@ -204,52 +206,54 @@ describe("ActorSettlements", () => {
     expect(charts).toContainElement(screen.getByLabelText("Demand-side months"));
     expect(charts.compareDocumentPosition(headline) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole("button", { name: /Play through the months/ })).toBeInTheDocument();
-    // No identity swatch on the card; the Sankey's Prime bar is supply-side green.
+    // No identity swatch on the card; what stays with the Prime is supply-side green.
     expect(container.querySelector(".msc-identity-swatch")).toBeNull();
-    expect(container.querySelector(".msc-sankey-sink rect[fill='var(--msc-kept)']")).toBeInTheDocument();
-    expect(container.querySelector(".msc-sankey-sink rect[fill='var(--msc-prime-1)']")).not.toBeInTheDocument();
+    expect(container.querySelector(".msc-stream[data-kind='kept'] .msc-stream-body[stroke='var(--msc-kept)']")).toBeInTheDocument();
+    expect(container.querySelector("[fill='var(--msc-prime-1)'], [stroke='var(--msc-prime-1)']")).not.toBeInTheDocument();
   });
 
   it("switches month from the bar control", async () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
     await waitFor(() => screen.getByText(/^Supply-side kept by /));
     fireEvent.click(screen.getByRole("button", { name: /Jun 2026: \$10 to Sky/ }));
-    expect(screen.getByText("June venue")).toBeInTheDocument();
+    expect(screen.getAllByText("June venue").length).toBeGreaterThan(0);
     expect(screen.queryByText("SparkLend USDS")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/Venue flows/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Settlement flows between Spark and Sky/)).toBeInTheDocument();
   });
 
   it("charts demand-side mix and the three-way summary for Keel", async () => {
     render(<ActorSettlements slug="keel" name="Keel" />);
-    await waitFor(() => screen.getByText(/no venue-level PnL for Keel/));
-    expect(screen.queryByLabelText(/Venue flows/)).not.toBeInTheDocument();
+    await waitFor(() => screen.getByText("Demand-side from Sky to Keel"));
+    // A demand-only Prime still has its flows: the lane back from Sky.
+    expect(screen.getByLabelText(/Settlement flows between Keel and Sky/)).toBeInTheDocument();
+    expect(document.querySelectorAll(".msc-stream").length).toBe(2);
+    expect(document.querySelectorAll(".msc-stream[data-kind='demand']").length).toBe(2);
     expect(screen.getByText("To Sky")).toBeInTheDocument();
     expect(screen.getByText(/^Supply-side kept by /)).toBeInTheDocument();
     expect(screen.getByText("Demand-side from Sky to Keel")).toBeInTheDocument();
     expect(screen.getAllByText("$36,231").length).toBeGreaterThan(0);
     expect(screen.getByLabelText("Demand-side months")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Trailing 1 Month – Keel sent $0 to Sky, kept $0 supply-side, earned $36,231 demand-side" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Trailing 1 Month – Keel sent $0 to Sky, kept $0 supply-side, received $36,231 demand-side from Sky" })).toBeInTheDocument();
     expect(screen.getByText("agent rate")).toBeInTheDocument();
     expect(screen.getByText("distribution rewards")).toBeInTheDocument();
-    expect(screen.getByText(/Sky's take is zero/)).toBeInTheDocument();
   });
 
-  it("hides the Sankey when only one venue has PnL and shows AUM instead", async () => {
+  it("draws a single-venue Prime's flows, with its AUM a click away", async () => {
     render(<ActorSettlements slug="obex" name="Obex" />);
-    await waitFor(() => screen.getByText("Maple syrupUSDC"));
-    expect(screen.queryByLabelText(/Venue flows/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("group", { name: "Venue view" })).not.toBeInTheDocument();
+    await waitFor(() => screen.getAllByText("Maple syrupUSDC"));
+    expect(screen.getByLabelText(/Settlement flows between Obex and Sky/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Assets Under Management" }));
     expect(screen.getByText("Venue AUM (end of month)")).toBeInTheDocument();
     expect(screen.getByText("$402.00M")).toBeInTheDocument();
   });
 
-  it("tags sankey flows and venue table rows with matching data-venue ids", async () => {
+  it("tags venue streams, their labels and table rows with matching data-venue ids", async () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
     await waitFor(() => expect(screen.getByRole("table")).toBeInTheDocument());
     const row = screen.getByRole("cell", { name: /SparkLend USDS/ }).closest("tr")!;
     expect(row).toHaveAttribute("data-venue", "S1");
-    expect(document.querySelector('.msc-sankey-link[data-venue="S1"]')).toBeInTheDocument();
-    expect(document.querySelector('.msc-sankey-venue[data-venue="S1"]')).toBeInTheDocument();
+    expect(document.querySelector('.msc-stream[data-venue="S1"]')).toBeInTheDocument();
+    expect(document.querySelector('.msc-stream-row[data-venue="S1"]')).toBeInTheDocument();
   });
 
   it("resolves Spark's workbooks from the composite-party slug", async () => {

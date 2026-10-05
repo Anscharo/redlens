@@ -1,9 +1,6 @@
 import type { ReactNode } from "react";
 import { MscHeadline } from "./MscHeadline";
-import { MscChartStyle } from "./MscChartStyle";
 import { RingKey } from "./MscRingKey";
-import { FlowHeaders } from "./MscFlow";
-import { HEIGHT, WIDTH } from "../../lib/mscFlowLayout";
 import { AXIS_W, COL_W, GAP_PX, TRACK_H } from "./MscTimeseries";
 
 const SOURCE = "https://github.com/soterlabs/settlement-reports";
@@ -36,7 +33,7 @@ const SKELETON_MONTHS = 8;
 /** What the overview looks like before settlements.json lands: the same
  *  cards at the same sizes — the headline card with its labels and dashed
  *  figures, the timeseries card at its fixed track height, the chart card
- *  with the column headers on an empty canvas and the key — so the real
+ *  with an empty frame and the key — so the real
  *  charts paint into place without moving anything. Everything here is
  *  chrome; nothing needs the data. */
 export function MscOverviewSkeleton() {
@@ -56,14 +53,9 @@ export function MscOverviewSkeleton() {
           <div className="msc-card msc-ring-card rounded p-4 flex-1 min-w-0 flex flex-col" style={{ flexBasis: 340, maxWidth: "100%" }}>
             <p className="text-sm mb-2 flex flex-wrap items-center gap-3" style={{ color: "var(--tan)" }}>
               <span>Sky System Settlements</span>
-              <MscChartStyle value="sankey" onChange={() => {}} />
             </p>
-            <figure className="msc-ring-frame msc-flow-frame" aria-hidden="true">
-              <svg className="msc-ring msc-flow" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMid meet">
-                <FlowHeaders />
-              </svg>
-            </figure>
-            <RingKey view="sankey" />
+            <figure className="msc-ring-frame" aria-hidden="true" />
+            <RingKey />
           </div>
         </div>
       </div>

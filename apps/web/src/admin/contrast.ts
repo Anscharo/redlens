@@ -127,7 +127,7 @@ export const AUDIT_PAIRS: readonly AuditPair[] = [
   // A NEGATIVE figure is WRITTEN in the same red the charts stripe a loss in
   // — never --accent, which is a violet in light and white in giedi, so a
   // loss read as a link there. Real text, so these hold the 4.5:1 bar: the
-  // headline card and the Sankey's out-bar sit on --bg-deep, the venue
+  // headline card and the settlement streams sit on --bg-deep, the venue
   // table on --bg / --surface.
   { fg: "msc-loss",       bg: "bg",         label: "MSC loss figure / bg" },
   { fg: "msc-loss",       bg: "surface",    label: "MSC loss figure / surface" },

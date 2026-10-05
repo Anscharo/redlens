@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { easeInOut } from "../lib/mscFlowTween";
 
 /** How long a month-to-month chart transition takes. Shorter than the
  *  autoplay's one-second step, so a playing chart settles before it moves
  *  again. */
 export const TWEEN_MS = 650;
+
+/** Cubic ease-in-out: slow off the mark, slow into place. */
+export const easeInOut = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
 /** The value to draw right now: `target` once a transition settles, and in
  *  between, `lerp(from, target, k)` from wherever the chart was — including
@@ -14,8 +16,8 @@ export const TWEEN_MS = 650;
  *  test environment), where the charts simply snap.
  *
  *  `lerp` is a pure interpolation between two values of T at progress
- *  k ∈ (0, 1) — a layout (tweenFlowLayout) or the chart's INPUT rows
- *  (tweenPrimeFlows, tweenVenues), which the chart then lays out per frame
+ *  k ∈ (0, 1) — the chart's INPUT rows (tweenPrimeFlows, tweenVenues,
+ *  tweenStreamModel), which the chart then lays out per frame
  *  so every frame is a geometrically valid chart. */
 export function useTweened<T>(target: T, lerp: (from: T, to: T, k: number) => T, duration = TWEEN_MS): T {
   const [drawn, setDrawn] = useState(target);

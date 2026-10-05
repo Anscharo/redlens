@@ -73,25 +73,28 @@ describe("MscOverview", () => {
     expect(screen.getByLabelText(/^Supply-side kept by Primes, and demand-side owed by Sky to Primes/)).toBeInTheDocument();
     expect(screen.getByText("Supply-side kept by Primes")).toBeInTheDocument();
     expect(skeleton.querySelectorAll(".msc-card")).toHaveLength(3);
-    // The timeseries track and the flow canvas are already their real sizes.
+    // The timeseries track is already its real size; the pies' frame is in place.
     expect(skeleton.querySelector(".msc-ts-grid")).toHaveAttribute("height", String(TRACK_H));
-    expect(skeleton.querySelector("svg.msc-flow")).toHaveAttribute("viewBox", "0 0 3000 1200");
-    expect(skeleton.querySelector(".msc-flow-header")).toHaveTextContent("SOURCE");
-    expect(screen.getByRole("group", { name: "Chart style" })).toBeInTheDocument();
+    expect(skeleton.querySelector(".msc-ring-frame")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Chart style" })).not.toBeInTheDocument();
     expect(document.querySelector(".msc-key")).toBeInTheDocument();
   });
 
   it("renders the ring, disclaimer, and ecosystem headline row for the latest month", async () => {
-    render(<MscOverview actors={ACTORS} />);
+    const { container } = render(<MscOverview actors={ACTORS} />);
     await waitFor(() => expect(screen.getByText("Monthly Settlement Cycle")).toBeInTheDocument());
     await waitFor(() =>
       expect(track).toHaveBeenCalledWith("msc_overview_view", { month: "2026-07", primes: 2 }),
     );
     expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
     expect(screen.getByText(/not the Protocol's Net Revenue/)).toBeInTheDocument();
-    expect(screen.getByText(/^striped · supply-side loss$/)).toBeInTheDocument();
+    expect(screen.getByText(/supply-side loss \(the hole\)/)).toBeInTheDocument();
     // No "kept · supply kept" — a row carries a code only when it adds one.
-    expect(screen.getAllByText("supply-side kept").length).toBeGreaterThanOrEqual(1); // key row + flow source label
+    expect(screen.getAllByText("supply-side kept").length).toBeGreaterThanOrEqual(1);
+    // The pies are the only chart: no sankey, no style pills.
+    expect(container.querySelector(".msc-ring-sky-disc")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Chart style" })).not.toBeInTheDocument();
+    expect(document.querySelector(".msc-key-note")).toHaveTextContent("Every pie is what that party RECEIVED");
     // The key is grouped by where the money goes, in the pie's order.
     const key = document.querySelector(".msc-key")!;
     const groups = [...key.querySelectorAll(".msc-key-group")].map((g) => ({
@@ -103,8 +106,7 @@ describe("MscOverview", () => {
       { title: "Supply-side", keys: ["kept", "neg"] },
       { title: "Demand-side", keys: ["agentRate", "distributionRewards", "gar", "chroniclePoints"] },
     ]);
-    // The bar's total is described by its parts, never given a name we coined.
-    expect(document.querySelector(".msc-key-note")).toHaveTextContent("A Prime's bar is what flowed through it");
+    // The key never gives a total a name we coined.
     expect(document.querySelector(".msc-key-note")).not.toHaveTextContent(/gross revenue/i);
     // Cross-chart hover styles: one :has() rule per prime in the stack.
     const style = document.querySelector("style")!.textContent!;
@@ -189,7 +191,7 @@ describe("MscOverview", () => {
   it("zooms from the keyboard, so the gesture is not mouse-only", async () => {
     const { container } = render(<MscOverview actors={ACTORS} />);
     await waitFor(() => screen.getByText("Monthly Settlement Cycle"));
-    const svg = container.querySelector("svg.msc-flow")!;
+    const svg = container.querySelector("svg.msc-ring")!;
     // Focusable, and named for itself — the figure's label names the figure.
     expect(svg).toHaveAttribute("tabindex", "0");
     expect(svg.querySelector("title")).toHaveTextContent(/Monthly Settlement Cycle/);
@@ -206,43 +208,17 @@ describe("MscOverview", () => {
   it("puts the zoom reset in the title row, only while a chart is zoomed", async () => {
     const { container } = render(<MscOverview actors={ACTORS} />);
     await waitFor(() => screen.getByText("Monthly Settlement Cycle"));
-    // At rest the row is just the title and the style pills.
+    // At rest the row is just the title.
     expect(screen.queryByRole("button", { name: /Reset zoom/ })).not.toBeInTheDocument();
-    const svg = container.querySelector("svg.msc-flow")!;
+    const svg = container.querySelector("svg.msc-ring")!;
     fireEvent.wheel(svg, { deltaY: -400 });
     const reset = screen.getByRole("button", { name: /Reset zoom/ });
-    // It belongs to the card's title row, beside the style pills — not to
-    // the figure it undoes.
-    const titleRow = screen.getByRole("group", { name: "Chart style" }).closest("p")!;
+    // It belongs to the card's title row — not to the figure it undoes.
+    const titleRow = screen.getByText(/^Sky System Settlements/).closest("p")!;
     expect(titleRow).toContainElement(reset);
     expect(container.querySelector("figure")).not.toContainElement(reset);
     fireEvent.click(reset);
     expect(screen.queryByRole("button", { name: /Reset zoom/ })).not.toBeInTheDocument();
-  });
-
-  it("opens on the sankey and switches to the pies, synced to ?view", async () => {
-    const { container } = render(<MscOverview actors={ACTORS} />);
-    await waitFor(() => screen.getByText("Monthly Settlement Cycle"));
-    const group = screen.getByRole("group", { name: "Chart style" });
-    const pies = screen.getByRole("button", { name: "pies" });
-    const sankey = screen.getByRole("button", { name: "sankey" });
-    expect(group).toContainElement(pies);
-    expect(sankey).toHaveAttribute("aria-pressed", "true");
-    expect(container.querySelector("svg.msc-flow")).toBeInTheDocument();
-    expect(container.querySelector(".msc-ring-sky-disc")).not.toBeInTheDocument();
-    fireEvent.click(pies);
-    expect(window.location.search).toBe("?view=pies");
-    expect(pies).toHaveAttribute("aria-pressed", "true");
-    expect(container.querySelector("svg.msc-flow")).not.toBeInTheDocument();
-    expect(container.querySelector(".msc-ring-sky-disc")).toBeInTheDocument();
-    expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
-    // The key's loss row and reading guide describe the chart on screen.
-    expect(screen.getByText(/supply-side loss \(the hole\)/)).toBeInTheDocument();
-    expect(document.querySelector(".msc-key-note")).toHaveTextContent("Every pie is what that party RECEIVED");
-    expect(track).toHaveBeenCalledWith("msc_overview_style", { view: "pies" });
-    fireEvent.click(sankey);
-    expect(window.location.search).toBe("");
-    expect(container.querySelector("svg.msc-flow")).toBeInTheDocument();
   });
 
   it("selects a month from the timeseries and syncs ?msc (latest month clears it)", async () => {
