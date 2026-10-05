@@ -7,6 +7,7 @@ import { config } from "../config.ts";
 import { agentArtifactRoster, buildSystemPrompt, pageContextLine, validReportTool } from "./system-prompt.ts";
 import { REPORT_DESCRIPTIONS } from "../../lib/routes.ts";
 import { TOOLS_BY_NAME } from "./tools/tool-registry.ts";
+import { REPORT_TOOLS } from "../reports/index.ts";
 
 const ix = loadIndexes();
 
@@ -110,6 +111,18 @@ describe("buildSystemPrompt", () => {
     expect(reportTools.length).toBeGreaterThan(0);
     for (const name of reportTools) {
       expect(toolsSection).toContain(name);
+    }
+  });
+
+  it("lists each report tool with its own promptBlurb, in REPORT_TOOLS order", () => {
+    const prompt = buildSystemPrompt(ix);
+    const line = prompt.split("\n").find((l) => l.startsWith("- `atlas_report_*` — "))!;
+    expect(line).toBeDefined();
+    let from = 0;
+    for (const t of REPORT_TOOLS) {
+      const at = line.indexOf(`\`${t.name}\`: ${t.promptBlurb}`, from);
+      expect(at, t.name).toBeGreaterThan(from - 1);
+      from = at + 1;
     }
   });
 

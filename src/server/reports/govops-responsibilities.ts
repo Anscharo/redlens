@@ -12,6 +12,7 @@ import { deriveGovOpsResponsibilities, ogSearchFields, CATEGORY_LABELS } from ".
 import { indexesToDocs, indexesToGraphData } from "./ix-adapter.ts";
 import { buildResponsibilitiesReport } from "./responsibilities.ts";
 import { applyReportFilter } from "./report-filter.ts";
+import { defineReportTool } from "./report-tool.ts";
 
 export function buildGovOpsResponsibilitiesReport(
   ix: Indexes,
@@ -21,3 +22,15 @@ export function buildGovOpsResponsibilitiesReport(
   const rows = applyReportFilter(all, opts.filter, ogSearchFields);
   return buildResponsibilitiesReport("govops_responsibilities", rows, CATEGORY_LABELS, opts.include_provenance);
 }
+
+export const govOpsResponsibilitiesTool = defineReportTool({
+  name: "atlas_report_govops_responsibilities",
+  title: "Atlas Report GovOps Responsibilities",
+  description:
+    "Curated report (not raw graph calls) — the GovOps counterpart of atlas_report_facilitator_responsibilities, " +
+    "answers 'what is GovOps responsible for'. Each row: duty text, category, and the agent/GovOps org/executor " +
+    "it's attributed to. Sources only with include_provenance:true.",
+  promptBlurb: "the GovOps counterpart — 'what is GovOps responsible for'.",
+  params: ["include_provenance", "filter"],
+  build: buildGovOpsResponsibilitiesReport,
+});
