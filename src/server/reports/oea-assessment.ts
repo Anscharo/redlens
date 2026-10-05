@@ -7,10 +7,10 @@
 import type { Indexes } from "../retrieval/indexes.ts";
 import type { ToolResult } from "../chat/tools/tools.ts";
 import { config } from "../config.ts";
-import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import { oeaSearchFields, type OeaReportArtifact, type OeaRow } from "../../lib/oeaReport.ts";
 import { applyReportFilter } from "./report-filter.ts";
-import { readPublicJson } from "./util.ts";
+import { readPublicJson, rowsEnvelope } from "./util.ts";
+import { defineReportTool } from "./report-tool.ts";
 
 // The reasoning strings are the provenance layer here — always the bulk of a
 // row's bytes. Drop them for the leaner (include_provenance:false) rollup;
@@ -30,18 +30,21 @@ export function buildOeaAssessmentReport(
   const allRows = artifact?.rows ?? [];
   const matched = applyReportFilter(allRows, opts.filter, oeaSearchFields);
   const rows = opts.include_provenance ? matched : matched.map(stripRowProvenance);
-
-  const { kept, truncated } = fitToBudget(rows);
-  const result: ToolResult = {
-    report: "oea_assessment",
-    total: matched.length,
-    returned: kept.length,
-    truncated,
+  return rowsEnvelope("oea_assessment", rows, "rows", {
     rubric_version: artifact?.rubricVersion ?? null,
     model: artifact?.model ?? null,
     summary: artifact?.summary ?? null,
-    rows: kept,
-  };
-  if (truncated) result.note = TRUNCATION_HINT;
-  return result;
+  });
 }
+
+export const oeaAssessmentTool = defineReportTool({
+  name: "atlas_report_oea_assessment",
+  title: "Atlas Report OEA Assessment",
+  description:
+    "Curated report (not raw graph calls) — every task the Operational Executor Agent performs, rated weak/mid/strong " +
+    "for definitional precision and for incentives/penalties. AI-drafted against a fixed rubric, human-reviewed. Each " +
+    "row: the task, its rating + reasoning, and freshness status (fresh/stale/unassessed) against the live atlas text.",
+  promptBlurb: "every Operational Executor Agent task rated for precision and incentives.",
+  params: ["include_provenance", "filter"],
+  build: buildOeaAssessmentReport,
+});

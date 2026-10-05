@@ -1,7 +1,9 @@
 import { memo, useCallback, useEffect, useRef } from "react";
-import { Link } from "./Link";
 import { SearchResult } from "./SearchResult";
 import { SearchHints } from "./SearchHints";
+import { SearchStatusLine } from "./SearchStatusLine";
+import { SemanticProgress } from "./SemanticProgress";
+import { SemanticLoginPrompt } from "./SemanticLoginPrompt";
 import type { SearchHit } from "@/types";
 import type { SearchState } from "../hooks/useSearch";
 import type { SearchMode } from "../hooks/useSearchInput";
@@ -9,14 +11,17 @@ import { useUrlState, urlInt } from "../hooks/useUrlState";
 import { useScrollRestore } from "../hooks/useScrollRestore";
 import { useSearchTracking } from "../hooks/useSearchTracking";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
-import { useEntitySearch } from "../hooks/useEntitySearch";
 import { track } from "../lib/analytics";
-import { ENTITY_TYPE_LABEL, ENTITY_TYPE_COLOR, SUBTYPE_LABEL } from "../lib/entityGraph";
+import { semanticLaneUsable } from "../lib/semanticSearchConfig";
+import { useDataSource } from "../lib/dataSource";
+import type { SearchLane } from "@/lib/searchSemantic";
 
 interface Props {
   state: SearchState;
   query: string;
   mode: SearchMode;
+  lane: SearchLane;
+  onLaneSelect: (lane: SearchLane) => void;
   onHintClick: (query: string) => void;
   onBroadSearch: (query: string) => void;
 }
@@ -28,10 +33,13 @@ export const SearchResults = memo(function SearchResults({
   state,
   query,
   mode,
+  lane,
+  onLaneSelect,
   onHintClick,
   onBroadSearch,
 }: Props) {
   useDocumentTitle(query ? `${query} — Sky Atlas by Redline` : null);
+  const { base } = useDataSource();
   const hits = state.status === "done" ? state.hits : empty;
   const [visible, setVisible] = useUrlState("n", visibleCodec);
   // Reset pagination only when the query actually changes. On mount with a restored
@@ -75,22 +83,22 @@ export const SearchResults = memo(function SearchResults({
     [hits.length],
   );
 
-  const entityHits = useEntitySearch(query);
-
-  const noResults = state.status === "done" && hits.length === 0;
+  // A meaning leg still in flight is a search still running: the "no results"
+  // line and both retry suggestions have to wait for it.
+  const semanticPending = state.status === "done" && state.semantic === "pending";
+  const noResults = state.status === "done" && hits.length === 0 && !semanticPending;
   // Query is non-broad when mode pill is phrase/strict, or user typed explicit quotes
   const isNonBroad = mode !== "broad" || query.includes('"') || query.includes("'");
   const strippedQuery = query.replace(/["']/g, "").replace(/\s+/g, " ").trim();
-  const suggestBroad = noResults && isNonBroad && strippedQuery;
-  const suggestFuzzy =
-    noResults && !isNonBroad && !query.includes("~")
-      ? query
-          .trim()
-          .split(/\s+/)
-          .filter(Boolean)
-          .map((w) => (w.includes(":") || w.startsWith("-") ? w : `${w}~2`))
-          .join(" ")
-      : null;
+  // Only on the wording lane, the same rule the worker applies to `didYouMean`:
+  // the meaning lane drops the quotes before embedding, so re-running the same
+  // words "broad" there would send the identical request and get the identical
+  // empty answer — the status line says they were ignored instead.
+  const suggestBroad = noResults && lane === "lexical" && isNonBroad && strippedQuery;
+  // A spelling correction the worker already re-ran, so clicking it cannot land
+  // on another empty page. This replaced a "try fuzzy: accounting~2" hint, which
+  // asked the reader to learn an operator in order to recover from a typo.
+  const didYouMean = noResults && state.status === "done" ? state.didYouMean : undefined;
 
   const displayed = hits.slice(0, visible);
   const remaining = hits.length - displayed.length;
@@ -103,58 +111,24 @@ export const SearchResults = memo(function SearchResults({
   return (
     <main ref={scrollRef} className="flex-1 overflow-y-auto">
       <div className="max-w-2xl mx-auto w-full">
-        {entityHits.length > 0 && (
-          <>
-            <div className="px-4 py-2 text-xs border-b mono text-tan-3 border-border">
-              Agents · Alignment Conservers · Governance Operators {entityHits.length}
-            </div>
-            <ul>
-              {entityHits.map(({ participant, href }, i) => (
-                <li key={participant.id}>
-                  <Link
-                    to={href}
-                    className="search-result-link px-4 py-3 flex items-center gap-3"
-                    onClick={() =>
-                      track("search_result_click", {
-                        product: "search",
-                        result_kind: "entity",
-                        query: shownQuery.current,
-                        rank: i + 1, // 1-based, within the entity list
-                        in_top_5: i < 5,
-                        ms_to_click: Math.round(performance.now() - shownAt.current),
-                        result_count: entityHits.length,
-                        entity_id: participant.id,
-                        entity_slug: participant.slug,
-                        entity_type: participant.et,
-                      })
-                    }
-                  >
-                    <span
-                      className="inline-block w-2.5 h-2.5 rounded-full shrink-0 mr-3"
-                      style={{ background: ENTITY_TYPE_COLOR[participant.et] ?? "var(--entity-fallback)" }}
-                    />
-                    <span className="text-sm font-semibold text-tan">{participant.name}</span>
-                    <span className="mono text-[10px] text-tan-3 ml-4">
-                      {ENTITY_TYPE_LABEL[participant.et] ?? participant.et}
-                      {participant.st
-                        ? ` · ${SUBTYPE_LABEL[participant.st] ?? participant.st}`
-                        : ""}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
         {(state.status === "searching" || state.status === "done") && (
-          <div className="px-4 py-2 text-xs border-b mono text-tan-3 border-border">
-            {state.status === "searching"
-              ? "searching…"
-              : hits.length === 0
-                ? `no results for "${state.query}"`
-                : `${displayed.length < hits.length ? `${displayed.length} of ` : ""}${hits.length} result${hits.length !== 1 ? "s" : ""} · ${state.durationMs.toFixed(0)}ms`}
-          </div>
+          <SearchStatusLine
+            state={state}
+            shown={displayed.length}
+            total={hits.length}
+            durationMs={state.status !== "done" ? null : state.durationMs}
+            pending={semanticPending}
+            lane={lane}
+            onLaneSelect={onLaneSelect}
+            semanticAvailable={semanticLaneUsable(base)}
+          />
         )}
+        {/* Keyed on the query so a second search restarts the stages. Usually
+            the intervening "searching" state unmounts it anyway, but two
+            queries that both settle straight into a pending leg would otherwise
+            leave the second one inheriting the first's timer, reading
+            "Comparing Results" on a search that just began. */}
+        {semanticPending ? <SemanticProgress key={query} /> : <SemanticLoginPrompt state={state} />}
         {suggestBroad && (
           <div className="px-4 py-2 border-b border-border">
             <button
@@ -165,14 +139,13 @@ export const SearchResults = memo(function SearchResults({
             </button>
           </div>
         )}
-        {suggestFuzzy && (
-          <div className="px-4 py-2 border-b border-border">
-            <button
-              onClick={() => onHintClick(suggestFuzzy)}
-              className="text-xs mono text-tan-3 hover:text-accent"
-            >
-              try fuzzy: {suggestFuzzy}
+        {didYouMean && (
+          <div className="px-4 py-3 border-b border-border text-sm text-tan-2">
+            Did you mean{" "}
+            <button onClick={() => onHintClick(didYouMean)} className="did-you-mean">
+              {didYouMean}
             </button>
+            ?
           </div>
         )}
         {displayed.length > 0 && (

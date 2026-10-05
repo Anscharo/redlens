@@ -68,6 +68,14 @@ vi.mock("@/lib/rewardsIndex", () => ({ buildRewardsIndex: () => ({ agents: [] })
 vi.mock("@/lib/activeDataIndex", () => ({ buildActiveDataRows: () => [] }));
 vi.mock("../../lib/primitiveStats", () => ({ buildPrimitiveStats: () => [] }));
 
+vi.mock("@/lib/radarSearch", () => ({
+  getRadarSearchIndex: () => ({}),
+  searchRadar: (_i: unknown, q: string) =>
+    q === "spark"
+      ? [{ kind: "actor", label: "Actors", total: 1, hits: [{ kind: "actor", label: "Spark", context: "Prime Agent", href: "/radar/spark", slug: "spark" }] }]
+      : [],
+}));
+
 // Leaf surfaces — render just enough to identify which one mounted and echo props.
 vi.mock("./ActorList", () => ({
   ActorList: ({ groups, selectedSlug }: { groups: SidebarGroup[]; selectedSlug: string | null }) => (
@@ -177,5 +185,34 @@ describe("RadarPage actor page", () => {
     expect(await screen.findByText("actor not found")).toBeInTheDocument();
     expect(screen.queryByTestId("actor-dashboard")).not.toBeInTheDocument();
     expect(recordVisit).not.toHaveBeenCalled();
+  });
+});
+
+describe("RadarPage search", () => {
+  it("replaces the dashboard with results and keeps the sidebar", async () => {
+    render(<RadarPage query="spark" />);
+    expect(await screen.findByRole("heading", { name: /Actors/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Spark/ })).toHaveAttribute("href", "/radar/spark");
+    expect(screen.queryByTestId("primitive-dashboard")).not.toBeInTheDocument();
+    expect(screen.getByTestId("actor-list")).toBeInTheDocument();
+  });
+
+  it("replaces the actor page with results and records no visit", async () => {
+    render(<RadarPage query="spark" actorSlug="spark" />);
+    await screen.findByRole("heading", { name: /Actors/ });
+    expect(screen.queryByTestId("actor-dashboard")).not.toBeInTheDocument();
+    expect(recordVisit).not.toHaveBeenCalled();
+  });
+
+  it("shows the empty state for a query with no matches", async () => {
+    render(<RadarPage query="zzz" />);
+    expect(await screen.findByText(/No actor, instance, parameter, address or relationship matches/)).toBeInTheDocument();
+  });
+
+  it("restores the dashboard when the query is cleared", async () => {
+    const { rerender } = render(<RadarPage query="spark" />);
+    await screen.findByRole("heading", { name: /Actors/ });
+    rerender(<RadarPage query="" />);
+    expect(await screen.findByTestId("primitive-dashboard")).toBeInTheDocument();
   });
 });

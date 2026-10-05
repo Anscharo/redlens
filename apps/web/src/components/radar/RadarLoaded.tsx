@@ -16,6 +16,9 @@ import { Drawer } from "../Drawer";
 import { Loading } from "../Loading";
 import { RadarProvider } from "./RadarContext";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { useRadarSearch } from "../../hooks/useRadarSearch";
+import { filterSidebarGroups } from "./filterSidebarGroups";
+import { RadarSearchResults } from "./RadarSearchResults";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { loadSettlements, reportsForPrime } from "../../lib/settlements";
 import { recordVisit } from "../../lib/visitHistory";
@@ -38,19 +41,9 @@ export function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose 
   const graph = use(loadGraph(base));
 
   const sidebarGroups = useMemo(() => buildSidebarActors(graph, docs), [graph, docs]);
-  const filteredGroups = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return sidebarGroups;
-    // The search pill promises "name, role" — a role query matches a group's
-    // label ("facilitator", "prime") and keeps that whole group.
-    return sidebarGroups
-      .map((g) =>
-        g.label.toLowerCase().includes(q)
-          ? g
-          : { ...g, actors: g.actors.filter((a) => a.name.toLowerCase().includes(q)) },
-      )
-      .filter((g) => g.actors.length > 0);
-  }, [sidebarGroups, query]);
+  const filteredGroups = useMemo(() => filterSidebarGroups(sidebarGroups, query), [sidebarGroups, query]);
+  const searchGroups = useRadarSearch(graph, query);
+  const searching = query.trim() !== "";
 
   // Actors with settlement workbooks get a sub nav (Info / Settlements).
   // The artifact is soft-loaded: without it every actor is a plain link.
@@ -76,7 +69,9 @@ export function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose 
     return buildActorProfile(actorSlug, graph, docs, rewardsIndex, allActiveDataRows);
   }, [actorSlug, graph, docs, rewardsIndex, allActiveDataRows]);
 
-  const title = !actorSlug
+  const title = searching
+    ? "Radar search: Sky Atlas by Redline"
+    : !actorSlug
     ? "Sky Ecosystem Radar Overview · Sky Atlas by Redline"
     : !profile
       ? null
@@ -87,13 +82,13 @@ export function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose 
 
   // Append the actor / settlements page to the visit log once it resolves.
   useEffect(() => {
-    if (!actorSlug || !profile) return;
+    if (searching || !actorSlug || !profile) return;
     const path = page === "settlements" ? settlementsHref(actorSlug) : actorHref(actorSlug);
     const label = page === "settlements"
       ? `${profile.entity.name} · Monthly settlements`
       : profile.entity.name;
     void recordVisit({ path, label, base: routerBase });
-  }, [actorSlug, profile, routerBase, page]);
+  }, [actorSlug, profile, routerBase, page, searching]);
 
   return (
     <RadarProvider value={{ docs }}>
@@ -105,7 +100,9 @@ export function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose 
       >
         <ActorList groups={filteredGroups} selectedSlug={actorSlug ?? null} page={page} settledSlugs={settledSlugs} />
       </Drawer>
-      {!actorSlug ? (
+      {searching ? (
+        searchGroups ? <RadarSearchResults query={query} groups={searchGroups} /> : <Loading />
+      ) : !actorSlug ? (
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl px-6 pt-6" style={{ color: "var(--tan)" }}>
             Sky Ecosystem Radar Overview

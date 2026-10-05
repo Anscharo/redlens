@@ -16,9 +16,22 @@ export const REPLACE_MAX_OVERLAP = 0.15;
 // order. Higher than the line bar because unrelated prose still shares its
 // stopwords.
 export const REPLACE_MAX_WORD_OVERLAP = 0.5;
-// Replaced, by MEANING: the cosine of the old and new search vectors (Qwen3,
-// title + link-stripped body — see embeddings.ts) is at most this.
+// Replaced, by MEANING: the cosine of the old and new search vectors (title +
+// link-stripped body — see embeddings.ts) is at most this. Each embedding
+// model's cosines sit in their own range, so the bar is per model, each set at
+// the same operating point on the 70 real retitles, the sibling and unrelated
+// swaps and the five real repurposed steps (docs/research/identity-swap-detection.md):
+//   qwen3-embedding-8b 0.85: flags 6 of 70 retitles, misses 18.3% of siblings.
+//   gemini-embedding-2 0.90: flags 6 of 70, misses 19.2%, catches all five
+//     steps (max 0.836) and the procedure cut to a stub (0.897); the first plain
+//     rename scores 0.929. Carried over, 0.85 would miss 37.2% of siblings.
+// A model with no measured bar is judged by lines and words alone.
 export const REPLACE_MAX_COSINE = 0.85;
+const REPLACE_MAX_COSINE_BY_MODEL: Record<string, number> = {
+  "qwen/qwen3-embedding-8b": REPLACE_MAX_COSINE,
+  "google/gemini-embedding-2": 0.9,
+};
+export const replaceMaxCosineFor = (model: string): number | undefined => REPLACE_MAX_COSINE_BY_MODEL[model];
 // Bodies of more than this many lines are judged by meaning when a vector is
 // known. At or under it no cosine bar beat the word measure: a one-line
 // sibling is too close in meaning.
@@ -46,9 +59,14 @@ function judgedByMeaning(oldBody: string | undefined): boolean {
 
 /** The body test the gate applies: by meaning for a body long enough to carry
  *  one, when a similarity is known; by lines and words otherwise. */
-export function bodyReplaced(oldBody: string | undefined, newBody: string | undefined, cosine?: number): boolean {
+export function bodyReplaced(
+  oldBody: string | undefined,
+  newBody: string | undefined,
+  cosine?: number,
+  maxCosine = REPLACE_MAX_COSINE,
+): boolean {
   if (cosine === undefined || !judgedByMeaning(oldBody)) return bodyWhollyReplaced(oldBody, newBody);
-  return cosine <= REPLACE_MAX_COSINE;
+  return cosine <= maxCosine;
 }
 
 /** Does this pair reach the body test at all? A swap replaces one real

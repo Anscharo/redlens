@@ -1,6 +1,6 @@
 // Run under `bun test` (NOT vitest) — these modules transitively import Bun's
 // `SQL`; vitest.config.ts excludes src/server for that reason.
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -10,6 +10,22 @@ import type { Glossary } from "../lib/glossaryLookup.ts";
 import { contentHash as embedContentHash } from "./retrieval/embed-text.ts";
 import { atlasQuery } from "./retrieval/query.ts";
 import { config } from "./config.ts";
+
+// The semantic leg is inert only while `config.openrouterApiKey` is falsy, and
+// leaving that to ambient env is a trap: bun auto-loads `.env.local`, and this
+// repo's containers now inject OPENROUTER_API_KEY, so every keyless assertion
+// below silently became a LIVE embedding request — four retries with 1s/2s/4s/8s
+// of real sleep, which blows the 5s test timeout rather than failing honestly.
+// Pinned here the same way src/server/retrieval/search.test.ts pins it.
+let prevOpenRouterKey: string;
+beforeAll(() => {
+  prevOpenRouterKey = config.openrouterApiKey;
+  config.openrouterApiKey = "";
+});
+afterAll(() => {
+  config.openrouterApiKey = prevOpenRouterKey;
+});
+
 
 function doc(id: string, over: Partial<AtlasNode> = {}): AtlasNode {
   return {

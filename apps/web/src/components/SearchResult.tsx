@@ -1,10 +1,10 @@
 import { memo } from "react";
 import { AtlasLink } from "./AtlasLink";
 import { SearchResultSelectBox } from "./SearchResultSelectBox";
+import { SearchResultMatchNote } from "./SearchResultMatchNote";
 import { realDepth, depthColor } from "@/lib/depth";
 import { atlasHref } from "@/lib/routes";
 import { useDataSource } from "../lib/dataSource";
-import { shortAddr } from "../lib/format";
 import type { HitLabel, SearchHit } from "@/types";
 
 interface Props {
@@ -67,12 +67,8 @@ function GutterLabel({ label }: { label: HitLabel }) {
 export const SearchResult = memo(function SearchResult({ hit, rank, onResultClick }: Props) {
   const isPreview = !!useDataSource().preview;
   const color = depthColor(realDepth(hit.doc_no));
-  const shortAddress = hit.chainlogAddress ? shortAddr(hit.chainlogAddress) : "";
-
-  const reason = hit.chainlogId ? hit.matchReason.replace(/^chainlog \+ /, "") : hit.matchReason;
-
   return (
-    <div className="search-result relative">
+    <div className="search-result relative" data-semantic={hit.semantic ? "true" : undefined}>
       {/* Per-result selection checkbox — hidden until hover (or when checked),
           top-right like the reader's node checkbox. Adds this doc to the current
           selection. */}
@@ -87,18 +83,7 @@ export const SearchResult = memo(function SearchResult({ hit, rank, onResultClic
       )}
       {/* Match info — floats right on wide screens, inline on narrow */}
       <div className="lg:absolute lg:left-full lg:ml-3 lg:top-3 lg:flex-col lg:text-center flex items-center gap-1.5 mono px-4 pt-2 lg:p-0 lg:w-[96px]">
-        {hit.chainlogId ? (
-          <>
-            <span className="text-[9px] text-tan-3">via chainlog</span>
-            <span className="text-[10px] font-medium text-accent">{hit.chainlogId}</span>
-            <span className="text-[9px] text-tan-3">{shortAddress}</span>
-          </>
-        ) : (
-          <>
-            <span className="text-[9px] text-tan-3">matched</span>
-            <span className="text-[10px] text-tan-2">{reason}</span>
-          </>
-        )}
+        <SearchResultMatchNote hit={hit} />
       </div>
       <AtlasLink
         to={atlasHref(hit.id)}

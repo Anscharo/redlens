@@ -12,7 +12,8 @@ name: E2E gate
 # So this job carries the required name (`e2e`) instead, runs on `pull_request`
 # so it is ALWAYS reported, and answers the same question e2e.yml's inline gate
 # does — passing immediately on a markdown-only diff, and otherwise waiting for a
-# real e2e.yml run at this head SHA and mirroring its verdict. That is
+# real e2e.yml run at this head SHA (or at an older PR commit that deploys the
+# same app, since Railway skips a markdown-only push) and mirroring its verdict. That is
 # "required to pass if not skipped", expressed where GitHub can see it.
 #
 # Keep the job name in sync with branch protection: the required check is this
@@ -80,6 +81,8 @@ jobs:
           # deploys — and therefore e2e.yml's runs — are keyed to the branch head.
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           CHANGED_FILES_FILE: changed-files.txt
+          # Lets the gate list the PR's older commits that deploy the same app.
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           # Lets the gate stop as soon as the PR is merged or closed. The atlas
           # bump bot auto-merges within ~1s of this job starting, and the rebase
           # rewrites the SHA, so without this the poll always runs to timeout.

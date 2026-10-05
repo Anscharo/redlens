@@ -334,6 +334,16 @@ export function rebuildFromDisk(): Indexes {
   return ix;
 }
 
+// Exposed for tests: put the module back to its cold-boot state. `setIndexes`
+// has no inverse otherwise, and a test file that installs a fixture index set
+// would leave it installed for every later file in the same `bun test` process —
+// including the two that assert `getIndexes()` still THROWS (atlas-updater's
+// deps guards, preview/build's doc-diff skip). Restoring is order-independent;
+// remembering to set it back to "whatever was there" is not.
+export function _clearIndexes(): void {
+  state = null;
+}
+
 export function getIndexes(): Indexes {
   if (!state) throw new Error("indexes not loaded — call loadIndexes() at boot");
   return state;

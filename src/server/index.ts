@@ -32,6 +32,7 @@ import { handleBalances } from "./balances/balances.ts";
 import { handleChainState } from "./chain-state.ts";
 import { handleForumTopics } from "./forum.ts";
 import { handleReportsSearch } from "./reports-search.ts";
+import { handleSemanticSearch, semanticLaneShown } from "./search-semantic.ts";
 import { handleModCounts } from "./history/mod-counts.ts";
 import { handleModTimeline } from "./history/mod-timeline.ts";
 import { registerSSEClient, sseClientCount } from "./sse.ts";
@@ -380,6 +381,7 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
     .replace("{{USERS_ENABLED}}", String(config.usersEnabled))
     .replace("{{CHAT_ENABLED}}", String(config.chatEnabled))
     .replace("{{AUTH_PROVIDERS}}", config.authProvidersCsv)
+    .replace("{{SEMANTIC_SEARCH}}", String(semanticLaneShown()))
     .replace("{{OG_TAGS}}", ogTags);
   const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };
   // Bare `/preview` too, not just `/preview/<id>` — the homepage card links to
@@ -456,6 +458,13 @@ export function buildRoutes() {
     // Semantic hits for the /reports index (ungated, no DB). Lexical matching
     // stays in the browser; this scores paraphrases with on-device ternlight.
     "/api/reports/search": (req: Request) => handleReportsSearch(req),
+
+    // Semantic hits for the reader's search bar — ids + cosine scores only, out
+    // of the same pgvector index chat retrieval uses. The client holds docs.json
+    // and renders the rows itself. Ungated: the reader is public, and an
+    // unconfigured deployment answers `available: false` rather than 404, so the
+    // UI can say why the lane is missing instead of guessing.
+    "/api/search/semantic": (req: Request) => handleSemanticSearch(req),
 
     // Auth + collections need only a logged-in session (usersEnabled); chat +
     // usage additionally need chatEnabled (itself AND-gated by usersEnabled).

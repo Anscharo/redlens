@@ -62,6 +62,18 @@ describe("SearchBar mode pills", () => {
     setup({ scope: "radar" as SearchScope });
     expect(screen.queryByText("a*")).toBeNull();
   });
+
+  it("disables all three, unpressed, when a lane cannot honour them — and says why", () => {
+    // Disabled rather than hidden: the reader who reaches for a pill gets the
+    // reason, where a vanished control would just look like a missing feature.
+    setup({ mode: "phrase", modesDisabledReason: "not on this lane" });
+    for (const symbol of ["a*", '"a"', "Aa"]) {
+      const pill = screen.getByText(symbol);
+      expect(pill).toBeDisabled();
+      expect(pill).toHaveAttribute("aria-pressed", "false");
+      expect(pill).toHaveAttribute("aria-label", "not on this lane");
+    }
+  });
 });
 
 describe("SearchBar input controls", () => {

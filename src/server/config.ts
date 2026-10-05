@@ -3,6 +3,19 @@
 import { resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "../..");
+
+// Query-side instruction for an embedding model; documents are always embedded
+// raw. Qwen3-Embedding is asymmetric and instruct-tuned, so its queries carry
+// the model card's generic retrieval instruction (the measured table is in
+// docs/research/embedding-model-comparison.md and at `embedQueryPrefix` below).
+// gemini-embedding-2 and bge-m3 take queries raw: the instruction is Qwen's
+// own format and is noise to them.
+const QWEN_QUERY_PREFIX = "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: ";
+export const queryPrefixFor = (model: string): string => (model.toLowerCase().includes("qwen") ? QWEN_QUERY_PREFIX : "");
+const embedModel = process.env.EMBED_MODEL ?? "google/gemini-embedding-2";
+// Cosine floor on semantic unit hits, per model, because each model's cosines
+// sit in their own range (see `semanticMinScore`).
+const SEMANTIC_FLOORS: Record<string, number> = { "google/gemini-embedding-2": 0.55, "qwen/qwen3-embedding-8b": 0.3 };
 const port = Number(process.env.PORT ?? 3000);
 
 // Login/chat gating, resolved once. `usersRequested` is the raw operator intent;
@@ -154,7 +167,31 @@ export const config = {
   // (model calls); the credits endpoint rejects the model key. Unset = the
   // commons meter is simply absent and the shared-pool gate never fires.
   openrouterManagementKey: process.env.OPENROUTER_MANAGEMENT_KEY ?? "",
-  embedModel: process.env.EMBED_MODEL ?? "qwen/qwen3-embedding-8b",
+  // The model that embeds documents and queries alike; every stored vector is
+  // marked with the model that made it (migration 038), so changing this
+  // re-embeds the corpus on the next sync; until it finishes the search bar's
+  // meaning lane stays off (`vectorsCurrent`). gemini-embedding-2 is the
+  // default for every semantic caller: over half the corpus it scored level with
+  // qwen3-embedding-8b (exact 0.788 and 0.704 against 0.788 and 0.676, questions
+  // and keywords, with briefings and its own leaf rule, `leafRuleFor`) and
+  // answered in about 0.4 s at the median and 0.55 s at the 90th percentile,
+  // where qwen3-embedding-8b took 7 to 36 s for one call in ten on every host
+  // that serves it (docs/research/embedding-model-comparison.md).
+  embedModel,
+  // Instruction prefix applied to QUERIES only, never to documents, so changing
+  // it re-embeds nothing. Follows the model (`queryPrefixFor`) unless
+  // EMBED_QUERY_PREFIX is set. For Qwen the text is the model card's GENERIC
+  // retrieval instruction, measured on Qwen vectors (179 queries,
+  // kv_records_breadcrumbs, semantic-only):
+  //
+  //                         recall  exact  disambig   mrr   control(prose) recall
+  //   no prefix              0.771  0.575    0.450   0.547        0.725
+  //   "Sky Atlas governance" 0.777  0.559    0.425   0.607        0.875
+  //   generic (this)         0.844  0.670    0.650   0.648        0.925
+  //
+  // The domain wording steered the model toward prose and away from
+  // configuration documents; the generic wording lifts every slice.
+  embedQueryPrefix: process.env.EMBED_QUERY_PREFIX ?? queryPrefixFor(embedModel),
   // Grouping policy for atlas_doc_embeddings. A CODE CONSTANT, not an env var.
   //
   // Decided 2026-08-18 on the paraphrased query set with semantic leaf attribution
@@ -177,13 +214,42 @@ export const config = {
   // without env mutation + reimport. Duplicating the `?? 50` default here
   // would just create a second place for it to drift.
 
+  // Document briefings (sync-briefings.ts): the atlas worker writes a short
+  // placement-aware description for each NEW or CHANGED document, and the seed
+  // file public/doc-briefings.json covers the rest. briefingsPerCycle caps how many
+  // documents one worker run writes, sized from atlas history, per commit: median
+  // 8-9 documents, p90 ~250, p99 ~1,200, max 7,681, and 21 of 172 commits above
+  // 186. 186 is at most three model requests of 80 rows, so an ordinary commit is
+  // briefed in the cycle that sees it and a 7,681-document restructuring clears in
+  // about two days at under $11 a day. 0 turns the write pass off.
+  briefingsPerCycle: Number(process.env.BRIEFINGS_PER_CYCLE ?? 186),
+  // Gemini 3.8 Flash by default. Measured against Sonnet on the same
+  // 2,331 pilot documents (exact recall@10, 178 queries): −0.6 [−5.1, 3.9] on
+  // questions, +4.5 [0.6, 8.4] on keywords, at about a quarter of the cost
+  // (~$0.50 per 1,000 documents). Sonnet subagents wrote the first 8,958 rows and
+  // those stay; the id is stamped on every row. BRIEFING_MODEL="" turns the write
+  // pass off, while the seed load and the embed pass still run.
+  briefingModel: process.env.BRIEFING_MODEL ?? "google/gemini-3.8-flash",
+
   // Semantic search relevance floor (cosine, 0..1). pgvector's ORDER BY returns
   // the k nearest docs regardless of absolute similarity, so a query with few
   // true matches drags in unrelated neighbors that then occupy top slots after
   // RRF. Dropping hits below this floor tightens ranking for both atlas_search
   // and atlas_query. Conservative default — good matches sit well above it;
   // raise it (env) to be stricter, lower it if paraphrase recall suffers.
-  semanticMinScore: Number(process.env.SEMANTIC_MIN_SCORE ?? 0.3),
+  //
+  // Each model's floor is fitted by one rule over 179 labeled queries, top-200
+  // anchors each: the highest value that loses no correct anchor and empties no
+  // query's rank 10, so only the deep tail is cut.
+  //   qwen3-embedding-8b (generic prefix): correct anchor p10 0.627 / p50 0.761 /
+  //     min 0.349; rank-10 min 0.319; rank-200 min 0.264 → 0.30 (0.40 loses 2
+  //     correct anchors). Two random atlas docs score p50 0.407 to each other.
+  //   gemini-embedding-2: correct anchor p10 0.749 / p50 0.806 / min 0.693;
+  //     rank-10 min 0.582; rank-200 min 0.541 → 0.55 (0.60 empties rank 10 for 3).
+  // The floor cannot separate relevant from unrelated on its own; it only stops
+  // a query with no real match from filling k with noise. A model with no fitted
+  // floor gets none (0) rather than another model's.
+  semanticMinScore: Number(process.env.SEMANTIC_MIN_SCORE ?? SEMANTIC_FLOORS[embedModel] ?? 0),
   // Hard ceiling on the query-time embed call. embedBatch retries with backoff
   // (~15s worst case); the retrieve path must not hang on a flaky provider, so
   // if the embed exceeds this we drop the semantic leg and answer lexical-only.
@@ -200,6 +266,17 @@ export const config = {
   // for a repeated query. This caches the last N query vectors per process so a
   // repeat is instant (no network, no cost, no timeout exposure). 0 disables it.
   queryEmbedCacheSize: Number(process.env.QUERY_EMBED_CACHE_SIZE ?? 512),
+
+  // Shared per-minute budget for the reader's meaning lane when signed out (see
+  // search-semantic-limit.ts). Sized from what it costs, not from a guess at
+  // traffic: one settled search is one embedding call, and a reader refining a
+  // question runs a handful per minute, so 30 carries roughly 7 people
+  // searching at once. 0 disables the gate entirely.
+  searchSemanticRpm: Number(process.env.SEARCH_SEMANTIC_RPM ?? 30),
+  // Each signed-in reader's own hourly budget for the same lane, which never
+  // draws on the shared one. 600 is one search every 6 s for a whole hour, so
+  // only near-constant searching reaches it. 0 disables the gate.
+  searchSemanticUserPerHour: Number(process.env.SEARCH_SEMANTIC_USER_PER_HOUR ?? 600),
 
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.
   chatModel: process.env.CHAT_MODEL ?? "google/gemma-4-31b-it",

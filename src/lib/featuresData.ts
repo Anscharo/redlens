@@ -130,10 +130,21 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: [
           'Type terms for a broad search (partial words match). Wrap a phrase in double quotes for a literal substring (case-insensitive), or single quotes for case-sensitive.',
           "Broad search also matches the singular or plural of each word; documents that use your exact word rank first.",
-          "Add ~N to a term to allow N character edits — misaligment~1.",
+          "Add ~N to a term to allow N character edits — misaligment~1. You rarely need it: a search that finds nothing offers a spelling correction you can click.",
           "Filter with title:, type:, and in:<doc number>; drop a term with a leading -.",
           "Type / for slash commands, or /h for the full query-syntax reference.",
         ],
+      },
+      {
+        name: "Wording or meaning",
+        what: "Two indexes behind the same search box: the words you typed, or what a document is about.",
+        how: [
+          "Search, then use the wording / meaning pills on the right of the result count line to switch index.",
+          "A result the meaning index found is labelled semantic match and shows its similarity score; it can share no word at all with your query.",
+          "Add in:<doc number> to scope meaning search to one subtree — in:A.6 who approves rewards searches only the Agent Scope.",
+          "On the meaning pill the a* / \"a\" / Aa mode buttons are greyed out, and any other search syntax you type — type:, title:, -word, ~2, quotes — is dropped, with a note above the results naming what it dropped. in: is the exception and still applies. If a word you typed doesn't look like a word (xkcdq, a1b2c), the meaning pill shows wording matches and a note naming it instead of searching; press Enter to search by meaning anyway.",
+        ],
+        note: "Meaning-matched results appear on the meaning pill and nowhere else — wording searches stay wording searches. That pill needs a deployment configured for it; where it is not, it is disabled and says so. Signed-out readers share one meaning-search allowance; where sign-in is offered, a signed-in reader gets an hourly allowance of their own, and the results page offers sign-in when the shared one runs out.",
       },
       {
         name: "Jump-to",
@@ -156,6 +167,11 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     route: "/radar",
     blurb: "Dashboards for every party in the Sky ecosystem — Agents, Facilitators, Alignment Conservers, and more.",
     features: [
+      {
+        name: "Radar search",
+        what: "Find actors, primitive instances, parameter values, addresses and relationships from one box.",
+        how: ["Type in the search box on Radar. Each result opens the matching part of the actor page."],
+      },
       {
         name: "Actor dashboards",
         what: "A full profile per party: responsibilities, primitives, relationships, rewards, invoked instances, on-chain state, contact, and its own change history.",

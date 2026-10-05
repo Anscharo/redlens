@@ -37,7 +37,7 @@ describe("findOwningAgent", () => {
     expect(findOwningAgent(outsider.id, atlas, graph)).toBeNull();
   });
 
-  it("returns null when the graph is absent (preview mode)", () => {
+  it("returns null when the graph is absent", () => {
     const { atlas, sparkTokenParam } = fixture();
     expect(findOwningAgent(sparkTokenParam.id, atlas, null)).toBeNull();
   });
@@ -53,7 +53,7 @@ describe("buildOwningAgentMap", () => {
     expect(map.has(outsider.id)).toBe(false);
   });
 
-  it("is empty in preview mode (no graph)", () => {
+  it("is empty when the graph is absent", () => {
     const { atlas } = fixture();
     expect(buildOwningAgentMap(atlas, null).size).toBe(0);
   });

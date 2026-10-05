@@ -6,8 +6,11 @@ import type { AtlasNode } from "@/types";
 import type { RiskRow } from "@/lib/riskAssessmentIndex";
 import { EMPTY_QUERY } from "@/lib/reportFilter";
 
+// A click on the stub stands in for clicking an atlas link inside the content.
 vi.mock("../NodeContent", () => ({
-  NodeContent: ({ content }: { content: string }) => <div>{content}</div>,
+  NodeContent: ({ content, onNavigate }: { content: string; onNavigate?: (id: string) => void }) => (
+    <div onClick={() => onNavigate?.("linked-uuid")}>{content}</div>
+  ),
 }));
 
 import { RiskTable, ScorePill } from "./RiskRulesTable";
@@ -90,7 +93,7 @@ const ROW_UNASSESSED: RiskRow = {
 
 describe("RiskTable", () => {
   it("renders one row per candidate with doc no, title, and domain pills", () => {
-    render(<RiskTable rows={[ROW_ASSESSED, ROW_UNASSESSED]} docs={docs} expandedKey={null} onToggle={() => {}} onNavigate={() => {}} />);
+    render(<RiskTable rows={[ROW_ASSESSED, ROW_UNASSESSED]} docs={docs} expandedKey={null} onToggle={() => {}} />);
     expect(screen.getByText("A.3.1.1")).toBeInTheDocument();
     expect(screen.getByText("Debt Ceiling Rule")).toBeInTheDocument();
     expect(screen.getByText("Allocation Risk")).toBeInTheDocument();
@@ -103,35 +106,35 @@ describe("RiskTable", () => {
   });
 
   it("shows a stale badge for stale rows and an unassessed badge for unassessed rows", () => {
-    render(<RiskTable rows={[ROW_ASSESSED, ROW_UNASSESSED]} docs={docs} expandedKey={null} onToggle={() => {}} onNavigate={() => {}} />);
+    render(<RiskTable rows={[ROW_ASSESSED, ROW_UNASSESSED]} docs={docs} expandedKey={null} onToggle={() => {}} />);
     expect(screen.getByText("stale")).toHaveClass("badge-red");
     expect(screen.getByText("unassessed")).toHaveClass("badge-muted");
   });
 
   it("clicking anywhere on the row calls onToggle", () => {
     const onToggle = vi.fn();
-    render(<RiskTable rows={[ROW_ASSESSED]} docs={docs} expandedKey={null} onToggle={onToggle} onNavigate={() => {}} />);
+    render(<RiskTable rows={[ROW_ASSESSED]} docs={docs} expandedKey={null} onToggle={onToggle} />);
     fireEvent.click(screen.getByText("Debt Ceiling Rule").closest("tr")!);
     expect(onToggle).toHaveBeenCalledWith(ROW_ASSESSED);
   });
 
   it("clicking the doc-no link does not trigger onToggle (stopPropagation)", () => {
     const onToggle = vi.fn();
-    render(<RiskTable rows={[ROW_ASSESSED]} docs={docs} expandedKey={null} onToggle={onToggle} onNavigate={() => {}} />);
+    render(<RiskTable rows={[ROW_ASSESSED]} docs={docs} expandedKey={null} onToggle={onToggle} />);
     fireEvent.click(screen.getByRole("link", { name: "A.3.1.1" }));
     expect(onToggle).not.toHaveBeenCalled();
   });
 
   it("clicking the expand chevron calls onToggle and stops propagation", () => {
     const onToggle = vi.fn();
-    render(<RiskTable rows={[ROW_ASSESSED]} docs={docs} expandedKey={null} onToggle={onToggle} onNavigate={() => {}} />);
+    render(<RiskTable rows={[ROW_ASSESSED]} docs={docs} expandedKey={null} onToggle={onToggle} />);
     fireEvent.click(screen.getByRole("button", { name: /expand assessment reasoning for debt ceiling rule/i }));
     expect(onToggle).toHaveBeenCalledTimes(1);
     expect(onToggle).toHaveBeenCalledWith(ROW_ASSESSED);
   });
 
   it("renders the expanded body with source paragraph, reasoning, metrics, and mechanism link", () => {
-    render(<RiskTable rows={[ROW_ASSESSED]} docs={docs} expandedKey="u:uuid-1" onToggle={() => {}} onNavigate={() => {}} />);
+    render(<RiskTable rows={[ROW_ASSESSED]} docs={docs} expandedKey="u:uuid-1" onToggle={() => {}} />);
     expect(screen.getByText("Source paragraph")).toBeInTheDocument();
     expect(screen.getByText("The debt ceiling shall not exceed the risk capital limit.")).toBeInTheDocument();
     expect(screen.getByText("Names a concrete numeric ceiling.")).toBeInTheDocument();
@@ -141,8 +144,16 @@ describe("RiskTable", () => {
     expect(screen.getByText(/STALE/)).toBeInTheDocument();
   });
 
+  it("opens a linked atlas document in the reader from the expanded body", () => {
+    window.history.replaceState(null, "", "/reports/risk-rules");
+    render(<RiskTable rows={[ROW_ASSESSED]} docs={docs} expandedKey="u:uuid-1" onToggle={() => {}} />);
+    fireEvent.click(screen.getByText("Names a concrete numeric ceiling."));
+    expect(window.location.pathname).toBe("/atlas");
+    expect(window.location.search).toBe("?id=linked-uuid");
+  });
+
   it("renders the unassessed placeholder in the expanded body when there is no entry", () => {
-    render(<RiskTable rows={[ROW_UNASSESSED]} docs={docs} expandedKey="u:uuid-2" onToggle={() => {}} onNavigate={() => {}} />);
+    render(<RiskTable rows={[ROW_UNASSESSED]} docs={docs} expandedKey="u:uuid-2" onToggle={() => {}} />);
     expect(screen.getByText(/Not yet assessed/)).toBeInTheDocument();
     expect(screen.getByText(/pnpm risk:assess/)).toBeInTheDocument();
   });
@@ -172,7 +183,7 @@ describe("RiskTable", () => {
       entry: null,
       status: "unassessed" as const,
     }));
-    render(<RiskTable rows={manyRows} docs={docs} expandedKey={null} onToggle={() => {}} onNavigate={() => {}} />);
+    render(<RiskTable rows={manyRows} docs={docs} expandedKey={null} onToggle={() => {}} />);
     expect(screen.getByText("Rule 0")).toBeInTheDocument();
     expect(screen.queryByText("Rule 104")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /show 5 more/i }));
@@ -188,7 +199,7 @@ describe("RiskTable", () => {
   });
 
   it("uses EMPTY_QUERY by default so Highlight renders plain text", () => {
-    render(<RiskTable rows={[ROW_ASSESSED]} docs={docs} expandedKey={null} onToggle={() => {}} onNavigate={() => {}} rq={EMPTY_QUERY} />);
+    render(<RiskTable rows={[ROW_ASSESSED]} docs={docs} expandedKey={null} onToggle={() => {}} rq={EMPTY_QUERY} />);
     expect(screen.getByText("Debt Ceiling Rule")).toBeInTheDocument();
   });
 
@@ -198,7 +209,7 @@ describe("RiskTable", () => {
       triage: { ...ROW_ASSESSED.triage, domains: [] },
       entry: { ...ROW_ASSESSED.entry!, mechanismUuids: ["unknown-mech-uuid"] },
     };
-    render(<RiskTable rows={[row]} docs={docs} expandedKey="u:uuid-1" onToggle={() => {}} onNavigate={() => {}} />);
+    render(<RiskTable rows={[row]} docs={docs} expandedKey="u:uuid-1" onToggle={() => {}} />);
     // DomainPills falls back to candidate.domains ("alloc") when triage.domains is empty.
     expect(screen.getByText("Allocation Risk")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /unknown-/ })).toBeInTheDocument();
