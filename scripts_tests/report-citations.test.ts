@@ -1,4 +1,4 @@
-// Citation gate for Atlas-derived reports (scripts/lib/report-citations.mjs).
+// Citation gate for Atlas-derived reports (scripts/lib/report-citations.ts).
 // Guards the CLAUDE.md "Citation dictate": normative claims in a report must
 // carry an in-context Atlas reference (inline or a directly-referenced footnote).
 
@@ -7,7 +7,7 @@ import {
   analyzeReportCitations,
   hasCitation,
   isNormativeClaim,
-} from "../scripts/lib/report-citations.mjs";
+} from "../scripts/lib/report-citations.ts";
 
 describe("hasCitation", () => {
   it("recognizes atlas doc_nos, UUIDs, NR ids, and atlas links", () => {

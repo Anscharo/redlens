@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { ancestorsFromGit, deployEquivalentShas, deployEquivalentShasFromGit } from "../scripts/lib/deploy-equivalent.mjs";
+import { ancestorsFromGit, deployEquivalentShas, deployEquivalentShasFromGit } from "../scripts/lib/deploy-equivalent.ts";
 
 describe("deployEquivalentShas", () => {
   it("adds older commits while their diff to head is markdown the app does not read", () => {

@@ -93,7 +93,7 @@ They were four separate lists until every one of them was shown to fail silently
 - `pnpm census:chains` is the chain registry census (runs under bun, imports `src/lib/explorer.ts` + `tokens.ts`). It reads every chain string the pipeline reads:
   - `Token Address (X)` titles, `Network`/`Integration Partner Chain` params, and the multisig `address of ... on X is` regex.
   - An inverted prose scan for `<Proper Noun> Chain|Network|Mainnet|Rollup|L2`.
-  - An address-anchored scan (`scripts/lib/chain-candidates.mjs`) for chain-keyed address lists with a row naming no known chain. This is the half that catches single-word chain names in plain bullet rows, which the other two structurally cannot see.
+  - An address-anchored scan (`scripts/lib/chain-candidates.ts`) for chain-keyed address lists with a row naming no known chain. This is the half that catches single-word chain names in plain bullet rows, which the other two structurally cannot see.
 
   All strings are bucketed known / deferred (`FUTURE_TO_ETHEREUM`) / unknown. It warns (`[drift]`) on unknown chain strings not in `.github/chains-census-baseline.json`, i.e. the atlas named a chain the registry would silently collapse to ethereum. It also warns on an incomplete registry entry (missing explorer / proseHints / nativeToken / chainId / rpcUrl, each its own silent failure: wrong explorer, never-attributed prose, no balances) or a broken derivation. It also reports per-chain attributed address counts from `addresses.atlas.json`, so "seen in this atlas build" reflects what the pipeline concluded rather than only what the label scan could parse. `--update` rewrites the baseline (`atlas-update.yml` does this per bump). `--rpc` additionally round-trips `eth_chainId` against every `rpcUrl`. It always exits 0.
 
@@ -175,7 +175,7 @@ They were four separate lists until every one of them was shown to fail silently
 - `pnpm env:prune` deletes the GitHub deployment-environment records Railway's per-PR environments leave behind.
   - Railway de-provisions its own environment when a PR closes. GitHub never removes the repository Environment row it auto-created for that deployment name, so `/settings/environments` accrues one dead row per PR forever (~100 by 2026-09).
   - **DRY RUN BY DEFAULT.** `--apply` deletes.
-  - Every keep/delete rule lives in `scripts/lib/prune-plan.mjs` (pure, no I/O) and is pinned by `scripts_tests/prune-plan.test.ts`. The entry point is only the I/O around them.
+  - Every keep/delete rule lives in `scripts/lib/prune-plan.ts` (pure, no I/O) and is pinned by `scripts_tests/prune-plan.test.ts`. The entry point is only the I/O around them.
     - A name must parse as a PR env via `prNumberFromRailwayEnv` to be a candidate at all.
     - A candidate whose PR is still open is kept.
     - One whose number resolves to no PR is reported but kept unless `--orphans`.

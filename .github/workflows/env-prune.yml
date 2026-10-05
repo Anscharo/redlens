@@ -96,7 +96,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.ENV_PRUNE_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
-        run: node scripts/aux/prune-pr-environments.mjs --apply --pr "$PR"
+        run: bun scripts/aux/prune-pr-environments.mjs --apply --pr "$PR"
 
       # Both ternaries put the NON-EMPTY string in the true branch on purpose.
       # GitHub's `a && b || c` yields the operand, and '' is falsy — so
@@ -109,4 +109,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ENV_PRUNE_TOKEN }}
           APPLY: ${{ inputs.dry_run != true && '--apply' || '' }}
           ORPHANS: ${{ inputs.orphans == true && '--orphans' || '' }}
-        run: node scripts/aux/prune-pr-environments.mjs $APPLY $ORPHANS
+        run: bun scripts/aux/prune-pr-environments.mjs $APPLY $ORPHANS

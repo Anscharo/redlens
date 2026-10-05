@@ -6,7 +6,7 @@
 // Playwright against it). Non-markdown paths always deploy.
 
 /** Repo-relative markdown files imported with `?raw` under src/ (excluding tests). */
-export const APP_READ_MARKDOWN = Object.freeze([
+export const APP_READ_MARKDOWN: readonly string[] = Object.freeze([
   "PRIVACY.md",
   "docs/crossview/concepts-audit.md",
   "docs/crossview/concepts.md",
@@ -14,22 +14,22 @@ export const APP_READ_MARKDOWN = Object.freeze([
   "patch-notes.md",
 ]);
 
-export function normalizeRepoPath(file) {
+export function normalizeRepoPath(file: string): string {
   return String(file)
     .replaceAll("\\", "/")
     .replace(/^\.\//, "");
 }
 
-export function isMarkdownPath(file) {
+export function isMarkdownPath(file: string): boolean {
   return normalizeRepoPath(file).toLowerCase().endsWith(".md");
 }
 
-export function isAppReadMarkdown(file) {
+export function isAppReadMarkdown(file: string): boolean {
   return APP_READ_MARKDOWN.includes(normalizeRepoPath(file));
 }
 
 /** True when this changed path should trigger a Railway deploy / E2E. */
-export function isDeployRelevant(file) {
+export function isDeployRelevant(file: string): boolean {
   const norm = normalizeRepoPath(file);
   if (isMarkdownPath(norm)) return isAppReadMarkdown(norm);
   return true;
@@ -39,7 +39,7 @@ export function isDeployRelevant(file) {
  * Skip Railway/E2E when every changed path is non-app markdown.
  * An empty list is NOT a skip — unknown file sets must still deploy.
  */
-export function shouldSkipDeploy(files) {
+export function shouldSkipDeploy(files: string[]): boolean {
   if (!Array.isArray(files) || files.length === 0) return false;
   return files.every((f) => !isDeployRelevant(f));
 }
@@ -56,14 +56,14 @@ export function shouldSkipDeploy(files) {
  * on the strength of this parse, so a word merely ENDING in "pr-<n>" must not
  * look like a PR environment.
  */
-export function prNumberFromRailwayEnv(envName) {
+export function prNumberFromRailwayEnv(envName: string): number | null {
   const slug = String(envName).split("/").pop()?.trim() ?? "";
   const m = /(?:^|[^a-z0-9])pr-(?:[a-f0-9]+-)?(\d+)$/i.exec(slug);
   return m ? Number(m[1]) : null;
 }
 
 /** gitignore-style watchPatterns: everything except markdown, plus app-read md. */
-export function railwayWebWatchPatterns() {
+export function railwayWebWatchPatterns(): string[] {
   return ["**", "!**/*.md", ...APP_READ_MARKDOWN];
 }
 
@@ -76,6 +76,6 @@ export function railwayWebWatchPatterns() {
  * A dependency change cannot sneak past this: it moves pnpm-lock.yaml too, and
  * the lockfile is matched by `**`.
  */
-export function railwayWorkerWatchPatterns() {
+export function railwayWorkerWatchPatterns(): string[] {
   return ["**", "!**/*.md", "!apps/web/**", "apps/web/package.json"];
 }

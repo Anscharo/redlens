@@ -87,4 +87,4 @@ jobs:
           # bump bot auto-merges within ~1s of this job starting, and the rebase
           # rewrites the SHA, so without this the poll always runs to timeout.
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: node scripts/aux/e2e-gate.mjs
+        run: bun scripts/aux/e2e-gate.mjs

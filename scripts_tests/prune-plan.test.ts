@@ -6,7 +6,7 @@ import {
   parsePruneArgs,
   planPrune,
   selectCandidates,
-} from "../scripts/lib/prune-plan.mjs";
+} from "../scripts/lib/prune-plan.ts";
 
 const envs = (...names: string[]) => names.map((name) => ({ name }));
 

@@ -6,7 +6,7 @@
  * Each case was manually verified against the Sky Atlas source — these are
  * addresses where any reader can clearly tell what tokens are involved.
  *
- * Run:  node scripts/test-addresses.mjs
+ * Run:  bun scripts/aux/test-addresses.mjs
  * (No build step required — reads the already-built public/addresses.json)
  */
 
