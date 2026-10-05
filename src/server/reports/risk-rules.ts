@@ -7,14 +7,14 @@
 import type { Indexes } from "../retrieval/indexes.ts";
 import type { ToolResult } from "../chat/tools/tools.ts";
 import { config } from "../config.ts";
-import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import { enumerateRiskCandidates } from "../../lib/riskRules.ts";
 import { joinRisk, riskSearchFields, type RiskRow } from "../../lib/riskAssessmentIndex.ts";
 import type { RiskAssessmentArtifact } from "../../lib/riskAssessment.ts";
 import type { AtlasBundle } from "../../lib/docsTypes.ts";
 import { indexesToDocs } from "./ix-adapter.ts";
 import { applyReportFilter } from "./report-filter.ts";
-import { readPublicJson } from "./util.ts";
+import { readPublicJson, rowsEnvelope } from "./util.ts";
+import { defineReportTool } from "./report-tool.ts";
 
 // The reasoning strings + full triage description are the provenance layer
 // here. Drop them for the leaner (include_provenance:false) rollup; the
@@ -40,22 +40,22 @@ export function buildRiskRulesReport(
 
   const matched = applyReportFilter(allRows, opts.filter, riskSearchFields);
   const rows = opts.include_provenance ? matched : matched.map(stripRowProvenance);
-
-  const { kept, truncated } = fitToBudget(rows);
-  const result: ToolResult = {
-    report: "risk_rules",
-    total: matched.length,
-    returned: kept.length,
-    truncated,
-    rubric_version: artifact?.rubricVersion ?? null,
-    // A risk-shaped paragraph isn't automatically a row: untriaged means the
-    // triage script hasn't reached it yet, rejected means triage said
-    // out-of-scope or not-a-rule. Surfaced so "why isn't X here" is answerable
-    // without a second tool call.
-    untriaged,
-    rejected,
-    rows: kept,
-  };
-  if (truncated) result.note = TRUNCATION_HINT;
-  return result;
+  // A risk-shaped paragraph isn't automatically a row: untriaged means the
+  // triage script hasn't reached it yet, rejected means triage said
+  // out-of-scope or not-a-rule. Surfaced so "why isn't X here" is answerable
+  // without a second tool call.
+  return rowsEnvelope("risk_rules", rows, "rows", { rubric_version: artifact?.rubricVersion ?? null, untriaged, rejected });
 }
+
+export const riskRulesTool = defineReportTool({
+  name: "atlas_report_risk_rules",
+  title: "Atlas Report Risk Rules",
+  description:
+    "Curated report (not raw graph calls) — every atlas paragraph defining a risk rule across peg maintenance, " +
+    "allocation risk, and smart contract security, scored 1-5 for precision and weak/mid/strong for penalties and " +
+    "incentives. AI-drafted against a fixed rubric, human-reviewed. A rating is flagged stale the moment the atlas " +
+    "text it describes changes. Each row: the doc, domain(s), rating + reasoning, and freshness status.",
+  promptBlurb: "every atlas risk-rule paragraph scored for precision and enforcement.",
+  params: ["include_provenance", "filter"],
+  build: buildRiskRulesReport,
+});

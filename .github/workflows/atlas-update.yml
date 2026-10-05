@@ -64,12 +64,8 @@ jobs:
             echo "Already at latest (${OLD:0:7})."
           fi
 
-      # bun: census:risk, census:concepts and census:chains run under it (they
-      # import src/lib/riskRules.ts / conceptsCensus.ts / explorer.ts directly).
       - uses: ./.github/actions/setup
         if: steps.atlas.outputs.proceed == 'true'
-        with:
-          bun: "true"
 
       # All build warnings ([drift], anchor-not-found, did-not-parse, unknown
       # document type, …) go through console.warn → stderr. Capture stderr
@@ -257,7 +253,7 @@ jobs:
           layout arm to `scripts/lib/atlas-source.mjs` and `scripts/lib/atlas-git-source.mjs`,
           then prove the regrouping is content-neutral:
 
-              node scripts/aux/ab-parse-check.mjs vendor/next-gen-atlas <extracted-new-tree>
+              bun scripts/aux/ab-parse-check.mjs vendor/next-gen-atlas <extracted-new-tree>
 
           If instead upstream deliberately deleted a large share of the atlas, re-run this
           workflow from the Actions tab with a higher `max_doc_drop` to accept it.

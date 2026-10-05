@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { commentText, judgeComment, scanDiff } from "../scripts/lib/history-comments.mjs";
+import { commentText, judgeComment, scanDiff } from "../scripts/lib/history-comments.ts";
 
 const whys = (text: string) => judgeComment(text).map((f) => f.why);
 

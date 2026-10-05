@@ -4,7 +4,7 @@
 [build]
 builder = "DOCKERFILE"
 # Skip deploys that only touch markdown the app does not bundle (skills, CLAUDE.md,
-# plans). Re-include the `?raw` imports — keep in sync with scripts/lib/deploy-skip.mjs.
+# plans). Re-include the `?raw` imports — keep in sync with scripts/lib/deploy-skip.ts.
 watchPatterns = [
   "**",
   "!**/*.md",

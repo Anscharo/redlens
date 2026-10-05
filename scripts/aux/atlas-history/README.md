@@ -18,10 +18,10 @@ Each script writes its manifest **into this folder**, so script ↔ output stay 
 
 ```bash
 # forum enumeration (no key needed)
-node scripts/aux/atlas-history/enumerate-atlas-proposals.mjs
+bun scripts/aux/atlas-history/enumerate-atlas-proposals.mjs
 
 # on-chain poll enumeration (needs an Etherscan key)
-node --env-file-if-exists=.env.local scripts/aux/atlas-history/enumerate-onchain-polls.mjs
+bun scripts/aux/atlas-history/enumerate-onchain-polls.mjs
 ```
 
 On-chain history is immutable, so re-runs are deterministic apart from the `captured`

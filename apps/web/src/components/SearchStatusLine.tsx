@@ -1,6 +1,4 @@
 import { SearchLaneToggle } from "./SearchLaneToggle";
-import { Link } from "./Link";
-import { ROUTES } from "@/lib/routes";
 import type { SearchState } from "../hooks/useSearch";
 import { showsLoginPrompt } from "./SemanticLoginPrompt";
 import { MIN_SEMANTIC_QUERY, semanticLaneLimit, type SearchLane } from "@/lib/searchSemantic";
@@ -95,11 +93,6 @@ export function SearchStatusLine({ state, shown, total, durationMs, pending, lan
     <div className="px-4 py-2 text-xs border-b mono text-tan-3 border-border flex flex-wrap items-center gap-x-3 gap-y-1">
       <span>{count}</span>
       {note && <span className="search-semantic-note">{note}</span>}
-      {state.status === "done" && state.query && (
-        <Link to={`${ROUTES.RADAR}?q=${encodeURIComponent(state.query)}`} className="hover:text-accent">
-          Search actors and instances on Radar →
-        </Link>
-      )}
       <span className="ml-auto">
         <SearchLaneToggle lane={lane} onSelect={onLaneSelect} semanticAvailable={semanticAvailable} />
       </span>

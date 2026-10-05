@@ -53,7 +53,7 @@ The leg lives in `apps/web/src/workers/searchSemanticLeg.ts`. It handles the deb
 
 ### Entity search and the lexical pass
 
-Entity search lives on Radar (`src/lib/radarSearch.ts`), and the result count line links there. The lexical pass is memoised and taken lazily, so a lane flip and the meaning lane do not pay for a whole-corpus MiniSearch run they discard.
+Entity search lives on Radar (`src/lib/radarSearch.ts`). The lexical pass is memoised and taken lazily, so a lane flip and the meaning lane do not pay for a whole-corpus MiniSearch run they discard.
 
 ### Spelling correction
 

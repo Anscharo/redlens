@@ -2,16 +2,28 @@
 // decide whether an environment gets DELETED are unit-testable on their own —
 // see scripts_tests/prune-plan.test.ts.
 
-import { prNumberFromRailwayEnv } from "./deploy-skip.mjs";
+import { prNumberFromRailwayEnv } from "./deploy-skip.ts";
+
+export interface PruneCandidate {
+  name: string;
+  pr: number;
+}
+
+export interface PruneArgs {
+  apply: boolean;
+  orphans: boolean;
+  onlyPr: number | undefined;
+  keeps: string[];
+  repo: string | undefined;
+}
 
 /**
- * Long-lived environments on this repo, as enumerated from the live list
- * 2026-09-28. The regex is the real gate — none of these parse as a PR
+ * Long-lived environments on this repo. The regex is the real gate — none of these parse as a PR
  * environment — so this is defence in depth against a future loosening of it.
  * Listing a name that does not exist costs nothing, which is why the list errs
  * long: an entry can only ever protect, never delete.
  */
-export const PROTECTED_ENVIRONMENTS = Object.freeze([
+export const PROTECTED_ENVIRONMENTS: readonly string[] = Object.freeze([
   "github-pages",
   "CI",
   "atlas-update-main-bypass",
@@ -37,24 +49,24 @@ export const PROTECTED_ENVIRONMENTS = Object.freeze([
  * Railway environment with its service ("Redline Atlas / production") and the
  * prefix is not ours to predict.
  */
-export function isProtected(name, extraKeeps = []) {
+export function isProtected(name: string, extraKeeps: string[] = []): boolean {
   const set = new Set([...PROTECTED_ENVIRONMENTS, ...extraKeeps].map((n) => n.toLowerCase()));
   const full = String(name).trim().toLowerCase();
-  const segment = full.split("/").pop().trim();
+  const segment = full.split("/").pop()!.trim();
   return set.has(full) || set.has(segment);
 }
 
 /**
  * Argument parsing, separated out because one of its edge cases is a footgun:
- * a bare trailing `--pr` used to read as "no --pr given" and silently widen a
+ * a bare trailing `--pr` must not read as "no --pr given", which would widen a
  * single-PR prune into a full sweep. A PRESENT flag with a missing value is an
  * error, never a fallthrough.
  */
-export function parsePruneArgs(argv) {
-  const has = (n) => argv.includes(n);
-  const valueOf = (n) => (has(n) ? argv[argv.indexOf(n) + 1] : undefined);
+export function parsePruneArgs(argv: string[]): PruneArgs {
+  const has = (n: string) => argv.includes(n);
+  const valueOf = (n: string) => (has(n) ? argv[argv.indexOf(n) + 1] : undefined);
 
-  let onlyPr;
+  let onlyPr: number | undefined;
   if (has("--pr")) {
     const raw = valueOf("--pr");
     onlyPr = Number(raw);
@@ -68,8 +80,11 @@ export function parsePruneArgs(argv) {
 }
 
 /** Environments that are even eligible to be looked up, and how many were not. */
-export function selectCandidates(environments, { onlyPr, keeps = [] } = {}) {
-  const candidates = [];
+export function selectCandidates(
+  environments: { name: string }[],
+  { onlyPr, keeps = [] }: { onlyPr?: number; keeps?: string[] } = {},
+): { candidates: PruneCandidate[]; keptCount: number } {
+  const candidates: PruneCandidate[] = [];
   let keptCount = 0;
   for (const env of environments) {
     const pr = isProtected(env.name, keeps) ? null : prNumberFromRailwayEnv(env.name);
@@ -89,14 +104,18 @@ export function selectCandidates(environments, { onlyPr, keeps = [] } = {}) {
  * One candidate is exempt: `--pr <n>` against a genuinely absent PR is a real
  * single-miss answer.
  */
-export function looksLikeMissingPrScope(candidates, states) {
+export function looksLikeMissingPrScope(candidates: PruneCandidate[], states: Map<number, string>): boolean {
   if (candidates.length < 2) return false;
   return candidates.every((c) => states.get(c.pr) === "missing");
 }
 
 /** The final split. `doomed` is what gets deleted. */
-export function planPrune(candidates, states, { orphans = false } = {}) {
-  const by = (s) => candidates.filter((c) => states.get(c.pr) === s);
+export function planPrune(
+  candidates: PruneCandidate[],
+  states: Map<number, string>,
+  { orphans = false }: { orphans?: boolean } = {},
+): { open: PruneCandidate[]; stale: PruneCandidate[]; unknown: PruneCandidate[]; doomed: PruneCandidate[] } {
+  const by = (s: string) => candidates.filter((c) => states.get(c.pr) === s);
   const stale = by("closed");
   const unknown = by("missing");
   return { open: by("open"), stale, unknown, doomed: orphans ? [...stale, ...unknown] : stale };

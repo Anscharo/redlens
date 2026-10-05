@@ -17,8 +17,8 @@
 // deterministic apart from the `captured` date.
 //
 // Not part of `pnpm build`. Needs an Etherscan key:
-//   node --env-file-if-exists=.env.local scripts/aux/atlas-history/enumerate-onchain-polls.mjs
-//   (or: ETHERSCAN_API_KEY=… node scripts/aux/atlas-history/enumerate-onchain-polls.mjs)
+//   bun scripts/aux/atlas-history/enumerate-onchain-polls.mjs
+//   (or: ETHERSCAN_API_KEY=… bun scripts/aux/atlas-history/enumerate-onchain-polls.mjs)
 
 import fs from "node:fs";
 import path from "node:path";
@@ -125,7 +125,7 @@ async function fetchCreatePollTxs(startBlock) {
 
 async function main() {
   if (!API_KEY) {
-    console.error("ETHERSCAN_API_KEY not set — run: node --env-file-if-exists=.env.local scripts/aux/atlas-history/enumerate-onchain-polls.mjs");
+    console.error("ETHERSCAN_API_KEY not set — run: bun scripts/aux/atlas-history/enumerate-onchain-polls.mjs");
     process.exit(1);
   }
   const floorTs = Math.floor(Date.parse(`${FLOOR_DATE}T00:00:00Z`) / 1000);

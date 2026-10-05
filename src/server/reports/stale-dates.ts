@@ -10,6 +10,7 @@ import { buildStaleDatesReport, type DateClaim } from "../../lib/staleDates.ts";
 import { staleSearchFields } from "../../lib/staleDatesSearch.ts";
 import { indexesToDocs } from "./ix-adapter.ts";
 import { applyReportFilter } from "./report-filter.ts";
+import { defineReportTool, type ReportArgs } from "./report-tool.ts";
 
 // The evidence layer here is just the matched snippet text — always useful for
 // judging a claim, so include_provenance only trims the surrounding context
@@ -18,22 +19,24 @@ function stripClaimProvenance(c: DateClaim): DateClaim {
   return { ...c, context: c.raw, contextBefore: "", contextAfter: "" };
 }
 
-export function buildStaleDatesReportTool(
-  ix: Indexes,
-  opts: { include_provenance: boolean; filter?: string },
-  today: Date = new Date(),
-): ToolResult {
-  const report = buildStaleDatesReport(indexesToDocs(ix), today);
-  const bucket = (claims: DateClaim[], name: string) => {
-    const matched = applyReportFilter(claims, opts.filter, staleSearchFields);
-    const rows = opts.include_provenance ? matched : matched.map(stripClaimProvenance);
-    const { kept, truncated } = fitToBudget(rows);
-    return { matchedTotal: matched.length, kept, truncated, name };
-  };
+interface Bucket {
+  matchedTotal: number;
+  kept: DateClaim[];
+  truncated: boolean;
+}
 
-  const stale = bucket(report.stale, "stale");
-  const dueSoon = bucket(report.dueSoon, "due_soon");
-  const upcoming = bucket(report.upcoming, "upcoming");
+function bucket(claims: DateClaim[], opts: ReportArgs): Bucket {
+  const matched = applyReportFilter(claims, opts.filter, staleSearchFields);
+  const rows = opts.include_provenance ? matched : matched.map(stripClaimProvenance);
+  const { kept, truncated } = fitToBudget(rows);
+  return { matchedTotal: matched.length, kept, truncated };
+}
+
+export function buildStaleDatesReportTool(ix: Indexes, opts: ReportArgs, today: Date = new Date()): ToolResult {
+  const report = buildStaleDatesReport(indexesToDocs(ix), today);
+  const stale = bucket(report.stale, opts);
+  const dueSoon = bucket(report.dueSoon, opts);
+  const upcoming = bucket(report.upcoming, opts);
   const truncated = stale.truncated || dueSoon.truncated || upcoming.truncated;
 
   const result: ToolResult = {
@@ -49,3 +52,16 @@ export function buildStaleDatesReportTool(
   if (truncated) result.note = TRUNCATION_HINT;
   return result;
 }
+
+export const staleDatesTool = defineReportTool({
+  name: "atlas_report_stale_dates",
+  title: "Atlas Report Stale Dates",
+  description:
+    "Curated report (not raw graph calls) — SAbR's OWN computed report, not atlas text: every future-tense dated claim " +
+    "in atlas prose checked against today, bucketed stale (date passed) / due_soon (within a week) / upcoming. Each row: " +
+    "the doc, the matched date text, its ISO boundary date, and days until/since stale. The Atlas itself never defines " +
+    "\"stale\" — this is SAbR's own extraction; say so if asked what the concept means.",
+  promptBlurb: "SAbR's own dated-claim scan (stale / due-soon / upcoming) — not an atlas concept.",
+  params: ["include_provenance", "filter"],
+  build: buildStaleDatesReportTool,
+});

@@ -19,7 +19,7 @@
  *   ]
  *
  * Usage:
- *   node scripts/aux/processes-apply-decisions.mjs <decisions.json>
+ *   bun scripts/aux/processes-apply-decisions.mjs <decisions.json>
  *   pnpm processes:apply-decisions .cache/processes-decisions.json
  *
  * The script:
