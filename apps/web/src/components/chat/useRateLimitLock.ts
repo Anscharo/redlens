@@ -41,17 +41,11 @@ const COMMONS_MAX_LOCK_MS = 2 * 60_000;
 //     same `refresh`) for an immediate check rather than waiting on the poll.
 //   - "concurrent" (per-user in-flight cap) has no server signal at all — it
 //     self-lifts on a short fixed timeout (CONCURRENT_LOCK_MS) instead.
-export function useRateLimitLock(commons: CommonsPool | null, refresh: () => void) {
-  const [rateLimit, setRateLimit] = useState<RateLimitState | null>(null);
-  // The commons reading that was current at the instant the commons lock was
-  // set. It is NOT evidence the pool has room — it can be a stale cached-positive
-  // value from before another user drained the shared pool, which is exactly the
-  // 429 that just fired. So the clear effect must ignore this reading and only
-  // unlock on a genuinely fresh /api/usage reading that arrives afterward.
-  // useUsage.refresh() parses fresh JSON into a new object on every successful
-  // fetch, so identity inequality is a reliable "this arrived after the lock".
-  const lockReadingRef = useRef<CommonsPool | null>(null);
+type SetRateLimit = (next: RateLimitState | null) => void;
 
+// "token": poll for the known reset instant; fail open on a missing or
+// unparsable timestamp.
+function useTokenUnlock(rateLimit: RateLimitState | null, setRateLimit: SetRateLimit) {
   useEffect(() => {
     if (!rateLimit || rateLimit.kind !== "token") return;
     const resetMs = rateLimit.resetsAt ? Date.parse(rateLimit.resetsAt) : NaN;
@@ -65,14 +59,20 @@ export function useRateLimitLock(commons: CommonsPool | null, refresh: () => voi
     check(); // in case it already elapsed before this effect ran
     const id = setInterval(check, TOKEN_POLL_MS);
     return () => clearInterval(id);
-  }, [rateLimit]);
+  }, [rateLimit, setRateLimit]);
+}
 
+// "concurrent": no signal to wait on — lift after a short fixed timeout.
+function useConcurrentUnlock(rateLimit: RateLimitState | null, setRateLimit: SetRateLimit) {
   useEffect(() => {
     if (!rateLimit || rateLimit.kind !== "concurrent") return;
     const id = setTimeout(() => setRateLimit(null), CONCURRENT_LOCK_MS);
     return () => clearTimeout(id);
-  }, [rateLimit]);
+  }, [rateLimit, setRateLimit]);
+}
 
+// "commons": poll `refresh()`, and lift after COMMONS_MAX_LOCK_MS regardless.
+function useCommonsPoll(rateLimit: RateLimitState | null, setRateLimit: SetRateLimit, refresh: () => void) {
   useEffect(() => {
     if (!rateLimit || rateLimit.kind !== "commons") return;
     const lockedAt = Date.now();
@@ -81,21 +81,33 @@ export function useRateLimitLock(commons: CommonsPool | null, refresh: () => voi
       if (Date.now() - lockedAt >= COMMONS_MAX_LOCK_MS) setRateLimit(null);
     }, COMMONS_POLL_MS);
     return () => clearInterval(id);
-  }, [rateLimit, refresh]);
+  }, [rateLimit, setRateLimit, refresh]);
+}
 
+// "commons": lift the moment a FRESH reading shows room. The reading that was
+// current at the instant the lock was set is NOT evidence the pool has room —
+// it can be a stale cached-positive value from before another user drained
+// the shared pool, which is exactly the 429 that just fired. So it is pinned
+// on the render that first sets the lock and ignored; useUsage.refresh()
+// parses fresh JSON into a new object on every successful fetch, so identity
+// inequality is a reliable "this arrived after the lock".
+function useCommonsUnlock(rateLimit: RateLimitState | null, setRateLimit: SetRateLimit, commons: CommonsPool | null) {
+  const lockReadingRef = useRef<CommonsPool | null>(null);
   const wasCommonsRef = useRef(false);
   useEffect(() => {
     const isCommons = rateLimit?.kind === "commons";
-    // On the render that first sets the commons lock, pin whatever reading was
-    // current — it is the value that coincided with the 429, not proof of room.
     if (isCommons && !wasCommonsRef.current) lockReadingRef.current = commons;
     wasCommonsRef.current = isCommons;
     if (!isCommons) return;
-    // Only a fresh reading (a different object than the one at lock time) that
-    // shows room lifts the lock — never that pinned stale value, which would
-    // clear the lock in the same pass that set it.
     if (commons && commons !== lockReadingRef.current && commons.remaining > 0) setRateLimit(null);
-  }, [commons, rateLimit]);
+  }, [commons, rateLimit, setRateLimit]);
+}
 
+export function useRateLimitLock(commons: CommonsPool | null, refresh: () => void) {
+  const [rateLimit, setRateLimit] = useState<RateLimitState | null>(null);
+  useTokenUnlock(rateLimit, setRateLimit);
+  useConcurrentUnlock(rateLimit, setRateLimit);
+  useCommonsPoll(rateLimit, setRateLimit, refresh);
+  useCommonsUnlock(rateLimit, setRateLimit, commons);
   return [rateLimit, setRateLimit] as const;
 }

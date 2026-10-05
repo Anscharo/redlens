@@ -86,8 +86,9 @@ honest: *every input to `CheckReport.failed` must reach the client* — arrays a
 booleans alike. Each one can be a turn's only finding, and a hard failure the
 badge can't name renders a red chip that says the answer failed and then can't
 say why. Three (`paramMismatches`, `ungroundedCitationValues`, `lengthCapped`)
-were missing until 2026-08-21; when adding a fourth, wire it through to
-`VerifyBadge`'s `issues` count in the same change. Supporting surfaces:
+were missing until 2026-08-21; when adding a fourth, add its row to
+`FINDING_ROWS` (`findingRows.tsx`) in the same change: that one table drives
+both the badge's findings list and its chip. Supporting surfaces:
 `VerifyBadge` (harness verdict), `ReasoningBlock` (the model's thinking trace,
 open by default and height-capped), `SupersededAnswer` (a draft set aside for a
 tool round, kept dimmed rather than deleted), `StageList` (the stage

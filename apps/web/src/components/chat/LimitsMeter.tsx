@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
+import { useDismissiblePopover } from "./useLightDismiss";
 import { ContextPie } from "./ContextPie";
 import { HOT_PCT } from "../../lib/formatTokens";
 import { buildLimits, pickDisplayed, summaryLine, type Limit } from "./limits";
@@ -27,49 +28,28 @@ function LimitsPopover({ limits }: { limits: Limit[] }) {
   );
 }
 
+export interface LimitsMeterProps {
+  usage: UsageWindow | null;
+  commons: CommonsPool | null;
+  contextTokens: number | null;
+  contextWindowTokens: number | null;
+}
+
 // Bottom row of the composer: a one-line summary of the displayed limit on the
 // left, and a pie (filled with that same fraction, in that limit's color) on
 // the right. Clicking the pie click-toggles a popover listing all three limits.
 // Replaces the old always-on CommonsNote + gated UsageNote + pie-in-the-
 // composer-row.
-export function LimitsMeter({
-  usage,
-  commons,
-  contextTokens,
-  contextWindowTokens,
-}: {
-  usage: UsageWindow | null;
-  commons: CommonsPool | null;
-  contextTokens: number | null;
-  contextWindowTokens: number | null;
-}) {
-  const [open, setOpen] = useState(false);
+export function LimitsMeter({ usage, commons, contextTokens, contextWindowTokens }: LimitsMeterProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  // Light-dismiss for the popover: any pointerdown OUTSIDE the meter (or
+  // Escape) closes it. Clicks INSIDE the root are left entirely to the pie
+  // button's own toggle.
+  const [open, setOpen] = useDismissiblePopover(rootRef, { press: "pointerdown" });
   const limits = buildLimits(usage, commons, contextTokens, contextWindowTokens);
   const displayed = pickDisplayed(limits);
   const summary = displayed ? summaryLine(displayed) : null;
   const hot = displayed !== null && displayed.pct !== null && displayed.pct >= HOT_PCT;
-
-  // Light-dismiss for the popover: any pointerdown OUTSIDE the meter (or
-  // Escape) closes it. Clicks INSIDE the root are left entirely to the pie
-  // button's own toggle. Listeners exist only while open. A JS listener is the
-  // one thing CSS can't do here — outside-dismiss has no CSS equivalent.
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (rootRef.current && e.target instanceof Node && !rootRef.current.contains(e.target)) setOpen(false);
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
   return (
     <div className="rlc-limits" ref={rootRef}>
       {open && <LimitsPopover limits={limits} />}
