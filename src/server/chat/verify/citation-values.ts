@@ -10,6 +10,10 @@ import { NUMBER_RE, SMALL_COUNT_MAX } from "./value-grounding.ts";
 const PERCENT_RE = /\d[\d,]*(?:\.\d+)?\s*%/g;
 const ISO_DATE_RE = /\b\d{4}-\d{2}-\d{2}\b/g;
 const SLASH_DATE_RE = /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g;
+const LEADING_DOC_NO = new RegExp(String.raw`^\s*${DOC_NO_CORE}\b`);
+const UUIDS = new RegExp(UUID_RE.source.slice(1, -1), "gi");
+const EVM_ADDRESSES = new RegExp(EVM_ADDRESS_SRC, "g");
+const SOL_ADDRESSES = new RegExp(SOL_ADDRESS_SRC, "g");
 
 // Comma/percent-form-insensitive numeric key: thousands separators drop on both
 // sides (`10,782` ↔ `10782`) and `5 %` collapses to `5%`, so a normalized value
@@ -42,12 +46,11 @@ function minedLinkValues(text: string): LinkValue[] {
   // would otherwise yield digit runs — 692, 9829, 41 — short enough to occur
   // incidentally in some other retrieved doc and be reported as figures
   // misattributed to the doc they link.
-  let rest = text.replace(new RegExp(String.raw`^\s*${DOC_NO_CORE}\b`), "");
-  rest = rest.replace(new RegExp(UUID_RE.source.slice(1, -1), "gi"), " ");
+  let rest = text.replace(LEADING_DOC_NO, "").replace(UUIDS, " ");
   const out: LinkValue[] = [];
-  for (const m of rest.match(new RegExp(EVM_ADDRESS_SRC, "g")) ?? []) out.push({ literal: m, address: "evm" });
-  for (const m of rest.match(new RegExp(SOL_ADDRESS_SRC, "g")) ?? []) out.push({ literal: m, address: "sol" });
-  rest = rest.replace(new RegExp(EVM_ADDRESS_SRC, "g"), " ").replace(new RegExp(SOL_ADDRESS_SRC, "g"), " ");
+  for (const m of rest.match(EVM_ADDRESSES) ?? []) out.push({ literal: m, address: "evm" });
+  for (const m of rest.match(SOL_ADDRESSES) ?? []) out.push({ literal: m, address: "sol" });
+  rest = rest.replace(EVM_ADDRESSES, " ").replace(SOL_ADDRESSES, " ");
   for (const re of [PERCENT_RE, ISO_DATE_RE, SLASH_DATE_RE]) {
     for (const m of rest.match(re) ?? []) out.push({ literal: m, address: null });
   }

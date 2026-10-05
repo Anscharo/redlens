@@ -22,25 +22,20 @@ export interface Citation {
   uuid: string;
 }
 
+// matchAll copies its regex, so these shared global patterns carry no lastIndex state.
+const CITATIONS = new RegExp(CITATION_SRC, "gi");
+const HAS_CITATION = new RegExp(CITATION_SRC, "i");
+const ATLAS_HREFS = /\]\((\/atlas\/[^)\s]*)\)/g;
+const WELL_FORMED_HREF = new RegExp(`^/atlas/${UUID_RE.source.slice(1, -1)}$`, "i");
+
 export function extractCitations(answer: string): Citation[] {
-  const re = new RegExp(CITATION_SRC, "gi");
-  const out: Citation[] = [];
-  for (let m = re.exec(answer); m; m = re.exec(answer)) {
-    out.push({ title: m[1], uuid: m[2].toLowerCase() });
-  }
-  return out;
+  return [...answer.matchAll(CITATIONS)].map((m) => ({ title: m[1], uuid: m[2].toLowerCase() }));
 }
 
 // Links into the reader that are NOT well-formed uuid citations — e.g. a
 // doc_no or a truncated uuid in the href. Signals the model inventing hrefs.
 export function findBareAtlasLinks(answer: string): string[] {
-  const re = /\]\((\/atlas\/[^)\s]*)\)/g;
-  const wellFormed = new RegExp(`^/atlas/${UUID_RE.source.slice(1, -1)}$`, "i");
-  const out: string[] = [];
-  for (let m = re.exec(answer); m; m = re.exec(answer)) {
-    if (!wellFormed.test(m[1])) out.push(m[1]);
-  }
-  return out;
+  return [...answer.matchAll(ATLAS_HREFS)].map((m) => m[1]).filter((href) => !WELL_FORMED_HREF.test(href));
 }
 
 export function findInvalidCitationUuids(citations: Citation[], ix: Indexes): string[] {
@@ -51,10 +46,9 @@ export function findInvalidCitationUuids(citations: Citation[], ix: Indexes): st
 // lead sentence or a summary bullet legitimately goes uncited) — reported to
 // the verifier prompt, never a hard failure on its own.
 export function countUncitedParagraphs(answer: string): number {
-  const citation = new RegExp(CITATION_SRC, "i");
   return answer
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter((p) => p.length > 120 && !/^#{1,6}\s/.test(p) && !p.startsWith("|"))
-    .filter((p) => !citation.test(p)).length;
+    .filter((p) => !HAS_CITATION.test(p)).length;
 }

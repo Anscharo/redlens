@@ -4,12 +4,15 @@ import { DOC_NO_CORE } from "../../../lib/patterns.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import type { Citation } from "./citation-links.ts";
 
+const DOC_NOS = new RegExp(String.raw`\b${DOC_NO_CORE}\b`, "g");
+const LEADING_DOC_NO = new RegExp(String.raw`^${DOC_NO_CORE}\b`);
+
 // Doc-number mentions anywhere in the answer (prose or link text): editorial
 // doc_nos (A.1.6) plus the spec-invariant structural forms (.varX, NR-X). The
 // letter prefix must lead straight into dotted digits, so prose like "Q1 2026"
 // or "v1.2" never matches.
 export function extractDocNoMentions(answer: string): string[] {
-  return [...new Set(answer.match(new RegExp(String.raw`\b${DOC_NO_CORE}\b`, "g")) ?? [])];
+  return [...new Set(answer.match(DOC_NOS) ?? [])];
 }
 
 // Every mentioned doc number must exist in the atlas — models keep inventing
@@ -25,7 +28,7 @@ export function findInvalidDocNos(answer: string, ix: Indexes): string[] {
 export function findDocNoMismatches(citations: Citation[], ix: Indexes): string[] {
   const out: string[] = [];
   for (const c of citations) {
-    const claimed = c.title.match(new RegExp(String.raw`^${DOC_NO_CORE}\b`))?.[0];
+    const claimed = c.title.match(LEADING_DOC_NO)?.[0];
     const doc = ix.docMap.get(c.uuid);
     if (claimed && doc && doc.doc_no !== claimed) out.push(`${claimed} links to ${doc.doc_no} (${doc.title})`);
   }

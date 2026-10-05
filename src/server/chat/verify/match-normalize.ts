@@ -1,5 +1,7 @@
 import { MD_LINK_SRC } from "./citation-links.ts";
 
+const MD_LINKS = new RegExp(MD_LINK_SRC, "g");
+
 // Whitespace/case/punctuation-tolerant containment form. Quote marks and
 // markdown emphasis are authoring noise, not evidence differences: a model
 // that writes `the 'Reward Instance' refers to…` around a term the atlas
@@ -22,7 +24,7 @@ export function normalizeForMatch(s: string): string {
     // Evidence carries raw markdown; an answer quotes the RENDERED text. Both
     // sides collapse to link text so `see [A.2.2.9.1 - Foo](uuid)` matches a
     // faithful quote of `see A.2.2.9.1 - Foo`.
-    .replace(new RegExp(MD_LINK_SRC, "g"), "$1")
+    .replace(MD_LINKS, "$1")
     .replace(/[“”"‘’']/g, "")
     // `$` is a math delimiter (`$$…$$` in the atlas, `$…$` in an answer) —
     // formatting, same as emphasis and code marks.

@@ -2,6 +2,10 @@
 // addresses (hard) and figures (soft).
 import { EVM_ADDRESS_SRC, SOL_ADDRESS_SRC, DOC_NO_CORE } from "../../../lib/patterns.ts";
 
+const EVM_ADDRESSES = new RegExp(EVM_ADDRESS_SRC, "g");
+const SOL_ADDRESSES = new RegExp(SOL_ADDRESS_SRC, "g");
+const DOC_NOS = new RegExp(String.raw`\b${DOC_NO_CORE}\b`, "g");
+
 // An on-chain address cannot be paraphrased, computed, or converted — it is
 // either copied from a tool result or invented. The reader linkifies addresses
 // straight to a block explorer, so a wrong one sends the user to the wrong
@@ -11,10 +15,10 @@ export function findUngroundedAddresses(answer: string, evidenceTexts: string[])
   const hay = evidenceTexts.join("\n");
   const hayLower = hay.toLowerCase();
   const out: string[] = [];
-  for (const m of answer.match(new RegExp(EVM_ADDRESS_SRC, "g")) ?? []) {
+  for (const m of answer.match(EVM_ADDRESSES) ?? []) {
     if (!hayLower.includes(m.toLowerCase())) out.push(m);
   }
-  for (const m of answer.match(new RegExp(SOL_ADDRESS_SRC, "g")) ?? []) {
+  for (const m of answer.match(SOL_ADDRESSES) ?? []) {
     if (!hay.includes(m)) out.push(m);
   }
   return [...new Set(out)];
@@ -35,7 +39,7 @@ export function findUntracedNumbers(answer: string, evidenceTexts: string[]): st
   const prose = stripCommas(
     answer
       .replace(/\]\([^)]*\)/g, "]")
-      .replace(new RegExp(String.raw`\b${DOC_NO_CORE}\b`, "g"), "")
+      .replace(DOC_NOS, "")
       .replace(/`[^`]*`/g, ""),
   );
   const hay = stripCommas(evidenceTexts.join("\n"));

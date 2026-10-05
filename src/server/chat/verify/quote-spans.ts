@@ -5,11 +5,12 @@ import { MD_LINK_SRC } from "./citation-links.ts";
 import { normalizeForMatch } from "./match-normalize.ts";
 import { ABSENCE, isAttributionLine, isSelfAuthoredCallout, isSelfAuthorshipLeadIn } from "./quote-lead-in.ts";
 
+const MD_LINKS = new RegExp(MD_LINK_SRC, "g");
+const TRAILING_CITATION = new RegExp(String.raw`\s*[—–-]{1,2}\s*` + MD_LINK_SRC + String.raw`\s*(?:\([^)]*\))?\s*$`);
+
 // A trailing dash-led citation is attribution, so it is cut; other links collapse to their text.
 function stripQuoteDecoration(span: string): string {
-  return span
-    .replace(new RegExp(String.raw`\s*[—–-]{1,2}\s*` + MD_LINK_SRC + String.raw`\s*(?:\([^)]*\))?\s*$`), "")
-    .replace(new RegExp(MD_LINK_SRC, "g"), "$1");
+  return span.replace(TRAILING_CITATION, "").replace(MD_LINKS, "$1");
 }
 
 // A quoted TERM the answer denies (`does not contain "X"`) is a mention: its
@@ -85,7 +86,7 @@ function isExemptInlineQuote(q: QuotedPair, line: string): boolean {
 function inlineSpans(answer: string): QuotedSpan[] {
   const spans: QuotedSpan[] = [];
   // Collapse links FIRST, or quotes in two link titles pair into a phantom span.
-  const flat = answer.replace(new RegExp(MD_LINK_SRC, "g"), "$1");
+  const flat = answer.replace(MD_LINKS, "$1");
   for (const line of flat.split("\n")) {
     for (const q of quotedPairs(line)) {
       if (isExemptInlineQuote(q, line)) continue;

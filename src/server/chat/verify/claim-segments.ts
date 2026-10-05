@@ -5,6 +5,7 @@ import { extractCitations, MD_LINK_SRC } from "./citation-links.ts";
 
 // "Distinctive words" — lowercased, stopwords out, plurals folded. Used by
 // claimSegments' citation-only test and by absence.ts.
+const MD_LINKS = new RegExp(MD_LINK_SRC, "g");
 const OVERLAP_STOPWORDS = new Set(
   ("the and are was were for from with without into over under about that this these those which who whom whose " +
     "what when where why how all any both each few more most other some such only own same too very per also " +
@@ -27,7 +28,7 @@ export function contentWords(text: string): string[] {
 // sitting after a sentence's period, or an attribution line. It is an
 // attachment to the sentence before it, not a claim in its own right.
 const isCitationOnly = (seg: string): boolean =>
-  extractCitations(seg).length > 0 && contentWords(seg.replace(new RegExp(MD_LINK_SRC, "g"), " ")).length === 0;
+  extractCitations(seg).length > 0 && contentWords(seg.replace(MD_LINKS, " ")).length === 0;
 
 // Claim units: one line of markdown, split further at sentence ends. A citation
 // belongs to the sentence it closes, not to the whole paragraph.
