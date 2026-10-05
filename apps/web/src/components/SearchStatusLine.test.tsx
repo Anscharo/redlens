@@ -6,7 +6,13 @@ import { SearchStatusLine } from "./SearchStatusLine";
 import type { SearchState } from "../hooks/useSearch";
 import type { SemanticLegStatus } from "@/types";
 
-afterEach(cleanup);
+const users = vi.hoisted(() => ({ enabled: false }));
+vi.mock("../lib/usersEnabled", () => ({ usersEnabled: () => users.enabled }));
+
+afterEach(() => {
+  cleanup();
+  users.enabled = false;
+});
 
 function done(over: Partial<Extract<SearchState, { status: "done" }>> = {}): SearchState {
   return {
@@ -191,5 +197,16 @@ describe("Radar link", () => {
   it("is absent while the search is still running", () => {
     setup({ status: "searching" });
     expect(screen.queryByText("Search actors and instances on Radar →")).toBeNull();
+  });
+
+  it("leaves a spent shared budget to the sign-in prompt, and says it in words without logins", () => {
+    const state = done({ lane: "semantic", semantic: "skipped", semanticLimit: "shared", semanticNote: "the meaning index is busy — try again in a moment" });
+    users.enabled = true;
+    setup(state, { lane: "semantic" });
+    expect(screen.queryByText(/meaning index is busy/)).toBeNull();
+    cleanup();
+    users.enabled = false;
+    setup(state, { lane: "semantic" });
+    expect(screen.getByText(/meaning index is busy/)).toBeInTheDocument();
   });
 });

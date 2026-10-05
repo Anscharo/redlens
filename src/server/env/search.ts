@@ -53,8 +53,13 @@ export const openrouter: EnvGroup = {
     { name: "QUERY_EMBED_CACHE_SIZE", doc: "In-process LRU of query embeddings. 0 disables it.", default: "512" },
     {
       name: "SEARCH_SEMANTIC_RPM",
-      doc: "Shared per-minute budget for the reader's meaning lane, which is public and unauthenticated. One settled search is one embedding call, so 60 carries roughly 15 people searching at once. 0 disables the gate. In process, so N replicas allow N times this.",
-      default: "60",
+      doc: "Shared per-minute budget for the reader's meaning lane when signed out. One settled search is one embedding call, so 30 carries roughly 7 people searching at once. 0 disables the gate. In process, so N replicas allow N times this.",
+      default: "30",
+    },
+    {
+      name: "SEARCH_SEMANTIC_USER_PER_HOUR",
+      doc: "Each signed-in reader's own hourly budget for the meaning lane; it never draws on SEARCH_SEMANTIC_RPM. 600 is one search every 6 s for a whole hour. 0 disables the gate. In process, like the shared budget.",
+      default: "600",
     },
   ],
 };

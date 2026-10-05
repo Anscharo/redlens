@@ -4,7 +4,7 @@
 // Split out of search.worker.ts so the decisions are unit-testable without a
 // worker global and without MiniSearch. Everything the leg needs from the
 // worker (the doc map, the hit builder, `postMessage`) is passed in.
-import type { SearchHit, SemanticLegStatus, WorkerOutMessage } from "@/types";
+import type { SearchHit, SemanticLegStatus, SemanticLimit, WorkerOutMessage } from "@/types";
 import { UUID_RE } from "@/lib/patterns";
 import { isUuidPrefix } from "../lib/uuidSearch";
 import {
@@ -182,6 +182,23 @@ export function answerFromCache(run: SemanticLegRun): boolean {
   return true;
 }
 
+/** A 429 from the route: which budget ran out, in words the reader can act on. */
+class SemanticLimitError extends Error {
+  readonly scope: SemanticLimit;
+  constructor(message: string, scope: SemanticLimit) {
+    super(message);
+    this.scope = scope;
+  }
+}
+
+async function limitError(res: Response): Promise<SemanticLimitError> {
+  const body = (await res.json().catch(() => ({}))) as { scope?: string; retryAfterSeconds?: number };
+  if (body.scope !== "user") return new SemanticLimitError("the meaning index is busy — try again in a moment", "shared");
+  const wait = Math.max(1, Number(body.retryAfterSeconds) || Number(res.headers.get("retry-after")) || 1);
+  const when = wait < 90 ? `${wait} s` : `${Math.ceil(wait / 60)} min`;
+  return new SemanticLimitError(`you have reached your hourly meaning-search limit — try again in ${when}`, "user");
+}
+
 /** Debounce, fetch, fuse, post. Cancels any leg already scheduled or in flight. */
 export function runSemanticLeg(run: SemanticLegRun): void {
   cancelSemanticLeg();
@@ -195,9 +212,7 @@ export function runSemanticLeg(run: SemanticLegRun): void {
       (run.query.scope ? `&in=${encodeURIComponent(run.query.scope)}` : "");
     void fetch(url, { signal: ac.signal })
       .then(async (res) => {
-        // A shared budget, not this reader's: say so in words they can act on
-        // rather than showing them a status code they cannot.
-        if (res.status === 429) throw new Error("the meaning index is busy — try again in a moment");
+        if (res.status === 429) throw await limitError(res);
         if (!res.ok) throw new Error(`semantic search: ${res.status}`);
         return (await res.json()) as SemanticSearchResponse;
       })
@@ -220,6 +235,7 @@ export function runSemanticLeg(run: SemanticLegRun): void {
           lane: run.lane,
           semantic: "skipped",
           semanticNote: err instanceof Error ? err.message : String(err),
+          ...(err instanceof SemanticLimitError ? { semanticLimit: err.scope } : {}),
         });
       });
   }, SEMANTIC_DEBOUNCE_MS);

@@ -20,8 +20,8 @@ import { config } from "./config.ts";
 import { getIndexes } from "./retrieval/indexes.ts";
 import { runLexical, runSemantic, filterByType, fuseBriefings, type Via } from "./retrieval/search.ts";
 import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "./retrieval/leaf-attribution.ts";
-import { rateLimited } from "./feedback-limits.ts";
 import { spendSemanticBudget } from "./search-semantic-limit.ts";
+import { getSessionUser } from "./session.ts";
 import { vectorsCurrent } from "./vectors-current.ts";
 import {
   MAX_SEMANTIC_QUERY,
@@ -168,6 +168,18 @@ export function toWireHits(
   return hits;
 }
 
+/**
+ * The 429 for an exhausted budget. `scope` says whose budget ran out: "shared"
+ * (signed out, where signing in gets the reader their own) or "user" (their own
+ * hourly allowance), so the client can say which.
+ */
+function semanticRateLimited(retryAfterSeconds: number, scope: "shared" | "user"): Response {
+  return new Response(JSON.stringify({ error: "rate_limited", scope, retryAfterSeconds }), {
+    status: 429,
+    headers: { "content-type": "application/json", "retry-after": String(retryAfterSeconds) },
+  });
+}
+
 export async function handleSemanticSearch(req: Request): Promise<Response> {
   const params = new URL(req.url).searchParams;
   const q = params.get("q") ?? "";
@@ -176,8 +188,9 @@ export async function handleSemanticSearch(req: Request): Promise<Response> {
   // Before the work, not after: the point of the gate is that the embed never
   // happens. A query that would not have spent anything is not charged for.
   if (wouldSpendEmbed(q)) {
-    const budget = spendSemanticBudget();
-    if (!budget.ok) return rateLimited(budget.retryAfter);
+    const session = config.usersEnabled ? await getSessionUser(req) : null;
+    const budget = spendSemanticBudget(Date.now(), session?.user.id);
+    if (!budget.ok) return semanticRateLimited(budget.retryAfter, budget.scope);
   }
   try {
     const body = await semanticDocSearch(q, { k: clampK(params.get("k")), type, scope });

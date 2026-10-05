@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { config } from "./config.ts";
 import {
   _resetSemanticBudget,
+  _userBucketCount,
   newBucket,
   retryAfterSeconds,
   spendSemanticBudget,
@@ -9,8 +10,10 @@ import {
 } from "./search-semantic-limit.ts";
 
 const REAL_RPM = config.searchSemanticRpm;
+const REAL_PER_HOUR = config.searchSemanticUserPerHour;
 afterEach(() => {
   config.searchSemanticRpm = REAL_RPM;
+  config.searchSemanticUserPerHour = REAL_PER_HOUR;
   _resetSemanticBudget();
 });
 
@@ -75,5 +78,53 @@ describe("spendSemanticBudget", () => {
   it("is disabled by a rate of zero", () => {
     config.searchSemanticRpm = 0;
     for (let i = 0; i < 100; i++) expect(spendSemanticBudget(0)).toEqual({ ok: true });
+  });
+});
+
+describe("a signed-in reader's own budget", () => {
+  it("is separate from the shared bucket in both directions", () => {
+    config.searchSemanticRpm = 1;
+    config.searchSemanticUserPerHour = 2;
+    expect(spendSemanticBudget(0)).toEqual({ ok: true });
+    expect(spendSemanticBudget(0).ok).toBe(false); // shared is spent
+    expect(spendSemanticBudget(0, "u1")).toEqual({ ok: true }); // the user is not affected
+    expect(spendSemanticBudget(0, "u1")).toEqual({ ok: true });
+    const denied = spendSemanticBudget(0, "u1");
+    expect(denied).toMatchObject({ ok: false, scope: "user" });
+    expect(spendSemanticBudget(0, "u2")).toEqual({ ok: true }); // one user's spend is theirs alone
+    _resetSemanticBudget();
+    config.searchSemanticUserPerHour = 1;
+    expect(spendSemanticBudget(0, "u1")).toEqual({ ok: true });
+    expect(spendSemanticBudget(0)).toEqual({ ok: true }); // a spent user leaves shared untouched
+  });
+
+  it("refills over the hour and says how long to wait", () => {
+    config.searchSemanticUserPerHour = 60; // one a minute
+    for (let i = 0; i < 60; i++) expect(spendSemanticBudget(0, "u1").ok).toBe(true);
+    const denied = spendSemanticBudget(0, "u1");
+    expect(denied).toEqual({ ok: false, retryAfter: 60, scope: "user" });
+    expect(spendSemanticBudget(59_999, "u1").ok).toBe(false);
+    expect(spendSemanticBudget(60_000, "u1").ok).toBe(true);
+  });
+
+  it("reports the shared bucket as the shared scope", () => {
+    config.searchSemanticRpm = 1;
+    spendSemanticBudget(0);
+    expect(spendSemanticBudget(0)).toMatchObject({ ok: false, scope: "shared" });
+  });
+
+  it("is disabled by a rate of zero", () => {
+    config.searchSemanticUserPerHour = 0;
+    for (let i = 0; i < 100; i++) expect(spendSemanticBudget(0, "u1")).toEqual({ ok: true });
+    expect(_userBucketCount()).toBe(0);
+  });
+
+  it("drops full buckets once many users are held", () => {
+    config.searchSemanticUserPerHour = 10;
+    for (let i = 0; i < 10_000; i++) spendSemanticBudget(0, `u${i}`);
+    expect(_userBucketCount()).toBe(10_000);
+    // An hour later every bucket has refilled, so the next spend prunes them all.
+    spendSemanticBudget(3_600_000, "late");
+    expect(_userBucketCount()).toBe(1);
   });
 });

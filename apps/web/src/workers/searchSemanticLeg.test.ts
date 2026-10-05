@@ -172,6 +172,26 @@ describe("runSemanticLeg", () => {
     expect(msg.semanticNote).toContain("500");
   });
 
+  it("names whose budget a 429 came from", async () => {
+    vi.useFakeTimers();
+    const cases = [
+      { body: { error: "rate_limited", scope: "shared", retryAfterSeconds: 2 }, scope: "shared", note: "busy" },
+      { body: { error: "rate_limited", scope: "user", retryAfterSeconds: 6 }, scope: "user", note: "try again in 6 s" },
+      { body: { error: "rate_limited", scope: "user", retryAfterSeconds: 600 }, scope: "user", note: "try again in 10 min" },
+    ];
+    for (const [i, c] of cases.entries()) {
+      vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify(c.body), { status: 429 }))));
+      const { posted, post } = collector();
+      runSemanticLeg({ id: i, query: { query: `limit case ${i}` }, lane: "semantic", lexical: [], startedAt: 0, hydrate, post });
+      await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS + 1);
+      await vi.waitFor(() => expect(posted).toHaveLength(1));
+      const msg = posted[0] as Extract<WorkerOutMessage, { type: "results" }>;
+      expect(msg.semantic).toBe("skipped");
+      expect(msg.semanticLimit).toBe(c.scope);
+      expect(msg.semanticNote).toContain(c.note);
+    }
+  });
+
   it("reports a degraded leg the server owned up to", async () => {
     vi.useFakeTimers();
     stubSemantic({ hits: [], skipped: "embed timed out after 10000ms", available: true });

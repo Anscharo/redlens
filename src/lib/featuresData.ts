@@ -144,7 +144,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Add in:<doc number> to scope meaning search to one subtree — in:A.6 who approves rewards searches only the Agent Scope.",
           "On the meaning pill the a* / \"a\" / Aa mode buttons are greyed out, and any other search syntax you type — type:, title:, -word, ~2, quotes — is dropped, with a note above the results naming what it dropped. in: is the exception and still applies. If a word you typed doesn't look like a word (xkcdq, a1b2c), the meaning pill shows wording matches and a note naming it instead of searching; press Enter to search by meaning anyway.",
         ],
-        note: "Meaning-matched results appear on the meaning pill and nowhere else — wording searches stay wording searches. That pill needs a deployment configured for it; where it is not, it is disabled and says so.",
+        note: "Meaning-matched results appear on the meaning pill and nowhere else — wording searches stay wording searches. That pill needs a deployment configured for it; where it is not, it is disabled and says so. Signed-out readers share one meaning-search allowance; where sign-in is offered, a signed-in reader gets an hourly allowance of their own, and the results page offers sign-in when the shared one runs out.",
       },
       {
         name: "Jump-to",

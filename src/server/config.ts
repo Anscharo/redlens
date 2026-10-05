@@ -267,12 +267,16 @@ export const config = {
   // repeat is instant (no network, no cost, no timeout exposure). 0 disables it.
   queryEmbedCacheSize: Number(process.env.QUERY_EMBED_CACHE_SIZE ?? 512),
 
-  // Shared per-minute budget for the reader's meaning lane (see
+  // Shared per-minute budget for the reader's meaning lane when signed out (see
   // search-semantic-limit.ts). Sized from what it costs, not from a guess at
   // traffic: one settled search is one embedding call, and a reader refining a
-  // question runs a handful per minute, so 60 carries roughly 15 people
+  // question runs a handful per minute, so 30 carries roughly 7 people
   // searching at once. 0 disables the gate entirely.
-  searchSemanticRpm: Number(process.env.SEARCH_SEMANTIC_RPM ?? 60),
+  searchSemanticRpm: Number(process.env.SEARCH_SEMANTIC_RPM ?? 30),
+  // Each signed-in reader's own hourly budget for the same lane, which never
+  // draws on the shared one. 600 is one search every 6 s for a whole hour, so
+  // only near-constant searching reaches it. 0 disables the gate.
+  searchSemanticUserPerHour: Number(process.env.SEARCH_SEMANTIC_USER_PER_HOUR ?? 600),
 
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.
   chatModel: process.env.CHAT_MODEL ?? "google/gemma-4-31b-it",

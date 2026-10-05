@@ -16,6 +16,7 @@ import type { SemanticSearchResponse } from "../lib/searchSemantic.ts";
 import { _clearIndexes, buildIndexes, getIndexes, setIndexes } from "./retrieval/indexes.ts";
 import { _resetSemanticBudget } from "./search-semantic-limit.ts";
 import { vectorsCurrent } from "./vectors-current.ts";
+import { SESSION_COOKIE, signSession } from "./session.ts";
 import type { AtlasNode, Indexes } from "./retrieval/indexes.ts";
 
 // config is a plain mutable object; restore whatever this process actually has
@@ -375,6 +376,35 @@ describe("the shared budget", () => {
     const second = await handleSemanticSearch(new Request("http://x/api/search/semantic?q=who%20decides"));
     expect(second.status).toBe(429);
     expect(Number(second.headers.get("retry-after"))).toBeGreaterThan(0);
+  });
+
+  it("charges a signed-in reader's own budget, not the shared one", async () => {
+    const prev = { users: config.usersEnabled, secret: config.jwtSecret, perHour: config.searchSemanticUserPerHour };
+    try {
+      config.openrouterApiKey = "sk-test";
+      config.usersEnabled = true;
+      config.jwtSecret = "test-secret-for-semantic-budget";
+      config.searchSemanticRpm = 1;
+      config.searchSemanticUserPerHour = 1;
+      _resetSemanticBudget();
+      const cookie = `${SESSION_COOKIE}=${await signSession({ id: "user-1", provider: "github" })}`;
+      const signedIn = () => new Request("http://x/api/search/semantic?q=who%20approves", { headers: { cookie } });
+      const signedOut = () => new Request("http://x/api/search/semantic?q=who%20approves");
+
+      expect((await handleSemanticSearch(signedOut())).status).not.toBe(429);
+      const shared = await handleSemanticSearch(signedOut());
+      expect(shared.status).toBe(429);
+      expect(await shared.json()).toMatchObject({ error: "rate_limited", scope: "shared" });
+
+      expect((await handleSemanticSearch(signedIn())).status).not.toBe(429);
+      const own = await handleSemanticSearch(signedIn());
+      expect(own.status).toBe(429);
+      expect(await own.json()).toMatchObject({ error: "rate_limited", scope: "user" });
+    } finally {
+      config.usersEnabled = prev.users;
+      config.jwtSecret = prev.secret;
+      config.searchSemanticUserPerHour = prev.perHour;
+    }
   });
 
   it("does not charge a query that was never going to embed", async () => {

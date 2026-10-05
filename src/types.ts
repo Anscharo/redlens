@@ -99,6 +99,9 @@ export type WorkerInMessage =
   | { type: "ping" }
   | { type: "preload"; docs: Record<string, AtlasNode>; addresses: Record<string, AddressInfo> };
 
+/** Whose meaning-search budget ran out; see src/server/search-semantic-limit.ts. */
+export type SemanticLimit = "shared" | "user";
+
 // A single query can produce TWO `results` messages under the same id: the
 // lexical half immediately (semantic: "pending"), then the fused set once the
 // semantic round-trip lands. Consumers must accept a second reply for an id
@@ -122,6 +125,9 @@ export type WorkerOutMessage =
       // Query words the meaning lane declined to embed because they do not look
       // like words. Present only with semantic === "none".
       heldWords?: string[];
+      // Whose budget refused the meaning search, when semantic === "skipped"
+      // because of it: "shared" (signed out) or "user" (the reader's own).
+      semanticLimit?: SemanticLimit;
     }
   | { type: "error"; id?: number; message: string }; // no id for init-time failures
 
