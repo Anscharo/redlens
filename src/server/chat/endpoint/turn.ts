@@ -1,7 +1,5 @@
 // Everything POST /api/chat decides before the stream opens: the /teach
-// branch, the history it replays (compacted first only when the provider
-// rejected this conversation for length), the turn prepareTurn assembles,
-// and the trace every generation and error of the turn lands in.
+// branch, the replayed history, the prepared turn and the turn's trace.
 import { getIndexes } from "../../retrieval/indexes.ts";
 import { makeOpenrouterJson } from "../llm.ts";
 import type { Route } from "../model-router.ts";
@@ -45,12 +43,8 @@ export interface ChatTurn {
   ix: ReturnType<typeof getIndexes>;
 }
 
-// Kicked off as early as possible — it only needs userId + message, so it
-// overlaps the user-message INSERT and history SELECT instead of stacking
-// after them. .catch() at creation, not at the await site: this promise sits
-// unawaited for a while, so a DB blip must be swallowed right here or Bun
-// sees it as an unhandled rejection before anything ever awaits it. /teach
-// never reads a matched teaching, so a turn that opens with it skips this.
+// Started early to overlap the history queries. .catch() at creation: the
+// promise sits unawaited, so a DB blip would otherwise be an unhandled rejection.
 function startTeachingMatch(userId: string, message: string, convId: string, teachCmd: TeachCmd | null): Promise<RankedTeaching[]> {
   if (teachCmd || !config.chatTeach) return Promise.resolve([] as RankedTeaching[]);
   return matchTeachings(userId, message).catch((err) => {
@@ -59,21 +53,10 @@ function startTeachingMatch(userId: string, message: string, convId: string, tea
   });
 }
 
-// Compaction normally runs AFTER the answer (compact-turn.ts): the summary it
-// writes is read by the NEXT turn, so making this one wait for it buys nothing.
-//
-// The exception is recovery: the provider rejected this conversation for
-// length on an earlier turn, so the 4-chars/token estimate was wrong here
-// and this turn cannot proceed until the prefix is smaller. It also
-// overrides the failure cooldown — without a smaller prefix the turn is
-// going to be rejected again anyway, so paying the timeout is the better
-// bet. At most ONE forced compaction per rejection: context-overflow.ts owns
-// that state machine; this file only asks the question and reports the
-// outcome — and reports what actually happened, not what it intended:
-// `forcedCompaction` is what the stream's error path passes as
-// `forcedThisTurn`, so a forced compaction that a guard stood down (one was
-// already in flight for this conversation) does not spend the one attempt
-// per rejection.
+// Compaction normally runs after the answer; it runs first only to recover
+// from a provider length rejection (context-overflow.ts owns that state).
+// `forcedCompaction` reports what actually ran, so a compaction a guard stood
+// down does not spend the one attempt per rejection.
 async function compactIfRejected(convId: string, teachCmd: TeachCmd | null, obs: TurnObs, history: ReplayRow[], summary: string | null) {
   if (teachCmd || !shouldForceCompaction(convId)) return { history, summary, forcedCompaction: false };
   const compacted = await compactTurn({
@@ -82,10 +65,7 @@ async function compactIfRejected(convId: string, teachCmd: TeachCmd | null, obs:
   return { history: compacted.rows, summary: compacted.summary, forcedCompaction: compacted.attempted };
 }
 
-// Telemetry for the pre-first-token judge — gated the same as the call
-// itself, so a disabled/teach turn emits nothing. Counts and slugs only,
-// never note text or ids beyond a count — this is a conversation-keyed
-// event, not a user-content one.
+// Counts and slugs only: this is a conversation-keyed event, never user content.
 function capturePrefetchJudge(turn: PreparedTurn | null, obs: TurnObs, message: string, teachHits: RankedTeaching[]): void {
   if (!turn || !config.chatPrefetchJudgeModel) return;
   const { judgement, jevLatencyMs } = turn;
@@ -94,22 +74,15 @@ function capturePrefetchJudge(turn: PreparedTurn | null, obs: TurnObs, message: 
     latency_ms: jevLatencyMs,
     timed_out: judgement === null && jevLatencyMs >= config.chatPrefetchJudgeDeadlineMs,
     complexity_p: judgement?.complexity ?? null,
-    // routeCensuses IS the function the fact called, so this reports what
-    // was actually injected — never a parallel re-derivation of the threshold
-    // (concepts-prefetch.ts warns against one).
+    // The same function the fact called, so this reports what was injected.
     census_fired: judgement && config.chatPrefetch ? routeCensuses(message, undefined, judgement.census) : [],
     teach_kept: teachKept,
     teach_dropped: teachHits.length - teachKept,
   });
 }
 
-// PostHog AI observability: one trace per turn, minted before compaction so a
-// summary call shares it. distinctId is the CONVERSATION, not the signed-in
-// user — semi-anonymous analytics: turns of one conversation stay grouped in
-// PostHog, but no user identity is sent (userId stays DB-only). The SAME obs
-// feeds the answer stream, the harness jsonCall (verifier), and error
-// capture, so every generation AND every error of the turn lands in one
-// trace. Route properties are filled in once prepareTurn has routed.
+// One PostHog trace per turn, shared by every generation and error. distinctId
+// is the CONVERSATION, never the user: userId stays DB-only.
 const newTurnObs = (convId: string): TurnObs => ({ distinctId: convId, traceId: crypto.randomUUID(), properties: {} });
 
 async function loadReplay(userId: string, convId: string, body: ChatBody) {
@@ -118,19 +91,13 @@ async function loadReplay(userId: string, convId: string, body: ChatBody) {
   const { historyRows, history, summary } = await loadHistory(convId, body.message);
   const obs = newTurnObs(convId);
   const compacted = await compactIfRejected(convId, teachCmd, obs, history, summary);
-  // Counted over the STORED rows, not the replayed ones: titling fires on
-  // turns 1/4/10 of a conversation's life, and `history` drops everything a
-  // compaction summarized away — counting that would re-title a long thread.
+  // Counted over STORED rows: `history` drops compacted rows, which would re-title.
   const priorAssistants = historyRows.filter((m) => m.role === "assistant").length;
   return { teachCmd, teachingsPromise, obs, priorAssistants, ...compacted };
 }
 
-// Everything the model reads before its first token — Jev judgement, tier
-// routing, system prompt, full history (plus a stable summary once the
-// thread has been compacted), facts round, Jev-filtered /teach notes, the
-// review round — is assembled by the one function the tool-choice eval also
-// runs (turn-setup.ts). /teach never reaches any of it: no judgement, no
-// routing (reason "teach"), no model input.
+// The model's input is assembled by prepareTurn, the function the tool-choice
+// eval also runs. /teach skips it entirely.
 export async function prepareChatTurn(req: Request, userId: string, convId: string, body: ChatBody): Promise<ChatTurn> {
   const { teachingsPromise, ...replay } = await loadReplay(userId, convId, body);
   const ix = getIndexes();
@@ -146,16 +113,8 @@ export async function prepareChatTurn(req: Request, userId: string, convId: stri
   return { req, userId, convId, body, turn, route, startedAt, ix, ...replay };
 }
 
-// What the NEXT turn of this conversation will read, once this answer is
-// stored. Used twice — by the meter and by the compaction that runs after the
-// answer — so the size the user is shown and the rows we summarize can never
-// describe different threads.
-//
-// `checksMeta` is this turn's own check rows, so the answer just produced
-// carries its own review note (verify/review-note.ts). Attached HERE rather
-// than in usedAfter so the compaction path gets the note-bearing rows too —
-// otherwise the meter would count the note and the rows handed to compaction
-// would not.
+// What the NEXT turn will read. Shared by the meter and post-answer compaction
+// so both describe the same thread, review note included.
 export function replayAfter(t: ChatTurn, answer: string, toolCalls: RecallToolCall[], checksMeta: CheckRowMeta[] = []): ReplayRow[] {
   return [
     ...t.history,
@@ -166,11 +125,8 @@ export function replayAfter(t: ChatTurn, answer: string, toolCalls: RecallToolCa
   ];
 }
 
-// That replay plus the standing prefix (context-compact.ts) is what the
-// composer's meter shows, and it is the same arithmetic needsCompaction
-// uses — a number that only grows until a compaction, rather than the
-// measured prompt of one round, which rises with a turn's tool results and
-// drops again on the next turn that needs none.
+// The composer's meter: the same arithmetic needsCompaction uses, so it only
+// grows until a compaction rather than tracking one round's prompt.
 export function usedAfter(t: ChatTurn, answer: string, toolCalls: RecallToolCall[], checksMeta: CheckRowMeta[] = []): number {
   return contextUsedTokens(t.summary, replayAfter(t, answer, toolCalls, checksMeta));
 }

@@ -1,9 +1,5 @@
-// Evidence for the export gate, split by provenance so a file built on the MSC
-// brief faces the same non-Atlas attribution rules the harness applies to the
-// chat answer (a file outlives the conversation — CLAUDE.md's citation dictate
-// is strictest about it). Which tool_call_ids belong to the external tool is
-// read back off the transcript rather than tracked in the loop's own state —
-// any downstream consumer of the transcript classifies those rounds identically.
+// Export-gate evidence split by provenance, read back off the transcript so
+// it classifies rounds exactly as the harness does.
 import type { ExportEvidence } from "../tools/export-verify.ts";
 import { isExternalMscTool } from "../../external/envelope.ts";
 import { isUserTeachingTool } from "../teach/inject.ts";
@@ -12,10 +8,7 @@ import type { Msg } from "./types.ts";
 
 function toolCallIdsByKind(msgs: Msg[]): { externalIds: Set<string>; teachingIds: Set<string> } {
   const externalIds = new Set<string>();
-  // A user's /teach notes ride a synthetic tool round (teach/inject.ts). They
-  // are neither atlas text nor external figures, so an export must not treat
-  // them as grounding — the orchestrator already excludes them from atlas
-  // evidence (splitFromTranscript), and this is the export-side twin.
+  // /teach rounds are never grounding (export-side twin of splitFromTranscript).
   const teachingIds = new Set<string>();
   for (const m of msgs) {
     if (m.role !== "assistant" || !Array.isArray(m.tool_calls)) continue;

@@ -1,8 +1,5 @@
-// The model lanes that run after `answer_final`: Sources-chip marks, answer
-// coverage, quote attribution and the sliced audit. All four start
-// concurrently; they resolve in the order the reconciliation needs, and emit
-// in the order the wire contract fixes (see HarnessEvent): citation_marks,
-// then answer_coverage, then verify_result, then done.
+// The model lanes after `answer_final`: chip marks, coverage, quote attribution
+// and the audit. All start concurrently; emit order is fixed by HarnessEvent.
 import { config } from "../../config.ts";
 import { computeOverall, type EvidenceEntry, type Verdict } from "../verify/verifier.ts";
 import type { CheckReport } from "../verify/verify-checks.ts";
@@ -27,15 +24,8 @@ export interface LaneInput {
   ruledSmalltalk: boolean;
 }
 
-// Per-doc Sources-chip check (verify/citation-marks.ts). Provenance — what
-// this turn actually retrieved, per document (verify/provenance.ts) — decides
-// which question each citation gets: the document's own text for one the
-// model read, its change record for one the model only saw named, and no
-// question at all for one the turn never retrieved. Built from the RAW
-// transcript, not from the audit's `evidence`: that array is budgeted to
-// chatVerifierEvidenceMaxChars with newest-first eviction, so a document the
-// model genuinely read early in a tool-heavy turn can be missing from it, and
-// reading provenance there would call it unretrieved.
+// Provenance comes from the RAW transcript, not the audit's `evidence`: that
+// array is budget-evicted, so a doc read early could look unretrieved.
 function startMarks(ctx: HarnessCtx, done: DoneEvent) {
   const { opts } = ctx;
   const model = config.chatCitationCheckModel;
@@ -50,15 +40,8 @@ function startMarks(ctx: HarnessCtx, done: DoneEvent) {
   return { model, promise };
 }
 
-// "Did it answer the question?" (verify/answer-coverage.ts). Nothing earlier
-// than answer_final reaches here, so the small-talk bypass and the checks-off
-// / aborted / empty exits never run it. A turn the judge RULED small talk but
-// that still gets audited is skipped too: the message expected no facts, so
-// "did it answer?" has no meaning there (and that shape was never measured).
-// It judges done.content as shown — including a /teach hint, which was not
-// in the measured corpus. Fail-open by construction (it never rejects), but
-// nothing awaits it until the marks and the audit settle — marked handled at
-// creation all the same, for the same reason as the audit promise.
+// Skipped for a turn ruled small talk: no facts were expected. Marked handled
+// at creation because nothing awaits it until marks and audit settle.
 function startCoverage(ctx: HarnessCtx, done: DoneEvent, ruledSmalltalk: boolean) {
   const { opts } = ctx;
   const model = config.chatAnswerCoverageModel;
@@ -79,9 +62,7 @@ function checkingStatus(ctx: HarnessCtx, input: LaneInput): HarnessEvent {
   return { type: "status", stage: "checking", detail };
 }
 
-// The whole-answer audit, started as a promise and not awaited — the other
-// lanes resolve concurrently with it rather than delaying its start. Wrapped
-// in an object because an async generator awaits a promise it returns.
+// Wrapped in an object because an async generator awaits a promise it returns.
 async function* startAudit(ctx: HarnessCtx, input: LaneInput): AsyncGenerator<HarnessEvent, { promise: ReturnType<typeof runAudit> } | null> {
   if (!ctx.verifierModel) return null;
   if (input.grounded) yield checkingStatus(ctx, input);
@@ -92,9 +73,7 @@ async function* startAudit(ctx: HarnessCtx, input: LaneInput): AsyncGenerator<Ha
     answer: input.done.content, evidence: ctx.refuteEvidence(input.evidence, input.done.content), checks: input.checks,
     signal: opts.signal, obs: opts.obs, paragraphRefutes: settled.paragraphRefutes, settleMs: settled.settleMs,
   });
-  // Nothing awaits the audit while the other lanes resolve, so a rejection in
-  // that window would be an UNHANDLED one. This no-op handler only marks it
-  // handled; the await in resolveAudit still rethrows.
+  // Marks it handled while other lanes resolve; resolveAudit's await still rethrows.
   promise.catch(() => {});
   return { promise };
 }
@@ -110,21 +89,13 @@ async function resolveAudit(ctx: HarnessCtx, promise: ReturnType<typeof runAudit
   return run.verdict;
 }
 
-// Reconciles the WIRE event only. agreedContradictionsFrom takes a live
-// Verdict object here and a persisted message_checks.verdict JSONB payload
-// on the reload path (conversations/detail.ts) — the two shapes are
-// structurally identical, and using ONE function for both is deliberate so
-// the two paths can never diverge on what counts as an agreed contradiction.
-// The persisted citation_check row (cm.meta) is left UNRECONCILED on purpose
-// — it is the citation lane's own calibration record, exactly like
-// Verdict.contradictions stores every validated candidate (agreed and not).
-// With no verifier the verdict is null and this is a no-op.
+// Reconciles the WIRE event only; the reload path (conversations/detail.ts)
+// uses the same agreedContradictionsFrom so the two cannot diverge. The
+// persisted citation_check row stays unreconciled as the lane's calibration record.
 async function* emitMarks(ctx: HarnessCtx, marks: ReturnType<typeof startMarks>, verdict: Verdict | null): AsyncGenerator<HarnessEvent> {
   const cm = await resolveCitationMarks(marks.promise, marks.model);
   if (cm.event) {
     const reconciled = withoutDisputedMarks(cm.event.marks, agreedContradictionsFrom(verdict));
-    // Mirrors resolveCitationMarks' own non-empty guard: if reconciliation
-    // emptied the marks, emit no event at all.
     if (Object.keys(reconciled).length > 0) yield { ...cm.event, marks: reconciled };
   }
   if (cm.meta) ctx.checksMeta.push(cm.meta);
@@ -136,12 +107,8 @@ async function* emitCoverage(ctx: HarnessCtx, coverage: ReturnType<typeof startC
   if (cov.meta) ctx.checksMeta.push(cov.meta);
 }
 
-// RESOLUTION order is load-bearing and differs from emission order: the quote
-// lane resolves first (in `gate` mode it changes `checks`, which the verify
-// row stores), then the audit (so the marks can be reconciled against its
-// verdict — an agreed contradiction sourced to a cited doc withholds that
-// doc's ✓, see verify/disputes.ts). Total latency is unaffected: every lane
-// was started concurrently above and all are awaited before the final done.
+// Resolution order is load-bearing: quotes first (`gate` mode changes
+// `checks`), then the audit (marks reconcile against its verdict, see disputes.ts).
 export async function* runLanes(ctx: HarnessCtx, input: LaneInput): AsyncGenerator<HarnessEvent> {
   const marks = startMarks(ctx, input.done);
   const coverage = startCoverage(ctx, input.done, input.ruledSmalltalk);
@@ -154,8 +121,7 @@ export async function* runLanes(ctx: HarnessCtx, input: LaneInput): AsyncGenerat
   yield* emitCoverage(ctx, coverage);
   if (quote) ctx.checksMeta.push(quoteAttributionRow(quote, quoteLane.spans.length));
   const overall = ctx.verifierModel ? computeOverall(checks, verdict) : checks.failed ? "fail" : "unverified";
-  // Deterministic-only turns stay quiet unless something actually failed —
-  // a permanent "unverified" chip on every clean answer is noise, not signal.
+  // Deterministic-only turns stay quiet unless something failed.
   if (ctx.verifierModel !== "" || checks.failed) yield verifyEvent(overall, verdict, checks);
   yield finishDone(ctx, input.done);
 }

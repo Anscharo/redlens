@@ -5,24 +5,15 @@ import { MD_LINK_SRC } from "./citation-links.ts";
 import { normalizeForMatch } from "./match-normalize.ts";
 import { ABSENCE, isAttributionLine, isSelfAuthoredCallout, isSelfAuthorshipLeadIn } from "./quote-lead-in.ts";
 
-// Attribution is authoring, not quotation: models routinely close a blockquote
-// with "— [Title](/atlas/…)", so a trailing dash-led citation is cut and any
-// remaining markdown link collapses to its text before matching.
+// A trailing dash-led citation is attribution, so it is cut; other links collapse to their text.
 function stripQuoteDecoration(span: string): string {
   return span
-    // Trailing attribution, optionally followed by a doc_no: `— [Title](/atlas/x) (A.1.2.3)`
     .replace(new RegExp(String.raw`\s*[—–-]{1,2}\s*` + MD_LINK_SRC + String.raw`\s*(?:\([^)]*\))?\s*$`), "")
     .replace(new RegExp(MD_LINK_SRC, "g"), "$1");
 }
 
-// A quoted TERM the answer denies is a mention, not a quotation: `the atlas
-// does not contain an organization called "X"`. Such a term can never appear
-// in the evidence — its absence IS the claim — so demanding grounding fires
-// exactly when the model does the most honest thing available. Kept narrow: a
-// denial must sit within 40 chars of the quote with no clause break, and only
-// term-length spans qualify, so a long passage is always checked even under a
-// negation. The denial may sit before the quote or after it, but must be in
-// the same clause (no sentence/clause break between).
+// A quoted TERM the answer denies (`does not contain "X"`) is a mention: its
+// absence is the claim. Narrow: same clause, nearby, and term-length only.
 const DENIAL_BEFORE = new RegExp(ABSENCE + String.raw`[^.!?;:]{0,40}$`, "i");
 const DENIAL_AFTER = new RegExp(String.raw`^[^.!?;:]{0,80}?` + ABSENCE, "i");
 const MAX_DENIED_TERM = 60;
@@ -33,10 +24,8 @@ interface QuotedPair {
   end: number;
 }
 
-// Quote characters pair in document order: 1st opens, 2nd closes, 3rd opens…
-// Extracting with a single regex desyncs that pairing whenever a span is
-// skipped (a short term like "Delegate"), so the scan then captures the PROSE
-// BETWEEN two quoted terms as if it were quoted text. Pair first, filter after.
+// Pair first, filter after: a single regex desyncs pairing when a span is
+// skipped and captures the prose BETWEEN two quoted terms.
 function quotedPairs(line: string): QuotedPair[] {
   const marks: number[] = [];
   for (let i = 0; i < line.length; i++) if (line[i] === '"' || line[i] === "“" || line[i] === "”") marks.push(i);
@@ -47,39 +36,22 @@ function quotedPairs(line: string): QuotedPair[] {
   return out;
 }
 
-// A citation the model hung on the END of a blockquote line — one or more
-// `[text](/atlas/<uuid>)` links, or a bare uuid — is attribution, not quoted
-// text. Left in, the span ends with the link text or the id and can never match
-// the source, so a verbatim quote with `[<uuid>](/atlas/<uuid>)` appended would
-// hard-fail. Only the TAIL is stripped: a link mid-sentence may be part of the
-// quoted atlas text itself (atlas docs contain inline links) and still
-// collapses to its text.
+// Citations at the END of a blockquote line are attribution. Only the tail is
+// stripped: a mid-sentence link may be part of the quoted atlas text.
 const TRAILING_CITATIONS = /(?:\s*(?:\[[^\]]+\]\([^)\s]+\)|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))+\s*[.,;:]?\s*$/i;
 
-// `leadInSeed` is the lead-in already in force when this text begins — used by
-// the incremental pass, which checks ONE paragraph at a time and would otherwise
-// never see the line that introduced a blockquote (the lead-in and the block are
-// separate paragraphs, so they never arrive together). Without it the streaming
-// `paragraph_check` would report a callout the final whole-answer pass clears,
-// and the user would watch a finding appear and then vanish.
+// `leadInSeed` carries the lead-in into the per-paragraph pass, which would
+// otherwise flag a callout the final pass clears.
 export interface QuotedSpan {
   /** Normalized span text — the key every grounding check matches on. */
   text: string;
-  /**
-   * The line that introduced it: the last non-empty line above a blockquote
-   * block, or the prose before an inline quote's opening mark. This is where
-   * attribution is actually declared, so it is what decides whether an
-   * ungrounded span is a deterministic failure or a question for a model.
-   */
+  /** The line or prose that introduced it; decides tier A vs tier B. */
   leadIn: string;
 }
 
 function blockquoteSpans(answer: string, leadInSeed: string): QuotedSpan[] {
   const spans: QuotedSpan[] = [];
-  // `leadIn` is the last non-empty line ABOVE the current blockquote block. A
-  // blockquote line never updates it, so every line of a multi-line block shares
-  // the one lead-in that introduced the block, and a blank line between the two
-  // does not clear it.
+  // Every line of a multi-line block shares the lead-in above the block.
   let leadIn = leadInSeed;
   for (const line of answer.split("\n")) {
     const bq = line.match(/^\s*>\s?(.+)$/);
@@ -88,13 +60,8 @@ function blockquoteSpans(answer: string, leadInSeed: string): QuotedSpan[] {
       continue;
     }
     if (!isAttributionLine(bq[1]) && !isSelfAuthoredCallout(bq[1]) && !isSelfAuthorshipLeadIn(leadIn)) {
-      // The lead-in is the line ABOVE, and ONLY that. Appending the quoted line
-      // would let ASSERTION_VERB match words inside the span — a self-authored
-      // callout containing `required` plus a citation would become tier A, a
-      // deterministic hard failure that never reaches the model. A trailing
-      // `— [Title](/atlas/…)` on the block line is handled by isAttributionLine
-      // and TRAILING_CITATIONS; it is a citation without an assertion, which
-      // quote-lead-in.ts's own rule makes tier B anyway.
+      // The lead-in is ONLY the line above: including the span would let
+      // ASSERTION_VERB match words inside it and wrongly make it tier A.
       spans.push({ text: stripQuoteDecoration(bq[1].replace(TRAILING_CITATIONS, "")), leadIn });
     }
   }
@@ -109,36 +76,20 @@ function isExemptInlineQuote(q: QuotedPair, line: string): boolean {
   if (q.text.length <= MAX_DENIED_TERM && (DENIAL_BEFORE.test(beforeQuote) || DENIAL_AFTER.test(afterQuote))) {
     return true;
   }
-  // A quoted QUESTION is something the assistant is inviting the reader to
-  // ask, never a passage copied out of a rule document. Measured against
-  // the served atlas: 0 of 11,340 documents contain a quoted question of
-  // this length, so excluding them removes no real detection. An orientation
-  // answer ending "You can ask things like:" plus example questions would
-  // otherwise hard-fail on every one of them.
+  // A quoted QUESTION is an example for the reader to ask, never rule text.
   if (/\?["”']*\s*$/.test(q.text.trim())) return true;
-  // A list item whose ENTIRE content is one quoted string is an example or
-  // a suggestion, not an inline quotation. Real verbatim atlas text is a
-  // `>` blockquote (the system prompt reserves them for exactly that) or
-  // sits inside prose with an attribution — either way the line carries
-  // more than the quote itself.
+  // A list item that is ENTIRELY one quoted string is an example, not a quotation.
   return /^\s*[-*+]\s*$/.test(beforeQuote) && /^[.?!,;:]*\s*$/.test(afterQuote);
 }
 
 function inlineSpans(answer: string): QuotedSpan[] {
   const spans: QuotedSpan[] = [];
-  // Collapse markdown links to their text FIRST — a quote inside one link's
-  // title otherwise pairs with the quote in the next link's title, capturing
-  // the href and prose between them as a phantom "quote". Scanned per line
-  // because a real inline quotation never spans lines.
+  // Collapse links FIRST, or quotes in two link titles pair into a phantom span.
   const flat = answer.replace(new RegExp(MD_LINK_SRC, "g"), "$1");
   for (const line of flat.split("\n")) {
     for (const q of quotedPairs(line)) {
       if (isExemptInlineQuote(q, line)) continue;
-      // For an inline quote the lead-in is the prose BEFORE it on the same line
-      // (`The document states "…"`). What follows is deliberately excluded, for
-      // the same reason as the blockquote lead-in: `My own summary: "…" — which
-      // requires [A.2.1](/atlas/…)` is the opposite of an attribution, and
-      // reading the tail would class it tier A.
+      // Lead-in is the prose BEFORE the quote only, as for blockquotes.
       spans.push({ text: q.text, leadIn: line.slice(0, q.start) });
     }
   }
@@ -146,9 +97,7 @@ function inlineSpans(answer: string): QuotedSpan[] {
 }
 
 export function extractQuotedSpanRecords(answer: string, leadInSeed = ""): QuotedSpan[] {
-  // Dedupe on normalized text, keeping the FIRST occurrence's lead-in: a span
-  // repeated verbatim is one quotation, and the first place it appears is where
-  // the author said what it was.
+  // Dedupe on normalized text, keeping the FIRST occurrence's lead-in.
   const out: QuotedSpan[] = [];
   const seen = new Set<string>();
   for (const s of [...blockquoteSpans(answer, leadInSeed), ...inlineSpans(answer)]) {

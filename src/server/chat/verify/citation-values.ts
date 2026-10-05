@@ -1,19 +1,7 @@
-// A citation whose LINK TEXT is a value — a number, percentage, date, or
-// on-chain address — is the sharpest wrong-doc signal available in pure code.
-// A value cannot be paraphrased, so if the answer writes `[5%][spark-rate]` the
-// figure 5% must literally occur in the spark-rate doc; citing a doc that does
-// not contain it is misattribution, a HARD failure on the same reasoning as
-// `findUngroundedAddresses`. The escape hatch for "plainly computed" values
-// (a total the answer derives from cited parts, which lives in no single doc):
-// a value that appears in NO tool evidence at all is left to
-// `findUntracedNumbers` (soft) and never hard-failed here — only a value that
-// IS in this turn's evidence but NOT in the cited doc is flagged, which is
-// exactly a real figure attributed to the wrong document. Percentages and
-// decimals are examined even when small — unlike `findUntracedNumbers`'s ≤20
-// integer skip — because a bare `5%` is precisely the gap this closes.
-// Complements the per-citation Jev check (citation-marks.ts), which judges
-// prose sentences against the doc they cite; this scores citations whose text
-// IS the claim, in code, where an exact value match is better than a model.
+// A citation whose LINK TEXT is a value (number, percentage, date, address)
+// must literally occur in the cited doc. Only a value present in this turn's
+// evidence but absent from the cited doc hard-fails; a value in no evidence is
+// a computed one, left to `findUntracedNumbers`. Small percentages count too.
 import { UUID_RE, EVM_ADDRESS_SRC, SOL_ADDRESS_SRC, DOC_NO_CORE } from "../../../lib/patterns.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import { extractCitations } from "./citation-links.ts";

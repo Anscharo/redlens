@@ -1,24 +1,11 @@
-// The atlas worker's side steps, declared once. scripts/required/atlas-worker.mjs
-// owns the control flow (drift check, structural build, sync, publish, exit
-// codes); everything else it does is an entry here, run by one generic runner
-// per phase.
-//
+// The atlas worker's best-effort side steps; atlas-worker.mjs owns the control flow.
 // An entry is `{ id, phase, label?, skipWhenNoFetch?, run(ctx) }`:
-//   phase "tick" — every cron tick, BEFORE the drift check, sequentially, while
-//                  ctx.db is open. run() returns its log line (without the
-//                  "atlas-worker: " prefix). A throw is logged as
-//                  "<label> skipped — <message>" and the tick carries on.
-//                  skipWhenNoFetch, when set, is the line logged INSTEAD of
-//                  running under --no-fetch (the step needs the network).
-//   phase "tail" — after the heartbeat, all lanes in parallel; ctx.db is closed.
-//                  run() returns the child's promise. A rejection is logged as
-//                  "<id> reconcile error: <message>" and never fails the run.
-// Every step is best-effort; the fatal work is the worker's own.
-//
-// The ctx every step receives:
-//   { db, full, noFetch, env, runAsync(cmd, args, opts?), log(line), warn(line) }
-//
-// Add a step: a new file here (or a TAIL_LANES entry) plus one line below.
+//   "tick" — before the drift check, sequentially, ctx.db open; run() returns
+//            its log line; a throw is logged and the tick carries on.
+//            skipWhenNoFetch is the line logged instead under --no-fetch.
+//   "tail" — after the heartbeat, in parallel, ctx.db closed; run() returns
+//            the child's promise; a rejection never fails the run.
+// ctx: { db, full, noFetch, env, runAsync(cmd, args, opts?), log(line), warn(line) }
 import prState from "./pr-state.mjs";
 import chainState from "./chain-state.mjs";
 import balances from "./balances.mjs";

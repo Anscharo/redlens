@@ -1,9 +1,5 @@
-// ── Incremental (per-paragraph) deterministic checks ─────────────────────
-// Same checks the whole-answer pass runs, but per paragraph as it streams
-// (docs/chat-system.md §6). Reveal timing is unchanged — the answer still
-// reveals at `answer_final`; the full-text pass after `done` remains the
-// authority. When a per-paragraph refuter is configured, each closed
-// paragraph is also submitted to it (docs/chat-system.md §6.1).
+// Per-paragraph deterministic checks (and refuter) as the answer streams
+// (docs/chat-system.md §6); the full-text pass after `done` stays the authority.
 import type { Indexes } from "../../retrieval/indexes.ts";
 import { captureError, type ErrorContext } from "../../posthog-node.ts";
 import { isExternalMscTool } from "../../external/envelope.ts";

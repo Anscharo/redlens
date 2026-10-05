@@ -1,10 +1,6 @@
-// ── Streaming citation gate ───────────────────────────────────────────────
-// The same LinkJudge the post-answer repair pass uses, fed the same evidence
-// (history tool texts + this turn's rounds so far), applied to token events
-// so an invalid link is repaired/de-linkified BEFORE it reaches the client —
-// done.content then matches what streamed instead of swapping it. The judge
-// is rebuilt lazily after each tool round; a gate failure falls back to
-// emitting the link as written, with the post-answer pass as the safety net.
+// Streaming citation gate: the post-answer LinkJudge applied to tokens, so a
+// bad link is repaired before it streams. A gate failure emits the link as
+// written; the post-answer pass is the safety net.
 import type { Indexes } from "../../retrieval/indexes.ts";
 import { captureError, type ErrorContext } from "../../posthog-node.ts";
 import { createLinkJudge, displayText, repairDefinitionBlock, type LinkJudge } from "../verify/citation-repair.ts";

@@ -1,13 +1,6 @@
-// Quote attribution (verify/quote-attribution.ts): per ungrounded quoted span
-// whose lead-in does NOT already settle the matter in code, asks whether the
-// answer presents that span as wording taken from a source.
-//
-// In "shadow" (the shipped default) the judgements are RECORDED AND NOTHING
-// ELSE: `checks` is not touched, so severity, `failed` and the badge are
-// exactly what the deterministic checks said. The margin has never been
-// measured — see config.chatQuoteAttribution — and until it is, this lane
-// must not be able to move a verdict in either direction. In "gate" it clears
-// tier-B spans judged not to be quotation.
+// Quote attribution lane for tier-B spans. "shadow" (default) only records:
+// it must not move a verdict (see config.chatQuoteAttribution). "gate" clears
+// spans judged not to be quotation.
 import { config } from "../../config.ts";
 import { findUngroundedQuoteSpans, isFailed, type CheckReport } from "../verify/verify-checks.ts";
 import {
