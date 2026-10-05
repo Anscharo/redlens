@@ -18,6 +18,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { buildPreviewEmbeddings, bodySimilarity, realVectorDeps, type VectorDeps } from "./embeddings.ts";
+import { config } from "../config.ts";
+import { replaceMaxCosineFor } from "./identity-body.ts";
 import { detectIdentitySwaps, type FormerUuid, type IdentitySwap } from "./identity.ts";
 import type { Snapshot } from "./snapshot.ts";
 
@@ -53,8 +55,10 @@ export async function refineIdentity(outDir: string, jobs: RefineJob[], signal?:
   const vectors = await buildPreviewEmbeddings(outDir, deps, signal);
   if (!vectors) return;
   for (const job of jobs) {
-    const similarity = await bodySimilarity(job.reference, job.head, vectors);
-    const verdict: IdentityJson = detectIdentitySwaps({ changed: job.changed, added: job.added, mainById: job.reference, previewById: job.head, similarity });
+    // A model with no measured bar gives no similarity, so its bodies are judged by lines and words.
+    const maxCosine = replaceMaxCosineFor(config.embedModel);
+    const similarity = maxCosine === undefined ? undefined : await bodySimilarity(job.reference, job.head, vectors);
+    const verdict: IdentityJson = detectIdentitySwaps({ changed: job.changed, added: job.added, mainById: job.reference, previewById: job.head, similarity, maxCosine });
     // The bundle may have been evicted or rebuilt while the provider answered.
     if (signal?.aborted || !fs.existsSync(outDir)) return;
     for (const name of job.files) fs.writeFileSync(path.join(outDir, name), JSON.stringify(verdict));

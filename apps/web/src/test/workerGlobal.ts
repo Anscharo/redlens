@@ -112,9 +112,12 @@ export interface StubFetchOptions {
 }
 
 /**
- * Route the workers' artifact fetches. Keys are matched by URL suffix
- * (e.g. "search-index.json", "docs-shallow.json", "relations.json").
- * A string value is served as-is; anything else is JSON.stringify'd.
+ * Route the workers' fetches. Keys are matched by URL suffix, which is what an
+ * artifact name is ("search-index.json", "relations.json"). A key beginning
+ * with "/" is matched anywhere in the URL instead, so an API route can be
+ * stubbed by its PATH without the test having to know, or pin, the order of
+ * its query parameters. A string value is served as-is; anything else is
+ * JSON.stringify'd.
  */
 export function stubFetch(
   artifacts: Record<string, unknown>,
@@ -133,7 +136,7 @@ export function stubFetch(
         if (u.endsWith(suffix)) return new Response("fail", { status });
       }
       for (const [suffix, body] of Object.entries(artifacts)) {
-        if (u.endsWith(suffix)) {
+        if (suffix.startsWith("/") ? u.includes(suffix) : u.endsWith(suffix)) {
           const text = typeof body === "string" ? body : JSON.stringify(body);
           return new Response(text, { status: 200 });
         }

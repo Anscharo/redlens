@@ -11,8 +11,13 @@
 // themselves and restore the PINNED empty state (not ambient) in afterEach,
 // so the pin holds for every case that follows them.
 import { test, expect, describe, it, beforeAll, afterAll, afterEach } from "bun:test";
-import { rrfMerge, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, runLexical, attributeSemanticHits, residualQuery, filterByType, type Hit } from "./search.ts";
+import { rrfMerge, fuseBriefings, semanticScopeSql, embedFailureReason, SCOPED_SCAN_SETTING, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, runLexical, filterByType, type Hit } from "./search.ts";
+import { attributeSemanticHits, lexicalResidual, buildLeafScorer } from "./leaf-attribution.ts";
+import { fuseLeafScores, GROUP_ECHO_PENALTY, leafRuleFor, residualQuery, type LeafRow } from "./leaf-scores.ts";
+import { _clearQueryEmbedCache } from "./embed.ts";
+import { briefingHits } from "./briefings.ts";
 import { config } from "../config.ts";
+import { sql } from "../db.ts";
 import type { AtlasNode, Indexes } from "./indexes.ts";
 import { MINISEARCH_OPTIONS } from "../../lib/searchOptions.ts";
 import MiniSearch from "minisearch";
@@ -46,12 +51,17 @@ afterEach(() => {
   config.openrouterApiKey = ""; // back to the beforeAll pin, not ambient env
   config.semanticEmbedTimeoutMs = prevTimeout;
   globalThis.fetch = prevFetch;
+  // The query-embed LRU is PROCESS-wide. The one-round-trip tests below stub a
+  // successful embed, so without this they leave a vector cached for their query
+  // text and the next FILE's embed-timeout test never reaches the network to time
+  // out — which is how it failed once, a file away, with nothing to point at.
+  _clearQueryEmbedCache();
 });
 
 test("runSemantic returns skipped:null (no reason) when no API key is configured — permanent config state, not degradation", async () => {
   config.openrouterApiKey = "";
   const res = await runSemantic(ix, "governance", undefined, 5);
-  expect(res).toEqual({ hits: [], skipped: null });
+  expect(res).toEqual({ hits: [], briefingHits: [], skipped: null });
 });
 
 test("runSemantic reports a skip reason when the embed call times out", async () => {
@@ -73,6 +83,168 @@ test("runSemantic reports a skip reason when the embed call times out", async ()
 // zz-db-integration.test.ts ("a semantic-leg failure degrades to lexical-only
 // instead of failing the whole query" — pgvector rejects immediately, no
 // retry loop involved).
+
+// ── one round trip, not two ─────────────────────────────────────────────────
+//
+// Leaf attribution needs a SECOND query vector (the residual), and the cost of
+// an embed is the round trip, not the payload — 2.3s p50 for one text and the
+// same for two. So the residual rides in the query's own call, which is only
+// possible because its text comes from the LEXICAL leg (in-memory, available
+// before the embed) rather than from the semantic results.
+test("runSemantic embeds the query and the residual in ONE request, and hands both vectors back", async () => {
+  config.openrouterApiKey = "test-key";
+  config.semanticEmbedTimeoutMs = 5_000;
+  const bodies: unknown[] = [];
+  globalThis.fetch = ((_u: string, init: { body: string }) => {
+    bodies.push(JSON.parse(init.body));
+    const input = (JSON.parse(init.body) as { input: string[] }).input;
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({ data: input.map((_t, i) => ({ index: i, embedding: Array.from({ length: 1024 }, () => 0.03) })) }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+  }) as unknown as typeof fetch;
+
+  const res = await runSemantic(ix, "who approves rewards", undefined, 5, undefined, "approves rewards");
+  // ONE call, carrying BOTH texts — a second call here is the regression this
+  // test exists for.
+  expect(bodies).toHaveLength(1);
+  expect((bodies[0] as { input: string[] }).input).toHaveLength(2);
+  // pgvector is unreachable in this suite, so the leg degrades — and a degraded
+  // leg reports no vectors, because with no hits there is nothing to attribute.
+  expect(res.skipped).toBeTruthy();
+  expect(res.vecs).toBeUndefined();
+});
+
+test("runSemantic sends ONE text when the residual came back identical to the query", async () => {
+  // Nothing was left to strip. Embedding the same text twice would be paying for
+  // a vector we already have.
+  config.openrouterApiKey = "test-key";
+  config.semanticEmbedTimeoutMs = 5_000;
+  let inputs: string[] = [];
+  globalThis.fetch = ((_u: string, init: { body: string }) => {
+    inputs = (JSON.parse(init.body) as { input: string[] }).input;
+    return Promise.resolve(
+      new Response(JSON.stringify({ data: inputs.map((_t, i) => ({ index: i, embedding: Array.from({ length: 1024 }, () => 0.02) })) }), {
+        status: 200, headers: { "content-type": "application/json" },
+      }),
+    );
+  }) as unknown as typeof fetch;
+  await runSemantic(ix, "governance", undefined, 5, undefined, "governance");
+  expect(inputs).toHaveLength(1);
+});
+
+test("buildLeafScorer never embeds — so it cannot time out", async () => {
+  // The residual rides in the query's own call, so the scorer makes none of its
+  // own. Any fetch from here is a second call that should not exist.
+  let calls = 0;
+  globalThis.fetch = (() => { calls++; return Promise.reject(new Error("no")); }) as unknown as typeof fetch;
+  const grouped: Hit[] = [{ id: "g", rank: 0, score: 0.8, source: "semantic", memberIds: ["m1", "m2"] }];
+  const vecs = { query: Array.from({ length: 1024 }, () => 0.01), residual: Array.from({ length: 1024 }, () => 0.02) };
+  // pgvector is unreachable here, so this returns undefined (attribution falls
+  // back to the lexical pick) — without having gone near the network.
+  expect(await buildLeafScorer(grouped, vecs)).toBeUndefined();
+  expect(calls).toBe(0);
+});
+
+test("buildLeafScorer stands down when there is no residual vector, rather than guessing", async () => {
+  const grouped: Hit[] = [{ id: "g", rank: 0, score: 0.8, source: "semantic", memberIds: ["m1", "m2"] }];
+  expect(await buildLeafScorer(grouped, undefined)).toBeUndefined();
+  expect(await buildLeafScorer(grouped, { query: [0.1] })).toBeUndefined();
+});
+
+describe("fuseLeafScores", () => {
+  const row = (doc_id: string, anchor_id: string, residual_sim: number, query_sim: number, group_sim: number): LeafRow =>
+    ({ doc_id, anchor_id, residual_sim, query_sim, group_sim });
+
+  it("ranks within each group, not across them", () => {
+    // A crowded group's also-ran must not outrank a small group's best: choosing
+    // a leaf is a choice among THAT group's members.
+    const fused = fuseLeafScores([
+      row("big1", "A", 0.9, 0.9, 0.1), row("big2", "A", 0.8, 0.8, 0.1), row("big3", "A", 0.7, 0.7, 0.1),
+      row("small1", "B", 0.2, 0.2, 0.1), row("small2", "B", 0.1, 0.1, 0.1),
+    ]);
+    // Each group's top member gets the same top-rank score.
+    expect(fused.get("big1")).toBeCloseTo(fused.get("small1")!, 12);
+    expect(fused.get("big1")!).toBeGreaterThan(fused.get("big2")!);
+    expect(fused.get("small1")!).toBeGreaterThan(fused.get("small2")!);
+  });
+
+  it("demotes the member that merely echoes its group's name", () => {
+    // The real shape of the case the residual exists for: a member that repeats
+    // the instance name matches the QUERY as well as the one that answers it
+    // (the query contains that name), but less well the RESIDUAL (which has the
+    // name stripped), and it sits far closer to its own anchor. Both rankings
+    // then agree, and fusion keeps the answer.
+    const fused = fuseLeafScores([
+      row("echo", "A", 0.40, 0.80, 0.95),
+      row("answer", "A", 0.55, 0.78, 0.10),
+    ]);
+    expect(fused.get("answer")!).toBeGreaterThan(fused.get("echo")!);
+  });
+
+  it("lets the residual ranking carry a member the echo term would not pick", () => {
+    // The two rankings disagree; fusion keeps the one both rate highest overall.
+    const fused = fuseLeafScores([
+      row("byResidual", "A", 0.90, 0.10, 0.10),
+      row("byEcho", "A", 0.10, 0.90, 0.10),
+      row("neither", "A", 0.05, 0.05, 0.90),
+    ]);
+    expect(fused.get("neither")!).toBeLessThan(fused.get("byResidual")!);
+    expect(fused.get("neither")!).toBeLessThan(fused.get("byEcho")!);
+  });
+
+  it("reads Postgres numerics that arrive as strings", () => {
+    // pgvector arithmetic can come back as a string; Number() around every term
+    // is what keeps the ordering from becoming lexicographic.
+    const fused = fuseLeafScores([
+      { doc_id: "a", anchor_id: "A", residual_sim: "0.9" as never, query_sim: "0.9" as never, group_sim: "0.1" as never },
+      { doc_id: "b", anchor_id: "A", residual_sim: "0.10" as never, query_sim: "0.10" as never, group_sim: "0.1" as never },
+    ]);
+    expect(fused.get("a")!).toBeGreaterThan(fused.get("b")!);
+  });
+
+  it("ranks by the residual alone under the residual rule, which gemini-embedding-2 uses", () => {
+    const rows = [row("byResidual", "A", 0.9, 0.1, 0.1), row("byEcho", "A", 0.1, 0.9, 0.1)];
+    expect(leafRuleFor("google/gemini-embedding-2")).toEqual({ rankings: "residual" });
+    const fused = fuseLeafScores(rows, leafRuleFor("google/gemini-embedding-2"));
+    expect(fused.get("byResidual")!).toBeGreaterThan(fused.get("byEcho")!);
+    // A model with no rule of its own fuses both, and the two tie here.
+    const both = fuseLeafScores(rows, leafRuleFor("qwen/qwen3-embedding-8b"));
+    expect(both.get("byResidual")).toBeCloseTo(both.get("byEcho")!, 12);
+  });
+
+  it("keeps the penalty a documented constant rather than a magic number", () => {
+    expect(GROUP_ECHO_PENALTY).toBe(0.25);
+  });
+});
+
+describe("lexicalResidual", () => {
+  const docMap = new Map([
+    ["a", { title: "Fluid sUSDS ERC4626 Vault" }],
+    ["b", { title: "Network" }],
+  ]) as unknown as Parameters<typeof lexicalResidual>[2];
+
+  it("strips the words the lexical leg's own titles already explain", () => {
+    const lex: Hit[] = [
+      { id: "a", rank: 0, score: 1, source: "lexical" },
+      { id: "b", rank: 1, score: 1, source: "lexical" },
+    ];
+    // "which chain is the Fluid sUSDS vault on" keeps only what discriminates
+    // INSIDE the group; the instance name is carried by every member.
+    expect(lexicalResidual("what network is the Fluid sUSDS vault on", lex, docMap)).toBe("what is the on");
+  });
+
+  it("keeps the whole query when the titles would strip everything", () => {
+    const lex: Hit[] = [{ id: "b", rank: 0, score: 1, source: "lexical" }];
+    expect(lexicalResidual("network", lex, docMap)).toBe("network");
+  });
+
+  it("is empty-safe when the lexical leg found nothing", () => {
+    expect(lexicalResidual("who approves rewards", [], docMap)).toBe("who approves rewards");
+  });
+});
 
 test("withTimeout resolves when the promise beats the deadline", async () => {
   const v = await withTimeout(Promise.resolve(42), 1000, "x");
@@ -290,5 +462,230 @@ describe("runLexical inflection", () => {
   it("does not expand USDS", () => {
     const ix = lexicalIx([{ id: "a", title: "Token", content: "USDS savings" }]);
     expect(runLexical(ix, "USDS", undefined, 10).map((h) => h.id)).toEqual(["a"]);
+  });
+});
+
+describe("semanticScopeSql", () => {
+  it("is empty without a scope, so the unscoped statement is byte-identical to before", () => {
+    expect(semanticScopeSql(undefined)).toBe("");
+    expect(semanticScopeSql("")).toBe("");
+  });
+
+  it("binds $3 rather than interpolating the scope into the statement", () => {
+    const clause = semanticScopeSql("A.6.1'; DROP TABLE atlas_doc_meta; --");
+    expect(clause).not.toContain("DROP TABLE");
+    expect(clause).toContain("$3");
+  });
+
+  it("covers the anchor being the scope, inside it, or an ancestor of it", () => {
+    // The SQL twin of anchorCouldServeScope — a grouped anchor above the scope
+    // carries the leaves inside it, so dropping those would empty the result.
+    const clause = semanticScopeSql("A.6.1");
+    expect(clause).toContain("upper(m.doc_no) = upper($3)");
+    expect(clause).toContain("upper(m.doc_no) LIKE upper($3) || '.%'");
+    expect(clause).toContain("upper($3) LIKE upper(m.doc_no) || '.%'");
+  });
+
+  it("compares case-insensitively, like its `inScope` twin", () => {
+    // Three doc numbers in the current atlas end in a lowercase `.var1`
+    // (Scenario Variations). Comparing an upper-cased scope against a raw
+    // m.doc_no made `in:…​.var1` match nothing and the lane answer empty with
+    // no reason — a silent miss, the worst shape a filter bug can take.
+    const clause = semanticScopeSql("A.1.5.5.0.4.1.1.1.VAR1");
+    expect(clause).not.toMatch(/[^(]m\.doc_no/); // never a bare column side
+    expect(clause.match(/upper\(m\.doc_no\)/g)).toHaveLength(3);
+  });
+
+  it("appends the dot on every comparison, so A.2 cannot match A.22", () => {
+    const clause = semanticScopeSql("A.2");
+    // No bare-prefix LIKE anywhere: every LIKE operand carries the separator.
+    expect(clause).not.toMatch(/LIKE upper\(\$3\) \|\| '%'/);
+    expect(clause.match(/\|\| '\.%'/g)).toHaveLength(2);
+  });
+
+  it("runs a scoped statement under an exact scan, inside its own transaction", () => {
+    // An HNSW scan finds ef_search (40) global neighbours and THEN filters them:
+    // `in:A.6` with LIMIT 40 returns 3 rows through the index and 40 with the
+    // index scan disabled. The setting must be SET LOCAL so the pooled
+    // connection does not carry it into the next, unscoped query.
+    expect(SCOPED_SCAN_SETTING).toMatch(/^SET LOCAL /);
+    const src = fs.readFileSync(path.join(import.meta.dir, "./search.ts"), "utf8");
+    expect(src).toContain("tx.unsafe(SCOPED_SCAN_SETTING)");
+    expect(src).toContain("tx.unsafe(stmt, [lit, overFetch, scope])");
+  });
+});
+
+// ─── embed failure reporting ────────────────────────────────────────────────
+// The retry backoff (1+2+4+8 = 15s) outlives every caller's budget, so a plain
+// provider error loses the race to the 10s timeout and reached the UI as "embed
+// timed out". These pin the cause surviving that race.
+
+describe("embedFailureReason", () => {
+  it("reports the raced error alone when the provider never spoke", () => {
+    expect(embedFailureReason(new Error("embed timed out after 10000ms"), {})).toBe(
+      "embed timed out after 10000ms",
+    );
+  });
+
+  it("adds what the provider actually said to a timeout", () => {
+    const reason = embedFailureReason(new Error("embed timed out after 10000ms"), {
+      lastError: "embeddings 401: invalid api key",
+    });
+    // A reader seeing only the stopwatch would think the internet was slow.
+    expect(reason).toContain("embed timed out after 10000ms");
+    expect(reason).toContain("embeddings 401: invalid api key");
+  });
+
+  it("does not repeat itself when the raced error IS the provider's", () => {
+    const same = "embeddings 429: rate limited";
+    expect(embedFailureReason(new Error(same), { lastError: same })).toBe(same);
+  });
+
+  it("bounds the provider's body — this lands in a one-line status", () => {
+    const reason = embedFailureReason(new Error("embed timed out after 10000ms"), {
+      lastError: `embeddings 500: ${"x".repeat(400)}`,
+    });
+    expect(reason.length).toBeLessThan(220);
+    expect(reason).toContain("…");
+  });
+
+  it("survives a non-Error rejection", () => {
+    expect(embedFailureReason("plain string", {})).toBe("plain string");
+  });
+});
+
+// ── briefings: the second ranking ────────────────────────────────────────────
+describe("fuseBriefings", () => {
+  const leaf = (id: string, rank: number, score: number): Hit => ({ id, rank, score, source: "semantic", via: { group_id: "g", group_title: "G", match_scope: "child" } });
+  const brief = (id: string, rank: number, score: number): Hit => ({ id, rank, score, source: "briefing" });
+
+  it("returns the leaves unchanged when there are no briefings", () => {
+    const leaves = [leaf("a", 0, 0.9), leaf("b", 1, 0.8)];
+    expect(fuseBriefings(leaves, [])).toEqual(leaves);
+  });
+
+  it("adds a briefing-only hit, marked as such, with its own cosine", () => {
+    const out = fuseBriefings([leaf("a", 0, 0.9)], [brief("z", 0, 0.41)]);
+    const z = out.find((h) => h.id === "z")!;
+    expect(z.source).toBe("briefing");
+    expect(z.score).toBe(0.41);
+    expect(z.memberIds).toBeUndefined();
+  });
+
+  it("keeps the semantic source, score and via for an id in both lists", () => {
+    const out = fuseBriefings([leaf("a", 0, 0.9), leaf("b", 1, 0.8)], [brief("b", 0, 0.5)]);
+    const b = out.find((h) => h.id === "b")!;
+    expect(b.source).toBe("semantic");
+    expect(b.score).toBe(0.8);
+    expect(b.via?.match_scope).toBe("child");
+  });
+
+  it("orders by fused score and numbers the ranks by position", () => {
+    // b is rank 1 in leaves and rank 0 in briefings, so it passes a.
+    const out = fuseBriefings([leaf("a", 0, 0.9), leaf("b", 1, 0.8)], [brief("b", 0, 0.5), brief("c", 1, 0.4)]);
+    expect(out.map((h) => h.id)).toEqual(["b", "a", "c"]);
+    expect(out.map((h) => h.rank)).toEqual([0, 1, 2]);
+  });
+});
+
+describe("briefingHits", () => {
+  it("cuts at the relevance floor and numbers the kept rows", () => {
+    const floor = config.semanticMinScore;
+    const out = briefingHits([{ id: "a", score: floor + 0.2 }, { id: "b", score: String(floor) }, { id: "c", score: floor - 0.01 }]);
+    expect(out.map((h) => [h.id, h.rank, h.source])).toEqual([["a", 0, "briefing"], ["b", 1, "briefing"]]);
+    expect(typeof out[1]!.score).toBe("number");
+  });
+
+  it("returns nothing when the nearest row is under the floor", () => {
+    expect(briefingHits([{ id: "a", score: config.semanticMinScore - 0.01 }])).toEqual([]);
+  });
+});
+
+describe("rrfMerge with a briefing list", () => {
+  const lex: Hit[] = [{ id: "a", rank: 0, score: 9, source: "lexical" }, { id: "b", rank: 1, score: 8, source: "lexical" }];
+  const sem: Hit[] = [{ id: "b", rank: 0, score: 0.9, source: "semantic" }];
+
+  it("is identical with an empty or omitted third list", () => {
+    expect(rrfMerge(lex, sem, [])).toEqual(rrfMerge(lex, sem));
+  });
+
+  it("fuses all three lists in one stage", () => {
+    const merged = rrfMerge(lex, sem, [{ id: "c", rank: 0, score: 0.3, source: "briefing" }, { id: "a", rank: 1, score: 0.2, source: "briefing" }]);
+    expect(merged.map((m) => m.id).sort()).toEqual(["a", "b", "c"]);
+    expect(merged.find((m) => m.id === "c")!.sources).toEqual(["briefing"]);
+    expect(merged.find((m) => m.id === "a")!.sources.sort()).toEqual(["briefing", "lexical"]);
+    const base = rrfMerge(lex, sem).find((m) => m.id === "a")!.rrf_score;
+    expect(merged.find((m) => m.id === "a")!.rrf_score).toBeGreaterThan(base);
+  });
+});
+
+// Assigned, not spied: once an earlier test file has `mock.module`d db.ts, `sql`
+// is that file's stub and `spyOn(sql, "unsafe")` has nothing to wrap — the
+// statement then fails for the wrong reason. A plain property assignment works
+// on the real client and on any stub alike.
+function stubUnsafe(impl: (text: string) => Promise<unknown>): () => void {
+  const target = sql as unknown as { unsafe?: unknown };
+  const had = Object.prototype.hasOwnProperty.call(target, "unsafe");
+  const prev = target.unsafe;
+  target.unsafe = impl;
+  return () => {
+    if (had) target.unsafe = prev;
+    else delete target.unsafe;
+  };
+}
+
+describe("runSemantic briefing statement", () => {
+  it("a failing briefing statement leaves the unit hits and returns no briefing hits", async () => {
+    config.openrouterApiKey = "test-key";
+    config.semanticEmbedTimeoutMs = 5_000;
+    globalThis.fetch = ((_u: string, init: { body: string }) => {
+      const input = (JSON.parse(init.body) as { input: string[] }).input;
+      return Promise.resolve(
+        new Response(JSON.stringify({ data: input.map((_t, i) => ({ index: i, embedding: Array.from({ length: 1024 }, () => 0.01) })) }), {
+          status: 200, headers: { "content-type": "application/json" },
+        }),
+      );
+    }) as unknown as typeof fetch;
+    const restore = stubUnsafe((text) => {
+      if (text.includes("atlas_doc_briefings")) return Promise.reject(new Error('relation "atlas_doc_briefings" does not exist'));
+      return Promise.resolve([{ id: "u1", type: "Core", score: 0.8, member_ids: null }]);
+    });
+    try {
+      const res = await runSemantic(ix, "briefing failure query", undefined, 5);
+      expect(res.skipped).toBeNull();
+      expect(res.hits.map((h) => h.id)).toEqual(["u1"]);
+      expect(res.briefingHits).toEqual([]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("returns briefing hits above the floor, ranked by position, when the statement answers", async () => {
+    config.openrouterApiKey = "test-key";
+    config.semanticEmbedTimeoutMs = 5_000;
+    globalThis.fetch = ((_u: string, init: { body: string }) => {
+      const input = (JSON.parse(init.body) as { input: string[] }).input;
+      return Promise.resolve(
+        new Response(JSON.stringify({ data: input.map((_t, i) => ({ index: i, embedding: Array.from({ length: 1024 }, () => 0.01) })) }), {
+          status: 200, headers: { "content-type": "application/json" },
+        }),
+      );
+    }) as unknown as typeof fetch;
+    const restore = stubUnsafe((text) =>
+      Promise.resolve(
+        text.includes("atlas_doc_briefings")
+          ? [{ id: "b1", score: 0.92 }, { id: "b2", score: 0.9 }, { id: "b3", score: 0.01 }]
+          : [],
+      ),
+    );
+    try {
+      const res = await runSemantic(ix, "briefing ok query", undefined, 5);
+      expect(res.briefingHits).toEqual([
+        { id: "b1", rank: 0, score: 0.92, source: "briefing" },
+        { id: "b2", rank: 1, score: 0.9, source: "briefing" },
+      ]);
+    } finally {
+      restore();
+    }
   });
 });

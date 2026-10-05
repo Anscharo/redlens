@@ -12,13 +12,30 @@
 // gracefully to an empty/"not found" result with no rows (proven by
 // tools-history.test.ts's pure summarizeHistoryStats tests), so this is about
 // exercising the handler wiring, not re-testing DB query logic.
-import { test, expect, mock, beforeEach } from "bun:test";
+import { test, expect, mock, beforeEach, beforeAll, afterAll } from "bun:test";
+import { config } from "../../config.ts";
 import { z } from "zod";
 import { toUuidArrayLiteral, fromUuidArray } from "../../pg-array.ts";
 import { ATLAS_TOOLS, TOOLS_BY_NAME, invokeTool, omitEmptyArgs, toolDescription, type AtlasTool } from "./tool-registry.ts";
 import { execToolDetailed, CHAT_TOOLS } from "./llm-tools.ts";
 import { buildIndexes, type AtlasNode, type Entity, type Edge, type Indexes } from "../../retrieval/indexes.ts";
 import { REPORT_CHAT_TOOLS } from "../../../lib/routes.ts";
+
+// The semantic leg is inert only while `config.openrouterApiKey` is falsy, and
+// leaving that to ambient env is a trap: bun auto-loads `.env.local`, and this
+// repo's containers now inject OPENROUTER_API_KEY, so every keyless assertion
+// below silently became a LIVE embedding request — four retries with 1s/2s/4s/8s
+// of real sleep, which blows the 5s test timeout rather than failing honestly.
+// Pinned here the same way src/server/retrieval/search.test.ts pins it.
+let prevOpenRouterKey: string;
+beforeAll(() => {
+  prevOpenRouterKey = config.openrouterApiKey;
+  config.openrouterApiKey = "";
+});
+afterAll(() => {
+  config.openrouterApiKey = prevOpenRouterKey;
+});
+
 
 function mockDb(rows: unknown[] = []) {
   const fn = Object.assign(

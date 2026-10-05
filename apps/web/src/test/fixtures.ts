@@ -8,6 +8,7 @@ import type { AtlasBundle } from "../lib/docs";
 import type { EdgeResult, GraphData } from "../lib/graph";
 import type { GlossaryEntry } from "../lib/glossary";
 import type { FlatEntry, LoadedData } from "@/lib/atlasHelpers";
+import type { SearchState } from "../hooks/useSearch";
 
 // Not reset between tests on purpose: generated UUIDs are only ever compared to
 // themselves (a node's own id), never to a hardcoded value, so monotonic is fine.
@@ -80,6 +81,27 @@ export function makeLoadedData(overrides: Partial<LoadedData> = {}): LoadedData 
     chainState: null,
     glossary: null,
     complete: true,
+    ...overrides,
+  };
+}
+
+/**
+ * A settled ("done") search state. Prefer this over an inline object literal:
+ * the shape grew `lane` and `semantic` when the semantic search lane landed, and
+ * a helper means the next field to arrive is one edit, not twelve.
+ */
+export function makeSearchState(
+  overrides: Partial<Extract<SearchState, { status: "done" }>> = {},
+): SearchState {
+  return {
+    status: "done",
+    hits: [],
+    durationMs: 1,
+    query: "vat",
+    lane: "lexical",
+    // No semantic leg ran — what every deployment without an embedding key,
+    // and every already-answered query under the fallback strategy, produces.
+    semantic: "none",
     ...overrides,
   };
 }

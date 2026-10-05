@@ -1,0 +1,356 @@
+[
+ {
+  "style": "questions",
+  "id": "dis-6",
+  "slice": "icd-disambiguation",
+  "query": "what asset does Ethereum Mainnet - SparkLend USDS use",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "65988a53-f492-49b6-b693-6e98f82b2c29"
+  ]
+ },
+ {
+  "style": "questions",
+  "id": "dis-8",
+  "slice": "icd-disambiguation",
+  "query": "what asset does Ethereum Mainnet - Morpho USDT use",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "46ea2f39-26c6-4ac4-9ee7-baf921d8e86e"
+  ]
+ },
+ {
+  "style": "questions",
+  "id": "dis-28",
+  "slice": "icd-disambiguation",
+  "query": "contract for the asset Ethereum Mainnet - Morpho Grove x Steakhouse High Yield Vault USDC issues",
+  "winner": "sonnet",
+  "found_without_briefings": false,
+  "targets": [
+   "dcdff78c-809f-4ec8-80a2-36c124ca9ae8"
+  ]
+ },
+ {
+  "style": "questions",
+  "id": "dis-30",
+  "slice": "icd-disambiguation",
+  "query": "what token contract backs Ethereum Mainnet - SparkLend USDS",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "aeb1bcc7-1214-4544-b686-687d1bb2fa70"
+  ]
+ },
+ {
+  "style": "questions",
+  "id": "dis-32",
+  "slice": "icd-disambiguation",
+  "query": "what token contract backs Avalanche - Aave v3 USDC Vault",
+  "winner": "sonnet",
+  "found_without_briefings": false,
+  "targets": [
+   "494409b0-468f-4abb-b634-9f26d02f2bbe"
+  ]
+ },
+ {
+  "style": "questions",
+  "id": "dis-34",
+  "slice": "icd-disambiguation",
+  "query": "what token contract backs Ethereum Mainnet - Grove x Steakhouse USDC Morpho Vault v2",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "76adcd24-8473-4e8e-a42c-0c7583e13936"
+  ]
+ },
+ {
+  "style": "questions",
+  "id": "dis-37",
+  "slice": "icd-disambiguation",
+  "query": "how are transfer limits identified for Ethereum Mainnet - Curve rlUSD/USDC for Swaps",
+  "winner": "sonnet",
+  "found_without_briefings": false,
+  "targets": [
+   "d319be68-9f32-47be-a74c-cf9c79821027"
+  ]
+ },
+ {
+  "style": "questions",
+  "id": "dis-38",
+  "slice": "icd-disambiguation",
+  "query": "how are transfer limits identified for Ethereum Mainnet - Uniswap v4 rlUSD/USDS Pool",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "a469565c-8521-4e00-822c-9539530fa320"
+  ]
+ },
+ {
+  "style": "questions",
+  "id": "param-7",
+  "slice": "icd-param",
+  "query": "what is the cap on how much can leave Ethereum Mainnet - SparkLend USDG",
+  "winner": "sonnet",
+  "found_without_briefings": false,
+  "targets": [
+   "6045e7e1-1341-4fb2-8868-927a3414c8b8"
+  ]
+ },
+ {
+  "style": "questions",
+  "id": "param-10",
+  "slice": "icd-param",
+  "query": "how are transfer limits identified for Ethereum Mainnet - SparkLend ETH",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "27e77ee3-b59b-4c8b-a729-741627952fb3"
+  ]
+ },
+ {
+  "style": "questions",
+  "id": "param-11",
+  "slice": "icd-param",
+  "query": "what token contract backs Ethereum Mainnet - Curve sUSDS/USDT Pool",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "2957563b-3948-40b3-a247-15c6ddd41b03"
+  ]
+ },
+ {
+  "style": "questions",
+  "id": "param-14",
+  "slice": "icd-param",
+  "query": "how quickly does Ethereum Mainnet - Curve rlUSD/USDC for Swaps replenish its allowance",
+  "winner": "sonnet",
+  "found_without_briefings": false,
+  "targets": [
+   "ff055884-4518-41ae-a320-dd7293147a37"
+  ]
+ },
+ {
+  "style": "questions",
+  "id": "hub-13",
+  "slice": "hub",
+  "query": "what does the Spark Allocation System Primitive hub keep track of",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "845ef31b-7b6e-4407-87ad-a5a4c8bce049",
+   "f7a32d78-dabc-406e-a822-0a337a03b3e2",
+   "20e0bc23-8a73-4ea3-b626-56f6286aded9",
+   "1df4d054-4443-4c64-b34b-c9fce456276b",
+   "73a22cb8-06cd-4324-b0fe-f37bf538f7a9",
+   "143d1560-f068-4f83-9b50-c5e80fc9ec21"
+  ]
+ },
+ {
+  "style": "questions",
+  "id": "kv-5",
+  "slice": "kv-record",
+  "query": "what does Spark Ethereum Mainnet specify",
+  "winner": "sonnet",
+  "found_without_briefings": true,
+  "targets": [
+   "834b9f4a-a39f-4b1f-95d9-d841fabfa7a2",
+   "3546c2d3-7b7c-4446-aa16-ff357c1a7a0f",
+   "d7b0b6a0-0bac-4169-a006-4a375cba4baa",
+   "8d6c5c86-4b70-4115-b712-65106416aa77",
+   "f8958f39-6893-471a-bfd0-f72cb0aa0e4c",
+   "a29a6751-4809-446c-a659-0dd93ca40379",
+   "3d7c06c5-18ab-4c30-82f1-4de153e2bc76",
+   "a937f2e1-5f17-4c60-b007-fef5a7f00f5b",
+   "5879057d-df2d-4f23-8927-9c6e5160edd2"
+  ]
+ },
+ {
+  "style": "questions",
+  "id": "kv-17",
+  "slice": "kv-record",
+  "query": "is Keel Primitive Hub Document live yet",
+  "winner": "sonnet",
+  "found_without_briefings": false,
+  "targets": [
+   "c6ee2c59-96cd-464c-9c38-7b177739ab25"
+  ]
+ },
+ {
+  "style": "questions",
+  "id": "kv-22",
+  "slice": "kv-record",
+  "query": "which chain does Grove Instance Identifiers run on",
+  "winner": "sonnet",
+  "found_without_briefings": false,
+  "targets": [
+   "2c0d8ede-45bc-4e75-8931-5ddfccf24a02"
+  ]
+ },
+ {
+  "style": "questions",
+  "id": "kv-23",
+  "slice": "kv-record",
+  "query": "which chain does Keel Instance Identifiers run on",
+  "winner": "sonnet",
+  "found_without_briefings": false,
+  "targets": [
+   "32e1e642-91bd-4f67-b271-771f32da87d9"
+  ]
+ },
+ {
+  "style": "keywords",
+  "id": "dis-6",
+  "slice": "icd-disambiguation",
+  "query": "asset ethereum mainnet - sparklend usds use",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "65988a53-f492-49b6-b693-6e98f82b2c29"
+  ]
+ },
+ {
+  "style": "keywords",
+  "id": "dis-24",
+  "slice": "icd-disambiguation",
+  "query": "contract asset ethereum mainnet - sparklend usds issues",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "a8171359-d11e-4014-bd9b-ef19712e556d"
+  ]
+ },
+ {
+  "style": "keywords",
+  "id": "dis-28",
+  "slice": "icd-disambiguation",
+  "query": "contract asset ethereum mainnet - morpho grove x steakhouse high yield vault usdc issues",
+  "winner": "sonnet",
+  "found_without_briefings": false,
+  "targets": [
+   "dcdff78c-809f-4ec8-80a2-36c124ca9ae8"
+  ]
+ },
+ {
+  "style": "keywords",
+  "id": "dis-29",
+  "slice": "icd-disambiguation",
+  "query": "contract asset base - grove x steakhouse usdc morpho vault v2 issues",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "9a233643-f07d-49d6-ab84-3d9fc7281c1c"
+  ]
+ },
+ {
+  "style": "keywords",
+  "id": "dis-30",
+  "slice": "icd-disambiguation",
+  "query": "token contract backs ethereum mainnet - sparklend usds",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "aeb1bcc7-1214-4544-b686-687d1bb2fa70"
+  ]
+ },
+ {
+  "style": "keywords",
+  "id": "dis-33",
+  "slice": "icd-disambiguation",
+  "query": "token contract backs ethereum mainnet - centrifuge jtrsy",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "fbe40152-f7e6-4a4e-87ed-4e419687e40d"
+  ]
+ },
+ {
+  "style": "keywords",
+  "id": "dis-34",
+  "slice": "icd-disambiguation",
+  "query": "token contract backs ethereum mainnet - grove x steakhouse usdc morpho vault v2",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "76adcd24-8473-4e8e-a42c-0c7583e13936"
+  ]
+ },
+ {
+  "style": "keywords",
+  "id": "dis-35",
+  "slice": "icd-disambiguation",
+  "query": "token contract backs base - grove x steakhouse usdc morpho vault v2",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "a911bdd4-e5e8-47c7-81e6-f4b7600dc1c4"
+  ]
+ },
+ {
+  "style": "keywords",
+  "id": "dis-38",
+  "slice": "icd-disambiguation",
+  "query": "transfer limits identified ethereum mainnet - uniswap v4 rlusd/usds pool",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "a469565c-8521-4e00-822c-9539530fa320"
+  ]
+ },
+ {
+  "style": "keywords",
+  "id": "param-0",
+  "slice": "icd-param",
+  "query": "chain ethereum mainnet - spark blue chip usdt vault",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "80f7fecc-cfbf-4f86-878e-23298f9d8f44"
+  ]
+ },
+ {
+  "style": "keywords",
+  "id": "param-8",
+  "slice": "icd-param",
+  "query": "ethereum mainnet - spark blue chip usdt vault recover outgoing allowance",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "779c6c99-f620-4bd0-b261-7d36b6d503b7"
+  ]
+ },
+ {
+  "style": "keywords",
+  "id": "param-14",
+  "slice": "icd-param",
+  "query": "ethereum mainnet - curve rlusd/usdc swaps replenish allowance",
+  "winner": "sonnet",
+  "found_without_briefings": false,
+  "targets": [
+   "ff055884-4518-41ae-a320-dd7293147a37"
+  ]
+ },
+ {
+  "style": "keywords",
+  "id": "kv-17",
+  "slice": "kv-record",
+  "query": "keel primitive hub document live yet",
+  "winner": "sonnet",
+  "found_without_briefings": false,
+  "targets": [
+   "c6ee2c59-96cd-464c-9c38-7b177739ab25"
+  ]
+ },
+ {
+  "style": "keywords",
+  "id": "ctrl-33",
+  "slice": "control",
+  "query": "core council’s broad discretionary capacity",
+  "winner": "gemini",
+  "found_without_briefings": false,
+  "targets": [
+   "f18229fe-fbc3-4dc8-ad84-4bca2915f6c4"
+  ]
+ }
+]

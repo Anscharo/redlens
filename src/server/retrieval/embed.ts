@@ -30,12 +30,30 @@ function sliceNormalize(vec: number[], dim: number): number[] {
 // `signal` lets a caller cancel the request AND its retry loop (the query path
 // races it against a timeout — see search.ts). Without it a timed-out embed
 // would keep fetching/retrying against OpenRouter in the background for ~15s.
+/**
+ * Somewhere to record what the provider ACTUALLY said, so a caller racing this
+ * against a deadline can report the cause instead of the stopwatch.
+ *
+ * The retry schedule sleeps 1+2+4+8 = 15s, which outlives every caller's
+ * budget (`semanticEmbedTimeoutMs` is 10s). So a plain 403, 429 or 500 fails on
+ * the first attempt, disappears into the backoff, and the timeout fires first —
+ * the caller's `Promise.race` settles on "timed out" and the real error is
+ * discarded with the abandoned promise. That made "embed timed out after
+ * 10000ms" the one message the UI could show and the one least likely to be
+ * true. Recorded here, it survives the race.
+ */
+export interface EmbedDiag {
+  /** The last error the provider itself returned, across all attempts. */
+  lastError?: string;
+}
+
 // `surface` is only the PostHog label (embed-query from embedQuery, else the
 // generic embed-batch) so query-time and sync-time embedding spend separate.
 export async function embedBatch(
   texts: string[],
   signal?: AbortSignal,
   attempt = 0,
+  diag?: EmbedDiag,
   surface = "embed-batch",
 ): Promise<number[][]> {
   if (!config.openrouterApiKey) throw new Error("OPENROUTER_API_KEY is not set");
@@ -71,6 +89,9 @@ export async function embedBatch(
     });
     return out;
   } catch (err) {
+    // Recorded BEFORE the give-up checks, so the cause survives however this
+    // attempt ends — including the abort a racing timeout triggers.
+    if (diag) diag.lastError = (err as Error).message;
     // Aborted (caller gave up / timed out) or out of retries → stop now; don't
     // sleep+retry against a request nobody is waiting for.
     if (signal?.aborted || attempt >= 4) throw err;
@@ -78,7 +99,7 @@ export async function embedBatch(
     console.warn(`  embed retry ${attempt + 1} in ${wait}ms: ${(err as Error).message}`);
     await Bun.sleep(wait);
     if (signal?.aborted) throw err;
-    return embedBatch(texts, signal, attempt + 1, surface);
+    return embedBatch(texts, signal, attempt + 1, diag, surface);
   }
 }
 
@@ -99,11 +120,73 @@ export function _clearQueryEmbedCache(): void {
   queryEmbedCache.clear();
 }
 
-export async function embedQuery(text: string, signal?: AbortSignal): Promise<number[]> {
+/**
+ * Embed a QUERY — the asymmetric half of the pair.
+ *
+ * `config.embedQueryPrefix` is applied here and NOWHERE else: documents are
+ * embedded raw by sync-embeddings.ts, which is exactly what an instruct-tuned
+ * embedding model asks for. Applying it to documents too would collapse the
+ * asymmetry the model was trained with.
+ *
+ * The prefix is part of the cache key (via cacheKey → config.embedModel is
+ * already there, and the prefixed text is what gets hashed), so flipping
+ * EMBED_QUERY_PREFIX cannot serve a vector embedded under the other setting.
+ */
+/**
+ * Embed SEVERAL queries in one round trip, cache included.
+ *
+ * The cost of an embed here is the round trip, not the payload: two texts in one
+ * call measure the same ~2.3s p50 as one. So anything that needs a second query
+ * vector asks for it HERE, alongside the first, rather than in its own call —
+ * see `runSemantic`, which takes the residual its leaf attribution scores
+ * members against this way instead of paying a second 2.3s for it.
+ *
+ * Per-text LRU semantics are preserved: cached texts are served without touching
+ * the network, and only the misses go into the batch.
+ */
+export async function embedQueries(texts: string[], signal?: AbortSignal, diag?: EmbedDiag): Promise<number[][]> {
+  const out = new Array<number[] | undefined>(texts.length);
+  const missIndexes: number[] = [];
   const cap = config.queryEmbedCacheSize;
-  if (cap <= 0) return (await embedBatch([text], signal, 0, "embed-query"))[0];
+  texts.forEach((t, i) => {
+    const key = cacheKey(config.embedQueryPrefix + t);
+    const hit = cap > 0 ? queryEmbedCache.get(key) : undefined;
+    if (hit) {
+      queryEmbedCache.delete(key);
+      queryEmbedCache.set(key, hit); // bump recency, like embedQuery
+      out[i] = hit;
+    } else missIndexes.push(i);
+  });
+  if (missIndexes.length > 0) {
+    const vecs = await embedBatch(
+      missIndexes.map((i) => config.embedQueryPrefix + texts[i]!),
+      signal,
+      0,
+      diag,
+      "embed-query",
+    );
+    missIndexes.forEach((i, j) => {
+      const v = vecs[j]!;
+      out[i] = v;
+      if (cap > 0) {
+        queryEmbedCache.set(cacheKey(config.embedQueryPrefix + texts[i]!), v);
+        while (queryEmbedCache.size > cap) {
+          const oldest = queryEmbedCache.keys().next().value;
+          if (oldest === undefined) break;
+          queryEmbedCache.delete(oldest);
+        }
+      }
+    });
+  }
+  return out as number[][];
+}
 
-  const key = cacheKey(text);
+export async function embedQuery(text: string, signal?: AbortSignal, diag?: EmbedDiag): Promise<number[]> {
+  const prefixed = config.embedQueryPrefix + text;
+  const cap = config.queryEmbedCacheSize;
+  if (cap <= 0) return (await embedBatch([prefixed], signal, 0, diag, "embed-query"))[0];
+
+  const key = cacheKey(prefixed);
   const hit = queryEmbedCache.get(key);
   if (hit) {
     // Bump recency: delete + re-insert moves it to the tail.
@@ -112,7 +195,7 @@ export async function embedQuery(text: string, signal?: AbortSignal): Promise<nu
     return hit;
   }
 
-  const vec = (await embedBatch([text], signal, 0, "embed-query"))[0];
+  const vec = (await embedBatch([prefixed], signal, 0, diag, "embed-query"))[0];
   queryEmbedCache.set(key, vec);
   // Evict least-recently-used entries (Map iteration is insertion order).
   while (queryEmbedCache.size > cap) {

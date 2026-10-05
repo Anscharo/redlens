@@ -10,7 +10,7 @@ const ENV_KEYS = [
   "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
   "APP_URL", "RAILWAY_PUBLIC_DOMAIN", "CANONICAL_HOST_REDIRECT", "DATABASE_URL",
   "RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT",
-  "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "OPENROUTER_MANAGEMENT_KEY", "EMBED_MODEL",
+  "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "OPENROUTER_MANAGEMENT_KEY", "EMBED_MODEL", "EMBED_QUERY_PREFIX",
   "SEMANTIC_MIN_SCORE", "SEMANTIC_EMBED_TIMEOUT_MS", "QUERY_EMBED_CACHE_SIZE", "CHAT_MODEL",
   "CHAT_MAX_ITERATIONS", "CHAT_TEMPERATURE", "CHAT_MAX_OUTPUT_TOKENS",
   "CHAT_CAPTURE_CONTENT", "CHAT_TOOL_RESULT_MAX_CHARS", "CHAT_VERIFIER_MODEL",
@@ -54,6 +54,25 @@ async function freshConfig() {
   return (await import(`./config.ts?ctest=${counter}`)).config;
 }
 
+test("the query prefix and the cosine floor follow the embedding model", async () => {
+  clearAll();
+  process.env.EMBED_MODEL = "qwen/qwen3-embedding-8b";
+  const qwen = await freshConfig();
+  expect(qwen.embedQueryPrefix).toStartWith("Instruct: ");
+  expect(qwen.semanticMinScore).toBe(0.3);
+
+  clearAll();
+  process.env.EMBED_MODEL = "some/unfitted-model";
+  const other = await freshConfig();
+  expect(other.embedQueryPrefix).toBe("");
+  expect(other.semanticMinScore).toBe(0);
+
+  clearAll();
+  process.env.EMBED_MODEL = "qwen/qwen3-embedding-8b";
+  process.env.EMBED_QUERY_PREFIX = "";
+  expect((await freshConfig()).embedQueryPrefix).toBe("");
+});
+
 test("defaults when no env is set", async () => {
   clearAll();
   const config = await freshConfig();
@@ -74,6 +93,7 @@ test("defaults when no env is set", async () => {
   expect(config.databaseUrl).toBe("postgres://redlens:redlens@localhost:5432/redlens");
   expect(config.openrouterBaseUrl).toBe("https://openrouter.ai/api/v1");
   expect(config.embedModel).toBe("qwen/qwen3-embedding-8b");
+  expect(config.embedQueryPrefix).toMatch(/^Instruct: /);
   expect(config.semanticMinScore).toBe(0.3);
   expect(config.semanticEmbedTimeoutMs).toBe(10_000);
   expect(config.queryEmbedCacheSize).toBe(512);

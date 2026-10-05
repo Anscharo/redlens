@@ -1283,11 +1283,20 @@ routing chains, not the primary's 256k, because an OpenRouter failover sends the
 same full context and the honest ceiling is the chain minimum. Swap it alongside
 `CHAT_MODEL` / `CHAT_MODEL_*` when the chains change.
 
-Embeddings use `EMBED_MODEL` (default `qwen/qwen3-embedding-8b`, native 4096
-dims) sliced + L2-renormalized client-side to `EMBED_DIM = 1024` — a constant
+Embeddings use `EMBED_MODEL` (default `qwen/qwen3-embedding-8b`, asked for
+1024 dims and L2-renormalized client-side) at `EMBED_DIM = 1024` — a constant
 locked to the `vector(1024)` column and HNSW index. `sync-embeddings.ts` is a
-separate best-effort lane, incremental by unit `content_hash`, that keeps
-`atlas_doc_embeddings` current. Embeddings are a derived recall index, not atlas
+separate best-effort lane, incremental by unit `content_hash` and by the
+`embed_model` each row records (migration 038), that keeps
+`atlas_doc_embeddings` current; a model change re-embeds every row, resumably.
+Three settings follow the model: the query prefix (`queryPrefixFor`, Qwen's
+instruction or none), the cosine floor (`semanticMinScore`: 0.55 for Gemini,
+0.30 for Qwen) and the leaf rule (`leafRuleFor`). `google/gemini-embedding-2`
+is fitted too and measured level with Qwen, while every host serving Qwen took 7
+to 36 s for one call in ten; the measurement is in
+`docs/research/embedding-model-comparison.md`. The reader's search bar offers the
+meaning lane only on Gemini (`semanticLaneShown`), since a search box cannot wait
+out that tail. Embeddings are a derived recall index, not atlas
 truth: a stale vector only means that doc leans on lexical search for a while,
 so the lane never blocks structural sync or the deploy/health gate.
 
@@ -1307,12 +1316,44 @@ Mainnet`, too short to retrieve as its own vector — exact match on that slice 
 from 3 of 40 to 18 of 40. See `scripts/eval/eval-retrieval.ts`'s header.
 
 Folded members keep their own vector, flagged `attribution_only` (migration 023)
-and excluded from search: once a group is retrieved, the query is re-embedded with
-the retrieved anchor titles stripped out — inside a group the instance name
-discriminates nothing — and members are scored against that residual to pick the
-leaf. One extra embed per query, with a lexical fallback on any failure. Hybrid
+and excluded from search: once a group is retrieved, its members are scored to
+pick the leaf, because inside a group the instance name discriminates nothing —
+every member carries it. That rule is load-bearing, not a refinement: scoring
+members against the plain query vector instead collapses ICD disambiguation from
+62.5% to 2.5%, worse than no semantic attribution at all (measured 2026-09-30,
+98 queries whose target is folded).
+
+**It costs no round trip of its own** (changed 2026-09-30). It used to re-embed
+the query with the *retrieved* anchor titles stripped, which needs the semantic
+results and so bought a second embed — and an embed costs a round trip, not a
+payload (~2.3s p50 whether it carries one text or two), so that was half the
+request. The residual is now built from the **lexical** leg's titles, which
+`runLexical` has in memory before the embed, and rides in the query's own call;
+members are then scored by `fuseLeafScores` (`retrieval/leaf-scores.ts`) — an RRF fusion of
+cosine-to-residual with cosine-to-query-minus-a-penalty-for-resembling-its-own-anchor.
+Measured 43.9% against the old rule's 48.0%: −4.1 points, 95% CI [−14.3, +6.1]
+over 4,000 paired resamples, i.e. not distinguishable on this sample, against
++14.3 [+4.1, +24.5] over the lexical fallback. The residual-from-lexical ranking
+alone measured 39.8%, which the same bootstrap *does* separate from the old rule
+(P(better) = 0.01), so the second ranking is what makes one round trip affordable
+rather than a regression. Lexical fallback still covers any failure. Hybrid
 search then fuses ancestor/descendant lexical+semantic pairs onto the more
 specific doc (`via` on the tool result).
+
+Chat retrieval calls the same `runSemantic` as the reader's meaning lane. Since
+2026-10-01 it also returns a list of briefing hits, ranked by the same query
+vector against `atlas_doc_briefings`. The hybrid lane (`tools.ts`, `query.ts`)
+now fuses three lists in one RRF stage: lexical, attributed semantic and
+briefings. `atlas_search` with `mode="semantic"` fuses only the attributed leaves
+with the briefings, which is the form the eval measured first. The three-way
+form was measured 2026-10-01 on the whole corpus (`--hybrid --briefings none,s2docs
+--pool all`, 179 queries, exact recall@10): +4.5 [1.7, 7.8] on questions and
++3.4 [0.6, 6.7] on keywords, against +12.8 and +11.2 on the semantic lane
+alone. The lexical list already finds most of what the briefings add, and MRR
+falls (0.626 → 0.582 on questions): more right documents reach the top 10, but
+they sit lower. MCP
+clients see the same tools, so both forms reach them too. The measured gains and the design are in the semantic-lane
+note in `CLAUDE.md` and in `docs/plans/atlas-doc-briefings.md`.
 
 ## 10. Data model (Postgres)
 

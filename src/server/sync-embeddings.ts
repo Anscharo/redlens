@@ -6,6 +6,7 @@
 // clean sync is a no-op.
 //
 //   bun src/server/sync-embeddings.ts   # embed all new/changed docs
+import { config } from "./config.ts";
 import { sql, toVectorLiteral, toUuidArrayLiteral } from "./db.ts";
 import { fromUuidArray } from "./pg-array.ts";
 import { runMigrations } from "./migrate.ts";
@@ -17,6 +18,7 @@ import { byDocNo, planEmbedRows, shippedPolicy } from "./retrieval/embed-rows.ts
 
 interface HaveRow {
   hash: string;
+  model: string | null;
   attributionOnly: boolean;
   memberIds: unknown;
 }
@@ -37,6 +39,9 @@ function memberIdsEqual(docId: string, stored: unknown, expected: readonly strin
   // Set sizes too, so a duplicated id can't pass an equal-length subset check.
   return new Set(have).size === wanted.size && have.every((id) => wanted.has(id));
 }
+
+// A vector is current when its text is unchanged and the configured model made it.
+function isCurrent(h: HaveRow | undefined, hash: string): h is HaveRow { return !!h && h.hash === hash && h.model === config.embedModel; }
 
 // Folded members stay searchable until their grouped anchor vector actually
 // exists: flipping attribution_only first would hide them while search still
@@ -134,7 +139,7 @@ const realEmbedDeps: EmbedDeps = {
   runMigrations,
   // A FRESH signal per call, so each withRetry attempt gets its own full budget
   // rather than sharing one deadline across all three.
-  embedBatch: (texts) => embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv()), 0, "embed-sync"),
+  embedBatch: (texts) => embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv()), 0, undefined, "embed-sync"),
   batch: batchSizeFromEnv(),
   sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
 };
@@ -257,10 +262,10 @@ async function runEmbedReconcile(deps: EmbedDeps): Promise<void> {
 
   const have = new Map<string, HaveRow>(
     (
-      await sql`SELECT doc_id, content_hash, attribution_only, member_ids FROM atlas_doc_embeddings`
-    ).map((r: { doc_id: string; content_hash: string; attribution_only: boolean; member_ids: unknown }) => [
+      await sql`SELECT doc_id, content_hash, embed_model, attribution_only, member_ids FROM atlas_doc_embeddings`
+    ).map((r: { doc_id: string; content_hash: string; embed_model: string | null; attribution_only: boolean; member_ids: unknown }) => [
       r.doc_id,
-      { hash: r.content_hash, attributionOnly: Boolean(r.attribution_only), memberIds: r.member_ids },
+      { hash: r.content_hash, model: r.embed_model, attributionOnly: Boolean(r.attribution_only), memberIds: r.member_ids },
     ]),
   );
 
@@ -269,14 +274,10 @@ async function runEmbedReconcile(deps: EmbedDeps): Promise<void> {
   // preview's vectors stay comparable to the ones stored here.
   const { rows: wanted, units } = planEmbedRows(docs, policy);
 
-  const toEmbed = wanted.filter((q) => {
-    const h = have.get(q.id);
-    return !h || h.hash !== q.hash;
-  }).sort(byDocNo);
+  const toEmbed = wanted.filter((q) => !isCurrent(have.get(q.id), q.hash)).sort(byDocNo);
   const toMeta = wanted.filter((q) => {
     const h = have.get(q.id);
-    if (!h || h.hash !== q.hash) return false;
-    return h.attributionOnly !== q.attributionOnly || !memberIdsEqual(q.id, h.memberIds, q.memberIds);
+    return isCurrent(h, q.hash) && (h.attributionOnly !== q.attributionOnly || !memberIdsEqual(q.id, h.memberIds, q.memberIds));
   }).sort(byDocNo);
 
   const total = toEmbed.length;
@@ -306,15 +307,15 @@ async function runEmbedReconcile(deps: EmbedDeps): Promise<void> {
     const valuesSql = slice
       .map((s, j) => {
         const b = params.length;
-        params.push(s.id, toVectorLiteral(vecs[j]), s.hash, atlasSha, toUuidArrayLiteral(s.memberIds), s.attributionOnly);
-        return `($${b + 1}, $${b + 2}::vector, $${b + 3}, $${b + 4}, $${b + 5}::uuid[], $${b + 6})`;
+        params.push(s.id, toVectorLiteral(vecs[j]), s.hash, atlasSha, toUuidArrayLiteral(s.memberIds), s.attributionOnly, config.embedModel);
+        return `($${b + 1}, $${b + 2}::vector, $${b + 3}, $${b + 4}, $${b + 5}::uuid[], $${b + 6}, $${b + 7})`;
       })
       .join(",");
     await sql.unsafe(
-      `INSERT INTO atlas_doc_embeddings (doc_id, embedding, content_hash, atlas_sha, member_ids, attribution_only) VALUES ${valuesSql}
+      `INSERT INTO atlas_doc_embeddings (doc_id, embedding, content_hash, atlas_sha, member_ids, attribution_only, embed_model) VALUES ${valuesSql}
        ON CONFLICT (doc_id) DO UPDATE SET
          embedding = excluded.embedding, content_hash = excluded.content_hash, atlas_sha = excluded.atlas_sha,
-         member_ids = excluded.member_ids, attribution_only = excluded.attribution_only`,
+         member_ids = excluded.member_ids, attribution_only = excluded.attribution_only, embed_model = excluded.embed_model`,
       params,
     );
     done += slice.length;
