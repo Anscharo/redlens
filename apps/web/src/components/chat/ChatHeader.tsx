@@ -11,30 +11,33 @@ interface ChatHeaderProps {
   onTogglePlacement: () => void;
 }
 
+// A link to the page you are already on does nothing when clicked, so on
+// /conversations it becomes a disabled button — same footprint, no dead click.
+function ConversationsLink() {
+  const [path] = useLocation();
+  if (path === ROUTES.CONVERSATIONS) {
+    return (
+      <button className="rlc-iconbtn" disabled title="Conversations (this page)" aria-label="Conversations (this page)">
+        <ConversationsIcon />
+      </button>
+    );
+  }
+  return (
+    <Link className="rlc-iconbtn" to={ROUTES.CONVERSATIONS} title="Conversations" aria-label="Conversations">
+      <ConversationsIcon />
+    </Link>
+  );
+}
+
 // Panel chrome, left to right: a link to the Conversations page, brand mark,
 // conversation title (falls back to "Atlas" for a fresh thread), New chat
 // beside it (only once there is a thread to leave); dock-toggle / close on
 // the right.
-// Split out of ChatPanel.tsx once the title became dynamic and the panel
-// gained a New-chat action (chat-conversation-memory plan §7).
 export function ChatHeader({ title, onNewChat, onClose, placement, onTogglePlacement }: ChatHeaderProps) {
-  const anchored = placement === "anchored";
-  const [path] = useLocation();
-  const onConversations = path === ROUTES.CONVERSATIONS;
+  const placementLabel = placement === "anchored" ? "Pop out to a floating window" : "Dock to the side";
   return (
     <header className="rlc-header">
-      {/* A link to the page you are already on does nothing when clicked, so
-          on /conversations it becomes a disabled button — same footprint,
-          no dead click. */}
-      {onConversations ? (
-        <button className="rlc-iconbtn" disabled title="Conversations (this page)" aria-label="Conversations (this page)">
-          <ConversationsIcon />
-        </button>
-      ) : (
-        <Link className="rlc-iconbtn" to={ROUTES.CONVERSATIONS} title="Conversations" aria-label="Conversations">
-          <ConversationsIcon />
-        </Link>
-      )}
+      <ConversationsLink />
       <SparkMark size={15} />
       <div>
         <div className="rlc-header-title">{title ?? "Atlas"}</div>
@@ -46,13 +49,8 @@ export function ChatHeader({ title, onNewChat, onClose, placement, onTogglePlace
         </button>
       )}
       <div className="ml-auto flex items-center gap-1">
-        <button
-          className="rlc-iconbtn"
-          onClick={onTogglePlacement}
-          title={anchored ? "Pop out to a floating window" : "Dock to the side"}
-          aria-label={anchored ? "Pop out to a floating window" : "Dock to the side"}
-        >
-          {anchored ? <FloatIcon /> : <DockRightIcon />}
+        <button className="rlc-iconbtn" onClick={onTogglePlacement} title={placementLabel} aria-label={placementLabel}>
+          {placement === "anchored" ? <FloatIcon /> : <DockRightIcon />}
         </button>
         <button className="rlc-iconbtn" onClick={onClose} title="Close" aria-label="Close">
           ×

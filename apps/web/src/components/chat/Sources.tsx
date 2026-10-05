@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { loadAtlas } from "../../lib/docs";
+import { useRef } from "react";
 import { atlasHref } from "@/lib/routes";
 import { track } from "../../lib/analytics";
 import { Tooltip } from "../Tooltip";
@@ -7,23 +6,45 @@ import type { Source } from "./markdown";
 import type { CitationMark } from "./api";
 import { showClaimInAnswer } from "./claimHighlight";
 import { SourceMark, sourceTooltipContent } from "./SourceMark";
+import { useResolvedDocs, type ResolvedDoc } from "./useResolvedDocs";
 
-interface ResolvedDoc {
-  docNo: string;
-  title: string;
+export interface SourceChipProps {
+  source: Source;
+  /** The resolved doc_no + title, when the uuid is in the bundle. */
+  resolved?: ResolvedDoc;
+  /** This doc's citation-check verdict, if any. */
+  mark?: CitationMark;
+  /** Records the chip's anchor so a claim can be found in its turn's answer. */
+  anchorRef: (node: HTMLAnchorElement | null) => void;
+  /** Scrolls the quoted claim into view in the answer and flashes it. */
+  onShowClaim: (claim: string) => void;
+  onAtlas: (uuid: string) => void;
 }
 
-// Sources cluster: one chip per cited atlas doc. Link text is no longer
-// trustworthy as a title — reference-style citations make it free (a value,
-// a quoted phrase, a date, an address) — so we resolve both the editorial
-// doc_no *and* the real title from the cached docs.json (loadAtlas is
-// memoised), falling back to the link text only when the uuid isn't in the
-// bundle.
-export function Sources({
-  sources,
-  marks,
-  onAtlas,
-}: {
+// One cited doc. The whole pill is the hover target, not the glyph; Tooltip
+// renders the child alone when there is nothing to say.
+function SourceChip({ source: s, resolved: r, mark, anchorRef, onShowClaim, onAtlas }: SourceChipProps) {
+  return (
+    <Tooltip content={sourceTooltipContent(mark, onShowClaim)}>
+      <a
+        className="rlc-cite"
+        ref={anchorRef}
+        href={atlasHref(s.uuid)}
+        onClick={(e) => {
+          e.preventDefault();
+          track("chat_citation_click", { product: "chat", node_id: s.uuid });
+          onAtlas(s.uuid);
+        }}
+      >
+        {r?.docNo && <span className="rlc-cite-doc">{r.docNo}</span>}
+        <span className="rlc-cite-title">{r?.title ?? s.title}</span>
+        <SourceMark mark={mark} />
+      </a>
+    </Tooltip>
+  );
+}
+
+export interface SourcesProps {
   sources: Source[];
   // Per-doc citation-check verdicts, keyed by uuid (server: `citation_marks`).
   // Optional/absent means the check never landed for this turn — every chip
@@ -31,66 +52,39 @@ export function Sources({
   // arrive.
   marks?: Record<string, CitationMark>;
   onAtlas: (uuid: string) => void;
-}) {
-  const [resolved, setResolved] = useState<Record<string, ResolvedDoc>>({});
-  const anchors = useRef(new Map<string, HTMLElement>());
+}
 
-  function showClaim(uuid: string, claim: string) {
+// Sources cluster: one chip per cited atlas doc. Link text is not trustworthy
+// as a title — reference-style citations make it free (a value, a quoted
+// phrase, a date, an address) — so both the editorial doc_no *and* the real
+// title are resolved from docs.json (useResolvedDocs), falling back to the
+// link text only when the uuid isn't in the bundle.
+export function Sources({ sources, marks, onAtlas }: SourcesProps) {
+  const resolved = useResolvedDocs(sources);
+  const anchors = useRef(new Map<string, HTMLElement>());
+  const showClaim = (uuid: string, claim: string) => {
     const answer = anchors.current.get(uuid)?.closest(".rlc-turn")?.querySelector(".rlc-answer");
     if (answer instanceof HTMLElement) showClaimInAnswer(answer, claim);
-  }
-
-  useEffect(() => {
-    let alive = true;
-    if (!sources.length) return;
-    loadAtlas()
-      .then((b) => {
-        if (!alive) return;
-        const map: Record<string, ResolvedDoc> = {};
-        for (const s of sources) {
-          const n = b.docs[s.uuid];
-          if (n) map[s.uuid] = { docNo: n.doc_no, title: n.title };
-        }
-        setResolved(map);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [sources]);
-
+  };
   if (!sources.length) return null;
   return (
     <div className="rlc-sources">
       <p className="rlc-sources-label">citations · {sources.length}</p>
       <div className="rlc-sources-chips">
-        {sources.map((s) => {
-          const r = resolved[s.uuid];
-          const mark = marks?.[s.uuid];
-          // The whole pill is the hover target, not the glyph. Tooltip
-          // renders the child alone when there is nothing to say.
-          return (
-            <Tooltip key={s.uuid} content={sourceTooltipContent(mark, (claim) => showClaim(s.uuid, claim))}>
-              <a
-                className="rlc-cite"
-                ref={(node) => {
-                  if (node) anchors.current.set(s.uuid, node);
-                  else anchors.current.delete(s.uuid);
-                }}
-                href={atlasHref(s.uuid)}
-                onClick={(e) => {
-                  e.preventDefault();
-                  track("chat_citation_click", { product: "chat", node_id: s.uuid });
-                  onAtlas(s.uuid);
-                }}
-              >
-                {r?.docNo && <span className="rlc-cite-doc">{r.docNo}</span>}
-                <span className="rlc-cite-title">{r?.title ?? s.title}</span>
-                <SourceMark mark={mark} />
-              </a>
-            </Tooltip>
-          );
-        })}
+        {sources.map((s) => (
+          <SourceChip
+            key={s.uuid}
+            source={s}
+            resolved={resolved[s.uuid]}
+            mark={marks?.[s.uuid]}
+            anchorRef={(node) => {
+              if (node) anchors.current.set(s.uuid, node);
+              else anchors.current.delete(s.uuid);
+            }}
+            onShowClaim={(claim) => showClaim(s.uuid, claim)}
+            onAtlas={onAtlas}
+          />
+        ))}
       </div>
     </div>
   );
