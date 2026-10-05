@@ -216,6 +216,24 @@ describe("write pass", () => {
     expect(store.bumps).toHaveLength(0);
   });
 
+  it("logs a chunk whose database write fails and leaves its documents queued", async () => {
+    const store = new FakeStore();
+    store.upsertWorker = async () => {
+      throw new Error("connection reset");
+    };
+    const content = [good(1), good(2), good(3)].map((r) => JSON.stringify(r)).join("\n");
+    const warn = console.warn;
+    const warned: string[] = [];
+    console.warn = (m: string) => void warned.push(m);
+    try {
+      await runBriefings(deps(store, { complete: async () => ({ content, finishReason: "stop" }) }));
+    } finally {
+      console.warn = warn;
+    }
+    expect(warned.some((m) => m.includes("chunk 1 failed: connection reset"))).toBe(true);
+    expect(store.rows.size).toBe(0);
+  });
+
   it("writes the valid rows and counts only the invalid document", async () => {
     const store = new FakeStore();
     const bad = { ...good(2), questions: ["Only one?"] };

@@ -44,6 +44,22 @@ export function semanticSearchAvailable(): boolean {
   return !!config.openrouterApiKey;
 }
 
+// One model (`EMBED_MODEL`) serves every semantic caller. This set decides only
+// whether the search bar shows the meaning pill under it: the model's query
+// embed must be quick enough to answer while the reader types.
+// qwen3-embedding-8b is not: its hosts take 7 to 36 s for one call in ten
+// (docs/research/embedding-model-comparison.md).
+const PILL_MODELS = new Set(["google/gemini-embedding-2"]);
+
+/**
+ * Does the search bar offer the meaning lane? The page reads this at serve
+ * time and hides the pill when it is false. The route stays open either way,
+ * because chat and the MCP tools share the retrieval underneath it.
+ */
+export function semanticLaneShown(): boolean {
+  return semanticSearchAvailable() && PILL_MODELS.has(config.embedModel);
+}
+
 /**
  * Would answering this query actually SPEND anything?
  *

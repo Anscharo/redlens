@@ -12,7 +12,7 @@ const ROOT = resolve(import.meta.dir, "../..");
 // own format and is noise to them.
 const QWEN_QUERY_PREFIX = "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: ";
 export const queryPrefixFor = (model: string): string => (model.toLowerCase().includes("qwen") ? QWEN_QUERY_PREFIX : "");
-const embedModel = process.env.EMBED_MODEL ?? "google/gemini-embedding-2";
+const embedModel = process.env.EMBED_MODEL ?? "qwen/qwen3-embedding-8b";
 // Cosine floor on semantic unit hits, per model, because each model's cosines
 // sit in their own range (see `semanticMinScore`).
 const SEMANTIC_FLOORS: Record<string, number> = { "google/gemini-embedding-2": 0.55, "qwen/qwen3-embedding-8b": 0.3 };
@@ -169,13 +169,15 @@ export const config = {
   openrouterManagementKey: process.env.OPENROUTER_MANAGEMENT_KEY ?? "",
   // The model that embeds documents and queries alike; every stored vector is
   // marked with the model that made it (migration 038), so changing this
-  // re-embeds the corpus on the next sync. gemini-embedding-2 is the default:
-  // over half the corpus it scored level with qwen3-embedding-8b (exact 0.788
-  // and 0.704 against 0.788 and 0.676, questions and keywords, with briefings
-  // and its own leaf rule, `leafRuleFor`) and answered in about 0.4 s at the
-  // median and 0.55 s at the 90th percentile, where qwen3-embedding-8b took 7 to
-  // 36 s for one call in ten on every host that serves it
-  // (docs/research/embedding-model-comparison.md).
+  // re-embeds the corpus on the next sync, and meaning search is noise until
+  // that finishes. qwen3-embedding-8b is the default. gemini-embedding-2 is
+  // fitted too: over half the corpus it scored level with qwen3-embedding-8b
+  // (exact 0.788 and 0.704 against 0.788 and 0.676, questions and keywords, with
+  // briefings and its own leaf rule, `leafRuleFor`) and answered in about 0.4 s
+  // at the median and 0.55 s at the 90th percentile, where qwen3-embedding-8b
+  // took 7 to 36 s for one call in ten on every host that serves it
+  // (docs/research/embedding-model-comparison.md). The search bar offers the
+  // meaning lane only on the faster model (`semanticLaneShown`).
   embedModel,
   // Instruction prefix applied to QUERIES only, never to documents, so changing
   // it re-embeds nothing. Follows the model (`queryPrefixFor`) unless

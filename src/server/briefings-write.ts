@@ -114,7 +114,12 @@ export async function writePass(deps: BriefingDeps, live: Live): Promise<WriteSt
   });
   const stats: WriteStats = { queued: queue.length, chunks: chunks.length, briefed: 0, failed: 0 };
 
-  await Promise.allSettled(chunks.map((c, i) => runChunk(deps, live, stats, c, i + 1)));
+  // runChunk handles model and parse failures itself; a rejection here is a
+  // database error. Its documents got no row, so they stay queued for next cycle.
+  const settled = await Promise.allSettled(chunks.map((c, i) => runChunk(deps, live, stats, c, i + 1)));
+  settled.forEach((s, i) => {
+    if (s.status === "rejected") console.warn(`  chunk ${i + 1} failed: ${(s.reason as Error)?.message ?? s.reason}; retried next run`);
+  });
 
   const exhausted = [...(await deps.store.loadRows()).values()].filter(
     (r) => r.failures >= BRIEFING_MAX_FAILURES && r.failed_context === live.context.get(r.doc_id),

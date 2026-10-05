@@ -15,6 +15,7 @@ import { rrfMerge, fuseBriefings, semanticScopeSql, embedFailureReason, SCOPED_S
 import { attributeSemanticHits, lexicalResidual, buildLeafScorer } from "./leaf-attribution.ts";
 import { fuseLeafScores, GROUP_ECHO_PENALTY, leafRuleFor, residualQuery, type LeafRow } from "./leaf-scores.ts";
 import { _clearQueryEmbedCache } from "./embed.ts";
+import { briefingHits } from "./briefings.ts";
 import { config } from "../config.ts";
 import { sql } from "../db.ts";
 import type { AtlasNode, Indexes } from "./indexes.ts";
@@ -587,6 +588,19 @@ describe("fuseBriefings", () => {
   });
 });
 
+describe("briefingHits", () => {
+  it("cuts at the relevance floor and numbers the kept rows", () => {
+    const floor = config.semanticMinScore;
+    const out = briefingHits([{ id: "a", score: floor + 0.2 }, { id: "b", score: String(floor) }, { id: "c", score: floor - 0.01 }]);
+    expect(out.map((h) => [h.id, h.rank, h.source])).toEqual([["a", 0, "briefing"], ["b", 1, "briefing"]]);
+    expect(typeof out[1]!.score).toBe("number");
+  });
+
+  it("returns nothing when the nearest row is under the floor", () => {
+    expect(briefingHits([{ id: "a", score: config.semanticMinScore - 0.01 }])).toEqual([]);
+  });
+});
+
 describe("rrfMerge with a briefing list", () => {
   const lex: Hit[] = [{ id: "a", rank: 0, score: 9, source: "lexical" }, { id: "b", rank: 1, score: 8, source: "lexical" }];
   const sem: Hit[] = [{ id: "b", rank: 0, score: 0.9, source: "semantic" }];
@@ -646,7 +660,7 @@ describe("runSemantic briefing statement", () => {
     }
   });
 
-  it("returns briefing hits, floor-free and ranked by position, when the statement answers", async () => {
+  it("returns briefing hits above the floor, ranked by position, when the statement answers", async () => {
     config.openrouterApiKey = "test-key";
     config.semanticEmbedTimeoutMs = 5_000;
     globalThis.fetch = ((_u: string, init: { body: string }) => {
@@ -660,15 +674,15 @@ describe("runSemantic briefing statement", () => {
     const restore = stubUnsafe((text) =>
       Promise.resolve(
         text.includes("atlas_doc_briefings")
-          ? [{ id: "b1", score: 0.12 }, { id: "b2", score: 0.1 }]
+          ? [{ id: "b1", score: 0.92 }, { id: "b2", score: 0.9 }, { id: "b3", score: 0.01 }]
           : [],
       ),
     );
     try {
       const res = await runSemantic(ix, "briefing ok query", undefined, 5);
       expect(res.briefingHits).toEqual([
-        { id: "b1", rank: 0, score: 0.12, source: "briefing" },
-        { id: "b2", rank: 1, score: 0.1, source: "briefing" },
+        { id: "b1", rank: 0, score: 0.92, source: "briefing" },
+        { id: "b2", rank: 1, score: 0.9, source: "briefing" },
       ]);
     } finally {
       restore();

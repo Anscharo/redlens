@@ -27,7 +27,7 @@ export const openrouter: EnvGroup = {
     {
       name: "EMBED_MODEL",
       doc: "Embedding model. Its dimension is fixed by the database migration, not by env. Every stored vector records the model that made it, so changing this re-embeds the corpus on the next sync. The query prefix, the cosine floor and the leaf rule follow the model.",
-      default: "google/gemini-embedding-2",
+      default: "qwen/qwen3-embedding-8b",
     },
     { name: "EMBED_BATCH", doc: "Texts per embeddings request in sync:embeddings.", default: "50" },
     {
@@ -43,7 +43,7 @@ export const openrouter: EnvGroup = {
     {
       name: "SEMANTIC_MIN_SCORE",
       doc: "Cosine floor for semantic hits, so a query with few true matches does not fill top slots with unrelated neighbours. Unset, it follows EMBED_MODEL: each model's floor is fitted by the same rule (0.55 for gemini-embedding-2, 0.30 for qwen3-embedding-8b).",
-      default: "0.55",
+      default: "0.3",
     },
     {
       name: "SEMANTIC_EMBED_TIMEOUT_MS",

@@ -32,7 +32,7 @@ import { handleBalances } from "./balances/balances.ts";
 import { handleChainState } from "./chain-state.ts";
 import { handleForumTopics } from "./forum.ts";
 import { handleReportsSearch } from "./reports-search.ts";
-import { handleSemanticSearch, semanticSearchAvailable } from "./search-semantic.ts";
+import { handleSemanticSearch, semanticLaneShown } from "./search-semantic.ts";
 import { handleModCounts } from "./history/mod-counts.ts";
 import { handleModTimeline } from "./history/mod-timeline.ts";
 import { registerSSEClient, sseClientCount } from "./sse.ts";
@@ -381,7 +381,7 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
     .replace("{{USERS_ENABLED}}", String(config.usersEnabled))
     .replace("{{CHAT_ENABLED}}", String(config.chatEnabled))
     .replace("{{AUTH_PROVIDERS}}", config.authProvidersCsv)
-    .replace("{{SEMANTIC_SEARCH}}", String(semanticSearchAvailable()))
+    .replace("{{SEMANTIC_SEARCH}}", String(semanticLaneShown()))
     .replace("{{OG_TAGS}}", ogTags);
   const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };
   // Bare `/preview` too, not just `/preview/<id>` — the homepage card links to

@@ -79,9 +79,7 @@ async function runVectorStatement<R>(stmt: string, lit: string, limit: number, s
  * a different one stops the planner using it, the same tie the unit query has to
  * migration 024.
  *
- * NO `semanticMinScore` floor. The eval that measured the gain applied none, and
- * cosines against briefing text are not calibrated against the 0.3 the unit
- * leg uses; the fusion ranks by position, so a weak tail costs little.
+ * Rows are cut at `semanticMinScore`, the unit leg's floor (`briefingHits`).
  *
  * A scoped query runs in its own transaction under the same `SET LOCAL
  * enable_indexscan = off` as the unit statement, for the same reason. It is a
@@ -94,12 +92,31 @@ export async function runBriefings(lit: string, limit: number, scope: string | u
        FROM atlas_doc_briefings b JOIN atlas_doc_meta m ON m.id = b.doc_id
        WHERE b.embedding IS NOT NULL${semanticScopeSql(scope)}
        ORDER BY b.embedding <=> $1::vector LIMIT $2`;
-    const rows = await runVectorStatement<{ id: string; score: number }>(stmt, lit, limit, scope);
-    return rows.map((r, i) => ({ id: r.id, rank: i, score: Number(r.score), source: "briefing" }));
+    return briefingHits(await runVectorStatement<{ id: string; score: number }>(stmt, lit, limit, scope));
   } catch (err) {
     console.warn(`  briefing leg skipped: ${(err as Error).message}`);
     return [];
   }
+}
+
+/**
+ * Briefing rows to hits, cut at the relevance floor. Fitted on the briefing
+ * vectors by the unit floor's rule (the highest value that loses no correct
+ * target from the top 50 and leaves no eval query with fewer than 10 rows), the
+ * floor comes out at 0.57 for gemini-embedding-2 and 0.31 for qwen3-embedding-8b,
+ * the unit floors to within 0.02, so the briefing list shares `semanticMinScore`.
+ * Like the unit floor it trims the tail and does not detect an off-topic query:
+ * under Gemini "how to train a puppy" tops out at 0.58.
+ */
+export function briefingHits(rows: { id: string; score: number | string }[]): Hit[] {
+  const out: Hit[] = [];
+  for (const r of rows) {
+    const score = Number(r.score);
+    // Rows are ordered by ascending distance, so once one falls below the floor every later row does too.
+    if (score < config.semanticMinScore) break;
+    out.push({ id: r.id, rank: out.length, score, source: "briefing" });
+  }
+  return out;
 }
 
 /**

@@ -31,7 +31,7 @@ import path from "node:path";
 import zlib from "node:zlib";
 import type { Server } from "bun";
 import { config } from "./config.ts";
-import { semanticSearchAvailable } from "./search-semantic.ts";
+import { semanticLaneShown } from "./search-semantic.ts";
 import { buildIndexes, setIndexes, getIndexes, rebuildFromDisk } from "./retrieval/indexes.ts";
 import { broadcastAtlasUpdate, sseClientCount } from "./sse.ts";
 import { renderCard } from "./og-image.ts";
@@ -551,11 +551,10 @@ describe("handleRequest — SPA fallback + OG tag substitution", () => {
     expect(html).toContain(`window.__ATLAS_SHA__="${ATLAS_SHA}"`);
     expect(html).not.toContain("{{OG_TAGS}}");
     expect(html).not.toContain("{{ATLAS_SHA}}");
-    // The semantic lane's one serve-time fact: whether this deployment can
-    // answer it. (There was a second, the blend strategy, until meaning-matched
-    // rows became the meaning lane's alone.) An UNREPLACED placeholder would
-    // leave the client comparing against a literal "{{SEMANTIC_SEARCH}}".
-    expect(html).toContain(`window.__SEMANTIC_SEARCH__="${semanticSearchAvailable()}"`);
+    // The semantic lane's one serve-time fact: whether the search bar offers
+    // it. An UNREPLACED placeholder would leave the client comparing against a
+    // literal "{{SEMANTIC_SEARCH}}".
+    expect(html).toContain(`window.__SEMANTIC_SEARCH__="${semanticLaneShown()}"`);
     expect(html).not.toContain("{{SEMANTIC_SEARCH}}");
     // There is no second semantic placeholder: an injection the server does not
     // replace reaches the browser as a literal.
