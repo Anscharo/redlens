@@ -9,10 +9,11 @@
 // client-side and NOT part of buildActiveDataRows, so it isn't included here.)
 import type { Indexes } from "../retrieval/indexes.ts";
 import type { ToolResult } from "../chat/tools/tools.ts";
-import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import { buildActiveDataRows, adSearchFields, type ActiveDataRow } from "../../lib/activeDataIndex.ts";
 import { indexesToGraphData, indexesToDocs } from "./ix-adapter.ts";
 import { applyReportFilter } from "./report-filter.ts";
+import { rowsEnvelope } from "./util.ts";
+import { defineReportTool } from "./report-tool.ts";
 
 // The evidence arrays are the provenance layer — the ordered doc_no chain that
 // proves each Responsible Party / Facilitator resolution. Drop them for the
@@ -30,15 +31,19 @@ export function buildActiveDataReport(ix: Indexes, opts: { include_provenance: b
   const matched = applyReportFilter(allRows, opts.filter, adSearchFields);
 
   const rows = opts.include_provenance ? matched : matched.map(stripRowProvenance);
-
-  const { kept, truncated } = fitToBudget(rows);
-  const result: ToolResult = {
-    report: "active_data",
-    total: matched.length,
-    returned: kept.length,
-    truncated,
-    active_data: kept,
-  };
-  if (truncated) result.note = TRUNCATION_HINT;
-  return result;
+  return rowsEnvelope("active_data", rows, "active_data");
 }
+
+export const activeDataTool = defineReportTool({
+  name: "atlas_report_active_data",
+  title: "Atlas Report Active Data",
+  description:
+    "Curated report (not raw graph calls) — one row per Active Data document, for 'who maintains / is responsible " +
+    "for this Active Data'. Each row: the doc, its controller, resolved Responsible Party (direct/chain/role), " +
+    "approving Facilitator, and update process (Direct Edit vs. Alignment Conserver Changes). Evidence chains " +
+    "only with include_provenance:true.",
+  promptBlurb:
+    "one row per Active Data doc (controller, resolved Responsible Party with evidence, prime→executor→facilitator/govops chain, approving Facilitator, update process) — 'who maintains / is responsible for this Active Data'.",
+  params: ["include_provenance", "filter"],
+  build: buildActiveDataReport,
+});

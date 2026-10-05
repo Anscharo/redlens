@@ -13,6 +13,7 @@ import type { AgentPrimitive, RewardsAgent, RewardsIcd } from "../../lib/rewards
 import { filterRewardsAgents } from "../../lib/rewardsSearch.ts";
 import { parseReportQuery } from "../../lib/reportFilter.ts";
 import { indexesToGraphData, indexesToDocs } from "./ix-adapter.ts";
+import { defineReportTool } from "./report-tool.ts";
 
 // `params` is the raw [value, srcUuid, srcDocNo] tuple map behind each resolved
 // field — the provenance layer. Drop it for the leaner (include_provenance:false)
@@ -57,3 +58,17 @@ export function buildRewardsReport(ix: Indexes, opts: { include_provenance: bool
   if (truncated) result.note = TRUNCATION_HINT;
   return result;
 }
+
+export const rewardsTool = defineReportTool({
+  name: "atlas_report_rewards",
+  title: "Atlas Report Rewards",
+  description:
+    "Curated report (not raw graph calls) — the integrator reward rollup per Prime Agent, for reward-program / " +
+    "integrator questions. Each agent: executor/govops chain, plus DR (Distribution Reward) / IB (Integration " +
+    "Boost) instances with status, reward code or partner, payout address/chain, cadence. Raw param tuples only " +
+    "with include_provenance:true.",
+  promptBlurb:
+    "the per-agent integrator reward rollup (operational chain plus Distribution Reward / Integration Boost primitives with each Instance/Invocation's status, reward code/partner, address, chain, cadence) — reward-program / integrator questions.",
+  params: ["include_provenance", "filter"],
+  build: buildRewardsReport,
+});

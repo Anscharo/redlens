@@ -4,6 +4,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "../config.ts";
+import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
+import type { ToolResult } from "../chat/tools/tools.ts";
 
 // Reads a committed artifact (processes.json, oea-report.json, risk-assessment.json,
 // …) out of public/ — the same flat directory the frontend fetches from, so the
@@ -39,4 +41,19 @@ export function parseDocNos(raw: string | null): string[] {
     // fall through to legacy comma-split
   }
   return raw.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+// The row-list envelope the reports share: { report, total, returned,
+// truncated, ...extra, [payloadKey]: the rows that fit the output budget }, plus
+// the truncation note when rows were dropped. `total` counts every matching row.
+export function rowsEnvelope(
+  report: string,
+  rows: unknown[],
+  payloadKey: string,
+  extra: Record<string, unknown> = {},
+): ToolResult {
+  const { kept, truncated } = fitToBudget(rows);
+  const result: ToolResult = { report, total: rows.length, returned: kept.length, truncated, ...extra, [payloadKey]: kept };
+  if (truncated) result.note = TRUNCATION_HINT;
+  return result;
 }
