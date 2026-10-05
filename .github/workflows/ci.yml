@@ -267,7 +267,6 @@ jobs:
 
       - uses: ./.github/actions/setup
         with:
-          bun: "true"
           install: "false"
 
       - name: Run Bun coverage
@@ -431,7 +430,6 @@ jobs:
 
       - uses: ./.github/actions/setup
         with:
-          bun: "true"
           install: "false"
 
       - name: Type check server

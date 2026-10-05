@@ -128,6 +128,9 @@ function matchers(role) {
   // with Core GovOps" — the subject is whoever consults); not a noun compound.
   const subj = `(?<!consultation\\s+with\\s+(?:the\\s+)?(?:(?:${role.qualifier})\\s+)?)(?:(?:${role.qualifier})\\s+)?${role.subject}\\b${guard}`;
   m = {
+    // Every pattern below requires the subject, so a doc that never names it
+    // skips them all; the lookbehind patterns are slow to scan under Bun.
+    mention: new RegExp(role.subject, "i"),
     title: role.titleRe ?? new RegExp(`${role.subject}${guard}`, "i"),
     active: new RegExp(`${subj}[^.\\n]*?\\b(?:${MODAL}|${ACTIVE_VERBS})\\b`, "i"),
     passive: new RegExp(
@@ -190,10 +193,37 @@ export function classifyRole(role, title, content) {
   return role.bareLabel;
 }
 
+// Global clones and org patterns are compiled once: the scan runs every pattern
+// over every doc, and recompiling per call dominates the pass under Bun.
+const globalClones = new WeakMap();
+function globalOf(re) {
+  const g = globalClones.get(re) ?? new RegExp(re.source, re.flags.includes("g") ? re.flags : `${re.flags}g`);
+  globalClones.set(re, g);
+  g.lastIndex = 0;
+  return g;
+}
+
+const orgPatternsByName = new Map();
+function orgPatterns(name) {
+  if (orgPatternsByName.has(name)) return orgPatternsByName.get(name);
+  const subj = String.raw`(?<!consultation\s+with\s+(?:the\s+)?)\b${escapeRe(name)}\b`;
+  const patterns = [
+    ["active", new RegExp(`${subj}[^.\\n]*?\\b(?:${MODAL}|${ACTIVE_VERBS})\\b`, "i")],
+    ["passive", new RegExp(`\\b(?:${PASSIVE_VERBS})\\b[^.\\n]*?\\bby\\s+(?:the\\s+)?${escapeRe(name)}\\b`, "i")],
+    // Instance-detail colon fields grant a role with no verb at all:
+    // "- Curator: Soter Labs, implemented via a Gnosis Safe multisig…"
+    // (A.6.1.1.<n>.3.9.7.2.<m> — one per Delegated Risk Curation instance).
+    ["colon", new RegExp(`^[ \\t]*-?[ \\t]*[A-Z][\\w /]*:[ \\t]*${escapeRe(name)}\\b`, "im")],
+  ];
+  const org = { mention: new RegExp(escapeRe(name), "i"), patterns };
+  orgPatternsByName.set(name, org);
+  return org;
+}
+
 // First match of `re` whose matched text (and start index) passes `valid`
 // (used to skip the new-subject / citation FP shapes and keep scanning).
 function firstValidMatch(re, text, valid) {
-  const g = new RegExp(re.source, re.flags.includes("g") ? re.flags : `${re.flags}g`);
+  const g = globalOf(re);
   let m;
   while ((m = g.exec(text))) {
     if (valid(m[0], m.index)) return m;
@@ -294,11 +324,9 @@ export function findRoleDuty(role, title, content, orgs = []) {
     return { role_declared: classifyRole(role, title, firstPara), match: "title", quote: null };
   }
   const citations = citationSpans(text);
-  const rolePatterns = [
-    ["active", m.active],
-    ["passive", m.passive],
-    ...m.phrases.map((re) => ["phrase", re]),
-  ];
+  const rolePatterns = m.mention.test(text)
+    ? [["active", m.active], ["passive", m.passive], ...m.phrases.map((re) => ["phrase", re])]
+    : [];
   for (const [match, re] of rolePatterns) {
     // The new-subject guard applies to "active" and "phrase" kinds — both can
     // land on a role mention that's really an intervening clause, with the
@@ -315,21 +343,9 @@ export function findRoleDuty(role, title, content, orgs = []) {
     }
   }
   for (const { name, role_declared } of orgs) {
-    const subj = String.raw`(?<!consultation\s+with\s+(?:the\s+)?)\b${escapeRe(name)}\b`;
-    const orgActive = new RegExp(`${subj}[^.\\n]*?\\b(?:${MODAL}|${ACTIVE_VERBS})\\b`, "i");
-    const orgPassive = new RegExp(
-      `\\b(?:${PASSIVE_VERBS})\\b[^.\\n]*?\\bby\\s+(?:the\\s+)?${escapeRe(name)}\\b`,
-      "i",
-    );
-    // Instance-detail colon fields grant a role with no verb at all:
-    // "- Curator: Soter Labs, implemented via a Gnosis Safe multisig…"
-    // (A.6.1.1.<n>.3.9.7.2.<m> — one per Delegated Risk Curation instance).
-    const orgColon = new RegExp(`^[ \\t]*-?[ \\t]*[A-Z][\\w /]*:[ \\t]*${escapeRe(name)}\\b`, "im");
-    for (const [kind, re] of [
-      ["active", orgActive],
-      ["passive", orgPassive],
-      ["colon", orgColon],
-    ]) {
+    const org = orgPatterns(name);
+    if (!org.mention.test(text)) continue;
+    for (const [kind, re] of org.patterns) {
       const hit = firstValidMatch(
         re,
         text,
@@ -345,7 +361,7 @@ export function findRoleDuty(role, title, content, orgs = []) {
 // findRoleDuties needs every candidate, not just the first, to find a SECOND
 // duty for the opposite qualifier elsewhere in the same doc.
 function allValidMatches(re, text, valid) {
-  const g = new RegExp(re.source, re.flags.includes("g") ? re.flags : `${re.flags}g`);
+  const g = globalOf(re);
   const hits = [];
   let m;
   while ((m = g.exec(text))) {
@@ -380,11 +396,9 @@ export function findRoleDuties(role, title, content, orgs = []) {
   const m = matchers(role);
   const text = role.normalize(content ?? "");
   const citations = citationSpans(text);
-  const rolePatterns = [
-    ["active", m.active],
-    ["passive", m.passive],
-    ...m.phrases.map((re) => ["phrase", re]),
-  ];
+  const rolePatterns = m.mention.test(text)
+    ? [["active", m.active], ["passive", m.passive], ...m.phrases.map((re) => ["phrase", re])]
+    : [];
   const byDeclared = new Map();
   for (const [match, re] of rolePatterns) {
     if (byDeclared.has(role.core.label) && byDeclared.has(role.op.label)) break;
@@ -418,18 +432,9 @@ export function findRoleDuties(role, title, content, orgs = []) {
     return [{ role_declared: classifyRole(role, title, firstPara), match: "title", quote: null }];
   }
   for (const { name, role_declared } of orgs) {
-    const subj = String.raw`(?<!consultation\s+with\s+(?:the\s+)?)\b${escapeRe(name)}\b`;
-    const orgActive = new RegExp(`${subj}[^.\\n]*?\\b(?:${MODAL}|${ACTIVE_VERBS})\\b`, "i");
-    const orgPassive = new RegExp(
-      `\\b(?:${PASSIVE_VERBS})\\b[^.\\n]*?\\bby\\s+(?:the\\s+)?${escapeRe(name)}\\b`,
-      "i",
-    );
-    const orgColon = new RegExp(`^[ \\t]*-?[ \\t]*[A-Z][\\w /]*:[ \\t]*${escapeRe(name)}\\b`, "im");
-    for (const [kind, re] of [
-      ["active", orgActive],
-      ["passive", orgPassive],
-      ["colon", orgColon],
-    ]) {
+    const org = orgPatterns(name);
+    if (!org.mention.test(text)) continue;
+    for (const [kind, re] of org.patterns) {
       const hit = firstValidMatch(
         re,
         text,
