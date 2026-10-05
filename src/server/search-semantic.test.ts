@@ -15,6 +15,7 @@ import {
 import type { SemanticSearchResponse } from "../lib/searchSemantic.ts";
 import { _clearIndexes, buildIndexes, getIndexes, setIndexes } from "./retrieval/indexes.ts";
 import { _resetSemanticBudget } from "./search-semantic-limit.ts";
+import { vectorsCurrent } from "./vectors-current.ts";
 import type { AtlasNode, Indexes } from "./retrieval/indexes.ts";
 
 // config is a plain mutable object; restore whatever this process actually has
@@ -28,6 +29,11 @@ afterEach(() => {
   // every later case in this file, and the one after it in the run.
   _resetSemanticBudget();
 });
+
+// Every stored vector matches the running model unless a case says otherwise;
+// the real check reads Postgres (vectors-current.test.ts covers it).
+const currentSpy = spyOn(vectorsCurrent, "current").mockReturnValue(true);
+afterAll(() => currentSpy.mockRestore());
 
 async function get(qs: string): Promise<SemanticSearchResponse> {
   const res = await handleSemanticSearch(new Request(`http://x/api/search/semantic${qs}`));
@@ -100,7 +106,7 @@ describe("availability", () => {
     expect(semanticSearchAvailable()).toBe(true);
   });
 
-  it("offers the search bar's lane only on a model quick enough to answer while typing", () => {
+  it("offers the search bar's lane only on a model quick enough to answer while typing, once its vectors are in", () => {
     const { embedModel: model, openrouterApiKey: key } = config;
     try {
       config.openrouterApiKey = "sk-test";
@@ -110,11 +116,29 @@ describe("availability", () => {
       expect(semanticLaneShown()).toBe(false);
       expect(semanticSearchAvailable()).toBe(true);
       config.embedModel = "google/gemini-embedding-2";
+      currentSpy.mockReturnValue(false);
+      expect(semanticLaneShown()).toBe(false);
+      currentSpy.mockReturnValue(true);
       config.openrouterApiKey = "";
       expect(semanticLaneShown()).toBe(false);
     } finally {
+      currentSpy.mockReturnValue(true);
       config.embedModel = model;
       config.openrouterApiKey = key;
+    }
+  });
+
+  it("answers available:false, and embeds nothing, while vectors from another model remain", async () => {
+    config.openrouterApiKey = "sk-test";
+    currentSpy.mockReturnValue(false);
+    const fetchSpy = spyOn(globalThis, "fetch");
+    try {
+      const body = await semanticDocSearch("which quorum applies", { k: 5 });
+      expect(body).toEqual({ hits: [], skipped: null, available: false });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+      currentSpy.mockReturnValue(true);
     }
   });
 

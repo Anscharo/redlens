@@ -22,6 +22,7 @@ import { runLexical, runSemantic, filterByType, fuseBriefings, type Via } from "
 import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "./retrieval/leaf-attribution.ts";
 import { rateLimited } from "./feedback-limits.ts";
 import { spendSemanticBudget } from "./search-semantic-limit.ts";
+import { vectorsCurrent } from "./vectors-current.ts";
 import {
   MAX_SEMANTIC_QUERY,
   inScope,
@@ -52,23 +53,32 @@ export function semanticSearchAvailable(): boolean {
 const PILL_MODELS = new Set(["google/gemini-embedding-2"]);
 
 /**
+ * Can the route answer right now? It also needs every stored vector to come
+ * from the running model (`vectorsCurrent`), or a query is scored against
+ * another model's vectors.
+ */
+export function semanticRouteReady(): boolean {
+  return semanticSearchAvailable() && vectorsCurrent.current();
+}
+
+/**
  * Does the search bar offer the meaning lane? The page reads this at serve
- * time and hides the pill when it is false. The route stays open either way,
- * because chat and the MCP tools share the retrieval underneath it.
+ * time and hides the pill when it is false.
  */
 export function semanticLaneShown(): boolean {
-  return semanticSearchAvailable() && PILL_MODELS.has(config.embedModel);
+  return PILL_MODELS.has(config.embedModel) && semanticRouteReady();
 }
 
 /**
  * Would answering this query actually SPEND anything?
  *
  * One rule, read by two callers: the search itself, to return early, and the
- * budget gate, so a query that was never going to embed — too short, or a
- * deployment with no key — cannot burn a token that a real search needs.
+ * budget gate, so a query that was never going to embed — too short, a
+ * deployment with no key, or vectors still being re-embedded — cannot burn a token
+ * that a real search needs.
  */
 export function wouldSpendEmbed(query: string): boolean {
-  return semanticSearchAvailable() && semanticWorthAsking(query.trim().slice(0, MAX_SEMANTIC_QUERY));
+  return semanticRouteReady() && semanticWorthAsking(query.trim().slice(0, MAX_SEMANTIC_QUERY));
 }
 
 export function clampK(raw: string | null): number {
@@ -81,7 +91,7 @@ export async function semanticDocSearch(
   query: string,
   opts: { k?: number; type?: string; scope?: string } = {},
 ): Promise<SemanticSearchResponse> {
-  const available = semanticSearchAvailable();
+  const available = semanticRouteReady();
   const q = query.trim().slice(0, MAX_SEMANTIC_QUERY);
   if (!wouldSpendEmbed(query)) return { hits: [], skipped: null, available };
 
@@ -181,7 +191,7 @@ export async function handleSemanticSearch(req: Request): Promise<Response> {
     return json({
       hits: [],
       skipped: (err as Error).message,
-      available: semanticSearchAvailable(),
+      available: semanticRouteReady(),
     } satisfies SemanticSearchResponse);
   }
 }
