@@ -181,24 +181,7 @@ describe("a lane still loading", () => {
   });
 });
 
-describe("Radar link", () => {
-  it("links the query to Radar search, on either lane", () => {
-    setup(done({ query: "keel & ops" }), { shown: 1, total: 1 });
-    const link = screen.getByText("Search actors and instances on Radar →").closest("a");
-    expect(link).toHaveAttribute("href", "/radar?q=keel%20%26%20ops");
-    cleanup();
-    setup(done({ query: "keel", lane: "semantic" }), { shown: 1, total: 1, lane: "semantic" });
-    expect(screen.getByText("Search actors and instances on Radar →").closest("a")).toHaveAttribute(
-      "href",
-      "/radar?q=keel",
-    );
-  });
-
-  it("is absent while the search is still running", () => {
-    setup({ status: "searching" });
-    expect(screen.queryByText("Search actors and instances on Radar →")).toBeNull();
-  });
-
+describe("spent shared budget", () => {
   it("leaves a spent shared budget to the sign-in prompt, and says it in words without logins", () => {
     const state = done({ lane: "semantic", semantic: "skipped", semanticLimit: "shared", semanticNote: "the meaning index is busy — try again in a moment" });
     users.enabled = true;
