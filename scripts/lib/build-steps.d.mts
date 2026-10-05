@@ -10,8 +10,6 @@ export interface BuildStep {
   script: string | null;
   /** package.json script name (e.g. "build:graph"). */
   pnpmScript: string;
-  /** Default runner per package.json; null for the tooling-binary steps. */
-  runner: "node" | "bun" | null;
 }
 export const STEPS: BuildStep[];
 export const COMMUTES: [string, string][];

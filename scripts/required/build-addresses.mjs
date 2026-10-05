@@ -14,7 +14,7 @@
  *
  * Cache is committed to git so contributors / CI don't need an API key.
  *
- * Run: ETHERSCAN_API_KEY=… node --env-file-if-exists=.env.local scripts/required/build-addresses.mjs
+ * Run: ETHERSCAN_API_KEY=… bun scripts/required/build-addresses.mjs
  */
 
 import fs from "node:fs/promises";
@@ -33,7 +33,7 @@ const API_KEY = process.env.ETHERSCAN_API_KEY;
 if (!API_KEY) {
   console.warn(
     "ETHERSCAN_API_KEY not set — skipping address enrichment. Committed public/addresses.json will be used as-is.\n" +
-    "Add it to .env.local to rebuild (build script runs with --env-file-if-exists=.env.local).",
+    "Add it to .env.local to rebuild (Bun loads it when the build script runs).",
   );
   process.exit(0);
 }

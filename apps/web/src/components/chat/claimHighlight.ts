@@ -59,29 +59,40 @@ export function clearClaimHighlight(root: HTMLElement) {
   }
 }
 
-function wrapRange(root: HTMLElement, start: number, end: number) {
-  const nodes = textNodes(root);
+// The text nodes covering [start, end) of root's text, each split so it holds
+// exactly its part of the range.
+function sliceTextNodes(root: HTMLElement, start: number, end: number): Text[] {
   let offset = 0;
   const slices: Text[] = [];
-  for (const node of nodes) {
+  for (const node of textNodes(root)) {
     const nodeStart = offset;
-    const nodeEnd = offset + node.data.length;
-    offset = nodeEnd;
-    if (nodeEnd <= start || nodeStart >= end) continue;
+    offset += node.data.length;
+    if (offset <= start || nodeStart >= end) continue;
     const localStart = Math.max(0, start - nodeStart);
     const localEnd = Math.min(node.data.length, end - nodeStart);
-    let target = node;
-    if (localStart > 0) target = target.splitText(localStart);
-    const len = localEnd - localStart;
-    if (len < target.data.length) target.splitText(len);
+    const target = localStart > 0 ? node.splitText(localStart) : node;
+    if (localEnd - localStart < target.data.length) target.splitText(localEnd - localStart);
     slices.push(target);
   }
-  for (const target of slices) {
+  return slices;
+}
+
+function wrapRange(root: HTMLElement, start: number, end: number) {
+  for (const target of sliceTextNodes(root, start, end)) {
     const mark = document.createElement("mark");
     mark.className = "rlc-claim-flash";
     target.parentNode?.insertBefore(mark, target);
     mark.appendChild(target);
   }
+}
+
+// The scrollTop that brings `box` below the sticky header, or null when it is
+// already fully in view.
+function claimScrollTop(scroller: HTMLElement, box: DOMRect): number | null {
+  const view = scroller.getBoundingClientRect();
+  if (box.height > 0 && box.top >= view.top + HEADER_OFFSET && box.bottom <= view.bottom) return null;
+  const top = box.top - view.top + scroller.scrollTop - HEADER_OFFSET;
+  return Math.max(0, Math.min(top, scroller.scrollHeight - scroller.clientHeight));
 }
 
 function scrollClaimIntoView(mark: HTMLElement) {
@@ -94,21 +105,10 @@ function scrollClaimIntoView(mark: HTMLElement) {
     }
     return;
   }
-  const box = mark.getBoundingClientRect();
-  const view = scroller.getBoundingClientRect();
-  if (box.height > 0 && box.top >= view.top + HEADER_OFFSET && box.bottom <= view.bottom) return;
-  const target = Math.max(
-    0,
-    Math.min(
-      box.top - view.top + scroller.scrollTop - HEADER_OFFSET,
-      scroller.scrollHeight - scroller.clientHeight,
-    ),
-  );
-  if (reducedMotion()) {
-    scroller.scrollTop = target;
-    return;
-  }
-  glide(scroller, target);
+  const target = claimScrollTop(scroller, mark.getBoundingClientRect());
+  if (target === null) return;
+  if (reducedMotion()) scroller.scrollTop = target;
+  else glide(scroller, target);
 }
 
 /** Scroll the quoted claim into view inside this answer and flash it. */

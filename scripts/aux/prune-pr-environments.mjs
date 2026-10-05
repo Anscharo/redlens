@@ -15,7 +15,7 @@
  * links on those closed PRs stop resolving. That is the whole cost.
  *
  * SAFETY: dry-run by default — pass --apply to actually delete. Every keep/delete
- * rule lives in scripts/lib/prune-plan.mjs and is unit-tested in
+ * rule lives in scripts/lib/prune-plan.ts and is unit-tested in
  * scripts_tests/prune-plan.test.ts; this file is only the I/O around them. In
  * short: a name must parse as a PR environment to be a candidate at all, a
  * candidate whose PR is still OPEN is kept, a candidate whose number resolves to
@@ -47,7 +47,7 @@ import {
   parsePruneArgs,
   planPrune,
   selectCandidates,
-} from "../lib/prune-plan.mjs";
+} from "../lib/prune-plan.ts";
 
 // GITHUB_API_URL is set by Actions itself (and points at the host on GHES), so
 // honouring it costs nothing and keeps the script pointable at a mock.

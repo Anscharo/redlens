@@ -53,8 +53,7 @@ describe("build-steps: declaration integrity", () => {
       if (step.script === null) continue;
       expect(fs.existsSync(path.join(ROOT, step.script)), `missing ${step.script}`).toBe(true);
       expect(step.name).toBe(path.basename(step.script).replace(/\.(mjs|ts)$/, ""));
-      // The declared runner must be the one package.json actually uses.
-      expect(pkg.scripts[step.pnpmScript]).toContain(step.runner === "bun" ? "bun " : "node ");
+      expect(pkg.scripts[step.pnpmScript]).toMatch(/^bun /);
       expect(pkg.scripts[step.pnpmScript]).toContain(step.script);
     }
   });

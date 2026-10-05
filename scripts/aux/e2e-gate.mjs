@@ -30,8 +30,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { deployEquivalentShasFromGit } from "../lib/deploy-equivalent.mjs";
-import { shouldSkipDeploy } from "../lib/deploy-skip.mjs";
+import { deployEquivalentShasFromGit } from "../lib/deploy-equivalent.ts";
+import { shouldSkipDeploy } from "../lib/deploy-skip.ts";
 import { fetchPullRequest, fetchRuns } from "./e2e-gate-github.mjs";
 
 // When imported by the test rather than run as a CLI, only the pure helpers

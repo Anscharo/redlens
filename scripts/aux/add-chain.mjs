@@ -8,7 +8,7 @@
  * address to the wrong chain's block explorer, no prose hint meant the chain
  * could never be attributed, no native token made the balances fetcher skip it
  * entirely. census:chains can now tell you a chain is missing (including ones
- * nobody named in advance — see chain-candidates.mjs); this closes the loop by
+ * nobody named in advance — see chain-candidates.ts); this closes the loop by
  * making the fix a command rather than a careful manual edit.
  *
  * DELIBERATELY NOT PART OF `pnpm build`. The build is offline and

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
+import { useDismissiblePopover } from "./useLightDismiss";
 import { useTheme } from "../../lib/theme";
-import { ThemeGlyph } from "./glyphs";
+import { ThemeGlyph } from "./ThemeGlyph";
 import { ThemePicker } from "./ThemePicker";
 
 const PANEL_ID = "nav-theme-picker";
@@ -10,26 +11,8 @@ const PANEL_ID = "nav-theme-picker";
 // account menu so it is reachable without a login and in preview.
 export function ThemeButton() {
   const { theme } = useTheme();
-  const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      e.preventDefault();
-      setOpen(false);
-    };
-    document.addEventListener("mousedown", close);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", close);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  const [open, setOpen] = useDismissiblePopover(ref, { escapeTarget: window, claimEscape: true });
 
   return (
     <div ref={ref} className="relative shrink-0">

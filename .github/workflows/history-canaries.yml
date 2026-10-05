@@ -21,8 +21,6 @@ jobs:
           fetch-depth: 0
 
       - uses: ./.github/actions/setup
-        with:
-          bun: "true"
 
       # Build index + graph so build-history can load agentNamePrefixes
       - name: Build index

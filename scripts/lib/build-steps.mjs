@@ -11,24 +11,24 @@
 // below states its opt-outs and why. The point of this file is to make an
 // accidental divergence loud, not to force every site to run the same steps.
 
-/** @typedef {{ id: string, name: string, script: string | null, pnpmScript: string, runner: "node" | "bun" | null }} BuildStep */
+/** @typedef {{ id: string, name: string, script: string | null, pnpmScript: string | "bun" | null }} BuildStep */
 
 // Canonical order == package.json's `build` (the `full` profile). Anything that
 // runs a subset must keep this relative order, modulo COMMUTES below.
 const DECLARED = [
-  { id: "index", script: "scripts/required/build-index.mjs", pnpmScript: "build:index", runner: "node" },
-  { id: "glossary", script: "scripts/required/build-glossary.mjs", pnpmScript: "build:glossary", runner: "node" },
-  { id: "addresses", script: "scripts/required/build-addresses.mjs", pnpmScript: "build:addresses", runner: "node" },
-  { id: "graph", script: "scripts/required/build-graph.mjs", pnpmScript: "build:graph", runner: "node" },
-  { id: "oea-report", script: "scripts/required/build-oea-report.ts", pnpmScript: "build:oea-report", runner: "bun" },
-  { id: "manifest", script: "scripts/required/build-manifest.mjs", pnpmScript: "build:manifest", runner: "node" },
-  { id: "bundle", script: "scripts/required/build-bundle.ts", pnpmScript: "build:bundle", runner: "bun" },
-  { id: "tools", script: "scripts/required/build-tools.ts", pnpmScript: "build:tools", runner: "bun" },
+  { id: "index", script: "scripts/required/build-index.mjs", pnpmScript: "build:index" },
+  { id: "glossary", script: "scripts/required/build-glossary.mjs", pnpmScript: "build:glossary" },
+  { id: "addresses", script: "scripts/required/build-addresses.mjs", pnpmScript: "build:addresses" },
+  { id: "graph", script: "scripts/required/build-graph.mjs", pnpmScript: "build:graph" },
+  { id: "oea-report", script: "scripts/required/build-oea-report.ts", pnpmScript: "build:oea-report" },
+  { id: "manifest", script: "scripts/required/build-manifest.mjs", pnpmScript: "build:manifest" },
+  { id: "bundle", script: "scripts/required/build-bundle.ts", pnpmScript: "build:bundle" },
+  { id: "tools", script: "scripts/required/build-tools.ts", pnpmScript: "build:tools" },
   // No script path: these two shell out to tooling binaries (`tsc -b`,
   // `vite build`), not to a scripts/required entry point. Declared so the
   // docker + full profiles are complete chains rather than truncated ones.
-  { id: "ts", script: null, pnpmScript: "build:ts", runner: null },
-  { id: "vite", script: null, pnpmScript: "build:vite", runner: null },
+  { id: "ts", script: null, pnpmScript: "build:ts" },
+  { id: "vite", script: null, pnpmScript: "build:vite" },
 ];
 
 /**

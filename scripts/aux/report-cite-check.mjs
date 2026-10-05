@@ -7,10 +7,10 @@
 //   pnpm cite:check <report.md>
 //
 // Exit 0 when clean, 1 when any normative claim lacks an in-context Atlas
-// citation. See scripts/lib/report-citations.mjs and CLAUDE.md “Citation dictate”.
+// citation. See scripts/lib/report-citations.ts and CLAUDE.md “Citation dictate”.
 
 import fs from "node:fs";
-import { analyzeReportCitations, formatUncited } from "../lib/report-citations.mjs";
+import { analyzeReportCitations, formatUncited } from "../lib/report-citations.ts";
 
 function readStdin() {
   try { return fs.readFileSync(0, "utf8"); } catch { return ""; }
