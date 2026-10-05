@@ -20,16 +20,38 @@ function hasRow(c: ParagraphCheck): boolean {
   return c.findings.length > 0 || c.model === "candidate" || c.model === "failed";
 }
 
-function ModelMark({ model }: { model: ParagraphCheck["model"] }) {
-  const label = model ? MODEL_ROW_LABEL[model] : undefined;
-  if (!label) return null;
-  // No aria-label: it is prohibited on a roleless <span> (implicit `generic`
-  // role, so Chrome and Firefox drop it) and the visible text IS the label.
+// One flagged paragraph: its ¶ number, each deterministic finding, and the
+// model state's own label when it has one (no aria-label on that span: it is
+// prohibited on a roleless <span> — implicit `generic` role, so Chrome and
+// Firefox drop it — and the visible text IS the label). data-state reflects
+// the deterministic finding specifically (a candidate/failed row with no
+// finding of its own is a plain row, not a stacked "flagged" one — see the
+// CSS layout rule). `title` (first 80 chars) only identifies the paragraph on
+// hover; its text is already visible right above.
+function ParagraphRow({ check: c }: { check: ParagraphCheck }) {
+  const modelLabel = c.model ? MODEL_ROW_LABEL[c.model] : undefined;
   return (
-    <span className="rlc-para-model" data-model={model}>
-      {label}
-    </span>
+    <li data-state={c.findings.length > 0 ? "flagged" : "ok"} data-model={c.model} title={c.text.length > 80 ? `${c.text.slice(0, 80)}…` : c.text}>
+      <span className="rlc-para-mark">{`¶${c.index + 1}`}</span>
+      {c.findings.map((finding, i) => (
+        <span key={i} className="rlc-para-finding">
+          {finding}
+        </span>
+      ))}
+      {modelLabel && (
+        <span className="rlc-para-model" data-model={c.model}>
+          {modelLabel}
+        </span>
+      )}
+    </li>
   );
+}
+
+function checksSummary(checks: ParagraphCheck[], flagged: number): string {
+  const n = checks.length;
+  const pending = checks.some((c) => c.model === "pending");
+  const outcome = pending ? ", model check running" : flagged > 0 ? `, ${flagged} flagged` : ", no findings";
+  return `${n} paragraph${n === 1 ? "" : "s"} checked${outcome}`;
 }
 
 // The incremental per-paragraph audit — rendered under the Synthesizing
@@ -37,42 +59,18 @@ function ModelMark({ model }: { model: ParagraphCheck["model"] }) {
 // line always shows (count + outcome); the list below it names only the
 // paragraphs that have a deterministic finding or a model state worth
 // calling out, so a clean run doesn't restate "checked, no findings" once
-// per paragraph. The paragraph's own text is already visible right above
-// this (the live draft or a superseded draft), so a row never repeats it —
-// `title` (first 80 chars) only identifies the paragraph on hover.
+// per paragraph.
 export function ParagraphChecks({ checks }: ParagraphChecksProps) {
   if (!checks?.length) return null;
   const rows = checks.filter(hasRow);
-  const flagged = rows.length;
-  const pending = checks.some((c) => c.model === "pending");
-  const n = checks.length;
-  const summary =
-    `${n} paragraph${n === 1 ? "" : "s"} checked` +
-    (pending ? ", model check running" : flagged > 0 ? `, ${flagged} flagged` : ", no findings");
-
   return (
     <div className="rlc-para-checks">
-      <p className="rlc-para-summary">{summary}</p>
+      <p className="rlc-para-summary">{checksSummary(checks, rows.length)}</p>
       {rows.length > 0 && (
         <ul aria-label="Paragraph checks">
-          {rows.map((c) => {
-            const title = c.text.length > 80 ? `${c.text.slice(0, 80)}…` : c.text;
-            // data-state reflects the deterministic finding specifically (a
-            // candidate/failed row with no finding of its own is a plain
-            // row, not a stacked "flagged" one — see the CSS layout rule).
-            const flaggedRow = c.findings.length > 0;
-            return (
-              <li key={c.index} data-state={flaggedRow ? "flagged" : "ok"} data-model={c.model} title={title}>
-                <span className="rlc-para-mark">{`¶${c.index + 1}`}</span>
-                {c.findings.map((finding, i) => (
-                  <span key={i} className="rlc-para-finding">
-                    {finding}
-                  </span>
-                ))}
-                <ModelMark model={c.model} />
-              </li>
-            );
-          })}
+          {rows.map((c) => (
+            <ParagraphRow key={c.index} check={c} />
+          ))}
         </ul>
       )}
     </div>

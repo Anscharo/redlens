@@ -1,6 +1,43 @@
-import { useRef } from "react";
+import { useRef, type ComponentProps, type KeyboardEvent } from "react";
 import { THEMES, useTheme } from "../../lib/theme";
-import { ThemeGlyph } from "./glyphs";
+import { ThemeGlyph } from "./ThemeGlyph";
+
+// Arrow keys move the selection through the rows, wrapping at both ends;
+// null for any other key.
+function nextRow(key: string, i: number): number | null {
+  if (key === "ArrowDown" || key === "ArrowRight") return (i + 1) % THEMES.length;
+  if (key === "ArrowUp" || key === "ArrowLeft") return (i - 1 + THEMES.length) % THEMES.length;
+  return null;
+}
+
+interface ThemeRowProps extends ComponentProps<"button"> {
+  /** The theme this row selects. */
+  theme: (typeof THEMES)[number];
+  /** Whether it is the active theme. */
+  selected: boolean;
+}
+
+function ThemeRow({ theme, selected, ...props }: ThemeRowProps) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      data-state={selected ? "checked" : "unchecked"}
+      tabIndex={selected ? 0 : -1}
+      className="rlc-menu-item"
+      {...props}
+    >
+      <span className="min-w-0">
+        <span className="text-[12.5px] block">{theme.label}</span>
+        <span className="mono text-[9.5px] text-gray block">{theme.hint}</span>
+      </span>
+      <span aria-hidden="true" className="rlc-theme-mark text-accent shrink-0">
+        {selected ? "✓" : <ThemeGlyph theme={theme.id} />}
+      </span>
+    </button>
+  );
+}
 
 // The theme row-group opened by ThemeButton in the nav. Renders straight
 // from THEMES — a fourth theme needs no edit here. `role="radio"` per row
@@ -8,47 +45,27 @@ import { ThemeGlyph } from "./glyphs";
 export function ThemePicker() {
   const { theme, setTheme } = useTheme();
   const rowRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, i: number) => {
-    let delta = 0;
-    if (e.key === "ArrowDown" || e.key === "ArrowRight") delta = 1;
-    else if (e.key === "ArrowUp" || e.key === "ArrowLeft") delta = -1;
-    else return;
+  const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>, i: number) => {
+    const next = nextRow(e.key, i);
+    if (next === null) return;
     e.preventDefault();
-    const next = (i + delta + THEMES.length) % THEMES.length;
     setTheme(THEMES[next].id);
     rowRefs.current[next]?.focus();
   };
-
   return (
     <div role="radiogroup" aria-label="Theme">
-      {THEMES.map((t, i) => {
-        const selected = t.id === theme;
-        return (
-          <button
-            key={t.id}
-            ref={(el) => {
-              rowRefs.current[i] = el;
-            }}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            data-state={selected ? "checked" : "unchecked"}
-            tabIndex={selected ? 0 : -1}
-            className="rlc-menu-item"
-            onClick={() => setTheme(t.id)}
-            onKeyDown={(e) => handleKeyDown(e, i)}
-          >
-            <span className="min-w-0">
-              <span className="text-[12.5px] block">{t.label}</span>
-              <span className="mono text-[9.5px] text-gray block">{t.hint}</span>
-            </span>
-            <span aria-hidden="true" className="rlc-theme-mark text-accent shrink-0">
-              {selected ? "✓" : <ThemeGlyph theme={t.id} />}
-            </span>
-          </button>
-        );
-      })}
+      {THEMES.map((t, i) => (
+        <ThemeRow
+          key={t.id}
+          theme={t}
+          selected={t.id === theme}
+          ref={(el) => {
+            rowRefs.current[i] = el;
+          }}
+          onClick={() => setTheme(t.id)}
+          onKeyDown={(e) => onKeyDown(e, i)}
+        />
+      ))}
     </div>
   );
 }
