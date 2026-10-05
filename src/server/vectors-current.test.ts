@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { createVectorsCurrent, RECHECK_MS } from "./vectors-current.ts";
+import { createVectorsCurrent, RECHECK_MS, STALE_WARN_MS } from "./vectors-current.ts";
 
 describe("vectorsCurrent", () => {
   const settle = () => new Promise((r) => setTimeout(r, 0));
@@ -54,5 +54,37 @@ describe("vectorsCurrent", () => {
     } finally {
       console.warn = warn;
     }
+  });
+
+  it("warns when stale vectors outlast a re-embed, and not on every check", async () => {
+    const warn = console.warn;
+    const warned: string[] = [];
+    console.warn = (m: string) => void warned.push(m);
+    try {
+      let clock = 0;
+      const v = createVectorsCurrent(async () => true, () => clock);
+      await v.refresh();
+      clock = STALE_WARN_MS - 1;
+      await v.refresh();
+      expect(warned).toHaveLength(0); // a re-embed in progress is not a fault
+      clock = STALE_WARN_MS;
+      await v.refresh();
+      expect(warned).toHaveLength(1);
+      expect(warned[0]).toContain("EMBED_MODEL matches on the server and the atlas worker");
+      clock += RECHECK_MS;
+      await v.refresh();
+      expect(warned).toHaveLength(1);
+      clock += STALE_WARN_MS;
+      await v.refresh();
+      expect(warned).toHaveLength(2);
+    } finally {
+      console.warn = warn;
+    }
+  });
+
+  it("counts empty tables as current", async () => {
+    const v = createVectorsCurrent(async () => false, () => 0);
+    await v.refresh();
+    expect(v.current()).toBe(true);
   });
 });

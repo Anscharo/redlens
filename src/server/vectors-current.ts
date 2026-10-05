@@ -9,14 +9,29 @@
 //
 // The answer latches: the model is fixed for the life of the process, so once
 // every row matches it nothing can put one behind again. Until then the check
-// reruns at most once a minute (about 20 ms over both tables). A failed check
-// keeps the last answer.
+// reruns at most once a minute (about 20 ms over both tables), and only when
+// something asks. The answer starts at "not ready", and a failed check keeps
+// the last answer, so a database that is down at boot keeps the pill hidden
+// until a check succeeds.
+//
+// A model mismatch that lasts hours is almost always configuration, not a slow
+// re-embed: a worker still on the old `EMBED_MODEL` keeps writing old vectors
+// and the lane never comes back. That is logged (`STALE_WARN_MS`) rather than
+// left silent.
 import { sql } from "./db.ts";
 import { config } from "./config.ts";
 
 export const RECHECK_MS = 60_000;
+// The whole corpus re-embeds in well under an hour, so two is a fault.
+export const STALE_WARN_MS = 2 * 3_600_000;
 
-/** Is any stored vector, unit or briefing, from a model other than `model`? */
+/**
+ * Is any stored vector, unit or briefing, from a model other than `model`?
+ * `atlas_doc_embeddings.embedding` is NOT NULL and every write stamps
+ * `embed_model`, so every unit row is a vector; a briefing row has no vector
+ * until it is embedded, hence its extra filter. Empty tables count as current:
+ * there is nothing to mismatch, and the lane answers nothing until rows exist.
+ */
 async function staleVectorsExist(model: string): Promise<boolean> {
   const rows = await sql`
     SELECT EXISTS (SELECT 1 FROM atlas_doc_embeddings WHERE embed_model IS DISTINCT FROM ${model})
@@ -36,11 +51,21 @@ export function createVectorsCurrent(stale: () => Promise<boolean>, now: () => n
   let current = false;
   let checkedAt = Number.NEGATIVE_INFINITY;
   let inFlight: Promise<void> | null = null;
+  const startedAt = now();
+  let warnedAt = Number.NEGATIVE_INFINITY;
   const refresh = () => {
     inFlight ??= (async () => {
       checkedAt = now();
       try {
         current = !(await stale());
+        if (!current && checkedAt - startedAt >= STALE_WARN_MS && checkedAt - warnedAt >= STALE_WARN_MS) {
+          warnedAt = checkedAt;
+          const hours = Math.floor((checkedAt - startedAt) / 3_600_000);
+          console.warn(
+            `[vectors-current] stored vectors from a model other than ${config.embedModel} remain after ${hours}h; ` +
+              "the meaning lane stays off until they are gone. Check that EMBED_MODEL matches on the server and the atlas worker.",
+          );
+        }
       } catch (err) {
         console.warn(`[vectors-current] check failed: ${(err as Error).message}`);
       } finally {
