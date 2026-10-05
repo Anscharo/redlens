@@ -11,9 +11,13 @@ import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import type { SearchScope } from "@/lib/routes";
 
-const { search, track } = vi.hoisted(() => ({ search: vi.fn(), track: vi.fn() }));
+const { search, track, searchState } = vi.hoisted(() => ({
+  search: vi.fn(),
+  track: vi.fn(),
+  searchState: { current: { status: "idle", query: "", hits: [] } as Record<string, unknown> },
+}));
 vi.mock("./useSearch", () => ({
-  useSearch: () => ({ state: { status: "idle", query: "", hits: [] }, search, ready: true }),
+  useSearch: () => ({ state: searchState.current, search, ready: true }),
 }));
 vi.mock("../lib/analytics", () => ({ track }));
 vi.mock("../lib/recentSearches", () => ({
@@ -50,6 +54,7 @@ function setup(path: string, location: string, scope: SearchScope = "atlas") {
 }
 
 beforeEach(() => {
+  searchState.current = { status: "idle", query: "", hits: [] };
   search.mockClear();
   track.mockClear();
 });
@@ -162,13 +167,23 @@ describe("useSearchInput (rendered)", () => {
   });
 
   it("selectLane records the change and re-runs the query against the other index", () => {
-    setup("/?q=governance", "/");
-    act(() => api.selectLane("graph"));
-    expect(track).toHaveBeenCalledWith("search_lane_change", { product: "search", lane: "graph" });
-    expect(api.lane).toBe("graph");
-    // Switching index must not touch the query itself.
-    expect(api.query).toBe("governance");
-    expect(search).toHaveBeenLastCalledWith("governance", { lane: "graph" });
+    window.__SEMANTIC_SEARCH__ = true;
+    try {
+      setup("/?q=governance", "/");
+      act(() => api.selectLane("semantic"));
+      expect(track).toHaveBeenCalledWith("search_lane_change", { product: "search", lane: "semantic" });
+      expect(api.lane).toBe("semantic");
+      // Switching index must not touch the query itself.
+      expect(api.query).toBe("governance");
+      expect(search).toHaveBeenLastCalledWith("governance", { lane: "semantic" });
+    } finally {
+      delete window.__SEMANTIC_SEARCH__;
+    }
+  });
+
+  it("decodes a retired ?lane=graph link to the wording lane", () => {
+    setup("/?q=governance&lane=graph", "/");
+    expect(api.lane).toBe("lexical");
   });
 
   it("wrapModeClick toggles a phrase back off to bare text", () => {
@@ -201,5 +216,48 @@ describe("useSearchInput (rendered)", () => {
     cleanup();
     setup('/?q=half "quoted', "/", "atlas");
     expect(api.isMixed).toBe(true);
+  });
+
+  describe("searchAnyway (Enter on a held meaning query)", () => {
+    const held = { status: "done", query: "xkcdq", hits: [], lane: "semantic", semantic: "none", heldWords: ["xkcdq"] };
+
+    it("re-posts the query with force when the meaning lane held it", () => {
+      window.__SEMANTIC_SEARCH__ = true;
+      try {
+        searchState.current = held;
+        setup("/?q=xkcdq&lane=semantic", "/");
+        let sent = false;
+        act(() => { sent = api.searchAnyway(); });
+        expect(sent).toBe(true);
+        expect(search).toHaveBeenLastCalledWith("xkcdq", { lane: "semantic", force: true });
+      } finally {
+        delete window.__SEMANTIC_SEARCH__;
+      }
+    });
+
+    it("does nothing when nothing was held", () => {
+      window.__SEMANTIC_SEARCH__ = true;
+      try {
+        searchState.current = { ...held, heldWords: undefined };
+        setup("/?q=governance&lane=semantic", "/");
+        search.mockClear();
+        let sent = true;
+        act(() => { sent = api.searchAnyway(); });
+        expect(sent).toBe(false);
+        expect(search).not.toHaveBeenCalled();
+      } finally {
+        delete window.__SEMANTIC_SEARCH__;
+      }
+    });
+
+    it("does nothing on the wording lane", () => {
+      searchState.current = { ...held, lane: "lexical" };
+      setup("/?q=xkcdq", "/");
+      search.mockClear();
+      let sent = true;
+      act(() => { sent = api.searchAnyway(); });
+      expect(sent).toBe(false);
+      expect(search).not.toHaveBeenCalled();
+    });
   });
 });

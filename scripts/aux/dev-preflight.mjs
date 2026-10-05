@@ -236,6 +236,20 @@ function ensureSettlements() {
   }
 }
 
+// Document briefings: seed atlas_doc_briefings from public/doc-briefings.json and
+// embed them. The atlas worker runs this as a tail, but a --no-fetch fast exit
+// skips the tails, so dev would otherwise never seed. Never fatal; the write pass
+// stays off here (no BRIEFING_MODEL, and the tail refuses to spend under dev).
+function ensureBriefings() {
+  log("Seeding document briefings…");
+  // ATLAS_WORKER_NO_FETCH=1 is what keeps the write pass from spending in dev, even
+  // with BRIEFING_MODEL and a key in .env.local.
+  const env = { ...process.env, ATLAS_WORKER_NO_FETCH: "1" };
+  if (spawnSync("bun", ["src/server/sync-briefings.ts"], { stdio: "inherit", env }).status !== 0) {
+    warn("sync:briefings didn't finish cleanly — meaning search runs without briefings until it does.");
+  }
+}
+
 export async function preflight() {
   ensureDeps();
   ensureToolsCatalog();
@@ -250,6 +264,7 @@ export async function preflight() {
   dbUp();
   await waitHealthy();
   if (!runWorker()) ensureArtifacts(); // fallback so the reader always has artifacts
+  ensureBriefings();
   ensureBundle();
   log("Ready — starting server + Vite.");
 }

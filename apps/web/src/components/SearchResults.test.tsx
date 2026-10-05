@@ -1,28 +1,21 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { SearchResults } from "./SearchResults";
 import type { SearchState } from "../hooks/useSearch";
 import type { SearchLane } from "@/lib/searchSemantic";
-import { makeSearchHit, makeGraphEntity, makeSearchState } from "../test/fixtures";
+import { makeSearchHit, makeSearchState } from "../test/fixtures";
 
 const mocks = vi.hoisted(() => ({
-  searchEntities: vi.fn(),
   track: vi.fn(),
 }));
-vi.mock("../lib/graph", () => ({ searchEntities: mocks.searchEntities }));
 vi.mock("../lib/analytics", () => ({ track: mocks.track, captureException: vi.fn() }));
 
 afterEach(() => {
   cleanup();
   mocks.track.mockClear();
-  mocks.searchEntities.mockClear();
   window.history.pushState({}, "", "/");
-});
-
-beforeEach(() => {
-  mocks.searchEntities.mockResolvedValue([]);
 });
 
 function setup(
@@ -56,13 +49,6 @@ describe("SearchResults meaning-lane progress", () => {
   it("shows no bar once the meaning leg has answered", () => {
     setup(makeSearchState({ semantic: "done" }), { query: "vat", lane: "semantic" });
     expect(screen.queryByText("Computing multidimensional vectors")).toBeNull();
-  });
-
-  it("shows no bar for an entity search, which makes no round trip to promise", async () => {
-    // entitiesLoading also sets `pending`, so gating the bar on that shared flag
-    // would put a "Computing multidimensional vectors" bar over a graph lookup.
-    setup(makeSearchState({ semantic: "none" }), { query: "spark", lane: "graph" });
-    await waitFor(() => expect(screen.queryByText("Computing multidimensional vectors")).toBeNull());
   });
 });
 
@@ -201,55 +187,5 @@ describe("SearchResults pagination", () => {
     await waitFor(() => expect(screen.getByText("Three")).toBeTruthy());
     expect(screen.getByText("Four")).toBeTruthy();
     expect(screen.queryByText(/show.*more/)).toBeNull();
-  });
-});
-
-describe("SearchResults entity hits", () => {
-  it("renders matching entities from the graph worker, with a link to their profile", async () => {
-    mocks.searchEntities.mockResolvedValue([
-      {
-        participant: makeGraphEntity({ id: "e-1", slug: "keel", name: "Keel", et: "agent", st: "prime" }),
-        score: 3,
-        href: "/radar/keel",
-      },
-      {
-        participant: makeGraphEntity({ id: "e-2", slug: "keel-ops", name: "Keel Ops", et: "agent", st: null }),
-        score: 2,
-        href: "/radar/keel-ops",
-      },
-    ]);
-    setup(
-      makeSearchState({ query: "keel", lane: "graph" }),
-      { query: "keel", lane: "graph" },
-    );
-    await waitFor(() => expect(screen.getByText("Keel")).toBeTruthy());
-    expect(screen.getByText("Keel Ops")).toBeTruthy();
-    expect(screen.getByText("Entities")).toBeTruthy();
-    const link = screen.getByText("Keel").closest("a")!;
-    expect(link).toHaveAttribute("href", "/radar/keel");
-    expect(mocks.searchEntities).toHaveBeenCalledWith("keel");
-  });
-
-  it("shows no entities, and asks the graph worker for none, off the entities lane", async () => {
-    // Listing them above a wording search too would be the same list in two
-    // places, pushing the document hits down the page.
-    mocks.searchEntities.mockResolvedValue([
-      { participant: makeGraphEntity({ id: "e-1", slug: "keel", name: "Keel", et: "agent" }), score: 3, href: "/radar/keel" },
-    ]);
-    for (const lane of ["lexical", "semantic"] as const) {
-      cleanup();
-      mocks.searchEntities.mockClear();
-      setup(makeSearchState({ query: "keel", lane }), { query: "keel", lane });
-      await waitFor(() => expect(screen.getByText(/result/)).toBeTruthy());
-      expect(screen.queryByText("Keel")).toBeNull();
-      expect(screen.queryByText("Entities")).toBeNull();
-      expect(mocks.searchEntities).not.toHaveBeenCalled();
-    }
-  });
-
-  it("does not query the graph worker for an empty or slash-prefixed query", () => {
-    setup({ status: "idle" }, { query: "/reports", lane: "graph" });
-    expect(mocks.searchEntities).not.toHaveBeenCalled();
-    expect(screen.queryByText("Keel")).toBeNull();
   });
 });

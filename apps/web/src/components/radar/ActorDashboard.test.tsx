@@ -190,3 +190,57 @@ describe("ActorDashboard sections", () => {
     expect(screen.getByTestId("rewards")).toBeInTheDocument();
   });
 });
+
+describe("ActorDashboard link targets", () => {
+  it("gives each populated section its search anchor id", () => {
+    const rel = {
+      edge: { f: "e1", ft: "entity", t: "e2", tt: "entity", e: "delegates_to" } as never,
+      direction: "outbound" as const,
+      otherLabel: "Grove",
+      otherId: "e2",
+      otherSlug: "grove",
+      otherEt: "agent",
+    };
+    const { container } = render(
+      <ActorDashboard
+        profile={profile({
+          adRows: [{} as never],
+          primitives: [{} as never],
+          relations: [rel as never],
+          recommendations: [{ label: "x", detail: "y" } as never],
+          rewardsAgent: {} as never,
+        })}
+      />,
+    );
+    for (const id of ["responsibilities", "primitives", "relationships", "notable", "history", "rewards"]) {
+      expect(container.querySelector(`section#${id}`)).not.toBeNull();
+    }
+  });
+
+  it("marks the hash target as arrived and clears the previous one", () => {
+    window.location.hash = "#primitives";
+    const { container, rerender } = render(<ActorDashboard profile={profile({ primitives: [{} as never] })} />);
+    const el = container.querySelector("#primitives")!;
+    expect(el).toHaveAttribute("data-arrived");
+    el.removeAttribute("id");
+    el.setAttribute("id", "old");
+    window.location.hash = "#history";
+    rerender(<ActorDashboard profile={profile({ primitives: [{} as never] })} />);
+    expect(container.querySelector("#history")).toHaveAttribute("data-arrived");
+    expect(el).not.toHaveAttribute("data-arrived");
+    window.location.hash = "";
+  });
+
+  it("scrolls once per arrival, not on every re-render", () => {
+    window.location.hash = "#primitives";
+    const scroll = vi.mocked(Element.prototype.scrollIntoView);
+    scroll.mockClear();
+    const { rerender } = render(<ActorDashboard profile={profile({ primitives: [{} as never] })} />);
+    expect(scroll).toHaveBeenCalledTimes(1);
+    rerender(<ActorDashboard profile={profile({ primitives: [{} as never] })} />);
+    expect(scroll).toHaveBeenCalledTimes(1);
+    rerender(<ActorDashboard profile={profile({ entity: entity({ id: "e2" }), primitives: [{} as never] })} />);
+    expect(scroll).toHaveBeenCalledTimes(2);
+    window.location.hash = "";
+  });
+});

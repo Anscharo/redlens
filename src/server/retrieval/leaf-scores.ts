@@ -70,7 +70,21 @@ export const GROUP_ECHO_PENALTY = 0.25;
  * Pure, because it is the part the measurement is about — the SQL around it only
  * supplies the three cosines.
  */
-export function fuseLeafScores(rows: readonly LeafRow[]): Map<string, number> {
+/** Which of the two rankings above a model's leaf scores come from. */
+export type LeafRule = { rankings?: "both" | "residual" | "echo" };
+
+/**
+ * The rule per embedding model; a model not listed fuses both rankings, the
+ * rule measured on qwen3-embedding-8b. gemini-embedding-2 takes the residual
+ * ranking alone: over half the corpus (179 queries, with briefings) it scored
+ * exact 0.788 on questions and 0.704 on keywords against 0.765 and 0.682 with
+ * both fused (+2.2 [−0.6, 5.6] and +2.2 [0.0, 5.0]), level with qwen3-8b's
+ * fused 0.788 and 0.676. The echo penalty moved nothing between 0 and 1.0.
+ */
+const LEAF_RULES: Record<string, LeafRule> = { "google/gemini-embedding-2": { rankings: "residual" } };
+export const leafRuleFor = (model: string): LeafRule => LEAF_RULES[model] ?? {};
+
+export function fuseLeafScores(rows: readonly LeafRow[], rule: LeafRule = {}): Map<string, number> {
   const byGroup = new Map<string, LeafRow[]>();
   for (const r of rows) {
     const g = byGroup.get(r.anchor_id);
@@ -82,7 +96,8 @@ export function fuseLeafScores(rows: readonly LeafRow[]): Map<string, number> {
     const echo = (r: LeafRow) => Number(r.query_sim) - GROUP_ECHO_PENALTY * Number(r.group_sim);
     const byResidual = [...group].sort((a, b) => Number(b.residual_sim) - Number(a.residual_sim)).map((r) => r.doc_id);
     const byEcho = [...group].sort((a, b) => echo(b) - echo(a)).map((r) => r.doc_id);
-    for (const [id, score] of rrfFuse([byResidual, byEcho])) fused.set(id, score);
+    const lists = rule.rankings === "residual" ? [byResidual] : rule.rankings === "echo" ? [byEcho] : [byResidual, byEcho];
+    for (const [id, score] of rrfFuse(lists)) fused.set(id, score);
   }
   return fused;
 }

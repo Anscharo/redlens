@@ -17,7 +17,7 @@
 import fs from "node:fs";
 import { createHash } from "node:crypto";
 import { bodyWhollyReplaced, JUDGEABLE_MIN_WORDS, SHORT_BODY_MAX_LINES } from "../../src/server/preview/identity.ts";
-import { loadCorpus, lineCount, wordCount, prng, quantile, qwenVectors, dot, type LiveDoc } from "./identity-corpus.ts";
+import { EMBED_MODEL_ID, loadCorpus, lineCount, wordCount, prng, quantile, qwenVectors, dot, type LiveDoc } from "./identity-corpus.ts";
 
 const args = process.argv.slice(2);
 const ORIGIN = args.includes("--origin") ? args[args.indexOf("--origin") + 1] : "https://atlas.redline.support";
@@ -75,7 +75,7 @@ const main = async () => {
   const summary: Record<string, unknown>[] = [];
 
   for (const arm of arms) {
-    console.log(`\n=== cos(before, after) — ${arm === "tern" ? "ternlight, 384 dims, first 128 tokens" : "Qwen3-embedding-8b, 1,024 dims"} ===`);
+    console.log(`\n=== cos(before, after) — ${arm === "tern" ? "ternlight, 384 dims, first 128 tokens" : `${EMBED_MODEL_ID}, 1,024 dims`} ===`);
     console.log(`  ${"population".padEnd(24)} ${"size".padEnd(6)} ${"n".padStart(5)}    min    p01    p05    p25    p50    p75    p95    mean   1-p50`);
     for (const g of GROUPS) for (const s of ["short", "long", "all"] as const) {
       const xs = pairs.filter((p) => p.group === g && (s === "all" || p.size === s)).map((p) => p[arm]).filter((x) => !Number.isNaN(x));
@@ -104,7 +104,7 @@ const main = async () => {
     const editX = pairs.filter((p) => p.group.startsWith("edit")).map((p) => p[arm]);
     const sibX = pairs.filter((p) => p.group === "not an edit: sibling").map((p) => p[arm]);
     console.log(`\n  one cut, edits against siblings:`);
-    for (const t of [0.5, 0.6, 0.7, 0.8, 0.85, 0.9]) {
+    for (const t of [0.5, 0.6, 0.7, 0.8, 0.85, 0.86, 0.87, 0.88, 0.89, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95]) {
       console.log(`    cos<=${t.toFixed(2)}  edits below ${((100 * editX.filter((x) => x <= t).length) / editX.length).toFixed(2)}%   siblings above ${((100 * sibX.filter((x) => x > t).length) / sibX.length).toFixed(2)}%`);
     }
 
@@ -117,7 +117,7 @@ const main = async () => {
     console.log(`\n  inside the shipped gate's flags: ${netEdits.length} real edits (${pairs.filter((p) => p.flagged && p.group !== "edit: semantic" && p.group.startsWith("edit")).length} cosmetic), ${netSwaps.length} synthetic swaps`);
     console.log(`    real edits  p05=${f(quantile(netEdits, 0.05))} p50=${f(quantile(netEdits, 0.5))} p95=${f(quantile(netEdits, 0.95))}`);
     console.log(`    swaps       p05=${f(quantile(netSwaps, 0.05))} p50=${f(quantile(netSwaps, 0.5))} p95=${f(quantile(netSwaps, 0.95))}`);
-    for (const v of [0.6, 0.7, 0.8, 0.85, 0.9, 0.95]) {
+    for (const v of [0.6, 0.7, 0.75, 0.8, 0.82, 0.84, 0.85, 0.86, 0.87, 0.88, 0.89, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97]) {
       console.log(`    veto when cos>${v.toFixed(2)}  spares ${netEdits.filter((x) => x > v).length}/${netEdits.length} real edits, loses ${netSwaps.filter((x) => x > v).length}/${netSwaps.length} swaps`);
     }
   }

@@ -1,10 +1,18 @@
 import type { AtlasNode, GraphEntity, RelationEdge } from "@/types";
 import { ROUTES } from "@/lib/routes";
 import { parseMeta } from "@/lib/meta";
-import { CHAIN_EDGES, EXEC_EDGES, FAC_EDGES, GOV_EDGES } from "@/lib/roleEdges";
+import { EXEC_EDGES, FAC_EDGES, GOV_EDGES } from "@/lib/roleEdges";
 import type { GraphData } from "./graph";
 import type { InstanceMeta, InvocationMeta, RewardsAgent } from "@/lib/rewardsTypes";
 import type { ActiveDataRow } from "@/lib/activeDataIndex";
+import {
+  EXCLUDED_INSTANCE_TYPES,
+  instanceSignalParams,
+  isRelationEdge,
+  type InstanceParam,
+} from "@/lib/radarRules";
+
+export type { InstanceParam };
 
 export interface ChainNode {
   id: string;
@@ -27,11 +35,6 @@ export interface ActorRelation {
   otherId: string;
   otherSlug: string | null;
   otherEt: string | null;
-}
-export interface InstanceParam {
-  key: string;
-  value: string;
-  srcDocId: string | null;
 }
 export interface RadarInstance {
   id: string;
@@ -117,11 +120,6 @@ export interface SidebarGroup {
   label: string;
   actors: SidebarActor[];
 }
-
-const EXCLUDED_INSTANCE_TYPES = new Set(["root-edit"]);
-
-// Params whose values are purely forward references to other docs — no displayable content.
-const PARAM_BLACKLIST = new Set(["Tracking Methodology", "Operational Executor Agent"]);
 
 export function buildSidebarActors(
   graph: GraphData,
@@ -259,13 +257,12 @@ export function buildActorProfile(
 
   const relations: ActorRelation[] = [];
   for (const e of graph.edges) {
-    if (e.ft !== "entity" || e.tt !== "entity" || CHAIN_EDGES.has(e.e)) continue;
-    if (e.e === "comprises" || e.e === "member_of" || e.e === "cites" || e.e === "cited_by") continue;
+    if (!isRelationEdge(e, entityById)) continue;
     if (e.f !== entity.id && e.t !== entity.id) continue;
     const dir = e.f === entity.id ? ("outbound" as const) : ("inbound" as const);
     const otherId = dir === "outbound" ? e.t : e.f;
     const other = entityById.get(otherId);
-    if (!other || other.et === "primitive") continue; // instance / primitive / unresolvable — skip
+    if (!other) continue;
     relations.push({
       edge: e,
       direction: dir,
@@ -289,9 +286,7 @@ export function buildActorProfile(
     ent: GraphEntity,
     meta: InstanceMeta | InvocationMeta,
   ): RadarInstance {
-    const signalParams = Object.entries(meta.params)
-      .filter(([k]) => !PARAM_BLACKLIST.has(k))
-      .map(([key, t]) => ({ key, value: t[0], srcDocId: t[1] || null }));
+    const signalParams = instanceSignalParams(meta);
     const instDoc = ent.did ? docs[ent.did] : null;
     const primitiveDocId = ent.did ? (instanceOfMap.get(ent.did) ?? null) : null;
     const primitiveDoc = primitiveDocId ? docs[primitiveDocId] : null;

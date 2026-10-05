@@ -204,7 +204,8 @@ for (const b of ["short", "mid"] as const) {
     ["search vector <= 0.70", (p) => p.search <= 0.7],
     ["search vector <= 0.75", (p) => p.search <= 0.75],
     ["search vector <= 0.80", (p) => p.search <= 0.8],
-    ["search vector <= 0.85", (p) => p.search <= 0.85],
+    // 0.85 and finer steps above it, for a model whose cosines sit higher than Qwen's.
+    ...[0.85, 0.86, 0.87, 0.88, 0.89, 0.9, 0.91, 0.92, 0.93, 0.94].map((t): [string, (p: Pair) => boolean] => [`search vector <= ${t.toFixed(2)}`, (p) => p.search <= t]),
     ["body vector <= 0.80", (p) => p.body <= 0.8],
     ["body vector <= 0.85", (p) => p.body <= 0.85],
   ];

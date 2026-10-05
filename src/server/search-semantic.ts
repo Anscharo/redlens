@@ -18,7 +18,7 @@
 import { json } from "./http.ts";
 import { config } from "./config.ts";
 import { getIndexes } from "./retrieval/indexes.ts";
-import { runLexical, runSemantic, filterByType, type Via } from "./retrieval/search.ts";
+import { runLexical, runSemantic, filterByType, fuseBriefings, type Via } from "./retrieval/search.ts";
 import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "./retrieval/leaf-attribution.ts";
 import { rateLimited } from "./feedback-limits.ts";
 import { spendSemanticBudget } from "./search-semantic-limit.ts";
@@ -42,6 +42,22 @@ export const SEMANTIC_K_MAX = 200;
  */
 export function semanticSearchAvailable(): boolean {
   return !!config.openrouterApiKey;
+}
+
+// One model (`EMBED_MODEL`) serves every semantic caller. This set decides only
+// whether the search bar shows the meaning pill under it: the model's query
+// embed must be quick enough to answer while the reader types.
+// qwen3-embedding-8b is not: its hosts take 7 to 36 s for one call in ten
+// (docs/research/embedding-model-comparison.md).
+const PILL_MODELS = new Set(["google/gemini-embedding-2"]);
+
+/**
+ * Does the search bar offer the meaning lane? The page reads this at serve
+ * time and hides the pill when it is false. The route stays open either way,
+ * because chat and the MCP tools share the retrieval underneath it.
+ */
+export function semanticLaneShown(): boolean {
+  return semanticSearchAvailable() && PILL_MODELS.has(config.embedModel);
 }
 
 /**
@@ -94,7 +110,11 @@ export async function semanticDocSearch(
   // The SQL scope clause is permissive on purpose (it keeps ancestor anchors);
   // this is the exact test, and it runs on the LEAF the hit was attributed to,
   // which is the id the reader will actually open.
-  const typed = filterByType(attributed, ix, opts.type);
+  // One more ranking, fused once with the attributed leaves: a thin document
+  // (a one-line parameter) is found by what its briefing says it is. No extra
+  // embed call: the briefing statement reuses the query vector.
+  const fused = fuseBriefings(attributed, semResult.briefingHits);
+  const typed = filterByType(fused, ix, opts.type);
   const scoped = opts.scope
     ? typed.filter((h) => {
         const n = ix.docMap.get(h.id);

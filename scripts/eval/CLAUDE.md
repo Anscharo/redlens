@@ -8,6 +8,7 @@ The similarity bakeoffs fit their threshold on half the labeled set and report o
 
 ```bash
 pnpm eval:retrieval  # grouping / embed-model / reranker bakeoff → .cache/eval-retrieval.json (tfidf without a key; --backend openrouter for neural)
+pnpm eval:embed-latency # query-embed round trip per model (p50/p90, the OpenRouter host each call reached; `model@Host` pins one host) → .cache/eval-embed-latency.json. Pairs with `eval:retrieval --sample-scope` for quality; results in docs/research/embedding-model-comparison.md
 pnpm eval:facts      # features fact trigger: regex vs on-device similarity vs the hybrid, 241 labeled questions → .cache/eval-facts.json. --embed adds the similarity arms.
 pnpm eval:census     # census routing (1 of 10 slugs, not fire/no-fire): regex vs rankPrototypeSets vs the hybrid, 202 labeled questions → .cache/eval-census.json
 pnpm eval:complexity # tier router: does a whole-corpus question reach the STRONG tier by regex alone or also by similarity? 180 labeled questions → .cache/eval-complexity.json. Its shipped margin has no real-traffic check yet.

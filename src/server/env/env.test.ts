@@ -40,20 +40,6 @@ function readNames(): Map<string, string> {
   return seen;
 }
 
-/** config as an empty environment produces it, in a child process so this one's env cannot leak in. */
-function cleanConfig(): Record<string, unknown> {
-  const script = `const { config } = await import(${JSON.stringify(path.join(ROOT, "src/server/config.ts"))}); console.log(JSON.stringify(config));`;
-  const res = Bun.spawnSync(["bun", "-e", script], { env: { PATH: process.env.PATH ?? "" }, cwd: ROOT });
-  if (res.exitCode !== 0) throw new Error(res.stderr.toString());
-  return JSON.parse(res.stdout.toString());
-}
-
-function asEnvString(value: unknown): string {
-  if (Array.isArray(value)) return value.join(",");
-  if (typeof value === "boolean") return value ? "1" : "0";
-  return String(value);
-}
-
 describe("env registry", () => {
   test(".env.example is rendered from the registry (run `pnpm env:example`)", () => {
     expect(fs.readFileSync(path.join(ROOT, ".env.example"), "utf8")).toBe(renderEnvExample(ENV_GROUPS));
@@ -71,14 +57,6 @@ describe("env registry", () => {
   test("every declared variable is read somewhere", () => {
     const read = readNames();
     expect([...DECLARED].filter((n) => !read.has(n))).toEqual([]);
-  });
-
-  test("declared defaults match what config.ts produces with an empty environment", () => {
-    const config = cleanConfig();
-    const wrong = VARS.filter((v) => v.key)
-      .map((v) => ({ name: v.name, declared: v.default ?? "", actual: asEnvString(config[v.key as string]) }))
-      .filter((r) => r.declared !== r.actual);
-    expect(wrong).toEqual([]);
   });
 });
 

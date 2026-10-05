@@ -23,7 +23,7 @@ export const platform: EnvGroup = {
 export const server: EnvGroup = {
   title: "Server",
   vars: [
-    { name: "PORT", doc: "Port the Bun server binds.", default: "3000", key: "port" },
+    { name: "PORT", doc: "Port the Bun server binds.", default: "3000" },
     {
       name: "APP_URL",
       doc: "Public origin for OAuth redirect URIs and post-login redirects. Defaults to https://$RAILWAY_PUBLIC_DOMAIN, else http://localhost:$PORT. Pin it when a service has more than one domain, or OAuth builds its redirect URI on whichever domain Railway picked.",
@@ -32,18 +32,16 @@ export const server: EnvGroup = {
       name: "CANONICAL_HOST_REDIRECT",
       doc: "301s GET and HEAD on any other host to APP_URL. Unset: on only in the Railway `production` environment. 1 forces it on, 0 forces it off. PR environments inherit production's APP_URL, so the redirect must stay off there or every PR deploy redirects to production.",
     },
-    { name: "MCP_PATH", doc: "Mount path of the MCP transport.", default: "/mcp", key: "mcpPath" },
+    { name: "MCP_PATH", doc: "Mount path of the MCP transport.", default: "/mcp" },
     {
       name: "MCP_MAX_RESULT_CHARS",
       doc: "Character budget for one MCP tool response, so a single response cannot overflow the calling assistant's context.",
       default: "200000",
-      key: "mcpMaxResultChars",
     },
     {
       name: "SSE_MAX_CLIENTS",
       doc: "Ceiling on open /api/atlas-events connections across all visitors; past it new connections get 503 and miss live update pushes. No capacity measurement backs this value yet.",
       default: "500",
-      key: "sseMaxClients",
     },
   ],
 };

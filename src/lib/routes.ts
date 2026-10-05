@@ -80,7 +80,7 @@ export type SearchScope = "atlas" | "radar" | "reports";
 
 export const SCOPE_CONFIG: Record<SearchScope, ScopeConfig> = {
   atlas:   { label: "atlas",   placeholder: "Search the Atlas or type /h for query help" },
-  radar:   { label: "radar",   placeholder: "Filter actors — name, role" },
+  radar:   { label: "radar",   placeholder: "Search actors, instances, params, addresses" },
   reports: { label: "reports", placeholder: "Search reports — name, category, or topic" },
 };
 

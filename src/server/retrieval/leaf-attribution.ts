@@ -7,7 +7,8 @@
 import { type Indexes } from "./indexes.ts";
 import { sql, toVectorLiteral, toUuidArrayLiteral } from "../db.ts";
 import { rewriteSemanticHit, type LeafSemanticScore } from "./embed-units.ts";
-import { RESIDUAL_ANCHOR_K, fuseLeafScores, residualQuery, type LeafRow } from "./leaf-scores.ts";
+import { config } from "../config.ts";
+import { RESIDUAL_ANCHOR_K, fuseLeafScores, leafRuleFor, residualQuery, type LeafRow } from "./leaf-scores.ts";
 import type { Hit, SemanticResult } from "./search.ts";
 
 // Attribute grouped semantic hits to a leaf (term overlap) and fuse a
@@ -94,7 +95,7 @@ export async function buildLeafScorer(
       ],
     )) as LeafRow[];
     if (rows.length < 2) return undefined;
-    const fused = fuseLeafScores(rows);
+    const fused = fuseLeafScores(rows, leafRuleFor(config.embedModel));
     return (id: string) => fused.get(id);
   } catch (err) {
     console.warn(`  leaf attribution fell back to lexical: ${(err as Error).message}`);

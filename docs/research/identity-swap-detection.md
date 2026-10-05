@@ -63,7 +63,7 @@ moving one.
 |---|---|---|---|---|
 | `REPLACE_MAX_OVERLAP` | `identity-body.ts` | 0.15 | replaced by lines: at most this share of old lines survive | the original gate; never decides alone since thread 7 |
 | `REPLACE_MAX_WORD_OVERLAP` | `identity-body.ts` | 0.50 | replaced by words: at most this share of old words survive, in order | the table above; threads 7 and 8 |
-| `REPLACE_MAX_COSINE` | `identity-body.ts` | 0.85 | replaced by meaning: cosine of the old and new search vector | thread 10 |
+| `REPLACE_MAX_COSINE` | `identity-body.ts` | 0.85 (Qwen), 0.90 (Gemini) | replaced by meaning: cosine of the old and new search vector, per embedding model (`replaceMaxCosineFor`) | thread 10; Gemini re-measured with `identity-search-vector.ts --model google/gemini-embedding-2` |
 | `SHORT_BODY_MAX_LINES` | `identity-body.ts` | 3 | bodies longer than this are judged by meaning when a vector is known | thread 10 |
 | `JUDGEABLE_MIN_WORDS` | `identity-body.ts` | 6 | a smaller body is never flagged | stopwords dominate below it |
 | `BODY_TEST_MAX_CELLS` | `identity-text.ts` | 4,000,000 | largest word comparison made in full | thread 7 |

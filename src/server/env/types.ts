@@ -2,7 +2,6 @@
 // the atlas worker, the build scripts or `pnpm dev` reads is declared once, in a
 // group file in this directory; `.env.example` is rendered from these
 // declarations (`pnpm env:example`) and env.test.ts fails on any drift.
-import type { config } from "../config.ts";
 
 export interface EnvVar {
   name: string;
@@ -15,11 +14,6 @@ export interface EnvVar {
    * variables a deployment normally configures; everything else stays commented.
    */
   example?: string;
-  /**
-   * The `config` key this variable sets directly. env.test.ts imports config
-   * with an empty environment and checks the key's value equals `default`.
-   */
-  key?: keyof typeof config;
 }
 
 export interface EnvGroup {

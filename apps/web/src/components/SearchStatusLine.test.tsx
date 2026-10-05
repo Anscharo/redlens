@@ -48,9 +48,7 @@ describe("SearchStatusLine", () => {
   });
 
   it("omits the duration when there is no honest one to report", () => {
-    // The entities lane has no timing of its own; showing the document search's
-    // would be a made-up number.
-    setup(done(), { shown: 3, total: 3, durationMs: null, lane: "graph" });
+    setup(done(), { shown: 3, total: 3, durationMs: null });
     expect(screen.getByText("3 results")).toBeTruthy();
   });
 
@@ -154,12 +152,44 @@ describe("syntax the meaning lane cannot honour", () => {
 
 describe("a lane still loading", () => {
   it("says searching, not 'no results', while the caller reports work in flight", () => {
-    // The entities lane is the case this exists for: its hits come from the
-    // graph worker, which has no `state.semantic` to report through. Without the
-    // caller's `pending` the page says "no results for …" on every keystroke
-    // until relations.json has loaded.
-    setup(done({ semantic: "none" }), { total: 0, pending: true, lane: "graph" });
+    // Without the caller's `pending` the page says "no results for …" while a
+    // leg the reader is waiting on is still running.
+    setup(done({ semantic: "none" }), { total: 0, pending: true, lane: "semantic" });
     expect(screen.getByText("searching…")).toBeInTheDocument();
     expect(screen.queryByText(/no results/)).toBeNull();
+  });
+
+  it("names a held word and says Enter searches anyway, on the meaning lane", () => {
+    setup(done({ lane: "semantic", query: "xkcdq", heldWords: ["xkcdq"] }), { lane: "semantic" });
+    expect(screen.getByText(/“xkcdq” doesn't look like a word.*press Enter to search by meaning anyway/)).toBeTruthy();
+  });
+
+  it("uses the plural for several held words", () => {
+    setup(done({ lane: "semantic", query: "xkcdq qzx", heldWords: ["xkcdq", "qzx"] }), { lane: "semantic" });
+    expect(screen.getByText(/“xkcdq”, “qzx” don't look like words/)).toBeTruthy();
+  });
+
+  it("says nothing about held words off the meaning lane", () => {
+    setup(done({ heldWords: ["xkcdq"] }));
+    expect(screen.queryByText(/look like/)).toBeNull();
+  });
+});
+
+describe("Radar link", () => {
+  it("links the query to Radar search, on either lane", () => {
+    setup(done({ query: "keel & ops" }), { shown: 1, total: 1 });
+    const link = screen.getByText("Search actors and instances on Radar →").closest("a");
+    expect(link).toHaveAttribute("href", "/radar?q=keel%20%26%20ops");
+    cleanup();
+    setup(done({ query: "keel", lane: "semantic" }), { shown: 1, total: 1, lane: "semantic" });
+    expect(screen.getByText("Search actors and instances on Radar →").closest("a")).toHaveAttribute(
+      "href",
+      "/radar?q=keel",
+    );
+  });
+
+  it("is absent while the search is still running", () => {
+    setup({ status: "searching" });
+    expect(screen.queryByText("Search actors and instances on Radar →")).toBeNull();
   });
 });

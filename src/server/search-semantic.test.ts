@@ -1,4 +1,6 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from "bun:test";
+import { sql } from "./db.ts";
+import { _clearQueryEmbedCache } from "./retrieval/embed.ts";
 import { config } from "./config.ts";
 import {
   SEMANTIC_K_DEFAULT,
@@ -6,6 +8,7 @@ import {
   clampK,
   handleSemanticSearch,
   semanticDocSearch,
+  semanticLaneShown,
   semanticSearchAvailable,
   toWireHits,
 } from "./search-semantic.ts";
@@ -95,6 +98,24 @@ describe("availability", () => {
     expect(semanticSearchAvailable()).toBe(false);
     config.openrouterApiKey = "sk-test";
     expect(semanticSearchAvailable()).toBe(true);
+  });
+
+  it("offers the search bar's lane only on a model quick enough to answer while typing", () => {
+    const { embedModel: model, openrouterApiKey: key } = config;
+    try {
+      config.openrouterApiKey = "sk-test";
+      config.embedModel = "google/gemini-embedding-2";
+      expect(semanticLaneShown()).toBe(true);
+      config.embedModel = "qwen/qwen3-embedding-8b";
+      expect(semanticLaneShown()).toBe(false);
+      expect(semanticSearchAvailable()).toBe(true);
+      config.embedModel = "google/gemini-embedding-2";
+      config.openrouterApiKey = "";
+      expect(semanticLaneShown()).toBe(false);
+    } finally {
+      config.embedModel = model;
+      config.openrouterApiKey = key;
+    }
   });
 
   it("answers 200 with available:false rather than 404 when unconfigured", async () => {
@@ -226,6 +247,64 @@ describe("with indexes loaded", () => {
     const body = (await res.json()) as SemanticSearchResponse;
     expect(body.hits).toEqual([]);
     expect(body.skipped).toBeTruthy();
+  });
+
+  it("surfaces a document only a briefing found", async () => {
+    config.openrouterApiKey = "sk-test";
+    config.semanticEmbedTimeoutMs = 5_000;
+    _clearQueryEmbedCache();
+    globalThis.fetch = ((_u: string, init: { body: string }) => {
+      const input = (JSON.parse(init.body) as { input: string[] }).input;
+      return Promise.resolve(
+        new Response(JSON.stringify({ data: input.map((_t, i) => ({ index: i, embedding: Array.from({ length: 1024 }, () => 0.02) })) }), {
+          status: 200, headers: { "content-type": "application/json" },
+        }),
+      );
+    }) as unknown as typeof fetch;
+    const spy = spyOn(sql, "unsafe").mockImplementation(((text: string) =>
+      Promise.resolve(
+        text.includes("atlas_doc_briefings")
+          ? [{ id: "d2", score: 0.9 }]
+          : [{ id: "d1", type: "Core", score: 0.7, member_ids: null }],
+      )) as unknown as typeof sql.unsafe);
+    try {
+      const body = await semanticDocSearch("which quorum applies", { k: 5 });
+      expect(body.skipped).toBeNull();
+      expect(body.hits.map((h) => h.id).sort()).toEqual(["d1", "d2"]);
+      expect(body.hits.find((h) => h.id === "d2")!.score).toBe(0.9);
+    } finally {
+      spy.mockRestore();
+      _clearQueryEmbedCache();
+    }
+  });
+
+  it("returns nothing for an off-topic query whose rows all sit under the floor", async () => {
+    config.openrouterApiKey = "sk-test";
+    config.semanticEmbedTimeoutMs = 5_000;
+    _clearQueryEmbedCache();
+    globalThis.fetch = ((_u: string, init: { body: string }) => {
+      const input = (JSON.parse(init.body) as { input: string[] }).input;
+      return Promise.resolve(
+        new Response(JSON.stringify({ data: input.map((_t, i) => ({ index: i, embedding: Array.from({ length: 1024 }, () => 0.02) })) }), {
+          status: 200, headers: { "content-type": "application/json" },
+        }),
+      );
+    }) as unknown as typeof fetch;
+    const below = config.semanticMinScore - 0.01;
+    const spy = spyOn(sql, "unsafe").mockImplementation(((text: string) =>
+      Promise.resolve(
+        text.includes("atlas_doc_briefings")
+          ? [{ id: "d2", score: below }]
+          : [{ id: "d1", type: "Core", score: below, member_ids: null }],
+      )) as unknown as typeof sql.unsafe);
+    try {
+      const body = await semanticDocSearch("best pizza in naples", { k: 5 });
+      expect(body.skipped).toBeNull();
+      expect(body.hits).toEqual([]);
+    } finally {
+      spy.mockRestore();
+      _clearQueryEmbedCache();
+    }
   });
 });
 

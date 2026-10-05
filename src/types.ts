@@ -94,7 +94,8 @@ export type WorkerInMessage =
   // `lane` picks which index to query, and picking the semantic one IS the
   // request for a meaning search. Absent means the wording lane, so an older
   // main thread and this worker stay compatible.
-  | { type: "query"; id: number; q: string; lane?: SearchLane }
+  // `force` sends a meaning query the word-shape check would hold back.
+  | { type: "query"; id: number; q: string; lane?: SearchLane; force?: boolean }
   | { type: "ping" }
   | { type: "preload"; docs: Record<string, AtlasNode>; addresses: Record<string, AddressInfo> };
 
@@ -118,6 +119,9 @@ export type WorkerOutMessage =
       // to return results, so offering it is never a dead end. Absent whenever
       // there were hits, or nothing better than the query itself was found.
       didYouMean?: string;
+      // Query words the meaning lane declined to embed because they do not look
+      // like words. Present only with semantic === "none".
+      heldWords?: string[];
     }
   | { type: "error"; id?: number; message: string }; // no id for init-time failures
 
@@ -171,21 +175,13 @@ export interface SerializedSubgraph {
   edges: Array<{ key: string; src: string; tgt: string; attrs: Record<string, unknown> }>;
 }
 
-// Search-page entity overlay hit (graph worker `search-entities`).
-export interface EntitySearchHit {
-  participant: GraphEntity;
-  score: number; // 3 exact, 2 prefix, 1 substring / inflection
-  href: string;
-}
-
 // Worker message types — graph
 export type GraphWorkerInMessage =
   | { type: "ping" }
   | { type: "edges"; id: string }
   | { type: "entity"; slug: string }
   | { type: "neighbors"; id: string; depth?: number }
-  | { type: "subgraph"; rootId: string; depth: number }
-  | { type: "search-entities"; id: number; q: string };
+  | { type: "subgraph"; rootId: string; depth: number };
 
 export type GraphWorkerOutMessage =
   | { type: "ready" }
@@ -193,5 +189,4 @@ export type GraphWorkerOutMessage =
   | { type: "entity"; slug: string; entity: GraphEntity | null; edges: ResolvedEdge[] }
   | ({ type: "neighbors"; id: string } & SerializedSubgraph)
   | ({ type: "subgraph"; rootId: string } & SerializedSubgraph)
-  | { type: "search-entities"; id: number; hits: EntitySearchHit[] }
   | { type: "error"; message: string };

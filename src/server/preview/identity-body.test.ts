@@ -48,7 +48,8 @@ describe("detectIdentitySwaps — judged by meaning when a similarity is supplie
   });
 
   it("spares a retitled document whose meaning held", () => {
-    // Every plain rename in the measured history scores 0.905 or more.
+    // Every plain rename in the measured history scores 0.905 or more on Qwen
+    // vectors (0.929 on Gemini), above either model's bar.
     expect(run(() => 0.905)).toEqual({});
   });
 
