@@ -11,7 +11,8 @@ import { useScrollRestore } from "../hooks/useScrollRestore";
 import { useSearchTracking } from "../hooks/useSearchTracking";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { track } from "../lib/analytics";
-import { semanticSearchAvailable } from "../lib/semanticSearchConfig";
+import { semanticLaneUsable } from "../lib/semanticSearchConfig";
+import { useDataSource } from "../lib/dataSource";
 import type { SearchLane } from "@/lib/searchSemantic";
 
 interface Props {
@@ -37,6 +38,7 @@ export const SearchResults = memo(function SearchResults({
   onBroadSearch,
 }: Props) {
   useDocumentTitle(query ? `${query} — Sky Atlas by Redline` : null);
+  const { base } = useDataSource();
   const hits = state.status === "done" ? state.hits : empty;
   const [visible, setVisible] = useUrlState("n", visibleCodec);
   // Reset pagination only when the query actually changes. On mount with a restored
@@ -118,7 +120,7 @@ export const SearchResults = memo(function SearchResults({
             pending={pending}
             lane={lane}
             onLaneSelect={onLaneSelect}
-            semanticAvailable={semanticSearchAvailable()}
+            semanticAvailable={semanticLaneUsable(base)}
           />
         )}
         {/* Keyed on the query so a second search restarts the stages. Usually

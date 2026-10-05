@@ -215,11 +215,15 @@ describe("with indexes loaded", () => {
     expect(body.skipped).toMatch(/timed out|embed/i);
   });
 
-  it("answers 200 with the reason when something OUTSIDE the leg throws", async () => {
+  it("answers 200 with a generic reason when something OUTSIDE the leg throws", async () => {
     // A cold boot: the route can be hit before the indexes are loaded. The
     // leg's own failures never reach here (runSemantic swallows them), so a
     // throw means the server, not the search — and the reader must keep the
     // results already on screen rather than have them replaced by an error.
+    //
+    // The thrown text stays in the log: this route is public and `skipped` is
+    // rendered to the reader verbatim, so a Postgres or driver string must not
+    // travel in the body.
     config.openrouterApiKey = "sk-test";
     const loaded = getIndexes();
     _clearIndexes();
@@ -228,11 +232,27 @@ describe("with indexes loaded", () => {
       expect(res.status).toBe(200);
       const body = (await res.json()) as SemanticSearchResponse;
       expect(body.hits).toEqual([]);
-      expect(body.skipped).toMatch(/indexes not loaded/);
+      expect(body.skipped).toBe("meaning search is unavailable right now");
+      expect(body.skipped).not.toMatch(/indexes not loaded/);
       expect(body.available).toBe(true);
     } finally {
       setIndexes(loaded);
     }
+  });
+
+  it("drops an in: scope that is not a document number, without spending budget", async () => {
+    // The scope reaches the SQL as a LIKE pattern, so `%` would widen the
+    // clause to every row and pay for the exact scan before `inScope` narrowed
+    // the answer back to nothing. Refused ahead of the budget: a request the
+    // route turns away must not spend a token the readers share.
+    config.openrouterApiKey = "sk-test";
+    const res = await handleSemanticSearch(
+      new Request("http://x/api/search/semantic?q=who%20approves%20rewards&in=%25"),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as SemanticSearchResponse;
+    expect(body.hits).toEqual([]);
+    expect(body.skipped).toBe("that in: scope is not a document number");
   });
 
   it("answers a scoped query the same way, over-fetching rather than 404ing", async () => {

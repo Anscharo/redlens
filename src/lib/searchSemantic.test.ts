@@ -10,6 +10,7 @@ import {
   semanticLaneLimit,
   semanticWorthAsking,
   MAX_SEMANTIC_QUERY,
+  plausibleScope,
 } from "./searchSemantic";
 
 describe("lane guard", () => {
@@ -146,6 +147,28 @@ describe("semanticQueryOf", () => {
     // A trailing colon and a mid-word hyphen are ordinary prose, not filters.
     expect(semanticQueryOf("what about this: governance")).toEqual({ query: "what about this: governance" });
     expect(semanticQueryOf("sub-proxy spell")).toEqual({ query: "sub-proxy spell" });
+  });
+});
+
+describe("plausibleScope", () => {
+  it("accepts the doc-number shapes the atlas actually uses", () => {
+    for (const ok of ["A", "A.6", "A.6.1.1.1.3.7", "A.1.5.5.0.4.1.1.1.VAR1", "NR-7"]) {
+      expect(plausibleScope(ok)).toBe(true);
+    }
+  });
+
+  it("rejects LIKE wildcards, which the SQL would honour as pattern syntax", () => {
+    // `in:%` would widen `m.doc_no LIKE upper($3) || '.%'` to every row with a
+    // dot in it. The answer stays correct (inScope narrows it afterwards) but
+    // the widened clause has already paid for the exact scan.
+    for (const bad of ["%", "_", "A.%", "A._", "A.6%", "%.%", "A\\.6"]) {
+      expect(plausibleScope(bad)).toBe(false);
+    }
+  });
+
+  it("rejects an empty or over-long scope", () => {
+    expect(plausibleScope("")).toBe(false);
+    expect(plausibleScope("A." + "1".repeat(80))).toBe(false);
   });
 });
 
