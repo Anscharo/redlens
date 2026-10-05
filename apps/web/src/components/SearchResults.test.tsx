@@ -46,6 +46,19 @@ describe("SearchResults meaning-lane progress", () => {
     await waitFor(() => expect(screen.getByText("Computing multidimensional vectors")).toBeTruthy());
   });
 
+  it("shows the progress bar while the meaning lane is still searching", async () => {
+    // The worker posts nothing on this lane until the scored ids land, so this
+    // is the state the reader actually waits in.
+    setup({ status: "searching" }, { query: "vat", lane: "semantic" });
+    await waitFor(() => expect(screen.getByText("Computing multidimensional vectors")).toBeTruthy());
+  });
+
+  it("shows no bar while the wording lane is searching", async () => {
+    setup({ status: "searching" }, { query: "vat", lane: "lexical" });
+    await new Promise((r) => setTimeout(r, 200));
+    expect(screen.queryByText("Computing multidimensional vectors")).toBeNull();
+  });
+
   it("shows no bar once the meaning leg has answered", () => {
     setup(makeSearchState({ semantic: "done" }), { query: "vat", lane: "semantic" });
     expect(screen.queryByText("Computing multidimensional vectors")).toBeNull();

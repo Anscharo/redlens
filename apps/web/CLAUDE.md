@@ -78,7 +78,9 @@ Two invariants worth keeping.
 
 ### Two replies per query
 
-One query can post **two** `results` messages under one id: the lexical half with `semantic: "pending"`, then the fused set. Consumers must accept a second reply rather than treat it as stale. Nothing may render "no results" while a leg is pending.
+The worker code allows **two** `results` messages under one id: a lexical half with `semantic: "pending"`, then the fused set. Consumers must accept a second reply rather than treat it as stale. Nothing may render "no results" while a leg is pending.
+
+Today the leg runs only on the meaning lane, and that lane posts no interim reply. Its whole wait is the `searching` state, so anything shown during a meaning search (`SemanticProgress`) must key on `searching` on that lane, not on `semantic: "pending"` alone.
 
 ### Sign-in prompt
 
