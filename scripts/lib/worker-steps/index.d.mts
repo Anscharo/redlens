@@ -14,7 +14,7 @@ export interface WorkerStep {
   id: string;
   /** "tick": sequential, before the drift check. "tail": parallel, after the heartbeat. */
   phase: "tick" | "tail";
-  /** Tick steps: the "<label> skipped — …" warning label. */
+  /** Tick steps: the "<label> skipped — …" warning label; defaults to `id`. */
   label?: string;
   /** Tick steps that need the network: the line logged instead of running under --no-fetch. */
   skipWhenNoFetch?: string;

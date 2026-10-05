@@ -5,8 +5,8 @@ import type { Indexes } from "../../retrieval/indexes.ts";
 
 // The system prompt's citation link format: [Title](/atlas/<uuid>). ONE source
 // of truth shared with scripts/aux/eval-golden-grade.ts so grader and runtime
-// can't drift. Exported as a source string (not a RegExp) because the runtime
-// needs a fresh /g instance per scan — shared global regexes carry lastIndex.
+// can't drift. Exported as a source string (not a RegExp) so each caller builds
+// the flags it needs.
 export const CITATION_SRC = `\\[([^\\]]+)\\]\\(/atlas/(${UUID_RE.source.slice(1, -1)})\\)`;
 
 // A markdown link, bounded on BOTH parts. The bounds are load-bearing, not

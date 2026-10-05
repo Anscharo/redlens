@@ -30,7 +30,7 @@ export async function runTickSteps(steps, ctx) {
     try {
       ctx.log(`atlas-worker: ${await step.run(ctx)}`);
     } catch (e) {
-      ctx.warn(`atlas-worker: ${step.label} skipped — ${message(e)}`);
+      ctx.warn(`atlas-worker: ${step.label ?? step.id} skipped — ${message(e)}`);
     }
   }
 }
