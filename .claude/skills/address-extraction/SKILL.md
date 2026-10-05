@@ -136,7 +136,7 @@ Run `pnpm census:chains` after any registry edit — its completeness pass names
 
 ### Catching a chain the atlas added
 
-`census:chains` is the alarm for a chain the registry has never heard of, in three independent halves — see the docblock in `scripts/required/check-chains-census.mjs`. The one worth knowing about is the third: the label and prose halves both need the chain's name to appear in a shape they recognize, and a **single-word chain name in a plain bullet row** (`- Unichain - \`0x…\``) fits neither. `scripts/lib/chain-candidates.mjs` covers that case by reasoning about the list instead of the name — in an address list whose siblings name two or more distinct known chains, a row naming none is a candidate. That needs no advance knowledge of the missing chain's name, which is the only way a drift detector can actually detect drift.
+`census:chains` is the alarm for a chain the registry has never heard of, in three independent halves — see the docblock in `scripts/required/check-chains-census.mjs`. The one worth knowing about is the third: the label and prose halves both need the chain's name to appear in a shape they recognize, and a **single-word chain name in a plain bullet row** (`- Unichain - \`0x…\``) fits neither. `scripts/lib/chain-candidates.ts` covers that case by reasoning about the list instead of the name — in an address list whose siblings name two or more distinct known chains, a row naming none is a candidate. That needs no advance knowledge of the missing chain's name, which is the only way a drift detector can actually detect drift.
 
 ---
 

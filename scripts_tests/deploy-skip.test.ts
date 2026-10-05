@@ -11,7 +11,7 @@ import {
   railwayWebWatchPatterns,
   railwayWorkerWatchPatterns,
   shouldSkipDeploy,
-} from "../scripts/lib/deploy-skip.mjs";
+} from "../scripts/lib/deploy-skip.ts";
 
 const ROOT = path.resolve(__dirname, "..");
 
