@@ -37,7 +37,75 @@ const reportNameStarters = (name: string): string[] => [
 
 const RECENT_LIMIT = 3;
 
-interface ChatEmptyStateProps {
+// The greeting, body copy and starters for the page the chat opened on: a
+// report with a backing atlas_report_* tool, a name-only report page, or
+// anywhere else.
+export function emptyStateCopy(context: PageContextView): { title: string; body: string; starters: string[] } {
+  const name = context.reportName;
+  if (name && context.reportTool) {
+    return {
+      title: `Viewing the ${name} report`,
+      body: "I can pull this full report in one call and answer questions about it — total it, filter it, or dig into any single row. Ask away or ask about something else in the Atlas",
+      starters: reportToolStarters(name),
+    };
+  }
+  if (name) {
+    return {
+      title: `Viewing the ${name} report`,
+      body: "I can see which report you're on — Ask about it or any part of the Atlas. Answers will be grounded in the Atlas.",
+      starters: reportNameStarters(name),
+    };
+  }
+  return {
+    title: "Ask the Atlas",
+    body: "A research agent over the Sky Atlas. It already knows the page you're on — answers cite Atlas docs you can open inline. Type `/teach` followed by a short note — one fact, a sentence or two — to remember something it missed.",
+    starters: STARTERS,
+  };
+}
+
+// The user's latest conversations, once loaded. Strictly additive — a failed
+// or empty list just stays empty, never an error surface.
+function useRecentConversations(authed: boolean): ConversationSummary[] {
+  const [recent, setRecent] = useState<ConversationSummary[]>([]);
+  useEffect(() => {
+    if (!authed) return;
+    let alive = true;
+    listConversations()
+      .then((rows) => alive && setRecent(rows.slice(0, RECENT_LIMIT)))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [authed]);
+  return recent;
+}
+
+function RecentChats({ recent, onOpenConversation }: { recent: ConversationSummary[]; onOpenConversation: ChatEmptyStateProps["onOpenConversation"] }) {
+  return (
+    <div className="mt-5 pt-4 border-t border-border">
+      <div className="text-xs mono text-tan-3 mb-2">continue a previous chat</div>
+      <div className="flex flex-col gap-[7px]">
+        {recent.map((c) => (
+          <button
+            key={c.id}
+            className="rlc-starter"
+            onClick={() => {
+              track("chat_conversation_open", { product: "chat", source: "empty_state" });
+              onOpenConversation(c.id, c.title);
+            }}
+          >
+            {c.title ?? "Untitled chat"}
+          </button>
+        ))}
+      </div>
+      <Link to={ROUTES.CONVERSATIONS} className="text-xs mono text-accent hover:underline block mt-2">
+        See all conversations →
+      </Link>
+    </div>
+  );
+}
+
+export interface ChatEmptyStateProps {
   authed: boolean;
   context: PageContextView;
   onSend: (text: string) => void;
@@ -46,38 +114,10 @@ interface ChatEmptyStateProps {
 
 // The signed-in, empty-thread view: a page-aware greeting + starter prompts,
 // plus (once loaded) a "Continue a previous chat" pointer into the user's
-// history. That section is strictly additive — a failed or empty list just
-// renders nothing, never an error surface over the primary starters.
+// history.
 export function ChatEmptyState({ authed, context, onSend, onOpenConversation }: ChatEmptyStateProps) {
-  const [recent, setRecent] = useState<ConversationSummary[]>([]);
-
-  useEffect(() => {
-    if (!authed) return;
-    let alive = true;
-    listConversations()
-      .then((rows) => alive && setRecent(rows.slice(0, RECENT_LIMIT)))
-      .catch(() => {
-        // Additive-only — leave `recent` empty rather than surfacing an error.
-      });
-    return () => {
-      alive = false;
-    };
-  }, [authed]);
-
-  const onReport = !!context.reportName;
-  const hasReportTool = !!context.reportTool;
-  const title = onReport ? `Viewing the ${context.reportName} report` : "Ask the Atlas";
-  const body = hasReportTool
-    ? "I can pull this full report in one call and answer questions about it — total it, filter it, or dig into any single row. Ask away or ask about something else in the Atlas"
-    : onReport
-      ? "I can see which report you're on — Ask about it or any part of the Atlas. Answers will be grounded in the Atlas."
-      : "A research agent over the Sky Atlas. It already knows the page you're on — answers cite Atlas docs you can open inline. Type `/teach` followed by a short note — one fact, a sentence or two — to remember something it missed.";
-  const starters = hasReportTool
-    ? reportToolStarters(context.reportName!)
-    : onReport
-      ? reportNameStarters(context.reportName!)
-      : STARTERS;
-
+  const recent = useRecentConversations(authed);
+  const { title, body, starters } = emptyStateCopy(context);
   return (
     <div className="pt-2">
       <div className="flex items-center gap-2 mb-1">
@@ -99,28 +139,7 @@ export function ChatEmptyState({ authed, context, onSend, onOpenConversation }: 
           </button>
         ))}
       </div>
-      {recent.length > 0 && (
-        <div className="mt-5 pt-4 border-t border-border">
-          <div className="text-xs mono text-tan-3 mb-2">continue a previous chat</div>
-          <div className="flex flex-col gap-[7px]">
-            {recent.map((c) => (
-              <button
-                key={c.id}
-                className="rlc-starter"
-                onClick={() => {
-                  track("chat_conversation_open", { product: "chat", source: "empty_state" });
-                  onOpenConversation(c.id, c.title);
-                }}
-              >
-                {c.title ?? "Untitled chat"}
-              </button>
-            ))}
-          </div>
-          <Link to={ROUTES.CONVERSATIONS} className="text-xs mono text-accent hover:underline block mt-2">
-            See all conversations →
-          </Link>
-        </div>
-      )}
+      {recent.length > 0 && <RecentChats recent={recent} onOpenConversation={onOpenConversation} />}
     </div>
   );
 }

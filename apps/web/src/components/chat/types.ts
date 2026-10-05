@@ -3,7 +3,7 @@
 // import cycle between each other.
 export type Placement = "float" | "anchored";
 
-// Mirrors SendResult["rateLimited"] (useChatStream.ts) — ChatPanel's own lock
+// The shape of SendResult["rateLimited"] (below) — ChatPanel's own lock
 // state, held across the composer-disabled period rather than just the one
 // send() call. "token" lifts deterministically at resetsAt; "commons" only
 // lifts once a fresh /api/usage read shows room in the shared pool again;
@@ -15,4 +15,9 @@ export interface RateLimitState {
   message: string;
   resetsAt?: string;
   kind: "token" | "commons" | "concurrent";
+}
+
+// What one send() reports back to its caller: the 429 lock it ran into, if any.
+export interface SendResult {
+  rateLimited?: RateLimitState;
 }

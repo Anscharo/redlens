@@ -9,101 +9,32 @@
 // to rewrite, so any future recovery here means re-running retrieval
 // (requery), not resurrecting a rewrite path.
 
-export type CompletenessOutcome = "grounded" | "refuted" | "unverified" | "noop";
+import {
+  COMPLETENESS_REQUERY_STEER,
+  answerAssertsCompleteness,
+  classGrounding,
+  parseJson,
+  questionNeedsClass,
+  type CompletenessAudit,
+  type CompletenessEvidence,
+} from "./completeness-signals";
 
-export interface CompletenessAudit {
-  outcome: CompletenessOutcome;
-  detail: string;
-}
+export {
+  CLASS_COMPLETENESS_Q_RE,
+  COMPLETENESS_REQUERY_STEER,
+  EXTREMUM_Q_RE,
+  answerAssertsCompleteness,
+  isClassModeFirstSeen,
+  isCompleteFilterListing,
+  isCompleteReportListing,
+  questionNeedsClass,
+  type CompletenessAudit,
+  type CompletenessEvidence,
+  type CompletenessOutcome,
+} from "./completeness-signals";
+export { scoreCompletenessToolChoice, type ToolChoiceCall } from "./completeness-tool-choice";
 
-export interface CompletenessEvidence {
-  tool: string;
-  args?: string;
-  content: string;
-}
-
-// Shared with model-router.ts's STRONG extremum signal. The listing/how-many
-// half lives only here — routing already has its own enumeration regexes.
-export const EXTREMUM_Q_RE = /oldest|earliest|newest|latest|first-seen/i;
-export const CLASS_COMPLETENESS_Q_RE = /oldest|earliest|newest|latest|first-seen|\ball\b|\bevery\b|how many/i;
-
-export const COMPLETENESS_REQUERY_STEER =
-  "the class was not listed to completion; call `atlas_filter` or `atlas_first_seen` with a title/type filter (not search ids) before answering.";
-
-const HEDGE_RE = /among (those|the) (queried|retrieved|returned|searched|found)|among (the )?(documents|docs|results|hits) I (retrieved|queried|found|returned)/i;
-const EXTREMUM_ANSWER_RE = /\b(oldest|earliest|newest|latest|first[- ]seen)\b/i;
-const ALL_N_RE = /\ball\s+\d+/i;
-const EVERY_RE = /\bevery\b/i;
 const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
-
-export function questionNeedsClass(question: string): boolean {
-  return CLASS_COMPLETENESS_Q_RE.test(question);
-}
-
-export function answerAssertsCompleteness(answer: string): boolean {
-  return HEDGE_RE.test(answer) || EXTREMUM_ANSWER_RE.test(answer) || ALL_N_RE.test(answer) || EVERY_RE.test(answer);
-}
-
-function parseArgs(raw: string | undefined): Record<string, unknown> {
-  if (!raw) return {};
-  try {
-    const v = JSON.parse(raw);
-    return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
-}
-
-function parseJson(raw: string): Record<string, unknown> | null {
-  try {
-    const v = JSON.parse(raw);
-    return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
-
-const CLASS_ARG_KEYS = ["title", "title_prefix", "type", "doc_no_pattern", "ancestor_id", "entity"] as const;
-
-function hasClassArgs(args: Record<string, unknown>): boolean {
-  return CLASS_ARG_KEYS.some((k) => typeof args[k] === "string" && String(args[k]).length > 0);
-}
-
-function hasIdsArgs(args: Record<string, unknown>): boolean {
-  return Array.isArray(args.ids) && (args.ids as unknown[]).length > 0;
-}
-
-export function isClassModeFirstSeen(e: CompletenessEvidence): boolean {
-  if (e.tool !== "atlas_first_seen") return false;
-  const args = parseArgs(e.args);
-  if (hasIdsArgs(args) || !hasClassArgs(args)) return false;
-  const body = parseJson(e.content);
-  return body != null && typeof body.class_total === "number";
-}
-
-export function isCompleteFilterListing(e: CompletenessEvidence): boolean {
-  if (e.tool !== "atlas_filter") return false;
-  const body = parseJson(e.content);
-  if (!body || typeof body.total !== "number") return false;
-  if (body.has_more === true || body.truncated === true) return false;
-  return true;
-}
-
-// atlas_report_* are curated whole-atlas rollups (see tool-registry.ts ~:491-614);
-// row-list reports share { report, total, returned, truncated, note? } plus one
-// named payload array, so an untruncated one is class grounding just like a
-// complete atlas_filter listing.
-export function isCompleteReportListing(e: CompletenessEvidence): boolean {
-  if (!e.tool.startsWith("atlas_report_")) return false;
-  const body = parseJson(e.content);
-  if (!body || typeof body.total !== "number") return false;
-  if (body.truncated === true) return false;
-  return true;
-}
-
-function classGrounding(evidence: CompletenessEvidence[]): CompletenessEvidence | null {
-  return evidence.find((e) => isClassModeFirstSeen(e) || isCompleteFilterListing(e) || isCompleteReportListing(e)) ?? null;
-}
 
 function claimedUuids(answer: string): string[] {
   return [...answer.matchAll(UUID_RE)].map((m) => m[0].toLowerCase());
@@ -137,6 +68,11 @@ function refuteAgainst(answer: string, e: CompletenessEvidence): string | null {
   return null;
 }
 
+function groundingDetail(tool: string): string {
+  if (tool === "atlas_first_seen") return "class-mode atlas_first_seen";
+  return tool.startsWith("atlas_report_") ? "untruncated atlas_report_*" : "untruncated atlas_filter";
+}
+
 export function auditCompleteness(
   question: string,
   answer: string,
@@ -145,20 +81,10 @@ export function auditCompleteness(
   if (!questionNeedsClass(question) || !answerAssertsCompleteness(answer)) {
     return { outcome: "noop", detail: "not an exhaustive/extremum assertion" };
   }
-  const rows = evidence;
-  const ground = classGrounding(rows);
-  if (ground) {
-    const clash = refuteAgainst(answer, ground);
-    if (clash) return { outcome: "refuted", detail: clash };
-    const detail =
-      ground.tool === "atlas_first_seen"
-        ? "class-mode atlas_first_seen"
-        : ground.tool.startsWith("atlas_report_")
-          ? "untruncated atlas_report_*"
-          : "untruncated atlas_filter";
-    return { outcome: "grounded", detail };
-  }
-  return { outcome: "unverified", detail: COMPLETENESS_REQUERY_STEER };
+  const ground = classGrounding(evidence);
+  if (!ground) return { outcome: "unverified", detail: COMPLETENESS_REQUERY_STEER };
+  const clash = refuteAgainst(answer, ground);
+  return clash ? { outcome: "refuted", detail: clash } : { outcome: "grounded", detail: groundingDetail(ground.tool) };
 }
 
 export function completenessFailuresOf(
@@ -170,73 +96,4 @@ export function completenessFailuresOf(
   const audit = auditCompleteness(question, answer, evidence);
   if (audit.outcome === "unverified" || audit.outcome === "refuted") return [audit.detail];
   return [];
-}
-
-export interface ToolChoiceCall {
-  name: string;
-  args: Record<string, unknown>;
-  result?: Record<string, unknown>;
-}
-
-function isRankedOnly(call: ToolChoiceCall): boolean {
-  if (call.name === "atlas_search") return true;
-  if (call.name !== "atlas_query") return false;
-  const q = call.args.q ?? call.args.search ?? call.args.query;
-  if (typeof q !== "string" || !q) return false;
-  return !hasClassArgs(call.args) && call.args.target_type == null;
-}
-
-function isMembershipCall(call: ToolChoiceCall): boolean {
-  return (
-    call.name === "atlas_search" ||
-    call.name === "atlas_query" ||
-    call.name === "atlas_filter" ||
-    call.name === "atlas_first_seen" ||
-    call.name.startsWith("atlas_report_")
-  );
-}
-
-// Eval / bakeoff tool-choice arm: the incident is search-then-ids, not a prose
-// miss. Fail if the first class-shaped call is ranked retrieval, or if
-// first_seen ran only with search ids. Pass on filter-by-title or class-mode
-// first_seen before the answer; a listing used for "all" must not be has_more.
-export function scoreCompletenessToolChoice(question: string, calls: ToolChoiceCall[]): { pass: boolean; reason: string } {
-  if (!questionNeedsClass(question)) return { pass: true, reason: "not a class question" };
-  const membership = calls.filter(isMembershipCall);
-  if (membership.length === 0) return { pass: false, reason: "no class listing or first_seen call" };
-
-  const first = membership[0]!;
-  if (isRankedOnly(first)) {
-    return { pass: false, reason: `first membership call was ${first.name} with ranked q — not a census` };
-  }
-  if (first.name === "atlas_first_seen" && hasIdsArgs(first.args) && !hasClassArgs(first.args)) {
-    return { pass: false, reason: "atlas_first_seen ran in ids mode (search-sized batch), not class mode" };
-  }
-
-  const listingQs = /\ball\b|\bevery\b|how many/i.test(question);
-  const filter = calls.find((c) => c.name === "atlas_filter");
-  const report = calls.find((c) => c.name.startsWith("atlas_report_"));
-  const classSeen = calls.find((c) => c.name === "atlas_first_seen" && hasClassArgs(c.args) && !hasIdsArgs(c.args));
-  if (listingQs && filter) {
-    if (filter.result?.has_more === true || filter.result?.truncated === true) {
-      return { pass: false, reason: "atlas_filter listing used for an exhaustive question was incomplete (has_more/truncated)" };
-    }
-    return { pass: true, reason: "complete atlas_filter listing" };
-  }
-  if (listingQs && report) {
-    if (report.result?.truncated === true) {
-      return { pass: false, reason: "atlas_report_* listing used for an exhaustive question was truncated" };
-    }
-    return { pass: true, reason: "untruncated atlas_report_* listing" };
-  }
-  if (classSeen) return { pass: true, reason: "class-mode atlas_first_seen" };
-  if (filter && filter.result?.has_more !== true && filter.result?.truncated !== true) {
-    return { pass: true, reason: "complete atlas_filter listing" };
-  }
-  if (filter) return { pass: false, reason: "atlas_filter listing was incomplete" };
-  if (report && report.result?.truncated !== true) {
-    return { pass: true, reason: "untruncated atlas_report_* listing" };
-  }
-  if (report) return { pass: false, reason: "atlas_report_* listing was truncated" };
-  return { pass: false, reason: "no complete class listing or class-mode first_seen" };
 }

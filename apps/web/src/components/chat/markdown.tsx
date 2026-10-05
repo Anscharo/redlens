@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type MouseEvent } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import { atlasHref } from "@/lib/routes";
 import { DEFINITION_RE, normalizeLabel, parseDefinitions, unwrapCodeCitations } from "./citations";
@@ -105,37 +105,36 @@ export function balanceFences(text: string): string {
   return closeOpenMathFence(closed);
 }
 
-export function AtlasMarkdown({ content, onAtlas }: { content: string; onAtlas: (uuid: string) => void }) {
-  const components = useMemo<Components>(
-    () => ({
-      a({ href, children, ...props }) {
-        const m = href ? ATLAS_HREF_RE.exec(href) : null;
-        if (m) {
-          const uuid = m[1].toLowerCase();
-          return (
-            <a
-              href={atlasHref(uuid)}
-              onClick={(e) => {
-                e.preventDefault();
-                onAtlas(uuid);
-              }}
-            >
-              {children}
-            </a>
-          );
-        }
+// Atlas citation links SPA-navigate through `onAtlas`; every other href opens
+// in a new tab.
+function markdownComponents(onAtlas: (uuid: string) => void): Components {
+  return {
+    a({ href, children, ...props }) {
+      const m = href ? ATLAS_HREF_RE.exec(href) : null;
+      if (!m) {
         return (
           <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
             {children}
           </a>
         );
-      },
-    }),
-    [onAtlas],
-  );
+      }
+      const uuid = m[1].toLowerCase();
+      const open = (e: MouseEvent) => {
+        e.preventDefault();
+        onAtlas(uuid);
+      };
+      return (
+        <a href={atlasHref(uuid)} onClick={open}>
+          {children}
+        </a>
+      );
+    },
+  };
+}
 
+export function AtlasMarkdown({ content, onAtlas }: { content: string; onAtlas: (uuid: string) => void }) {
+  const components = useMemo(() => markdownComponents(onAtlas), [onAtlas]);
   const { remarkPlugins, rehypePlugins } = useMathPlugins(content);
-
   return (
     <div className="rlc-md">
       <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} components={components}>
