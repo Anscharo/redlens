@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useState, type RefObject } from "react";
 
-// Light-dismiss for a popup: while `active`, a press anywhere OUTSIDE `ref`
-// calls `onOutside`. Presses inside are left to the popup's own controls.
-// `type` is the press event each caller listens for (`mousedown` for the nav
-// menus, `pointerdown` for the limits popover). Listeners exist only while
-// active — outside-dismiss is the one thing CSS can't do here.
+// While `active`, a press outside `ref` calls `onOutside`.
 export function useOutsidePress(
   ref: RefObject<HTMLElement | null>,
   active: boolean,
@@ -21,8 +17,7 @@ export function useOutsidePress(
   }, [ref, active, onOutside, type]);
 }
 
-// While `active`, Escape on `target` calls `onEscape` with the event, so a
-// caller that owns the key can preventDefault it.
+// Passes the event so a caller that owns Escape can preventDefault it.
 export function useEscapeKey(active: boolean, onEscape: (e: KeyboardEvent) => void, target: Window | Document = document) {
   useEffect(() => {
     if (!active) return;
@@ -35,16 +30,13 @@ export function useEscapeKey(active: boolean, onEscape: (e: KeyboardEvent) => vo
 }
 
 interface PopoverOptions {
-  /** The outside-press event that dismisses (see useOutsidePress). */
   press?: "mousedown" | "pointerdown";
-  /** Where Escape is listened for. */
   escapeTarget?: Window | Document;
   /** Claim the Escape key (preventDefault) when it closes the popover. */
   claimEscape?: boolean;
 }
 
-// Open/closed state for a click-toggled popover anchored in `ref`, closed by
-// a press outside it or by Escape.
+// A click-toggled popover closed by an outside press or Escape.
 export function useDismissiblePopover(ref: RefObject<HTMLElement | null>, { press, escapeTarget, claimEscape = false }: PopoverOptions = {}) {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);

@@ -28,12 +28,8 @@ function openAuth(provider?: AuthProvider) {
   window.location.href = apiUrl(`auth/${target}`);
 }
 
-// Sign-out and account deletion, both of which drop local user state.
-// deleteAccount permanently deletes the account and all associated data
-// (chats, Collections, preview history — everything the users-row cascade
-// reaches). The server clears the session cookie; local state drops on
-// success so the UI returns to the signed-out view. Returns false on failure
-// so the caller can keep the user signed in and surface an error.
+// deleteAccount cascades through everything the users row owns; it returns
+// false on failure so the caller can keep the user signed in.
 function sessionActions(setUser: (u: AuthUser | null) => void) {
   return {
     signOut: async () => {
@@ -77,9 +73,7 @@ function useAuthBoot() {
   return { user, setUser, loading };
 }
 
-// Bootstraps auth from /api/auth/me. Tolerant of 401/404/network errors — on
-// any failure the user is simply treated as signed-out (e.g. GH-Pages, where
-// there is no backend), so a failed fetch never crashes the app shell.
+// Bootstraps auth from /api/auth/me (see useAuthBoot).
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { user, setUser, loading } = useAuthBoot();
   const { signOut, deleteAccount } = sessionActions(setUser);

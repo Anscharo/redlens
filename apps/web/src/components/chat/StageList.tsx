@@ -28,12 +28,8 @@ export interface StageListProps {
   renderSlot: (entry: StageLogEntry) => ReactNode;
 }
 
-// The list's fold and which rows are open. `liveAtMount` is fixed at mount: a
-// live checklist stays a checklist for the rest of its life — the final
-// render must not rearrange what is on screen. Opening a row is the reader
-// saying "I'm reading this" — so when the turn finishes, the tree stays
-// exactly where they left it instead of folding to the summary line under
-// them. The summary head still folds it on request.
+// `liveAtMount` is fixed at mount: the final render must not rearrange what is
+// on screen. An opened row keeps the tree open when the turn finishes.
 function useStageFold(collapsed: boolean) {
   const [liveAtMount] = useState(!collapsed);
   const [expanded, setExpanded] = useState(false);
@@ -58,8 +54,6 @@ interface SummaryHeadProps {
   onToggle: () => void;
 }
 
-// The summary line is the fold control once the turn is done: it opens the
-// tree and, on a second click, folds it again.
 function SummaryHead({ summary, expanded, treeId, onToggle }: SummaryHeadProps) {
   return (
     <button className="rlc-stage-summary-head" onClick={onToggle} aria-expanded={expanded} aria-controls={treeId}>
@@ -71,21 +65,9 @@ function SummaryHead({ summary, expanded, treeId, onToggle }: SummaryHeadProps) 
   );
 }
 
-// The turn's "what it's doing" checklist. While the turn is live it always
-// renders the full tree (every row, current one active), and a list that
-// was live when it mounted keeps that tree after the turn is done. Only a
-// list that mounts already `collapsed` starts folded to one summary line,
-// and a click on it reveals the full tree for someone who wants to see how
-// the answer was built.
-//
-// Each row is its own disclosure, independent of that fold: clicking a row
-// expands that step's working content — lookups, reasoning + draft, verify
-// findings — under its label; clicking again collapses just that row. Open
-// rows are tracked by their stable `entry.at` key, so re-renders mid-stream
-// don't reset them. A row only pulses as active while the turn is still
-// running — once `collapsed` (the turn is done), every row is "done" even
-// the last one, so a reopened or stopped/failed turn's checklist doesn't keep
-// "Verifying content" pulsing after its verdict already rendered.
+// The turn's "what it's doing" checklist; each row is its own disclosure, keyed
+// by `entry.at`. Once `collapsed`, no row is active, so a finished turn never
+// keeps "Verifying content" pulsing after its verdict.
 export function StageList({ entries, collapsed, summary, activeAt, label = "Answer progress", renderSlot }: StageListProps) {
   const fold = useStageFold(collapsed);
   const runningAt = activeAt ?? entries[entries.length - 1]?.at;

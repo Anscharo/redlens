@@ -2,10 +2,6 @@ import type { ReactNode } from "react";
 import type { StageLogEntry } from "./chatTypes";
 import { stageLabel, stripTrailingEllipsis } from "./stageCopy";
 
-// Marker + label + every detail line the stage reported. Every detail stays
-// visible, done row or active — nothing shown to the reader disappears. A
-// done row strips a trailing ellipsis so it doesn't read as still in
-// progress; the active row's copy is untouched.
 function StageHeader({ entry, active }: { entry: StageLogEntry; active: boolean }) {
   return (
     <>
@@ -28,18 +24,12 @@ export interface StageRowProps {
   active: boolean;
   /** Working content to disclose under the row, or null for a plain row. */
   slot: ReactNode;
-  /** Whether the slot is disclosed. */
   open: boolean;
-  /** Toggles the slot. */
   onToggle: () => void;
 }
 
-// One checklist row. The header is the click target when a slot exists; the
-// slot renders AFTER the header as a sibling, never nested inside it — a slot
-// can carry its own interactive elements (ReasoningBlock's "thinking"
-// toggle, citation links in a draft or superseded answer), and both a
-// <button> inside a <button> and a click on any of those bubbling up to
-// collapse the row are bugs, not just invalid HTML.
+// The slot is the header button's sibling, never its child: it can hold its own
+// buttons and links, whose clicks must not bubble up and collapse the row.
 export function StageRow({ entry, active, slot, open, onToggle }: StageRowProps) {
   const slotId = `rlc-stage-slot-${entry.at}`;
   const header = <StageHeader entry={entry} active={active} />;

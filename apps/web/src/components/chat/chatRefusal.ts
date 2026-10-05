@@ -17,10 +17,7 @@ async function readJson(res: Response): Promise<RefusalBody> {
   return (await res.json().catch(() => ({}))) as RefusalBody;
 }
 
-// chat.ts sends an explicit discriminator for all three 429 causes
-// ("rate_limited" carries resetsAt; "commons_exhausted" and
-// "too_many_concurrent" never do) — the resetsAt-presence heuristic is only
-// the fallback for a body missing the discriminator.
+// chat.ts names all three 429 causes; resetsAt presence is only the fallback.
 export function rateLimitFromBody(body: RefusalBody): RateLimitState {
   const message = body.message ?? "Usage limit reached.";
   const kind: RateLimitState["kind"] =
@@ -34,12 +31,8 @@ export function rateLimitFromBody(body: RefusalBody): RateLimitState {
   return { message, resetsAt: body.resetsAt, kind };
 }
 
-// Deliberately not setError(message): `error` means "something broke and we
-// don't have a better explanation" (ErrorNote). A 429 already has a full
-// explanation — the thread content plus the returned `rateLimited` (which
-// drives RateLimitNote) — so leaving `error` untouched keeps the two UI states
-// disjoint, and the 429 text cannot resurface as an error banner the instant
-// the rate-limit lock lifts.
+// Not setError: RateLimitNote explains a 429, and leaving `error` unset stops the
+// text resurfacing as an ErrorNote banner when the lock lifts.
 function rateLimited(core: StreamCore, body: RefusalBody): SendResult {
   const rateLimit = rateLimitFromBody(body);
   core.finalizeLast({ content: rateLimit.message });
@@ -47,12 +40,8 @@ function rateLimited(core: StreamCore, body: RefusalBody): SendResult {
   return { rateLimited: rateLimit };
 }
 
-// The conversation was deleted elsewhere (another tab, or the /conversations
-// page) between hydrate and this send. Clear the stale id so the NEXT send
-// starts a fresh conversation server-side, and finalize this turn as failed —
-// Message.tsx's own "didn't come through" copy — rather than routing it
-// through `error` (ErrorNote's generic banner), which would misrepresent a
-// stale reference as a real failure.
+// Deleted elsewhere since hydrate: drop the stale id so the next send starts
+// fresh, and fail the turn quietly rather than through ErrorNote.
 function conversationGone(core: StreamCore): SendResult {
   core.setConversation(null);
   core.setContextTokens(null);
@@ -61,9 +50,7 @@ function conversationGone(core: StreamCore): SendResult {
   return {};
 }
 
-// The turn's result when the server refused the request outright, or null
-// when the response should be read as a stream. Any other non-ok status is
-// left to the caller to throw as a generic failure.
+// The result of an outright refusal, or null to read the response as a stream.
 export async function readRefusal(res: Response, core: StreamCore, handlers: StreamHandlers): Promise<SendResult | null> {
   if (res.status === 401) {
     handlers.onAuthError?.();

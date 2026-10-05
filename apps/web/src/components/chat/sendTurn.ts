@@ -12,8 +12,6 @@ function emptyMsg(role: ChatMsg["role"], content: string, done: boolean): ChatMs
   return { role, content, draft: "", generated: done, trace: [], rounds: 0, sources: [], done, stageLog: [] };
 }
 
-// Appends the user's turn and an empty assistant turn to fill, and takes over
-// the abort handle from any earlier stream.
 function beginTurn(core: StreamCore, text: string): AbortController {
   core.setError(null);
   core.abortRef.current?.abort();
@@ -33,8 +31,7 @@ function postChat(message: string, conversationId: string | null, pageContext: P
   });
 }
 
-// Rounds are bumped BEFORE the first tool_call of a batch dispatches, so that
-// tool_call's trace row carries the new round.
+// Bumped before dispatch so the batch's first tool_call row carries the new round.
 function readTurnEvents(core: StreamCore, body: ReadableStream<Uint8Array>): Promise<void> {
   const rounds = createToolRoundTracker();
   return pumpSseEvents(body, (ev) => {
@@ -43,7 +40,6 @@ function readTurnEvents(core: StreamCore, body: ReadableStream<Uint8Array>): Pro
   });
 }
 
-// AbortError (user pressed stop / closed) is expected — not an error.
 function failTurn(core: StreamCore, err: unknown) {
   if ((err as Error).name === "AbortError") return;
   core.setError((err as Error).message);
@@ -64,13 +60,8 @@ export interface TurnRequest {
   handlers: StreamHandlers;
 }
 
-// POSTs one turn and streams its events onto the last message. When the
-// stream ends, a terminal event ("done"/"error") has already marked the
-// message done and finalizeIfPending no-ops; if the connection was simply cut
-// (proxy, server crash mid-turn) nothing else ever would, and the progress
-// checklist — which renders on `!done` — would pulse forever behind an
-// already-re-enabled input. `failed` only surfaces copy when the answer is
-// empty (Message.tsx); a partially streamed draft just freezes as-is.
+// finalizeIfPending covers a cut connection with no terminal event, which
+// would otherwise leave the progress checklist pulsing forever.
 export async function sendTurn(core: StreamCore, { text, pageContext, streaming, handlers }: TurnRequest): Promise<SendResult> {
   const trimmed = text.trim();
   if (!trimmed || streaming) return {};

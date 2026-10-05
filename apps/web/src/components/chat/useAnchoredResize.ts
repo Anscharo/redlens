@@ -21,9 +21,7 @@ function useViewportWidth(): number {
   return vw;
 }
 
-// Writes the applied width onto --rlc-anchored-w, which the panel, the app
-// shell's right padding, and the footer all read. Removed when there is no
-// override or the window is too narrow for one.
+// --rlc-anchored-w is read by the panel, the shell's right padding and the footer.
 function useAnchoredWidthVar(applied: number | null, narrow: boolean) {
   useLayoutEffect(() => {
     const root = document.documentElement;
@@ -32,17 +30,14 @@ function useAnchoredWidthVar(applied: number | null, narrow: boolean) {
       return;
     }
     root.style.setProperty("--rlc-anchored-w", `${applied}px`);
-    // removeProperty returns the previous value. An implicit return makes the
-    // cleanup `() => string`, which is not a valid effect destructor.
+    // Braced: removeProperty returns a string, not a valid effect destructor.
     return () => {
       root.style.removeProperty("--rlc-anchored-w");
     };
   }, [applied, narrow]);
 }
 
-// The drag has to start from the width on screen. Until the user has dragged,
-// that width is the CSS clamp, so it is measured — writing the clamp into
-// storage would freeze a responsive default into a pixel.
+// Measured, not stored: persisting the CSS clamp would freeze a responsive default into a pixel.
 function useMeasuredWidth(handleRef: RefObject<HTMLDivElement | null>, preferred: number | null, vw: number): number {
   const [measured, setMeasured] = useState(ANCHORED_MIN_PX);
   useLayoutEffect(() => {
@@ -53,8 +48,7 @@ function useMeasuredWidth(handleRef: RefObject<HTMLDivElement | null>, preferred
   return measured;
 }
 
-// body.rlc-resizing holds for the length of a mouse drag (and a frame after a
-// keyboard step), suppressing transitions while the width moves.
+// body.rlc-resizing suppresses transitions while the width moves.
 function useResizingClass(startResize: (e: MouseEvent) => void) {
   const dragging = useRef(false);
   useEffect(() => () => document.body.classList.remove("rlc-resizing"), []);
@@ -75,8 +69,7 @@ function useResizingClass(startResize: (e: MouseEvent) => void) {
   return { dragging, onMouseDown };
 }
 
-// Arrow keys step the width (Left widens: the handle is on the left edge);
-// Home and End jump to the bounds. null for any other key.
+// Left widens: the handle is on the left edge.
 function keyTarget(key: string, shown: number, max: number): number | null {
   if (key === "ArrowLeft") return shown + ANCHORED_KEYBOARD_STEP_PX;
   if (key === "ArrowRight") return shown - ANCHORED_KEYBOARD_STEP_PX;
@@ -84,7 +77,6 @@ function keyTarget(key: string, shown: number, max: number): number | null {
   return key === "End" ? max : null;
 }
 
-// Each keyboard step is clamped and persisted.
 function useKeyboardResize(shown: number, max: number, setPreferred: (w: number) => void, dragging: RefObject<boolean>) {
   return useCallback(
     (e: KeyboardEvent) => {
@@ -107,10 +99,8 @@ function commitWidth(next: number, setPreferred: (w: number) => void, dragging: 
   });
 }
 
-// The docked chat's width. The undragged width stays the CSS clamp; a drag or
-// keyboard step stores a pixel preference. The stored preference can sit
-// above the current window's 55% cap; only the applied value is clamped, so
-// widening the window restores it.
+// The docked chat's width. Only the applied value is clamped, so a stored
+// preference above the window's cap comes back when the window widens.
 export function useAnchoredResize() {
   const handleRef = useRef<HTMLDivElement>(null);
   const [preferred, setPreferred] = useState<number | null>(readStoredAnchoredWidth);

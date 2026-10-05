@@ -2,10 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObje
 import { glide } from "../../lib/animatedScroll";
 import { reducedMotion } from "./motion";
 
-// Slack for sub-pixel layout and momentum landing ONLY. Deliberately tiny:
-// "the reader scrolled at all" IS the detach signal, so a 20px nudge up to
-// re-read a line must not be swallowed as still-at-bottom and then yanked
-// back down by the next token. (Same reasoning as animatedScroll's 0.5px.)
+// Slack for sub-pixel layout and momentum landing only: any scroll is the detach
+// signal, so a 20px nudge up to re-read a line must not be yanked back down.
 const BOTTOM_SLACK_PX = 4;
 
 /** Split out as pure geometry because jsdom has no layout — this is the part
@@ -19,17 +17,12 @@ export function isNearBottom(m: { scrollTop: number; scrollHeight: number; clien
 interface FollowState {
   // Following the bottom. Starts true so a hydrated thread lands at the bottom.
   stuck: boolean;
-  // Content height at the last commit — the pill must mean "there is new text
-  // down there", and plenty of message updates (a verify badge landing, a
-  // status-line tick) change the array without adding any. 0 means no
-  // committed bottom yet (mount, conversation switch, or stick()).
+  // Content height at the last commit: many message updates add no text, and
+  // the pill must mean new text. 0 means no committed bottom yet.
   lastHeight: number;
-  // Set by showFrom(): the reader was placed at the TOP of a just-revealed
-  // answer. While it holds, the follow effect neither moves them (the turn's
-  // trailing chrome — sources cluster, verify badge — would otherwise pull a
-  // short answer's first lines off the top) nor raises the pill (that growth
-  // is below them by design, not "new messages"). Cleared by a real scroll,
-  // stick(), or a reset.
+  // Set by showFrom(): while it holds, trailing chrome growing below a revealed
+  // answer neither moves the reader nor raises the pill. Cleared by a real
+  // scroll, stick(), or a reset.
   aligned: boolean;
   // The scrollTop showFrom() wrote: its own scroll event must not count as the
   // reader moving.
@@ -45,7 +38,6 @@ function toBottom(el: HTMLElement | null, animate: boolean) {
   else el.scrollTop = target;
 }
 
-// Follow again from the next content to land, with no committed bottom.
 function rearm(s: FollowState) {
   s.stuck = true;
   s.aligned = false;
@@ -63,14 +55,9 @@ function onThreadScroll(el: HTMLElement, s: FollowState, setPending: SetPending)
   if (stuck) setPending(false);
 }
 
-// Detaching listens to the INPUT, not the resulting scroll event: that event
-// is only dispatched at the next frame's render step, and a token committing
-// inside that gap would still read `stuck` as true and write the reader's
-// scroll straight back to the bottom. At streaming speed that lands as "I
-// scrolled up and it snapped back". A thread with nothing to scroll can't hide
-// anything below, so input over it must not arm a pill for content that is
-// already on screen. A finger travelling DOWN drags the content down, i.e.
-// scrolls up. Returns the detach function for the effect's cleanup.
+// Detaching listens to the INPUT, not the scroll event: that fires a frame
+// later, and a token committing in the gap would snap the reader back down.
+// A thread with nothing to scroll must not arm a pill. A finger moving DOWN scrolls up.
 function listenToThread(el: HTMLElement, s: FollowState, setPending: SetPending): () => void {
   const detach = () => {
     if (s.stuck && el.scrollHeight > el.clientHeight + BOTTOM_SLACK_PX) s.stuck = false;
@@ -86,14 +73,10 @@ function listenToThread(el: HTMLElement, s: FollowState, setPending: SetPending)
   return () => listeners.forEach(([type, fn]) => el.removeEventListener(type, fn));
 }
 
-// Layout effect, not effect: a stuck thread must be at the bottom in the same
-// frame the new content paints, or the reader sees one frame of the old
-// position and then a jump. Scrollbar-thumb drag and keyboard PageUp/ArrowUp
-// update scrollTop *before* the `scroll` event; a token in that gap still sees
-// `stuck` as true — the same race the input listeners close for wheel/touch.
-// Content growth leaves scrollTop unchanged, so a stuck thread still follows.
-// While aligned, appending below a top-anchored scroller moves nothing by
-// itself, so doing nothing IS the hold.
+// Layout effect so a stuck thread reaches the bottom in the frame content
+// paints. Thumb drag and PageUp move scrollTop before `scroll` fires, so a
+// moved scrollTop detaches here (growth leaves it unchanged). While aligned,
+// doing nothing IS the hold.
 function followBottom(el: HTMLElement | null, s: FollowState, setPending: SetPending) {
   if (s.stuck && el && s.lastHeight > 0 && el.scrollTop < s.lastHeight - el.clientHeight - BOTTOM_SLACK_PX) {
     s.stuck = false;
@@ -105,11 +88,9 @@ function followBottom(el: HTMLElement | null, s: FollowState, setPending: SetPen
   if (el) s.lastHeight = el.scrollHeight;
 }
 
-// Put `target`'s top at the top of the thread and hold there. Only acts while
-// still following the bottom: a reader who has scrolled away is never moved.
-// This commit's height becomes the baseline: the parent's follow effect runs
-// after this (child effects first) and must not read the reveal itself as
-// growth to flag. Returns whether it moved anything.
+// Only acts while following: a reader who has scrolled away is never moved.
+// This commit's height becomes the baseline so the parent's follow effect
+// (which runs after child effects) doesn't flag the reveal as growth.
 function alignTo(el: HTMLElement | null, target: HTMLElement, s: FollowState): boolean {
   if (!el || !s.stuck) return false;
   const pad = parseFloat(getComputedStyle(el).paddingTop) || 0;
@@ -166,9 +147,7 @@ function useThreadActions(
     rearm(stateRef.current);
     setPending(false);
   }, [stateRef, setPending]);
-  /** Put `target`'s top at the top of the thread — for an answer that has
-   *  just been revealed, so the reader starts at its first line instead of
-   *  being carried to its last — and hold there (see FollowState.aligned). */
+  /** Put a just-revealed answer's first line at the top and hold there (see FollowState.aligned). */
   const showFrom = useCallback(
     (target: HTMLElement) => alignTo(ref.current, target, stateRef.current) && setPending(false),
     [ref, stateRef, setPending],

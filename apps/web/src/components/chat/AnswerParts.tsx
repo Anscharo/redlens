@@ -9,12 +9,8 @@ import type { ChatMsg } from "./chatTypes";
 /** What the answer slot of a finished-or-running turn shows. */
 export type TurnOutcome = "failed" | "stopped" | "answer" | "pending";
 
-// "failed": the stream broke (SSE "error" event or a fetch/read exception)
-// before any content arrived. "stopped": stages ran and the turn ended, but no
-// answer ever arrived. "answer": revealed — `answer_final`, or an early `done`
-// with no `answer_final` before it (see useChatStream's `generated`); a
-// loaded/historical message has no stageLog and is always `done`, so it takes
-// this branch too.
+// "failed": the stream broke before any content. "stopped": stages ran but no
+// answer arrived. A loaded message is always `done`, so it reads as "answer".
 export function turnOutcome(msg: ChatMsg, streaming: boolean): TurnOutcome {
   if (!streaming && !msg.content && msg.failed) return "failed";
   if (msg.done && !msg.content && !msg.failed && (msg.stageLog ?? []).length > 0) return "stopped";
@@ -28,13 +24,8 @@ interface AnswerBodyProps {
   onAtlas: (uuid: string) => void;
 }
 
-// The failed note is plain copy, never run through AtlasMarkdown, so it can
-// never be mistaken for a real (if terse) assistant reply. The answer's
-// data-state says whether it has cleared verification yet — unchecked while
-// not `done` or still auditing. Carried as data only: nothing restyles the
-// text on the flip (an italic→upright change read as the answer "jumping");
-// the verify badge is the signal. Message-level only: verification is
-// per-answer, and claim→text alignment is too fuzzy to mark up per-span.
+// The failed note bypasses AtlasMarkdown so it can't pass for a terse reply.
+// data-state is data only: restyling text on the verify flip reads as a jump.
 export function AnswerBody({ msg, outcome, answerRef, onAtlas }: AnswerBodyProps) {
   if (outcome === "failed") {
     return (
@@ -56,10 +47,6 @@ export function AnswerBody({ msg, outcome, answerRef, onAtlas }: AnswerBodyProps
   );
 }
 
-// Under a revealed answer: the verify badge, then directly after it the
-// answer's facts (together they are its confidence — contradictions,
-// coverage, sources backed), exported files, and the Sources cluster once
-// the turn is done.
 export function AnswerFooter({ msg, onAtlas }: { msg: ChatMsg; onAtlas: (uuid: string) => void }) {
   return (
     <>

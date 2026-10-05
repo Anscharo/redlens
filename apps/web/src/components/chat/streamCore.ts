@@ -8,9 +8,7 @@ export interface StreamSetters {
   setError: (error: string | null) => void;
   setConversationId: (id: string | null) => void;
   setContextTokens: (tokens: number | null) => void;
-  // send()'s closure over convIdRef.current is what lets a reply land on the
-  // right conversation without re-subscribing; `conversationId` state mirrors
-  // it so callers can read it reactively.
+  // send() reads the ref so a reply lands on the right conversation; `conversationId` mirrors it.
   convIdRef: MutableRefObject<string | null>;
   abortRef: MutableRefObject<AbortController | null>;
 }
@@ -34,10 +32,7 @@ export function patchLastMsg(prev: ChatMsg[], fn: (m: ChatMsg) => ChatMsg): Chat
   return next;
 }
 
-// Terminate an assistant message: mark done, drop the transient status
-// ticker, and resolve a still-"checking" verify chip so it can't pulse forever
-// when the stream ends by abort/error before verification resolves (the
-// "done" event's handler has its own copy of this guard).
+// Also resolves a still-"checking" verify chip so an aborted stream can't leave it pulsing.
 export function finalizeMsg(m: ChatMsg, extra: Partial<ChatMsg> = {}): ChatMsg {
   if (m.role !== "assistant") return m;
   return { ...m, done: true, statusLine: null, ...(m.verify?.status === "checking" ? { verify: undefined } : {}), ...extra };
@@ -61,11 +56,7 @@ export function createStreamCore(s: StreamSetters): StreamCore {
   };
 }
 
-// Aborts any in-flight stream FIRST, then swaps the whole thread. patchLast
-// mutates whatever array is currently in `messages`, so if the old stream's
-// next event were dispatched after messages/convIdRef were already reset but
-// before the abort took effect, it would land on the new array and corrupt
-// it. Aborting before anything else changes closes that window.
+// Abort first: a late event from the old stream would otherwise patch the new thread.
 function replaceThread(core: StreamCore, id: string | null, msgs: ChatMsg[], contextTokens: number | null) {
   core.abortRef.current?.abort();
   core.abortRef.current = null;
@@ -85,11 +76,8 @@ export function streamControls(core: StreamCore) {
       core.finalizeLast();
     },
     reset: () => replaceThread(core, null, [], null),
-    // Seeds the stream with a restored conversation (or clears to a fresh chat
-    // via hydrate(null, [])). `contextTokens` seeds the pie from the restored
-    // conversation's replay size (ConversationDetail.contextTokens, the same
-    // quantity a live turn reports as contextUsed — so reopening a chat does
-    // not move the meter); null for a fresh chat.
+    // `contextTokens` is the restored replay size, the same quantity a live turn
+    // reports as contextUsed, so reopening a chat does not move the meter.
     hydrate: (id: string | null, msgs: ChatMsg[], contextTokens: number | null = null) =>
       replaceThread(core, id, msgs, contextTokens),
   };
