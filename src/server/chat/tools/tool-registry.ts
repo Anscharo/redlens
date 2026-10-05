@@ -17,13 +17,12 @@ import { REPORT_TOOLS } from "../../reports/index.ts";
 
 export type { AtlasTool, DescribedTool } from "./tool-types.ts";
 
-// A model that fills EVERY declared property — the strong tier's does, on every
-// tool (pnpm eval:tools, 2026-09-22) — writes "" / [] / [""] for the ones it
-// means to leave out. None of those is ever a meaningful filter value, yet
-// `ids: [""]` beside a class filter tripped atlas_first_seen's "not both" error
-// on 12 of that model's 15 calls, and `edge_types: [""]` would intersect an
-// entity's docs to nothing. Blank array elements are dropped with the rest;
-// numbers and booleans pass through untouched (0 and false are real values).
+// A model that fills every declared property writes "" / [] / [""] for the ones
+// it means to leave out. None of those is a meaningful filter value: `ids: [""]`
+// beside a class filter would trip atlas_first_seen's "not both" error, and
+// `edge_types: [""]` would intersect an entity's docs to nothing. Blank array
+// elements are dropped with the rest; numbers and booleans pass through
+// untouched (0 and false are real values).
 export function omitEmptyArgs(args: Record<string, unknown>): Record<string, unknown> {
   const blank = (v: unknown) => v === null || v === undefined || (typeof v === "string" && v.trim() === "");
   const out: Record<string, unknown> = {};
@@ -43,19 +42,15 @@ export function omitEmptyArgs(args: Record<string, unknown>): Record<string, unk
  * The ONE place a tool's arguments meet its handler. Both transports call it —
  * chat (llm-tools.ts) and MCP (server/mcp.ts) — so `emptyArgsAbsent` is honoured
  * once here instead of per handler, and a tool cannot opt in for chat while the
- * MCP surface reads its blanks as real filters. That split was live until
- * 2026-09-28: four of the seven opted-in tools stripped only in the chat
- * transport, so an MCP client sending `type: ""` had it intersected to nothing.
+ * MCP surface reads its blanks as real filters.
  *
  * Only OPTIONAL properties are stripped. "An empty value is not a filter" is a
  * statement about filters; a REQUIRED property's blank is the caller's problem
  * and the handler already reports it (`commit_a '' not found in history`).
  * Dropping it instead hands the handler an absent argument its own contract says
- * cannot be absent — `atlas_changed_between` threw on `opts.commit_a.slice`
- * rather than answering. The chat transport never showed this because it strips
- * BEFORE zod, so a missing required key becomes a clean "invalid tool
- * arguments"; MCP's SDK validates first and `""` passes, so there is nothing
- * left to catch it. A key the shape does not declare is stripped like an
+ * cannot be absent (`atlas_changed_between` would throw on `commit_a.slice`).
+ * MCP's SDK validates before this runs and `""` passes it, so nothing else
+ * would catch the missing key. A key the shape does not declare is stripped like an
  * optional one: only an explicitly required property is restored, and zod drops
  * undeclared keys anyway, so no handler can be relying on one.
  *
