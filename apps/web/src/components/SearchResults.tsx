@@ -87,6 +87,10 @@ export const SearchResults = memo(function SearchResults({
   // line and both retry suggestions have to wait for it.
   const semanticPending = state.status === "done" && state.semantic === "pending";
   const noResults = state.status === "done" && hits.length === 0 && !semanticPending;
+  // The meaning lane posts no interim reply (the worker withholds the wording
+  // list there), so its whole round trip is the "searching" state. A query the
+  // leg declines answers within a frame, inside the bar's appear delay.
+  const semanticWaiting = lane === "semantic" && (state.status === "searching" || semanticPending);
   // Query is non-broad when mode pill is phrase/strict, or user typed explicit quotes
   const isNonBroad = mode !== "broad" || query.includes('"') || query.includes("'");
   const strippedQuery = query.replace(/["']/g, "").replace(/\s+/g, " ").trim();
@@ -128,7 +132,7 @@ export const SearchResults = memo(function SearchResults({
             queries that both settle straight into a pending leg would otherwise
             leave the second one inheriting the first's timer, reading
             "Comparing Results" on a search that just began. */}
-        {semanticPending ? <SemanticProgress key={query} /> : <SemanticLoginPrompt state={state} />}
+        {semanticWaiting ? <SemanticProgress key={query} /> : <SemanticLoginPrompt state={state} />}
         {suggestBroad && (
           <div className="px-4 py-2 border-b border-border">
             <button
