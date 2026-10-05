@@ -81,7 +81,7 @@ component are gone — a stage row's working content opens per-row now (see
 above), and tool calls render inside their stage row.
 
 The client `ChatEvent` union in `api.ts` mirrors the server's `HarnessEvent` in
-`chat-orchestrator.ts` — **they must stay in sync**. The rule that keeps them
+`harness/types.ts` — **they must stay in sync**. The rule that keeps them
 honest: *every input to `CheckReport.failed` must reach the client* — arrays and
 booleans alike. Each one can be a turn's only finding, and a hard failure the
 badge can't name renders a red chip that says the answer failed and then can't
@@ -96,7 +96,7 @@ checklist), `Sources`, `LimitsMeter` + `ContextPie` (usage and context size),
 `RateLimitNote`, `ProfileButton` / `SignInButtons` (auth), `usePrefs`
 (display + placement preferences), `resume.ts` (conversation resume).
 
-## 2. Server lifecycle (`src/server/chat/chat.ts`)
+## 2. Server lifecycle (`src/server/chat/chat.ts`, `endpoint/`)
 
 `handleChat` (mounted at `POST /api/chat`) runs in order:
 
@@ -138,7 +138,7 @@ checklist), `Sources`, `LimitsMeter` + `ContextPie` (usage and context size),
    prefetch judgement, tier routing (`routeTier` + `resolveTierModels`), system
    prompt, full history, facts round and Jev-filtered `/teach` notes. It is
    the one assembly `pnpm eval:tools` also runs; the per-user `/teach` lookup
-   stays in `chat.ts` and comes in as an argument.
+   stays in the endpoint (`endpoint/turn.ts`) and comes in as an argument.
 8. **Model tier routing** — part of step 7, decided before the prompt is
    built because the citation format depends on the model.
 9. **SSE stream** — emit `meta`, then run the harness, forwarding every event
@@ -423,7 +423,7 @@ margin is set on the marginal trade rather than a clean separation, and why the
 cost asymmetry is the justification: a false fire buys a better *and* faster
 model, so it costs tokens, never correctness.
 
-## 4. The agentic loop (`chat-loop.ts`)
+## 4. The agentic loop (`chat-loop.ts`, `loop/`)
 
 `runChat` is a pure async generator (the LLM is injected as `ChatStream`, so it
 unit-tests with no network/DB). Each iteration (max `CHAT_MAX_ITERATIONS`,
@@ -486,7 +486,7 @@ live chat context. `fitToBudget` greedily keeps items under the byte budget,
 always keeps at least one item (a lone oversized item beats an empty result),
 and reports `truncated` so the caller pages or narrows instead of blowing up.
 
-## 6. Reliability harness (`chat-orchestrator.ts`, `chat/verify/`)
+## 6. Reliability harness (`chat-orchestrator.ts`, `harness/`, `chat/verify/`)
 
 `runVerifiedChat` wraps the loop and is what the SSE route iterates. Every stage
 degrades gracefully — harness flakiness never breaks a turn — and
@@ -627,7 +627,7 @@ see §12.
 
 **Per-paragraph refutation is the default (`CHAT_REFUTE_MODE=paragraph`,
 `verify/paragraph-refute.ts`).** Instead of one `refute` call over the
-finished answer, `chat-orchestrator.ts` submits each paragraph to a
+finished answer, `harness/paragraphs.ts` submits each paragraph to a
 `createParagraphRefuter` as it closes during streaming (the same
 `verify/paragraphs.ts` segmentation the deterministic `paragraph_check` pass
 already uses) — a `paragraph_refute` SSE event lands per paragraph, either
@@ -838,7 +838,7 @@ One follow-up the refutation-only overhaul surfaced but did not build:
   (2026-09-24 as disputes only; generalized 2026-10-01, `review-round.ts` +
   `verify/review-note.ts`). The browser renders a verification badge and its
   findings, the Sources chips and an answer-coverage line under every answer;
-  the replay carried none of it, because `chat.ts`'s history SELECT reads four
+  the replay carried none of it, because `endpoint/history.ts`'s history SELECT reads four
   columns. So a user pointing at the screen ("why was verification failed?") was
   asking about something the model had never seen, and it answered with
   speculation — observed twice: once as a dispute the model asked the user to
@@ -870,8 +870,8 @@ One follow-up the refutation-only overhaul surfaced but did not build:
   back instead of capitulating. And it is **excluded from evidence entirely**, at
   **four** sites via one shared `isReviewRound` predicate: `verifier.ts`
   (both `evidenceFromTranscript` and `evidenceFromResults`), `tool-recall.ts`'s
-  `SYNTHETIC_TOOL_IDS`, `chat-orchestrator.ts`'s `toolTextsOf`, and
-  `chat-loop.ts`'s `exportEvidence`. Only the first two excluded the dispute round
+  `SYNTHETIC_TOOL_IDS`, `harness/repair.ts`'s `toolTextsOf`, and
+  `loop/export-evidence.ts`'s `exportEvidence`. Only the first two excluded the dispute round
   it replaces; the other two **leaked** until 2026-10-01, so an address or figure
   appearing only in the round counted as retrieved (the quote check was never
   affected — it reads `evidenceSplit.atlasTexts`, built by `splitFromTranscript`,
@@ -884,7 +884,7 @@ One follow-up the refutation-only overhaul surfaced but did not build:
   is deliberately NOT a join onto the history SELECT (that would multiply history
   rows) and it keeps its `.catch(() => [])`, so a DB error degrades to "no
   ledger". It is **counted by `replayTokens`**, so the meter, the 90% compaction
-  trigger and the tail sizing stay one quantity — and `conversations.ts`'s
+  trigger and the tail sizing stay one quantity — and `conversations/detail.ts`'s
   `toReplayRow` sets it too, or a reopened thread would meter low. Compaction
   **strips** it: `rowsAfterCursor` drops folded rows before the round is built and
   `rowPart` reads only content + recalls, so the summarizer never sees a verdict
@@ -942,7 +942,7 @@ the user. All are unit-tested and cost nothing.
 
 ## 8. Delivery and the stage tree
 
-There is one delivery mode, not a mode switch. The SSE route (`chat.ts`)
+There is one delivery mode, not a mode switch. The SSE route (`chat.ts`, `endpoint/stream.ts`)
 forwards every event the harness yields, unchanged, as `data: {json}\n\n` —
 `resolveDeliveryMode`/`ChatBody.delivery`/`CHAT_DELIVERY_MODE` are gone. The
 client always renders the in-flight turn as a stage checklist and reveals the
@@ -950,10 +950,10 @@ answer once (§1), rather than the server picking between two client shapes.
 
 **Stage production is the orchestrator's job**, not the route's:
 
-- `recalling` — fires in `chat.ts` before the harness runs, when a fact fired
+- `recalling` — fires in `endpoint/stream.ts` before the harness runs, when a fact fired
   (§3's facts prefetch).
 - `querying` — fires per tool call, in the conversationalist pass
-  (`runVerifiedChat`, `chat-orchestrator.ts`).
+  (`runVerifiedChat`, `harness/stream-pass.ts`).
 - `synthesizing` — fires once per **generation burst** (the run of tokens
   since the last `tool_call`, or since the stream started), right before that
   burst's first `token`. A `tool_call` resets the burst, so a turn that calls
@@ -1128,7 +1128,7 @@ Every post-answer check now rehydrates on reload — the marks first
 (2026-09-23), the verify badge and the answer-coverage line with it
 (2026-09-24), so a refresh no longer silently drops a turn's verification.
 `GET /api/chat/conversations/:id`
-(`conversations.ts`'s `citationMarksFor`) re-runs `aggregateMarks` over each
+(`conversations/checks.ts`'s `citationMarksFor`) re-runs `aggregateMarks` over each
 assistant message's stored `judged` pairs — the same fold a live turn uses,
 so a later change to the aggregation rule applies to old rows too without a
 backfill — and the client (`hydrate.ts`) restores the result straight into
@@ -1138,7 +1138,7 @@ the live registry never judged. Measurement and the residual error classes:
 [`docs/plans/jev-typesafe.md`](plans/jev-typesafe.md) §A1.
 `CHAT_CITATION_CHECK_MODEL=""` turns it off.
 
-The **verify badge** restores the same way (`conversations.ts`'s `verifyFor`,
+The **verify badge** restores the same way (`conversations/checks.ts`'s `verifyFor`,
 parsers in `verify/persisted-verdict.ts`): agreed contradictions from the
 `verify` row, the deterministic findings from the `round_checks` row, and
 `status` recomputed with the live `computeOverall` rather than trusting the
@@ -1197,7 +1197,7 @@ the atlas doesn't cover this" (`declines`) as neutral facts; "Didn't address:
 (or the plural), flagged. A row of ✓✓ adds no line. The badge itself is the third fact
 (whole-answer contradictions) and is not repeated. Raw distribution, per-part scores and latency persist as a
 `message_checks` row of kind `answer_coverage`, and the line now rehydrates
-from it (2026-09-24, `conversations.ts`'s `answerCoverageFor`) like the marks
+from it (2026-09-24, `conversations/checks.ts`'s `answerCoverageFor`) like the marks
 and the badge. Only the wire shape is restored: the stored `parts` are
 `{ text, p }` objects kept for calibration, mapped down to their text exactly
 as the live event does, and `probabilities`/`rawToolOutput` never reach the
@@ -1394,7 +1394,7 @@ cookie.
 `pageContext` carries `{ path?, nodeId?, nodeTitle?, nodeDocNo?, actorSlug?, reportName? }`.
 
 **Response:** `text/event-stream`, frames of `data: <json>\n\n`. The event union
-(server `HarnessEvent` in `chat-orchestrator.ts`, mirrored client-side in `api.ts`):
+(server `HarnessEvent` in `harness/types.ts`, mirrored client-side in `api.ts`):
 
 ```ts
 { type: "meta",        conversationId, tier? }
@@ -1426,7 +1426,7 @@ own field and never into `content` — it is scratch work, not answer prose, so
 it is never markdown-rendered as the answer, citation-extracted, or verified.
 It is emitted only when a provider actually sends one (`delta.reasoning`,
 `delta.reasoning_content`, or a `reasoning_details` array — normalized by
-`reasoningDelta` in `chat-loop.ts`). Forwarding is unconditional and there is
+`reasoningDelta` in `loop/stream-round.ts`). Forwarding is unconditional and there is
 **no request-side knob** — we never send OpenRouter's `reasoning` param. We
 don't need one: the strong tier's `openai/gpt-5.6-luna` already reasons
 unprompted on 94 of 96 generations (30d production PostHog, 2026-08-24), so
@@ -1541,7 +1541,7 @@ The reader waits the whole turn (the answer only reveals at
 (Not the malformed-delta path the loop also documents: `chat_loop_malformed_tool_call`
 has never fired.)
 
-`chat-loop.ts` now buys ONE more round **with tools still available**, steered
+`loop/finish.ts` buys ONE more round **with tools still available**, steered
 by `PROMISED_TOOL_STEER`, when a round produced text, the turn has made zero
 tool calls, a round remains, and `announcesUnmadeToolCall` (chat/announcement.ts)
 fires. The announcement never lands on `msgs`, so the replay sees the
