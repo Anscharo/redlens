@@ -3639,7 +3639,7 @@ a:focus-visible > .msc-ring-prime .msc-ring-rim {
 }
 .msc-ring-pill-anchor {
   fill: var(--gray);
-
+}
 
 /* Target of a Radar search link: a short accent outline that fades out. */
 [data-arrived] {
