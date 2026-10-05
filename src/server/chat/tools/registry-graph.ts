@@ -1,6 +1,3 @@
-// Graph navigation tools: hierarchical neighbours, typed-edge traversal,
-// entity lookup by name, and global edge enumeration. Assembled into
-// ATLAS_TOOLS by tool-registry.ts.
 import { z } from "zod";
 import { atlasNeighbors, atlasTraverse, atlasEntities, atlasEdges } from "./tools-graph.ts";
 import { readOnlyAtlasTool, type AtlasTool } from "./tool-types.ts";
@@ -81,10 +78,8 @@ export const GRAPH_TOOLS: AtlasTool[] = [
       limit: z.number().int().min(1).max(500).default(100),
       offset: z.number().int().min(0).default(0),
     },
-    // from_type/to_type are optional enums with no default — the shape a
-    // property-filling model cannot leave blank. An invented `from_type:
-    // "doc"` drops every entity-side edge, which is most of what this tool
-    // exists to enumerate.
+    // from_type/to_type are optional enums a property-filling model can't leave
+    // blank; an invented `from_type: "doc"` drops every entity-side edge.
     emptyArgsAbsent: true,
     handler: (ix, a) =>
       atlasEdges(ix, {

@@ -1,6 +1,3 @@
-// Class-level and multi-dimensional tools: first-seen dates over a class of
-// documents, and the one-call atlas_query. Assembled into ATLAS_TOOLS by
-// tool-registry.ts.
 import { z } from "zod";
 import { atlasQuery, type QueryArgs } from "../../retrieval/query.ts";
 import { atlasQueryShape } from "../../retrieval/query-schema.ts";

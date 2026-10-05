@@ -43,9 +43,7 @@ export function parseDocNos(raw: string | null): string[] {
   return raw.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
-// The row-list envelope the reports share: { report, total, returned,
-// truncated, ...extra, [payloadKey]: the rows that fit the output budget }, plus
-// the truncation note when rows were dropped. `total` counts every matching row.
+// `total` counts every matching row; [payloadKey] holds those that fit the budget.
 export function rowsEnvelope(
   report: string,
   rows: unknown[],

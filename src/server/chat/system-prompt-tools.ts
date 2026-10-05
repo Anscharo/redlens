@@ -1,6 +1,4 @@
-// The Tools section of the chat system prompt. The atlas_report_* entry lists
-// every registered report tool with its own promptBlurb, in REPORT_TOOLS
-// order, so a new report tool reaches the prompt by registering itself.
+// The Tools section of the chat system prompt; report tools come from REPORT_TOOLS.
 import { REPORT_TOOLS } from "../reports/index.ts";
 
 const TOOL_GUIDE = [

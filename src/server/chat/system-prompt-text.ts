@@ -1,7 +1,4 @@
-// The static prose of the chat system prompt, section by section. Everything
-// that depends on the live atlas, the page, or the date is assembled in
-// system-prompt.ts; the Tools section, which lists the registered report
-// tools, is built in system-prompt-tools.ts.
+// The static prose of the chat system prompt; live sections are in system-prompt.ts.
 
 export const PREAMBLE = [
   "You are the Sky Atlas by Redline assistant — a precise governance research aide for the Sky ecosystem's Sky Atlas.",

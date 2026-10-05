@@ -1,6 +1,4 @@
-// Row derivation for the multisigs report (./multisigs.ts): one MultisigRow per
-// multisig entity, from its meta and its incoming signer_of /
-// can_modify_signers_of edges.
+// One MultisigRow per multisig entity, for ./multisigs.ts.
 import type { Indexes, Edge, Entity } from "../retrieval/indexes.ts";
 import { parseMeta, parseDocNos } from "./util.ts";
 
@@ -60,9 +58,8 @@ function signerOrgsOf(ix: Indexes, signerEdges: Edge[]): SignerOrg[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// Only sum when EVERY org states a count. A partial sum on a security-review
-// report would silently undercount signers — better to return null (unknown)
-// than a number that looks authoritative but isn't.
+// Only sum when EVERY org states a count: a partial sum would silently
+// undercount signers on a security-review report, so return null (unknown).
 function totalSigners(signer_orgs: SignerOrg[]): number | null {
   const allCounted = signer_orgs.length > 0 && signer_orgs.every((s) => s.signer_count != null);
   return allCounted ? signer_orgs.reduce((sum, s) => sum + (s.signer_count ?? 0), 0) : null;

@@ -3,10 +3,7 @@
 //   - mcp.ts        registers each tool on the MCP server (zod shape native)
 //   - llm-tools.ts  converts each shape to JSON Schema for OpenAI tool-calling
 // The chat model gets the exact same tools an MCP client (ask-atlas) sees.
-//
-// The definitions live one family per file (registry-*.ts); the curated
-// atlas_report_* tools declare themselves in their report modules and arrive
-// through REPORT_TOOLS. ATLAS_TOOLS fixes the order every consumer sees.
+// ATLAS_TOOLS order is the order every consumer (MCP, /connect) sees.
 import type { z } from "zod";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import type { ToolResult } from "./tools.ts";

@@ -1,6 +1,3 @@
-// Structured lookup tools: an entity's holdings, complete class listings,
-// instance parameter maps, and the deterministic parameter table. Assembled
-// into ATLAS_TOOLS by tool-registry.ts.
 import { z } from "zod";
 import { atlasEntity, atlasFilter, atlasEntityParams } from "./tools-graph.ts";
 import { atlasParams } from "./tools-params.ts";
@@ -54,10 +51,8 @@ export const LOOKUP_TOOLS: AtlasTool[] = [
       offset: z.number().int().min(0).default(0),
       include_content: z.boolean().default(false).describe("Include full content. Default false for slim listing rows."),
     },
-    // depth_min/depth_max are optional integers with no default, so a model
-    // that fills every property has no way to say "no depth range" — it
-    // invents one, and every document outside it silently stops matching on a
-    // tool whose whole job is a COMPLETE class listing.
+    // A property-filling model invents depth_min/depth_max, silently truncating
+    // a listing whose whole job is to be COMPLETE.
     emptyArgsAbsent: true,
     handler: (ix, a) => atlasFilter(ix, a as Parameters<typeof atlasFilter>[1]),
   },

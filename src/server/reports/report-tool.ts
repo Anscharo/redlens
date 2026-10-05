@@ -1,28 +1,17 @@
-// The descriptor every atlas_report_* tool declares in its own report module.
-// defineReportTool turns one into an AtlasTool: it builds the input shape from
-// the shared parameters the report takes, reads them back into ReportArgs in
-// one place, and carries `promptBlurb`, the line the chat system prompt lists
-// the report under. Registering a report tool is one line in REPORT_TOOLS
-// (./index.ts); the registry, MCP, the /connect page and the system prompt all
-// read that list.
+// The descriptor each report module declares; defineReportTool turns it into an
+// AtlasTool with the shared parameters it takes.
 import { z } from "zod";
 import type { Indexes } from "../retrieval/indexes.ts";
 import type { ToolResult } from "../chat/tools/tools.ts";
 import { readOnlyAtlasTool, type AtlasTool } from "../chat/tools/tool-types.ts";
 
-// Whether to include source doc_nos / evidence chains / raw param tuples.
-// Default true; false yields a leaner rollup with resolved display fields only.
 const INCLUDE_PROVENANCE = z
   .boolean()
   .optional()
   .default(true)
   .describe("Include provenance (source doc_nos / evidence chains / raw params) for each field (default true; set false for a leaner rollup).");
 
-// The row-list reports that mirror a filterable report page take a text filter
-// applied server-side with the SAME field logic the page's header box uses, so
-// a scoped query returns only matching rows instead of the whole report. Broad
-// (every space-separated word must appear somewhere in the row) by default; a
-// fully quoted "…"/'…' value selects phrase/case-sensitive matching.
+// Uses the SAME field logic as the report page's header box, server-side.
 const FILTER_PARAM = z
   .string()
   .optional()
@@ -49,13 +38,11 @@ export function reportArgs(a: Record<string, unknown>): ReportArgs {
 
 export interface ReportToolSpec {
   name: `atlas_report_${string}`;
-  // MCP annotation title, e.g. "Atlas Report Multisigs".
   title: string;
   description: string;
-  // What the system prompt's Tools section says after the tool's name: what
-  // the report holds and the question shape it answers, ending in a period.
+  // The system prompt's Tools-section line for this report, ending in a period.
   promptBlurb: string;
-  // The shared parameters this report accepts, in input-schema order.
+  // In input-schema order.
   params: readonly (keyof typeof REPORT_PARAMS)[];
   build: (ix: Indexes, args: ReportArgs) => ToolResult | Promise<ToolResult>;
 }

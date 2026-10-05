@@ -67,8 +67,6 @@ export function agentArtifactRoster(ix: Indexes): string | null {
 // the grid's only undefined-label failure. See docs/plans/reference-citations.md.
 export type CitationStyle = "reference" | "inline";
 
-// The live-atlas sections: document taxonomy, the agent roster, and the
-// entity-type traversal chains.
 function atlasSections(ix: Indexes): string[] {
   // entity_type_graph is opt-in on atlas_describe (see DEFAULT_SECTIONS in
   // tools.ts) — request it explicitly, and guard defensively so a future
@@ -107,10 +105,8 @@ const citationSection = (citations: CitationStyle): string[] => [
   ...RENDERING_RULES,
 ];
 
-// `today` (YYYY-MM-DD) defaults to the real current date and is only ever passed
-// explicitly by tests — recomputing "now" on the assertion side races a run that
-// straddles UTC midnight. Entries join with single newlines; an empty one (no
-// agent roster, no entity chains, no current page) is dropped.
+// `today` (YYYY-MM-DD) is passed only by tests — recomputing "now" on the
+// assertion side races a run that straddles UTC midnight. Empty sections drop.
 export function buildSystemPrompt(
   ix: Indexes,
   ctx?: PageContext,

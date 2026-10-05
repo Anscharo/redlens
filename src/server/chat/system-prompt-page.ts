@@ -1,11 +1,8 @@
-// The "Current page" section of the chat system prompt: what the user is
-// looking at, and — on a report page backed by a report tool — how to load and
-// filter that report.
+// The "Current page" section of the chat system prompt.
 import { TOOLS_BY_NAME } from "./tools/tool-registry.ts";
 import { REPORT_TITLES, REPORT_DESCRIPTIONS } from "../../lib/routes.ts";
 
-// reportName on the wire is the display title (REPORT_TITLES[id]), not the id —
-// reverse-look-up to find the matching one-line description, if any.
+// reportName on the wire is the display title (REPORT_TITLES[id]), not the id.
 const TITLE_TO_REPORT_ID: Record<string, string> = Object.fromEntries(
   Object.entries(REPORT_TITLES).map(([id, title]) => [title, id]),
 );
@@ -22,9 +19,8 @@ export interface PageContext {
   reportFilter?: string; // the report page's active text filter, if any
 }
 
-// The client sends reportTool as a hint; never trust it verbatim in the prompt.
-// Accept it only if it names a real, registered atlas_report_* tool — otherwise
-// a stray/renamed/hostile value can't steer the model at a non-existent tool.
+// reportTool is a client hint: accept it only if it names a registered
+// atlas_report_* tool, so a stray or hostile value can't steer the model.
 export function validReportTool(ctx?: PageContext): string | null {
   const t = ctx?.reportTool;
   if (!t || !t.startsWith("atlas_report_")) return null;
@@ -51,9 +47,7 @@ export function pageContextLine(ctx?: PageContext): string | null {
   return null;
 }
 
-// The report page's active text filter, if any, is user-typed search-box text:
-// sanitized (single line, length-capped, no backticks) before it enters the
-// prompt, then handed to the model as the tool's `filter` argument.
+// reportFilter is user-typed: sanitized to one short backtick-free line.
 function reportToolGuidance(reportTool: string, ctx?: PageContext): string {
   const reportFilter = (ctx?.reportFilter ?? "").replace(/[`\r\n]+/g, " ").trim().slice(0, 100);
   const filtered = reportFilter

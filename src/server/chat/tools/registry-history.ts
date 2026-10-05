@@ -1,11 +1,5 @@
-// History tools: one document's change log, recent changes across the atlas,
-// aggregated timelines, one PR's footprint, and the diff between two commits.
-// Assembled into ATLAS_TOOLS by tool-registry.ts.
-//
-// Every tool here with an optional `change_type` enum sets emptyArgsAbsent: a
-// model that fills every declared property has no empty value for an optional
-// enum, so it writes a real change_type nobody asked for. With the flag, `null`
-// and "" read as unset.
+// An optional `change_type` enum sets emptyArgsAbsent: a property-filling model
+// has no empty value for it, so `null` and "" must read as unset.
 import { z } from "zod";
 import { atlasHistory, atlasRecentChanges, atlasHistoryStats, atlasPr, atlasChangedBetween } from "./tools-history.ts";
 import { readOnlyAtlasTool, type AtlasTool } from "./tool-types.ts";

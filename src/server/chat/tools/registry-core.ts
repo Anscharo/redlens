@@ -1,5 +1,4 @@
-// Document lookup tools: schema vocabulary, fetch by id, ranked search, and
-// on-chain address lookup. Assembled into ATLAS_TOOLS by tool-registry.ts.
+// Document lookup tools: schema, fetch, search, and address lookup.
 import { z } from "zod";
 import { atlasDescribe, atlasGet, atlasSearch, atlasGetAddress, type SearchArgs } from "./tools.ts";
 import { readOnlyAtlasTool, type AtlasTool } from "./tool-types.ts";

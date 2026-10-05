@@ -1,6 +1,4 @@
-// Activation collection for the primitive matrix (./primitive-matrix.ts): the
-// Prime Agent denominator, and each primitive subtype's per-agent
-// globalActivation status read off build-graph's primitive entities.
+// Per-agent globalActivation of each primitive subtype, for ./primitive-matrix.ts.
 import type { Indexes } from "../retrieval/indexes.ts";
 import { parseMeta } from "./util.ts";
 
@@ -16,8 +14,7 @@ interface PrimeAgent {
   definingDocId: string | null;
 }
 
-// Prime Agents = the denominator, ordered by defining doc_no so the matrix is
-// stable and reads in canonical agent order (A.6.1.1.1 < A.6.1.1.2 < …).
+// The matrix denominator, in canonical defining-doc_no order.
 export function primeAgents(ix: Indexes): PrimeAgent[] {
   return ix.entities
     .filter((e) => e.entity_type === "agent" && e.subtype === "prime")
@@ -30,13 +27,10 @@ export function primeAgents(ix: Indexes): PrimeAgent[] {
 }
 
 interface Collected {
-  // subtype → (agent name → activation status)
   statusBySubtype: Map<string, Map<string, Activation>>;
-  // subtype → a representative primitive-category doc_no (provenance only)
+  // provenance only
   categoryDocBySubtype: Map<string, string>;
-  // Any globalActivation value the atlas emits that we don't recognize — surfaced
-  // so a new/renamed status isn't silently coerced to Inactive (which would
-  // misclassify a live primitive as dormant with no signal).
+  // Surfaced so a new/renamed status isn't silently coerced to Inactive.
   unknownStatuses: Set<string>;
 }
 
@@ -48,8 +42,6 @@ function activationOf(meta: Record<string, unknown>, unknownStatuses: Set<string
   return known ? (raw as Activation) : "Inactive";
 }
 
-// If an agent has the subtype twice, keep the highest-ranked status
-// (Active > Completed > Inactive) — deterministic across graph orderings.
 function recordStatus(c: Collected, subtype: string, agentName: string, status: Activation): void {
   let byAgent = c.statusBySubtype.get(subtype);
   if (!byAgent) c.statusBySubtype.set(subtype, (byAgent = new Map()));
