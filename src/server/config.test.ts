@@ -92,9 +92,9 @@ test("defaults when no env is set", async () => {
   expect(config.canonicalHostRedirect).toBe(false);
   expect(config.databaseUrl).toBe("postgres://redlens:redlens@localhost:5432/redlens");
   expect(config.openrouterBaseUrl).toBe("https://openrouter.ai/api/v1");
-  expect(config.embedModel).toBe("qwen/qwen3-embedding-8b");
-  expect(config.embedQueryPrefix).toMatch(/^Instruct: /);
-  expect(config.semanticMinScore).toBe(0.3);
+  expect(config.embedModel).toBe("google/gemini-embedding-2");
+  expect(config.embedQueryPrefix).toBe("");
+  expect(config.semanticMinScore).toBe(0.55);
   expect(config.semanticEmbedTimeoutMs).toBe(10_000);
   expect(config.queryEmbedCacheSize).toBe(512);
   expect(config.chatModel).toBe("google/gemma-4-31b-it");

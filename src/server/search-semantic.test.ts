@@ -15,6 +15,8 @@ import {
 import type { SemanticSearchResponse } from "../lib/searchSemantic.ts";
 import { _clearIndexes, buildIndexes, getIndexes, setIndexes } from "./retrieval/indexes.ts";
 import { _resetSemanticBudget } from "./search-semantic-limit.ts";
+import { vectorsCurrent } from "./vectors-current.ts";
+import { SESSION_COOKIE, signSession } from "./session.ts";
 import type { AtlasNode, Indexes } from "./retrieval/indexes.ts";
 
 // config is a plain mutable object; restore whatever this process actually has
@@ -28,6 +30,11 @@ afterEach(() => {
   // every later case in this file, and the one after it in the run.
   _resetSemanticBudget();
 });
+
+// Every stored vector matches the running model unless a case says otherwise;
+// the real check reads Postgres (vectors-current.test.ts covers it).
+const currentSpy = spyOn(vectorsCurrent, "current").mockReturnValue(true);
+afterAll(() => currentSpy.mockRestore());
 
 async function get(qs: string): Promise<SemanticSearchResponse> {
   const res = await handleSemanticSearch(new Request(`http://x/api/search/semantic${qs}`));
@@ -100,7 +107,7 @@ describe("availability", () => {
     expect(semanticSearchAvailable()).toBe(true);
   });
 
-  it("offers the search bar's lane only on a model quick enough to answer while typing", () => {
+  it("offers the search bar's lane only on a model quick enough to answer while typing, once its vectors are in", () => {
     const { embedModel: model, openrouterApiKey: key } = config;
     try {
       config.openrouterApiKey = "sk-test";
@@ -110,11 +117,29 @@ describe("availability", () => {
       expect(semanticLaneShown()).toBe(false);
       expect(semanticSearchAvailable()).toBe(true);
       config.embedModel = "google/gemini-embedding-2";
+      currentSpy.mockReturnValue(false);
+      expect(semanticLaneShown()).toBe(false);
+      currentSpy.mockReturnValue(true);
       config.openrouterApiKey = "";
       expect(semanticLaneShown()).toBe(false);
     } finally {
+      currentSpy.mockReturnValue(true);
       config.embedModel = model;
       config.openrouterApiKey = key;
+    }
+  });
+
+  it("answers available:false, and embeds nothing, while vectors from another model remain", async () => {
+    config.openrouterApiKey = "sk-test";
+    currentSpy.mockReturnValue(false);
+    const fetchSpy = spyOn(globalThis, "fetch");
+    try {
+      const body = await semanticDocSearch("which quorum applies", { k: 5 });
+      expect(body).toEqual({ hits: [], skipped: null, available: false });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+      currentSpy.mockReturnValue(true);
     }
   });
 
@@ -371,6 +396,35 @@ describe("the shared budget", () => {
     const second = await handleSemanticSearch(new Request("http://x/api/search/semantic?q=who%20decides"));
     expect(second.status).toBe(429);
     expect(Number(second.headers.get("retry-after"))).toBeGreaterThan(0);
+  });
+
+  it("charges a signed-in reader's own budget, not the shared one", async () => {
+    const prev = { users: config.usersEnabled, secret: config.jwtSecret, perHour: config.searchSemanticUserPerHour };
+    try {
+      config.openrouterApiKey = "sk-test";
+      config.usersEnabled = true;
+      config.jwtSecret = "test-secret-for-semantic-budget";
+      config.searchSemanticRpm = 1;
+      config.searchSemanticUserPerHour = 1;
+      _resetSemanticBudget();
+      const cookie = `${SESSION_COOKIE}=${await signSession({ id: "user-1", provider: "github" })}`;
+      const signedIn = () => new Request("http://x/api/search/semantic?q=who%20approves", { headers: { cookie } });
+      const signedOut = () => new Request("http://x/api/search/semantic?q=who%20approves");
+
+      expect((await handleSemanticSearch(signedOut())).status).not.toBe(429);
+      const shared = await handleSemanticSearch(signedOut());
+      expect(shared.status).toBe(429);
+      expect(await shared.json()).toMatchObject({ error: "rate_limited", scope: "shared" });
+
+      expect((await handleSemanticSearch(signedIn())).status).not.toBe(429);
+      const own = await handleSemanticSearch(signedIn());
+      expect(own.status).toBe(429);
+      expect(await own.json()).toMatchObject({ error: "rate_limited", scope: "user" });
+    } finally {
+      config.usersEnabled = prev.users;
+      config.jwtSecret = prev.secret;
+      config.searchSemanticUserPerHour = prev.perHour;
+    }
   });
 
   it("does not charge a query that was never going to embed", async () => {

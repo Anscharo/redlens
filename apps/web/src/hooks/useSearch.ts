@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { SearchHit, SemanticLegStatus, WorkerOutMessage } from "@/types";
+import type { SearchHit, SemanticLegStatus, SemanticLimit, WorkerOutMessage } from "@/types";
 import type { SearchLane } from "@/lib/searchSemantic";
 import { loadAtlas } from "../lib/docs";
 import { loadAddresses } from "../lib/addresses";
@@ -29,6 +29,8 @@ export type SearchState =
       didYouMean?: string;
       /** Query words the meaning lane held back; Enter sends the query anyway. */
       heldWords?: string[];
+      /** Whose budget refused the meaning search, when it was refused. */
+      semanticLimit?: SemanticLimit;
     }
   | { status: "error"; message: string };
 
@@ -54,6 +56,7 @@ function doneState(msg: Extract<WorkerOutMessage, { type: "results" }>, query: s
     ...(msg.semanticNote ? { semanticNote: msg.semanticNote } : {}),
     ...(msg.didYouMean ? { didYouMean: msg.didYouMean } : {}),
     ...(msg.heldWords?.length ? { heldWords: msg.heldWords } : {}),
+    ...(msg.semanticLimit ? { semanticLimit: msg.semanticLimit } : {}),
   };
 }
 

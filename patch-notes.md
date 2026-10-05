@@ -35,6 +35,7 @@
 
 ## 2026-10-05
 
+- Released meaning search: the meaning pill above search results finds documents by what they are about
 - Released entity search on Radar: the Radar search box finds actors, instances, parameters, addresses and relationships
 
 ## 2026-10-02

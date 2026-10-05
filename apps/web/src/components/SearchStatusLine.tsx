@@ -2,6 +2,7 @@ import { SearchLaneToggle } from "./SearchLaneToggle";
 import { Link } from "./Link";
 import { ROUTES } from "@/lib/routes";
 import type { SearchState } from "../hooks/useSearch";
+import { showsLoginPrompt } from "./SemanticLoginPrompt";
 import { MIN_SEMANTIC_QUERY, semanticLaneLimit, type SearchLane } from "@/lib/searchSemantic";
 
 interface Props {
@@ -31,6 +32,8 @@ function semanticNote(state: SearchState, lane: SearchLane): string | null {
     case "pending":
       return null;
     case "skipped":
+      // The sign-in prompt below the line says this one in full.
+      if (showsLoginPrompt(state)) return null;
       return `meaning search unavailable — ${state.semanticNote ?? "it failed"}`;
     case "unavailable":
       return "meaning search is not configured here";

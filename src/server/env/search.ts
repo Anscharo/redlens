@@ -26,8 +26,8 @@ export const openrouter: EnvGroup = {
     },
     {
       name: "EMBED_MODEL",
-      doc: "Embedding model. Its dimension is fixed by the database migration, not by env. Every stored vector records the model that made it, so changing this re-embeds the corpus on the next sync. The query prefix, the cosine floor and the leaf rule follow the model.",
-      default: "qwen/qwen3-embedding-8b",
+      doc: "Embedding model. Its dimension is fixed by the database migration, not by env. Every stored vector records the model that made it, so changing this re-embeds the corpus on the next sync, and the search bar hides the meaning lane until that finishes. Set the same value on the server and the atlas worker. The query prefix, the cosine floor and the leaf rule follow the model.",
+      default: "google/gemini-embedding-2",
     },
     { name: "EMBED_BATCH", doc: "Texts per embeddings request in sync:embeddings.", default: "50" },
     {
@@ -43,7 +43,7 @@ export const openrouter: EnvGroup = {
     {
       name: "SEMANTIC_MIN_SCORE",
       doc: "Cosine floor for semantic hits, so a query with few true matches does not fill top slots with unrelated neighbours. Unset, it follows EMBED_MODEL: each model's floor is fitted by the same rule (0.55 for gemini-embedding-2, 0.30 for qwen3-embedding-8b).",
-      default: "0.3",
+      default: "0.55",
     },
     {
       name: "SEMANTIC_EMBED_TIMEOUT_MS",
@@ -53,8 +53,13 @@ export const openrouter: EnvGroup = {
     { name: "QUERY_EMBED_CACHE_SIZE", doc: "In-process LRU of query embeddings. 0 disables it.", default: "512" },
     {
       name: "SEARCH_SEMANTIC_RPM",
-      doc: "Shared per-minute budget for the reader's meaning lane, which is public and unauthenticated. One settled search is one embedding call, so 60 carries roughly 15 people searching at once. 0 disables the gate. In process, so N replicas allow N times this.",
-      default: "60",
+      doc: "Shared per-minute budget for the reader's meaning lane when signed out. One settled search is one embedding call, so 30 carries roughly 7 people searching at once. 0 disables the gate. In process, so N replicas allow N times this.",
+      default: "30",
+    },
+    {
+      name: "SEARCH_SEMANTIC_USER_PER_HOUR",
+      doc: "Each signed-in reader's own hourly budget for the meaning lane; it never draws on SEARCH_SEMANTIC_RPM. 600 is one search every 6 s for a whole hour. 0 disables the gate. In process, like the shared budget.",
+      default: "600",
     },
   ],
 };

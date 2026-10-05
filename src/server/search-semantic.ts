@@ -20,8 +20,9 @@ import { config } from "./config.ts";
 import { getIndexes } from "./retrieval/indexes.ts";
 import { runLexical, runSemantic, filterByType, fuseBriefings, type Via } from "./retrieval/search.ts";
 import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "./retrieval/leaf-attribution.ts";
-import { rateLimited } from "./feedback-limits.ts";
 import { spendSemanticBudget } from "./search-semantic-limit.ts";
+import { getSessionUser } from "./session.ts";
+import { vectorsCurrent } from "./vectors-current.ts";
 import {
   MAX_SEMANTIC_QUERY,
   inScope,
@@ -53,23 +54,32 @@ export function semanticSearchAvailable(): boolean {
 const PILL_MODELS = new Set(["google/gemini-embedding-2"]);
 
 /**
+ * Can the route answer right now? It also needs every stored vector to come
+ * from the running model (`vectorsCurrent`), or a query is scored against
+ * another model's vectors.
+ */
+export function semanticRouteReady(): boolean {
+  return semanticSearchAvailable() && vectorsCurrent.current();
+}
+
+/**
  * Does the search bar offer the meaning lane? The page reads this at serve
- * time and hides the pill when it is false. The route stays open either way,
- * because chat and the MCP tools share the retrieval underneath it.
+ * time and hides the pill when it is false.
  */
 export function semanticLaneShown(): boolean {
-  return semanticSearchAvailable() && PILL_MODELS.has(config.embedModel);
+  return PILL_MODELS.has(config.embedModel) && semanticRouteReady();
 }
 
 /**
  * Would answering this query actually SPEND anything?
  *
  * One rule, read by two callers: the search itself, to return early, and the
- * budget gate, so a query that was never going to embed — too short, or a
- * deployment with no key — cannot burn a token that a real search needs.
+ * budget gate, so a query that was never going to embed — too short, a
+ * deployment with no key, or vectors still being re-embedded — cannot burn a token
+ * that a real search needs.
  */
 export function wouldSpendEmbed(query: string): boolean {
-  return semanticSearchAvailable() && semanticWorthAsking(query.trim().slice(0, MAX_SEMANTIC_QUERY));
+  return semanticRouteReady() && semanticWorthAsking(query.trim().slice(0, MAX_SEMANTIC_QUERY));
 }
 
 export function clampK(raw: string | null): number {
@@ -82,7 +92,7 @@ export async function semanticDocSearch(
   query: string,
   opts: { k?: number; type?: string; scope?: string } = {},
 ): Promise<SemanticSearchResponse> {
-  const available = semanticSearchAvailable();
+  const available = semanticRouteReady();
   const q = query.trim().slice(0, MAX_SEMANTIC_QUERY);
   if (!wouldSpendEmbed(query)) return { hits: [], skipped: null, available };
 
@@ -159,6 +169,18 @@ export function toWireHits(
   return hits;
 }
 
+/**
+ * The 429 for an exhausted budget. `scope` says whose budget ran out: "shared"
+ * (signed out, where signing in gets the reader their own) or "user" (their own
+ * hourly allowance), so the client can say which.
+ */
+function semanticRateLimited(retryAfterSeconds: number, scope: "shared" | "user"): Response {
+  return new Response(JSON.stringify({ error: "rate_limited", scope, retryAfterSeconds }), {
+    status: 429,
+    headers: { "content-type": "application/json", "retry-after": String(retryAfterSeconds) },
+  });
+}
+
 export async function handleSemanticSearch(req: Request): Promise<Response> {
   const params = new URL(req.url).searchParams;
   const q = params.get("q") ?? "";
@@ -182,8 +204,9 @@ export async function handleSemanticSearch(req: Request): Promise<Response> {
   // Before the work, not after: the point of the gate is that the embed never
   // happens. A query that would not have spent anything is not charged for.
   if (wouldSpendEmbed(q)) {
-    const budget = spendSemanticBudget();
-    if (!budget.ok) return rateLimited(budget.retryAfter);
+    const session = config.usersEnabled ? await getSessionUser(req) : null;
+    const budget = spendSemanticBudget(Date.now(), session?.user.id);
+    if (!budget.ok) return semanticRateLimited(budget.retryAfter, budget.scope);
   }
   try {
     const body = await semanticDocSearch(q, { k: clampK(params.get("k")), type, scope });
@@ -200,7 +223,7 @@ export async function handleSemanticSearch(req: Request): Promise<Response> {
     return json({
       hits: [],
       skipped: "meaning search is unavailable right now",
-      available: semanticSearchAvailable(),
+      available: semanticRouteReady(),
     } satisfies SemanticSearchResponse);
   }
 }

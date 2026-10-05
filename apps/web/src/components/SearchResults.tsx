@@ -3,6 +3,7 @@ import { SearchResult } from "./SearchResult";
 import { SearchHints } from "./SearchHints";
 import { SearchStatusLine } from "./SearchStatusLine";
 import { SemanticProgress } from "./SemanticProgress";
+import { SemanticLoginPrompt } from "./SemanticLoginPrompt";
 import type { SearchHit } from "@/types";
 import type { SearchState } from "../hooks/useSearch";
 import type { SearchMode } from "../hooks/useSearchInput";
@@ -85,8 +86,7 @@ export const SearchResults = memo(function SearchResults({
   // A meaning leg still in flight is a search still running: the "no results"
   // line and both retry suggestions have to wait for it.
   const semanticPending = state.status === "done" && state.semantic === "pending";
-  const pending = semanticPending;
-  const noResults = state.status === "done" && hits.length === 0 && !pending;
+  const noResults = state.status === "done" && hits.length === 0 && !semanticPending;
   // Query is non-broad when mode pill is phrase/strict, or user typed explicit quotes
   const isNonBroad = mode !== "broad" || query.includes('"') || query.includes("'");
   const strippedQuery = query.replace(/["']/g, "").replace(/\s+/g, " ").trim();
@@ -117,7 +117,7 @@ export const SearchResults = memo(function SearchResults({
             shown={displayed.length}
             total={hits.length}
             durationMs={state.status !== "done" ? null : state.durationMs}
-            pending={pending}
+            pending={semanticPending}
             lane={lane}
             onLaneSelect={onLaneSelect}
             semanticAvailable={semanticLaneUsable(base)}
@@ -128,7 +128,7 @@ export const SearchResults = memo(function SearchResults({
             queries that both settle straight into a pending leg would otherwise
             leave the second one inheriting the first's timer, reading
             "Comparing Results" on a search that just began. */}
-        {semanticPending && <SemanticProgress key={query} />}
+        {semanticPending ? <SemanticProgress key={query} /> : <SemanticLoginPrompt state={state} />}
         {suggestBroad && (
           <div className="px-4 py-2 border-b border-border">
             <button
