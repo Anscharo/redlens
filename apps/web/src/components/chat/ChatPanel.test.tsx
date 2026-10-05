@@ -218,17 +218,13 @@ describe("ChatPanel rate limiting", () => {
     expect(screen.getByText("slow down")).toBeInTheDocument();
   });
 
-  it("normalizes a rate-limited send() result into session.setRateLimit, defaulting kind from resetsAt", async () => {
-    // The real send() always sets `kind` (see the comment in ChatPanel.doSend) —
-    // this exercises the defensive fallback for a caller that doesn't, which
-    // only a loosened (non-`RateLimitState`) mock can express.
-    send.mockResolvedValueOnce({
-      rateLimited: { message: "slow down", resetsAt: "2099-01-01T00:00:00Z" },
-    } as unknown as SendResult);
+  it("hands a rate-limited send() result to session.setRateLimit unchanged", async () => {
+    const rateLimited = { message: "slow down", resetsAt: "2099-01-01T00:00:00Z", kind: "token" } as const;
+    send.mockResolvedValueOnce({ rateLimited });
     renderPanel();
     fireEvent.change(screen.getByPlaceholderText("Ask about the Sky Atlas…"), { target: { value: "q1" } });
     fireEvent.click(screen.getByLabelText("Send"));
-    await waitFor(() => expect(setRateLimit).toHaveBeenCalledWith({ message: "slow down", resetsAt: "2099-01-01T00:00:00Z", kind: "token" }));
+    await waitFor(() => expect(setRateLimit).toHaveBeenCalledWith(rateLimited));
   });
 
   it("clears the lock (setRateLimit(null)) on a normal, non-rate-limited send", async () => {

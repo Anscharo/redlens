@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { track } from "../../lib/analytics";
 import { toPageContext, type PageContextView } from "./pageContext";
 import type { ChatSession } from "./useChatSession";
@@ -16,27 +16,24 @@ const ChatPanelContext = createContext<ChatPanelValue | null>(null);
 // One send path for every control that starts a turn (composer, starters).
 // Only the event + page context are tracked, never the message content. The
 // reader asked for this turn, so the thread follows it down even if they had
-// scrolled up — their own send is the one movement they expect. send()
-// (useChatStream) always sets `kind` for a real 429; the fallback only guards
-// a caller that omits it.
+// scrolled up — their own send is the one movement they expect.
 async function sendFromPanel(session: ChatSession, page: PageContextView, beforeSend: () => void, text: string) {
   const trimmed = text.trim();
   if (!trimmed) return;
   track("chat_message_sent", { product: "chat", node_id: page.nodeId, path: page.path });
   beforeSend();
   const { rateLimited: rl } = await session.send(trimmed, toPageContext(page));
-  session.setRateLimit(rl ? { ...rl, kind: rl.kind ?? (rl.resetsAt ? "token" : "commons") } : null);
+  session.setRateLimit(rl ?? null);
 }
 
-/** Builds the panel value. Each send first clears the draft, then re-follows the thread. */
-export function useChatPanelValue(session: ChatSession, page: PageContextView, clearDraft: () => void, follow: () => void) {
-  return useMemo<ChatPanelValue>(() => {
-    const beforeSend = () => {
-      clearDraft();
-      follow();
-    };
-    return { session, page, send: (text: string) => void sendFromPanel(session, page, beforeSend, text) };
-  }, [session, page, clearDraft, follow]);
+/** Builds the panel value. Each send first clears the draft, then re-follows the thread.
+ *  Not memoised: the session is a new object every render, so a memo would never hit. */
+export function useChatPanelValue(session: ChatSession, page: PageContextView, clearDraft: () => void, follow: () => void): ChatPanelValue {
+  const beforeSend = () => {
+    clearDraft();
+    follow();
+  };
+  return { session, page, send: (text: string) => void sendFromPanel(session, page, beforeSend, text) };
 }
 
 export function ChatPanelProvider({ value, children }: { value: ChatPanelValue; children: ReactNode }) {
