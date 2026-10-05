@@ -170,10 +170,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       {
         name: "Radar search",
         what: "Find actors, primitive instances, parameter values, addresses and relationships from one box.",
-        how: [
-          "Type in the search box on Radar. Each result opens the matching part of the actor page.",
-          "From the main search, the link on the result count line carries your query to Radar.",
-        ],
+        how: ["Type in the search box on Radar. Each result opens the matching part of the actor page."],
       },
       {
         name: "Actor dashboards",
