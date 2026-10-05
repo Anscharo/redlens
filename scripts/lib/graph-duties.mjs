@@ -194,7 +194,8 @@ export function classifyRole(role, title, content) {
 }
 
 // Global clones and org patterns are compiled once: the scan runs every pattern
-// over every doc, and recompiling per call dominates the pass under Bun.
+// over every doc, and recompiling per call dominates the pass under Bun. A clone
+// is shared, so a scan must not re-enter itself with the same regex.
 const globalClones = new WeakMap();
 function globalOf(re) {
   const g = globalClones.get(re) ?? new RegExp(re.source, re.flags.includes("g") ? re.flags : `${re.flags}g`);

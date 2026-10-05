@@ -1,6 +1,7 @@
 name: Setup toolchain
 description: >-
-  Bun, pnpm + Node 24 (with the pnpm cache), optionally a frozen install. The post-checkout half of the setup block every workflow job repeats.
+  Bun, pnpm + Node 24 (with the pnpm cache), optionally a frozen install. The
+  post-checkout half of the setup block every workflow job repeats.
 
 # Checkout deliberately stays in the calling workflow: a repo-local action is
 # only resolvable AFTER the repo is on disk, so `./.github/actions/setup` cannot
