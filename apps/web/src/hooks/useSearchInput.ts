@@ -1,9 +1,10 @@
 import { useEffect, useRef, useCallback, useDeferredValue } from "react";
 import { useSearch } from "./useSearch";
+import { useDataSource } from "../lib/dataSource";
 import { useSearchAnyway } from "./useSearchAnyway";
 import { useUrlState, urlString, urlEnum } from "./useUrlState";
 import { SEARCH_LANES, type SearchLane } from "@/lib/searchSemantic";
-import { semanticSearchAvailable } from "../lib/semanticSearchConfig";
+import { semanticLaneUsable } from "../lib/semanticSearchConfig";
 import { ROUTES, PREVIEW_INDEX_PATH, type SearchScope } from "@/lib/routes";
 import { track } from "../lib/analytics";
 import { useRecentSearches, useRecordRecentSearch } from "../lib/recentSearches";
@@ -135,7 +136,8 @@ export function modePillClick(
 
 function useSearchLane(): { lane: SearchLane; selectLane: (next: SearchLane) => void } {
   const [laneParam, setLane] = useUrlState("lane", laneCodec);
-  const lane: SearchLane = laneParam === "semantic" && !semanticSearchAvailable() ? "lexical" : laneParam;
+  const { base } = useDataSource();
+  const lane: SearchLane = laneParam === "semantic" && !semanticLaneUsable(base) ? "lexical" : laneParam;
   const selectLane = useCallback((next: SearchLane) => {
     track("search_lane_change", { product: "search", lane: next });
     setLane(next);

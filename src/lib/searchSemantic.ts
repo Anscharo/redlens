@@ -111,6 +111,21 @@ const FUZZY_RE = /\S+~\d+/g;
 const IN_SCOPE_RE = /\bin:(\S+)/gi;
 
 /**
+ * Is `scope` shaped like a doc number at all?
+ *
+ * The SQL side uses the scope as a LIKE PATTERN (`upper($3) || '.%'`), so `%`
+ * and `_` in it are wildcards, not literals: `in:%` widens the clause to every
+ * row with a dot in its doc_no. `inScope` still narrows the answer afterwards,
+ * so the reader never sees out-of-scope rows — but the widened clause has
+ * already paid for the exact scan. A reader can type `in:%`, so the shape is
+ * checked rather than assumed: dotted alphanumeric segments, which is what
+ * every doc number is (`A.6`, `A.1.5.var1`, `NR-7`).
+ */
+export function plausibleScope(scope: string): boolean {
+  return scope.length <= 64 && /^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*$/.test(scope);
+}
+
+/**
  * Is `docNo` inside the `in:` subtree `scope`? The document itself counts, and
  * so does anything under it — the same rule the lexical leg applies, stated
  * once so the two legs cannot disagree about what `in:A.2` includes.

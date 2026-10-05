@@ -59,7 +59,6 @@ export function semanticLegQuery(
   return semanticQueryOf(trimmed);
 }
 
-
 /** What the response says about the leg's own health. */
 export function legStatus(body: SemanticSearchResponse): SemanticLegStatus {
   if (!body.available) return "unavailable";

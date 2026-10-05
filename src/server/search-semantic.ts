@@ -26,6 +26,7 @@ import { vectorsCurrent } from "./vectors-current.ts";
 import {
   MAX_SEMANTIC_QUERY,
   inScope,
+  plausibleScope,
   semanticWorthAsking,
   type SemanticSearchHit,
   type SemanticSearchResponse,
@@ -184,7 +185,22 @@ export async function handleSemanticSearch(req: Request): Promise<Response> {
   const params = new URL(req.url).searchParams;
   const q = params.get("q") ?? "";
   const type = params.get("type") ?? undefined;
-  const scope = params.get("in")?.toUpperCase() || undefined;
+  const asked = params.get("in")?.toUpperCase() || undefined;
+  // A scope that is not doc-number shaped is dropped, not passed down: the SQL
+  // uses it as a LIKE pattern, so `in=%` would widen the clause to every row
+  // and pay for the exact scan before `inScope` narrowed the answer back to
+  // nothing. Dropping it answers the same empty list without the scan.
+  const scope = asked && plausibleScope(asked) ? asked : undefined;
+  const badScope = asked !== undefined && scope === undefined;
+  // Ahead of the budget: a request this route refuses outright must not spend a
+  // token other readers are sharing.
+  if (badScope) {
+    return json({
+      hits: [],
+      skipped: "that in: scope is not a document number",
+      available: semanticSearchAvailable(),
+    } satisfies SemanticSearchResponse);
+  }
   // Before the work, not after: the point of the gate is that the embed never
   // happens. A query that would not have spent anything is not charged for.
   if (wouldSpendEmbed(q)) {
@@ -201,9 +217,12 @@ export async function handleSemanticSearch(req: Request): Promise<Response> {
     // Answer 200 with an empty, reason-carrying body: the client's lexical
     // results are already on screen and must not be replaced by an error.
     console.warn(`[search-semantic] ${(err as Error).message}`);
+    // The detail stays in the log. This route is public and `skipped` is shown
+    // to the reader verbatim, so the thrown message — which can be a Postgres
+    // or driver string, not a provider one — must not travel in the body.
     return json({
       hits: [],
-      skipped: (err as Error).message,
+      skipped: "meaning search is unavailable right now",
       available: semanticRouteReady(),
     } satisfies SemanticSearchResponse);
   }

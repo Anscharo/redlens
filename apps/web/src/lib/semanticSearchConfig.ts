@@ -1,3 +1,5 @@
+import { liveAtlasBase } from "./atlasBase";
+
 // Is the reader's semantic search lane usable right now? Same shape as
 // chatEnabled() / usersEnabled(): read the serve-time injection once, never
 // touch `window.__…` anywhere else.
@@ -13,4 +15,17 @@
 // choose: either it can answer that lane or it cannot.
 export function semanticSearchAvailable(): boolean {
   return window.__SEMANTIC_SEARCH__ === true;
+}
+
+// The lane answers from the LIVE pgvector index — `/api/search/semantic` has no
+// per-sha or per-preview form, and the ids it returns are hydrated against
+// whatever docs.json the worker loaded. On a preview or sha-pinned base those
+// are two different atlases: ids from live main would be dropped silently, or
+// worse, point at a different document. So the lane is offered only where the
+// base it would be fused into IS the live one.
+//
+// Both the pill and the ?lane= coercion read THIS, not the flag above, so they
+// cannot disagree about where the lane is usable.
+export function semanticLaneUsable(base: string): boolean {
+  return semanticSearchAvailable() && base === liveAtlasBase();
 }
