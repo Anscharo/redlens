@@ -7,10 +7,9 @@
  * Chain|Network|Mainnet|Rollup|L2`, so it only ever sees *two-word* chain
  * references. Every single-word chain name — Unichain, Optimism, Base, Solana,
  * Plasma, Monad — is invisible to it unless the atlas also happens to write it
- * into a structured `Token Address (X)` / `Network` param. Unichain was exactly
- * that miss: three addresses were being attributed to it while the census
- * reported it "not seen in this atlas build", because its only appearance in
- * the atlas was a bullet row reading "- Unichain - `0x…`".
+ * into a structured `Token Address (X)` / `Network` param, so a chain the atlas
+ * names only in a bullet row ("- Unichain - `0x…`") would read as unseen while
+ * addresses are attributed to it.
  *
  * This detector inverts the question. Instead of asking "does this text look
  * like a chain name" — which needs to already know the name, and so cannot
@@ -26,10 +25,25 @@
 import { CHAIN_HINTS, ETH_ADDR_RE, SOL_ADDR_RE } from "./address-chains.mjs";
 import { CHAINS, FUTURE_TO_ETHEREUM } from "./chains.mjs";
 
+/** A row in a chain-keyed address list that names no chain the registry knows. */
+export interface OddChainRow {
+  /** The cleaned row label, capped at MAX_LABEL chars — the candidate chain name. */
+  label: string;
+  /** 1-indexed line within the doc content. */
+  line: number;
+  /** The known chains this row's list names — the evidence it is chain-keyed. */
+  siblings: string[];
+}
+
+interface AddressRow {
+  line: number;
+  label: string;
+}
+
 /** Longest label kept for a residue row — enough to read, short enough to key on. */
 const MAX_LABEL = 60;
 
-const wordBoundary = (alias) => new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+const wordBoundary = (alias: string) => new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
 
 // Chain matchers, word-boundary throughout (a row label is free text, so
 // "Database" must not read as base). CHAIN_HINTS is preferred wherever it has
@@ -51,7 +65,7 @@ const MATCHERS = [
 ];
 
 /** The chain a row label names, or null when it names none. Word-boundary only. */
-export function chainNamedIn(label) {
+export function chainNamedIn(label: string | undefined | null): string | null {
   if (!label) return null;
   for (const { chain, patterns } of MATCHERS) {
     if (patterns.some((p) => p.test(label))) return chain;
@@ -64,10 +78,10 @@ export function chainNamedIn(label) {
  * ETH_ADDR_RE / SOL_ADDR_RE are shared /g patterns whose lastIndex must not be
  * mutated out from under a caller mid-iteration.
  */
-function firstAddressAt(line) {
+function firstAddressAt(line: string): number {
   const eth = new RegExp(ETH_ADDR_RE.source).exec(line);
   const sol = new RegExp(SOL_ADDR_RE.source).exec(line);
-  const idxs = [eth?.index, sol?.index].filter((i) => i != null);
+  const idxs = [eth?.index, sol?.index].filter((i): i is number => i != null);
   return idxs.length ? Math.min(...idxs) : -1;
 }
 
@@ -76,7 +90,7 @@ function firstAddressAt(line) {
  * table pipes, and the punctuation atlas rows use to separate label from value
  * ("- Unichain - `0x…`" → "Unichain"; "| Base | `0x…` |" → "Base").
  */
-export function rowLabel(prefix) {
+export function rowLabel(prefix: string): string {
   return prefix
     .replace(/^\s*[-*+]\s+/, "")
     .replace(/^\s*\d+[.)]\s+/, "")
@@ -92,9 +106,9 @@ export function rowLabel(prefix) {
  * closes the run, so a table's header and separator rows bound the data rows
  * rather than joining them to unrelated prose above.
  */
-function addressBlocks(content) {
-  const blocks = [];
-  let current = [];
+function addressBlocks(content: string): AddressRow[][] {
+  const blocks: AddressRow[][] = [];
+  let current: AddressRow[] = [];
   const flush = () => {
     if (current.length) blocks.push(current);
     current = [];
@@ -125,16 +139,16 @@ function addressBlocks(content) {
  * Returns `{ label, line, siblings }` per odd row, where `siblings` are the
  * known chains its list names — the evidence a human needs to judge the row.
  */
-export function findChainKeyedOddRows(content) {
+export function findChainKeyedOddRows(content: string | undefined | null): OddChainRow[] {
   if (!content) return [];
-  const odd = [];
+  const odd: OddChainRow[] = [];
 
   for (const block of addressBlocks(content)) {
     // Two named rows plus at least one odd row: shorter blocks cannot qualify.
     if (block.length < 3) continue;
 
     const rows = block.map((r) => ({ ...r, chain: chainNamedIn(r.label) }));
-    const named = [...new Set(rows.filter((r) => r.chain).map((r) => r.chain))].sort();
+    const named = [...new Set(rows.flatMap((r) => (r.chain ? [r.chain] : [])))].sort();
     if (named.length < 2) continue;
 
     for (const r of rows) {

@@ -11,6 +11,13 @@ const OPT_OUT = "history-ok";
 // Atlas-history features: there, dates and upstream atlas PR numbers are the data.
 const EXEMPT_PATH_RE = /^(scripts\/(htmlhist|prehist)\/|src\/server\/history\/|apps\/web\/src\/components\/history\/)/;
 
+export interface HistoryCommentFinding {
+  path: string;
+  line: number;
+  text: string;
+  why: string;
+}
+
 const PATTERNS = [
   { re: /\bPR ?#\d+/i, why: "PR number" },
   { re: /(?<![\w/&#])#\d{3,4}\b/, why: "PR/issue number" },
@@ -20,7 +27,7 @@ const PATTERNS = [
 ];
 
 /** The comment part of a source line, or null when the line has none. */
-export function commentText(line) {
+export function commentText(line: string): string | null {
   const trimmed = line.trim();
   if (/^(\/\/|\/\*|\*|\{\/\*)/.test(trimmed)) return trimmed;
   // Trailing `// …` after code. Skips `://` so URLs in strings don't count.
@@ -28,23 +35,23 @@ export function commentText(line) {
   return m ? m[0] : null;
 }
 
-/** Findings for one comment string: [{ why }]. */
-export function judgeComment(text) {
+/** Findings for one comment string. */
+export function judgeComment(text: string): { why: string }[] {
   if (text.includes(OPT_OUT)) return [];
   return PATTERNS.filter((p) => p.re.test(text)).map((p) => ({ why: p.why }));
 }
 
-/** Walks `git diff -U0` output; returns [{ path, line, text, why }] for added comment lines. */
-export function scanDiff(diff) {
-  const findings = [];
-  let path = null;
+/** Walks `git diff -U0` output; returns a finding per added comment line. */
+export function scanDiff(diff: string): HistoryCommentFinding[] {
+  const findings: HistoryCommentFinding[] = [];
+  let path: string | null = null;
   let lineNo = 0;
   for (const raw of diff.split("\n")) {
     if (raw.startsWith("+++ ")) path = raw.startsWith("+++ b/") ? raw.slice(6) : null;
     else if (raw.startsWith("@@")) lineNo = Number(raw.match(/\+(\d+)/)?.[1] ?? 0);
     else if (raw.startsWith("+") && path && CODE_FILE_RE.test(path) && !EXEMPT_PATH_RE.test(path)) {
       const text = commentText(raw.slice(1));
-      for (const f of text ? judgeComment(text) : []) findings.push({ path, line: lineNo, text: text.trim(), why: f.why });
+      if (text) for (const f of judgeComment(text)) findings.push({ path, line: lineNo, text: text.trim(), why: f.why });
       lineNo++;
     }
   }

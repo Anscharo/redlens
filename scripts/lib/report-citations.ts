@@ -7,12 +7,24 @@
 // directly. A trailing "references" section that the claim does not point at
 // does NOT satisfy the rule (it is not "referenced by the claim directly").
 //
-// This module is the shared detector. It is dependency-free Node ESM so it can
-// be imported by the Bun-run Notion publisher, the `cite:check` CLI, and tests.
+// This module is the shared detector. It is dependency-free so it can be
+// imported by the Bun-run Notion publisher, the `cite:check` CLI, and tests.
 
 // --- What counts as a normative ("has-to") claim -----------------------------
 // Deliberately broad. A security-review report should over-flag rather than let
 // an uncited requirement through; the escape hatch handles legitimate prose.
+export interface ReportClaim {
+  lineNo: number;
+  text: string;
+  cited: boolean;
+  via: "inline" | "footnote" | "quote-attribution" | "none";
+}
+
+export interface UncitedClaim {
+  lineNo: number;
+  text: string;
+}
+
 const NORMATIVE_PATTERNS = [
   /\bmust(?:\s+not)?\b/i,
   /\bshall(?:\s+not)?\b/i,
@@ -44,7 +56,7 @@ const NR_RE = /\bNR-\d+\b/;
 const ATLAS_LINK_RE = /(?:\/atlas[/?]|atlas\.redline\.support)/i;
 
 /** True if `text` contains any Atlas reference token (doc_no, UUID, or atlas link). */
-export function hasCitation(text) {
+export function hasCitation(text: string): boolean {
   if (!text) return false;
   return (
     UUID_RE.test(text) || DOCNO_RE.test(text) || NR_RE.test(text) || ATLAS_LINK_RE.test(text)
@@ -52,14 +64,14 @@ export function hasCitation(text) {
 }
 
 /** True if `line` reads as a normative "has-to" claim. */
-export function isNormativeClaim(line) {
+export function isNormativeClaim(line: string): boolean {
   return NORMATIVE_PATTERNS.some((re) => re.test(line));
 }
 
 // Strip fenced code blocks so `must`/`should` inside code samples never flag.
-function splitLinesSkippingCode(markdown) {
+function splitLinesSkippingCode(markdown: string): { lineNo: number; text: string; code: boolean }[] {
   const raw = markdown.replace(/\r\n/g, "\n").split("\n");
-  const out = [];
+  const out: { lineNo: number; text: string; code: boolean }[] = [];
   let inFence = false;
   for (let i = 0; i < raw.length; i++) {
     const t = raw[i].trim();
@@ -76,18 +88,14 @@ function splitLinesSkippingCode(markdown) {
 const FOOTNOTE_DEF_RE = /^\s*\[\^([^\]]+)\]:\s*(.*)$/;
 const FOOTNOTE_REF_RE = /\[\^([^\]]+)\]/g;
 
-/**
- * Analyze a report's markdown for the citation dictate.
- * @param {string} markdown
- * @returns {{ claims: Array<{lineNo:number,text:string,cited:boolean,via:string}>, uncited: Array<{lineNo:number,text:string}> }}
- */
-export function analyzeReportCitations(markdown) {
+/** Analyze a report's markdown for the citation dictate. */
+export function analyzeReportCitations(markdown: string): { claims: ReportClaim[]; uncited: UncitedClaim[] } {
   const lines = splitLinesSkippingCode(markdown);
 
   // Table header rows are column labels, not claims (like headings). A header is
   // the nearest preceding non-blank line above a `|---|` separator row.
   const TABLE_SEP_RE = /^\|[\s:|-]+\|$/;
-  const headerLineNos = new Set();
+  const headerLineNos = new Set<number>();
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].code) continue;
     if (!TABLE_SEP_RE.test(lines[i].text.trim())) continue;
@@ -99,7 +107,7 @@ export function analyzeReportCitations(markdown) {
   }
 
   // Pass 1: collect footnote-definition ids that themselves carry a citation.
-  const citedFootnoteIds = new Set();
+  const citedFootnoteIds = new Set<string>();
   for (const { text, code } of lines) {
     if (code) continue;
     const m = FOOTNOTE_DEF_RE.exec(text);
@@ -112,8 +120,8 @@ export function analyzeReportCitations(markdown) {
   // cited "in context" — and we must never edit verbatim quote text to satisfy a
   // linter. Returns true if the nearest preceding non-blank, non-quote line has a
   // citation.
-  const isQuote = (t) => t.startsWith(">");
-  function attributionCited(idx) {
+  const isQuote = (t: string) => t.startsWith(">");
+  function attributionCited(idx: number) {
     for (let j = idx - 1; j >= 0; j--) {
       const t = lines[j].text.trim();
       if (!t) continue;
@@ -124,7 +132,7 @@ export function analyzeReportCitations(markdown) {
   }
 
   // Pass 2: evaluate each candidate claim line.
-  const claims = [];
+  const claims: ReportClaim[] = [];
   for (let i = 0; i < lines.length; i++) {
     const { lineNo, text, code } = lines[i];
     if (code) continue;
@@ -160,7 +168,7 @@ export function analyzeReportCitations(markdown) {
 }
 
 /** Format uncited findings for a terminal / error message. */
-export function formatUncited(uncited, label = "report") {
+export function formatUncited(uncited: UncitedClaim[], label = "report"): string {
   if (!uncited.length) return `✓ ${label}: every normative claim carries an in-context Atlas citation.`;
   const lines = [
     `✗ ${label}: ${uncited.length} normative claim(s) lack an in-context Atlas citation.`,

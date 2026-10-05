@@ -20,7 +20,7 @@ export function resolveDiffBase(argv = process.argv, env = process.env) {
  * Two-dot against the working tree, so CI's shallow PR merge commit works without history.
  */
 export function changedPaths(base) {
-  const tracked = git("diff", "--name-only", "--diff-filter=AM", base);
+  const tracked = git("diff", "--name-only", "--diff-filter=AMR", base);
   const untracked = git("ls-files", "-o", "--exclude-standard");
   return new Set(`${tracked}\n${untracked}`.split("\n").filter(Boolean));
 }

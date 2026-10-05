@@ -40,9 +40,10 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "lcov"],
       reportsDirectory: "coverage/vitest",
-      include: ["src/**/*.{ts,tsx}", "apps/web/src/**/*.{ts,tsx}", "scripts/lib/**/*.mjs"],
+      include: ["src/**/*.{ts,tsx}", "apps/web/src/**/*.{ts,tsx}", "scripts/lib/**/*.{mjs,ts}"],
       exclude: [
         "src/**/*.test.{ts,tsx}",
+        "scripts/lib/**/*.test.ts",
         "apps/web/src/**/*.test.{ts,tsx}",
         "apps/web/src/test/**",
         "apps/web/src/vite-env.d.ts",
