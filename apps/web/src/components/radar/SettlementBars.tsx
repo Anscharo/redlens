@@ -4,6 +4,7 @@ import {
   threeWayPeaks,
   barFillStyle,
   type ThreeWayMonth,
+  TERM,
 } from "../../lib/settlements";
 import { MscMonthLabel } from "./MscMonthLabel";
 
@@ -37,7 +38,7 @@ export function SettlementBars({
             data-active={m.month === selected ? "true" : undefined}
             onClick={() => onSelect(m.month)}
             aria-pressed={m.month === selected}
-            aria-label={`${formatMonth(m.month)}: ${formatUsd(m.sky, true)} to Sky, ${formatUsd(m.kept, true)} supply-side kept, ${formatUsd(m.demand, true)} demand-side`}
+            aria-label={`${formatMonth(m.month)}: ${formatUsd(m.sky, true)} to Sky, ${formatUsd(m.kept, true)} ${TERM.kept}, ${formatUsd(m.demand, true)} ${TERM.fromSky}`}
           >
             <span className="msc-bar-cluster" aria-hidden="true">
               <ThreeWayTrack value={m.sky} peakPos={peakPos} peakNeg={peakNeg} barClass="msc-bar-sky" />

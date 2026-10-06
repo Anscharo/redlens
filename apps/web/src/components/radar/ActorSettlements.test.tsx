@@ -127,7 +127,7 @@ describe("ActorSettlements", () => {
     expect(screen.getByText(/^Supply-side kept by /)).toBeInTheDocument();
     expect(screen.getByText("monthly summary")).toBeInTheDocument();
     expect(screen.getByText("demand side")).toBeInTheDocument();
-    expect(screen.getByText("Demand-side from Sky to Spark")).toBeInTheDocument();
+    expect(screen.getByText("From Sky to Spark")).toBeInTheDocument();
     expect(screen.getByText(/to Sky via Spark/)).toBeInTheDocument();
     expect(skeleton.querySelectorAll(".msc-bar-cluster")).toHaveLength(6);
     expect(skeleton.querySelectorAll(".msc-bar-stack")).toHaveLength(6);
@@ -138,15 +138,15 @@ describe("ActorSettlements", () => {
     await waitFor(() => expect(screen.getByText(/^Supply-side kept by /)).toBeInTheDocument());
     expect(screen.getByRole("heading", { name: "monthly summary" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "demand side" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Trailing 2 Months – $110 to Sky via Spark, $162 kept supply-side, $75 received demand-side from Sky" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Trailing 2 Months – $110 to Sky via Spark, $162 supply-side kept, $75 from Sky" })).toBeInTheDocument();
     const panes = document.querySelectorAll(".msc-charts-pane");
     expect(panes).toHaveLength(2);
     expect(panes[0]).toContainElement(screen.getByLabelText("Settlement months"));
-    expect(panes[1]).toContainElement(screen.getByLabelText("Demand-side months"));
+    expect(panes[1]).toContainElement(screen.getByLabelText("From Sky by month"));
     const legends = document.querySelectorAll(".msc-charts-legend");
     expect(legends[0]).toHaveTextContent("to Sky");
     expect(legends[0]).toHaveTextContent("supply-side kept");
-    expect(legends[0]).toHaveTextContent("demand-side");
+    expect(legends[0]).toHaveTextContent("from Sky");
     expect(legends[0]).not.toHaveTextContent("agent rate");
     expect(legends[1]).toHaveTextContent("agent rate");
     expect(legends[1]).toHaveTextContent("distribution rewards");
@@ -191,8 +191,8 @@ describe("ActorSettlements", () => {
     expect(within(eq).getByText("cost of funds")).toBeInTheDocument();
     expect(within(eq).getByText("Sky Direct Exposure")).toBeInTheDocument();
     // The prime side is its own equation, named for the Prime: kept 150 + demand 70.
-    expect(screen.getByLabelText(/^Supply-side kept by Spark, and demand-side owed by Sky to Spark/)).toBeInTheDocument();
-    expect(screen.getByText("Demand-side from Sky to Spark")).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Supply-side kept by Spark, and from Sky to Spark/)).toBeInTheDocument();
+    expect(screen.getByText("From Sky to Spark")).toBeInTheDocument();
     expect(screen.getByText(/^Supply-side kept by /)).toBeInTheDocument();
     // Each side keeps its own figure: kept 150, demand 70, never a $220 total.
     expect(screen.getAllByText("$150").length).toBeGreaterThan(0);
@@ -203,7 +203,7 @@ describe("ActorSettlements", () => {
     expect(headline).toHaveTextContent(/^▶ play\s*Jul 2026/);
     // The month charts sit in their own card ABOVE the figures.
     const charts = screen.getByRole("heading", { name: "monthly summary" }).closest(".msc-card")!;
-    expect(charts).toContainElement(screen.getByLabelText("Demand-side months"));
+    expect(charts).toContainElement(screen.getByLabelText("From Sky by month"));
     expect(charts.compareDocumentPosition(headline) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole("button", { name: /Play through the months/ })).toBeInTheDocument();
     // No identity swatch on the card; what stays with the Prime is supply-side green.
@@ -223,17 +223,17 @@ describe("ActorSettlements", () => {
 
   it("charts demand-side mix and the three-way summary for Keel", async () => {
     render(<ActorSettlements slug="keel" name="Keel" />);
-    await waitFor(() => screen.getByText("Demand-side from Sky to Keel"));
+    await waitFor(() => screen.getByText("From Sky to Keel"));
     // A demand-only Prime still has its flows: the lane back from Sky.
     expect(screen.getByLabelText(/Settlement flows between Keel and Sky/)).toBeInTheDocument();
     expect(document.querySelectorAll(".msc-arc-band").length).toBe(2);
     expect(document.querySelector(".msc-arc-band[data-venue]")).toBeNull();
     expect(screen.getByText("To Sky")).toBeInTheDocument();
     expect(screen.getByText(/^Supply-side kept by /)).toBeInTheDocument();
-    expect(screen.getByText("Demand-side from Sky to Keel")).toBeInTheDocument();
+    expect(screen.getByText("From Sky to Keel")).toBeInTheDocument();
     expect(screen.getAllByText("$36,231").length).toBeGreaterThan(0);
-    expect(screen.getByLabelText("Demand-side months")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Trailing 1 Month – $0 to Sky via Keel, $0 kept supply-side, $36,231 received demand-side from Sky" })).toBeInTheDocument();
+    expect(screen.getByLabelText("From Sky by month")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Trailing 1 Month – $0 to Sky via Keel, $0 supply-side kept, $36,231 from Sky" })).toBeInTheDocument();
     expect(screen.getByText("agent rate")).toBeInTheDocument();
     expect(screen.getByText("distribution rewards")).toBeInTheDocument();
   });
@@ -290,7 +290,7 @@ describe("ActorSettlements", () => {
     expect(cols()[10]).toHaveTextContent(/^Jan\s*2026$/);
     expect(cols()[11]).toHaveTextContent(/^Feb$/);
     // The demand-side chart shows the same window on the same grid.
-    expect(screen.getByLabelText("Demand-side months").querySelectorAll("button")).toHaveLength(12);
+    expect(screen.getByLabelText("From Sky by month").querySelectorAll("button")).toHaveLength(12);
     const earlier = screen.getByRole("button", { name: "Earlier cycles" });
     const later = screen.getByRole("button", { name: "Later cycles" });
     expect(later).toBeDisabled();

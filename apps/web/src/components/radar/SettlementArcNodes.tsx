@@ -25,7 +25,7 @@ export function PrimeNode({ node, model, primeLabel }: { node: ArcLayout["prime"
   const { span, kept, mid } = node;
   return (
     <g>
-      {span && <Piece s={span} at="prime" className="msc-arc-node" title={`${primeLabel}: ${formatUsd(model.revenue)} venue revenue and ${formatUsd(model.demandTotal)} demand-side in; ${formatUsd(model.cof)} cost of funds out to Sky`} />}
+      {span && <Piece s={span} at="prime" className="msc-arc-node" title={`${primeLabel}: ${formatUsd(model.revenue)} venue revenue and ${formatUsd(model.demandTotal)} from Sky in; ${formatUsd(model.cof)} cost of funds out to Sky`} />}
       {kept && (
         <Piece
           s={kept}

@@ -259,6 +259,17 @@ export function barFillStyle(
   return { bottom: `${zero - h}%`, height: `${h}%` };
 }
 
+/** One name per settlement quantity, used by every chart, card, legend
+ *  and hover so the same money never goes by two names. "From Sky" rather
+ *  than "demand-side": it includes rewards Sky pays alongside the demand
+ *  side (see DEMAND_SERIES). */
+export const TERM = {
+  toSky: "to Sky",
+  kept: "supply-side kept",
+  loss: "supply-side loss",
+  fromSky: "from Sky",
+} as const;
+
 /** What Sky pays a Prime, by workbook row. `msc` marks the two that make
  *  up the Stage 1 amount due from Sky (A.2.4.1.2.2.1.1.1.3): the agent
  *  rate and distribution rewards. The others are paid alongside under
@@ -320,9 +331,9 @@ export function cycleTotals(reports: readonly SettlementReport[]): CycleTotals {
  *  Prime sent Sky nothing over the window (Keel and Skybase never do), in
  *  which case the demand side is the only figure it has. */
 export function leadCycleTotal(t: CycleTotals): { amount: number; label: string } {
-  if (Math.abs(t.sky) >= NEAR_ZERO) return { amount: t.sky, label: "to Sky" };
-  if (Math.abs(t.demand) >= NEAR_ZERO) return { amount: t.demand, label: "demand-side from Sky" };
-  return { amount: t.kept, label: "supply-side kept" };
+  if (Math.abs(t.sky) >= NEAR_ZERO) return { amount: t.sky, label: TERM.toSky };
+  if (Math.abs(t.demand) >= NEAR_ZERO) return { amount: t.demand, label: TERM.fromSky };
+  return { amount: t.kept, label: TERM.kept };
 }
 
 /** Demand-side (agent rate + rewards) over the given months — what Sky

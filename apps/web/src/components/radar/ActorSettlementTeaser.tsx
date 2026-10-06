@@ -10,6 +10,8 @@ import {
   cycleTotals,
   leadCycleTotal,
   cycleWindow,
+  TERM,
+  SETTLEMENT_NEAR_ZERO,
 } from "../../lib/settlements";
 import { settlementsHref } from "@/lib/routes";
 import { HEADER_OFFSET } from "../../lib/layout";
@@ -48,6 +50,19 @@ function Total({ amount, label, lead }: { amount: number; label: string; lead?: 
   );
 }
 
+/** How much of To Sky is Sky Direct Exposure yield, which is Sky's
+ *  outright and not the Prime's (A.2.2.10.1.1.1.1.5): named when it is at
+ *  least 1% of the total, so a Prime whose To Sky is mostly SDE (Grove)
+ *  is not read as paying that much for its own funding. */
+function SdeShare({ sde, sky }: { sde: number; sky: number }) {
+  if (Math.abs(sky) < SETTLEMENT_NEAR_ZERO || Math.abs(sde / sky) < 0.01) return null;
+  return (
+    <p className="mono text-[10px] m-0" style={{ color: "var(--tan-3)" }}>
+      of which {formatUsd(sde, true)} ({Math.round((sde / sky) * 100)}%) Sky Direct Exposure
+    </p>
+  );
+}
+
 /** The Monthly settlement card floated top-right of a Prime's actor page:
  *  the trailing year of cycles as three SEPARATE running totals, and beside
  *  them the same clustered month-by-month chart its settlement page leads
@@ -70,11 +85,14 @@ export function ActorSettlementTeaser({ slug, name }: ActorSettlementTeaserProps
   const months = rows.map(summaryThreeWay);
   const totals = cycleTotals(rows);
   const lead = leadCycleTotal(totals);
+  // A total that is zero over the window (Keel's and Skybase's to Sky) is
+  // left off rather than printed as "$0".
   const rest = [
-    { amount: totals.kept, label: "supply-side kept" },
-    { amount: totals.demand, label: "demand-side from Sky" },
-    { amount: totals.sky, label: "to Sky" },
-  ].filter((r) => r.label !== lead.label);
+    { amount: totals.kept, label: TERM.kept },
+    { amount: totals.demand, label: TERM.fromSky },
+    { amount: totals.sky, label: TERM.toSky },
+  ].filter((r) => r.label !== lead.label && Math.abs(r.amount) >= SETTLEMENT_NEAR_ZERO);
+  const sde = rows.reduce((n, r) => n + r.headline.sdeRevenue, 0);
   const period =
     n === 1
       ? formatMonth(months[0].month)
@@ -87,7 +105,7 @@ export function ActorSettlementTeaser({ slug, name }: ActorSettlementTeaserProps
       style={{ scrollMarginTop: HEADER_OFFSET }}
       id="msc"
       data-testid="msc-teaser"
-      aria-label={`${name ?? slug} over ${n} ${n === 1 ? "cycle" : "cycles"}: ${formatUsd(totals.sky, true)} to Sky via ${name ?? slug}, ${formatUsd(totals.kept, true)} supply-side kept, ${formatUsd(totals.demand, true)} demand-side from Sky — open the settlement charts`}
+      aria-label={`${name ?? slug} over ${n} ${n === 1 ? "cycle" : "cycles"}: ${formatUsd(totals.sky, true)} to Sky via ${name ?? slug}, ${formatUsd(totals.kept, true)} ${TERM.kept}, ${formatUsd(totals.demand, true)} ${TERM.fromSky} — open the settlement charts`}
     >
       <div className="msc-teaser">
         <h2 className="mono text-[10px] uppercase tracking-wider" style={{ color: "var(--tan-3)" }}>
@@ -97,6 +115,7 @@ export function ActorSettlementTeaser({ slug, name }: ActorSettlementTeaserProps
           {period}
         </p>
         <Total amount={lead.amount} label={lead.label} lead />
+        {lead.label === TERM.toSky && <SdeShare sde={sde} sky={totals.sky} />}
         {rest.map((r) => (
           <Total key={r.label} amount={r.amount} label={r.label} />
         ))}

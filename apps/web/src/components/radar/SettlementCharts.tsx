@@ -6,6 +6,7 @@ import {
   summaryThreeWay,
   activeDemandSeries,
   type SettlementReport,
+  TERM,
 } from "../../lib/settlements";
 import { SettlementBars, type CyclePaging } from "./SettlementBars";
 import { SettlementDemandBars } from "./SettlementDemandBars";
@@ -39,8 +40,8 @@ export function SettlementCharts({ reports, selected, onSelect, name, paging }: 
           Trailing {n} {n === 1 ? "Month" : "Months"}
           {" – "}
           <span className="mono">{formatUsd(sky)}</span> to Sky via {name},
-          {" "}<span className="mono">{formatUsd(supply)}</span> kept supply-side,
-          {" "}<span className="mono">{formatUsd(demand)}</span> received demand-side from Sky
+          {" "}<span className="mono">{formatUsd(supply)}</span> {TERM.kept},
+          {" "}<span className="mono">{formatUsd(demand)}</span> {TERM.fromSky}
         </h2>
         {paging && (
           <span className="msc-cycle-paging" role="group" aria-label="Cycles shown">
@@ -59,9 +60,9 @@ export function SettlementCharts({ reports, selected, onSelect, name, paging }: 
             monthly summary
           </h3>
           <p className="msc-charts-legend mono text-[10px]" style={{ color: "var(--tan-3)" }}>
-            <LegendSwatch barClass="msc-bar-sky" label="to Sky" />
-            <LegendSwatch barClass="msc-bar-prime" label="supply-side kept" />
-            <LegendSwatch barClass="msc-bar-demand" label="demand-side" />
+            <LegendSwatch barClass="msc-bar-sky" label={TERM.toSky} />
+            <LegendSwatch barClass="msc-bar-prime" label={TERM.kept} />
+            <LegendSwatch barClass="msc-bar-demand" label={TERM.fromSky} />
           </p>
           <SettlementBars months={reports.map(summaryThreeWay)} selected={selected} onSelect={onSelect} />
         </div>

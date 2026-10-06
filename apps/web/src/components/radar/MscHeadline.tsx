@@ -111,10 +111,10 @@ export function MscHeadline({ eco, month, earner, play, due }: MscHeadlineProps)
       <span className="msc-headline-divider" aria-hidden="true" />
       <div
         className="flex flex-wrap items-end gap-x-3 gap-y-2"
-        aria-label={`Supply-side kept by ${who}, and demand-side owed by Sky to ${who} — two separate settlement amounts, never added`}
+        aria-label={`Supply-side kept by ${who}, and from Sky to ${who} — two separate settlement amounts, never added`}
       >
         <Figure label={`Supply-side kept by ${who}`} value={eco?.kept ?? null} />
-        <Figure label={`Demand-side from Sky to ${who}`} value={eco?.demand ?? null} />
+        <Figure label={`From Sky to ${who}`} value={eco?.demand ?? null} />
       </div>
       <MscAtlasGap due={due} className="basis-full" />
     </div>

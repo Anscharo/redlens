@@ -1,4 +1,4 @@
-import { formatMonth, formatUsd, type ThreeWayMonth } from "../../lib/settlements";
+import { formatMonth, formatUsd, SETTLEMENT_NEAR_ZERO, TERM, type ThreeWayMonth } from "../../lib/settlements";
 
 // A small month-by-month chart of a Prime's settlement cycles, as three
 // CLUSTERED bars per month — what it owed Sky, what it kept supply-side,
@@ -28,38 +28,50 @@ const BAR_GAP = 1;
 const MIN_H = 1;
 
 const SERIES = [
-  { key: "sky", label: "to Sky", fill: "var(--msc-sky)" },
-  { key: "kept", label: "supply-side kept", fill: "var(--msc-kept)" },
-  { key: "demand", label: "demand-side", fill: "var(--msc-demand)" },
+  { key: "sky", label: TERM.toSky, fill: "var(--msc-sky)" },
+  { key: "kept", label: TERM.kept, fill: "var(--msc-kept)" },
+  { key: "demand", label: TERM.fromSky, fill: "var(--msc-demand)" },
 ] as const;
 
+/** A series that is zero every month (Keel and Skybase send Sky nothing)
+ *  is left out, bar and legend both. */
+function liveSeries(points: ThreeWayMonth[]) {
+  const live = SERIES.filter(({ key }) => points.some((p) => Math.abs(p[key]) >= SETTLEMENT_NEAR_ZERO));
+  return live.length ? live : SERIES;
+}
+
+/** Each card scales to its own peak, so the peak is printed and marked
+ *  with a dashed line: a $77k Prime's bars fill the card as a $10M one's
+ *  do, and only the figure tells them apart. */
 export function MscCycleSpark({ points }: { points: ThreeWayMonth[] }) {
   const n = points.length;
+  const series = liveSeries(points);
   const innerW = W - PAD_L - PAD_R;
   const innerH = H - PAD_T - PAD_B;
-  const all = points.flatMap((p) => SERIES.map(({ key }) => p[key]));
+  const all = points.flatMap((p) => series.map(({ key }) => p[key]));
   const hi = Math.max(1, ...all);
   const lo = Math.min(0, ...all);
   const y = (v: number) => PAD_T + ((hi - v) / (hi - lo)) * innerH;
   const zero = y(0);
   const slot = innerW / n;
   const clusterW = Math.max(3, slot - SLOT_GAP);
-  const barW = (clusterW - BAR_GAP * (SERIES.length - 1)) / SERIES.length;
+  const barW = (clusterW - BAR_GAP * (series.length - 1)) / series.length;
   const x = (i: number) => PAD_L + i * slot + (slot - clusterW) / 2;
 
   return (
     <div className="msc-teaser-chart">
       <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden="true">
         <text x={PAD_L} y={12} fontSize={9} className="mono msc-gross-axis msc-gross-caption">
-          by month
+          {`by month · peak ${formatUsd(hi, true)}`}
         </text>
+        <line x1={PAD_L} x2={W - PAD_R} y1={y(hi)} y2={y(hi)} className="msc-gross-zero msc-gross-peak" />
         <line x1={PAD_L} x2={W - PAD_R} y1={zero} y2={zero} className="msc-gross-zero" />
         {points.map((p, i) => {
           const anchor = i < n / 3 ? "start" : i > (2 * n) / 3 ? "end" : "middle";
           return (
             <g key={p.month} className="msc-gross-col">
               <rect x={PAD_L + i * slot} y={0} width={slot} height={H} fill="transparent" />
-              {SERIES.map(({ key, fill }, s) => {
+              {series.map(({ key, fill }, s) => {
                 const v = p[key];
                 // Negative bars hang below the zero line; positives sit on it.
                 const h = Math.max(MIN_H, Math.abs(y(0) - y(v)));
@@ -83,14 +95,14 @@ export function MscCycleSpark({ points }: { points: ThreeWayMonth[] }) {
                 {formatMonth(p.month)}
               </text>
               <text x={x(i) + clusterW / 2} y={23} fontSize={9} textAnchor={anchor} className="mono msc-gross-pill msc-gross-hover">
-                {`${formatUsd(p.sky, true)} to Sky · ${formatUsd(p.kept, true)} kept · ${formatUsd(p.demand, true)} demand`}
+                {`${formatUsd(p.sky, true)} ${TERM.toSky} · ${formatUsd(p.kept, true)} kept · ${formatUsd(p.demand, true)} ${TERM.fromSky}`}
               </text>
             </g>
           );
         })}
       </svg>
       <p className="msc-gross-legend mono text-[10px]" style={{ color: "var(--tan-3)" }}>
-        {SERIES.map(({ key, label, fill }) => (
+        {series.map(({ key, label, fill }) => (
           <span key={key}>
             <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background: fill }} /> {label}
           </span>

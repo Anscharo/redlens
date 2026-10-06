@@ -70,7 +70,7 @@ describe("MscOverview", () => {
     expect(screen.getByText("Monthly Settlement Cycle")).toBeInTheDocument();
     // The headline card keeps its labels; every figure is a dash.
     expect(screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure")).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Supply-side kept by Primes, and demand-side owed by Sky to Primes/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Supply-side kept by Primes, and from Sky to Primes/)).toBeInTheDocument();
     expect(screen.getByText("Supply-side kept by Primes")).toBeInTheDocument();
     expect(skeleton.querySelectorAll(".msc-card")).toHaveLength(3);
     // The timeseries track is already its real size; the pies' frame is in place.
@@ -104,7 +104,7 @@ describe("MscOverview", () => {
     expect(groups).toEqual([
       { title: "To Sky", keys: ["cof", "sde"] },
       { title: "Supply-side", keys: ["kept", "neg"] },
-      { title: "Demand-side", keys: ["agentRate", "distributionRewards", "gar", "chroniclePoints"] },
+      { title: "From Sky", keys: ["agentRate", "distributionRewards", "gar", "chroniclePoints"] },
     ]);
     // The key never gives a total a name we coined.
     expect(document.querySelector(".msc-key-note")).not.toHaveTextContent(/gross revenue/i);
@@ -123,10 +123,10 @@ describe("MscOverview", () => {
     expect(screen.getByText("cost of funds")).toBeInTheDocument();
     expect(screen.getByText("Sky Direct Exposure")).toBeInTheDocument();
     // The prime side reads as its own equation, the way To Sky does.
-    expect(screen.getByLabelText(/^Supply-side kept by Primes, and demand-side owed by Sky to Primes/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Supply-side kept by Primes, and from Sky to Primes/)).toBeInTheDocument();
     expect(screen.getByText("Supply-side kept by Primes")).toBeInTheDocument();
     // Also the chart key's group heading, hence getAllByText.
-    expect(screen.getAllByText("Demand-side").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("From Sky").length).toBeGreaterThan(0);
     // eco sky = 100; eco kept = (200-60) + 0 = 140; demand = 50 + 32004.
     // "$140" also rides the ring's hover amounts, so match all.
     expect(screen.getAllByText("$140").length).toBeGreaterThan(0);

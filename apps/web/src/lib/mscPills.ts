@@ -1,7 +1,7 @@
 // The pill layer's vocabulary — mark ids, the per-series colour token, and
 // the wording of a hover figure. Pure, so the phrasing is testable without
 // rendering an svg (CLAUDE.md: report/data logic lives in src/lib).
-import { DEMAND_SERIES, formatUsd } from "./settlements";
+import { DEMAND_SERIES, TERM, formatUsd } from "./settlements";
 
 /** Marks and their pills live in different SVG layers (pills paint last, over
  *  everything), so they're paired by id rather than by nesting — see the
@@ -33,8 +33,8 @@ export const SLICE_TOKEN: Record<string, string> = {
 export const SLICE_LABEL: Record<string, string> = {
   cof: "cost of funds → Sky",
   sde: "Sky Direct Exposure → Sky",
-  kept: "supply-side kept",
-  ...Object.fromEntries(DEMAND_SERIES.map((s) => [s.key, `${s.label.toLowerCase()} (${s.msc ? "demand-side" : "from Sky"})`])),
+  kept: TERM.kept,
+  ...Object.fromEntries(DEMAND_SERIES.map((s) => [s.key, `${s.label.toLowerCase()} (${TERM.fromSky})`])),
 };
 
 /** Pill text names what it is, not just the number — a bare "$2.6M" says
@@ -57,11 +57,11 @@ export function pillText(kind: string, signed: number, primeLabel: string, share
   // Cost of funds and SDE pass through the Prime from its venues; it is not
   // their source.
   if (kind === "share") return `${amount} to Sky via ${primeLabel}`;
-  if (kind === "gross") return `${amount} through ${primeLabel}: To Sky + supply-side kept + demand-side`;
+  if (kind === "gross") return `${amount} through ${primeLabel}: To Sky + supply-side kept + from Sky`;
   // The orbit's pies are what each party RECEIVED, so its totals say so.
-  if (kind === "received") return `${amount} received by ${primeLabel} — supply-side kept + demand-side`;
-  if (kind === "demand") return `${amount} demand-side, from Sky to ${primeLabel}`;
-  if (kind === "loss") return `${amount} supply-side loss`;
+  if (kind === "received") return `${amount} received by ${primeLabel} — supply-side kept + from Sky`;
+  if (kind === "demand") return `${amount} from Sky to ${primeLabel}`;
+  if (kind === "loss") return `${amount} ${TERM.loss}`;
   if (kind in SLICE_LABEL) return `${amount} ${SLICE_LABEL[kind]}`;
   return `${amount} ${kind}`;
 }

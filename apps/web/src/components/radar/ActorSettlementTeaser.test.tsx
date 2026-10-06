@@ -60,7 +60,8 @@ describe("ActorSettlementTeaser", () => {
     expect(leadLine).toHaveTextContent("$110 to Sky");
     expect(leadLine).not.toHaveTextContent("supply-side");
     expect(figures).toHaveTextContent("$162 supply-side kept");
-    expect(figures).toHaveTextContent("$0 demand-side from Sky");
+    // Sky paid Spark nothing in the window, so that total is left off.
+    expect(figures).not.toHaveTextContent("from Sky");
     expect(screen.getByText("Jun 2026 – Jul 2026 · 2 cycles")).toBeInTheDocument();
     // The removed design: no single summed figure, no "gross revenue" label.
     expect(screen.queryByText("$272")).not.toBeInTheDocument();
@@ -73,7 +74,7 @@ describe("ActorSettlementTeaser", () => {
     expect(card).toHaveTextContent(/full cycle/);
     // The accessible name carries all three, each named, none added.
     expect(card).toHaveAccessibleName(
-      "Spark over 2 cycles: $110 to Sky via Spark, $162 supply-side kept, $0 demand-side from Sky — open the settlement charts",
+      "Spark over 2 cycles: $110 to Sky via Spark, $162 supply-side kept, $0 from Sky — open the settlement charts",
     );
     expect(screen.getAllByRole("link")).toHaveLength(1);
     expect(screen.getByText("OEA calculation, not the on-chain GovOps spell")).toBeInTheDocument();
@@ -83,25 +84,26 @@ describe("ActorSettlementTeaser", () => {
     render(<ActorSettlementTeaser slug="spark" name="Spark" />);
     const chart = (await screen.findByTestId("msc-teaser")).querySelector(".msc-teaser-chart")!;
     const cols = [...chart.querySelectorAll(".msc-gross-col")];
-    // Every month draws all three series, in the summary chart's order.
+    // Every month draws each live series, in the summary chart's order; one
+    // that is zero all window (Sky paid this Prime nothing) is left out.
     expect(cols.map((c) => [...c.querySelectorAll("rect[data-series]")].map((r) => r.getAttribute("data-series")))).toEqual([
-      ["sky", "kept", "demand"],
-      ["sky", "kept", "demand"],
+      ["sky", "kept"],
+      ["sky", "kept"],
     ]);
     // Clustered, not stacked: within a month the bars sit side by side.
     const jul = [...cols[1].querySelectorAll("rect[data-series]")] as SVGRectElement[];
     const xs = jul.map((r) => parseFloat(r.getAttribute("x")!));
     expect(xs[1]).toBeGreaterThan(xs[0]);
-    expect(xs[2]).toBeGreaterThan(xs[1]);
     // …and they share the zero line rather than resting on each other.
     const bottoms = jul.map((r) => parseFloat(r.getAttribute("y")!) + parseFloat(r.getAttribute("height")!));
     for (const b of bottoms) expect(b).toBeCloseTo(bottoms[0], 6);
-    expect(cols[1].querySelectorAll(".msc-gross-pill")[1]).toHaveTextContent("$100 to Sky · $150 kept · $0 demand");
-    // The legend names all three series.
+    expect(cols[1].querySelectorAll(".msc-gross-pill")[1]).toHaveTextContent("$100 to Sky · $150 kept · $0 from Sky");
+    // The legend names the series drawn, and the card prints its peak.
     const legend = chart.querySelector(".msc-gross-legend")!;
     expect(legend).toHaveTextContent("to Sky");
     expect(legend).toHaveTextContent("supply-side kept");
-    expect(legend).toHaveTextContent("demand-side");
+    expect(legend).not.toHaveTextContent("from Sky");
+    expect(chart.querySelector(".msc-gross-caption")).toHaveTextContent("by month · peak $150");
     // The chart sits to the right of the figures.
     expect(chart.compareDocumentPosition(screen.getByText("$110")) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
   });
@@ -118,15 +120,13 @@ describe("ActorSettlementTeaser", () => {
     // The lead is the demand side, not a zero To-Sky figure.
     const card = screen.getByTestId("msc-teaser");
     const leadLine = card.querySelector(".msc-teaser-lead")!;
-    expect(leadLine).toHaveTextContent("$36k demand-side from Sky");
+    expect(leadLine).toHaveTextContent("$36k from Sky");
     expect(leadLine).not.toHaveTextContent("to Sky");
     // The period line; the chart's hover pill names the month too.
     expect(card.querySelector(".msc-teaser")).toHaveTextContent("Jul 2026");
-    expect(card).toHaveAccessibleName(/Keel over 1 cycle: \$0 to Sky via Keel, \$0 supply-side kept, \$36k demand-side from Sky/);
-    // All three bars still draw, so the shape matches every other Prime's.
-    expect([...card.querySelectorAll("rect[data-series]")].map((r) => r.getAttribute("data-series"))).toEqual([
-      "sky", "kept", "demand",
-    ]);
+    expect(card).toHaveAccessibleName(/Keel over 1 cycle: \$0 to Sky via Keel, \$0 supply-side kept, \$36k from Sky/);
+    // Keel sends Sky nothing and keeps nothing supply-side: only its from-Sky bars draw.
+    expect([...card.querySelectorAll("rect[data-series]")].map((r) => r.getAttribute("data-series"))).toEqual(["demand"]);
     expect(card).toHaveAttribute("href", "/radar/keel/settlements");
   });
 

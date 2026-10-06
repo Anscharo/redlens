@@ -23,7 +23,7 @@ export interface MscRingPrime extends OverviewPrime {
  *  Named as two directions rather than one total: what the Prime owed Sky,
  *  and what it received. */
 export function primeLinkLabel(flow: PrimeFlowTotals, label: string, month: string): string {
-  return `${label}, ${formatMonth(month)}: owed Sky ${formatUsd(flow.sky, true)} — ${formatUsd(flow.cof, true)} cost of funds, ${formatUsd(flow.sde, true)} Sky Direct Exposure; received ${formatUsd(flow.kept + flow.demand, true)} — ${formatUsd(flow.kept, true)} supply-side kept, ${formatUsd(flow.demand, true)} demand-side from Sky. Open settlement page.`;
+  return `${label}, ${formatMonth(month)}: owed Sky ${formatUsd(flow.sky, true)} — ${formatUsd(flow.cof, true)} cost of funds, ${formatUsd(flow.sde, true)} Sky Direct Exposure; received ${formatUsd(flow.kept + flow.demand, true)} — ${formatUsd(flow.kept, true)} supply-side kept, ${formatUsd(flow.demand, true)} from Sky. Open settlement page.`;
 }
 
 /** The loss, striped in loss red: the same mark the key uses for

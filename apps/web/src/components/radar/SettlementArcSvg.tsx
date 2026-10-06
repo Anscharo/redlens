@@ -73,7 +73,7 @@ export function SettlementArcSvg({ layout, model, primeLabel, month, inks, frame
     <svg className="msc-arc" viewBox={`${left} ${top} ${WIDTH - left} ${HEIGHT - top}`} style={{ width: WIDTH - left }} role="img" aria-labelledby="msc-arc-title msc-arc-desc">
       <title id="msc-arc-title">{`${primeLabel}'s settlement arc`}</title>
       <desc id="msc-arc-desc">
-        {`Clockwise round one circle. On the top half, venue revenue of ${formatUsd(model.revenue)} pools at ${primeLabel}, which pays Sky ${formatUsd(model.cof)} cost of funds and keeps ${formatUsd(model.kept)}; ${formatUsd(model.sde)} of Sky Direct Exposure goes past ${primeLabel} straight to Sky, ${formatUsd(model.toSky)} to Sky in all. On the inner lane, from Sky round the bottom up to ${primeLabel}, Sky owes ${primeLabel} ${formatUsd(model.demandTotal)} on the demand side. The two amounts are never netted.`}
+        {`Clockwise round one circle. On the top half, venue revenue of ${formatUsd(model.revenue)} pools at ${primeLabel}, which pays Sky ${formatUsd(model.cof)} cost of funds and keeps ${formatUsd(model.kept)}; ${formatUsd(model.sde)} of Sky Direct Exposure goes past ${primeLabel} straight to Sky, ${formatUsd(model.toSky)} to Sky in all. On the inner lane, from Sky round the bottom up to ${primeLabel}, Sky pays ${primeLabel} ${formatUsd(model.demandTotal)}. The two amounts are never netted.`}
       </desc>
       <defs>
         <pattern id="msc-arc-loss" patternUnits="userSpaceOnUse" width={6} height={6} patternTransform="rotate(45)">

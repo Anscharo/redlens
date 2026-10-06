@@ -173,7 +173,7 @@ describe("demand-side cycles", () => {
     expect(leadCycleTotal(cycleTotals([r]))).toEqual({ amount: 60, label: "to Sky" });
     // A demand-only Prime sent Sky nothing, so the demand side leads.
     expect(cycleTotals([keel])).toEqual({ sky: 0, kept: 0, demand: 36_231 });
-    expect(leadCycleTotal(cycleTotals([keel]))).toEqual({ amount: 36_231, label: "demand-side from Sky" });
+    expect(leadCycleTotal(cycleTotals([keel]))).toEqual({ amount: 36_231, label: "from Sky" });
     // A supply-side loss stays negative rather than being netted away.
     const loss = report({ month: "2026-06", headline: { ...report().headline, primeAgentRevenue: 20, cof: 40 } });
     expect(cycleTotals([loss, r])).toEqual({ sky: 120, kept: 40, demand: 0 });

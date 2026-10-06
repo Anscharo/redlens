@@ -1,4 +1,4 @@
-import { DEMAND_SERIES } from "../../lib/settlements";
+import { DEMAND_SERIES, TERM } from "../../lib/settlements";
 import { SLICE_CODE } from "./MscRingPills";
 import { KeyGroup, KeyItem } from "./MscKeyParts";
 
@@ -18,10 +18,10 @@ export function RingKey() {
           <KeyItem id="sde" code={SLICE_CODE.sde} label="Sky Direct Exposure" />
         </KeyGroup>
         <KeyGroup title="Supply-side">
-          <KeyItem id="kept" label="supply-side kept" />
-          <KeyItem id="neg" code="striped" label="supply-side loss" striped />
+          <KeyItem id="kept" label={TERM.kept} />
+          <KeyItem id="neg" code="striped" label={TERM.loss} striped />
         </KeyGroup>
-        <KeyGroup title="Demand-side">
+        <KeyGroup title="From Sky">
           {DEMAND_SERIES.map((s) => (
             <KeyItem key={s.key} id={s.key} code={SLICE_CODE[s.key]} label={s.label.toLowerCase()} />
           ))}
@@ -29,7 +29,7 @@ export function RingKey() {
       </div>
       <div className="msc-key-note text-center">
         <p>
-          Every pie is what that party RECEIVED: a Prime's is supply-side kept + demand-side, Sky's is cost of funds + Sky Direct Exposure. Two arrows run between them, one each way.{" "}
+          Every pie is what that party RECEIVED: a Prime's is supply-side kept + what it received from Sky, Sky's is cost of funds + Sky Direct Exposure. Two arrows run between them, one each way.{" "}
           Hover for figures; click a Prime for its page.
         </p>
         <p className="mt-1">

@@ -29,7 +29,7 @@ export function SettlementDemandBars({
   const keys = reports.map((r) => r.month);
   return (
     <div>
-      <div className="flex items-end gap-3 mb-2" role="group" aria-label="Demand-side months">
+      <div className="flex items-end gap-3 mb-2" role="group" aria-label="From Sky by month">
         {reports.map((r, i) => {
           const parts = series.map((s) => ({ ...s, value: demandPart(r.headline, s.key) }));
           const label = parts
@@ -44,7 +44,7 @@ export function SettlementDemandBars({
               data-active={r.month === selected ? "true" : undefined}
               onClick={() => onSelect(r.month)}
               aria-pressed={r.month === selected}
-              aria-label={`${formatMonth(r.month)}: ${label || "$0 demand-side"}`}
+              aria-label={`${formatMonth(r.month)}: ${label || "$0 from Sky"}`}
             >
               <span className="msc-bar-stack" aria-hidden="true">
                 {parts.map((p) => {

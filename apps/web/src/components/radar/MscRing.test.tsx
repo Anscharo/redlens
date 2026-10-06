@@ -81,7 +81,7 @@ describe("MscRing", () => {
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
     expect(
       screen.getByRole("link", {
-        name: "Spark, Jul 2026: owed Sky $10.00M — $9.90M cost of funds, $100k Sky Direct Exposure; received $3.50M — $2.00M supply-side kept, $1.50M demand-side from Sky. Open settlement page.",
+        name: "Spark, Jul 2026: owed Sky $10.00M — $9.90M cost of funds, $100k Sky Direct Exposure; received $3.50M — $2.00M supply-side kept, $1.50M from Sky. Open settlement page.",
       }),
     ).toBeInTheDocument();
   });
@@ -94,15 +94,15 @@ describe("MscRing", () => {
     expect(screen.getByText("$9.90M cost of funds")).toBeInTheDocument();
     expect(screen.getByText("$100k Sky Direct Exposure")).toBeInTheDocument();
     expect(screen.getByText("$10.00M to Sky")).toBeInTheDocument();
-    expect(screen.getByText("$1.50M demand-side, from Sky to Spark")).toBeInTheDocument();
+    expect(screen.getByText("$1.50M from Sky to Spark")).toBeInTheDocument();
     // The pie's total is what it RECEIVED — no gross-revenue figure anywhere.
-    expect(screen.getByText("$3.50M received by Spark — supply-side kept + demand-side")).toBeInTheDocument();
+    expect(screen.getByText("$3.50M received by Spark — supply-side kept + from Sky")).toBeInTheDocument();
     expect(screen.queryByText(/gross revenue/)).not.toBeInTheDocument();
     // Cost of funds and SDE are Sky's receipts, so they are not slices here.
     expect(screen.queryByText("$9.90M cost of funds → Sky")).not.toBeInTheDocument();
     expect(screen.getByText("$2.00M supply-side kept")).toBeInTheDocument();
-    expect(screen.getByText("$1.40M agent rate (demand-side)")).toBeInTheDocument();
-    expect(screen.getByText("$100k distribution rewards (demand-side)")).toBeInTheDocument();
+    expect(screen.getByText("$1.40M agent rate (from Sky)")).toBeInTheDocument();
+    expect(screen.getByText("$100k distribution rewards (from Sky)")).toBeInTheDocument();
   });
 
   it("fills a negative To-Sky arrow with its category's stripe pattern, not a loss color", () => {
