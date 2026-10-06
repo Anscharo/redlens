@@ -14,12 +14,13 @@
 // INNER lane, three quarters of the circle: from Sky down round the bottom,
 // past the venues, up into the Prime. The demand side (A.2.4.1.2.2.1.1.1).
 //
-// Node lengths are amounts on the one scale the bands use. The Prime node
-// has two pieces: the pool (venue revenue, or cost of funds when that is
-// larger) and the demand received. What stays — kept, revenue less cost of
-// funds — is the pool's outer part with no band leaving it, filled in.
-// Sky's node has the to-Sky piece and the from-Sky piece. The two amounts
-// are never netted, so neither node is drawn as one total.
+// Each node is one bar across exactly the bands meeting it, so its length
+// is their amounts on the one scale (plus the fixed gap between lanes).
+// At the Prime: the demand received, SDE passing through, and the pool of
+// venue revenue (or cost of funds when that is larger). What stays — kept,
+// revenue less cost of funds — is the pool's outer part with no band
+// leaving it, filled in. At Sky: the demand paid out, and SDE plus cost of
+// funds arriving, each band still its own amount, never netted.
 //
 // One width scale for both lanes: the larger fills BAND. The radii are
 // fixed, so a month change only re-widths bands — the circle never moves.
@@ -36,14 +37,17 @@ export const OUTER_END = OUTER0 + BAND;
 /** Half the Prime node's and Sky node's thickness. */
 export const PRIME_HALF = 7;
 export const SKY_HALF = 4;
-/** Arrowheads grow with their lane, so a wide lane still ends in a point
- *  rather than a blunt wedge; `HEAD_FLARE` is how far a head overhangs it. */
-const HEAD_MIN = 14;
-const HEAD_MAX = 44;
-const HEAD_RATIO = 0.7;
-export const HEAD_FLARE = 2;
+/** Every arrowhead has the same tip angle: its length is this share of its
+ *  lane's width, and its base is exactly the lane's width (no overhang). A
+ *  hairline lane's head still gets HEAD_MIN so it is visible at all. */
+const HEAD_RATIO = 0.6;
+const HEAD_MIN = 5;
 /** Clear space between an arrow's tip and the node it reaches. */
 export const ARRIVE_GAP = 8;
+/** BAND's worth of dollars is never less than this, so a small month (a
+ *  demand-only Prime's $31k) is drawn thin, not stretched to fill BAND as
+ *  if it were tens of millions. */
+const FULL_SCALE_USD = 10_000_000;
 /** Thinnest band drawn, so a cent-sized figure is still visible. */
 const MIN_W = 1.5;
 /** Thinnest venue band, so each named band has some girth. */
@@ -62,10 +66,10 @@ const INNER_ORDER = ["agentRate", "distributionRewards", "chroniclePoints", "gar
  *  to fit them whole), and right of it for Sky's. */
 const LABEL_GUTTER = 24;
 const SKY_GUTTER = 120;
-export const CX = LABEL_GUTTER + OUTER_END + HEAD_FLARE + 12;
+export const CX = LABEL_GUTTER + OUTER_END + 12;
 export const CY = OUTER_END + 64;
 export const WIDTH = CX + OUTER_END + SKY_GUTTER;
-export const HEIGHT = CY + INNER_OUT + HEAD_FLARE + 16;
+export const HEIGHT = CY + INNER_OUT + 16;
 
 export interface ArcBand {
   key: string;
@@ -105,13 +109,16 @@ export interface ArcLayout {
   demand: ArcBand[];
   lanes: { sde: LaneEnd | null; revenue: LaneEnd | null; toSky: LaneEnd | null; demand: LaneEnd | null };
   prime: {
-    /** Venue revenue (or cost of funds, if larger) arriving. */
-    pool: Span | null;
+    /** One node across every band meeting the Prime: the demand side in,
+     *  SDE passing through, the pool of venue revenue (or cost of funds,
+     *  if larger). */
+    span: Span | null;
     /** The part of the pool no band leaves: kept, or the shortfall. */
     kept: (Span & { loss: boolean }) | null;
-    demand: Span | null;
   };
-  sky: { toSky: Span | null; fromSky: Span | null };
+  /** One node across every band meeting Sky: the demand side out, and
+   *  SDE plus cost of funds in. */
+  sky: Span | null;
 }
 
 const width = (v: number, scale: number, min = MIN_W) => Math.max(min, Math.abs(v) * scale);
@@ -142,9 +149,9 @@ function stack<T extends { value: number }>(rows: T[], r0: number, scale: number
 function laneEnd(r0: number, r1: number, from: number, edge: number): LaneEnd & { stop: number } {
   const r = (r0 + r1) / 2;
   const w = r1 - r0;
-  const len = Math.min(HEAD_MAX, Math.max(HEAD_MIN, w * HEAD_RATIO));
+  const len = Math.max(HEAD_MIN, w * HEAD_RATIO);
   const stop = edge - (ARRIVE_GAP + len) / r;
-  return { stop, w, head: arcArrowHead(CX, CY, r, w, stop, 1, len, HEAD_FLARE), flow: arcPath(CX, CY, r, from, stop) };
+  return { stop, w, head: arcArrowHead(CX, CY, r, w, stop, 1, len), flow: arcPath(CX, CY, r, from, stop) };
 }
 
 /** Venue bands from staggered starts to `stop`; band i starts at slot i0+i. */
@@ -157,7 +164,7 @@ export function layoutSettlementArc(m: StreamModel): ArcLayout {
   const cofV = Math.abs(m.cof) >= NEAR ? m.cof : 0;
   const demandRows = [...m.demand].sort((a, b) => INNER_ORDER.indexOf(a.key) - INNER_ORDER.indexOf(b.key));
   const max = Math.max(total(src.sde) + Math.max(total(src.revenue), Math.abs(cofV)), total(demandRows));
-  const scale = max > 0 ? BAND / max : 0;
+  const scale = max > 0 ? BAND / Math.max(max, FULL_SCALE_USD) : 0;
 
   const sde = stack(src.sde, OUTER0, scale, 1, VENUE_MIN_W);
   const rev = stack(src.revenue, sde.edge, scale, 1, VENUE_MIN_W);
@@ -180,12 +187,18 @@ export function layoutSettlementArc(m: StreamModel): ArcLayout {
     demand: d.out.map((b) => ({ key: b.key, value: b.value, r: b.r, w: b.w, loss: b.loss, d: arcPath(CX, CY, b.r, skyEdge(b.r, 1), demand!.stop) })),
     lanes: { sde: sdeFlow, revenue, toSky, demand },
     prime: {
-      pool: span(sde.edge, poolEdge),
+      span: nodeSpan(d.out.length ? d.edge : null, poolEdge > sde.edge ? sde.edge : null, poolEdge > sde.edge ? poolEdge : INNER_OUT),
       kept: rev.edge > cofEdge ? keptSpan(cofEdge, rev.edge, false) : keptSpan(rev.edge, cofEdge, true),
-      demand: span(d.edge, INNER_OUT),
     },
-    sky: { toSky: span(OUTER0, cofEdge), fromSky: span(d.edge, INNER_OUT) },
+    sky: nodeSpan(d.out.length ? d.edge : null, cofEdge > OUTER0 ? OUTER0 : null, cofEdge > OUTER0 ? cofEdge : INNER_OUT),
   };
+}
+
+/** A node from the demand lane's inner edge (or, with no demand, the outer
+ *  lane's) to r1; null when neither lane meets it. */
+function nodeSpan(demandEdge: number | null, outerStart: number | null, r1: number): Span | null {
+  const r0 = demandEdge ?? outerStart;
+  return r0 === null ? null : span(r0, r1);
 }
 
 function keptSpan(r0: number, r1: number, loss: boolean) {

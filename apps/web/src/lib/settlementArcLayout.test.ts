@@ -11,6 +11,11 @@ function model(venues: VenueStream[], demand: StreamModel["demand"] = []): Strea
   return { venues, revenue: sum("revenue"), cof: sum("cof"), sde: sum("sde"), toSky: sum("cof") + sum("sde"), kept: sum("kept"), demand, demandTotal };
 }
 
+/** Layout tests work in millions, above the FULL_SCALE_USD floor, so
+ *  the larger lane fills BAND. */
+const M = 1_000_000;
+const mv = (id: string, revenue: number, cof: number, sde = 0) => venue(id, revenue * M, cof * M, sde * M);
+
 /** An arc path's start and end points and its sweep flag. */
 function arc(d: string) {
   const pt = (s: string) => s.split(",").map(Number);
@@ -37,7 +42,7 @@ describe("arcSources", () => {
 
 describe("layoutSettlementArc", () => {
   it("pools venue revenue at the Prime node's left side and sends cost of funds on to Sky", () => {
-    const l = layoutSettlementArc(model([venue("A", 100, 60), venue("B", 20, 0)]));
+    const l = layoutSettlementArc(model([mv("A", 100, 60), mv("B", 20, 0)]));
     for (const v of l.revenue) {
       const a = arc(v.d);
       expect(a.sweep).toBe(1);
@@ -52,30 +57,30 @@ describe("layoutSettlementArc", () => {
   });
 
   it("sizes the Prime node to the pool and fills the part no band leaves as kept", () => {
-    const l = layoutSettlementArc(model([venue("A", 100, 60)]));
-    expect(l.prime.pool).toEqual({ r0: OUTER0, r1: expect.closeTo(OUTER0 + BAND) });
+    const l = layoutSettlementArc(model([mv("A", 100, 60)]));
+    expect(l.prime.span).toEqual({ r0: OUTER0, r1: expect.closeTo(OUTER0 + BAND) });
     expect(l.prime.kept).toEqual({ r0: expect.closeTo(OUTER0 + BAND * 0.6), r1: expect.closeTo(OUTER0 + BAND), loss: false });
-    expect(l.sky.toSky).toEqual({ r0: OUTER0, r1: expect.closeTo(OUTER0 + BAND * 0.6) });
+    expect(l.sky).toEqual({ r0: OUTER0, r1: expect.closeTo(OUTER0 + BAND * 0.6) });
   });
 
   it("marks a cost of funds larger than the pool as a shortfall in the Prime node", () => {
-    const l = layoutSettlementArc(model([venue("A", 70, 100)]));
+    const l = layoutSettlementArc(model([mv("A", 70, 100)]));
     expect(l.prime.kept).toEqual({ r0: expect.closeTo(OUTER0 + BAND * 0.7), r1: expect.closeTo(OUTER0 + BAND), loss: true });
-    expect(l.prime.pool!.r1).toBeCloseTo(OUTER0 + BAND);
+    expect(l.prime.span!.r1).toBeCloseTo(OUTER0 + BAND);
   });
 
   it("runs SDE innermost, past the Prime through the gap in its node, and meets cost of funds at Sky", () => {
-    const l = layoutSettlementArc(model([venue("A", 100, 50), venue("J", 0, 0, 50)]));
+    const l = layoutSettlementArc(model([mv("A", 100, 50), mv("J", 0, 0, 50)]));
     const s = l.sde[0];
     expect(s.r - s.w / 2).toBeCloseTo(OUTER0);
-    expect(l.prime.pool!.r0).toBeCloseTo(s.r + s.w / 2);
+    expect(l.prime.span!.r0).toBeCloseTo(s.r + s.w / 2);
     expect(arc(s.d).to[0]).toBeGreaterThan(CX + 100);
-    // Sky's to-Sky piece is SDE + cost of funds with no gap: the amount due.
-    expect(l.sky.toSky!.r1 - l.sky.toSky!.r0).toBeCloseTo((BAND * 100) / 150);
+    // At Sky, SDE + cost of funds meet with no gap: the amount due.
+    expect(l.sky!.r1 - l.sky!.r0).toBeCloseTo((BAND * 100) / 150);
   });
 
   it("runs the demand side clockwise from Sky round the bottom up into the Prime", () => {
-    const l = layoutSettlementArc(model([], [{ key: "gar", label: "GAR", value: 5 }, { key: "agentRate", label: "Agent rate", value: 5 }]));
+    const l = layoutSettlementArc(model([], [{ key: "gar", label: "GAR", value: 5 * M }, { key: "agentRate", label: "Agent rate", value: 5 * M }]));
     expect(l.revenue).toEqual([]);
     expect(l.cof).toBeNull();
     expect(l.demand.map((b) => b.key)).toEqual(["agentRate", "gar"]);
@@ -88,13 +93,29 @@ describe("layoutSettlementArc", () => {
     const tip = l.lanes.demand!.head!.split(" L")[1].split(",").map(Number);
     // The tip stops short of the node, leaving clear space.
     expect(CX - tip[0]).toBeCloseTo(PRIME_HALF + ARRIVE_GAP, 0);
-    expect(l.prime.demand!.r1 - l.prime.demand!.r0).toBeCloseTo(BAND);
-    expect(l.sky.fromSky).toEqual(l.prime.demand);
-    expect(layoutSettlementArc(model([])).prime).toEqual({ pool: null, kept: null, demand: null });
+    expect(l.prime.span!.r1 - l.prime.span!.r0).toBeCloseTo(BAND);
+    expect(l.sky).toEqual(l.prime.span);
+    expect(layoutSettlementArc(model([])).prime).toEqual({ span: null, kept: null });
+  });
+
+  it("draws a small month thin rather than stretching it to fill BAND", () => {
+    const l = layoutSettlementArc(model([], [{ key: "agentRate", label: "Agent rate", value: 31_000 }]));
+    expect(l.demand[0].w).toBeLessThan(2);
+    expect(l.sky!.r1 - l.sky!.r0).toBeLessThan(2);
+  });
+
+  it("gives every arrowhead the same tip angle and no overhang", () => {
+    const l = layoutSettlementArc(model([mv("A", 100, 60)], [{ key: "agentRate", label: "Agent rate", value: 20 * M }]));
+    const base = (head: string) => {
+      const [a, , c] = head.slice(1, -2).split(/ L/).map((p) => p.split(",").map(Number));
+      return Math.hypot(a[0] - c[0], a[1] - c[1]);
+    };
+    expect(base(l.lanes.toSky!.head!)).toBeCloseTo(l.lanes.toSky!.w, 0);
+    expect(base(l.lanes.demand!.head!)).toBeCloseTo(l.lanes.demand!.w, 0);
   });
 
   it("starts each venue band further up the arch than the one inside it", () => {
-    const l = layoutSettlementArc(model([venue("A", 1000, 900), venue("B", 1, 1), venue("C", 0, 0, 5)]));
+    const l = layoutSettlementArc(model([mv("A", 1000, 900), mv("B", 1, 1), mv("C", 0, 0, 5)]));
     const [c, a, b] = [...l.sde, ...l.revenue].map((v) => arc(v.d).from);
     expect(c[1]).toBeCloseTo(CY, 0);
     expect(a[1]).toBeLessThan(c[1] - 10);

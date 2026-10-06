@@ -81,7 +81,7 @@ export function SettlementArc({ model, primeLabel, month }: { model: StreamModel
         Everything runs clockwise. Top half: each venue&rsquo;s revenue pools at {primeLabel}, which pays Sky <AtlasLink to={atlasHref(cof.uuid)} className="msc-arc-caption-link">cost of funds</AtlasLink> on the USDS it borrowed and keeps the rest (filled green in its node); <AtlasLink to={atlasHref(sde.uuid)} className="msc-arc-caption-link">Sky Direct Exposure</AtlasLink> revenue goes past {primeLabel} straight to Sky.
         Cost of funds plus SDE is the <AtlasLink to={atlasHref(toSky.uuid)} className="msc-arc-caption-link">amount due from {primeLabel} to Sky</AtlasLink>.
         Inner lane, from Sky round the bottom to {primeLabel}: the <AtlasLink to={atlasHref(fromSky.uuid)} className="msc-arc-caption-link">amount due from Sky to {primeLabel}</AtlasLink>.
-        Each node is as long as the amounts meeting it.
+        Each node spans exactly the bands meeting it.
         Both are paid in the <AtlasLink to={atlasHref(execVote.uuid)} className="msc-arc-caption-link">Sky Core Executive Vote</AtlasLink> as two amounts, never netted.
         Muted figures are Soter Labs workbook figures the Atlas defines no term for; striped is a loss.
       </figcaption>
