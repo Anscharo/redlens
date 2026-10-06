@@ -68,7 +68,11 @@ export async function citationCounts(conversationIds: readonly string[]): Promis
     ORDER BY created_at
   `) as { conversation_id: string; content: string }[];
   const byConversation = new Map<string, string[]>();
-  for (const r of rows) byConversation.set(r.conversation_id, [...(byConversation.get(r.conversation_id) ?? []), r.content]);
+  for (const r of rows) {
+    const answers = byConversation.get(r.conversation_id);
+    if (answers) answers.push(r.content);
+    else byConversation.set(r.conversation_id, [r.content]);
+  }
   for (const [id, answers] of byConversation) counts.set(id, citedDocIds(answers).length);
   return counts;
 }
