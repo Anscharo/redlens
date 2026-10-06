@@ -20,6 +20,10 @@ export const SETTLEMENT_CITATIONS = {
   // A.2.4.1.2.2.1.1.2.2.1.1 — the per-instance charge at the Agent Credit
   // Line Borrow Rate; the workbook allocates the Prime's charge to venues
   cof: { uuid: "6cbe7181-419f-4a7b-a659-85972d5100a3", term: "Instance Expense" },
+  // A.2.4.1.2.2.1.1.2.4 — revenue minus Adjusted Allocation System Profit
+  amountDue: { uuid: "2617edae-6c22-4d7c-8e14-353bfced35f2", term: "Step 4: Calculate Amount Due To Sky With Respect To Supply Side Primitives" },
+  // A.2.4.1.2.2.1.1.2.3 — profit after the Distortion and Low Yield ASC penalties
+  adjustedProfit: { uuid: "a9427e1a-77ae-473b-aafd-b4216fcd615c", term: "Step 3: Calculate Adjusted Allocation System Profit" },
   // A.2.4.1.2.2.1.1.2.2.1 — the per-venue profit, floored at zero
   instanceProfit: { uuid: "9974c452-216b-45c0-8a1d-621816b8da2a", term: "Instance Profit" },
   // A.2.2.10.1.1.1.1.5

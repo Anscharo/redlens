@@ -6,9 +6,14 @@
 // minus total profit (A.2.4.1.2.2.1.1.2.4, 2617edae). Soter charges each
 // venue its full cost of funds instead, so a venue earning less than its
 // cost of funds sends Sky more than its revenue. Assumptions, all stated
-// on the page: a venue's workbook cost of funds stands for its Instance
-// Expense (A.2.4.1.2.2.1.1.2.2.1.1, 6cbe7181), and the discretionary
-// penalties (A.2.4.1.2.2.1.1.2.3) are zero — the workbooks carry none.
+// on the page: a venue's workbook cost of funds (Soter's allocation)
+// stands for its Instance Expense (A.2.4.1.2.2.1.1.2.2.1.1, 6cbe7181), and
+// the penalties that Adjusted Allocation System Profit deducts
+// (A.2.4.1.2.2.1.1.2.3) are zero. They are not: the Distortion Penalty is
+// discretionary, the Low Yield Actively Stabilizing Collateral Penalty
+// formulaic (A.2.4.1.2.2.1.1.2.3.2), but the workbooks carry neither. A
+// penalty lowers profit and so raises the amount due, so `atlas` is the
+// least the formula gives and `gap` the most it can differ from Soter.
 import type { SettlementReport, SettlementVenue } from "./settlements";
 
 /** Spark realizes the full profit and loss on USDT in SparkLend and on
@@ -27,8 +32,17 @@ export interface AtlasAmountDue {
   soter: number;
   /** The Atlas formula over the same rows. */
   atlas: number;
-  /** soter − atlas: what the zero floor would leave with the Prime. */
+  /** soter − atlas: an upper bound on what the formula leaves with the
+   *  Prime, before penalties. */
   gap: number;
+}
+
+/** The same, summed over several reports: a month's Primes, or one Prime's
+ *  months. */
+export function atlasAmountDueTotal(reports: readonly SettlementReport[]): AtlasAmountDue {
+  const each = reports.map(atlasAmountDue);
+  const sum = (k: keyof AtlasAmountDue) => each.reduce((n, d) => n + d[k], 0);
+  return { soter: sum("soter"), atlas: sum("atlas"), gap: sum("gap") };
 }
 
 export function atlasAmountDue(report: SettlementReport): AtlasAmountDue {

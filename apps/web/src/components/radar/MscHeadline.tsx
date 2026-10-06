@@ -1,4 +1,6 @@
 import { formatMonth, formatUsd } from "../../lib/settlements";
+import type { AtlasAmountDue } from "@/lib/settlementAtlasCheck";
+import { MscAtlasGap } from "./MscAtlasGap";
 
 /** The five figures the card shows — an ecosystem month's (EcosystemThreeWay
  *  satisfies this) or one Prime's. */
@@ -22,6 +24,9 @@ export interface MscHeadlineProps {
   earner?: string;
   /** The overview's month autoplay, under the month it steps through. */
   play?: { playing: boolean; onToggle: () => void };
+  /** The same To Sky under the Atlas's Stage 1 formula, noted under the
+   *  card when it differs. */
+  due?: AtlasAmountDue | null;
 }
 
 // Every cell on the card is the same two rows — a LABEL_ROW-tall label
@@ -73,7 +78,7 @@ function Op({ children }: { children: string }) {
  *  Primitives and the Agent Rate (A.2.4.1.2.2.1.1.1), settled together but
  *  never added (A.2.4.1.2.2.1.1.3). The demand-side label names that
  *  direction rather than leaving it to be guessed. */
-export function MscHeadline({ eco, month, earner, play }: MscHeadlineProps) {
+export function MscHeadline({ eco, month, earner, play, due }: MscHeadlineProps) {
   const who = earner ? `${earner}` : "Primes";
   return (
     <div className="msc-card rounded p-4 mb-4 flex flex-wrap items-end gap-x-4 gap-y-3 text-sm">
@@ -111,6 +116,7 @@ export function MscHeadline({ eco, month, earner, play }: MscHeadlineProps) {
         <Figure label={`Supply-side kept by ${who}`} value={eco?.kept ?? null} />
         <Figure label={`Demand-side from Sky to ${who}`} value={eco?.demand ?? null} />
       </div>
+      <MscAtlasGap due={due} className="basis-full" />
     </div>
   );
 }

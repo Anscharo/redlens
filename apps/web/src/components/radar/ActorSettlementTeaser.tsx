@@ -14,6 +14,8 @@ import {
 import { settlementsHref } from "@/lib/routes";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { MscCycleSpark } from "./MscCycleSpark";
+import { MscAtlasGap } from "./MscAtlasGap";
+import { atlasAmountDueTotal } from "@/lib/settlementAtlasCheck";
 
 /** One string, so the rendered line and any copy edit stay in one place. */
 const DISCLAIMER = "OEA calculation, not the on-chain GovOps spell";
@@ -98,6 +100,7 @@ export function ActorSettlementTeaser({ slug, name }: ActorSettlementTeaserProps
         {rest.map((r) => (
           <Total key={r.label} amount={r.amount} label={r.label} />
         ))}
+        <MscAtlasGap due={atlasAmountDueTotal(rows)} plain className="mt-1" />
         <p className="text-[10px] mt-1" style={{ color: "var(--tan-3)" }}>
           {DISCLAIMER}
         </p>

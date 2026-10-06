@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atlasAmountDue } from "./settlementAtlasCheck";
+import { atlasAmountDue, atlasAmountDueTotal } from "./settlementAtlasCheck";
 import type { SettlementReport, SettlementVenue } from "./settlements";
 
 function venue(label: string, revenue: number, cof: number, sde = 0, synthetic = false): SettlementVenue {
@@ -38,5 +38,10 @@ describe("atlasAmountDue", () => {
     ]));
     expect(due.atlas).toBe(50 + 30 - 5 + 0);
     expect(due.gap).toBe(20);
+  });
+
+  it("sums a month's Primes, or a Prime's months", () => {
+    const total = atlasAmountDueTotal([report("grove", [venue("A", 100, 60), venue("L", 10, 50)]), report("obex", [venue("B", 5, 20)])]);
+    expect(total).toEqual({ soter: 130, atlas: 75, gap: 55 });
   });
 });

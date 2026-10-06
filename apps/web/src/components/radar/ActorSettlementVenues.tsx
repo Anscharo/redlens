@@ -9,7 +9,6 @@ import { SettlementArc } from "./SettlementArc";
 import { SettlementAum } from "./SettlementAum";
 import { NEAR, arcSources } from "../../lib/settlementArcRows";
 import { venueInks } from "../../lib/venueInks";
-import { atlasAmountDue } from "@/lib/settlementAtlasCheck";
 import type { ArcFrame } from "../../lib/settlementArcLayout";
 
 const venuesCodec = urlString(null);
@@ -91,7 +90,7 @@ export function ActorSettlementVenues({
           </Tooltip>
         </div>
       )}
-      {showFlows && <SettlementArc model={model} primeLabel={name} month={report.month} inks={inks} due={atlasAmountDue(report)} frame={frame} />}
+      {showFlows && <SettlementArc model={model} primeLabel={name} month={report.month} inks={inks} frame={frame} />}
       {showAum && <SettlementAum venues={venues} inks={inks} />}
     </>
   );

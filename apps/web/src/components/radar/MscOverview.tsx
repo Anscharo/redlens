@@ -17,6 +17,7 @@ import {
 } from "@/lib/settlementsOverview";
 import { settlementsHref } from "@/lib/routes";
 import { layoutMscRing } from "../../lib/mscOverviewLayout";
+import { atlasAmountDueTotal } from "@/lib/settlementAtlasCheck";
 import { track } from "../../lib/analytics";
 import { MscHeadline } from "./MscHeadline";
 import { MscRing, type MscRingPrime } from "./MscRing";
@@ -91,6 +92,10 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
     () => (bundle && month ? ecosystemThreeWay(bundle, month) : null),
     [bundle, month],
   );
+  const due = useMemo(
+    () => (bundle && month ? atlasAmountDueTotal(bundle.reports.filter((r) => r.month === month)) : null),
+    [bundle, month],
+  );
 
   // Reported up by the pies, so the reset control can live in the title
   // row; null again as soon as the chart unmounts.
@@ -108,7 +113,7 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
 
   return (
     <OverviewIntro>
-      <MscHeadline eco={eco} month={month} play={{ playing: play.playing, onToggle: play.toggle }} />
+      <MscHeadline eco={eco} month={month} play={{ playing: play.playing, onToggle: play.toggle }} due={due} />
       <PrimeHoverStyles primes={stack.primes} />
       {/* The timeseries card sets the row's height; the ring card stretches
           to match and its chart fills whatever is left under the title and

@@ -19,6 +19,7 @@ import { arcFrame, layoutSettlementArc } from "../../lib/settlementArcLayout";
 import { streamModel } from "@/lib/settlementStreams";
 import { labelsLeft } from "./SettlementArcLabels";
 import { MscHeadline } from "./MscHeadline";
+import { atlasAmountDue } from "@/lib/settlementAtlasCheck";
 import { ActorSettlementsSkeleton } from "./ActorSettlementsSkeleton";
 import { useMonthAutoplay } from "../../hooks/useMonthAutoplay";
 
@@ -139,6 +140,7 @@ function ActorSettlementsLoaded({ slug, name }: ActorSettlementsProps) {
         month={month}
         play={{ playing: play.playing, onToggle: play.toggle }}
         earner={name}
+        due={atlasAmountDue(report)}
       />
       <ActorSettlementVenues report={report} name={name} frame={frame} />
     </>
