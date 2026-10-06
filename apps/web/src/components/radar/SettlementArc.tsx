@@ -4,7 +4,7 @@ import { SETTLEMENT_CITATIONS, citationFor } from "@/lib/settlementCitations";
 import { atlasHref } from "@/lib/routes";
 import { layoutSettlementArc } from "../../lib/settlementArcLayout";
 import { AtlasLink } from "../AtlasLink";
-import { SettlementArcSvg, arcInk } from "./SettlementArcSvg";
+import { SettlementArcSvg, arcInk, venueInk } from "./SettlementArcSvg";
 import { UNCITED } from "./SettlementArcLabels";
 import { SettlementVenueTable } from "./SettlementVenueTable";
 
@@ -35,10 +35,15 @@ function KeyItem({ figure, background, children }: { figure: string; background:
   );
 }
 
-/** A Prime's month as a rainbow: clockwise, each venue's revenue runs into
- *  the Prime, its kept part stops there and its cost of funds and Sky Direct
- *  Exposure run on to Sky; counterclockwise, Sky pays the demand side back.
- *  The venue table under it splits the same stripes row by row. */
+function KeyLink({ figure, children }: { figure: string; children: ReactNode }) {
+  const c = citationFor(figure)!;
+  return <AtlasLink to={atlasHref(c.uuid)} className="msc-arc-caption-link" title={c.term}>{children}</AtlasLink>;
+}
+
+/** A Prime's month as a rainbow: clockwise, what the Prime keeps stops at
+ *  it while each venue's cost of funds and Sky Direct Exposure run through
+ *  it to Sky; counterclockwise, Sky pays the demand side back. The venue
+ *  table under it splits every venue row by row. */
 export function SettlementArc({ model, primeLabel, month }: { model: StreamModel; primeLabel: string; month?: string }) {
   const layout = useMemo(() => layoutSettlementArc(model), [model]);
   const ids = useMemo(() => model.venues.map((v) => v.id), [model.venues]);
@@ -48,8 +53,10 @@ export function SettlementArc({ model, primeLabel, month }: { model: StreamModel
       <VenueHoverStyles ids={ids} />
       <div className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mb-2" style={{ color: "var(--tan-3)" }}>
         <KeyItem figure="kept" background={arcInk("kept")}>kept by {primeLabel}</KeyItem>
-        <KeyItem figure="cof" background={arcInk("cof")}>cost of funds → Sky</KeyItem>
-        <KeyItem figure="sde" background={arcInk("sde")}>Sky Direct Exposure → Sky</KeyItem>
+        <span>
+          <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background: venueInk(0, false) }} aria-hidden="true" />
+          each venue&rsquo;s <KeyLink figure="cof">CoF</KeyLink> + <KeyLink figure="sde">SDE</KeyLink> → Sky
+        </span>
         {model.demand.map((d) => <KeyItem key={d.key} figure={d.key} background={arcInk(d.key)}>{d.label}</KeyItem>)}
       </div>
       <SettlementArcSvg layout={layout} model={model} primeLabel={primeLabel} month={month} />

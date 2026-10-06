@@ -208,7 +208,7 @@ describe("ActorSettlements", () => {
     expect(screen.getByRole("button", { name: /Play through the months/ })).toBeInTheDocument();
     // No identity swatch on the card; what stays with the Prime is supply-side green.
     expect(container.querySelector(".msc-identity-swatch")).toBeNull();
-    expect(container.querySelector(".msc-arc-band[data-key$=':kept'] .msc-arc-body[stroke='var(--msc-kept)']")).toBeInTheDocument();
+    expect(container.querySelector(".msc-arc-band[data-key='kept'] .msc-arc-body[stroke='var(--msc-kept)']")).toBeInTheDocument();
     expect(container.querySelector("[fill='var(--msc-prime-1)'], [stroke='var(--msc-prime-1)']")).not.toBeInTheDocument();
   });
 

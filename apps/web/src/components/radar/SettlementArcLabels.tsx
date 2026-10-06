@@ -4,7 +4,7 @@ import type { StreamModel } from "@/lib/settlementStreams";
 import { citationFor } from "@/lib/settlementCitations";
 import { ROUTES, atlasHref } from "@/lib/routes";
 import { textWidth } from "../../lib/textWidth";
-import { CX, CY, INNER0, OUTER0, OUTER_END, type VenueLabel } from "../../lib/settlementArcLayout";
+import { CX, CY, INNER0, OUTER0, OUTER_END, type VenueBand } from "../../lib/settlementArcLayout";
 import { SvgRouteLink } from "./SvgRouteLink";
 
 export const UNCITED = "A workbook figure: the Atlas defines no term for it";
@@ -33,14 +33,14 @@ function fit(label: string, room: number): string {
   return `${s}…`;
 }
 
-/** Each venue's name written along its group, from the Venues foot up. */
-export function VenueLabels({ labels }: { labels: VenueLabel[] }) {
+/** Each venue's name written along its band, from the Venues foot up. */
+export function VenueLabels({ venues }: { venues: VenueBand[] }) {
   const id = useId();
   return (
     <g className="msc-arc-venue-labels" fontSize={9}>
-      {labels.filter((v) => v.w >= LABEL_MIN_W).map((v, i) => (
-        <g key={v.venue} className="msc-arc-venue-label" data-venue={v.venue}>
-          <path id={`${id}-${i}`} d={v.d} fill="none" />
+      {venues.filter((v) => v.w >= LABEL_MIN_W).map((v, i) => (
+        <g key={v.key} className="msc-arc-venue-label" data-venue={v.key}>
+          <path id={`${id}-${i}`} d={v.labelD} fill="none" />
           <text dominantBaseline="central">
             <textPath href={`#${id}-${i}`} startOffset={6}>{fit(v.label, (v.r * Math.PI) / 2 - 18)}</textPath>
           </text>
@@ -61,8 +61,8 @@ export function ArcNodeLabels({ model, primeLabel, month }: { model: StreamModel
       {month ? <SvgRouteLink to={`${ROUTES.RADAR}?msc=${month}`} className="msc-arc-link" label="Open this month in the ecosystem Monthly Settlement Cycle overview">{sky}</SvgRouteLink> : sky}
       <Cited figure="toSky" x={CX + (INNER0 + OUTER_END) / 2} y={CY + 40}>{`To Sky ↻ ${formatUsd(model.toSky, true)}`}</Cited>
       <Cited figure="fromSky" x={CX + (INNER0 + OUTER_END) / 2} y={CY + 54}>{`↺ From Sky ${formatUsd(model.demandTotal, true)}`}</Cited>
-      <text x={CX} y={CY - OUTER_END - 26} textAnchor="middle" fontSize={12} className="msc-arc-node-name">{primeLabel}</text>
-      <text x={CX} y={CY - OUTER_END - 12} textAnchor="middle" className={`msc-arc-uncited${keptLoss ? " msc-arc-loss" : ""}`}>
+      <text x={CX} y={CY - OUTER_END - 30} textAnchor="middle" fontSize={12} className="msc-arc-node-name">{primeLabel}</text>
+      <text x={CX} y={CY - OUTER_END - 15} textAnchor="middle" className={`msc-arc-uncited${keptLoss ? " msc-arc-loss" : ""}`}>
         <title>{`${keptLoss ? "Supply-side loss" : "Supply-side kept"}. ${UNCITED}.`}</title>
         {`${keptLoss ? "loss" : "keeps"} ${formatUsd(model.kept, true)}`}
       </text>

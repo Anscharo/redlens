@@ -3123,9 +3123,13 @@ a.atlas-annotates:focus-visible {
   background: var(--entity-development-company);
 }
 /* ─── A Prime's settlement arc (SettlementArc.tsx) ─── */
+/* Capped so the chart's text stays near its drawn size on wide screens. */
 .msc-arc {
+  display: block;
   width: 100%;
+  max-width: 640px;
   height: auto;
+  margin: 0 auto;
   overflow: visible;
 }
 .msc-arc-cited {
@@ -3187,10 +3191,11 @@ a.atlas-annotates:focus-visible {
 }
 .msc-arc-venue-label text {
   fill: var(--msc-sky-ink);
+  font-weight: 500;
   pointer-events: none;
 }
-/* The Prime sits UNDER the stripes, so cost of funds and Sky Direct
-   Exposure read as passing through it; kept stripes end at its side. */
+/* The Prime sits UNDER the bands, so the venues' flows read as passing
+   through it; the kept band ends at its side. */
 .msc-arc-prime,
 .msc-arc-node {
   fill: var(--tan-3);
