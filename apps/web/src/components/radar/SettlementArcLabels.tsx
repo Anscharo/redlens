@@ -4,7 +4,7 @@ import type { StreamModel } from "@/lib/settlementStreams";
 import { citationFor } from "@/lib/settlementCitations";
 import { ROUTES, atlasHref } from "@/lib/routes";
 import { textWidth } from "../../lib/textWidth";
-import { CX, CY, OUTER_END, type VenueBand } from "../../lib/settlementArcLayout";
+import { CX, CY, INNER_OUT, OUTER_END, type Span, type VenueBand } from "../../lib/settlementArcLayout";
 import { SvgRouteLink } from "./SvgRouteLink";
 
 export const UNCITED = "A workbook figure: the Atlas defines no term for it";
@@ -47,17 +47,18 @@ export function VenueLabels({ venues }: { venues: VenueBand[] }) {
   );
 }
 
-/** Node names and lane totals: Sky right of its node, the Prime over the
- *  apex with what it keeps (a workbook figure, muted). */
-export function ArcNodeLabels({ model, primeLabel, month }: { model: StreamModel; primeLabel: string; month?: string }) {
-  const x = CX + OUTER_END + 10;
-  const sky = <text x={x} y={CY + 4} className="msc-arc-node-name">SKY</text>;
+/** Node names and lane totals: "to Sky" beside the arrow arriving at Sky,
+ *  "from Sky" beside the demand lane leaving it, SKY right of its node; the
+ *  Prime over the apex with what it keeps (a workbook figure, muted). */
+export function ArcNodeLabels({ model, primeLabel, month, sky: span }: { model: StreamModel; primeLabel: string; month?: string; sky: Span | null }) {
+  const right = CX + (span?.r1 ?? OUTER_END) + 8;
+  const sky = <text x={right} y={CY + 4} className="msc-arc-node-name">SKY</text>;
   const keptLoss = model.kept < 0;
   return (
     <g className="mono" fontSize={10}>
       {month ? <SvgRouteLink to={`${ROUTES.RADAR}?msc=${month}`} className="msc-arc-link" label="Open this month in the ecosystem Monthly Settlement Cycle overview">{sky}</SvgRouteLink> : sky}
-      <Cited figure="toSky" x={x} y={CY - 14}>{`to Sky ${formatUsd(model.toSky, true)}`}</Cited>
-      <Cited figure="fromSky" x={x} y={CY + 22}>{`from Sky ${formatUsd(model.demandTotal, true)}`}</Cited>
+      <Cited figure="toSky" x={right} y={CY - 30}>{`to Sky ${formatUsd(model.toSky, true)}`}</Cited>
+      <Cited figure="fromSky" x={CX + INNER_OUT + 8} y={CY + 34}>{`from Sky ${formatUsd(model.demandTotal, true)}`}</Cited>
       <text x={CX} y={CY - OUTER_END - 40} textAnchor="middle" fontSize={12} className="msc-arc-node-name">{primeLabel}</text>
       <text x={CX} y={CY - OUTER_END - 20} textAnchor="middle" className={`msc-arc-uncited${keptLoss ? " msc-arc-loss" : ""}`}>
         <title>{`${keptLoss ? "Supply-side loss" : "Supply-side kept"}. ${UNCITED}.`}</title>

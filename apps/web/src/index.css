@@ -152,7 +152,7 @@
   --msc-prime-4: #b191ea;
   --msc-prime-5: #7e4d8a;
   --msc-prime-6: #fab2cd;
-  /* Settlement-arc venues: a categorical order checked for lightness,
+  /* Settlement venues (circle and AUM bars): a categorical order checked for lightness,
      chroma and colour-blind separation against this theme's --bg-deep. */
   --msc-venue-1: #3987e5;
   --msc-venue-2: #199e70;
@@ -336,7 +336,7 @@
   --msc-prime-4: #6c44a4;
   --msc-prime-5: #552660;
   --msc-prime-6: #cb7196;
-  /* Settlement-arc venues: a categorical order checked for lightness,
+  /* Settlement venues (circle and AUM bars): a categorical order checked for lightness,
      chroma and colour-blind separation against this theme's --bg-deep. */
   --msc-venue-1: #2a78d6;
   --msc-venue-2: #1baf7a;
@@ -660,7 +660,7 @@
   --msc-prime-4: #a37734;
   --msc-prime-5: #c5b59b;
   --msc-prime-6: #bd7221;
-  /* Settlement-arc venues: a categorical order checked for lightness,
+  /* Settlement venues (circle and AUM bars): a categorical order checked for lightness,
      chroma and colour-blind separation against this theme's --bg-deep. */
   --msc-venue-1: #3987e5;
   --msc-venue-2: #199e70;

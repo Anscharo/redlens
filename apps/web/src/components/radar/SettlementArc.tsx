@@ -4,7 +4,7 @@ import { SETTLEMENT_CITATIONS, citationFor } from "@/lib/settlementCitations";
 import { atlasHref } from "@/lib/routes";
 import { layoutSettlementArc } from "../../lib/settlementArcLayout";
 import { AtlasLink } from "../AtlasLink";
-import { SettlementArcSvg, arcInk, venueInks } from "./SettlementArcSvg";
+import { SettlementArcSvg, arcInk } from "./SettlementArcSvg";
 import { UNCITED } from "./SettlementArcLabels";
 import { SettlementVenueTable } from "./SettlementVenueTable";
 
@@ -52,11 +52,9 @@ function KeyLink({ figure, children }: { figure: string; children: ReactNode }) 
  *  Exposure runs past it to Sky; from Sky, round the bottom, the demand
  *  side comes back to the Prime. The venue table under it lists each
  *  venue's revenue and SDE. */
-export function SettlementArc({ model, primeLabel, month }: { model: StreamModel; primeLabel: string; month?: string }) {
+export function SettlementArc({ model, primeLabel, month, inks }: { model: StreamModel; primeLabel: string; month?: string; inks: Map<string, string> }) {
   const layout = useMemo(() => layoutSettlementArc(model), [model]);
   const ids = useMemo(() => model.venues.map((v) => v.id), [model.venues]);
-  const venues = useMemo(() => [...new Set([...layout.revenue, ...layout.sde].map((v) => v.venue))], [layout]);
-  const inks = useMemo(() => venueInks(venues), [venues]);
   const { toSky, fromSky, execVote, cof, sde } = SETTLEMENT_CITATIONS;
   return (
     <figure className="msc-arc-frame m-0" aria-label={`Settlement flows between ${primeLabel} and Sky`}>

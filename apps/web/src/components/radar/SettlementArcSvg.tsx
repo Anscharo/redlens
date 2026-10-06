@@ -1,7 +1,6 @@
 import { formatUsd } from "../../lib/settlements";
 import type { StreamModel } from "@/lib/settlementStreams";
 import { HEIGHT, WIDTH, type ArcBand, type ArcLayout, type LaneEnd } from "../../lib/settlementArcLayout";
-import { ARC_OTHER_ID } from "../../lib/settlementArcRows";
 import { ArcNodeLabels, VenueLabels, labelsLeft } from "./SettlementArcLabels";
 import { PrimeNode, SkyNode } from "./SettlementArcNodes";
 
@@ -15,28 +14,6 @@ const INK: Record<string, string> = {
   chroniclePoints: "var(--msc-cp)",
 };
 export const arcInk = (key: string) => INK[key] ?? "var(--msc-demand)";
-const VENUE_SLOTS = 5;
-const hash = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0);
-
-/** Each drawn venue's colour from the --msc-venue-N categorical order. The
- *  colour follows the venue, not its rank: its slot is hashed from its id,
- *  and a clash moves the later id (in id order) to the next free slot, so a
- *  venue keeps its colour as it re-ranks. The folded tail is grey. */
-export function venueInks(keys: string[]): Map<string, string> {
-  const inks = new Map<string, string>();
-  const taken = new Set<number>();
-  for (const key of [...keys].sort()) {
-    if (key === ARC_OTHER_ID) {
-      inks.set(key, "var(--gray)");
-      continue;
-    }
-    let slot = hash(key) % VENUE_SLOTS;
-    for (let n = 0; taken.has(slot) && n < VENUE_SLOTS; n++) slot = (slot + 1) % VENUE_SLOTS;
-    taken.add(slot);
-    inks.set(key, `var(--msc-venue-${slot + 1})`);
-  }
-  return inks;
-}
 const LOSS = "url(#msc-arc-loss)";
 
 /** One band: a hit area under it for its tooltip, then the band. A hairline
@@ -103,7 +80,7 @@ export function SettlementArcSvg({ layout, model, primeLabel, month, inks }: { l
       <PrimeNode node={layout.prime} model={model} primeLabel={primeLabel} />
       <SkyNode node={layout.sky} model={model} primeLabel={primeLabel} />
       <VenueLabels venues={[...layout.revenue, ...layout.sde]} />
-      <ArcNodeLabels model={model} primeLabel={primeLabel} month={month} />
+      <ArcNodeLabels model={model} primeLabel={primeLabel} month={month} sky={layout.sky} />
     </svg>
   );
 }

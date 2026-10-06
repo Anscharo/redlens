@@ -1,12 +1,14 @@
 import { useMemo } from "react";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
-import { hasVenueAum, type SettlementReport } from "../../lib/settlements";
+import { collapseAum, hasVenueAum, type SettlementReport } from "../../lib/settlements";
 import { hasStreams, streamModel } from "@/lib/settlementStreams";
 import { Tooltip } from "../Tooltip";
 import { useTweened } from "../../hooks/useTweened";
 import { tweenStreamModel, tweenVenues } from "../../lib/mscTween";
 import { SettlementArc } from "./SettlementArc";
 import { SettlementAum } from "./SettlementAum";
+import { arcSources } from "../../lib/settlementArcRows";
+import { venueInks } from "../../lib/venueInks";
 
 const venuesCodec = urlString(null);
 /** A month change on the venue charts, slower than the overview's: a
@@ -25,6 +27,11 @@ export function ActorSettlementVenues({
   const target = useMemo(() => streamModel(report), [report]);
   const model = useTweened(target, tweenStreamModel, SETTLE_TWEEN_MS);
   const venues = useTweened(report.venues, tweenVenues, SETTLE_TWEEN_MS);
+  // One colour per venue across both views, from the month being shown.
+  const inks = useMemo(() => {
+    const arc = arcSources(target);
+    return venueInks([...arc.revenue, ...arc.sde].map((v) => v.venue), collapseAum(report.venues).map((v) => v.id));
+  }, [target, report.venues]);
   const flows = hasStreams(target);
   const aum = hasVenueAum(report);
   // ?venues=aum; the flows are the default and need no param.
@@ -73,8 +80,8 @@ export function ActorSettlementVenues({
           </Tooltip>
         </div>
       )}
-      {showFlows && <SettlementArc model={model} primeLabel={name} month={report.month} />}
-      {showAum && <SettlementAum venues={venues} />}
+      {showFlows && <SettlementArc model={model} primeLabel={name} month={report.month} inks={inks} />}
+      {showAum && <SettlementAum venues={venues} inks={inks} />}
     </>
   );
 }
