@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MAX_CONVERSATION_TITLE_LEN, type ConversationSummary } from "../../lib/conversationsApi";
 import { formatTokens } from "../../lib/formatTokens";
+import { ConversationActions } from "./ConversationActions";
 
 const UNTITLED = "Untitled chat";
 
@@ -20,8 +21,8 @@ function isInteractiveDescendant(target: EventTarget | null, container: Element)
 
 // Single conversation row: title (inline-editable), updated date + message,
 // context and citation counts, a "View collection" button (the conversation's
-// auto collection of cited docs) and, right-aligned, Rename/Delete. Mirrors CollectionCard, with one
-// structural difference — the row itself is the "open" affordance (clicking
+// auto collection of cited docs) and, right-aligned, Rename/Delete (see
+// ConversationActions). Mirrors CollectionCard, with one structural difference — the row itself is the "open" affordance (clicking
 // anywhere on it opens the chat widget on this conversation, no navigation),
 // so it can't be a plain <button> (Rename/Delete would then be invalid nested
 // interactive content). It's an <article role="button"> with tabIndex +
@@ -112,36 +113,12 @@ export function ConversationCard({
         {` · ${conversation.citationCount} ${conversation.citationCount === 1 ? "citation" : "citations"}`}
       </p>
 
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          className="mono text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[var(--hover)] disabled:opacity-50 disabled:cursor-default disabled:hover:bg-transparent"
-          style={{ borderColor: "var(--border)", color: "var(--accent)" }}
-          disabled={conversation.citationCount === 0}
-          title={conversation.citationCount === 0 ? "No cited documents yet" : "Open the cited documents in the reader"}
-          onClick={onViewCollection}
-        >
-          View collection
-        </button>
-        <div className="flex gap-2 ml-auto">
-          <button
-            type="button"
-            className="mono text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[var(--hover)]"
-            style={{ borderColor: "var(--border)", color: "var(--tan-3)" }}
-            onClick={() => setEditing(true)}
-          >
-            Rename
-          </button>
-          <button
-            type="button"
-            className="mono text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[var(--hover)]"
-            style={{ borderColor: "var(--border)", color: "var(--error-text)" }}
-            onClick={onDelete}
-          >
-            Delete
-          </button>
-        </div>
-      </div>
+      <ConversationActions
+        citationCount={conversation.citationCount}
+        onViewCollection={onViewCollection}
+        onRename={() => setEditing(true)}
+        onDelete={onDelete}
+      />
     </article>
   );
 }

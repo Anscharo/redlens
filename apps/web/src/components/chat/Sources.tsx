@@ -51,15 +51,22 @@ export interface CollectionLink {
   failed: boolean;
 }
 
-function ViewCollection({ link }: { link: CollectionLink }) {
+// "citations · N", plus "— view in collection" once the conversation has a
+// collection to open.
+function SourcesLabel({ count, collection }: { count: number; collection?: CollectionLink }) {
   return (
-    <>
-      <span aria-hidden="true"> — </span>
-      <button type="button" className="rlc-sources-link" onClick={link.onView}>
-        view in collection
-      </button>
-      {link.failed && <span role="alert"> (couldn’t open)</span>}
-    </>
+    <p className="rlc-sources-label">
+      <span>citations · {count}</span>
+      {collection && (
+        <>
+          <span aria-hidden="true"> — </span>
+          <button type="button" className="rlc-sources-link" onClick={collection.onView}>
+            view in collection
+          </button>
+          {collection.failed && <span role="alert"> (couldn’t open)</span>}
+        </>
+      )}
+    </p>
   );
 }
 
@@ -90,10 +97,7 @@ export function Sources({ sources, marks, collection, onAtlas }: SourcesProps) {
   if (!sources.length) return null;
   return (
     <div className="rlc-sources">
-      <p className="rlc-sources-label">
-        <span>citations · {sources.length}</span>
-        {collection && <ViewCollection link={collection} />}
-      </p>
+      <SourcesLabel count={sources.length} collection={collection} />
       <div className="rlc-sources-chips">
         {sources.map((s) => (
           <SourceChip
