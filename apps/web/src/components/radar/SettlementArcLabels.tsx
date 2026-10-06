@@ -4,7 +4,7 @@ import type { StreamModel } from "@/lib/settlementStreams";
 import { citationFor } from "@/lib/settlementCitations";
 import { ROUTES, atlasHref } from "@/lib/routes";
 import { textWidth } from "../../lib/textWidth";
-import { CX, CY, INNER0, OUTER_END, PRIME_HALF, type ArcLayout, type VenueBand } from "../../lib/settlementArcLayout";
+import { CX, CY, OUTER_END, type VenueBand } from "../../lib/settlementArcLayout";
 import { SvgRouteLink } from "./SvgRouteLink";
 
 export const UNCITED = "A workbook figure: the Atlas defines no term for it";
@@ -15,7 +15,7 @@ const VENUE_FONT = "11px 'Inter', system-ui, sans-serif";
 export function Cited({ figure, x, y, children, className = "" }: { figure: string; x: number; y: number; children: ReactNode; className?: string }) {
   const c = citationFor(figure);
   const text = (
-    <text x={x} y={y} textAnchor="middle" className={`${c ? "msc-arc-cited" : "msc-arc-uncited"} ${className}`}>
+    <text x={x} y={y} className={`${c ? "msc-arc-cited" : "msc-arc-uncited"} ${className}`}>
       <title>{c ? `${c.term} — open in the Atlas` : UNCITED}</title>
       {children}
     </text>
@@ -29,18 +29,6 @@ function fit(label: string, room: number): string {
   let s = label;
   while (s.length > 1 && textWidth(`${s}…`, VENUE_FONT, 6.2) > room) s = s.slice(0, -1);
   return `${s}…`;
-}
-
-/** The Prime as an outlined bar across the apex, spanning the demand lane
- *  and the pool: venue revenue ends at its left side, cost of funds and
- *  kept leave its right, and the demand arrow ends at its right. */
-export function PrimeBar({ span, model, primeLabel }: { span: ArcLayout["prime"]; model: StreamModel; primeLabel: string }) {
-  if (!span) return null;
-  return (
-    <rect x={CX - PRIME_HALF} y={CY - span.r1 - 2} width={PRIME_HALF * 2} height={span.r1 - span.r0 + 4} rx={3} className="msc-arc-prime">
-      <title>{`${primeLabel}: keeps ${formatUsd(model.kept)}, receives ${formatUsd(model.demandTotal)} from Sky`}</title>
-    </rect>
-  );
 }
 
 /** Each band's venue name beside where it starts, right-aligned to it, so
@@ -58,16 +46,17 @@ export function VenueLabels({ venues }: { venues: VenueBand[] }) {
   );
 }
 
-/** Node names and lane totals: Sky under its foot, the Prime
- *  over the apex with what it keeps (a workbook figure, muted). */
+/** Node names and lane totals: Sky right of its node, the Prime over the
+ *  apex with what it keeps (a workbook figure, muted). */
 export function ArcNodeLabels({ model, primeLabel, month }: { model: StreamModel; primeLabel: string; month?: string }) {
-  const sky = <text x={CX + (INNER0 + OUTER_END) / 2} y={CY + 26} textAnchor="middle" className="msc-arc-node-name">SKY</text>;
+  const x = CX + OUTER_END + 10;
+  const sky = <text x={x} y={CY + 4} className="msc-arc-node-name">SKY</text>;
   const keptLoss = model.kept < 0;
   return (
     <g className="mono" fontSize={10}>
       {month ? <SvgRouteLink to={`${ROUTES.RADAR}?msc=${month}`} className="msc-arc-link" label="Open this month in the ecosystem Monthly Settlement Cycle overview">{sky}</SvgRouteLink> : sky}
-      <Cited figure="toSky" x={CX + (INNER0 + OUTER_END) / 2} y={CY + 40}>{`To Sky ↻ ${formatUsd(model.toSky, true)}`}</Cited>
-      <Cited figure="fromSky" x={CX + (INNER0 + OUTER_END) / 2} y={CY + 54}>{`↺ From Sky ${formatUsd(model.demandTotal, true)}`}</Cited>
+      <Cited figure="toSky" x={x} y={CY - 14}>{`to Sky ${formatUsd(model.toSky, true)}`}</Cited>
+      <Cited figure="fromSky" x={x} y={CY + 22}>{`from Sky ${formatUsd(model.demandTotal, true)}`}</Cited>
       <text x={CX} y={CY - OUTER_END - 28} textAnchor="middle" fontSize={12} className="msc-arc-node-name">{primeLabel}</text>
       <text x={CX} y={CY - OUTER_END - 13} textAnchor="middle" className={`msc-arc-uncited${keptLoss ? " msc-arc-loss" : ""}`}>
         <title>{`${keptLoss ? "Supply-side loss" : "Supply-side kept"}. ${UNCITED}.`}</title>

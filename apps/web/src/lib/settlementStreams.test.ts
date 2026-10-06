@@ -62,6 +62,12 @@ describe("streamModel", () => {
     expect(m.venues.some((v) => v.id === "ZERO")).toBe(false);
   });
 
+  it("never folds a venue with Sky Direct Exposure, however small", () => {
+    const many = Array.from({ length: 15 }, (_, i) => venue(`V${i}`, 1_000 * (i + 1), 100));
+    const m = streamModel(report([...many, venue("SDE", 0, 0, 50)]), 12);
+    expect(m.venues.map((v) => v.id).slice(12)).toEqual(["SDE", OTHER_ID]);
+  });
+
   it("draws a demand-only Prime by its demand lane", () => {
     const m = streamModel(report([], { agentRate: 30_000, distributionRewards: 5_000 }));
     expect(m.venues).toHaveLength(0);

@@ -208,7 +208,7 @@ describe("ActorSettlements", () => {
     expect(screen.getByRole("button", { name: /Play through the months/ })).toBeInTheDocument();
     // No identity swatch on the card; what stays with the Prime is supply-side green.
     expect(container.querySelector(".msc-identity-swatch")).toBeNull();
-    expect(container.querySelector(".msc-arc-band[data-key='kept'] .msc-arc-body[stroke='var(--msc-kept)']")).toBeInTheDocument();
+    expect(container.querySelector("rect.msc-arc-node-kept")).toBeInTheDocument();
     expect(container.querySelector("[fill='var(--msc-prime-1)'], [stroke='var(--msc-prime-1)']")).not.toBeInTheDocument();
   });
 
@@ -253,7 +253,7 @@ describe("ActorSettlements", () => {
     const row = screen.getByRole("cell", { name: /SparkLend USDS/ }).closest("tr")!;
     expect(row).toHaveAttribute("data-venue", "S1");
     expect(document.querySelector('.msc-arc-band[data-venue="S1"]')).toBeInTheDocument();
-    expect(document.querySelector("rect.msc-arc-prime")).toBeInTheDocument();
+    expect(document.querySelector("rect.msc-arc-node")).toBeInTheDocument();
     expect(document.querySelector('.msc-arc-venue-label[data-venue="S1"]')).toBeInTheDocument();
     expect(document.querySelector('.msc-arc-link[href$="id=e98ddd17-a8c3-4523-8464-cc41247c66e8"]')).toBeInTheDocument();
     // The venue table lists what venues earn, not the pro-rata CoF split.

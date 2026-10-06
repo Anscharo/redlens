@@ -1,37 +1,41 @@
-// A Prime's settlement month as a rainbow over one centre on the baseline:
-// venues at the left foot (angle π), the Prime at the apex (3π/2), Sky at
-// the right foot (2π). Angles grow clockwise on screen.
+// A Prime's settlement month as one circle, every flow clockwise: venues at
+// the left (angle π), the Prime at the top (3π/2), Sky at the right (0).
+// Angles grow clockwise on screen.
 //
-// OUTER lane, clockwise. Each venue's revenue to the Prime runs up to the
-// Prime bar and stops there: it pools at the Prime. Out of the pool the
-// Prime pays Sky its cost of funds, one Prime-level band on to Sky, since
-// it is a charge on the USDS the Prime borrowed (A.3.1.2.5) rather than any
-// one venue's money; what is left is kept, a short stub ending just past
-// the bar. When cost of funds exceeds the pool, the difference is a striped
-// shortfall stub entering the bar instead. Outside the pool, each venue's
-// Sky Direct Exposure runs past the Prime straight to Sky. Cost of funds
-// plus SDE is the amount due from the Prime to Sky (A.2.4.1.2.2.1.1.2).
+// OUTER lane, the top half. Each venue's revenue runs up to the Prime and
+// stops: it pools there. Out of the pool the Prime pays Sky its cost of
+// funds, one Prime-level band on to Sky, since it is a charge on the USDS
+// the Prime borrowed (A.3.1.2.5) rather than any one venue's money. Inside
+// the pool, each venue's Sky Direct Exposure runs past the Prime straight
+// to Sky, through a gap in the Prime node. SDE sits innermost so it meets
+// cost of funds at Sky with no gap: together they are the amount due from
+// the Prime to Sky (A.2.4.1.2.2.1.1.2).
 //
-// INNER lane, counterclockwise, Sky → Prime: the demand side
-// (A.2.4.1.2.2.1.1.1). It stacks inward from the gap between the lanes, so
-// the lanes stay close however thin the demand side is. The lanes are
-// never netted, so each is drawn whole.
+// INNER lane, three quarters of the circle: from Sky down round the bottom,
+// past the venues, up into the Prime. The demand side (A.2.4.1.2.2.1.1.1).
+//
+// Node lengths are amounts on the one scale the bands use. The Prime node
+// has two pieces: the pool (venue revenue, or cost of funds when that is
+// larger) and the demand received. What stays — kept, revenue less cost of
+// funds — is the pool's outer part with no band leaving it, filled in.
+// Sky's node has the to-Sky piece and the from-Sky piece. The two amounts
+// are never netted, so neither node is drawn as one total.
 //
 // One width scale for both lanes: the larger fills BAND. The radii are
-// fixed, so a month change only re-widths bands — the arch never moves.
+// fixed, so a month change only re-widths bands — the circle never moves.
 import type { StreamModel } from "@/lib/settlementStreams";
 import { arcArrowHead, arcPath } from "./arcGeometry";
 import { NEAR, arcSources, type ArcFlow } from "./settlementArcRows";
 
 export const BAND = 104;
 /** The demand lane's outer edge; its bands stack inward from here. */
-const INNER_OUT = 160;
-export const INNER0 = INNER_OUT - BAND;
+export const INNER_OUT = 160;
 const LANE_GAP = 16;
 export const OUTER0 = INNER_OUT + LANE_GAP;
-/** Half the Prime bar's width. */
-export const PRIME_HALF = 5;
 export const OUTER_END = OUTER0 + BAND;
+/** Half the Prime node's and Sky node's thickness. */
+export const PRIME_HALF = 7;
+export const SKY_HALF = 4;
 const HEAD_LEN = 14;
 export const HEAD_FLARE = 4;
 /** Thinnest band drawn, so a cent-sized figure is still visible. */
@@ -41,21 +45,20 @@ const VENUE_MIN_W = 6;
 /** Each venue band starts this much further up the arch than the one inside
  *  it, so venues read as separate sources rather than one block. */
 const STAGGER = 0.11;
-/** Arc length of the kept and shortfall stubs beside the bar. */
-const STUB = 26;
 const LEFT = Math.PI;
 const APEX = 1.5 * Math.PI;
-const RIGHT = 2 * Math.PI;
+const SKY = 2 * Math.PI;
 /** Demand series inward from the gap: the cited ones first, GAR (no Atlas
  *  term) last. */
 const INNER_ORDER = ["agentRate", "distributionRewards", "chroniclePoints", "gar"];
 
-/** Room left of the arch for the venue names beside each band's start. */
+/** Room left of the circle for the venue names, right of it for Sky's. */
 const LABEL_GUTTER = 170;
+const SKY_GUTTER = 120;
 export const CX = LABEL_GUTTER + OUTER_END + HEAD_FLARE + 12;
 export const CY = OUTER_END + 52;
-export const WIDTH = CX + OUTER_END + HEAD_FLARE + 12;
-export const HEIGHT = CY + 68;
+export const WIDTH = CX + OUTER_END + SKY_GUTTER;
+export const HEIGHT = CY + INNER_OUT + HEAD_FLARE + 16;
 
 export interface ArcBand {
   key: string;
@@ -75,31 +78,44 @@ export interface VenueBand extends ArcBand {
   labelAt: { x: number; y: number };
 }
 
-/** One lane's arrowhead and dash overlay. */
+/** One lane's arrowhead (absent where it has none) and dash overlay. */
 export interface LaneEnd {
-  head: string;
+  head: string | null;
   flow: string;
   w: number;
 }
 
+/** A radial span [r0, r1] of a node. */
+export interface Span {
+  r0: number;
+  r1: number;
+}
+
 export interface ArcLayout {
-  revenue: VenueBand[];
   sde: VenueBand[];
+  revenue: VenueBand[];
   cof: ArcBand | null;
-  kept: ArcBand | null;
-  shortfall: ArcBand | null;
   demand: ArcBand[];
-  lanes: { revenue: LaneEnd | null; cof: LaneEnd | null; sde: LaneEnd | null; demand: LaneEnd | null };
-  /** The Prime bar's radial span: the demand lane and the pool, inside out. */
-  prime: { r0: number; r1: number } | null;
+  lanes: { sde: LaneEnd | null; revenue: LaneEnd | null; toSky: LaneEnd | null; demand: LaneEnd | null };
+  prime: {
+    /** Venue revenue (or cost of funds, if larger) arriving. */
+    pool: Span | null;
+    /** The part of the pool no band leaves: kept, or the shortfall. */
+    kept: (Span & { loss: boolean }) | null;
+    demand: Span | null;
+  };
+  sky: { toSky: Span | null; fromSky: Span | null };
 }
 
 const width = (v: number, scale: number, min = MIN_W) => Math.max(min, Math.abs(v) * scale);
 const labelAt = (r: number, w: number, a: number) => ({ x: CX + (r + w / 2) * Math.cos(a) - 8, y: CY + r * Math.sin(a) });
-/** The angle at which radius r meets the Prime bar's side. */
+/** The angle at which radius r meets the Prime node's left (−1) or right
+ *  (1) side, or Sky's node's top (−1) or bottom (1). */
 const primeEdge = (r: number, side: 1 | -1) => APEX + (side * PRIME_HALF) / r;
+const skyEdge = (r: number, side: 1 | -1) => (side === 1 ? 0 : SKY) + (side * SKY_HALF) / r;
 const start = (i: number) => LEFT + i * STAGGER;
 const total = (rows: { value: number }[]) => rows.reduce((n, r) => n + Math.abs(r.value), 0);
+const span = (r0: number, r1: number): Span | null => (r1 - r0 >= NEAR ? { r0, r1 } : null);
 
 /** Bands stacked from r0, outward (dir 1) or inward (−1). */
 function stack<T extends { value: number }>(rows: T[], r0: number, scale: number, dir: 1 | -1 = 1, min = MIN_W) {
@@ -113,13 +129,13 @@ function stack<T extends { value: number }>(rows: T[], r0: number, scale: number
   return { out, edge };
 }
 
-/** The head and dash line for a lane spanning [r0, r1] from `from` to
- *  `tip`, travelling in direction `dir`; `stop` is where its bands end. */
-function laneEnd(r0: number, r1: number, from: number, tip: number, dir: 1 | -1): LaneEnd & { stop: number } {
+/** The clockwise head and dash line for a lane spanning [r0, r1] from
+ *  `from` to `tip`; `stop` is where its bands end. */
+function laneEnd(r0: number, r1: number, from: number, tip: number): LaneEnd & { stop: number } {
   const r = (r0 + r1) / 2;
   const w = r1 - r0;
-  const stop = tip - (dir * HEAD_LEN) / r;
-  return { stop, w, head: arcArrowHead(CX, CY, r, w, stop, dir, HEAD_LEN, HEAD_FLARE), flow: arcPath(CX, CY, r, from, stop) };
+  const stop = tip - HEAD_LEN / r;
+  return { stop, w, head: arcArrowHead(CX, CY, r, w, stop, 1, HEAD_LEN, HEAD_FLARE), flow: arcPath(CX, CY, r, from, stop) };
 }
 
 /** Venue bands from staggered starts to `stop`; band i starts at slot i0+i. */
@@ -127,50 +143,43 @@ function venueBands(rows: (ArcFlow & { r: number; w: number; loss: boolean })[],
   return rows.map((b, i) => ({ ...b, d: arcPath(CX, CY, b.r, start(i0 + i), stop), labelAt: labelAt(b.r, b.w, start(i0 + i)) }));
 }
 
-/** Kept (pool wider than cost of funds) as a stub leaving the bar's right
- *  side, or the shortfall (narrower) as a stub entering its left. */
-function remainder(poolEdge: number, cofEdge: number, kept: number) {
-  const gap = poolEdge - cofEdge;
-  if (Math.abs(gap) < NEAR) return { kept: null, shortfall: null };
-  const r = (poolEdge + cofEdge) / 2;
-  const w = Math.abs(gap);
-  const sweep = (PRIME_HALF + STUB) / r;
-  if (gap > 0) return { kept: { key: "kept", value: kept, r, w, loss: false, d: arcPath(CX, CY, r, primeEdge(r, 1), APEX + sweep) }, shortfall: null };
-  return { kept: null, shortfall: { key: "shortfall", value: kept, r, w, loss: true, d: arcPath(CX, CY, r, APEX - sweep, primeEdge(r, -1)) } };
-}
-
 export function layoutSettlementArc(m: StreamModel): ArcLayout {
   const src = arcSources(m);
   const cofV = Math.abs(m.cof) >= NEAR ? m.cof : 0;
   const demandRows = [...m.demand].sort((a, b) => INNER_ORDER.indexOf(a.key) - INNER_ORDER.indexOf(b.key));
-  const max = Math.max(Math.max(total(src.revenue), Math.abs(cofV)) + total(src.sde), total(demandRows));
+  const max = Math.max(total(src.sde) + Math.max(total(src.revenue), Math.abs(cofV)), total(demandRows));
   const scale = max > 0 ? BAND / max : 0;
 
-  const rev = stack(src.revenue, OUTER0, scale, 1, VENUE_MIN_W);
-  const cofEdge = cofV ? OUTER0 + width(cofV, scale) : OUTER0;
-  const pool = Math.max(rev.edge, cofEdge);
-  const sde = stack(src.sde, pool, scale, 1, VENUE_MIN_W);
-  const n = rev.out.length;
-  const revenueLane = n ? laneEnd(OUTER0, rev.edge, start(n - 1), primeEdge((OUTER0 + rev.edge) / 2, -1), 1) : null;
-  const cofR = (OUTER0 + cofEdge) / 2;
-  const cofLane = cofV ? laneEnd(OUTER0, cofEdge, primeEdge(cofR, 1), RIGHT, 1) : null;
-  const sdeLane = sde.out.length ? laneEnd(pool, sde.edge, start(n + sde.out.length - 1), RIGHT, 1) : null;
+  const sde = stack(src.sde, OUTER0, scale, 1, VENUE_MIN_W);
+  const rev = stack(src.revenue, sde.edge, scale, 1, VENUE_MIN_W);
+  const cofEdge = cofV ? sde.edge + width(cofV, scale) : sde.edge;
+  const poolEdge = Math.max(rev.edge, cofEdge);
+  const ns = sde.out.length;
+  const nr = rev.out.length;
+  const toSkyR = (OUTER0 + cofEdge) / 2;
+  const toSky = cofEdge > OUTER0 ? laneEnd(OUTER0, cofEdge, APEX, skyEdge(toSkyR, -1)) : null;
+  const revenue = nr ? laneEnd(sde.edge, rev.edge, start(ns + nr - 1), primeEdge((sde.edge + rev.edge) / 2, -1)) : null;
+  const sdeFlow = ns ? { head: null, w: sde.edge - OUTER0, flow: arcPath(CX, CY, (OUTER0 + sde.edge) / 2, start(ns - 1), APEX) } : null;
   const d = stack(demandRows, INNER_OUT, scale, -1);
-  const demandLane = d.out.length ? laneEnd(d.edge, INNER_OUT, RIGHT, primeEdge((d.edge + INNER_OUT) / 2, 1), -1) : null;
+  const demandR = (d.edge + INNER_OUT) / 2;
+  const demand = d.out.length ? laneEnd(d.edge, INNER_OUT, skyEdge(demandR, 1), primeEdge(demandR, -1)) : null;
+  const cofR = (sde.edge + cofEdge) / 2;
   return {
-    revenue: venueBands(rev.out, 0, revenueLane?.stop ?? APEX),
-    sde: venueBands(sde.out, n, sdeLane?.stop ?? RIGHT),
-    cof: cofLane ? { key: "cof", value: cofV, r: cofR, w: cofEdge - OUTER0, loss: cofV < 0, d: arcPath(CX, CY, cofR, primeEdge(cofR, 1), cofLane.stop) } : null,
-    ...remainder(rev.edge, cofEdge, m.kept),
-    demand: d.out.map((b) => ({ key: b.key, value: b.value, r: b.r, w: b.w, loss: b.loss, d: arcPath(CX, CY, b.r, RIGHT, demandLane!.stop) })),
-    lanes: { revenue: revenueLane, cof: cofLane, sde: sdeLane, demand: demandLane },
-    prime: primeSpan(d.out.length ? d.edge : null, pool > OUTER0 ? pool : null),
+    sde: venueBands(sde.out, 0, toSky?.stop ?? SKY),
+    revenue: venueBands(rev.out, ns, revenue?.stop ?? APEX),
+    cof: cofV && toSky ? { key: "cof", value: cofV, r: cofR, w: cofEdge - sde.edge, loss: cofV < 0, d: arcPath(CX, CY, cofR, primeEdge(cofR, 1), toSky.stop) } : null,
+    demand: d.out.map((b) => ({ key: b.key, value: b.value, r: b.r, w: b.w, loss: b.loss, d: arcPath(CX, CY, b.r, skyEdge(b.r, 1), demand!.stop) })),
+    lanes: { sde: sdeFlow, revenue, toSky, demand },
+    prime: {
+      pool: span(sde.edge, poolEdge),
+      kept: rev.edge > cofEdge ? keptSpan(cofEdge, rev.edge, false) : keptSpan(rev.edge, cofEdge, true),
+      demand: span(d.edge, INNER_OUT),
+    },
+    sky: { toSky: span(OUTER0, cofEdge), fromSky: span(d.edge, INNER_OUT) },
   };
 }
 
-/** The bar spans from the demand lane's inner edge to the pool's outer edge;
- *  with one empty, just the other. SDE passes outside it. */
-function primeSpan(innerEdge: number | null, outerEdge: number | null): ArcLayout["prime"] {
-  if (innerEdge === null && outerEdge === null) return null;
-  return { r0: innerEdge ?? OUTER0, r1: outerEdge ?? INNER_OUT };
+function keptSpan(r0: number, r1: number, loss: boolean) {
+  const s = span(r0, r1);
+  return s ? { ...s, loss } : null;
 }

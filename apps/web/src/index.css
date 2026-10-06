@@ -3219,12 +3219,22 @@ a.atlas-annotates:focus-visible {
 .msc-arc-venue-label {
   fill: var(--tan-2);
 }
-/* The Prime bar is an outline, so the bands meeting it stay visible on
-   both sides of it. */
-.msc-arc-prime {
+/* Node pieces are outlines, so the bands meeting them stay visible; the
+   part of the Prime's pool it keeps is filled in. */
+.msc-arc-node {
   fill: var(--bg-deep);
   fill-opacity: 0.25;
   stroke: var(--tan);
+  stroke-width: 1.5;
+}
+.msc-arc-node-kept {
+  fill: var(--msc-kept);
+  stroke: var(--tan);
+  stroke-width: 1.5;
+}
+.msc-arc-node-loss {
+  fill: url(#msc-arc-loss);
+  stroke: var(--msc-loss);
   stroke-width: 1.5;
 }
 .msc-arc-sky {
