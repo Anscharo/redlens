@@ -17,38 +17,20 @@
 // classifyDiff or written to storage; the stored DB diff is untouched.
 
 import type { DiffLine, WordSegment } from "@/lib/history";
-import { lcsOps, mergeOps } from "@/lib/diffCore";
+import { mergeOps } from "@/lib/diffCore";
 import { isStructuredLine, segmentSentences, changeStats, shouldPromote, MIN_REFINE_RATIO } from "./diffSentences";
 import { fencedFlags } from "./diffFences";
 import { refineSentencePair } from "./diffSubclause";
+import { assembleRegions, unitOps, type UnitOp } from "./diffRegions";
 
-type SentenceOp = { op: "=" | "-" | "+"; text: string };
+type SentenceOp = UnitOp;
 
 /** LCS over sentence arrays, comparing on `trimEnd()`-normalized text but
- *  recovering the ORIGINAL sentence slices (so joining "="+"-" segments still
- *  reconstructs oldLine, and "="+"+" reconstructs newLine, up to inter-sentence
- *  whitespace). "=" ops emit the NEW side's original slice. */
+ *  recovering the ORIGINAL sentence slices (see unitOps in ./diffRegions), so
+ *  joining "="+"-" segments still reconstructs oldLine, and "="+"+"
+ *  reconstructs newLine, up to inter-sentence whitespace. */
 function sentenceOps(oldSentences: string[], newSentences: string[]): SentenceOp[] {
-  const oldKeys = oldSentences.map((s) => s.trimEnd());
-  const newKeys = newSentences.map((s) => s.trimEnd());
-  const raw = lcsOps(oldKeys, newKeys);
-  const out: SentenceOp[] = [];
-  let i = 0;
-  let j = 0;
-  for (const [op] of raw) {
-    if (op === "=") {
-      out.push({ op: "=", text: newSentences[j] });
-      i++;
-      j++;
-    } else if (op === "-") {
-      out.push({ op: "-", text: oldSentences[i] });
-      i++;
-    } else {
-      out.push({ op: "+", text: newSentences[j] });
-      j++;
-    }
-  }
-  return out;
+  return unitOps(oldSentences, newSentences, (s) => s.trimEnd());
 }
 
 /** Count maximal runs of non-"=" ops in a sentence-op sequence — i.e. how
@@ -73,46 +55,12 @@ function countSentenceRegions(ops: SentenceOp[]): number {
   return runs;
 }
 
-/** Walk sentence ops region-by-region (mirrors pairAdjacentLines in
- *  diffCore): each maximal run of "-" ops followed by "+" ops between "="
- *  ops is one region. Sentences pair 1:1 by position within a region, each
- *  refined via refineSentencePair (word diff, then subclause alignment if
- *  that promotes — see ./diffSubclause). Collapsing an entire region to one
- *  "-" block + one "+" block requires EVERY pair to have come back a
- *  genuine fullSwap (no shared subclause at all), plus more than one pair or
- *  unpaired leftovers — otherwise each pair's own segs are emitted in order
- *  (a mixed subclause result keeps its internal "=" content), followed by
- *  unpaired leftover sentences as plain "-"/"+" segments. */
+/** Assemble sentence ops region-by-region (see assembleRegions): sentences
+ *  pair 1:1 by position within a region, each refined via refineSentencePair
+ *  (word diff, then subclause alignment if that promotes — see
+ *  ./diffSubclause). */
 function buildSegments(ops: SentenceOp[]): WordSegment[] {
-  const result: WordSegment[] = [];
-  let k = 0;
-  while (k < ops.length) {
-    if (ops[k].op === "=") {
-      result.push(["=", ops[k].text]);
-      k++;
-      continue;
-    }
-    const removals: string[] = [];
-    while (k < ops.length && ops[k].op === "-") removals.push(ops[k++].text);
-    const additions: string[] = [];
-    while (k < ops.length && ops[k].op === "+") additions.push(ops[k++].text);
-
-    const pairs = Math.min(removals.length, additions.length);
-    const decisions: { segs: WordSegment[]; fullSwap: boolean }[] = [];
-    for (let p = 0; p < pairs; p++) decisions.push(refineSentencePair(removals[p], additions[p]));
-
-    const allFullSwap = pairs > 0 && decisions.every((d) => d.fullSwap);
-    const hasLeftovers = removals.length !== additions.length;
-    if (allFullSwap && (pairs > 1 || hasLeftovers)) {
-      result.push(["-", removals.join("")]);
-      result.push(["+", additions.join("")]);
-    } else {
-      for (const d of decisions) result.push(...d.segs);
-      for (let p = pairs; p < removals.length; p++) result.push(["-", removals[p]]);
-      for (let p = pairs; p < additions.length; p++) result.push(["+", additions[p]]);
-    }
-  }
-  return result;
+  return assembleRegions(ops, refineSentencePair);
 }
 
 function isWellFormedTilde(line: unknown): line is ["~", WordSegment[]] {
