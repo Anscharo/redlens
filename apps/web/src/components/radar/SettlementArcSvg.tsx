@@ -1,10 +1,10 @@
 import { formatUsd } from "../../lib/settlements";
 import type { StreamModel } from "@/lib/settlementStreams";
-import { CX, CY, HEAD_FLARE, HEIGHT, INNER0, OUTER0, OUTER_END, WIDTH, type ArcBand, type ArcLayout, type LaneEnd, type VenueBand } from "../../lib/settlementArcLayout";
+import { ARC_OTHER_ID, CX, CY, HEAD_FLARE, HEIGHT, INNER0, OUTER0, OUTER_END, WIDTH, type ArcBand, type ArcLayout, type LaneEnd, type VenueBand } from "../../lib/settlementArcLayout";
 import { ArcNodeLabels, PrimeNode, VenueLabels } from "./SettlementArcLabels";
+import { venueFill } from "./SettlementAum";
 
-/** Demand bands wear their series' colour; venues alternate the Sky shades
- *  so neighbours stay apart, with the folded tail in a neutral. */
+/** Demand bands and kept wear their series' colour. */
 const INK: Record<string, string> = {
   kept: "var(--msc-kept)",
   agentRate: "var(--msc-rate)",
@@ -13,8 +13,8 @@ const INK: Record<string, string> = {
   chroniclePoints: "var(--msc-cp)",
 };
 export const arcInk = (key: string) => INK[key] ?? "var(--msc-demand)";
-const VENUE_INK = ["var(--msc-sky)", "var(--msc-sky-3)", "var(--msc-sky-2)", "var(--msc-sky-4)"];
-export const venueInk = (i: number, other: boolean) => (other ? "var(--tan-3)" : VENUE_INK[i % VENUE_INK.length]);
+/** A venue wears the same colour here as on the AUM view (venueFill). */
+export const venueInk = (key: string) => venueFill(key === ARC_OTHER_ID ? "_other" : key);
 const LOSS = "url(#msc-arc-loss)";
 
 /** One band: a hit area under it for its tooltip, then the band. A hairline
@@ -76,7 +76,7 @@ export function SettlementArcSvg({ layout, model, primeLabel, month }: { layout:
       <Lane lane={layout.inner} ink={arcInk(demand[0]?.key ?? "")} />
       {kept && <Band b={kept} ink={arcInk("kept")} title={kept.loss ? `${primeLabel} paid ${formatUsd(-kept.value)} more cost of funds than its venues earned` : `${formatUsd(kept.value)} of venue revenue stays with ${primeLabel}`} />}
       <PrimeNode model={model} primeLabel={primeLabel} />
-      {venues.map((v, i) => <Band key={v.key} b={v} ink={venueInk(i, v.key.startsWith("_"))} venue={v.key} title={venueTitle(v, primeLabel)} />)}
+      {venues.map((v) => <Band key={v.key} b={v} ink={venueInk(v.key)} venue={v.key} title={venueTitle(v, primeLabel)} />)}
       <Lane lane={layout.outer} ink="var(--msc-sky)" />
       <VenueLabels venues={venues} />
       <ArcNodeLabels model={model} primeLabel={primeLabel} month={month} />

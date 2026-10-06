@@ -3189,8 +3189,14 @@ a.atlas-annotates:focus-visible {
 .msc-arc-flow {
   pointer-events: none;
 }
+/* Venue bands take any of the AUM view's colours, so names carry a halo
+   of the background to stay legible on light and dark bands alike. */
 .msc-arc-venue-label text {
-  fill: var(--msc-sky-ink);
+  fill: var(--tan);
+  paint-order: stroke;
+  stroke: var(--bg-deep);
+  stroke-width: 2.5px;
+  stroke-linejoin: round;
   font-weight: 500;
   pointer-events: none;
 }

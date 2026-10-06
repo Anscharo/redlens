@@ -35,6 +35,13 @@ function KeyItem({ figure, background, children }: { figure: string; background:
   );
 }
 
+/** The key's venue swatch: the first few venues' colours side by side. */
+function venueSwatch(keys: string[]): string {
+  const inks = keys.slice(0, 3).map(venueInk);
+  if (inks.length === 0) return "var(--msc-sky)";
+  return `linear-gradient(90deg, ${[...inks, inks[inks.length - 1]].join(", ")})`;
+}
+
 function KeyLink({ figure, children }: { figure: string; children: ReactNode }) {
   const c = citationFor(figure)!;
   return <AtlasLink to={atlasHref(c.uuid)} className="msc-arc-caption-link" title={c.term}>{children}</AtlasLink>;
@@ -54,7 +61,7 @@ export function SettlementArc({ model, primeLabel, month }: { model: StreamModel
       <div className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mb-2" style={{ color: "var(--tan-3)" }}>
         <KeyItem figure="kept" background={arcInk("kept")}>kept by {primeLabel}</KeyItem>
         <span>
-          <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background: venueInk(0, false) }} aria-hidden="true" />
+          <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background: venueSwatch(layout.venues.map((v) => v.key)) }} aria-hidden="true" />
           each venue&rsquo;s <KeyLink figure="cof">CoF</KeyLink> + <KeyLink figure="sde">SDE</KeyLink> → Sky
         </span>
         {model.demand.map((d) => <KeyItem key={d.key} figure={d.key} background={arcInk(d.key)}>{d.label}</KeyItem>)}
