@@ -10,9 +10,9 @@
 // leaves wider than it arrived. What the Prime keeps is filled in its
 // node from the middle up; a loss (cost larger than all the revenue) is
 // striped from the middle down. Innermost, each venue's Sky Direct Exposure runs
-// past the Prime straight to Sky, so it meets cost of funds at Sky with no
-// gap: together they are the amount due from the Prime to Sky
-// (A.2.4.1.2.2.1.1.2).
+// past the Prime straight to Sky, where it meets cost of funds under one
+// arrowhead: together they are the amount due from the Prime to Sky
+// (A.2.4.1.2.2.1.1.2). SDE_GAP of whitespace keeps it apart from the venues.
 //
 // INNER lane, three quarters of the circle: from Sky down round the bottom,
 // past the venues, up into the Prime. The demand side (A.2.4.1.2.2.1.1.1).
@@ -56,6 +56,9 @@ const FULL_SCALE_USD = 10_000_000;
 const MIN_W = 1.5;
 /** Thinnest venue band, so each named band has some girth. */
 const VENUE_MIN_W = 6;
+/** Whitespace between the SDE bands and the venue bands outside them, so
+ *  the pass-through reads apart from the Prime's own revenue and cost. */
+const SDE_GAP = 2;
 /** Each venue band starts this much further up the arch than the one inside
  *  it, so venues read as separate sources rather than one block. */
 const STAGGER = 0.11;
@@ -200,15 +203,18 @@ export function layoutSettlementArc(m: StreamModel): ArcLayout {
   // Left of the Prime the venues stack by revenue; right of it, in the same
   // order, by cost of funds. What a venue's revenue band has and its cost
   // band lacks stays with the Prime.
-  const rev = stack(revRows, sde.edge, scale, 1, VENUE_MIN_W);
-  const cof = stack(cofRows, sde.edge, scale, 1, VENUE_MIN_W);
-  const cofEdge = cof.edge;
-  const poolEdge = Math.max(rev.edge, cofEdge);
   const ns = sde.out.length;
+  const venue0 = ns ? sde.edge + SDE_GAP : OUTER0;
+  const rev = stack(revRows, venue0, scale, 1, VENUE_MIN_W);
+  const cof = stack(cofRows, venue0, scale, 1, VENUE_MIN_W);
+  // The to-Sky lane spans SDE, the gap and cost of funds; with no cost of
+  // funds it is SDE alone.
+  const cofEdge = cof.out.length ? cof.edge : sde.edge;
+  const poolEdge = Math.max(rev.edge, cof.edge);
   const nr = rev.out.length;
   const toSkyR = (OUTER0 + cofEdge) / 2;
   const toSky = cofEdge > OUTER0 ? laneEnd(OUTER0, cofEdge, APEX, skyEdge(toSkyR, -1)) : null;
-  const revenue = nr ? laneEnd(sde.edge, rev.edge, start(ns + nr - 1), primeEdge((sde.edge + rev.edge) / 2, -1)) : null;
+  const revenue = nr ? laneEnd(venue0, rev.edge, start(ns + nr - 1), primeEdge((venue0 + rev.edge) / 2, -1)) : null;
   const sdeFlow = ns ? { head: null, w: sde.edge - OUTER0, flow: arcPath(CX, CY, (OUTER0 + sde.edge) / 2, start(ns - 1), APEX) } : null;
   const d = stack(demandRows, INNER_OUT, scale, -1);
   const demandR = (d.edge + INNER_OUT) / 2;
@@ -220,7 +226,7 @@ export function layoutSettlementArc(m: StreamModel): ArcLayout {
     demand: d.out.map((b) => ({ key: b.key, value: b.value, r: b.r, w: b.w, loss: b.loss, d: arcPath(CX, CY, b.r, skyEdge(b.r, 1), demand!.stop) })),
     demandLabels: d.out.map((b, i) => demandLabel(b, i)),
     lanes: { sde: sdeFlow, revenue, toSky, demand },
-    prime: primeNode(nodeSpan(d.out.length ? d.edge : null, poolEdge > sde.edge ? sde.edge : null, poolEdge > sde.edge ? poolEdge : INNER_OUT), m.kept, scale),
+    prime: primeNode(nodeSpan(d.out.length ? d.edge : null, poolEdge > venue0 ? venue0 : null, poolEdge > venue0 ? poolEdge : INNER_OUT), m.kept, scale),
     sky: nodeSpan(d.out.length ? d.edge : null, cofEdge > OUTER0 ? OUTER0 : null, cofEdge > OUTER0 ? cofEdge : INNER_OUT),
     outerEdge: Math.max(poolEdge, cofEdge, INNER_OUT),
     top: CY - Math.max(poolEdge, cofEdge, INNER_OUT) - TOP_ROOM,

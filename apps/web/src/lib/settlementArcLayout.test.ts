@@ -86,10 +86,12 @@ describe("layoutSettlementArc", () => {
     const l = layoutSettlementArc(model([mv("A", 100, 50), mv("J", 0, 0, 50)]));
     const s = l.sde[0];
     expect(s.r - s.w / 2).toBeCloseTo(OUTER0);
-    expect(l.prime.span!.r0).toBeCloseTo(s.r + s.w / 2);
+    // 2px of whitespace between SDE and the venue bands.
+    expect(l.prime.span!.r0).toBeCloseTo(s.r + s.w / 2 + 2);
+    expect(l.revenue[0].r - l.revenue[0].w / 2).toBeCloseTo(s.r + s.w / 2 + 2);
     expect(arc(s.d).to[0]).toBeGreaterThan(CX + 100);
-    // At Sky, SDE + cost of funds meet with no gap: the amount due.
-    expect(l.sky!.r1 - l.sky!.r0).toBeCloseTo((BAND * 100) / 150);
+    // At Sky, SDE + cost of funds (plus the gap) meet: the amount due.
+    expect(l.sky!.r1 - l.sky!.r0).toBeCloseTo((BAND * 100) / 150 + 2);
   });
 
   it("runs the demand side clockwise from Sky round the bottom up into the Prime", () => {
