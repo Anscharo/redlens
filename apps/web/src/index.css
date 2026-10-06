@@ -3260,6 +3260,18 @@ a.atlas-annotates:focus-visible {
   stroke: var(--tan);
   stroke-width: 2;
 }
+.msc-ts-netrev-amount {
+  fill: var(--tan);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.msc-ts-netrev-note {
+  margin-left: 2px;
+  color: var(--tan-2);
+  cursor: help;
+}
 .msc-ts-netrev-dot {
   fill: var(--tan);
   stroke: var(--bg);

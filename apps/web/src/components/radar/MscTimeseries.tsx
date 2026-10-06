@@ -8,6 +8,7 @@ import { MscNetRevenueLine } from "./MscNetRevenueLine";
 import { SETTLEMENT_CITATIONS } from "@/lib/settlementCitations";
 import { atlasHref } from "@/lib/routes";
 import { AtlasLink } from "../AtlasLink";
+import { Tooltip } from "../Tooltip";
 
 // One stack per month: what each Prime sent TO SKY, in the Prime's identity
 // color, so the stack's top is the month's To-Sky total. Nothing else is
@@ -47,6 +48,10 @@ function ticksFor(posPeak: number, negPeak: number): number[] {
   for (let t = -step; t >= -negPeak; t -= step) out.push(t);
   return out;
 }
+
+/** Why the Net Revenue line starts where it does (skyNetRevenue.ts). */
+const NET_REVENUE_NOTE =
+  "From Soter Labs' consolidated sky_total report. The Atlas counts each settlement cycle in the month the cycle covers (A.2.3.1.2.1). Soter's reports do that from July 2026. Before then they counted each cycle in the month it was paid, one month later, and booked part of it with other expenses, so those months can't be re-dated cleanly. June's cycle was paid in July, as the basis changed, so no report counts it in June.";
 
 export interface MscTimeseriesProps {
   primes: string[];
@@ -92,9 +97,12 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect, 
           </span>
         ))}
         {line.length > 0 && (
-          <span title="Soter Labs' consolidated report; drawn from 2026-07, the first month it is reported on the Atlas's basis">
+          <span>
             <span className="inline-block w-3 h-0.5 mr-1 align-middle" style={{ background: "var(--tan)" }} />
             <AtlasLink to={atlasHref(SETTLEMENT_CITATIONS.netRevenue.uuid)} className="msc-ring-caption-link">Sky Net Revenue</AtlasLink>
+            <Tooltip content={NET_REVENUE_NOTE}>
+              <button type="button" className="msc-ts-netrev-note" aria-label="Why Sky Net Revenue starts in July 2026">*</button>
+            </Tooltip>
           </span>
         )}
       </p>
@@ -121,6 +129,7 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect, 
         </div>
         {line.length > 0 && (
           <MscNetRevenueLine months={monthKeys} values={netRevenue} width={width} height={TRACK_H}
+            tops={months.map((m) => m.skyParts.reduce((n, p) => n + Math.max(0, p.value), 0))}
             x={(i) => AXIS_W + i * (COL_W + GAP_PX) + COL_W / 2} y={y} />
         )}
       </div>

@@ -171,6 +171,8 @@ describe("MscTimeseries", () => {
     render(<MscTimeseries primes={PRIMES} months={MONTHS} primeLabel={label} selected="2026-07" onSelect={vi.fn()} netRevenue={netRevenue} />);
     expect(document.querySelectorAll(".msc-ts-netrev-dot")).toHaveLength(2);
     expect(document.querySelectorAll(".msc-ts-netrev-line")).toHaveLength(1);
+    expect([...document.querySelectorAll(".msc-ts-netrev-amount")].map((t) => t.textContent)).toEqual(["$3.00M", "$2.50M"]);
+    expect(screen.getByRole("button", { name: "Why Sky Net Revenue starts in July 2026" })).toHaveTextContent("*");
     expect(screen.getByRole("link", { name: "Sky Net Revenue" })).toHaveAttribute("href", expect.stringContaining("bddce7bf-c568-444b-b196-e15a99016696"));
   });
 
