@@ -3145,10 +3145,11 @@ a.atlas-annotates:focus-visible {
 }
 /* ─── A Prime's settlement arc (SettlementArc.tsx) ─── */
 /* Capped so the chart's text stays near its drawn size on wide screens. */
+/* Width is set inline to the figure's own size, one unit per pixel; it
+   shrinks to fit a narrow screen. */
 .msc-arc {
   display: block;
-  width: 100%;
-  max-width: 640px;
+  max-width: 100%;
   height: auto;
   margin: 0 auto;
   overflow: visible;

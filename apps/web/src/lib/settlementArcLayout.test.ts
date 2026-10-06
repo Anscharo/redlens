@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StreamModel, VenueStream } from "@/lib/settlementStreams";
-import { BAND, CX, CY, OUTER0, PRIME_HALF, layoutSettlementArc } from "./settlementArcLayout";
+import { ARRIVE_GAP, BAND, CX, CY, OUTER0, PRIME_HALF, layoutSettlementArc } from "./settlementArcLayout";
 import { ARC_OTHER_ID, ARC_TOP_N, arcSources } from "./settlementArcRows";
 
 const venue = (id: string, revenue: number, cof: number, sde = 0): VenueStream => ({ id, label: id, synthetic: false, revenue, sde, cof, kept: revenue - cof });
@@ -46,7 +46,7 @@ describe("layoutSettlementArc", () => {
     expect(l.lanes.revenue?.head).toMatch(/Z$/);
     const cof = arc(l.cof!.d);
     expect(cof.from[0] - CX).toBeCloseTo(PRIME_HALF, 0);
-    expect(cof.to[1]).toBeGreaterThan(CY - 30);
+    expect(cof.to[1]).toBeGreaterThan(CY - 60);
     // One scale: revenue 120 fills BAND, cost of funds is half of it.
     expect(l.cof!.w).toBeCloseTo(BAND / 2);
   });
@@ -86,7 +86,8 @@ describe("layoutSettlementArc", () => {
     // Three quarters of the circle: the large-arc flag is set.
     expect(l.demand[0].d).toMatch(/ 0 1 1 /);
     const tip = l.lanes.demand!.head!.split(" L")[1].split(",").map(Number);
-    expect(CX - tip[0]).toBeCloseTo(PRIME_HALF, 0);
+    // The tip stops short of the node, leaving clear space.
+    expect(CX - tip[0]).toBeCloseTo(PRIME_HALF + ARRIVE_GAP, 0);
     expect(l.prime.demand!.r1 - l.prime.demand!.r0).toBeCloseTo(BAND);
     expect(l.sky.fromSky).toEqual(l.prime.demand);
     expect(layoutSettlementArc(model([])).prime).toEqual({ pool: null, kept: null, demand: null });

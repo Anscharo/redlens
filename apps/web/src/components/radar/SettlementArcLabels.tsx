@@ -23,23 +23,24 @@ export function Cited({ figure, x, y, children, className = "" }: { figure: stri
   return c ? <SvgRouteLink to={atlasHref(c.uuid)} className="msc-arc-link">{text}</SvgRouteLink> : text;
 }
 
-/** The name, cut to fit an arc of length `room`. */
-function fit(label: string, room: number): string {
-  if (textWidth(label, VENUE_FONT, 6.2) <= room) return label;
-  let s = label;
-  while (s.length > 1 && textWidth(`${s}…`, VENUE_FONT, 6.2) > room) s = s.slice(0, -1);
-  return `${s}…`;
+const venueText = (v: VenueBand) => (v.key.endsWith("::sde") ? `${v.label} · SDE` : v.label);
+
+/** The leftmost x any venue name reaches, so the figure can widen to show
+ *  every name whole. Never right of 0. */
+export function labelsLeft(venues: VenueBand[]): number {
+  return Math.min(0, ...venues.map((v) => v.labelAt.x - textWidth(venueText(v), VENUE_FONT, 6.2) - 4));
 }
 
-/** Each band's venue name beside where it starts, right-aligned to it, so
- *  the staggered starts read as a list of sources. An SDE band says so. */
+/** Each band's venue name, whole, beside where it starts and right-aligned
+ *  to it, so the staggered starts read as a list of sources. An SDE band
+ *  says so. */
 export function VenueLabels({ venues }: { venues: VenueBand[] }) {
   return (
     <g className="msc-arc-venue-labels" fontSize={11}>
       {venues.map((v) => (
         <text key={v.key} x={v.labelAt.x} y={v.labelAt.y} textAnchor="end" dominantBaseline="central" className="msc-arc-venue-label" data-venue={v.venue}>
           <title>{v.key.endsWith("::sde") ? `${v.label}: Sky Direct Exposure` : v.label}</title>
-          {v.key.endsWith("::sde") ? `${fit(v.label, v.labelAt.x - 40)} · SDE` : fit(v.label, v.labelAt.x - 4)}
+          {venueText(v)}
         </text>
       ))}
     </g>
@@ -57,8 +58,8 @@ export function ArcNodeLabels({ model, primeLabel, month }: { model: StreamModel
       {month ? <SvgRouteLink to={`${ROUTES.RADAR}?msc=${month}`} className="msc-arc-link" label="Open this month in the ecosystem Monthly Settlement Cycle overview">{sky}</SvgRouteLink> : sky}
       <Cited figure="toSky" x={x} y={CY - 14}>{`to Sky ${formatUsd(model.toSky, true)}`}</Cited>
       <Cited figure="fromSky" x={x} y={CY + 22}>{`from Sky ${formatUsd(model.demandTotal, true)}`}</Cited>
-      <text x={CX} y={CY - OUTER_END - 28} textAnchor="middle" fontSize={12} className="msc-arc-node-name">{primeLabel}</text>
-      <text x={CX} y={CY - OUTER_END - 13} textAnchor="middle" className={`msc-arc-uncited${keptLoss ? " msc-arc-loss" : ""}`}>
+      <text x={CX} y={CY - OUTER_END - 40} textAnchor="middle" fontSize={12} className="msc-arc-node-name">{primeLabel}</text>
+      <text x={CX} y={CY - OUTER_END - 20} textAnchor="middle" className={`msc-arc-uncited${keptLoss ? " msc-arc-loss" : ""}`}>
         <title>{`${keptLoss ? "Supply-side loss" : "Supply-side kept"}. ${UNCITED}.`}</title>
         {`${keptLoss ? "loss" : "keeps"} ${formatUsd(model.kept, true)}`}
       </text>

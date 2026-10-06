@@ -36,8 +36,14 @@ export const OUTER_END = OUTER0 + BAND;
 /** Half the Prime node's and Sky node's thickness. */
 export const PRIME_HALF = 7;
 export const SKY_HALF = 4;
-const HEAD_LEN = 14;
-export const HEAD_FLARE = 4;
+/** Arrowheads grow with their lane, so a wide lane still ends in a point
+ *  rather than a blunt wedge; `HEAD_FLARE` is how far a head overhangs it. */
+const HEAD_MIN = 14;
+const HEAD_MAX = 44;
+const HEAD_RATIO = 0.7;
+export const HEAD_FLARE = 2;
+/** Clear space between an arrow's tip and the node it reaches. */
+export const ARRIVE_GAP = 8;
 /** Thinnest band drawn, so a cent-sized figure is still visible. */
 const MIN_W = 1.5;
 /** Thinnest venue band, so each named band has some girth. */
@@ -52,11 +58,12 @@ const SKY = 2 * Math.PI;
  *  term) last. */
 const INNER_ORDER = ["agentRate", "distributionRewards", "chroniclePoints", "gar"];
 
-/** Room left of the circle for the venue names, right of it for Sky's. */
-const LABEL_GUTTER = 170;
+/** Room left of the circle before the venue names (the figure widens left
+ *  to fit them whole), and right of it for Sky's. */
+const LABEL_GUTTER = 24;
 const SKY_GUTTER = 120;
 export const CX = LABEL_GUTTER + OUTER_END + HEAD_FLARE + 12;
-export const CY = OUTER_END + 52;
+export const CY = OUTER_END + 64;
 export const WIDTH = CX + OUTER_END + SKY_GUTTER;
 export const HEIGHT = CY + INNER_OUT + HEAD_FLARE + 16;
 
@@ -130,12 +137,14 @@ function stack<T extends { value: number }>(rows: T[], r0: number, scale: number
 }
 
 /** The clockwise head and dash line for a lane spanning [r0, r1] from
- *  `from` to `tip`; `stop` is where its bands end. */
-function laneEnd(r0: number, r1: number, from: number, tip: number): LaneEnd & { stop: number } {
+ *  `from` to a node's side at `edge`; the tip stops ARRIVE_GAP short of it
+ *  and `stop` is where the lane's bands end. */
+function laneEnd(r0: number, r1: number, from: number, edge: number): LaneEnd & { stop: number } {
   const r = (r0 + r1) / 2;
   const w = r1 - r0;
-  const stop = tip - HEAD_LEN / r;
-  return { stop, w, head: arcArrowHead(CX, CY, r, w, stop, 1, HEAD_LEN, HEAD_FLARE), flow: arcPath(CX, CY, r, from, stop) };
+  const len = Math.min(HEAD_MAX, Math.max(HEAD_MIN, w * HEAD_RATIO));
+  const stop = edge - (ARRIVE_GAP + len) / r;
+  return { stop, w, head: arcArrowHead(CX, CY, r, w, stop, 1, len, HEAD_FLARE), flow: arcPath(CX, CY, r, from, stop) };
 }
 
 /** Venue bands from staggered starts to `stop`; band i starts at slot i0+i. */
