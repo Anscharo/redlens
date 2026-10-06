@@ -5,7 +5,11 @@ import { citationFor } from "@/lib/settlementCitations";
 import { atlasHref } from "@/lib/routes";
 import { AtlasLink } from "../AtlasLink";
 
-const COLS = ["revenue", "cof", "sde", "kept"] as const;
+/** Only what each venue earns. Cost of funds is the Prime's charge on the
+ *  USDS it borrowed (A.3.1.2.5), so the workbook's per-venue split of it,
+ *  and the per-venue kept that follows from it, is a pro-rata allocation,
+ *  not a venue figure; the arc shows both at the Prime. */
+const COLS = ["revenue", "sde"] as const;
 const UNCITED = "A workbook figure: the Atlas defines no term for it";
 
 function Cell({ v, muted }: { v: number; muted: boolean }) {
@@ -27,25 +31,24 @@ function Head({ col, children }: { col: (typeof COLS)[number]; children: ReactNo
   );
 }
 
-/** The outer lane row by row: each venue's revenue and how it splits. The
- *  total row is the headline card's own figures — kept here is
- *  primeAgentRevenue − cof, which the prime-level row makes the rows reach. */
+/** The outer lane's sources row by row: each venue's revenue to the Prime
+ *  and its Sky Direct Exposure. The total row is the headline card's own
+ *  figures, which the prime-level row makes the rows reach. */
 export function SettlementVenueTable({ model, primeLabel }: { model: StreamModel; primeLabel: string }) {
-  if (model.venues.length === 0) return null;
-  const total: Pick<VenueStream, (typeof COLS)[number]> = { revenue: model.revenue, cof: model.cof, sde: model.sde, kept: model.kept };
+  const rows = model.venues.filter((v) => Math.abs(v.revenue) >= 1 || Math.abs(v.sde) >= 1);
+  if (rows.length === 0) return null;
+  const total: Pick<VenueStream, (typeof COLS)[number]> = { revenue: model.revenue, sde: model.sde };
   return (
     <table className="w-full text-sm border-collapse mt-4">
       <thead>
         <tr className="mono text-[10px] uppercase tracking-wider" style={{ color: "var(--tan-3)" }}>
           <th className="text-left font-normal pb-1">Venue</th>
-          <Head col="revenue">Revenue</Head>
-          <Head col="cof">CoF to Sky</Head>
+          <Head col="revenue">Revenue to {primeLabel}</Head>
           <Head col="sde">SDE to Sky</Head>
-          <Head col="kept">Kept by {primeLabel}</Head>
         </tr>
       </thead>
       <tbody>
-        {model.venues.map((v) => (
+        {rows.map((v) => (
           <tr key={v.id} className="msc-venue-row border-t border-[var(--border)]" data-venue={v.id}>
             <td className="py-1 pr-3">
               <span style={{ color: "var(--tan-2)" }}>{v.label}</span>

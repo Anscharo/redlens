@@ -256,7 +256,10 @@ describe("ActorSettlements", () => {
     expect(document.querySelector("rect.msc-arc-prime")).toBeInTheDocument();
     expect(document.querySelector('.msc-arc-venue-label[data-venue="S1"]')).toBeInTheDocument();
     expect(document.querySelector('.msc-arc-link[href$="id=e98ddd17-a8c3-4523-8464-cc41247c66e8"]')).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "CoF to Sky" })).toHaveAttribute("href", expect.stringContaining("6b2b7302-e63b-457e-afeb-daab5ca7a7de"));
+    // The venue table lists what venues earn, not the pro-rata CoF split.
+    expect(screen.getByRole("columnheader", { name: "Revenue to Spark" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "CoF to Sky" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: /^Kept by/ })).not.toBeInTheDocument();
   });
 
   it("resolves Spark's workbooks from the composite-party slug", async () => {
