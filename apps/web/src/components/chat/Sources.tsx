@@ -51,7 +51,7 @@ export interface CollectionLink {
   failed: boolean;
 }
 
-// "citations · N", plus "— view in collection" once the conversation has a
+// "citations · N", plus "— view all docs from this conversation" once the conversation has a
 // collection to open.
 function SourcesLabel({ count, collection }: { count: number; collection?: CollectionLink }) {
   return (
@@ -61,7 +61,7 @@ function SourcesLabel({ count, collection }: { count: number; collection?: Colle
         <>
           <span aria-hidden="true"> — </span>
           <button type="button" className="rlc-sources-link" onClick={collection.onView}>
-            view in collection
+            view all docs from this conversation
           </button>
           {collection.failed && <span role="alert"> (couldn’t open)</span>}
         </>

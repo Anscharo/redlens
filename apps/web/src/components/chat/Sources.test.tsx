@@ -97,9 +97,9 @@ describe("Sources", () => {
     expect(onAtlas).toHaveBeenCalledWith("11111111-1111-1111-1111-111111111111");
   });
 
-  it("offers 'view in collection' next to the count only when a collection link is given", () => {
+  it("offers 'view all docs from this conversation' next to the count only when a collection link is given", () => {
     const { rerender } = render(<Sources sources={[{ uuid: "11111111-1111-1111-1111-111111111111", title: "Some Doc" }]} onAtlas={vi.fn()} />);
-    expect(screen.queryByRole("button", { name: "view in collection" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "view all docs from this conversation" })).toBeNull();
 
     const onView = vi.fn();
     rerender(
@@ -110,7 +110,7 @@ describe("Sources", () => {
       />,
     );
     expect(screen.getByText("citations · 1")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "view in collection" }));
+    fireEvent.click(screen.getByRole("button", { name: "view all docs from this conversation" }));
     expect(onView).toHaveBeenCalledTimes(1);
   });
 
