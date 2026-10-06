@@ -1,20 +1,15 @@
-import { formatMonth, formatUsd } from "../../lib/settlements";
+import { formatMonth, formatUsd, formatUsdShort, SETTLEMENT_NEAR_ZERO, TERM } from "../../lib/settlements";
 import type { PrimeStackMonth } from "@/lib/settlementsOverview";
 import { pillHoverFrom, type PillHover } from "./MscTimeseriesPill";
 
-/**
- * "12.4m" — the month's To-Sky total, to the nearest $100k, floated above
- * the bar. `formatUsd(n, true)` cannot make this shape: it emits "$12.40M"
- * (currency sign, two decimals) and switches to "$950k" under a million,
- * which is both wider than a 48px column and a different precision than the
- * nearest-$100k figure asked for here.
- */
-export function formatBarTotal(n: number): string {
-  const rounded = Math.round(n / 100_000) * 100_000;
-  const sign = rounded < 0 ? "−" : "";
-  const abs = Math.abs(rounded);
-  if (abs === 0) return "0";
-  return abs >= 1_000_000 ? `${sign}${(abs / 1_000_000).toFixed(1)}m` : `${sign}${abs / 1_000}k`;
+/** "Sep 2026 · $8.22M to Sky via Spark — $8.21M cost of funds + $4k SDE":
+ *  the month and the split the headline card shows, SDE left out when
+ *  there is none. */
+function segmentPill(s: { value: number; cof: number; sde: number }, prime: string, month: string): string {
+  const split = Math.abs(s.sde) >= SETTLEMENT_NEAR_ZERO
+    ? `${formatUsd(s.cof, true)} cost of funds + ${formatUsd(s.sde, true)} SDE`
+    : `${formatUsd(s.cof, true)} cost of funds`;
+  return `${formatMonth(month)} · ${formatUsd(s.value, true)} ${TERM.toSky} via ${prime} — ${split}`;
 }
 
 export function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect, align, label, width, onHover, onLeave }: {
@@ -58,11 +53,11 @@ export function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSel
       data-active={m.month === selected ? "true" : undefined}
       onClick={() => onSelect(m.month)}
       aria-pressed={m.month === selected}
-      aria-label={`${formatMonth(m.month)}: ${formatUsd(m.sky, true)} to Sky across ${m.skyParts.length} ${m.skyParts.length === 1 ? "prime" : "primes"}`}
+      aria-label={`${formatMonth(m.month)}: ${formatUsd(m.sky, true)} ${TERM.toSky} — ${m.skyParts.map((p) => `${primeLabel(p.prime)} ${formatUsd(p.value, true)}`).join(", ")}`}
     >
       <span className="msc-ts-tracks" aria-hidden="true">
         <span className="msc-ts-total mono" style={{ top: totalTop, color: "var(--msc-sky)" }}>
-          {formatBarTotal(m.sky)}
+          {formatUsdShort(m.sky, 100_000)}
         </span>
         <span className="msc-ts-track msc-ts-track-sky" data-flow="sky">
           {segs.map((s) =>
@@ -74,7 +69,7 @@ export function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSel
                 data-flow="sky"
                 style={{ top: s.top, height: s.h, background: s.value < 0 ? stripes : colorOf(s.prime) }}
                 onPointerEnter={(e) =>
-                  onHover(pillHoverFrom(e.currentTarget, `${formatUsd(s.value, true)} to Sky via ${primeLabel(s.prime)}`, align))
+                  onHover(pillHoverFrom(e.currentTarget, segmentPill(s, primeLabel(s.prime), m.month), align))
                 }
                 onPointerLeave={onLeave}
               />

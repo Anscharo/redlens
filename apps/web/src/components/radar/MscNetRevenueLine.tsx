@@ -1,4 +1,4 @@
-import { formatMonth, formatUsd } from "../../lib/settlements";
+import { formatMonth, formatUsd, formatUsdShort } from "../../lib/settlements";
 
 /** Sky's Net Revenue as a line over the To-Sky columns: one dot per month
  *  that has a figure, its amount beside it, joined only between consecutive
@@ -30,7 +30,7 @@ export function MscNetRevenueLine({ months, values, tops, x, y, width, height }:
             <title>{`Sky Net Revenue · ${formatMonth(p.m)} · ${formatUsd(p.v)} (Soter Labs consolidated report)`}</title>
           </circle>
           <text x={x(p.i)} y={y(p.v) + (p.v > tops[p.i] ? -9 : 16)} textAnchor="middle" fontSize={10} className="mono msc-ts-netrev-amount">
-            {formatUsd(p.v, true)}
+            {formatUsdShort(p.v, 100_000)}
           </text>
         </g>
       ))}

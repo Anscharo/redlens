@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { formatUsd, SETTLEMENT_NEAR_ZERO } from "../../lib/settlements";
+import { formatUsdShort, SETTLEMENT_NEAR_ZERO } from "../../lib/settlements";
 import type { PrimeStackMonth } from "@/lib/settlementsOverview";
 import { MscMonthLabel } from "./MscMonthLabel";
 import { MonthColumn } from "./MscTimeseriesColumn";
@@ -110,16 +110,22 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect, 
           </span>
         )}
       </p>
+      {/* The axis's unit, over its ticks: every figure on this chart (ticks,
+          bar totals, Net Revenue) is dollars in the month. */}
+      <p className="mono text-[9px] m-0" style={{ color: "var(--tan-3)" }}>
+        USD / month
+      </p>
       <div className="relative inline-block" style={{ maxWidth: "100%", overflowX: "auto" }}>
         <svg className="msc-ts-grid" width={width} height={TRACK_H} aria-hidden="true">
           {ticksFor(posPeak, negPeak).map((t) => (
             <g key={t}>
               <line x1={AXIS_W} x2={width} y1={y(t)} y2={y(t)} className="msc-ts-gridline" />
               <text x={AXIS_W - 6} y={y(t) + 3} textAnchor="end" fontSize={9} className="mono msc-ts-axis">
-                {formatUsd(t, true)}
+                {formatUsdShort(t)}
               </text>
             </g>
           ))}
+
           <line x1={AXIS_W} x2={width} y1={zeroY} y2={zeroY} stroke="var(--border)" strokeWidth={1} />
         </svg>
         <div className="flex items-start relative" style={{ gap: GAP_PX, marginLeft: AXIS_W }} onPointerLeave={clearHover}>

@@ -137,6 +137,8 @@ describe("primeStackMonths", () => {
     // The second stack is To Sky per prime, and sums to the line exactly.
     expect(jul.skyParts.reduce((n, p) => n + p.value, 0)).toBeCloseTo(jul.sky, 6);
     expect(jul.skyParts.every((p) => Math.abs(p.value) >= 1)).toBe(true);
+    // Each Prime's To Sky carries its cost of funds and SDE, which sum to it.
+    for (const p of jul.skyParts) expect(p.cof + p.sde).toBeCloseTo(p.value, 6);
   });
 
   it("uses PRIME_ORDER as the stable prime order and skips unpublished months", () => {

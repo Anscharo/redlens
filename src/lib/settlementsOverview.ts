@@ -143,22 +143,24 @@ export function primeRoster(bundle: SettlementsBundle): string[] {
 
 export interface PrimeStackMonth {
   month: string;
-  /** Σ skyRevenue for the month — the overlaid line, disjoint from the stack. */
+  /** Σ skyRevenue for the month: the top of the drawn stack. */
   sky: number;
-  /** Per-prime supply kept + demand-side, in the stable stacking order. */
+  /** Per-prime supply kept + from Sky, in the stable stacking order: what
+   *  stayed Prime-side. Not drawn on the bar chart. */
   parts: Array<{ prime: string; value: number }>;
-  /** Per-prime To-Sky (skyRevenue), same order — the second stack, which
-   *  sums to `sky` exactly. */
-  skyParts: Array<{ prime: string; value: number }>;
+  /** Per-prime To Sky (skyRevenue), same order: the drawn stack, which sums
+   *  to `sky` exactly. Each carries its cost of funds and Sky Direct
+   *  Exposure, which sum to `value`. */
+  skyParts: Array<{ prime: string; value: number; cof: number; sde: number }>;
 }
 
 /**
- * Monthly stack for the overview timeseries: each prime's layer is
- * `supplyKept + demandSideRevenue` — the prime-side value that did NOT go to
- * Sky — so the stack and the `sky` line never share a dollar
- * (par + demand = kept + demand + cof, and sky = cof + sde). Never Σ venue
- * profitToGrove, and never gross primeAgentRevenue (that would put CoF in
- * both the stack and the line).
+ * Monthly rows for the overview timeseries. `skyParts` is the drawn stack:
+ * each prime's To Sky (cof + sde). `parts` is each prime's
+ * `supplyKept + demandSideRevenue`, the prime-side value that did NOT go to
+ * Sky, so the two never share a dollar (par + demand = kept + demand + cof,
+ * and sky = cof + sde). Never Σ venue profitToGrove, and never gross
+ * primeAgentRevenue (that would count cost of funds on both sides).
  *
  * Prime order is PRIME_ORDER (the overview's one display order), returned
  * as `primes` so the chart keys its colors off the same roster.
@@ -170,10 +172,10 @@ export function primeStackMonths(bundle: SettlementsBundle): {
   months: PrimeStackMonth[];
 } {
   const valueOf = new Map<string, number>();
-  const skyOf = new Map<string, number>();
+  const skyOf = new Map<string, { value: number; cof: number; sde: number }>();
   for (const r of bundle.reports) {
     valueOf.set(`${r.prime}::${r.month}`, supplyKept(r) + demandSideRevenue(r.headline));
-    skyOf.set(`${r.prime}::${r.month}`, r.headline.skyRevenue);
+    skyOf.set(`${r.prime}::${r.month}`, { value: r.headline.skyRevenue, cof: r.headline.cof, sde: r.headline.sdeRevenue });
   }
   const order = primeRoster(bundle);
   const months = settlementMonths(bundle).map((month) => {
@@ -186,7 +188,7 @@ export function primeStackMonths(bundle: SettlementsBundle): {
       .filter((p) => Math.abs(p.value) >= SETTLEMENT_NEAR_ZERO);
     const skyParts = order
       .filter((p) => present.has(p))
-      .map((prime) => ({ prime, value: skyOf.get(`${prime}::${month}`)! }))
+      .map((prime) => ({ prime, ...skyOf.get(`${prime}::${month}`)! }))
       .filter((p) => Math.abs(p.value) >= SETTLEMENT_NEAR_ZERO);
     return { month, sky, parts, skyParts };
   });

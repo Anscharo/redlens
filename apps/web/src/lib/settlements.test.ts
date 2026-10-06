@@ -12,6 +12,7 @@ import {
   settlementPrimeKeys,
   formatMonth,
   formatUsd,
+  formatUsdShort,
   revenueGap,
   demandSideRevenue,
   supplyKept,
@@ -80,6 +81,20 @@ describe("formatMonth / formatUsd", () => {
     expect(formatUsd(1_560_000, true)).toBe("$1.56M");
     expect(formatUsd(6110, true)).toBe("$6k");
     expect(formatUsd(-42, false)).toBe("−$42");
+  });
+
+  it("writes a chart label one way: one decimal of millions, whole thousands, rounded to a step", () => {
+    expect(formatUsdShort(15_470_000)).toBe("$15.5M");
+    expect(formatUsdShort(5_000_000)).toBe("$5M");
+    expect(formatUsdShort(950_000)).toBe("$950k");
+    expect(formatUsdShort(999_600)).toBe("$1M");
+    expect(formatUsdShort(-2_340_000)).toBe("−$2.3M");
+    expect(formatUsdShort(0)).toBe("$0");
+    expect(formatUsdShort(420)).toBe("$420");
+    // To the nearest $100k, as the bar totals are.
+    expect(formatUsdShort(15_470_000, 100_000)).toBe("$15.5M");
+    expect(formatUsdShort(940_000, 100_000)).toBe("$900k");
+    expect(formatUsdShort(30_000, 100_000)).toBe("$0");
   });
 });
 

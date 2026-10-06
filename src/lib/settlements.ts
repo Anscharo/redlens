@@ -116,6 +116,20 @@ export function formatUsd(n: number, compact = false): string {
   return `${sign}$${abs.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
+/** A chart label: rounded to `step` dollars, then "$15.5M" (one decimal,
+ *  a whole number drops its ".0": "$5M"), "$950k" or "$0". One shape for
+ *  a chart's axis ticks, bar totals and line labels, so the same unit is
+ *  never written two ways on one chart. */
+export function formatUsdShort(n: number, step = 1): string {
+  const rounded = Math.round(n / step) * step;
+  const sign = rounded < 0 ? "−" : "";
+  const abs = Math.abs(rounded);
+  // Decide the unit after rounding, so $999.6k reads "$1M", not "$1000k".
+  if (Math.round(abs / 1_000) >= 1_000) return `${sign}$${Number((abs / 1_000_000).toFixed(1))}M`;
+  if (Math.round(abs) >= 1_000) return `${sign}$${Math.round(abs / 1_000)}k`;
+  return `${sign}$${Math.round(abs)}`;
+}
+
 export function revenueGap(report: SettlementReport): number {
   const sum = report.venues.reduce((n, v) => n + v.revenueToPrime, 0);
   return Math.abs(sum - report.headline.primeAgentRevenue);
