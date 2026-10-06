@@ -59,39 +59,39 @@ export interface CitedDoc {
 // here too, or the doc is cited and clickable in the answer yet missing from
 // the Sources cluster. A label used but never defined, or a definition never
 // used, is silently skipped (neither is a citation).
+// Every citation in `usageText` (definition lines already stripped), in order,
+// duplicates included.
+function* citationsIn(usageText: string, definitions: Map<string, string>): Generator<CitedDoc> {
+  for (const m of usageText.matchAll(CITATION_SCAN_RE)) {
+    const [, inlineText, inlineUuid, refText, refLabels, bareText] = m;
+    if (inlineUuid) {
+      yield { uuid: inlineUuid.toLowerCase(), title: inlineText };
+    } else if (refLabels) {
+      for (const rawLabel of refLabels.split(",")) {
+        const uuid = definitions.get(normalizeLabel(rawLabel));
+        if (uuid) yield { uuid, title: refText };
+      }
+    } else {
+      const uuid = definitions.get(normalizeLabel(bareText));
+      if (uuid) yield { uuid, title: bareText };
+    }
+  }
+}
+
 export function extractCitedDocs(content: string): CitedDoc[] {
   const definitions = parseDefinitions(content); // normalized label -> lowercased uuid
-
   // A definition line's own `[label]` is a declaration, not a use — but a bare
   // bracket can resolve as a shortcut reference, so scanning it unmodified
   // would make every definition cite itself. Strip matched definition lines
   // before scanning for usages; this only deletes text, so the relative order
   // of the remaining usages is unaffected.
   const usageText = content.replace(DEFINITION_RE, "");
-
   const seen = new Set<string>();
   const out: CitedDoc[] = [];
-  const add = (uuid: string, title: string) => {
-    if (seen.has(uuid)) return;
-    seen.add(uuid);
-    out.push({ uuid, title });
-  };
-
-  for (const m of usageText.matchAll(CITATION_SCAN_RE)) {
-    const [, inlineText, inlineUuid, refText, refLabels, bareText] = m;
-    if (inlineUuid) {
-      add(inlineUuid.toLowerCase(), inlineText);
-      continue;
-    }
-    if (refLabels) {
-      for (const rawLabel of refLabels.split(",")) {
-        const uuid = definitions.get(normalizeLabel(rawLabel));
-        if (uuid) add(uuid, refText);
-      }
-      continue;
-    }
-    const uuid = definitions.get(normalizeLabel(bareText));
-    if (uuid) add(uuid, bareText);
+  for (const doc of citationsIn(usageText, definitions)) {
+    if (seen.has(doc.uuid)) continue;
+    seen.add(doc.uuid);
+    out.push(doc);
   }
   return out;
 }

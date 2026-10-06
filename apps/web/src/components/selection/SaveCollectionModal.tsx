@@ -1,41 +1,16 @@
-import { useState } from "react";
 import { useAuth } from "../chat/auth";
 import { SignInButtons } from "../chat/SignInButtons";
-import { useSelection } from "../../lib/selection";
-import { diffIds, previewFor, type SaveOption } from "@/lib/collectionDiff";
 import { MAX_COLLECTION_DOCS } from "@/lib/collectionsLimits";
-import { loadDocs } from "../../lib/docs";
-import { useLoaded } from "../../hooks/useAtlasData";
 import { stashResumeSave } from "../../lib/authReturn";
 import { Modal } from "../Modal";
 import { SaveChoiceView } from "./SaveChoiceView";
 import { SaveDocPreview } from "./SaveDocPreview";
 import { SaveNameView } from "./SaveNameView";
-import { useCollectionBaseline } from "./useCollectionBaseline";
-import { useSaveActions } from "./useSaveActions";
+import { useSaveFlow, type Naming } from "./useSaveFlow";
 
 interface SaveCollectionModalProps {
   ids: string[];
   onClose: () => void;
-}
-
-// Runs one save: guards double clicks, closes on success, surfaces the error.
-function useRun(onClose: () => void) {
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  async function run(fn: () => Promise<void>) {
-    if (pending) return;
-    setPending(true);
-    setError(null);
-    try {
-      await fn();
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setPending(false);
-    }
-  }
-  return { pending, error, run };
 }
 
 // The count line is how many docs the previewed option would save, against the
@@ -65,64 +40,43 @@ function Heading({ title, count, summary }: { title: string; count: number; summ
   );
 }
 
+function saveTitle(naming: Naming, hasCollection: boolean, collectionName: string): string {
+  if (naming === null) return "Save changes";
+  if (naming === "without") return `Save as new, minus “${collectionName}”`;
+  return hasCollection ? "Save as new collection" : "Save as collection";
+}
+
 // Save the current selection as a collection, in the shared Modal shell.
-// When one of the user's saved collections is open (activeCollectionId), the
-// choice comes first: Update it, save as new, or save as new minus the docs it
-// already holds. The doc list shows what the last hovered or focused option
-// would save, and stays on it until another is. A successful save sets the
-// active collection so its name shows in the pill.
+// When one of the user's saved collections is open, the choice comes first:
+// Update it, save as new, or save as new minus the docs it already holds. The
+// doc list shows what the last hovered or focused option would save, and stays
+// on it until another is. A successful save sets the active collection so its
+// name shows in the pill. State and data live in useSaveFlow.
 function SaveBody({ ids, onClose }: SaveCollectionModalProps) {
-  const { activeCollectionId, activeCollectionName } = useSelection();
-  const docs = useLoaded(loadDocs, { soft: true });
-  const baseline = useCollectionBaseline(activeCollectionId);
-  const saved = baseline.status === "ready" ? baseline.ids : null;
-  const diff = saved ? diffIds(saved, ids) : null;
-  // null: still choosing; otherwise the save-as-new option the name is for.
-  const [naming, setNaming] = useState<"new" | "without" | null>(activeCollectionId ? null : "new");
-  // Opens on Update, the primary action (the shell focuses it, which previews it
-  // anyway); hovering or focusing another button moves the preview there.
-  const [previewing, setPreviewing] = useState<SaveOption | null>(activeCollectionId ? "update" : null);
-  const [name, setName] = useState("");
-  const { pending, error, run } = useRun(onClose);
-
-  const preview = previewFor(naming ?? previewing ?? "new", ids, saved);
-  const saveIds = naming ? previewFor(naming, ids, saved).ids : ids;
-  const over = saveIds.length > MAX_COLLECTION_DOCS;
-  const collectionName = activeCollectionName ?? "collection";
-
-  const { create, update } = useSaveActions({ ids, saveIds, naming, name, over, run });
-
-  const title =
-    naming === null
-      ? "Save changes"
-      : naming === "without"
-        ? `Save as new, minus “${collectionName}”`
-        : activeCollectionId
-          ? "Save as new collection"
-          : "Save as collection";
+  const f = useSaveFlow(ids, onClose);
   return (
     <>
-      <Heading title={title} count={preview.count} summary={preview.summary} />
-      <SaveDocPreview preview={preview} docs={docs} stable={naming === null} resetKey={naming ?? previewing ?? "default"} />
-      {error && (
+      <Heading title={saveTitle(f.naming, f.activeCollectionId !== null, f.collectionName)} count={f.preview.count} summary={f.preview.summary} />
+      <SaveDocPreview preview={f.preview} docs={f.docs} stable={f.naming === null} resetKey={f.naming ?? f.previewing ?? "default"} />
+      {f.error && (
         <p className="mono" style={{ fontSize: 11, color: "var(--red)", margin: 0 }}>
-          {error}
+          {f.error}
         </p>
       )}
-      {naming === null ? (
+      {f.naming === null ? (
         <SaveChoiceView
-          collectionName={collectionName}
-          baseline={baseline}
-          diff={diff}
-          pending={pending}
-          over={ids.length > MAX_COLLECTION_DOCS}
-          onUpdate={update}
-          onSaveNew={setNaming}
-          previewing={previewing}
-          onPreview={setPreviewing}
+          collectionName={f.collectionName}
+          baseline={f.baseline}
+          diff={f.diff}
+          pending={f.pending}
+          over={f.selectionOver}
+          onUpdate={f.update}
+          onSaveNew={f.setNaming}
+          previewing={f.previewing}
+          onPreview={f.setPreviewing}
         />
       ) : (
-        <SaveNameView name={name} onName={setName} onSave={create} onCancel={onClose} pending={pending} blocked={!name.trim() || over} />
+        <SaveNameView name={f.name} onName={f.setName} onSave={f.create} onCancel={onClose} pending={f.pending} blocked={!f.name.trim() || f.over} />
       )}
     </>
   );

@@ -1,4 +1,4 @@
-import { createCollection, updateCollectionItems } from "../../lib/collectionsApi";
+import { createCollection, updateCollectionItems, type Collection } from "../../lib/collectionsApi";
 import { track } from "../../lib/analytics";
 import { useSelection } from "../../lib/selection";
 
@@ -15,29 +15,34 @@ interface SaveActionsInput {
   run: (fn: () => Promise<void>) => Promise<void>;
 }
 
-// The two writes the save dialog can make. A save sets the active collection
-// so its name shows in the pill; a save without the opened collection's docs
-// also moves the selection onto the new, smaller set.
+// A save sets the active collection so its name shows in the pill; a save
+// without the opened collection's docs also moves the selection onto the new,
+// smaller set.
+function adoptSaved(sel: ReturnType<typeof useSelection>, created: Collection, saveIds: string[], without: boolean) {
+  if (without) sel.replace(saveIds);
+  sel.setActiveCollectionId(created.id);
+  sel.setActiveCollectionName(created.name);
+}
+
+// The two writes the save dialog can make.
 export function useSaveActions({ ids, saveIds, naming, name, over, run }: SaveActionsInput) {
-  const { activeCollectionId, setActiveCollectionId, setActiveCollectionName, replace } = useSelection();
+  const sel = useSelection();
 
   const create = () => {
-    const trimmed = name.trim();
-    if (!trimmed || over || !naming) return;
+    if (!name.trim() || over || !naming) return;
     return run(async () => {
-      const created = await createCollection(trimmed, saveIds);
-      if (naming === "without") replace(saveIds);
-      setActiveCollectionId(created.id);
-      setActiveCollectionName(created.name);
-      track("collection_save", naming === "without" ? { count: saveIds.length, without_opened: true } : { count: saveIds.length });
+      const created = await createCollection(name.trim(), saveIds);
+      adoptSaved(sel, created, saveIds, naming === "without");
+      track("collection_save", { count: saveIds.length, ...(naming === "without" && { without_opened: true }) });
     });
   };
 
   const update = () => {
-    if (!activeCollectionId || over) return;
+    const id = sel.activeCollectionId;
+    if (!id || over) return;
     return run(async () => {
-      await updateCollectionItems(activeCollectionId, ids);
-      track("collection_update", { id: activeCollectionId, count: ids.length });
+      await updateCollectionItems(id, ids);
+      track("collection_update", { id, count: ids.length });
     });
   };
 
