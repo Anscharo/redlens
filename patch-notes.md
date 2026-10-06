@@ -36,6 +36,7 @@
 ## 2026-10-06
 
 - Added conversation collections: click "view all docs from this conversation" under an answer's citations, "View collection" on a conversation, or the new "Collections from conversations" tab on the Collections page to read only the documents that chat cited
+- Fixed chat citations that showed as raw `[Title](/atlas/…)` text instead of clickable links
 - Added a hover tooltip to the footer's "update available" and "atlas updated" pills showing which code and Atlas versions the reload will switch to
 
 ## 2026-10-05

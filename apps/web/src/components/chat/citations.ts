@@ -17,10 +17,21 @@ const CODE_CITATION_RE =
 const INNER_RE = /^\[([^\]\n`]+)\](\(\/atlas\/[0-9a-f-]{36}\)|\[[^\]\n`]+\])?$/i;
 const FENCE_SPLIT_RE = /(```[\s\S]*?```)/g;
 
+// The backtick opened *inside* the link text and closed after the link —
+// [`Title](/atlas/<uuid>)` — so the span swallows the `](` seam, CommonMark
+// reads the whole thing as code, and the link never renders. Only a citation
+// target (an /atlas/ href or a `[label]`) qualifies, so ordinary code like
+// [`a`, `b`] is untouched. The text is a title here, so the stray backticks are
+// dropped rather than moved.
+const HALF_WRAPPED_RE = /\[`([^\]\n`]+)\](\(\/atlas\/[0-9a-f-]{36}\)|\[[^\]\n`]+\])`(?!`)/gi;
+
 /**
  * Display-only repair: move the backticks *inside* the link text of a
  * fully-backticked citation, so it renders as a link whose text is still
  * monospace — `[128](/atlas/<uuid>)` becomes [`128`](/atlas/<uuid>).
+ *
+ * Also repairs the half-wrapped shape [`Title](/atlas/<uuid>)` (backtick opened
+ * inside the link text, closed after the link), which becomes [Title](/atlas/<uuid>).
  *
  * Applies to inline (`(/atlas/<uuid>)`) and full reference (`[label]`) forms,
  * and to the bare shortcut form only when the label actually resolves in the
@@ -39,7 +50,7 @@ export function unwrapCodeCitations(content: string): string {
 }
 
 function unwrapPart(text: string, definitions: Map<string, string>): string {
-  return text.replace(CODE_CITATION_RE, (match, before: string, inner: string) => {
+  return text.replace(HALF_WRAPPED_RE, "[$1]$2").replace(CODE_CITATION_RE, (match, before: string, inner: string) => {
     const m = INNER_RE.exec(inner);
     if (!m) return match;
     const [, linkText, target] = m;
