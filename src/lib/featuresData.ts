@@ -388,7 +388,8 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "Always-current Atlas",
         what: "The app tracks upstream and refreshes itself when the Atlas advances.",
         how: [
-          'When a new Atlas version lands, an "atlas updated" pill appears in the footer — click it to reload into the new version.',
+          'When a new Atlas version lands, an "atlas updated" pill appears in the footer — click it to reload into the new version. Hover the pill to see the Atlas commit you are on and the one you will get.',
+          'An "update available" pill means a newer version of the app itself is ready — hover it to see the code version you are on and the one a reload will switch to, then click it to reload.',
           "The footer also shows the live Atlas commit, node count, and the block the on-chain snapshot was taken at.",
         ],
       },

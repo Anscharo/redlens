@@ -7,6 +7,7 @@ import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useSWUpdate } from "../hooks/useSWUpdate";
 import { useAtlasVersion } from "../hooks/useAtlasVersion";
 import { useBuildBehind } from "../hooks/useBuildBehind";
+import { useUpdateDetails } from "../hooks/useUpdateDetails";
 import { loadAtlas } from "../lib/docs";
 import { loadChainState } from "../lib/chainstate";
 import { loadHealth } from "../lib/health";
@@ -16,6 +17,7 @@ vi.mock("../hooks/useOnlineStatus", () => ({ useOnlineStatus: vi.fn() }));
 vi.mock("../hooks/useSWUpdate", () => ({ useSWUpdate: vi.fn() }));
 vi.mock("../hooks/useAtlasVersion", () => ({ useAtlasVersion: vi.fn() }));
 vi.mock("../hooks/useBuildBehind", () => ({ useBuildBehind: vi.fn() }));
+vi.mock("../hooks/useUpdateDetails", () => ({ useUpdateDetails: vi.fn() }));
 vi.mock("../lib/docs", () => ({ loadAtlas: vi.fn() }));
 vi.mock("../lib/chainstate", () => ({ loadChainState: vi.fn() }));
 vi.mock("../lib/health", () => ({ loadHealth: vi.fn() }));
@@ -30,6 +32,7 @@ beforeEach(() => {
   (useSWUpdate as unknown as Mock).mockReturnValue({ needRefresh: false, applyUpdate });
   (useAtlasVersion as unknown as Mock).mockReturnValue(false);
   (useBuildBehind as unknown as Mock).mockReturnValue(false);
+  (useUpdateDetails as unknown as Mock).mockReturnValue({ codeTitle: "code tip", atlasTitle: "atlas tip" });
   (useDataSource as unknown as Mock).mockReturnValue({ base: "/", preview: null });
   (loadHealth as unknown as Mock).mockResolvedValue(null);
   // The footer's block comes from the shared chain-state loader (/api/chain-state),
@@ -123,6 +126,15 @@ describe("Footer", () => {
     // A second click can't re-enter applyUpdate — the update is already going.
     fireEvent.click(btn);
     expect(applyUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("puts the update details on each pill's hover title", () => {
+    (useSWUpdate as unknown as Mock).mockReturnValue({ needRefresh: true, applyUpdate });
+    (useAtlasVersion as unknown as Mock).mockReturnValue(true);
+    render(<Footer />);
+    expect(screen.getByText(/update available/).closest("button")).toHaveAttribute("title", "code tip");
+    expect(screen.getByText(/atlas updated/).closest("button")).toHaveAttribute("title", "atlas tip");
+    expect(useUpdateDetails).toHaveBeenCalledWith(true, true, LIVE_SHA);
   });
 
   it("shows an atlas-updated pill that reloads the page on click", () => {
