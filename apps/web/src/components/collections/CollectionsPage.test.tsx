@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
+import { useState } from "react";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { CollectionsPage } from "./CollectionsPage";
 import type { Collection } from "../../lib/collectionsApi";
+import type { ConversationSummary } from "../../lib/conversationsApi";
 
 const mocks = vi.hoisted(() => ({
   user: null as unknown,
@@ -18,6 +20,12 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   track: vi.fn(),
   loadDocs: vi.fn().mockResolvedValue({}),
+  search: "",
+  conversations: [] as ConversationSummary[],
+  conversationsLoading: false,
+  conversationsError: null as string | null,
+  openConversation: vi.fn().mockResolvedValue(undefined),
+  openFailed: false,
 }));
 
 vi.mock("../chat/auth", () => ({ useAuth: () => ({ user: mocks.user }) }));
@@ -40,7 +48,25 @@ vi.mock("../../lib/selection", () => ({
     setActiveCollectionName: mocks.setActiveCollectionName,
   }),
 }));
-vi.mock("wouter", () => ({ useLocation: () => ["/collections", mocks.navigate] }));
+vi.mock("../../hooks/useConversations", () => ({
+  useConversations: () => ({
+    conversations: mocks.conversations,
+    loading: mocks.conversationsLoading,
+    error: mocks.conversationsError,
+  }),
+}));
+vi.mock("../../hooks/useOpenConversationCollection", () => ({
+  useOpenConversationCollection: () => ({ open: mocks.openConversation, failed: mocks.openFailed }),
+}));
+// useUrlState reads/writes ?view= through wouter's useSearchParams; a real
+// piece of state stands in for the router so the toggle re-renders the page.
+vi.mock("wouter", () => ({
+  useLocation: () => ["/collections", mocks.navigate],
+  useSearchParams: () => {
+    const [params, setParams] = useState(() => new URLSearchParams(mocks.search));
+    return [params, (update: (p: URLSearchParams) => URLSearchParams) => setParams(update(params))];
+  },
+}));
 vi.mock("../../lib/docs", () => ({ loadDocs: mocks.loadDocs }));
 vi.mock("../../lib/analytics", () => ({ track: mocks.track }));
 
@@ -51,6 +77,11 @@ afterEach(() => {
   mocks.collections = [];
   mocks.loading = false;
   mocks.error = null;
+  mocks.search = "";
+  mocks.conversations = [];
+  mocks.conversationsLoading = false;
+  mocks.conversationsError = null;
+  mocks.openFailed = false;
 });
 
 describe("CollectionsPage — signed out", () => {
@@ -158,5 +189,84 @@ describe("CollectionsPage — signed in", () => {
     fireEvent.change(input, { target: { value: "Renamed" } });
     fireEvent.blur(input);
     expect(mocks.rename).toHaveBeenCalledWith("c1", "Renamed");
+  });
+});
+
+describe("CollectionsPage — collections from conversations", () => {
+  const chat = (over: Partial<ConversationSummary>): ConversationSummary => ({
+    id: "k1",
+    title: "Spark rates",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    messageCount: 4,
+    contextTokens: null,
+    citationCount: 3,
+    ...over,
+  });
+
+  it("offers the toggle only when signed in, on My collections by default", () => {
+    render(<CollectionsPage />);
+    expect(screen.queryByRole("tablist")).toBeNull();
+    cleanup();
+
+    mocks.user = { id: "u1" };
+    mocks.collections = [{ id: "c1", name: "Mine", ids: ["a"], updatedAt: "2026-01-01T00:00:00.000Z" }];
+    render(<CollectionsPage />);
+    expect(screen.getByRole("tab", { name: "My collections" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Collections from conversations" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByText("Mine")).toBeInTheDocument();
+  });
+
+  it("switches to one card per conversation that cited something, hiding the saved collections", () => {
+    mocks.user = { id: "u1" };
+    mocks.collections = [{ id: "c1", name: "Mine", ids: ["a"], updatedAt: "2026-01-01T00:00:00.000Z" }];
+    mocks.conversations = [chat({}), chat({ id: "k2", title: "No links", citationCount: 0 }), chat({ id: "k3", title: null, citationCount: 1 })];
+    render(<CollectionsPage />);
+    fireEvent.click(screen.getByRole("tab", { name: "Collections from conversations" }));
+
+    expect(screen.getByRole("tab", { name: "Collections from conversations" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByText("Mine")).toBeNull();
+    expect(screen.getByText("Spark rates")).toBeInTheDocument();
+    expect(screen.getByText("Untitled chat")).toBeInTheDocument();
+    expect(screen.queryByText("No links")).toBeNull();
+    expect(screen.getByText("3 documents cited")).toBeInTheDocument();
+    expect(screen.getByText("1 document cited")).toBeInTheDocument();
+    // Immutable: nothing to rename or delete (Share only copies a link).
+    expect(screen.queryByText("Rename")).toBeNull();
+    expect(screen.queryByText("Delete")).toBeNull();
+  });
+
+  it("Open on a conversation card opens that conversation's collection", () => {
+    mocks.user = { id: "u1" };
+    mocks.conversations = [chat({})];
+    mocks.search = "view=conversations"; // the toggle is URL-synced, so a link can land here
+    render(<CollectionsPage />);
+    fireEvent.click(screen.getByText("Open"));
+    expect(mocks.openConversation).toHaveBeenCalledWith("k1");
+  });
+
+  it("explains an empty list and reports a failed open", () => {
+    mocks.user = { id: "u1" };
+    mocks.search = "view=conversations";
+    mocks.conversations = [chat({ citationCount: 0 })];
+    const { unmount } = render(<CollectionsPage />);
+    expect(screen.getByText(/No collections from conversations yet/)).toBeInTheDocument();
+    unmount();
+
+    mocks.conversations = [chat({})];
+    mocks.openFailed = true;
+    render(<CollectionsPage />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't open that collection");
+  });
+  it("Share on a conversation card copies a /c/<conversation id> link", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    mocks.user = { id: "u1" };
+    mocks.search = "view=conversations";
+    mocks.conversations = [chat({})];
+    render(<CollectionsPage />);
+    fireEvent.click(screen.getByText("Share"));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/c/k1`));
+    expect(await screen.findByText("Copied!")).toBeInTheDocument();
+    vi.unstubAllGlobals();
   });
 });

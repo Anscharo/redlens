@@ -4,6 +4,7 @@ import { sql } from "../../db.ts";
 // so it divides by CHARS_PER_TOKEN; the detail route computes contextUsedTokens
 // exactly (see detail.ts).
 import { CHARS_PER_TOKEN, CONTEXT_OVERHEAD_TOKENS } from "../context-compact.ts";
+import { citationCounts } from "./citations.ts";
 
 export interface ConversationListOut {
   id: string;
@@ -19,6 +20,9 @@ export interface ConversationListOut {
   // Always true here: the list estimates rather than loading every row's
   // lookup cards. The UI renders it with a "~".
   contextEstimated: boolean;
+  // Distinct atlas docs the conversation's answers cite — the size of its auto
+  // collection (GET .../:id/collection), counted by the same scan.
+  citationCount: number;
 }
 
 interface ListRow {
@@ -56,7 +60,7 @@ async function listRows(userId: string): Promise<ListRow[]> {
   `) as ListRow[];
 }
 
-function toListOut(r: ListRow): ConversationListOut {
+function toListOut(r: ListRow, citations: ReadonlyMap<string, number>): ConversationListOut {
   return {
     id: r.id, title: r.title, updatedAt: new Date(r.updated_at).toISOString(), messageCount: r.message_count,
     // Replayed text / 4, plus the standing prefix — the same shape as
@@ -67,6 +71,7 @@ function toListOut(r: ListRow): ConversationListOut {
     // low on a tool-heavy thread. Always an estimate, hence contextEstimated.
     contextTokens: Math.ceil(r.replay_chars / CHARS_PER_TOKEN) + CONTEXT_OVERHEAD_TOKENS,
     contextEstimated: true,
+    citationCount: citations.get(r.id) ?? 0,
   };
 }
 
@@ -82,5 +87,7 @@ function toListOut(r: ListRow): ConversationListOut {
 // fires after persistAssistant). EXISTS(...role='assistant') is what hides
 // it. The JOIN stays alongside it only because messageCount is displayed.
 export async function listConversations(userId: string): Promise<ConversationListOut[]> {
-  return (await listRows(userId)).map(toListOut);
+  const rows = await listRows(userId);
+  const citations = await citationCounts(rows.map((r) => r.id));
+  return rows.map((r) => toListOut(r, citations));
 }

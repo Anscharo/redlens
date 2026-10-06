@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { type Collection, MAX_COLLECTION_NAME_LEN } from "../../lib/collectionsApi";
 import type { AtlasNode } from "@/types";
+import { CollectionBlurb } from "./CollectionBlurb";
+import { CollectionDocList } from "./CollectionDocList";
+import { ShareLinkButton } from "./ShareLinkButton";
 
 const PREVIEW_COUNT = 10;
 
@@ -19,20 +22,9 @@ export function CollectionCard({
   onRename: (name: string) => void;
   onDelete: () => void;
 }) {
+  const count = collection.ids.length;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(collection.name);
-  const [copied, setCopied] = useState(false);
-
-  const share = async () => {
-    const url = `${window.location.origin}/c/${collection.id}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      window.prompt("Copy this share link:", url);
-    }
-  };
 
   const submitRename = () => {
     const trimmed = draft.trim();
@@ -40,14 +32,6 @@ export function CollectionCard({
     if (trimmed && trimmed !== collection.name) onRename(trimmed);
     else setDraft(collection.name);
   };
-
-  const items = docs
-    ? collection.ids
-        .slice(0, PREVIEW_COUNT)
-        .map((id) => docs[id])
-        .filter((n): n is AtlasNode => Boolean(n))
-    : [];
-  const extra = collection.ids.length - items.length;
 
   return (
     <article
@@ -90,20 +74,9 @@ export function CollectionCard({
         </p>
       </div>
 
-      <p className="text-xs text-tan-3 mb-2">
-        {collection.ids.length} {collection.ids.length === 1 ? "document" : "documents"}
-      </p>
-      {items.length > 0 && (
-        <ul className="mb-3 flex flex-col gap-0.5">
-          {items.map((n) => (
-            <li key={n.id} className="text-xs flex gap-2 min-w-0">
-              <span className="mono text-tan-3 shrink-0">{n.doc_no}</span>
-              <span className="truncate" style={{ color: "var(--tan-2)" }}>{n.title}</span>
-            </li>
-          ))}
-          {extra > 0 && <li className="text-xs text-tan-3">+{extra} more</li>}
-        </ul>
-      )}
+      <p className="text-xs text-tan-3 mb-2">{count} {count === 1 ? "document" : "documents"}</p>
+      <CollectionBlurb id={collection.id} updatedAt={collection.updatedAt} />
+      <CollectionDocList ids={collection.ids} docs={docs} limit={PREVIEW_COUNT} className="mb-3" />
 
       <div className="flex gap-2">
         <button
@@ -120,14 +93,7 @@ export function CollectionCard({
         >
           Rename
         </button>
-        <button
-          className="mono text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[var(--hover)]"
-          style={{ borderColor: "var(--border)", color: "var(--tan-3)" }}
-          onClick={share}
-          title="Copy a shareable link (anyone with the link can open it)"
-        >
-          {copied ? "Copied!" : "Share"}
-        </button>
+        <ShareLinkButton id={collection.id} />
         <button
           className="mono text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[var(--hover)]"
           style={{ borderColor: "var(--border)", color: "var(--error-text)" }}

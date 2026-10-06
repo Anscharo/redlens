@@ -44,6 +44,32 @@ function SourceChip({ source: s, resolved: r, mark, anchorRef, onShowClaim, onAt
   );
 }
 
+/** How a turn's citations open as the conversation's collection. */
+export interface CollectionLink {
+  onView: () => void;
+  /** The last attempt to open it failed. */
+  failed: boolean;
+}
+
+// "citations · N", plus "— view all docs from this conversation" once the conversation has a
+// collection to open.
+function SourcesLabel({ count, collection }: { count: number; collection?: CollectionLink }) {
+  return (
+    <p className="rlc-sources-label">
+      <span>citations · {count}</span>
+      {collection && (
+        <>
+          <span aria-hidden="true"> — </span>
+          <button type="button" className="rlc-sources-link" onClick={collection.onView}>
+            view all docs from this conversation
+          </button>
+          {collection.failed && <span role="alert"> (couldn’t open)</span>}
+        </>
+      )}
+    </p>
+  );
+}
+
 export interface SourcesProps {
   sources: Source[];
   // Per-doc citation-check verdicts, keyed by uuid (server: `citation_marks`).
@@ -51,6 +77,8 @@ export interface SourcesProps {
   // renders unmarked, same as a doc uuid missing from a marks map that did
   // arrive.
   marks?: Record<string, CitationMark>;
+  /** Present once the conversation has an id to read its collection from. */
+  collection?: CollectionLink;
   onAtlas: (uuid: string) => void;
 }
 
@@ -59,7 +87,7 @@ export interface SourcesProps {
 // phrase, a date, an address) — so both the editorial doc_no *and* the real
 // title are resolved from docs.json (useResolvedDocs), falling back to the
 // link text only when the uuid isn't in the bundle.
-export function Sources({ sources, marks, onAtlas }: SourcesProps) {
+export function Sources({ sources, marks, collection, onAtlas }: SourcesProps) {
   const resolved = useResolvedDocs(sources);
   const anchors = useRef(new Map<string, HTMLElement>());
   const showClaim = (uuid: string, claim: string) => {
@@ -69,7 +97,7 @@ export function Sources({ sources, marks, onAtlas }: SourcesProps) {
   if (!sources.length) return null;
   return (
     <div className="rlc-sources">
-      <p className="rlc-sources-label">citations · {sources.length}</p>
+      <SourcesLabel count={sources.length} collection={collection} />
       <div className="rlc-sources-chips">
         {sources.map((s) => (
           <SourceChip

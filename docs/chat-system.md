@@ -1389,6 +1389,9 @@ cookie.
 | `POST /api/auth/signout` | Clears the session cookie. `200 → { ok: true }`. |
 | `GET /api/usage` | `{ window: { tokens, limit, exceeded, resetsAt, windowMinutes, boosted }, global?: CommonsPool }`. Fetch on widget open and after each `done`. `global` is omitted when the commons feature is off or the credits API is unreachable. |
 | `POST /api/chat` | SSE (below). |
+| `GET /api/chat/conversations` | The signed-in user's conversations, newest first (max 100). Each row carries `messageCount`, the estimated `contextTokens`, and `citationCount`: the distinct atlas docs its answers cite. |
+| `GET /api/chat/conversations/:id/collection` | The conversation's **auto collection**: `{ id, name, ids, auto: true }`, where `ids` are the docs its assistant answers cite, oldest citation first, and `name` is the title (or "Untitled chat"). Owner only (404 otherwise). Derived on every read from the stored answers by the scan the Sources chips use (`src/lib/citationScan.ts`), so `citationCount` and the collection can never disagree, and there is no write route (any other method is 405). Nothing is stored: the collection cannot drift from the thread and disappears with the conversation. Stored answers only carry citations that survived `verify/citation-repair.ts`. |
+| `GET /api/chat/conversations/:id/shared` | The share-link read of the same collection, **public** (no session): the conversation's id is the token, as a saved collection's id is for `/c/<id>`. Returns the same `{ id, name, ids, auto: true }` and nothing else (no message text); the conversation itself stays owner-only. The SPA's `/c/<id>` opener tries the saved collection first, then this. 404 on an unknown or malformed id, 405 on any other method. |
 
 **Request body:** `{ message, conversationId?, pageContext? }`, where
 `pageContext` carries `{ path?, nodeId?, nodeTitle?, nodeDocNo?, actorSlug?, reportName? }`.

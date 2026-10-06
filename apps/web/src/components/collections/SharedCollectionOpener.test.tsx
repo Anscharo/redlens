@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   track: vi.fn(),
   getSharedCollection: vi.fn(),
+  getSharedConversationCollection: vi.fn(),
 }));
 
 vi.mock("../../lib/selection", () => ({
@@ -28,6 +29,7 @@ vi.mock("wouter", () => ({
 }));
 vi.mock("../../lib/analytics", () => ({ track: mocks.track }));
 vi.mock("../../lib/collectionsApi", () => ({ getSharedCollection: mocks.getSharedCollection }));
+vi.mock("../../lib/conversationsApi", () => ({ getSharedConversationCollection: mocks.getSharedConversationCollection }));
 
 import { SharedCollectionOpener } from "./SharedCollectionOpener";
 
@@ -68,8 +70,29 @@ describe("SharedCollectionOpener", () => {
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
+  it("falls back to a conversation's collection when the id is not a saved collection", async () => {
+    mocks.getSharedCollection.mockRejectedValue(new Error("404"));
+    mocks.getSharedConversationCollection.mockResolvedValue({ id: "abc", name: "Spark rates", ids: ["x", "y", "z"], auto: true });
+    render(<SharedCollectionOpener id="abc" />);
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalled());
+    expect(mocks.getSharedConversationCollection).toHaveBeenCalledWith("abc");
+    expect(mocks.replace).toHaveBeenCalledWith(["x", "y", "z"]);
+    // Same rule as a saved shared collection: never the viewer's to overwrite.
+    expect(mocks.setActiveCollectionId).toHaveBeenCalledWith(null);
+    expect(mocks.setActiveCollectionName).toHaveBeenCalledWith("Spark rates");
+    expect(mocks.navigate).toHaveBeenCalledWith("/atlas?subset=selected", { replace: true });
+  });
+
+  it("does not ask for a conversation when the saved collection is found", async () => {
+    mocks.getSharedCollection.mockResolvedValue({ id: "abc", name: "Shared", ids: ["x"], updatedAt: "" });
+    render(<SharedCollectionOpener id="abc" />);
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalled());
+    expect(mocks.getSharedConversationCollection).not.toHaveBeenCalled();
+  });
+
   it("on failure: shows an error and a link back to the atlas", async () => {
     mocks.getSharedCollection.mockRejectedValue(new Error("404"));
+    mocks.getSharedConversationCollection.mockRejectedValue(new Error("404"));
     render(<SharedCollectionOpener id="missing" />);
     expect(await screen.findByText("This shared collection could not be found.")).toBeInTheDocument();
     expect(screen.getByText("← back to the atlas")).toBeInTheDocument();

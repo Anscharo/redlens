@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAtlasSubset } from "./atlasSubset";
+import { useActiveCollection } from "./activeCollection";
 import { loadSelection, saveSelection, STORAGE_KEY } from "./selectionStore";
 
 // "Document Selection" state: the set of doc ids a user has picked (for a
@@ -58,8 +59,7 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
   const [subset, setSubset] = useAtlasSubset();
   const selectedOnly = subset === "selected";
   const setSelectedOnly = useCallback((v: boolean) => setSubset(v ? "selected" : "all"), [setSubset]);
-  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
-  const [activeCollectionName, setActiveCollectionName] = useState<string | null>(null);
+  const { collection, dropUnownedName, resetCollection } = useActiveCollection();
   // True when the most recent mutation to `ids` was a bulk replace() (loading a
   // collection wholesale) rather than an interactive add/remove/clear. Read by
   // the empties-effect below to tell "the user just opened a collection that
@@ -106,9 +106,8 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
     if (ids.size > 0) return;
     if (openedFromReplaceRef.current) return;
     if (selectedOnly) setSelectedOnly(false);
-    setActiveCollectionId(null);
-    setActiveCollectionName(null);
-  }, [selectedOnly, ids, setSelectedOnly]);
+    resetCollection();
+  }, [selectedOnly, ids, setSelectedOnly, resetCollection]);
 
   useEffect(() => {
     const handler = (e: StorageEvent) => {
@@ -120,17 +119,19 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
 
   const toggleDoc = useCallback((id: string) => {
     openedFromReplaceRef.current = false;
+    dropUnownedName();
     setIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  }, []);
+  }, [dropUnownedName]);
 
   const selectSubtree = useCallback((subtreeIds: string[]) => {
     if (subtreeIds.length === 0) return;
     openedFromReplaceRef.current = false;
+    dropUnownedName();
     setIds((prev) => {
       const next = new Set(prev);
       // Root-keyed toggle: an already-selected root deselects the whole subtree,
@@ -142,12 +143,13 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
       }
       return next;
     });
-  }, []);
+  }, [dropUnownedName]);
 
   const clear = useCallback(() => {
     openedFromReplaceRef.current = false;
+    dropUnownedName();
     setIds(new Set());
-  }, []);
+  }, [dropUnownedName]);
 
   // Bulk load — used to open a collection wholesale (CollectionsPage,
   // SharedCollectionOpener). Marks openedFromReplaceRef so the empties-effect
@@ -166,12 +168,9 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
       replace,
       selectedOnly,
       setSelectedOnly,
-      activeCollectionId,
-      setActiveCollectionId,
-      activeCollectionName,
-      setActiveCollectionName,
+      ...collection,
     }),
-    [ids, toggleDoc, selectSubtree, clear, replace, selectedOnly, setSelectedOnly, activeCollectionId, activeCollectionName],
+    [ids, toggleDoc, selectSubtree, clear, replace, selectedOnly, setSelectedOnly, collection],
   );
 
   return <SelectionContext.Provider value={value}>{children}</SelectionContext.Provider>;

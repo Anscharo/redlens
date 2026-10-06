@@ -9,6 +9,8 @@ import { getSessionUser } from "../session.ts";
 import { json } from "../http.ts";
 import { listConversations } from "./conversations/list.ts";
 import { getConversation } from "./conversations/detail.ts";
+import { getConversationCollection, getSharedConversationCollection } from "./conversations/citations.ts";
+import { UUID_RE } from "../../lib/patterns.ts";
 
 // Server-side safety cap on a renamed title (the UI enforces a tighter
 // 48-char maxLength; this guards a direct authenticated PATCH).
@@ -81,6 +83,34 @@ async function deleteRoute({ userId, id, refresh }: RouteCtx): Promise<Response>
   return json({ ok: true }, 200, refresh);
 }
 
+// GET /api/chat/conversations/:id/collection — the conversation's auto
+// collection. Read-only by construction: derived from the stored answers, with
+// no write route (see conversations/citations.ts).
+async function collectionRoute({ req, userId, id, refresh }: RouteCtx): Promise<Response> {
+  if (req.method !== "GET") return json({ error: "method_not_allowed" }, 405);
+  // `id` binds to a uuid column: a malformed one would throw in the cast.
+  const collection = UUID_RE.test(id) ? await getConversationCollection(userId, id) : null;
+  if (!collection) return json({ error: "not_found" }, 404);
+  return json(collection, 200, refresh);
+}
+
+// GET /api/chat/conversations/:id/shared — public (no session) read of the
+// collection behind a shared /c/<id> link. Anyone holding the conversation's id
+// can read its cited doc ids and title, and nothing else: the conversation
+// itself stays owner-only (readRoute). Gated on chat at the route, so it 404s
+// where chat does not exist.
+export async function handleSharedConversationCollection(req: Request): Promise<Response> {
+  if (req.method !== "GET") return json({ error: "method_not_allowed" }, 405);
+  const id = new URL(req.url).pathname.match(/^\/api\/chat\/conversations\/([^/]+)\/shared$/)?.[1];
+  if (!id || !UUID_RE.test(id)) return json({ error: "not_found" }, 404);
+  try {
+    const collection = await getSharedConversationCollection(id);
+    return collection ? json(collection, 200) : json({ error: "not_found" }, 404);
+  } catch {
+    return json({ error: "server_error" }, 500);
+  }
+}
+
 // Methods on /api/chat/conversations/:id. The bare collection path answers GET only.
 const ITEM_ROUTES = new Map<string, (ctx: RouteCtx) => Promise<Response>>([
   ["GET", readRoute],
@@ -94,8 +124,10 @@ export async function handleConversations(req: Request): Promise<Response> {
   const userId = session.user.id;
 
   const { pathname } = new URL(req.url);
-  const id = pathname.match(/^\/api\/chat\/conversations(?:\/([^/]+))?$/)?.[1];
+  const match = pathname.match(/^\/api\/chat\/conversations(?:\/([^/]+)(\/collection)?)?$/);
+  const id = match?.[1];
 
+  if (id && match?.[2]) return collectionRoute({ req, userId, id, refresh: session.refresh });
   if (!id && req.method === "GET") return json(await listConversations(userId), 200, session.refresh);
   const route = id ? ITEM_ROUTES.get(req.method) : undefined;
   if (!id || !route) return json({ error: "method_not_allowed" }, 405);
