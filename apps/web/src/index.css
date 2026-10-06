@@ -3122,61 +3122,79 @@ a.atlas-annotates:focus-visible {
   height: 100%;
   background: var(--entity-development-company);
 }
-/* ─── A Prime's settlement streams (SettlementStreams.tsx) ─── */
-.msc-streams {
+/* ─── A Prime's settlement ring (SettlementRing.tsx) ─── */
+.msc-ring {
   width: 100%;
   height: auto;
   overflow: visible;
 }
-.msc-streams-header,
-.msc-stream-amount,
-.msc-stream-sub {
+.msc-ring-cited {
+  fill: var(--tan-2);
+}
+.msc-ring-uncited {
   fill: var(--tan-3);
+  opacity: 0.75;
 }
-.msc-stream-name {
-  fill: var(--tan-2);
+.msc-ring-loss {
+  fill: var(--msc-loss);
 }
-.msc-stream-label {
-  fill: var(--tan-2);
-  paint-order: stroke;
-  stroke: var(--bg-deep);
-  stroke-width: 3px;
-  stroke-linejoin: round;
+.msc-ring-link {
+  cursor: pointer;
 }
-.msc-stream {
-  opacity: 0.8;
+.msc-ring-link:hover text,
+.msc-ring-link:focus-visible text {
+  fill: var(--accent);
+  text-decoration: underline;
+}
+.msc-ring-caption-link {
+  color: var(--tan-2);
+  text-decoration: underline;
+  text-decoration-color: var(--tan-3);
+}
+.msc-ring-caption-link:hover {
+  color: var(--accent);
+}
+.msc-ring-band {
+  opacity: 0.85;
   transition: opacity 0.1s;
 }
-.msc-stream:hover {
+.msc-ring-band:hover {
   opacity: 1;
 }
-.msc-stream-body,
-.msc-stream-flow,
-.msc-stream-hit {
+.msc-ring-body,
+.msc-ring-flow,
+.msc-ring-hit {
   fill: none;
 }
-.msc-stream-hit {
+.msc-ring-hit {
   stroke: transparent;
   pointer-events: stroke;
 }
-.msc-stream-body,
-.msc-stream-flow {
+.msc-ring-body,
+.msc-ring-flow {
   pointer-events: none;
 }
-/* The Prime's bar sits OVER the revenue and Sky Direct Exposure streams, so
-   the exposure reads as passing behind it — never docking at the Prime. */
-.msc-stream-prime {
-  fill: var(--tan-2);
+.msc-ring-prime {
+  fill: var(--bg-deep);
+  stroke: var(--tan-3);
+  stroke-width: 1;
 }
-/* Dashes travel along every stream in the direction its money moves: the
+.msc-ring-prime-name,
+.msc-ring-sky-name {
+  fill: var(--tan);
+}
+.msc-ring-sky {
+  fill: var(--msc-sky);
+}
+/* Dashes travel along every band in the direction its money moves: the
    path runs from payer to payee and the offset counts down to 0. */
-.msc-stream-flow {
+.msc-ring-flow {
   stroke: var(--bg-deep);
   stroke-opacity: 0.5;
   stroke-dasharray: 3 9;
-  animation: msc-stream-flow 0.9s linear infinite;
+  animation: msc-ring-flow 0.9s linear infinite;
 }
-@keyframes msc-stream-flow {
+@keyframes msc-ring-flow {
   from {
     stroke-dashoffset: 12;
   }
@@ -3185,20 +3203,9 @@ a.atlas-annotates:focus-visible {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .msc-stream-flow {
+  .msc-ring-flow {
     display: none;
   }
-}
-.msc-stream-sky-link {
-  cursor: pointer;
-}
-.msc-stream-sky-link:hover tspan,
-.msc-stream-sky-link:focus-visible tspan {
-  fill: var(--accent);
-  text-decoration: underline;
-}
-.msc-venue-row {
-  cursor: pointer;
 }
 /* ─── MSC ecosystem timeseries (radar index overview) ─── */
 /* Chart card — same look as the primitive-stats AgentPanel cards. */

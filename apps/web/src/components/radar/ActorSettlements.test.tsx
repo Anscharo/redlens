@@ -153,7 +153,7 @@ describe("ActorSettlements", () => {
     expect(legends[1].querySelector(".msc-bar-rate")).toBeInTheDocument();
     expect(legends[0].querySelector(".msc-bar-demand")).toBeInTheDocument();
     expect(screen.getByLabelText(/Settlement flows between Spark and Sky/)).toBeInTheDocument();
-    // The To Sky label links back to the ecosystem overview for this month.
+    // Sky's name links back to the ecosystem overview for this month.
     expect(
       screen.getByRole("link", { name: /ecosystem Monthly Settlement Cycle overview/ }),
     ).toHaveAttribute("href", "/radar?msc=2026-07");
@@ -208,7 +208,7 @@ describe("ActorSettlements", () => {
     expect(screen.getByRole("button", { name: /Play through the months/ })).toBeInTheDocument();
     // No identity swatch on the card; what stays with the Prime is supply-side green.
     expect(container.querySelector(".msc-identity-swatch")).toBeNull();
-    expect(container.querySelector(".msc-stream[data-kind='kept'] .msc-stream-body[stroke='var(--msc-kept)']")).toBeInTheDocument();
+    expect(container.querySelector(".msc-ring-band[data-key='cof'] .msc-ring-body[stroke='var(--msc-sky)']")).toBeInTheDocument();
     expect(container.querySelector("[fill='var(--msc-prime-1)'], [stroke='var(--msc-prime-1)']")).not.toBeInTheDocument();
   });
 
@@ -226,8 +226,8 @@ describe("ActorSettlements", () => {
     await waitFor(() => screen.getByText("Demand-side from Sky to Keel"));
     // A demand-only Prime still has its flows: the lane back from Sky.
     expect(screen.getByLabelText(/Settlement flows between Keel and Sky/)).toBeInTheDocument();
-    expect(document.querySelectorAll(".msc-stream").length).toBe(2);
-    expect(document.querySelectorAll(".msc-stream[data-kind='demand']").length).toBe(2);
+    expect(document.querySelectorAll(".msc-ring-band").length).toBe(2);
+    expect(document.querySelector(".msc-ring-band[data-key='cof']")).toBeNull();
     expect(screen.getByText("To Sky")).toBeInTheDocument();
     expect(screen.getByText(/^Supply-side kept by /)).toBeInTheDocument();
     expect(screen.getByText("Demand-side from Sky to Keel")).toBeInTheDocument();
@@ -247,13 +247,13 @@ describe("ActorSettlements", () => {
     expect(screen.getByText("$402.00M")).toBeInTheDocument();
   });
 
-  it("tags venue streams, their labels and table rows with matching data-venue ids", async () => {
+  it("links the ring's cited figures to the Atlas and tags table rows with data-venue ids", async () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
     await waitFor(() => expect(screen.getByRole("table")).toBeInTheDocument());
     const row = screen.getByRole("cell", { name: /SparkLend USDS/ }).closest("tr")!;
     expect(row).toHaveAttribute("data-venue", "S1");
-    expect(document.querySelector('.msc-stream[data-venue="S1"]')).toBeInTheDocument();
-    expect(document.querySelector('.msc-stream-row[data-venue="S1"]')).toBeInTheDocument();
+    expect(document.querySelector('.msc-ring-link[href$="id=e98ddd17-a8c3-4523-8464-cc41247c66e8"]')).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "CoF to Sky" })).toHaveAttribute("href", expect.stringContaining("6b2b7302-e63b-457e-afeb-daab5ca7a7de"));
   });
 
   it("resolves Spark's workbooks from the composite-party slug", async () => {

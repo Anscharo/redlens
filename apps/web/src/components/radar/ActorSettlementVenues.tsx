@@ -5,7 +5,7 @@ import { hasStreams, streamModel } from "@/lib/settlementStreams";
 import { Tooltip } from "../Tooltip";
 import { useTweened } from "../../hooks/useTweened";
 import { tweenStreamModel, tweenVenues } from "../../lib/mscTween";
-import { SettlementStreams } from "./SettlementStreams";
+import { SettlementRing } from "./SettlementRing";
 import { SettlementAum } from "./SettlementAum";
 
 const venuesCodec = urlString(null);
@@ -21,7 +21,7 @@ export function ActorSettlementVenues({
   name: string;
 }) {
   // A month change is drawn as a transition: the inputs tween (mscTween.ts)
-  // and the streams and AUM bars lay out from them every frame.
+  // and the ring and AUM bars lay out from them every frame.
   const target = useMemo(() => streamModel(report), [report]);
   const model = useTweened(target, tweenStreamModel, SETTLE_TWEEN_MS);
   const venues = useTweened(report.venues, tweenVenues, SETTLE_TWEEN_MS);
@@ -73,7 +73,7 @@ export function ActorSettlementVenues({
           </Tooltip>
         </div>
       )}
-      {showFlows && <SettlementStreams model={model} primeLabel={name} month={report.month} />}
+      {showFlows && <SettlementRing model={model} primeLabel={name} month={report.month} />}
       {showAum && <SettlementAum venues={venues} />}
     </>
   );
