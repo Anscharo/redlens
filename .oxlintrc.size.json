@@ -35,7 +35,6 @@
     // max-lines entry dropped: the mode pills moved to SearchModePills.tsx and the
     // file is back inside the 180 limit. The function pin drops 167 -> 146 with it.
     { "files": ["apps/web/src/components/SearchBar.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 146, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/components/SearchResults.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 123, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/Tooltip.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 149, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/atlas/AtlasAnnotations.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 111, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/atlas/AtlasReader.tsx"], "rules": { "max-lines": ["error", { "max": 449, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 407, "skipBlankLines": true, "skipComments": true }] } },
@@ -83,7 +82,6 @@
     { "files": ["apps/web/src/lib/actorIndex.ts"], "rules": { "max-lines": ["error", { "max": 398, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 262, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/lib/previewMetaCopy.ts"], "rules": { "max-lines": ["error", { "max": 199, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/lib/primitiveStats.ts"], "rules": { "max-lines-per-function": ["error", { "max": 112, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/lib/rehypeDocRefs.ts"], "rules": { "max-lines-per-function": ["error", { "max": 57, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/lib/rehypeEthAddresses.ts"], "rules": { "max-lines-per-function": ["error", { "max": 80, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/lib/settlementSankey.ts"], "rules": { "max-lines-per-function": ["error", { "max": 74, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/lib/visitHistory.ts"], "rules": { "max-lines": ["error", { "max": 191, "skipBlankLines": true, "skipComments": true }] } },
@@ -158,11 +156,9 @@
     { "files": ["src/lib/activeDataIndex.ts"], "rules": { "max-lines": ["error", { "max": 344, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 159, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/conceptsCensus.ts"], "rules": { "max-lines": ["error", { "max": 285, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/crossviewShape.ts"], "rules": { "max-lines-per-function": ["error", { "max": 125, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["src/lib/facilitatorResponsibilities.ts"], "rules": { "max-lines": ["error", { "max": 215, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 126, "skipBlankLines": true, "skipComments": true }] } },
     // One catalog of Features-guide entries (search lanes, Radar search, …). Adding an
     // entry is how the guide is meant to grow; a split would scatter one catalog.
     { "files": ["src/lib/featuresData.ts"], "rules": { "max-lines": ["error", { "max": 385, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["src/lib/govopsResponsibilities.ts"], "rules": { "max-lines": ["error", { "max": 205, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 116, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/oeaTasks.ts"], "rules": { "max-lines-per-function": ["error", { "max": 97, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/onchainAddressesIndex.ts"], "rules": { "max-lines": ["error", { "max": 345, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 57, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/rewardsIndex.ts"], "rules": { "max-lines": ["error", { "max": 299, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }] } },
