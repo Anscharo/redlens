@@ -14,9 +14,9 @@ describe("settlement citations", () => {
   });
 
   it("leaves the figures the Atlas does not define uncited", () => {
-    expect(citationFor("gar")).toBeUndefined();
     expect(citationFor("kept")).toBeUndefined();
-    expect(citationFor("cof")?.term).toBe("Agent Credit Line Borrow Rate");
+    expect(citationFor("cof")?.term).toBe("Instance Expense");
+    expect(citationFor("gar")?.term).toBe("Core Governance Reward Primitive");
   });
 
   it.skipIf(!fs.existsSync(DOCS))("resolves every UUID in the built docs.json", () => {

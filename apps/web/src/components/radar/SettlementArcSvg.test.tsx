@@ -7,7 +7,7 @@ import { SettlementArcSvg } from "./SettlementArcSvg";
 
 const model: StreamModel = {
   venues: [{ id: "A", label: "A venue with a long name", synthetic: false, revenue: 5e6, sde: 0, cof: 3e6, kept: 2e6 }],
-  revenue: 5e6, cof: 3e6, sde: 0, toSky: 3e6, kept: 2e6, demand: [], demandTotal: 0,
+  revenue: 5e6, cof: 3e6, sde: 0, toSky: 3e6, kept: 2e6, demand: [], demandTotal: 0, demandMsc: 0,
 };
 
 describe("SettlementArcSvg", () => {

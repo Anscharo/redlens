@@ -55,9 +55,12 @@ export interface StreamModel {
   toSky: number;
   /** revenue − cof. */
   kept: number;
-  /** The amount due from Sky to the Prime (A.2.4.1.2.2.1.1.1), by series. */
+  /** Everything Sky pays the Prime, by series. */
   demand: DemandStream[];
   demandTotal: number;
+  /** The part that is the Stage 1 amount due from Sky: agent rate and
+   *  distribution rewards (A.2.4.1.2.2.1.1.1.3). */
+  demandMsc: number;
 }
 
 const near = (v: number) => Math.abs(v) < SETTLEMENT_NEAR_ZERO;
@@ -104,6 +107,7 @@ export function streamModel(report: SettlementReport, topN = STREAM_TOP_N): Stre
     kept: h.primeAgentRevenue - h.cof,
     demand,
     demandTotal: demand.reduce((n, d) => n + d.value, 0),
+    demandMsc: demand.filter((d) => DEMAND_SERIES.find((s) => s.key === d.key)!.msc).reduce((n, d) => n + d.value, 0),
   };
 }
 

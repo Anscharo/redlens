@@ -69,7 +69,7 @@ const TERMS = [
   {
     term: "Demand-side",
     meaning:
-      "Agent rate plus distribution rewards, Chronicle points, and accessibility rewards (GAR) when present. Keel and Skybase settle as demand-side-only cycles. NOT Atlas vocabulary, and note the direction flips by party: Distribution Rewards are an EXPENSE of the Sky Protocol in the Atlas (A.2.3.1.2.1.3.3) and revenue to the Prime here.",
+      "Agent rate plus distribution rewards, Chronicle points (Grove's compensation under the Sky–Grove Accord, A.2.8.2.10.2.1.2), and the Core Governance Reward (workbook row governance_accessibility_rewards, A.2.2.11.1) when present. Only agent rate + distribution rewards are the Stage 1 amount due from Sky (A.2.4.1.2.2.1.1.1.3). Keel and Skybase settle as demand-side-only cycles. NOT Atlas vocabulary, and note the direction flips by party: Distribution Rewards are an EXPENSE of the Sky Protocol in the Atlas (A.2.3.1.2.1.3.3) and revenue to the Prime here.",
   },
   {
     term: "What flowed through a Prime",

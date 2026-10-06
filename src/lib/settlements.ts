@@ -259,11 +259,17 @@ export function barFillStyle(
   return { bottom: `${zero - h}%`, height: `${h}%` };
 }
 
+/** What Sky pays a Prime, by workbook row. `msc` marks the two that make
+ *  up the Stage 1 amount due from Sky (A.2.4.1.2.2.1.1.1.3): the agent
+ *  rate and distribution rewards. The others are paid alongside under
+ *  their own documents: the Core Governance Reward (A.2.2.11.1; the
+ *  workbook's governance_accessibility_rewards) and Grove's Chronicle
+ *  compensation (A.2.8.2.10.2.1.2). */
 export const DEMAND_SERIES = [
-  { key: "agentRate", label: "Agent rate", barClass: "msc-bar-rate" },
-  { key: "distributionRewards", label: "Distribution rewards", barClass: "msc-bar-dr" },
-  { key: "gar", label: "Accessibility rewards", barClass: "msc-bar-gar" },
-  { key: "chroniclePoints", label: "Chronicle points", barClass: "msc-bar-chronicle" },
+  { key: "agentRate", label: "Agent rate", barClass: "msc-bar-rate", msc: true },
+  { key: "distributionRewards", label: "Distribution rewards", barClass: "msc-bar-dr", msc: true },
+  { key: "gar", label: "Core governance reward", barClass: "msc-bar-gar", msc: false },
+  { key: "chroniclePoints", label: "Chronicle points", barClass: "msc-bar-chronicle", msc: false },
 ] as const;
 
 export type DemandKey = (typeof DEMAND_SERIES)[number]["key"];

@@ -258,7 +258,7 @@ describe("ActorSettlements", () => {
     expect(document.querySelector('.msc-arc-link[href$="id=e98ddd17-a8c3-4523-8464-cc41247c66e8"]')).toBeInTheDocument();
     // The venue table splits each venue: revenue, CoF and SDE to Sky, kept.
     expect(screen.getByRole("columnheader", { name: "Revenue to Spark" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "CoF to Sky" })).toHaveAttribute("href", expect.stringContaining("6b2b7302-e63b-457e-afeb-daab5ca7a7de"));
+    expect(screen.getByRole("link", { name: "CoF to Sky" })).toHaveAttribute("href", expect.stringContaining("6cbe7181-419f-4a7b-a659-85972d5100a3"));
     expect(screen.getByRole("columnheader", { name: "Kept by Spark" })).toBeInTheDocument();
   });
 

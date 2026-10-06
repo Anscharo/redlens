@@ -34,7 +34,7 @@ export const SLICE_LABEL: Record<string, string> = {
   cof: "cost of funds → Sky",
   sde: "Sky Direct Exposure → Sky",
   kept: "supply-side kept",
-  ...Object.fromEntries(DEMAND_SERIES.map((s) => [s.key, `${s.label.toLowerCase()} (demand-side)`])),
+  ...Object.fromEntries(DEMAND_SERIES.map((s) => [s.key, `${s.label.toLowerCase()} (${s.msc ? "demand-side" : "from Sky"})`])),
 };
 
 /** Pill text names what it is, not just the number — a bare "$2.6M" says

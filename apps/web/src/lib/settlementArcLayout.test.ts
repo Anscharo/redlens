@@ -8,7 +8,7 @@ const venue = (id: string, revenue: number, cof: number, sde = 0): VenueStream =
 function model(venues: VenueStream[], demand: StreamModel["demand"] = []): StreamModel {
   const sum = (k: "revenue" | "cof" | "sde" | "kept") => venues.reduce((n, v) => n + v[k], 0);
   const demandTotal = demand.reduce((n, d) => n + d.value, 0);
-  return { venues, revenue: sum("revenue"), cof: sum("cof"), sde: sum("sde"), toSky: sum("cof") + sum("sde"), kept: sum("kept"), demand, demandTotal };
+  return { venues, revenue: sum("revenue"), cof: sum("cof"), sde: sum("sde"), toSky: sum("cof") + sum("sde"), kept: sum("kept"), demand, demandTotal, demandMsc: demandTotal };
 }
 
 /** Layout tests work in millions, above the FULL_SCALE_USD floor, so

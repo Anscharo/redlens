@@ -95,6 +95,6 @@ export function tweenStreamModel(from: StreamModel, to: StreamModel, k: number):
     kept: mix(a.kept, b.kept, k),
   }));
   const demand = pair(from.demand, to.demand, (d) => d.key, zeroDemand, k).map(({ a, b }) => ({ ...b, value: mix(a.value, b.value, k) }));
-  const num = (key: "revenue" | "cof" | "sde" | "toSky" | "kept" | "demandTotal") => mix(from[key], to[key], k);
-  return { venues, demand, revenue: num("revenue"), cof: num("cof"), sde: num("sde"), toSky: num("toSky"), kept: num("kept"), demandTotal: num("demandTotal") };
+  const num = (key: "revenue" | "cof" | "sde" | "toSky" | "kept" | "demandTotal" | "demandMsc") => mix(from[key], to[key], k);
+  return { venues, demand, revenue: num("revenue"), cof: num("cof"), sde: num("sde"), toSky: num("toSky"), kept: num("kept"), demandTotal: num("demandTotal"), demandMsc: num("demandMsc") };
 }

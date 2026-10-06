@@ -2,7 +2,8 @@ import { formatUsd } from "../../lib/settlements";
 import type { StreamModel } from "@/lib/settlementStreams";
 import { HEIGHT, WIDTH, type ArcBand, type ArcFrame, type ArcLayout, type LaneEnd, type VenueBand } from "../../lib/settlementArcLayout";
 import { arcInk } from "./arcInk";
-import { ArcNodeLabels, DemandLabels, VenueLabels, labelsLeft } from "./SettlementArcLabels";
+import { DemandLabels, VenueLabels, labelsLeft } from "./SettlementArcLabels";
+import { ArcNodeLabels } from "./SettlementArcNodeLabels";
 import { PrimeNode, SkyNode } from "./SettlementArcNodes";
 
 const LOSS = "url(#msc-arc-loss)";

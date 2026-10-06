@@ -73,6 +73,13 @@ describe("streamModel", () => {
     expect(m.venues).toHaveLength(0);
     expect(m.demand.map((d) => d.key)).toEqual(["agentRate", "distributionRewards"]);
     expect(m.demandTotal).toBe(35_000);
+    expect(m.demandMsc).toBe(35_000);
+  });
+
+  it("keeps the Stage 1 amount due from Sky apart from the other rewards Sky pays", () => {
+    const m = streamModel(report([], { agentRate: 30_000, gar: 300_000, chroniclePoints: 17_000 }));
+    expect(m.demandTotal).toBe(347_000);
+    expect(m.demandMsc).toBe(30_000);
     expect(hasStreams(m)).toBe(true);
   });
 });
