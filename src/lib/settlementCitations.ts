@@ -29,8 +29,6 @@ export const SETTLEMENT_CITATIONS = {
   chroniclePoints: { uuid: "a7ccb2d1-970e-4b91-a430-4173ade00396", term: "Chronicle Point Reward Instance" },
 } as const satisfies Record<string, SettlementCitation>;
 
-export type CitedFigure = keyof typeof SETTLEMENT_CITATIONS;
-
 export function citationFor(key: string): SettlementCitation | undefined {
   return (SETTLEMENT_CITATIONS as Record<string, SettlementCitation>)[key];
 }
