@@ -38,9 +38,9 @@ export function SettlementCharts({ reports, selected, onSelect, name, paging }: 
         >
           Trailing {n} {n === 1 ? "Month" : "Months"}
           {" – "}
-          {name} sent <span className="mono">{formatUsd(sky)}</span> to Sky,
-          {" "}kept <span className="mono">{formatUsd(supply)}</span> supply-side,
-          {" "}received <span className="mono">{formatUsd(demand)}</span> demand-side from Sky
+          <span className="mono">{formatUsd(sky)}</span> to Sky via {name},
+          {" "}<span className="mono">{formatUsd(supply)}</span> kept supply-side,
+          {" "}<span className="mono">{formatUsd(demand)}</span> received demand-side from Sky
         </h2>
         {paging && (
           <span className="msc-cycle-paging" role="group" aria-label="Cycles shown">

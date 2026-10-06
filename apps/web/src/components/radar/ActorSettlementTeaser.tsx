@@ -85,7 +85,7 @@ export function ActorSettlementTeaser({ slug, name }: ActorSettlementTeaserProps
       style={{ scrollMarginTop: HEADER_OFFSET }}
       id="msc"
       data-testid="msc-teaser"
-      aria-label={`${name ?? slug} over ${n} ${n === 1 ? "cycle" : "cycles"}: ${formatUsd(totals.sky, true)} to Sky, ${formatUsd(totals.kept, true)} supply-side kept, ${formatUsd(totals.demand, true)} demand-side from Sky — open the settlement charts`}
+      aria-label={`${name ?? slug} over ${n} ${n === 1 ? "cycle" : "cycles"}: ${formatUsd(totals.sky, true)} to Sky via ${name ?? slug}, ${formatUsd(totals.kept, true)} supply-side kept, ${formatUsd(totals.demand, true)} demand-side from Sky — open the settlement charts`}
     >
       <div className="msc-teaser">
         <h2 className="mono text-[10px] uppercase tracking-wider" style={{ color: "var(--tan-3)" }}>

@@ -74,7 +74,7 @@ export function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSel
                 data-flow="sky"
                 style={{ top: s.top, height: s.h, background: s.value < 0 ? stripes : colorOf(s.prime) }}
                 onPointerEnter={(e) =>
-                  onHover(pillHoverFrom(e.currentTarget, `${primeLabel(s.prime)} ${formatUsd(s.value, true)} to Sky`, align))
+                  onHover(pillHoverFrom(e.currentTarget, `${formatUsd(s.value, true)} to Sky via ${primeLabel(s.prime)}`, align))
                 }
                 onPointerLeave={onLeave}
               />

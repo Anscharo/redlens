@@ -73,7 +73,7 @@ describe("ActorSettlementTeaser", () => {
     expect(card).toHaveTextContent(/full cycle/);
     // The accessible name carries all three, each named, none added.
     expect(card).toHaveAccessibleName(
-      "Spark over 2 cycles: $110 to Sky, $162 supply-side kept, $0 demand-side from Sky — open the settlement charts",
+      "Spark over 2 cycles: $110 to Sky via Spark, $162 supply-side kept, $0 demand-side from Sky — open the settlement charts",
     );
     expect(screen.getAllByRole("link")).toHaveLength(1);
     expect(screen.getByText("OEA calculation, not the on-chain GovOps spell")).toBeInTheDocument();
@@ -122,7 +122,7 @@ describe("ActorSettlementTeaser", () => {
     expect(leadLine).not.toHaveTextContent("to Sky");
     // The period line; the chart's hover pill names the month too.
     expect(card.querySelector(".msc-teaser")).toHaveTextContent("Jul 2026");
-    expect(card).toHaveAccessibleName(/Keel over 1 cycle: \$0 to Sky, \$0 supply-side kept, \$36k demand-side from Sky/);
+    expect(card).toHaveAccessibleName(/Keel over 1 cycle: \$0 to Sky via Keel, \$0 supply-side kept, \$36k demand-side from Sky/);
     // All three bars still draw, so the shape matches every other Prime's.
     expect([...card.querySelectorAll("rect[data-series]")].map((r) => r.getAttribute("data-series"))).toEqual([
       "sky", "kept", "demand",

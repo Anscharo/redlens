@@ -62,13 +62,13 @@ describe("MscTimeseries", () => {
     expect(onSelect).toHaveBeenCalledWith("2026-06");
   });
 
-  it("stacks what each Prime sent to Sky as solid segments in the Prime's color, one track per month", () => {
+  it("stacks what went to Sky via each Prime as solid segments in the Prime's color, one track per month", () => {
     renderChart();
     expect(document.querySelectorAll('button[aria-pressed="true"] .msc-ts-track')).toHaveLength(1);
     const jul = [...document.querySelectorAll('button[aria-pressed="true"] .msc-ts-seg[data-flow="sky"]')] as HTMLElement[];
     expect(jul.map((el) => pillTextFor(el))).toEqual([
-      "Spark $1.50M to Sky",
-      "Osero $500k to Sky",
+      "$1.50M to Sky via Spark",
+      "$500k to Sky via Osero",
     ]);
     expect(jul[0].style.background).toBe("var(--msc-prime-1)");
     expect(jul[1].style.background).toBe("var(--msc-prime-3)");
@@ -88,7 +88,7 @@ describe("MscTimeseries", () => {
     const keel = document.querySelector('.msc-ts-seg[data-prime="keel"]') as HTMLElement;
     expect(keel.style.background).toContain("repeating-linear-gradient");
     expect(keel.style.background).toContain("--msc-loss");
-    expect(pillTextFor(keel)).toBe("Keel −$50k to Sky");
+    expect(pillTextFor(keel)).toBe("−$50k to Sky via Keel");
     const spark = document.querySelector('button[aria-label^="Aug 2026"] .msc-ts-seg[data-prime="spark"]') as HTMLElement;
     expect(parseFloat(keel.style.top)).toBeGreaterThan(parseFloat(spark.style.top));
   });
