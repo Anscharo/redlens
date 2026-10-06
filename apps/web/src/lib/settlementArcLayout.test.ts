@@ -49,11 +49,21 @@ describe("layoutSettlementArc", () => {
       expect(a.to[0]).toBeLessThan(CX - PRIME_HALF);
     }
     expect(l.lanes.revenue?.head).toMatch(/Z$/);
-    const cof = arc(l.cof!.d);
+    // Only A has a cost of funds; it leaves the Prime's right side in A's own band.
+    expect(l.cof.map((b) => [b.key, b.venue])).toEqual([["A::cof", "A"]]);
+    const cof = arc(l.cof[0].d);
     expect(cof.from[0] - CX).toBeCloseTo(PRIME_HALF, 0);
     expect(cof.to[1]).toBeGreaterThan(CY - 60);
-    // One scale: revenue 120 fills BAND, cost of funds is half of it.
-    expect(l.cof!.w).toBeCloseTo(BAND / 2);
+    // One scale: revenue 120 fills BAND, A's cost of funds is half of it.
+    expect(l.cof[0].w).toBeCloseTo(BAND / 2);
+  });
+
+  it("sends an idle venue's cost of funds to Sky though it has no revenue band", () => {
+    const l = layoutSettlementArc(model([mv("A", 100, 50), mv("IDLE", 0, 30)]));
+    expect(l.revenue.map((b) => b.venue)).toEqual(["A"]);
+    expect(l.cof.map((b) => b.venue)).toEqual(["A", "IDLE"]);
+    // 100 arrives, 80 leaves: 20 is kept.
+    expect(l.prime.kept!.r1 - l.prime.kept!.r0).toBeCloseTo(BAND * 0.2);
   });
 
   it("sizes the Prime node to the pool and fills the part no band leaves as kept", () => {
@@ -82,7 +92,7 @@ describe("layoutSettlementArc", () => {
   it("runs the demand side clockwise from Sky round the bottom up into the Prime", () => {
     const l = layoutSettlementArc(model([], [{ key: "gar", label: "GAR", value: 5 * M }, { key: "agentRate", label: "Agent rate", value: 5 * M }]));
     expect(l.revenue).toEqual([]);
-    expect(l.cof).toBeNull();
+    expect(l.cof).toEqual([]);
     expect(l.demand.map((b) => b.key)).toEqual(["agentRate", "gar"]);
     const a = arc(l.demand[0].d);
     expect(a.sweep).toBe(1);

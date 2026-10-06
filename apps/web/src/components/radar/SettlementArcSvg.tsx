@@ -1,13 +1,12 @@
 import { formatUsd } from "../../lib/settlements";
 import type { StreamModel } from "@/lib/settlementStreams";
-import { HEIGHT, WIDTH, type ArcBand, type ArcLayout, type LaneEnd } from "../../lib/settlementArcLayout";
+import { HEIGHT, WIDTH, type ArcBand, type ArcLayout, type LaneEnd, type VenueBand } from "../../lib/settlementArcLayout";
 import { ArcNodeLabels, VenueLabels, labelsLeft } from "./SettlementArcLabels";
 import { PrimeNode, SkyNode } from "./SettlementArcNodes";
 
-/** Demand bands, kept and cost of funds wear their series' colour. */
+/** Demand bands and kept wear their series' colour. */
 const INK: Record<string, string> = {
   kept: "var(--msc-kept)",
-  cof: "var(--msc-sky)",
   agentRate: "var(--msc-rate)",
   distributionRewards: "var(--msc-dr)",
   gar: "var(--msc-gar)",
@@ -40,18 +39,24 @@ function Lane({ lane, ink }: { lane: LaneEnd | null; ink: string }) {
   );
 }
 
-/** The outer lane: SDE innermost, running past the Prime to Sky; venue
- *  revenue pooling at the Prime; cost of funds leaving it for Sky. */
+function cofTitle(v: VenueBand, revenue: number, prime: string): string {
+  const kept = revenue - v.value;
+  return `${v.label}: ${formatUsd(v.value)} cost of funds to Sky; ${prime} ${kept < 0 ? `covers ${formatUsd(-kept)} more than the venue earned` : `keeps ${formatUsd(kept)}`}`;
+}
+
+/** The outer lane: SDE innermost, running past the Prime to Sky; each
+ *  venue's revenue reaching the Prime and its cost of funds leaving it. */
 function OuterLane({ layout, prime, inks }: { layout: ArcLayout; prime: string; inks: Map<string, string> }) {
   const ink = (venue: string) => inks.get(venue) ?? "var(--gray)";
   const { cof, lanes } = layout;
+  const revenueOf = (venue: string) => layout.revenue.find((r) => r.venue === venue)?.value ?? 0;
   return (
     <g>
       {layout.sde.map((v) => <Band key={v.key} b={v} ink={ink(v.venue)} venue={v.venue} kind="sde" title={`${v.label}: ${formatUsd(v.value)} Sky Direct Exposure, straight to Sky`} />)}
       <Lane lane={lanes.sde} ink="var(--msc-sky)" />
       {layout.revenue.map((v) => <Band key={v.key} b={v} ink={ink(v.venue)} venue={v.venue} kind="revenue" title={`${v.label}: ${formatUsd(v.value)} revenue to ${prime}`} />)}
       <Lane lane={lanes.revenue} ink="var(--tan-3)" />
-      {cof && <Band b={cof} ink={arcInk("cof")} title={`${prime} pays Sky ${formatUsd(cof.value)} cost of funds on the USDS it borrowed`} />}
+      {cof.map((v) => <Band key={v.key} b={v} ink={ink(v.venue)} venue={v.venue} kind="cof" title={cofTitle(v, revenueOf(v.venue), prime)} />)}
       <Lane lane={lanes.toSky} ink="var(--msc-sky)" />
     </g>
   );

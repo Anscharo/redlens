@@ -4,6 +4,8 @@ import { SETTLEMENT_CITATIONS, citationFor } from "@/lib/settlementCitations";
 import { atlasHref } from "@/lib/routes";
 import { layoutSettlementArc } from "../../lib/settlementArcLayout";
 import { AtlasLink } from "../AtlasLink";
+import { formatUsd } from "../../lib/settlements";
+import type { AtlasAmountDue } from "@/lib/settlementAtlasCheck";
 import { SettlementArcSvg, arcInk } from "./SettlementArcSvg";
 import { UNCITED } from "./SettlementArcLabels";
 import { SettlementVenueTable } from "./SettlementVenueTable";
@@ -47,12 +49,23 @@ function KeyLink({ figure, children }: { figure: string; children: ReactNode }) 
   return <AtlasLink to={atlasHref(c.uuid)} className="msc-arc-caption-link" title={c.term}>{children}</AtlasLink>;
 }
 
-/** A Prime's month as one clockwise circle: venue revenue pools at the
- *  Prime, which pays Sky cost of funds and keeps the rest, while Sky Direct
- *  Exposure runs past it to Sky; from Sky, round the bottom, the demand
- *  side comes back to the Prime. The venue table under it lists each
- *  venue's revenue and SDE. */
-export function SettlementArc({ model, primeLabel, month, inks }: { model: StreamModel; primeLabel: string; month?: string; inks: Map<string, string> }) {
+/** A Prime's month as one clockwise circle: each venue's revenue reaches
+ *  the Prime, which passes that venue's cost of funds on to Sky and keeps
+ *  the rest, while Sky Direct Exposure runs past it to Sky; from Sky,
+ *  round the bottom, the demand side comes back to the Prime. The venue
+ *  table under it splits every venue row by row. */
+/** The month's amount due to Sky under the Atlas's per-venue floor, next
+ *  to Soter's — one muted line, only when they differ by a dollar or more. */
+function AtlasGap({ due, primeLabel }: { due?: AtlasAmountDue; primeLabel: string }) {
+  if (!due || Math.abs(due.gap) < 1) return null;
+  return (
+    <span className="block mt-1">
+      Under the Atlas&rsquo;s Stage 1 formula no venue costs {primeLabel} more than it earns (<AtlasLink to={atlasHref(SETTLEMENT_CITATIONS.instanceProfit.uuid)} className="msc-arc-caption-link">Instance Profit</AtlasLink>), so {formatUsd(due.atlas)} would be due to Sky, {formatUsd(due.gap)} less than Soter&rsquo;s figure, which charges each venue its full cost of funds.
+    </span>
+  );
+}
+
+export function SettlementArc({ model, primeLabel, month, inks, due }: { model: StreamModel; primeLabel: string; month?: string; inks: Map<string, string>; due?: AtlasAmountDue }) {
   const layout = useMemo(() => layoutSettlementArc(model), [model]);
   const ids = useMemo(() => model.venues.map((v) => v.id), [model.venues]);
   const { toSky, fromSky, execVote, cof, sde } = SETTLEMENT_CITATIONS;
@@ -62,9 +75,8 @@ export function SettlementArc({ model, primeLabel, month, inks }: { model: Strea
       <div className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mb-2" style={{ color: "var(--tan-3)" }}>
         <span>
           <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background: venueSwatch(layout.revenue.map((v) => v.venue), inks) }} aria-hidden="true" />
-          venue revenue → {primeLabel}
+          each venue&rsquo;s revenue → {primeLabel}, its <KeyLink figure="cof">cost of funds</KeyLink> → Sky
         </span>
-        <KeyItem figure="cof" background={arcInk("cof")}>cost of funds → Sky</KeyItem>
         <KeyItem figure="kept" background={arcInk("kept")}>kept by {primeLabel}</KeyItem>
         {layout.sde.length > 0 && (
           <span>
@@ -76,12 +88,9 @@ export function SettlementArc({ model, primeLabel, month, inks }: { model: Strea
       </div>
       <SettlementArcSvg layout={layout} model={model} primeLabel={primeLabel} month={month} inks={inks} />
       <figcaption className="mono text-[10px] mt-1" style={{ color: "var(--tan-3)" }}>
-        Everything runs clockwise. Top half: each venue&rsquo;s revenue pools at {primeLabel}, which pays Sky <AtlasLink to={atlasHref(cof.uuid)} className="msc-arc-caption-link">cost of funds</AtlasLink> on the USDS it borrowed and keeps the rest (filled green in its node); <AtlasLink to={atlasHref(sde.uuid)} className="msc-arc-caption-link">Sky Direct Exposure</AtlasLink> revenue goes past {primeLabel} straight to Sky.
-        Cost of funds plus SDE is the <AtlasLink to={atlasHref(toSky.uuid)} className="msc-arc-caption-link">amount due from {primeLabel} to Sky</AtlasLink>.
-        Inner lane, from Sky round the bottom to {primeLabel}: the <AtlasLink to={atlasHref(fromSky.uuid)} className="msc-arc-caption-link">amount due from Sky to {primeLabel}</AtlasLink>.
-        Each node spans exactly the bands meeting it.
-        Both are paid in the <AtlasLink to={atlasHref(execVote.uuid)} className="msc-arc-caption-link">Sky Core Executive Vote</AtlasLink> as two amounts, never netted.
-        Muted figures are Soter Labs workbook figures the Atlas defines no term for; striped is a loss.
+        Clockwise: each venue&rsquo;s revenue reaches {primeLabel}, which passes that venue&rsquo;s <AtlasLink to={atlasHref(cof.uuid)} className="msc-arc-caption-link">cost of funds</AtlasLink> on to Sky and keeps the rest (green in its node); <AtlasLink to={atlasHref(sde.uuid)} className="msc-arc-caption-link">Sky Direct Exposure</AtlasLink> goes straight to Sky. Together they are the <AtlasLink to={atlasHref(toSky.uuid)} className="msc-arc-caption-link">amount due from {primeLabel} to Sky</AtlasLink>.
+        From Sky, round the bottom: the <AtlasLink to={atlasHref(fromSky.uuid)} className="msc-arc-caption-link">amount due from Sky to {primeLabel}</AtlasLink>. Both are settled in the <AtlasLink to={atlasHref(execVote.uuid)} className="msc-arc-caption-link">Sky Core Executive Vote</AtlasLink>, never netted. Figures are Soter Labs&rsquo;; muted ones have no Atlas term, striped is a loss.
+        <AtlasGap due={due} primeLabel={primeLabel} />
       </figcaption>
       <SettlementVenueTable model={model} primeLabel={primeLabel} />
     </figure>

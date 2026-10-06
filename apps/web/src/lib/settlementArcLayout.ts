@@ -2,14 +2,17 @@
 // the left (angle π), the Prime at the top (3π/2), Sky at the right (0).
 // Angles grow clockwise on screen.
 //
-// OUTER lane, the top half. Each venue's revenue runs up to the Prime and
-// stops: it pools there. Out of the pool the Prime pays Sky its cost of
-// funds, one Prime-level band on to Sky, since it is a charge on the USDS
-// the Prime borrowed (A.3.1.2.5) rather than any one venue's money. Inside
-// the pool, each venue's Sky Direct Exposure runs past the Prime straight
-// to Sky, through a gap in the Prime node. SDE sits innermost so it meets
-// cost of funds at Sky with no gap: together they are the amount due from
-// the Prime to Sky (A.2.4.1.2.2.1.1.2).
+// OUTER lane, the top half. Each venue's revenue runs up to the Prime's
+// left side. From its right side, in the same venue order, each venue's
+// cost of funds runs on to Sky in the venue's colour: the Atlas charges it
+// venue by venue (Instance Expense, A.2.4.1.2.2.1.1.2.2.1.1). The widths
+// are Soter's per-venue figures, so a venue whose cost exceeds its revenue
+// leaves wider than it arrived. Whatever of the revenue does not leave is
+// kept, filled in the Prime node; a cost larger than all the revenue is a
+// striped shortfall there. Innermost, each venue's Sky Direct Exposure runs
+// past the Prime straight to Sky, so it meets cost of funds at Sky with no
+// gap: together they are the amount due from the Prime to Sky
+// (A.2.4.1.2.2.1.1.2).
 //
 // INNER lane, three quarters of the circle: from Sky down round the bottom,
 // past the venues, up into the Prime. The demand side (A.2.4.1.2.2.1.1.1).
@@ -105,7 +108,8 @@ export interface Span {
 export interface ArcLayout {
   sde: VenueBand[];
   revenue: VenueBand[];
-  cof: ArcBand | null;
+  /** Each venue's cost of funds, from the Prime on to Sky. */
+  cof: VenueBand[];
   demand: ArcBand[];
   lanes: { sde: LaneEnd | null; revenue: LaneEnd | null; toSky: LaneEnd | null; demand: LaneEnd | null };
   prime: {
@@ -161,14 +165,19 @@ function venueBands(rows: (ArcFlow & { r: number; w: number; loss: boolean })[],
 
 export function layoutSettlementArc(m: StreamModel): ArcLayout {
   const src = arcSources(m);
-  const cofV = Math.abs(m.cof) >= NEAR ? m.cof : 0;
+  const revRows = src.revenue.filter((v) => Math.abs(v.value) >= NEAR);
+  const cofRows = src.revenue.filter((v) => Math.abs(v.cof) >= NEAR).map((v) => ({ ...v, value: v.cof }));
   const demandRows = [...m.demand].sort((a, b) => INNER_ORDER.indexOf(a.key) - INNER_ORDER.indexOf(b.key));
-  const max = Math.max(total(src.sde) + Math.max(total(src.revenue), Math.abs(cofV)), total(demandRows));
+  const max = Math.max(total(src.sde) + Math.max(total(revRows), total(cofRows)), total(demandRows));
   const scale = max > 0 ? BAND / Math.max(max, FULL_SCALE_USD) : 0;
 
   const sde = stack(src.sde, OUTER0, scale, 1, VENUE_MIN_W);
-  const rev = stack(src.revenue, sde.edge, scale, 1, VENUE_MIN_W);
-  const cofEdge = cofV ? sde.edge + width(cofV, scale) : sde.edge;
+  // Left of the Prime the venues stack by revenue; right of it, in the same
+  // order, by cost of funds. What a venue's revenue band has and its cost
+  // band lacks stays with the Prime.
+  const rev = stack(revRows, sde.edge, scale, 1, VENUE_MIN_W);
+  const cof = stack(cofRows, sde.edge, scale, 1, VENUE_MIN_W);
+  const cofEdge = cof.edge;
   const poolEdge = Math.max(rev.edge, cofEdge);
   const ns = sde.out.length;
   const nr = rev.out.length;
@@ -179,11 +188,10 @@ export function layoutSettlementArc(m: StreamModel): ArcLayout {
   const d = stack(demandRows, INNER_OUT, scale, -1);
   const demandR = (d.edge + INNER_OUT) / 2;
   const demand = d.out.length ? laneEnd(d.edge, INNER_OUT, skyEdge(demandR, 1), primeEdge(demandR, -1)) : null;
-  const cofR = (sde.edge + cofEdge) / 2;
   return {
     sde: venueBands(sde.out, 0, toSky?.stop ?? SKY),
     revenue: venueBands(rev.out, ns, revenue?.stop ?? APEX),
-    cof: cofV && toSky ? { key: "cof", value: cofV, r: cofR, w: cofEdge - sde.edge, loss: cofV < 0, d: arcPath(CX, CY, cofR, primeEdge(cofR, 1), toSky.stop) } : null,
+    cof: toSky ? cof.out.map((b) => ({ ...b, key: `${b.key}::cof`, d: arcPath(CX, CY, b.r, primeEdge(b.r, 1), toSky.stop), labelAt: labelAt(b.r, b.w, APEX) })) : [],
     demand: d.out.map((b) => ({ key: b.key, value: b.value, r: b.r, w: b.w, loss: b.loss, d: arcPath(CX, CY, b.r, skyEdge(b.r, 1), demand!.stop) })),
     lanes: { sde: sdeFlow, revenue, toSky, demand },
     prime: {

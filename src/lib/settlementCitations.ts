@@ -19,6 +19,8 @@ export const SETTLEMENT_CITATIONS = {
   execVote: { uuid: "0d561ea6-8689-459c-85eb-7c861553e116", term: "Settlement Through Sky Core Executive Vote" },
   // A.3.1.2.5 — cost of funds is the Agent Credit Line Borrow Rate's charge
   cof: { uuid: "6b2b7302-e63b-457e-afeb-daab5ca7a7de", term: "Agent Credit Line Borrow Rate" },
+  // A.2.4.1.2.2.1.1.2.2.1 — the per-venue profit, floored at zero
+  instanceProfit: { uuid: "9974c452-216b-45c0-8a1d-621816b8da2a", term: "Instance Profit" },
   // A.2.2.10.1.1.1.1.5
   sde: { uuid: "07e0f716-ce23-4394-a5f4-bee537713f48", term: "Revenue Sharing For Sky Direct Exposures" },
   // A.3.1.2.3

@@ -5,11 +5,12 @@ import { citationFor } from "@/lib/settlementCitations";
 import { atlasHref } from "@/lib/routes";
 import { AtlasLink } from "../AtlasLink";
 
-/** Only what each venue earns. Cost of funds is the Prime's charge on the
- *  USDS it borrowed (A.3.1.2.5), so the workbook's per-venue split of it,
- *  and the per-venue kept that follows from it, is a pro-rata allocation,
- *  not a venue figure; the arc shows both at the Prime. */
-const COLS = ["revenue", "sde"] as const;
+/** Each venue's revenue, the cost of funds it sends Sky (the Atlas charges
+ *  it per venue, as Instance Expense, A.2.4.1.2.2.1.1.2.2.1.1), its SDE, and
+ *  what the Prime keeps of it. Kept is Soter's revenue − cost of funds, which
+ *  can go below zero; the Atlas's Instance Profit cannot, so kept stays
+ *  muted and uncited. */
+const COLS = ["revenue", "cof", "sde", "kept"] as const;
 const UNCITED = "A workbook figure: the Atlas defines no term for it";
 
 function Cell({ v, muted }: { v: number; muted: boolean }) {
@@ -31,20 +32,22 @@ function Head({ col, children }: { col: (typeof COLS)[number]; children: ReactNo
   );
 }
 
-/** The outer lane's sources row by row: each venue's revenue to the Prime
- *  and its Sky Direct Exposure. The total row is the headline card's own
- *  figures, which the prime-level row makes the rows reach. */
+/** The outer lane row by row. The total row is the headline card's own
+ *  figures — kept is primeAgentRevenue − cof, which the prime-level row
+ *  makes the rows reach. */
 export function SettlementVenueTable({ model, primeLabel }: { model: StreamModel; primeLabel: string }) {
-  const rows = model.venues.filter((v) => Math.abs(v.revenue) >= 1 || Math.abs(v.sde) >= 1);
+  const rows = model.venues;
   if (rows.length === 0) return null;
-  const total: Pick<VenueStream, (typeof COLS)[number]> = { revenue: model.revenue, sde: model.sde };
+  const total: Pick<VenueStream, (typeof COLS)[number]> = { revenue: model.revenue, cof: model.cof, sde: model.sde, kept: model.kept };
   return (
     <table className="w-full text-sm border-collapse mt-4">
       <thead>
         <tr className="mono text-[10px] uppercase tracking-wider" style={{ color: "var(--tan-3)" }}>
           <th className="text-left font-normal pb-1">Venue</th>
           <Head col="revenue">Revenue to {primeLabel}</Head>
+          <Head col="cof">CoF to Sky</Head>
           <Head col="sde">SDE to Sky</Head>
+          <Head col="kept">Kept by {primeLabel}</Head>
         </tr>
       </thead>
       <tbody>

@@ -14,7 +14,7 @@ export interface SettlementChartsProps {
   reports: SettlementReport[];
   selected: string;
   onSelect: (month: string) => void;
-  /** Prime display name, used in “Total {name} retained revenue”. */
+  /** Prime display name, used in the trailing-months heading. */
   name: string;
   paging?: CyclePaging;
 }
