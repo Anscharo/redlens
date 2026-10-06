@@ -10,6 +10,7 @@ import { SettlementAum } from "./SettlementAum";
 import { NEAR, arcSources } from "../../lib/settlementArcRows";
 import { venueInks } from "../../lib/venueInks";
 import { atlasAmountDue } from "@/lib/settlementAtlasCheck";
+import type { ArcFrame } from "../../lib/settlementArcLayout";
 
 const venuesCodec = urlString(null);
 /** A month change on the venue charts, slower than the overview's: a
@@ -19,9 +20,12 @@ export const SETTLE_TWEEN_MS = 1500;
 export function ActorSettlementVenues({
   report,
   name,
+  frame,
 }: {
   report: SettlementReport;
   name: string;
+  /** The circle's box across all of the Prime's months (arcFrame). */
+  frame?: ArcFrame;
 }) {
   // A month change is drawn as a transition: the inputs tween (mscTween.ts)
   // and the arc and AUM bars lay out from them every frame.
@@ -87,7 +91,7 @@ export function ActorSettlementVenues({
           </Tooltip>
         </div>
       )}
-      {showFlows && <SettlementArc model={model} primeLabel={name} month={report.month} inks={inks} due={atlasAmountDue(report)} />}
+      {showFlows && <SettlementArc model={model} primeLabel={name} month={report.month} inks={inks} due={atlasAmountDue(report)} frame={frame} />}
       {showAum && <SettlementAum venues={venues} inks={inks} />}
     </>
   );

@@ -252,3 +252,18 @@ function keptSpan(r0: number, r1: number, loss: boolean) {
   const s = span(r0, r1);
   return s ? { ...s, loss } : null;
 }
+
+/** The box one Prime's circle is drawn in: left far enough for every
+ *  month's venue names, top high enough for every month's outermost band.
+ *  Fixed across the Prime's months, so changing month never moves the
+ *  circle. `left` measures one layout's leftmost name. */
+export interface ArcFrame {
+  left: number;
+  top: number;
+}
+export function arcFrame(layouts: readonly ArcLayout[], left: (l: ArcLayout) => number): ArcFrame {
+  return {
+    left: Math.min(0, ...layouts.map(left)),
+    top: Math.min(CY - INNER_OUT - 52, ...layouts.map((l) => l.top)),
+  };
+}

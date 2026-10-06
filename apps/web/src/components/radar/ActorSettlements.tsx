@@ -15,6 +15,9 @@ import { loadForumTopics } from "../../lib/forumTopics";
 import { forumTopicUrlForMonth } from "@/lib/forumMonths";
 import { SettlementCharts } from "./SettlementCharts";
 import { ActorSettlementVenues } from "./ActorSettlementVenues";
+import { arcFrame, layoutSettlementArc } from "../../lib/settlementArcLayout";
+import { streamModel } from "@/lib/settlementStreams";
+import { labelsLeft } from "./SettlementArcLabels";
 import { MscHeadline } from "./MscHeadline";
 import { ActorSettlementsSkeleton } from "./ActorSettlementsSkeleton";
 import { useMonthAutoplay } from "../../hooks/useMonthAutoplay";
@@ -47,6 +50,12 @@ function ActorSettlementsLoaded({ slug, name }: ActorSettlementsProps) {
   const topics = useLoaded(loadForumTopics, { soft: true });
   const reports = useMemo(() => reportsForPrime(bundle, slug), [bundle, slug]);
   const months = reports.map((r) => r.month);
+  // One box for the settlement circle across every month, so the names of
+  // the longest month fit and a month change never moves the circle.
+  const frame = useMemo(
+    () => arcFrame(reports.map((r) => layoutSettlementArc(streamModel(r))), (l) => labelsLeft([...l.revenue, ...l.sde])),
+    [reports],
+  );
   const latest = months[months.length - 1] ?? null;
   const [msc, setMsc] = useUrlState("msc", mscCodec);
   const month = months.includes(msc ?? "") ? msc! : latest;
@@ -131,7 +140,7 @@ function ActorSettlementsLoaded({ slug, name }: ActorSettlementsProps) {
         play={{ playing: play.playing, onToggle: play.toggle }}
         earner={name}
       />
-      <ActorSettlementVenues report={report} name={name} />
+      <ActorSettlementVenues report={report} name={name} frame={frame} />
     </>
   );
 }

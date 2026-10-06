@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StreamModel, VenueStream } from "@/lib/settlementStreams";
-import { ARRIVE_GAP, BAND, CX, CY, OUTER0, PRIME_HALF, layoutSettlementArc } from "./settlementArcLayout";
+import { ARRIVE_GAP, BAND, CX, CY, OUTER0, PRIME_HALF, arcFrame, layoutSettlementArc } from "./settlementArcLayout";
 import { ARC_OTHER_ID, ARC_TOP_N, arcSources } from "./settlementArcRows";
 
 const venue = (id: string, revenue: number, cof: number, sde = 0): VenueStream => ({ id, label: id, synthetic: false, revenue, sde, cof, kept: revenue - cof });
@@ -150,6 +150,14 @@ describe("layoutSettlementArc", () => {
     expect(small.outerEdge).toBeLessThan(OUTER0 + 10);
     expect(big.outerEdge).toBeCloseTo(OUTER0 + BAND);
     expect(small.top).toBeGreaterThan(big.top + BAND - 10);
+  });
+
+  it("frames a Prime's months in one box: the leftmost names and the highest band of any month", () => {
+    const small = layoutSettlementArc(model([venue("A", 70_000, 77_000)]));
+    const big = layoutSettlementArc(model([mv("A", 100, 60)]));
+    const left = (l: typeof small) => (l === small ? -300 : -40);
+    expect(arcFrame([small, big], left)).toEqual({ left: -300, top: big.top });
+    expect(arcFrame([big], left)).toEqual({ left: -40, top: big.top });
   });
 
   it("starts each venue band further up the arch than the one inside it", () => {

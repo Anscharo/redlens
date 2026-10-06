@@ -1,6 +1,6 @@
 import { formatUsd } from "../../lib/settlements";
 import type { StreamModel } from "@/lib/settlementStreams";
-import { HEIGHT, WIDTH, type ArcBand, type ArcLayout, type LaneEnd, type VenueBand } from "../../lib/settlementArcLayout";
+import { HEIGHT, WIDTH, type ArcBand, type ArcFrame, type ArcLayout, type LaneEnd, type VenueBand } from "../../lib/settlementArcLayout";
 import { arcInk } from "./arcInk";
 import { ArcNodeLabels, DemandLabels, VenueLabels, labelsLeft } from "./SettlementArcLabels";
 import { PrimeNode, SkyNode } from "./SettlementArcNodes";
@@ -54,14 +54,16 @@ function OuterLane({ layout, prime, inks }: { layout: ArcLayout; prime: string; 
   );
 }
 
-export function SettlementArcSvg({ layout, model, primeLabel, month, inks }: { layout: ArcLayout; model: StreamModel; primeLabel: string; month?: string; inks: Map<string, string> }) {
+export function SettlementArcSvg({ layout, model, primeLabel, month, inks, frame }: { layout: ArcLayout; model: StreamModel; primeLabel: string; month?: string; inks: Map<string, string>; frame?: ArcFrame }) {
   const { demand } = layout;
-  // The figure widens left to fit the longest venue name; drawn at one
-  // unit per pixel, so the circle's size never depends on the names.
-  const left = labelsLeft([...layout.revenue, ...layout.sde]);
+  // The box is the Prime's frame — wide and tall enough for every month's
+  // names and bands (arcFrame) — so changing month never moves the circle;
+  // drawn at one unit per pixel. Without a frame, this month's own box.
+  const left = frame?.left ?? labelsLeft([...layout.revenue, ...layout.sde]);
+  const top = frame?.top ?? layout.top;
   const demandLabel = (key: string) => model.demand.find((d) => d.key === key)?.label ?? key;
   return (
-    <svg className="msc-arc" viewBox={`${left} ${layout.top} ${WIDTH - left} ${HEIGHT - layout.top}`} style={{ width: WIDTH - left }} role="img" aria-labelledby="msc-arc-title msc-arc-desc">
+    <svg className="msc-arc" viewBox={`${left} ${top} ${WIDTH - left} ${HEIGHT - top}`} style={{ width: WIDTH - left }} role="img" aria-labelledby="msc-arc-title msc-arc-desc">
       <title id="msc-arc-title">{`${primeLabel}'s settlement arc`}</title>
       <desc id="msc-arc-desc">
         {`Clockwise round one circle. On the top half, venue revenue of ${formatUsd(model.revenue)} pools at ${primeLabel}, which pays Sky ${formatUsd(model.cof)} cost of funds and keeps ${formatUsd(model.kept)}; ${formatUsd(model.sde)} of Sky Direct Exposure goes past ${primeLabel} straight to Sky, ${formatUsd(model.toSky)} to Sky in all. On the inner lane, from Sky round the bottom up to ${primeLabel}, Sky owes ${primeLabel} ${formatUsd(model.demandTotal)} on the demand side. The two amounts are never netted.`}

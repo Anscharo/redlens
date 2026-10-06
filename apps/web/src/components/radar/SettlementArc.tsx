@@ -2,7 +2,7 @@ import { useMemo, type ReactNode } from "react";
 import type { StreamModel } from "@/lib/settlementStreams";
 import { SETTLEMENT_CITATIONS, citationFor } from "@/lib/settlementCitations";
 import { atlasHref } from "@/lib/routes";
-import { layoutSettlementArc } from "../../lib/settlementArcLayout";
+import { layoutSettlementArc, type ArcFrame } from "../../lib/settlementArcLayout";
 import { AtlasLink } from "../AtlasLink";
 import { formatUsd } from "../../lib/settlements";
 import type { AtlasAmountDue } from "@/lib/settlementAtlasCheck";
@@ -66,7 +66,7 @@ function AtlasGap({ due, primeLabel }: { due?: AtlasAmountDue; primeLabel: strin
   );
 }
 
-export function SettlementArc({ model, primeLabel, month, inks, due }: { model: StreamModel; primeLabel: string; month?: string; inks: Map<string, string>; due?: AtlasAmountDue }) {
+export function SettlementArc({ model, primeLabel, month, inks, due, frame }: { model: StreamModel; primeLabel: string; month?: string; inks: Map<string, string>; due?: AtlasAmountDue; frame?: ArcFrame }) {
   const layout = useMemo(() => layoutSettlementArc(model), [model]);
   const ids = useMemo(() => model.venues.map((v) => v.id), [model.venues]);
   const { toSky, fromSky, execVote, cof, sde } = SETTLEMENT_CITATIONS;
@@ -87,7 +87,7 @@ export function SettlementArc({ model, primeLabel, month, inks, due }: { model: 
         )}
         {model.demand.map((d) => <KeyItem key={d.key} figure={d.key} background={arcInk(d.key)}>{d.label}</KeyItem>)}
       </div>
-      <SettlementArcSvg layout={layout} model={model} primeLabel={primeLabel} month={month} inks={inks} />
+      <SettlementArcSvg layout={layout} model={model} primeLabel={primeLabel} month={month} inks={inks} frame={frame} />
       <figcaption className="mono text-[10px] mt-1" style={{ color: "var(--tan-3)" }}>
         Clockwise: each venue&rsquo;s revenue reaches {primeLabel}, which passes that venue&rsquo;s <AtlasLink to={atlasHref(cof.uuid)} className="msc-arc-caption-link">cost of funds</AtlasLink> on to Sky and keeps the rest (green in its node); <AtlasLink to={atlasHref(sde.uuid)} className="msc-arc-caption-link">Sky Direct Exposure</AtlasLink> goes straight to Sky. Together they are the <AtlasLink to={atlasHref(toSky.uuid)} className="msc-arc-caption-link">amount due from {primeLabel} to Sky</AtlasLink>.
         From Sky, round the bottom: the <AtlasLink to={atlasHref(fromSky.uuid)} className="msc-arc-caption-link">amount due from Sky to {primeLabel}</AtlasLink>. Both are settled in the <AtlasLink to={atlasHref(execVote.uuid)} className="msc-arc-caption-link">Sky Core Executive Vote</AtlasLink>, never netted. Figures are Soter Labs&rsquo;; muted ones have no Atlas term, striped is a loss.
