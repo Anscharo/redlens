@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { type Collection, MAX_COLLECTION_NAME_LEN } from "../../lib/collectionsApi";
 import type { AtlasNode } from "@/types";
+import { CollectionBlurb } from "./CollectionBlurb";
 import { CollectionDocList } from "./CollectionDocList";
 import { ShareLinkButton } from "./ShareLinkButton";
 
@@ -21,6 +22,7 @@ export function CollectionCard({
   onRename: (name: string) => void;
   onDelete: () => void;
 }) {
+  const count = collection.ids.length;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(collection.name);
 
@@ -72,9 +74,8 @@ export function CollectionCard({
         </p>
       </div>
 
-      <p className="text-xs text-tan-3 mb-2">
-        {collection.ids.length} {collection.ids.length === 1 ? "document" : "documents"}
-      </p>
+      <p className="text-xs text-tan-3 mb-2">{count} {count === 1 ? "document" : "documents"}</p>
+      <CollectionBlurb id={collection.id} updatedAt={collection.updatedAt} />
       <CollectionDocList ids={collection.ids} docs={docs} limit={PREVIEW_COUNT} className="mb-3" />
 
       <div className="flex gap-2">

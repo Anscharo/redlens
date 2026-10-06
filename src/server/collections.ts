@@ -41,7 +41,7 @@ interface CollectionBody {
 const MAX_NAME_LEN = 32;
 const MAX_IDS = MAX_COLLECTION_DOCS;
 
-async function itemsFor(collectionId: string): Promise<string[]> {
+export async function itemsFor(collectionId: string): Promise<string[]> {
   const rows = (await sql`
     SELECT doc_id FROM collection_items WHERE collection_id = ${collectionId} ORDER BY position
   `) as { doc_id: string }[];

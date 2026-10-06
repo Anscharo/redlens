@@ -73,3 +73,11 @@ export function getSharedCollection(id: string): Promise<Collection> {
 export async function deleteCollection(id: string): Promise<void> {
   await request<{ ok: true }>(`collections/${id}`, { method: "DELETE" });
 }
+
+// The generated group name and one-line summary of one of the user's own
+// collections. Both are null when none could be written; the card shows nothing.
+export type CollectionSummary = { label: string | null; summary: string | null };
+
+export function getCollectionSummary(id: string): Promise<CollectionSummary> {
+  return request<CollectionSummary>(`collections/${id}/summary`);
+}

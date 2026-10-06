@@ -25,6 +25,7 @@ import { canonicalRedirect } from "./history/canonical.ts";
 import { handleChat } from "./chat/chat.ts";
 import { handleConversations, handleSharedConversationCollection } from "./chat/conversations.ts";
 import { handleCollections, handleSharedCollection } from "./collections.ts";
+import { handleCollectionSummary } from "./collection-summary.ts";
 import { handleFeedback } from "./feedback.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history/history.ts";
@@ -479,6 +480,7 @@ export function buildRoutes() {
     // Public share read is unauthenticated (anyone with the link) — declared
     // before the auth-gated :id route so the more specific path wins.
     "/api/collections/:id/shared": gated(usersOn, handleSharedCollection),
+    "/api/collections/:id/summary": gated(usersOn, handleCollectionSummary),
     "/api/collections":     collections,
     "/api/collections/:id": collections,
     /* v8 ignore start -- request glue; handleFeedback is unit-tested directly in feedback.test.ts */
