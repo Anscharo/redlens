@@ -1,8 +1,7 @@
 import { formatUsd } from "../../lib/settlements";
 import type { StreamModel } from "@/lib/settlementStreams";
-import { ARC_OTHER_ID, CX, CY, HEAD_FLARE, HEIGHT, INNER0, OUTER0, OUTER_END, WIDTH, type ArcBand, type ArcLayout, type LaneEnd, type VenueBand } from "../../lib/settlementArcLayout";
+import { ARC_OTHER_ID, CX, CY, HEAD_FLARE, HEIGHT, INNER0, OUTER_END, WIDTH, type ArcBand, type ArcLayout, type LaneEnd, type VenueBand } from "../../lib/settlementArcLayout";
 import { ArcNodeLabels, PrimeBar, VenueLabels } from "./SettlementArcLabels";
-import { venueFill } from "./SettlementAum";
 
 /** Demand bands and kept wear their series' colour. */
 const INK: Record<string, string> = {
@@ -13,8 +12,28 @@ const INK: Record<string, string> = {
   chroniclePoints: "var(--msc-cp)",
 };
 export const arcInk = (key: string) => INK[key] ?? "var(--msc-demand)";
-/** A venue wears the same colour here as on the AUM view (venueFill). */
-export const venueInk = (key: string) => venueFill(key === ARC_OTHER_ID ? "_other" : key);
+const VENUE_SLOTS = 5;
+const hash = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0);
+
+/** Each drawn venue's colour from the --msc-venue-N categorical order. The
+ *  colour follows the venue, not its rank: its slot is hashed from its id,
+ *  and a clash moves the later id (in id order) to the next free slot, so a
+ *  venue keeps its colour as it re-ranks. The folded tail is grey. */
+export function venueInks(keys: string[]): Map<string, string> {
+  const inks = new Map<string, string>();
+  const taken = new Set<number>();
+  for (const key of [...keys].sort()) {
+    if (key === ARC_OTHER_ID) {
+      inks.set(key, "var(--gray)");
+      continue;
+    }
+    let slot = hash(key) % VENUE_SLOTS;
+    for (let n = 0; taken.has(slot) && n < VENUE_SLOTS; n++) slot = (slot + 1) % VENUE_SLOTS;
+    taken.add(slot);
+    inks.set(key, `var(--msc-venue-${slot + 1})`);
+  }
+  return inks;
+}
 const LOSS = "url(#msc-arc-loss)";
 
 /** One band: a hit area under it for its tooltip, then the band. A hairline
@@ -46,18 +65,14 @@ function venueTitle(v: VenueBand, prime: string): string {
   return `${v.label}: ${formatUsd(v.value)} through ${prime} to Sky (${parts})`;
 }
 
-/** Venues and Sky as bars under the feet; the Prime is an outlined bar at
+/** Sky as a bar under the right foot. Venues get no node: each is its own
+ *  source, so each band starts on its own; the Prime is an outlined bar at
  *  the apex (PrimeBar), drawn over the bands it spans. */
-function Feet() {
-  return (
-    <g>
-      <rect x={CX - OUTER_END - HEAD_FLARE} y={CY + 2} width={OUTER_END - OUTER0 + 2 * HEAD_FLARE} height={6} rx={2} className="msc-arc-node" />
-      <rect x={CX + INNER0 - HEAD_FLARE} y={CY + 2} width={OUTER_END - INNER0 + 2 * HEAD_FLARE} height={6} rx={2} className="msc-arc-sky" />
-    </g>
-  );
+function SkyFoot() {
+  return <rect x={CX + INNER0 - HEAD_FLARE} y={CY + 2} width={OUTER_END - INNER0 + 2 * HEAD_FLARE} height={6} rx={2} className="msc-arc-sky" />;
 }
 
-export function SettlementArcSvg({ layout, model, primeLabel, month }: { layout: ArcLayout; model: StreamModel; primeLabel: string; month?: string }) {
+export function SettlementArcSvg({ layout, model, primeLabel, month, inks }: { layout: ArcLayout; model: StreamModel; primeLabel: string; month?: string; inks: Map<string, string> }) {
   const { kept, venues, demand } = layout;
   const demandLabel = (key: string) => model.demand.find((d) => d.key === key)?.label ?? key;
   return (
@@ -71,11 +86,11 @@ export function SettlementArcSvg({ layout, model, primeLabel, month }: { layout:
           <rect width={3} height={6} style={{ fill: "var(--msc-loss)" }} />
         </pattern>
       </defs>
-      <Feet />
+      <SkyFoot />
       {demand.map((b) => <Band key={b.key} b={b} ink={arcInk(b.key)} title={`${demandLabel(b.key)}: ${formatUsd(b.value)} from Sky to ${primeLabel}`} />)}
       <Lane lane={layout.inner} ink={arcInk(demand[0]?.key ?? "")} />
       {kept && <Band b={kept} ink={arcInk("kept")} title={kept.loss ? `${primeLabel} paid ${formatUsd(-kept.value)} more cost of funds than its venues earned` : `${formatUsd(kept.value)} of venue revenue stays with ${primeLabel}`} />}
-      {venues.map((v) => <Band key={v.key} b={v} ink={venueInk(v.key)} venue={v.key} title={venueTitle(v, primeLabel)} />)}
+      {venues.map((v) => <Band key={v.key} b={v} ink={inks.get(v.key) ?? "var(--gray)"} venue={v.key} title={venueTitle(v, primeLabel)} />)}
       <Lane lane={layout.outer} ink="var(--msc-sky)" />
       <PrimeBar span={layout.prime} model={model} primeLabel={primeLabel} />
       <VenueLabels venues={venues} />

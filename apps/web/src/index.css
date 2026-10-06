@@ -152,6 +152,13 @@
   --msc-prime-4: #b191ea;
   --msc-prime-5: #7e4d8a;
   --msc-prime-6: #fab2cd;
+  /* Settlement-arc venues: a categorical order checked for lightness,
+     chroma and colour-blind separation against this theme's --bg-deep. */
+  --msc-venue-1: #3987e5;
+  --msc-venue-2: #199e70;
+  --msc-venue-3: #c98500;
+  --msc-venue-4: #d55181;
+  --msc-venue-5: #9085e9;
 }
 
 /* ─── Alternate themes ────────────────────────────────────────────────────
@@ -329,6 +336,13 @@
   --msc-prime-4: #6c44a4;
   --msc-prime-5: #552660;
   --msc-prime-6: #cb7196;
+  /* Settlement-arc venues: a categorical order checked for lightness,
+     chroma and colour-blind separation against this theme's --bg-deep. */
+  --msc-venue-1: #2a78d6;
+  --msc-venue-2: #1baf7a;
+  --msc-venue-3: #eda100;
+  --msc-venue-4: #e87ba4;
+  --msc-venue-5: #4a3aa7;
 }
 
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
@@ -646,6 +660,13 @@
   --msc-prime-4: #a37734;
   --msc-prime-5: #c5b59b;
   --msc-prime-6: #bd7221;
+  /* Settlement-arc venues: a categorical order checked for lightness,
+     chroma and colour-blind separation against this theme's --bg-deep. */
+  --msc-venue-1: #3987e5;
+  --msc-venue-2: #199e70;
+  --msc-venue-3: #c98500;
+  --msc-venue-4: #d55181;
+  --msc-venue-5: #9085e9;
 }
 
 /* ─── Giedi structural override ──────────────────────────────────────────
@@ -3199,9 +3220,6 @@ a.atlas-annotates:focus-visible {
   stroke-linejoin: round;
   font-weight: 500;
   pointer-events: none;
-}
-.msc-arc-node {
-  fill: var(--tan-3);
 }
 /* The Prime bar is an outline, so the venue bands crossing it stay
    visible: they pass through the Prime without stopping. */

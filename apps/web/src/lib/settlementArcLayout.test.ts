@@ -86,4 +86,12 @@ describe("layoutSettlementArc", () => {
     expect(l.prime!.r1 - l.prime!.r0).toBeCloseTo(l.demand[0].w);
     expect(layoutSettlementArc(model([])).prime).toBeNull();
   });
+  it("starts each venue band further up the arch than the one inside it, with room for its name", () => {
+    const l = layoutSettlementArc(model([venue("A", 1000, 900), venue("B", 100, 1)]));
+    const [a, b] = l.venues.map((v) => arc(v.d).from);
+    // B starts higher (smaller y) than A, which starts at the foot.
+    expect(a[1]).toBeCloseTo(CY, 0);
+    expect(b[1]).toBeLessThan(a[1] - 10);
+    expect(l.venues[1].w).toBeGreaterThanOrEqual(6);
+  });
 });

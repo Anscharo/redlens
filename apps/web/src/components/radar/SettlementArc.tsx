@@ -4,7 +4,7 @@ import { SETTLEMENT_CITATIONS, citationFor } from "@/lib/settlementCitations";
 import { atlasHref } from "@/lib/routes";
 import { layoutSettlementArc } from "../../lib/settlementArcLayout";
 import { AtlasLink } from "../AtlasLink";
-import { SettlementArcSvg, arcInk, venueInk } from "./SettlementArcSvg";
+import { SettlementArcSvg, arcInk, venueInks } from "./SettlementArcSvg";
 import { UNCITED } from "./SettlementArcLabels";
 import { SettlementVenueTable } from "./SettlementVenueTable";
 
@@ -36,8 +36,8 @@ function KeyItem({ figure, background, children }: { figure: string; background:
 }
 
 /** The key's venue swatch: the first few venues' colours side by side. */
-function venueSwatch(keys: string[]): string {
-  const inks = keys.slice(0, 3).map(venueInk);
+function venueSwatch(keys: string[], all: Map<string, string>): string {
+  const inks = keys.slice(0, 3).map((k) => all.get(k)!);
   if (inks.length === 0) return "var(--msc-sky)";
   return `linear-gradient(90deg, ${[...inks, inks[inks.length - 1]].join(", ")})`;
 }
@@ -54,6 +54,7 @@ function KeyLink({ figure, children }: { figure: string; children: ReactNode }) 
 export function SettlementArc({ model, primeLabel, month }: { model: StreamModel; primeLabel: string; month?: string }) {
   const layout = useMemo(() => layoutSettlementArc(model), [model]);
   const ids = useMemo(() => model.venues.map((v) => v.id), [model.venues]);
+  const inks = useMemo(() => venueInks(layout.venues.map((v) => v.key)), [layout.venues]);
   const { toSky, fromSky, execVote } = SETTLEMENT_CITATIONS;
   return (
     <figure className="msc-arc-frame m-0" aria-label={`Settlement flows between ${primeLabel} and Sky`}>
@@ -61,12 +62,12 @@ export function SettlementArc({ model, primeLabel, month }: { model: StreamModel
       <div className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mb-2" style={{ color: "var(--tan-3)" }}>
         <KeyItem figure="kept" background={arcInk("kept")}>kept by {primeLabel}</KeyItem>
         <span>
-          <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background: venueSwatch(layout.venues.map((v) => v.key)) }} aria-hidden="true" />
+          <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background: venueSwatch(layout.venues.map((v) => v.key), inks) }} aria-hidden="true" />
           each venue&rsquo;s <KeyLink figure="cof">CoF</KeyLink> + <KeyLink figure="sde">SDE</KeyLink> → Sky
         </span>
         {model.demand.map((d) => <KeyItem key={d.key} figure={d.key} background={arcInk(d.key)}>{d.label}</KeyItem>)}
       </div>
-      <SettlementArcSvg layout={layout} model={model} primeLabel={primeLabel} month={month} />
+      <SettlementArcSvg layout={layout} model={model} primeLabel={primeLabel} month={month} inks={inks} />
       <figcaption className="mono text-[10px] mt-1" style={{ color: "var(--tan-3)" }}>
         Clockwise, outer: venue revenue runs through {primeLabel}; what it keeps stops there, and the rest is the <AtlasLink to={atlasHref(toSky.uuid)} className="msc-arc-caption-link">amount due from {primeLabel} to Sky</AtlasLink>.
         Counterclockwise, inner: the <AtlasLink to={atlasHref(fromSky.uuid)} className="msc-arc-caption-link">amount due from Sky to {primeLabel}</AtlasLink>.

@@ -4,7 +4,7 @@ import type { StreamModel } from "@/lib/settlementStreams";
 import { citationFor } from "@/lib/settlementCitations";
 import { ROUTES, atlasHref } from "@/lib/routes";
 import { textWidth } from "../../lib/textWidth";
-import { CX, CY, INNER0, OUTER0, OUTER_END, PRIME_HALF, type ArcLayout, type VenueBand } from "../../lib/settlementArcLayout";
+import { CX, CY, INNER0, OUTER_END, PRIME_HALF, type ArcLayout, type VenueBand } from "../../lib/settlementArcLayout";
 import { SvgRouteLink } from "./SvgRouteLink";
 
 export const UNCITED = "A workbook figure: the Atlas defines no term for it";
@@ -62,14 +62,13 @@ export function VenueLabels({ venues }: { venues: VenueBand[] }) {
   );
 }
 
-/** Node names and lane totals: Venues and Sky under their feet, the Prime
+/** Node names and lane totals: Sky under its foot, the Prime
  *  over the apex with what it keeps (a workbook figure, muted). */
 export function ArcNodeLabels({ model, primeLabel, month }: { model: StreamModel; primeLabel: string; month?: string }) {
   const sky = <text x={CX + (INNER0 + OUTER_END) / 2} y={CY + 26} textAnchor="middle" className="msc-arc-node-name">SKY</text>;
   const keptLoss = model.kept < 0;
   return (
     <g className="mono" fontSize={10}>
-      <text x={CX - (OUTER0 + OUTER_END) / 2} y={CY + 26} textAnchor="middle" className="msc-arc-node-name">VENUES</text>
       {month ? <SvgRouteLink to={`${ROUTES.RADAR}?msc=${month}`} className="msc-arc-link" label="Open this month in the ecosystem Monthly Settlement Cycle overview">{sky}</SvgRouteLink> : sky}
       <Cited figure="toSky" x={CX + (INNER0 + OUTER_END) / 2} y={CY + 40}>{`To Sky ↻ ${formatUsd(model.toSky, true)}`}</Cited>
       <Cited figure="fromSky" x={CX + (INNER0 + OUTER_END) / 2} y={CY + 54}>{`↺ From Sky ${formatUsd(model.demandTotal, true)}`}</Cited>
