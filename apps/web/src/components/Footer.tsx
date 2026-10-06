@@ -3,6 +3,7 @@ import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useSWUpdate } from "../hooks/useSWUpdate";
 import { useAtlasVersion } from "../hooks/useAtlasVersion";
 import { useBuildBehind } from "../hooks/useBuildBehind";
+import { useUpdateDetails } from "../hooks/useUpdateDetails";
 import { loadAtlas } from "../lib/docs";
 import { loadChainState } from "../lib/chainstate";
 import { loadHealth } from "../lib/health";
@@ -75,7 +76,7 @@ export function Footer() {
   // buildBehind (this JS build is older than the server's) surfaces through the
   // same pill as needRefresh (a waiting SW) — both resolve the same way: reload.
   const swOrBuildStale = needRefresh || buildBehind;
-  const hasStatus = !online || swOrBuildStale || atlasNeedsUpdate;
+  const { codeTitle, atlasTitle } = useUpdateDetails(swOrBuildStale, atlasNeedsUpdate, preview ? null : liveAtlasSha());
 
   return (
     // The build-info row stays centered at all times; status pills overlay the
@@ -88,7 +89,7 @@ export function Footer() {
       className="app-footer fixed bottom-0 left-0 right-0 border-t flex items-center overflow-hidden"
       style={{ borderColor: "var(--border)", background: "var(--bg)", height: "24px", zIndex: 10 }}
     >
-      {hasStatus && (
+      {(!online || swOrBuildStale || atlasNeedsUpdate) && (
         // background occludes the centered row cleanly if the two ever overlap
         // on a narrow viewport — same trick as .footer-hint (which outranks
         // this slot at z-index 1; positioned boxes paint above flow content).
@@ -102,7 +103,7 @@ export function Footer() {
             <StatusPill
               as="button"
               color="var(--magenta)"
-              title="A new version is available — click to reload"
+              title={codeTitle}
               onClick={applyUpdate}
             >
               update available
@@ -112,7 +113,7 @@ export function Footer() {
             <StatusPill
               as="button"
               color="var(--accent)"
-              title="Atlas content has been updated — click to reload"
+              title={atlasTitle}
               onClick={reloadWithFreshAtlas}
             >
               atlas updated
