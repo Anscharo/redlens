@@ -7,9 +7,9 @@
 // cost of funds runs on to Sky in the venue's colour: the Atlas charges it
 // venue by venue (Instance Expense, A.2.4.1.2.2.1.1.2.2.1.1). The widths
 // are Soter's per-venue figures, so a venue whose cost exceeds its revenue
-// leaves wider than it arrived. Whatever of the revenue does not leave is
-// kept, filled in the Prime node; a cost larger than all the revenue is a
-// striped shortfall there. Innermost, each venue's Sky Direct Exposure runs
+// leaves wider than it arrived. What the Prime keeps is filled in its
+// node from the middle up; a loss (cost larger than all the revenue) is
+// striped from the middle down. Innermost, each venue's Sky Direct Exposure runs
 // past the Prime straight to Sky, so it meets cost of funds at Sky with no
 // gap: together they are the amount due from the Prime to Sky
 // (A.2.4.1.2.2.1.1.2).
@@ -20,9 +20,9 @@
 // Each node is one bar across exactly the bands meeting it, so its length
 // is their amounts on the one scale (plus the fixed gap between lanes).
 // At the Prime: the demand received, SDE passing through, and the pool of
-// venue revenue (or cost of funds when that is larger). What stays — kept,
-// revenue less cost of funds — is the pool's outer part with no band
-// leaving it, filled in. At Sky: the demand paid out, and SDE plus cost of
+// venue revenue (or cost of funds when that is larger). Kept — revenue
+// less cost of funds — is filled from the node's middle, up for kept and
+// down for a loss, on the band scale. At Sky: the demand paid out, and SDE plus cost of
 // funds arriving, each band still its own amount, never netted.
 //
 // One width scale for both lanes: the larger fills BAND. The radii are
@@ -132,8 +132,11 @@ export interface ArcLayout {
      *  SDE passing through, the pool of venue revenue (or cost of funds,
      *  if larger). */
     span: Span | null;
-    /** The part of the pool no band leaves: kept, or the shortfall. */
+    /** What the Prime keeps, on the band scale, measured from the middle
+     *  of the node: up (outward) for kept, down (inward) for a loss. */
     kept: (Span & { loss: boolean }) | null;
+    /** The node's middle, where kept and loss start. */
+    mid: number | null;
   };
   /** One node across every band meeting Sky: the demand side out, and
    *  SDE plus cost of funds in. */
@@ -217,10 +220,7 @@ export function layoutSettlementArc(m: StreamModel): ArcLayout {
     demand: d.out.map((b) => ({ key: b.key, value: b.value, r: b.r, w: b.w, loss: b.loss, d: arcPath(CX, CY, b.r, skyEdge(b.r, 1), demand!.stop) })),
     demandLabels: d.out.map((b, i) => demandLabel(b, i)),
     lanes: { sde: sdeFlow, revenue, toSky, demand },
-    prime: {
-      span: nodeSpan(d.out.length ? d.edge : null, poolEdge > sde.edge ? sde.edge : null, poolEdge > sde.edge ? poolEdge : INNER_OUT),
-      kept: rev.edge > cofEdge ? keptSpan(cofEdge, rev.edge, false) : keptSpan(rev.edge, cofEdge, true),
-    },
+    prime: primeNode(nodeSpan(d.out.length ? d.edge : null, poolEdge > sde.edge ? sde.edge : null, poolEdge > sde.edge ? poolEdge : INNER_OUT), m.kept, scale),
     sky: nodeSpan(d.out.length ? d.edge : null, cofEdge > OUTER0 ? OUTER0 : null, cofEdge > OUTER0 ? cofEdge : INNER_OUT),
     outerEdge: Math.max(poolEdge, cofEdge, INNER_OUT),
     top: CY - Math.max(poolEdge, cofEdge, INNER_OUT) - TOP_ROOM,
@@ -248,9 +248,15 @@ function nodeSpan(demandEdge: number | null, outerStart: number | null, r1: numb
   return r0 === null ? null : span(r0, r1);
 }
 
-function keptSpan(r0: number, r1: number, loss: boolean) {
-  const s = span(r0, r1);
-  return s ? { ...s, loss } : null;
+/** The Prime node with kept drawn from its middle: up by kept on the band
+ *  scale, or down by a loss, never past the node's ends. */
+function primeNode(node: Span | null, kept: number, scale: number): ArcLayout["prime"] {
+  if (!node) return { span: null, kept: null, mid: null };
+  const mid = (node.r0 + node.r1) / 2;
+  if (Math.abs(kept) < NEAR) return { span: node, kept: null, mid };
+  const w = width(kept, scale);
+  const k = kept > 0 ? { r0: mid, r1: Math.min(mid + w, node.r1), loss: false } : { r0: Math.max(mid - w, node.r0), r1: mid, loss: true };
+  return { span: node, kept: k, mid };
 }
 
 /** The box one Prime's circle is drawn in: left far enough for every

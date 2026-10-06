@@ -3233,6 +3233,10 @@ a.atlas-annotates:focus-visible {
   stroke: var(--tan);
   stroke-width: 1.5;
 }
+.msc-arc-node-mid {
+  stroke: var(--tan);
+  stroke-width: 1.5;
+}
 .msc-arc-node-kept {
   fill: var(--msc-kept);
   stroke: var(--tan);

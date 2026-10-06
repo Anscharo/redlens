@@ -18,11 +18,11 @@ function Piece({ s, at, className, title }: { s: Span; at: "prime" | "sky"; clas
 
 /** The Prime node: one bar across every band meeting it — the demand
  *  side received, SDE passing through, the pool of venue revenue (or the
- *  cost of funds, when larger). The pool's outer part, which no band
- *  leaves, is what the Prime keeps, filled in; a shortfall there is
- *  striped. */
+ *  cost of funds, when larger). What the Prime keeps is filled from the
+ *  node's middle up; a loss is striped from the middle down. A hairline
+ *  marks the middle. */
 export function PrimeNode({ node, model, primeLabel }: { node: ArcLayout["prime"]; model: StreamModel; primeLabel: string }) {
-  const { span, kept } = node;
+  const { span, kept, mid } = node;
   return (
     <g>
       {span && <Piece s={span} at="prime" className="msc-arc-node" title={`${primeLabel}: ${formatUsd(model.revenue)} venue revenue and ${formatUsd(model.demandTotal)} demand-side in; ${formatUsd(model.cof)} cost of funds out to Sky`} />}
@@ -34,6 +34,7 @@ export function PrimeNode({ node, model, primeLabel }: { node: ArcLayout["prime"
           title={kept.loss ? `Cost of funds exceeded venue revenue by ${formatUsd(-model.kept)}; ${primeLabel} covers the difference` : `${primeLabel} keeps ${formatUsd(model.kept)}: venue revenue less cost of funds`}
         />
       )}
+      {mid !== null && <line x1={CX - PRIME_HALF - 3} x2={CX + PRIME_HALF + 3} y1={CY - mid} y2={CY - mid} className="msc-arc-node-mid" />}
     </g>
   );
 }

@@ -66,16 +66,19 @@ describe("layoutSettlementArc", () => {
     expect(l.prime.kept!.r1 - l.prime.kept!.r0).toBeCloseTo(BAND * 0.2);
   });
 
-  it("sizes the Prime node to the pool and fills the part no band leaves as kept", () => {
+  it("sizes the Prime node to the pool and fills kept from the node's middle up", () => {
     const l = layoutSettlementArc(model([mv("A", 100, 60)]));
     expect(l.prime.span).toEqual({ r0: OUTER0, r1: expect.closeTo(OUTER0 + BAND) });
-    expect(l.prime.kept).toEqual({ r0: expect.closeTo(OUTER0 + BAND * 0.6), r1: expect.closeTo(OUTER0 + BAND), loss: false });
+    // Kept 40 of 100 on the band scale, from the middle (OUTER0 + BAND/2) up.
+    expect(l.prime.mid).toBeCloseTo(OUTER0 + BAND / 2);
+    expect(l.prime.kept).toEqual({ r0: expect.closeTo(OUTER0 + BAND / 2), r1: expect.closeTo(OUTER0 + BAND / 2 + BAND * 0.4), loss: false });
     expect(l.sky).toEqual({ r0: OUTER0, r1: expect.closeTo(OUTER0 + BAND * 0.6) });
   });
 
-  it("marks a cost of funds larger than the pool as a shortfall in the Prime node", () => {
+  it("draws a loss from the node's middle down", () => {
     const l = layoutSettlementArc(model([mv("A", 70, 100)]));
-    expect(l.prime.kept).toEqual({ r0: expect.closeTo(OUTER0 + BAND * 0.7), r1: expect.closeTo(OUTER0 + BAND), loss: true });
+    // A loss of 30 of 100, from the middle down.
+    expect(l.prime.kept).toEqual({ r0: expect.closeTo(OUTER0 + BAND / 2 - BAND * 0.3), r1: expect.closeTo(OUTER0 + BAND / 2), loss: true });
     expect(l.prime.span!.r1).toBeCloseTo(OUTER0 + BAND);
   });
 
@@ -105,7 +108,7 @@ describe("layoutSettlementArc", () => {
     expect(CX - tip[0]).toBeCloseTo(PRIME_HALF + ARRIVE_GAP, 0);
     expect(l.prime.span!.r1 - l.prime.span!.r0).toBeCloseTo(BAND);
     expect(l.sky).toEqual(l.prime.span);
-    expect(layoutSettlementArc(model([])).prime).toEqual({ span: null, kept: null });
+    expect(layoutSettlementArc(model([])).prime).toEqual({ span: null, kept: null, mid: null });
   });
 
   it("draws a small month thin rather than stretching it to fill BAND", () => {
