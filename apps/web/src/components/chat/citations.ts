@@ -1,26 +1,9 @@
-// Citation syntax shared by the answer renderer (AtlasMarkdown) and the
-// Sources cluster (extractSources). See docs/plans/reference-citations.md.
+// Display-only citation repair for the answer renderer (AtlasMarkdown). The
+// scan that counts citations is src/lib/citationScan.ts.
 
-// Reference-style definitions: a definition block (`[label]: /atlas/<uuid>`,
-// normally at the top of the answer, but may appear anywhere). Label matching
-// is case-insensitive and whitespace-normalized, per CommonMark. Up to 3
-// leading spaces are tolerated (CommonMark allows that much indentation before
-// a definition still counts).
-export const DEFINITION_RE = /^[ \t]{0,3}\[([^\]\n]+)\]:\s*\/atlas\/([0-9a-f-]{36})\s*$/gim;
+import { normalizeLabel, parseDefinitions } from "@/lib/citationScan";
 
-export function normalizeLabel(label: string): string {
-  return label.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-/** normalized label -> lowercased uuid, first definition wins. */
-export function parseDefinitions(content: string): Map<string, string> {
-  const definitions = new Map<string, string>();
-  for (const m of content.matchAll(DEFINITION_RE)) {
-    const label = normalizeLabel(m[1]);
-    if (!definitions.has(label)) definitions.set(label, m[2].toLowerCase());
-  }
-  return definitions;
-}
+export { DEFINITION_RE, normalizeLabel, parseDefinitions } from "@/lib/citationScan";
 
 // A code span whose entire content is one citation. Models routinely wrap a
 // citation in backticks when the link text *looks* like code — an on-chain

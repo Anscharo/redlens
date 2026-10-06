@@ -72,6 +72,25 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
       c ? [{ id: c.id, title: c.title, updated_at: c.updated_at, summary: c.summary, summary_upto_id: c.summary_upto_id }] : [],
     );
   }
+  if (text.includes("SELECT content FROM messages") && text.includes("role = 'assistant'")) {
+    const [id] = values as [string];
+    return Promise.resolve(
+      msgs
+        .filter((m) => m.conversation_id === id && m.role === "assistant")
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))
+        .map((m) => ({ content: m.content })),
+    );
+  }
+  if (text.includes("SELECT conversation_id, content FROM messages") && text.includes("ANY(")) {
+    // Mirrors the real predicate: assistant rows whose text holds an atlas link.
+    const ids = fromUuidArray((values as [string])[0]);
+    return Promise.resolve(
+      msgs
+        .filter((m) => ids.includes(m.conversation_id) && m.role === "assistant" && m.content.includes("/atlas/"))
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))
+        .map((m) => ({ conversation_id: m.conversation_id, content: m.content })),
+    );
+  }
   if (text.includes("FROM messages WHERE conversation_id") && text.includes("LIMIT 200")) {
     const [id] = values as [string];
     const rows = msgs
@@ -911,5 +930,66 @@ describe("unmatched method", () => {
     seedConversation({ id: "c-1", user_id: "user-1" });
     const res = await handleConversations(req("/api/chat/conversations/c-1", { method: "POST", cookie: token }));
     expect(res.status).toBe(405);
+  });
+});
+
+const DOC_A = "11111111-1111-1111-1111-111111111111";
+const DOC_B = "22222222-2222-2222-2222-222222222222";
+const DOC_C = "33333333-3333-3333-3333-333333333333";
+const CONV = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+
+describe("conversation auto collection", () => {
+  it("counts distinct cited docs across a conversation's answers in the list", async () => {
+    const token = await authed();
+    seedConversation({ id: CONV, user_id: "user-1" });
+    seedMessage({ conversation_id: CONV, role: "user", content: `ignore [user text](/atlas/${DOC_C})` });
+    seedMessage({ conversation_id: CONV, role: "assistant", content: `See [A](/atlas/${DOC_A}) and [B](/atlas/${DOC_B}).` });
+    seedMessage({ conversation_id: CONV, role: "assistant", content: `Again [A again](/atlas/${DOC_A}).` });
+    seedConversation({ id: "c-plain", user_id: "user-1" });
+    seedMessage({ conversation_id: "c-plain", role: "assistant", content: "No links here." });
+
+    const res = await handleConversations(req("/api/chat/conversations", { cookie: token }));
+    const body = (await res.json()) as { id: string; citationCount: number }[];
+    expect(Object.fromEntries(body.map((c) => [c.id, c.citationCount]))).toEqual({ [CONV]: 2, "c-plain": 0 });
+  });
+
+  it("returns the cited docs, oldest first, named after the conversation", async () => {
+    const token = await authed();
+    seedConversation({ id: CONV, user_id: "user-1", title: "Spark rates" });
+    seedMessage({ conversation_id: CONV, role: "assistant", content: `[B](/atlas/${DOC_B})` });
+    seedMessage({ conversation_id: CONV, role: "assistant", content: `[A](/atlas/${DOC_A}) [B](/atlas/${DOC_B})` });
+
+    const res = await handleConversations(req(`/api/chat/conversations/${CONV}/collection`, { cookie: token }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ id: CONV, name: "Spark rates", ids: [DOC_B, DOC_A], auto: true });
+  });
+
+  it("reads reference-style citations the way the Sources chips do", async () => {
+    const token = await authed();
+    seedConversation({ id: CONV, user_id: "user-1" });
+    seedMessage({
+      conversation_id: CONV, role: "assistant",
+      content: `[a]: /atlas/${DOC_A}\n[unused]: /atlas/${DOC_C}\n\nThe rate is [5%][a].`,
+    });
+
+    const res = await handleConversations(req(`/api/chat/conversations/${CONV}/collection`, { cookie: token }));
+    const body = (await res.json()) as { name: string; ids: string[] };
+    expect(body.ids).toEqual([DOC_A]); // a definition nobody uses is not a citation
+    expect(body.name).toBe("Untitled chat");
+  });
+
+  it("404s another user's conversation and a malformed id, and refuses writes", async () => {
+    const token = await authed("user-2");
+    seedConversation({ id: CONV, user_id: "user-1" });
+    seedMessage({ conversation_id: CONV, role: "assistant", content: `[A](/atlas/${DOC_A})` });
+
+    const other = await handleConversations(req(`/api/chat/conversations/${CONV}/collection`, { cookie: token }));
+    expect(other.status).toBe(404);
+    const bad = await handleConversations(req("/api/chat/conversations/not-a-uuid/collection", { cookie: token }));
+    expect(bad.status).toBe(404);
+    const write = await handleConversations(
+      req(`/api/chat/conversations/${CONV}/collection`, { cookie: await authed(), method: "PATCH", body: "{}" }),
+    );
+    expect(write.status).toBe(405);
   });
 });

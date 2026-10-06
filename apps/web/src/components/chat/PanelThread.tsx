@@ -5,6 +5,7 @@ import { ContextLine } from "./ContextPie";
 import { NewMessagesPill } from "./NewMessagesPill";
 import { ratioPct } from "../../lib/formatTokens";
 import { useChatPanel } from "./chatPanelContext";
+import { useOpenConversationCollection } from "../../hooks/useOpenConversationCollection";
 import type { useStickToBottom } from "./useStickToBottom";
 
 function SignedOutIntro() {
@@ -38,14 +39,23 @@ interface ThreadBodyProps {
 // or the turns.
 function ThreadBody({ onAtlas, onAnswerReveal }: ThreadBodyProps) {
   const { session, page, send } = useChatPanel();
-  const { messages, streaming } = session;
+  const { messages, streaming, conversationId } = session;
+  const { open, failed } = useOpenConversationCollection();
+  const collection = conversationId ? { onView: () => void open(conversationId), failed } : undefined;
   if (!session.authed) return <SignedOutIntro />;
   if (session.loadingHistory) return <p className="pt-2 rlc-empty-body">Loading conversation…</p>;
   if (messages.length === 0) {
     return <ChatEmptyState authed={session.authed} context={page} onSend={send} onOpenConversation={session.openConversation} />;
   }
   return messages.map((m, i) => (
-    <Message key={i} msg={m} streaming={streaming && i === messages.length - 1} onAtlas={onAtlas} onAnswerReveal={onAnswerReveal} />
+    <Message
+      key={i}
+      msg={m}
+      streaming={streaming && i === messages.length - 1}
+      onAtlas={onAtlas}
+      onAnswerReveal={onAnswerReveal}
+      collection={collection}
+    />
   ));
 }
 

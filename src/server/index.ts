@@ -473,6 +473,7 @@ export function buildRoutes() {
     "/api/usage":  gated(chatOn, handleUsage),
     "/api/chat/conversations":     conversations,
     "/api/chat/conversations/:id": conversations,
+    "/api/chat/conversations/:id/collection": conversations,
     // Public share read is unauthenticated (anyone with the link) — declared
     // before the auth-gated :id route so the more specific path wins.
     "/api/collections/:id/shared": gated(usersOn, handleSharedCollection),

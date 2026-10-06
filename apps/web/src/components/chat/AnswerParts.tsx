@@ -1,6 +1,6 @@
 import type { RefObject } from "react";
 import { AtlasMarkdown, balanceFences, extractSources } from "./markdown";
-import { Sources } from "./Sources";
+import { Sources, type CollectionLink } from "./Sources";
 import { ExportChips } from "./ExportChips";
 import { VerifyBadge } from "./VerifyBadge";
 import { AnswerFacts } from "./AnswerFacts";
@@ -47,13 +47,21 @@ export function AnswerBody({ msg, outcome, answerRef, onAtlas }: AnswerBodyProps
   );
 }
 
-export function AnswerFooter({ msg, onAtlas }: { msg: ChatMsg; onAtlas: (uuid: string) => void }) {
+export function AnswerFooter({
+  msg,
+  onAtlas,
+  collection,
+}: {
+  msg: ChatMsg;
+  onAtlas: (uuid: string) => void;
+  collection?: CollectionLink;
+}) {
   return (
     <>
       {msg.verify && <VerifyBadge verify={msg.verify} onAtlas={onAtlas} />}
       <AnswerFacts coverage={msg.answerCoverage} marks={msg.citationMarks} />
       {msg.exports?.length ? <ExportChips exports={msg.exports} /> : null}
-      {msg.done && <Sources sources={extractSources(msg.content)} marks={msg.citationMarks} onAtlas={onAtlas} />}
+      {msg.done && <Sources sources={extractSources(msg.content)} marks={msg.citationMarks} collection={collection} onAtlas={onAtlas} />}
     </>
   );
 }

@@ -510,6 +510,8 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-sources { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 4px; }
 .rlc-sources-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .rlc-sources-label { font: 400 11.5px/1 "Source Code Pro", monospace; color: var(--tan-3); text-transform: lowercase; margin: 0 0 7px; }
+.rlc-sources-link { font: inherit; text-transform: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; }
+.rlc-sources-link:hover { text-decoration: underline; }
 .rlc-cite {
   display: inline-flex;
   align-items: baseline;

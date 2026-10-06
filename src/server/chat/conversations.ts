@@ -9,6 +9,8 @@ import { getSessionUser } from "../session.ts";
 import { json } from "../http.ts";
 import { listConversations } from "./conversations/list.ts";
 import { getConversation } from "./conversations/detail.ts";
+import { getConversationCollection } from "./conversations/citations.ts";
+import { UUID_RE } from "../../lib/patterns.ts";
 
 // Server-side safety cap on a renamed title (the UI enforces a tighter
 // 48-char maxLength; this guards a direct authenticated PATCH).
@@ -81,6 +83,17 @@ async function deleteRoute({ userId, id, refresh }: RouteCtx): Promise<Response>
   return json({ ok: true }, 200, refresh);
 }
 
+// GET /api/chat/conversations/:id/collection — the conversation's auto
+// collection. Read-only by construction: derived from the stored answers, with
+// no write route (see conversations/citations.ts).
+async function collectionRoute({ req, userId, id, refresh }: RouteCtx): Promise<Response> {
+  if (req.method !== "GET") return json({ error: "method_not_allowed" }, 405);
+  // `id` binds to a uuid column: a malformed one would throw in the cast.
+  const collection = UUID_RE.test(id) ? await getConversationCollection(userId, id) : null;
+  if (!collection) return json({ error: "not_found" }, 404);
+  return json(collection, 200, refresh);
+}
+
 // Methods on /api/chat/conversations/:id. The bare collection path answers GET only.
 const ITEM_ROUTES = new Map<string, (ctx: RouteCtx) => Promise<Response>>([
   ["GET", readRoute],
@@ -94,8 +107,10 @@ export async function handleConversations(req: Request): Promise<Response> {
   const userId = session.user.id;
 
   const { pathname } = new URL(req.url);
-  const id = pathname.match(/^\/api\/chat\/conversations(?:\/([^/]+))?$/)?.[1];
+  const match = pathname.match(/^\/api\/chat\/conversations(?:\/([^/]+)(\/collection)?)?$/);
+  const id = match?.[1];
 
+  if (id && match?.[2]) return collectionRoute({ req, userId, id, refresh: session.refresh });
   if (!id && req.method === "GET") return json(await listConversations(userId), 200, session.refresh);
   const route = id ? ITEM_ROUTES.get(req.method) : undefined;
   if (!id || !route) return json({ error: "method_not_allowed" }, 405);

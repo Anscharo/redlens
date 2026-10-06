@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   openChat: vi.fn(),
   notifyDeleted: vi.fn(),
   track: vi.fn(),
+  openCollection: vi.fn().mockResolvedValue(undefined),
+  collectionFailed: false,
 }));
 
 vi.mock("../chat/auth", () => ({ useAuth: () => ({ user: mocks.user }) }));
@@ -30,6 +32,9 @@ vi.mock("../../hooks/useConversations", () => ({
     remove: mocks.remove,
   }),
 }));
+vi.mock("../../hooks/useOpenConversationCollection", () => ({
+  useOpenConversationCollection: () => ({ open: mocks.openCollection, failed: mocks.collectionFailed }),
+}));
 vi.mock("../../lib/chatOpen", () => ({
   useChatOpen: () => ({ openChat: mocks.openChat, notifyDeleted: mocks.notifyDeleted }),
 }));
@@ -42,6 +47,7 @@ afterEach(() => {
   mocks.conversations = [];
   mocks.loading = false;
   mocks.error = null;
+  mocks.collectionFailed = false;
 });
 
 describe("ConversationsPage — signed out", () => {
@@ -76,7 +82,7 @@ describe("ConversationsPage — signed in", () => {
   it("renders a ConversationCard per conversation and wires row click → openChat + track", () => {
     mocks.user = { id: "u1" };
     mocks.conversations = [
-      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3, contextTokens: null },
+      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3, contextTokens: null, citationCount: 2 },
     ];
     render(<ConversationsPage />);
     expect(screen.getByText("Mine")).toBeInTheDocument();
@@ -88,7 +94,7 @@ describe("ConversationsPage — signed in", () => {
   it("Delete: confirms, then calls remove + track", async () => {
     mocks.user = { id: "u1" };
     mocks.conversations = [
-      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3, contextTokens: null },
+      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3, contextTokens: null, citationCount: 2 },
     ];
     vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<ConversationsPage />);
@@ -102,7 +108,7 @@ describe("ConversationsPage — signed in", () => {
   it("Delete: cancelling the confirm dialog skips remove", () => {
     mocks.user = { id: "u1" };
     mocks.conversations = [
-      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3, contextTokens: null },
+      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3, contextTokens: null, citationCount: 2 },
     ];
     vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<ConversationsPage />);
@@ -113,7 +119,7 @@ describe("ConversationsPage — signed in", () => {
   it("Rename: wires through to the rename() hook function and tracks it", async () => {
     mocks.user = { id: "u1" };
     mocks.conversations = [
-      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3, contextTokens: null },
+      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3, contextTokens: null, citationCount: 2 },
     ];
     render(<ConversationsPage />);
     fireEvent.click(screen.getByText("Rename"));
@@ -122,5 +128,25 @@ describe("ConversationsPage — signed in", () => {
     fireEvent.blur(input);
     expect(mocks.rename).toHaveBeenCalledWith("c1", "Renamed");
     await waitFor(() => expect(mocks.track).toHaveBeenCalledWith("chat_conversation_rename", { id: "c1" }));
+  });
+  it("View collection opens that conversation's collection without opening the chat", () => {
+    mocks.user = { id: "u1" };
+    mocks.conversations = [
+      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3, contextTokens: null, citationCount: 2 },
+    ];
+    render(<ConversationsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "View collection" }));
+    expect(mocks.openCollection).toHaveBeenCalledWith("c1");
+    expect(mocks.openChat).not.toHaveBeenCalled();
+  });
+
+  it("says so when the collection could not be opened", () => {
+    mocks.user = { id: "u1" };
+    mocks.collectionFailed = true;
+    mocks.conversations = [
+      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3, contextTokens: null, citationCount: 2 },
+    ];
+    render(<ConversationsPage />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't open that collection");
   });
 });

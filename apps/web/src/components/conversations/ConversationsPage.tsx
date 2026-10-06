@@ -1,6 +1,7 @@
 import { useAuth } from "../chat/auth";
 import { SignInButtons } from "../chat/SignInButtons";
 import { useConversations } from "../../hooks/useConversations";
+import { useOpenConversationCollection } from "../../hooks/useOpenConversationCollection";
 import { useChatOpen } from "../../lib/chatOpen";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { track } from "../../lib/analytics";
@@ -18,6 +19,7 @@ export function ConversationsPage() {
   const { user } = useAuth();
   const { conversations, loading, error, rename, remove } = useConversations();
   const { openChat, notifyDeleted } = useChatOpen();
+  const { open: openCollection, failed: collectionFailed } = useOpenConversationCollection();
 
   const open = (c: ConversationSummary) => {
     openChat(c.id, c.title);
@@ -66,11 +68,17 @@ export function ConversationsPage() {
           </p>
         ) : (
           <div className="space-y-3">
+            {collectionFailed && (
+              <p className="mono text-xs" role="alert" style={{ color: "var(--error-text)" }}>
+                Couldn't open that collection. Try again.
+              </p>
+            )}
             {conversations.map((c) => (
               <ConversationCard
                 key={c.id}
                 conversation={c}
                 onOpen={() => open(c)}
+                onViewCollection={() => void openCollection(c.id)}
                 onRename={(title) => renameConversation(c, title)}
                 onDelete={() => deleteConversation(c)}
               />

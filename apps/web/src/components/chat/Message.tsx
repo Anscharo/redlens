@@ -1,6 +1,7 @@
 import { SparkMark } from "./glyphs";
 import { traceHeadline } from "./stageCopy";
 import { AnswerBody, AnswerFooter, turnOutcome } from "./AnswerParts";
+import type { CollectionLink } from "./Sources";
 import { TurnStages, UserTurn } from "./TurnParts";
 import { useAnswerReveal } from "./useAnswerReveal";
 import type { ChatMsg } from "./useChatStream";
@@ -22,9 +23,11 @@ export interface MessageProps {
   onAtlas: (uuid: string) => void;
   /** Called once, with the answer element, when this turn's answer is revealed. */
   onAnswerReveal?: (el: HTMLElement) => void;
+  /** Opens the conversation's cited docs as a collection; absent before the conversation has an id. */
+  collection?: CollectionLink;
 }
 
-function AssistantTurn({ msg, streaming, onAtlas, onAnswerReveal }: MessageProps) {
+function AssistantTurn({ msg, streaming, onAtlas, onAnswerReveal, collection }: MessageProps) {
   const stageLog = msg.stageLog ?? [];
   const outcome = turnOutcome(msg, streaming);
   const answerRef = useAnswerReveal(msg.generated || msg.done, msg.content, onAnswerReveal);
@@ -50,12 +53,12 @@ function AssistantTurn({ msg, streaming, onAtlas, onAnswerReveal }: MessageProps
         summary={POST_ANSWER_SUMMARY}
         label={POST_ANSWER_LABEL}
       />
-      {outcome === "answer" && <AnswerFooter msg={msg} onAtlas={onAtlas} />}
+      {outcome === "answer" && <AnswerFooter msg={msg} onAtlas={onAtlas} collection={collection} />}
     </div>
   );
 }
 
-export function Message({ msg, streaming, onAtlas, onAnswerReveal }: MessageProps) {
+export function Message({ msg, streaming, onAtlas, onAnswerReveal, collection }: MessageProps) {
   if (msg.role === "user") return <UserTurn text={msg.content} />;
-  return <AssistantTurn msg={msg} streaming={streaming} onAtlas={onAtlas} onAnswerReveal={onAnswerReveal} />;
+  return <AssistantTurn msg={msg} streaming={streaming} onAtlas={onAtlas} onAnswerReveal={onAnswerReveal} collection={collection} />;
 }
