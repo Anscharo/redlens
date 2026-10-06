@@ -45,7 +45,7 @@ export const SKY_HALF = 4;
  *  except that it is never narrower than HEAD_MIN_W: a thin lane's head
  *  overhangs it evenly so it can still be seen. */
 const HEAD_RATIO = 0.6;
-const HEAD_MIN_W = 9;
+const HEAD_MIN_W = 16;
 /** Clear space between an arrow's tip and the node it reaches. */
 export const ARRIVE_GAP = 8;
 /** BAND's worth of dollars is never less than this, so a small month (a

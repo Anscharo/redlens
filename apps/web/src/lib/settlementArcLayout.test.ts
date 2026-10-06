@@ -124,11 +124,11 @@ describe("layoutSettlementArc", () => {
     expect(base(l.lanes.demand!.head!)).toBeCloseTo(l.lanes.demand!.w, 0);
   });
 
-  it("never draws an arrowhead narrower than 9px: a thin lane's head overhangs it evenly", () => {
+  it("never draws an arrowhead narrower than 16px: a thin lane's head overhangs it evenly", () => {
     const l = layoutSettlementArc(model([mv("A", 100, 60)], [{ key: "agentRate", label: "Agent rate", value: 0.5 * M }]));
     const [a, , c] = l.lanes.demand!.head!.slice(1, -2).split(/ L/).map((p) => p.split(",").map(Number));
-    expect(l.lanes.demand!.w).toBeLessThan(9);
-    expect(Math.hypot(a[0] - c[0], a[1] - c[1])).toBeCloseTo(9, 0);
+    expect(l.lanes.demand!.w).toBeLessThan(16);
+    expect(Math.hypot(a[0] - c[0], a[1] - c[1])).toBeCloseTo(16, 0);
   });
 
   it("names each demand series round the bottom-left, outside the lane, with a leader from its band", () => {
