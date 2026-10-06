@@ -89,6 +89,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           'In the bar at the top of the tree sidebar, click the "Selected · N" pill to narrow the tree from "All" down to your checked docs; the × next to it clears the selection.',
           'To save, click the save (disk) icon on the right of that same bar — its tooltip reads "Save as collection".',
           "The folder icon beside it opens /collections, where you can reopen, rename, delete, or copy a public share link for any saved collection.",
+          'On /collections, switch from "My collections" to "Collections from conversations" to see one read-only collection per chat that cited documents, and open it to read just those documents.',
         ],
         note: "Saving and collections require signing in — use the sign-in control at the right of the top bar.",
       },
