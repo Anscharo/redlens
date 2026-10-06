@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ARC_OTHER_ID } from "../../lib/settlementArcLayout";
+import { ARC_OTHER_ID } from "../../lib/settlementArcRows";
 import { venueInks } from "./SettlementArcSvg";
 
 describe("venueInks", () => {

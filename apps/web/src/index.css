@@ -3210,12 +3210,17 @@ a.atlas-annotates:focus-visible {
 .msc-arc-flow {
   pointer-events: none;
 }
+/* SDE is Sky's money in the venue's colour, lighter than the venue's
+   revenue band so the two read apart. */
+.msc-arc-band[data-kind="sde"] .msc-arc-body {
+  stroke-opacity: 0.55;
+}
 /* Venue names sit beside their bands, on the page background. */
 .msc-arc-venue-label {
   fill: var(--tan-2);
 }
-/* The Prime bar is an outline, so the venue bands crossing it stay
-   visible: they pass through the Prime without stopping. */
+/* The Prime bar is an outline, so the bands meeting it stay visible on
+   both sides of it. */
 .msc-arc-prime {
   fill: var(--bg-deep);
   fill-opacity: 0.25;

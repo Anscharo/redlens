@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { SettlementsBundle } from "../../lib/settlements";
 
@@ -187,9 +187,9 @@ describe("ActorSettlements", () => {
 
   it("shows the To Sky equation card headed by the month, and draws what stays with the Prime supply-side green", async () => {
     const { container } = render(<ActorSettlements slug="spark" name="Spark" />);
-    await waitFor(() => screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure"));
-    expect(screen.getByText("cost of funds")).toBeInTheDocument();
-    expect(screen.getByText("Sky Direct Exposure")).toBeInTheDocument();
+    const eq = await waitFor(() => screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure"));
+    expect(within(eq).getByText("cost of funds")).toBeInTheDocument();
+    expect(within(eq).getByText("Sky Direct Exposure")).toBeInTheDocument();
     // The prime side is its own equation, named for the Prime: kept 150 + demand 70.
     expect(screen.getByLabelText(/^Supply-side kept by Spark, and demand-side owed by Sky to Spark/)).toBeInTheDocument();
     expect(screen.getByText("Demand-side from Sky to Spark")).toBeInTheDocument();

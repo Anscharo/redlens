@@ -31,9 +31,9 @@ function fit(label: string, room: number): string {
   return `${s}…`;
 }
 
-/** The Prime as an outlined bar across the apex, spanning just the bands
- *  drawn this month: the venue bands show through it, kept ends at its
- *  left side and the demand arrow at its right. */
+/** The Prime as an outlined bar across the apex, spanning the demand lane
+ *  and the pool: venue revenue ends at its left side, cost of funds and
+ *  kept leave its right, and the demand arrow ends at its right. */
 export function PrimeBar({ span, model, primeLabel }: { span: ArcLayout["prime"]; model: StreamModel; primeLabel: string }) {
   if (!span) return null;
   return (
@@ -43,15 +43,15 @@ export function PrimeBar({ span, model, primeLabel }: { span: ArcLayout["prime"]
   );
 }
 
-/** Each venue's name beside where its band starts, right-aligned to it, so
- *  the staggered starts read as a list of sources. */
+/** Each band's venue name beside where it starts, right-aligned to it, so
+ *  the staggered starts read as a list of sources. An SDE band says so. */
 export function VenueLabels({ venues }: { venues: VenueBand[] }) {
   return (
     <g className="msc-arc-venue-labels" fontSize={11}>
       {venues.map((v) => (
-        <text key={v.key} x={v.labelAt.x} y={v.labelAt.y} textAnchor="end" dominantBaseline="central" className="msc-arc-venue-label" data-venue={v.key}>
-          <title>{v.label}</title>
-          {fit(v.label, v.labelAt.x - 4)}
+        <text key={v.key} x={v.labelAt.x} y={v.labelAt.y} textAnchor="end" dominantBaseline="central" className="msc-arc-venue-label" data-venue={v.venue}>
+          <title>{v.key.endsWith("::sde") ? `${v.label}: Sky Direct Exposure` : v.label}</title>
+          {v.key.endsWith("::sde") ? `${fit(v.label, v.labelAt.x - 40)} · SDE` : fit(v.label, v.labelAt.x - 4)}
         </text>
       ))}
     </g>
