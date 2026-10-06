@@ -26,6 +26,7 @@ interface FakeDb {
   have: {
     doc_id: string;
     content_hash: string;
+    embed_model?: string | null; // omitted = the current model
     attribution_only?: boolean;
     member_ids?: unknown;
   }[]; // existing atlas_doc_embeddings rows
@@ -99,7 +100,7 @@ async function sqlTag(strings: TemplateStringsArray, ..._values: unknown[]): Pro
     return [{ pg_advisory_unlock: true }];
   }
   if (text.includes("FROM atlas_doc_embeddings") && text.includes("content_hash")) {
-    return fakeDb.have;
+    return fakeDb.have.map((r) => ({ embed_model: config.embedModel, ...r }));
   }
   if (text.includes("FROM sync_state")) {
     return fakeDb.atlasSha === null ? [] : [{ atlas_sha: fakeDb.atlasSha }];
@@ -232,8 +233,16 @@ describe("embedTimeoutFromEnv", () => {
     // One shared deadline across all three withRetry attempts would let attempt 1
     // burn the whole budget and abort 2 and 3 before they were sent. Asserted on
     // the source because realEmbedDeps dials a real provider.
+    //
+    // Matched as a PREFIX on purpose. The property under test is that the signal
+    // is CONSTRUCTED INLINE at the call site — a hoisted `const s = timeout(...)`
+    // passed in would share one deadline, and still matches nothing here. How
+    // many arguments follow it is incidental: pinning the whole list breaks this
+    // test whenever a parameter lands ahead of the surface label, as `diag` does.
+    // The call is
+    // `embedBatch(texts, AbortSignal.timeout(...), 0, undefined, "embed-sync")`.
     const src = await Bun.file(new URL("./sync-embeddings.ts", import.meta.url)).text();
-    expect(src).toContain('embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv()), 0, "embed-sync")');
+    expect(src).toContain("embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv())");
   });
 });
 
@@ -520,6 +529,32 @@ describe("main()", () => {
     expect(logs.some((l) => l.includes("1 docs") && l.includes("0 stale/new to embed"))).toBe(true);
   });
 
+  it("re-embeds a row whose hash matches but whose embed_model is another model or NULL; leaves a matching-model row alone", async () => {
+    const dA = doc("a", "A.1", "alpha", { order: 0 });
+    const dB = doc("b", "A.2", "bravo", { order: 1 });
+    const dC = doc("c", "A.3", "charlie", { order: 2 });
+    writeDocs("sha1", { a: dA, b: dB, c: dC });
+    fakeDb.have = [
+      { doc_id: "a", content_hash: contentHash(dA), embed_model: "other/model" },
+      { doc_id: "b", content_hash: contentHash(dB), embed_model: null },
+      { doc_id: "c", content_hash: contentHash(dC), embed_model: config.embedModel },
+    ];
+    const embedTexts: string[][] = [];
+    await main({
+      runMigrations: noopMigrations,
+      embedBatch: async (texts) => {
+        embedTexts.push(texts);
+        return texts.map(() => [0.1]);
+      },
+      batch: 50,
+      sleep: instantSleep,
+    });
+    expect(embedTexts).toEqual([[buildEmbedText(dA), buildEmbedText(dB)]]);
+    const upsert = unsafeCalls.find((c) => c.kind === "embed-upsert")!;
+    expect((upsert.params ?? []).filter((p) => p === config.embedModel)).toHaveLength(2);
+    expect(upsert.query).toContain("embed_model = excluded.embed_model");
+  });
+
   it("embeds new/changed docs, upserts one row per doc with the right params, and logs the done count", async () => {
     const dA = doc("a", "A.1", "alpha", { order: 1 }); // stale: not in `have`
     const dB = doc("b", "A.2", "bravo", { order: 0 }); // stale: hash mismatch
@@ -544,7 +579,7 @@ describe("main()", () => {
 
     expect(embedTexts).toEqual([[buildEmbedText(dA), buildEmbedText(dB)]]); // one batch, both stale docs
     const upsert = unsafeCalls.find((c) => c.kind === "embed-upsert");
-    expect(upsert?.paramsLength).toBe(2 * 6); // 2 docs × (doc_id, vector, hash, atlas_sha, member_ids, attribution_only)
+    expect(upsert?.paramsLength).toBe(2 * 7); // 2 docs × (doc_id, vector, hash, atlas_sha, member_ids, attribution_only, embed_model)
     expect(ended).toBe(true);
     expect(logs.some((l) => l.includes("done (2 vectors"))).toBe(true);
   });
@@ -618,7 +653,7 @@ describe("main()", () => {
       sleep: instantSleep,
     });
     const upsert = unsafeCalls.find((c) => c.kind === "embed-upsert");
-    expect(upsert?.paramsLength).toBe(1 * 6); // only "b" made it into the upsert
+    expect(upsert?.paramsLength).toBe(1 * 7); // only "b" made it into the upsert
   });
 
   function icdFixture(): Record<string, AtlasNode> {

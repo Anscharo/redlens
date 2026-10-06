@@ -7,11 +7,28 @@
 // atlas_history_stats / atlas_pr / atlas_changed_between / atlas_first_seen) need
 // Postgres and are exercised by the "Railway server (Postgres + MCP smoke)" CI
 // job, not here.
-import { test, expect } from "bun:test";
+import { test, expect, beforeAll, afterAll } from "bun:test";
+import { config } from "./config.ts";
 import { z } from "zod";
 import { ATLAS_TOOLS, TOOLS_BY_NAME } from "./chat/tools/tool-registry.ts";
 import { EXTERNAL_TOOLS } from "./chat/tools/external-tools.ts";
 import { buildIndexes, type AtlasNode, type Edge, type Entity } from "./retrieval/indexes.ts";
+
+// The semantic leg is inert only while `config.openrouterApiKey` is falsy, and
+// leaving that to whatever env the run happens to have is a trap: bun auto-loads
+// `.env.local`, and this repo's containers now inject OPENROUTER_API_KEY, so
+// every keyless assertion below silently became a LIVE embedding request — four
+// retries with 1s/2s/4s/8s of real sleep, which blows the 5s test timeout rather
+// than failing honestly. Pinned the way src/server/retrieval/search.test.ts pins it.
+let prevOpenRouterKey: string;
+beforeAll(() => {
+  prevOpenRouterKey = config.openrouterApiKey;
+  config.openrouterApiKey = "";
+});
+afterAll(() => {
+  config.openrouterApiKey = prevOpenRouterKey;
+});
+
 
 // ── Fixture ──────────────────────────────────────────────────────────────
 //  A (Scope)

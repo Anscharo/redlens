@@ -5,7 +5,7 @@
 // may open a private repo its signed-in user is a collaborator on.
 import { z } from "zod";
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
-import type { AtlasTool } from "./tool-registry.ts";
+import type { AtlasTool } from "./tool-types.ts";
 import type { ToolResult } from "./tools.ts";
 import { fetchOpenPrs } from "../../preview/open-prs.ts";
 import { bundleReady, readMeta } from "../../preview/cache.ts";

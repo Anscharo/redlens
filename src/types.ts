@@ -1,16 +1,8 @@
+import type { SearchLane } from "./lib/searchSemantic.ts";
+
 export type ReportId =
-  | "of-responsibilities"
-  | "gov-ops-responsibilities"
-  | "active-data"
-  | "rewards"
-  | "processes"
-  | "stale-dates"
-  | "oea-assessment"
-  | "risk-rules"
-  | "onchain-addresses"
-  | "mod-frequency"
-  | "crossview"
-  | "potential-mistakes";
+  // Derived from the report registry; declare a report in src/lib/reports/.
+  import("./lib/reports/registry").ReportId;
 
 export interface AtlasNode {
   id: string;
@@ -79,17 +71,64 @@ export interface SearchHit {
   labels?: HitLabel[]; // scope / agent / ICD provenance clues (left gutter)
   chainlogId?: string; // set when result was found via chainlog reverse-lookup
   chainlogAddress?: string; // the resolved address for chainlog matches
+  // ── semantic lane (src/lib/searchSemantic.ts) ──
+  // True when the pgvector leg returned this document. A hit CAN in principle
+  // be both semantic and lexical (matchReason non-empty too) and the row marks
+  // it as both — though the reader's leg replaces rather than merges since
+  // `woven` was dropped, so nothing produces that combination today.
+  semantic?: boolean;
+  semanticScore?: number; // cosine similarity, 0..1
+  // Grouped-embedding provenance: the anchor this hit was retrieved under and
+  // attributed down from. Present only when the group differs from the hit.
+  viaTitle?: string;
 }
+
+// How the semantic leg of the current result set fared. "none" = none was
+// wanted (the reader is on another lane, or the query was an identifier lookup
+// the lexical fast paths already answer); "pending" = a round-trip is in
+// flight; "unavailable" = this deployment cannot answer the lane at all.
+export type SemanticLegStatus = "none" | "pending" | "done" | "skipped" | "unavailable";
 
 // Worker message types — search
 export type WorkerInMessage =
-  | { type: "query"; id: number; q: string }
+  // `lane` picks which index to query, and picking the semantic one IS the
+  // request for a meaning search. Absent means the wording lane, so an older
+  // main thread and this worker stay compatible.
+  // `force` sends a meaning query the word-shape check would hold back.
+  | { type: "query"; id: number; q: string; lane?: SearchLane; force?: boolean }
   | { type: "ping" }
   | { type: "preload"; docs: Record<string, AtlasNode>; addresses: Record<string, AddressInfo> };
 
+/** Whose meaning-search budget ran out; see src/server/search-semantic-limit.ts. */
+export type SemanticLimit = "shared" | "user";
+
+// A single query can produce TWO `results` messages under the same id: the
+// lexical half immediately (semantic: "pending"), then the fused set once the
+// semantic round-trip lands. Consumers must accept a second reply for an id
+// they already rendered rather than treating it as stale.
 export type WorkerOutMessage =
   | { type: "ready" }
-  | { type: "results"; id: number; hits: SearchHit[]; durationMs: number }
+  | {
+      type: "results";
+      id: number;
+      hits: SearchHit[];
+      durationMs: number;
+      lane: SearchLane;
+      semantic: SemanticLegStatus;
+      // Why the leg degraded, when semantic === "skipped" (embed timeout,
+      // provider error). Shown to the user, not swallowed.
+      semanticNote?: string;
+      // A spelling correction for a query that found nothing — already verified
+      // to return results, so offering it is never a dead end. Absent whenever
+      // there were hits, or nothing better than the query itself was found.
+      didYouMean?: string;
+      // Query words the meaning lane declined to embed because they do not look
+      // like words. Present only with semantic === "none".
+      heldWords?: string[];
+      // Whose budget refused the meaning search, when semantic === "skipped"
+      // because of it: "shared" (signed out) or "user" (the reader's own).
+      semanticLimit?: SemanticLimit;
+    }
   | { type: "error"; id?: number; message: string }; // no id for init-time failures
 
 // ---------------------------------------------------------------------------
@@ -142,21 +181,13 @@ export interface SerializedSubgraph {
   edges: Array<{ key: string; src: string; tgt: string; attrs: Record<string, unknown> }>;
 }
 
-// Search-page entity overlay hit (graph worker `search-entities`).
-export interface EntitySearchHit {
-  participant: GraphEntity;
-  score: number; // 3 exact, 2 prefix, 1 substring / inflection
-  href: string;
-}
-
 // Worker message types — graph
 export type GraphWorkerInMessage =
   | { type: "ping" }
   | { type: "edges"; id: string }
   | { type: "entity"; slug: string }
   | { type: "neighbors"; id: string; depth?: number }
-  | { type: "subgraph"; rootId: string; depth: number }
-  | { type: "search-entities"; id: number; q: string };
+  | { type: "subgraph"; rootId: string; depth: number };
 
 export type GraphWorkerOutMessage =
   | { type: "ready" }
@@ -164,5 +195,4 @@ export type GraphWorkerOutMessage =
   | { type: "entity"; slug: string; entity: GraphEntity | null; edges: ResolvedEdge[] }
   | ({ type: "neighbors"; id: string } & SerializedSubgraph)
   | ({ type: "subgraph"; rootId: string } & SerializedSubgraph)
-  | { type: "search-entities"; id: number; hits: EntitySearchHit[] }
   | { type: "error"; message: string };

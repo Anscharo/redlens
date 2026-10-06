@@ -87,8 +87,9 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Tick the checkbox on any document in the Reader or search results.",
           "Shift-click a checkbox to grab that document and everything beneath it.",
           'In the bar at the top of the tree sidebar, click the "Selected · N" pill to narrow the tree from "All" down to your checked docs; the × next to it clears the selection.',
-          'To save, click the save (disk) icon on the right of that same bar — its tooltip reads "Save as collection".',
-          "The folder icon beside it opens /collections, where you can reopen, rename, delete, or copy a public share link for any saved collection.",
+          'To save, click the save (disk) icon on the right of that same bar — its tooltip reads "Save as collection". The dialog lists the documents being saved. If one of your saved collections is open you can Update it, Save as new, or use Save as new, minus “name” (only the documents you added beyond it); hover or focus a button to preview what it would save (the preview stays until you hover another), and Update marks added documents + and removed ones −.',
+          "The folder icon beside it opens /collections, where you can reopen, rename, delete, or copy a public share link for any saved collection. Each saved collection's card also carries a short generated name and one-line summary of what its documents are about (it is rewritten after you change the collection, and left out when it cannot be written).",
+          'On /collections, switch from "My collections" to "Collections from conversations" to see one read-only collection per chat that cited documents, open it to read just those documents, or use its Share button to copy a public link that opens the same documents for anyone. A conversation collection (or a shared one) cannot be changed: check or uncheck a document after opening it and the pill goes back to "Selected", and saving makes a new collection of your own. Your own saved collections keep their name and can be updated.',
         ],
         note: "Saving and collections require signing in — use the sign-in control at the right of the top bar.",
       },
@@ -130,10 +131,21 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: [
           'Type terms for a broad search (partial words match). Wrap a phrase in double quotes for a literal substring (case-insensitive), or single quotes for case-sensitive.',
           "Broad search also matches the singular or plural of each word; documents that use your exact word rank first.",
-          "Add ~N to a term to allow N character edits — misaligment~1.",
+          "Add ~N to a term to allow N character edits — misaligment~1. You rarely need it: a search that finds nothing offers a spelling correction you can click.",
           "Filter with title:, type:, and in:<doc number>; drop a term with a leading -.",
           "Type / for slash commands, or /h for the full query-syntax reference.",
         ],
+      },
+      {
+        name: "Wording or meaning",
+        what: "Two indexes behind the same search box: the words you typed, or what a document is about.",
+        how: [
+          "Search, then use the wording / meaning pills on the right of the result count line to switch index.",
+          "A result the meaning index found is labelled semantic match and shows its similarity score; it can share no word at all with your query.",
+          "Add in:<doc number> to scope meaning search to one subtree — in:A.6 who approves rewards searches only the Agent Scope.",
+          "On the meaning pill the a* / \"a\" / Aa mode buttons are greyed out, and any other search syntax you type — type:, title:, -word, ~2, quotes — is dropped, with a note above the results naming what it dropped. in: is the exception and still applies. If a word you typed doesn't look like a word (xkcdq, a1b2c), the meaning pill shows wording matches and a note naming it instead of searching; press Enter to search by meaning anyway.",
+        ],
+        note: "Meaning-matched results appear on the meaning pill and nowhere else — wording searches stay wording searches. That pill needs a deployment configured for it; where it is not, it is disabled and says so. Signed-out readers share one meaning-search allowance; where sign-in is offered, a signed-in reader gets an hourly allowance of their own, and the results page offers sign-in when the shared one runs out.",
       },
       {
         name: "Jump-to",
@@ -156,6 +168,11 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     route: "/radar",
     blurb: "Dashboards for every party in the Sky ecosystem — Agents, Facilitators, Alignment Conservers, and more.",
     features: [
+      {
+        name: "Radar search",
+        what: "Find actors, primitive instances, parameter values, addresses and relationships from one box.",
+        how: ["Type in the search box on Radar. Each result opens the matching part of the actor page."],
+      },
       {
         name: "Actor dashboards",
         what: "A full profile per party: responsibilities, primitives, relationships, rewards, invoked instances, on-chain state, contact, and its own change history.",
@@ -301,6 +318,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "The usage meter under the composer shows your usage / credits; click the pie to see every limit.",
           "Dock the panel to the side with the dock icon in the header — drag its left edge to widen it, up to 55% of the window — or pop it out to a floating window. A wide docked chat folds the tree and notes sidebars so the open document stays readable.",
           'Past chats live under "Conversations" in the profile menu, and as "continue a previous chat" in an empty panel.',
+          'Click "view all docs from this conversation" next to "citations · N" under an answer to open the reader with only the documents that chat has cited. The collection builds itself from the conversation, so it cannot be edited and grows as the chat cites more. Each row on the Conversations page shows its citation count and a "View Doc Collection" button.',
           "Earlier questions in the same chat stay in the thread. A very long chat is condensed on its own when the conversation is close to the model's context limit.",
         ],
         note: "Asking a question requires signing in — use the sign-in control at the right of the top bar, or the Sign in buttons in the panel.",
@@ -375,7 +393,8 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "Always-current Atlas",
         what: "The app tracks upstream and refreshes itself when the Atlas advances.",
         how: [
-          'When a new Atlas version lands, an "atlas updated" pill appears in the footer — click it to reload into the new version.',
+          'When a new Atlas version lands, an "atlas updated" pill appears in the footer — click it to reload into the new version. Hover the pill to see the Atlas commit you are on and the one you will get.',
+          'An "update available" pill means a newer version of the app itself is ready — hover it to see the code version you are on and the one a reload will switch to, then click it to reload.',
           "The footer also shows the live Atlas commit, node count, and the block the on-chain snapshot was taken at.",
         ],
       },

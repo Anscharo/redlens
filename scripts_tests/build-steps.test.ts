@@ -53,8 +53,7 @@ describe("build-steps: declaration integrity", () => {
       if (step.script === null) continue;
       expect(fs.existsSync(path.join(ROOT, step.script)), `missing ${step.script}`).toBe(true);
       expect(step.name).toBe(path.basename(step.script).replace(/\.(mjs|ts)$/, ""));
-      // The declared runner must be the one package.json actually uses.
-      expect(pkg.scripts[step.pnpmScript]).toContain(step.runner === "bun" ? "bun " : "node ");
+      expect(pkg.scripts[step.pnpmScript]).toMatch(/^bun /);
       expect(pkg.scripts[step.pnpmScript]).toContain(step.script);
     }
   });
@@ -222,9 +221,10 @@ describe("atlas artifact store: worker publish is load-bearing (phase 4)", () =>
   // comment must keep saying so — an "every lane is incremental" claim is what
   // the 2026-09-25 review caught, and it is the reason the budget is sized off
   // history's cold walk rather than off the embed rate alone.
-  it("the worker does not claim all three tail lanes resume mid-walk", () => {
+  it("the worker does not claim all four tail lanes resume mid-walk", () => {
     const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
-    expect(worker).toMatch(/Only ONE of the three lanes actually resumes mid-walk/);
+    // Embeddings and briefings write per slice; history and doc versions do not.
+    expect(worker).toMatch(/Only TWO of the four lanes actually resume mid-walk/);
     expect(worker).toMatch(/instead buffer the whole walk in memory and write once at/);
     expect(worker).not.toMatch(/every lane of it incremental/);
   });

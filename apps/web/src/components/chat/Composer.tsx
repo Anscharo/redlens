@@ -1,7 +1,8 @@
-import { useEffect, useRef, type ChangeEvent, type KeyboardEvent, type ReactNode } from "react";
-import { acceptSlashCompletion, completeSlashCommand } from "@/lib/chatSlashCommands";
-import { PinIcon, SendIcon } from "./glyphs";
+import type { ReactNode } from "react";
+import { completeSlashCommand } from "@/lib/chatSlashCommands";
 import { SlashGhost } from "./SlashGhost";
+import { ContextChip, SendButton, StopButton } from "./ComposerControls";
+import { useComposerInput } from "./useComposerInput";
 
 interface ComposerProps {
   draft: string;
@@ -33,107 +34,41 @@ interface ComposerProps {
   children?: ReactNode;
 }
 
+interface HintState {
+  streaming: boolean;
+  historyLoading?: boolean;
+  locked?: boolean;
+  completing: boolean;
+}
+
+// The hint beside the chip: the one state the input is in right now.
+function composerHint({ streaming, historyLoading, locked, completing }: HintState): string {
+  if (streaming) return "streaming…";
+  if (historyLoading) return "loading…";
+  if (locked) return "locked";
+  return completing ? "⇥ to complete" : "↵ to send";
+}
+
 // Auto-growing textarea + context chip + send/stop. Enter sends, Shift+Enter
 // newlines. While streaming the send button becomes a stop button. A draft
 // that is a lone `/t` offers the matching slash command as a ghost; Tab or
 // Space accepts it (src/lib/chatSlashCommands.ts holds the list).
-export function Composer({
-  draft,
-  onDraftChange,
-  onSend,
-  onStop,
-  streaming,
-  locked,
-  notice,
-  placeholder,
-  chip,
-  historyLoading,
-  focusKey,
-  children,
-}: ComposerProps) {
-  const taRef = useRef<HTMLTextAreaElement>(null);
+export function Composer(props: ComposerProps) {
+  const { draft, onDraftChange, onSend, onStop, streaming, locked, notice, placeholder, chip, historyLoading, focusKey, children } = props;
   const disabled = !!locked || !!historyLoading;
   const completion = completeSlashCommand(draft);
-
-  useEffect(() => {
-    if (focusKey) taRef.current?.focus();
-  }, [focusKey]);
-
-  const autoGrow = (e: ChangeEvent<HTMLTextAreaElement>) => {
-    const ta = e.target;
-    ta.style.height = "auto";
-    ta.style.height = `${Math.min(120, ta.scrollHeight)}px`;
-    onDraftChange(ta.value);
-  };
-
-  const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // Tab must be swallowed or focus leaves the textarea; Space must be, or
-    // the textarea inserts its own space after the one we add.
-    if (completion && (e.key === "Tab" || e.key === " ") && !e.nativeEvent.isComposing) {
-      e.preventDefault();
-      onDraftChange(acceptSlashCompletion(completion));
-      return;
-    }
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      if (!streaming && draft.trim() && !disabled) {
-        onSend();
-        if (taRef.current) taRef.current.style.height = "auto";
-      }
-    }
-  };
-
+  const canSend = !streaming && !!draft.trim() && !disabled;
+  const input = useComposerInput({ onDraftChange, onSend, focusKey, completion, canSend });
   return (
     <div className="rlc-composer">
       {notice}
       <div className="rlc-inputwrap" data-state={completion ? "completing" : undefined}>
         {completion && <SlashGhost completion={completion} />}
-        <textarea
-          ref={taRef}
-          className="rlc-textarea"
-          rows={1}
-          placeholder={placeholder}
-          value={draft}
-          onChange={autoGrow}
-          onKeyDown={onKey}
-          disabled={disabled}
-        />
+        <textarea {...input.textarea} className="rlc-textarea" rows={1} placeholder={placeholder} value={draft} disabled={disabled} />
         <div className="rlc-composer-row">
-          <span className="rlc-chip">
-            <span className="rlc-chip-icon">
-              <PinIcon size={10} />
-            </span>
-            <span className="rlc-chip-label">{chip}</span>
-          </span>
-          <span className="rlc-hint">
-            {streaming
-              ? "streaming…"
-              : historyLoading
-                ? "loading…"
-                : locked
-                  ? "locked"
-                  : completion
-                    ? "⇥ to complete"
-                    : "↵ to send"}
-          </span>
-          {streaming ? (
-            <button className="rlc-stop" onClick={onStop} title="Stop generating" aria-label="Stop">
-              <span className="rlc-stop-glyph" />
-            </button>
-          ) : (
-            <button
-              className="rlc-send"
-              onClick={() => {
-                onSend();
-                if (taRef.current) taRef.current.style.height = "auto";
-              }}
-              disabled={!draft.trim() || disabled}
-              title="Send"
-              aria-label="Send"
-            >
-              <SendIcon />
-            </button>
-          )}
+          <ContextChip label={chip} />
+          <span className="rlc-hint">{composerHint({ streaming, historyLoading, locked, completing: !!completion })}</span>
+          {streaming ? <StopButton onStop={onStop} /> : <SendButton onSend={input.send} disabled={!draft.trim() || disabled} />}
         </div>
       </div>
       {children}

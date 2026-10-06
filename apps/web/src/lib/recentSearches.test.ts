@@ -22,7 +22,7 @@ function hits(n: number): SearchHit[] {
 }
 
 function doneState(query: string, n: number): SearchState {
-  return { status: "done", hits: hits(n), durationMs: 1, query };
+  return { status: "done", hits: hits(n), durationMs: 1, query, lane: "lexical", semantic: "none" };
 }
 
 beforeEach(() => {

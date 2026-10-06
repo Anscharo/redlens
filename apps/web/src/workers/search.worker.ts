@@ -11,6 +11,8 @@ import { fetchText } from "@/lib/verify";
 import { buildSnippet, highlightTerms, extractPhrases } from "@/lib/searchHighlight";
 import { UUID_RE } from "@/lib/patterns";
 import { isUuidPrefix, matchUuidPrefix } from "../lib/uuidSearch";
+import { CHAINLOG_RE, DOC_NO_RE, cancelSemanticLeg } from "./searchSemanticLeg";
+import { answerQuery, createLexicalMemo, hydrateSemantic, type QueryDeps } from "./searchWorkerLanes";
 import { MINISEARCH_OPTIONS, MINISEARCH_SEARCH_OPTIONS } from "@/lib/searchOptions";
 import { counterpartTerm, expandQueryTokens, partitionByOriginalTerms } from "@/lib/searchInflect";
 import { computeLabels } from "../lib/hitLabels";
@@ -29,9 +31,6 @@ const addrToNodeIds: Map<string, string[]> = new Map();
 // Exact doc_no → node for fast direct-navigation lookups
 const byDocNo: Map<string, AtlasNode> = new Map();
 
-const CHAINLOG_RE = /^[A-Z][A-Z0-9_]{2,}$/;
-// Doc number pattern for fast exact-lookup: e.g. "A.1.2", "A.1.2.3.4", "NR-12"
-const DOC_NO_RE = /^[A-Z][A-Z0-9]*(?:\.\w+)+$|^NR-\d+$/i;
 // Ticker pattern: all-caps tokens that the stemmer would mangle.
 // NOTE: the phrase-filter substring check means "USDC" also matches "USDCe" in content.
 const TICKER_RE = /^[a-z]{0,2}[A-Z]{2,}[0-9]*$/;
@@ -421,6 +420,25 @@ function search(q: string): SearchHit[] {
   return [...both, ...chainlogOnly, ...searchOnly];
 }
 
+// ─── semantic lane ──────────────────────────────────────────────────────────
+//
+// The lane's decisions and fusion live in searchSemanticLeg.ts and the rest in
+// searchWorkerLanes.ts. What stays here is only the binding to this worker's
+// state: GET /api/search/semantic returns ids and cosine scores, and this worker
+// holds the corpus plus every function that turns a document into a rendered
+// hit, so hydration is wired here and nowhere else, or docs.json and the
+// highlighting would need a second copy.
+const queryDeps: QueryDeps = {
+  index: () => idx,
+  search,
+  lexicalFor: createLexicalMemo(search),
+  // matchReason stays empty on purpose: it is what the result row renders as a
+  // bare semantic mark, with no "+ <lexical reason>" beside it.
+  hydrate: (scored) => hydrateSemantic(scored, docs, (doc, score, snippet) => docToHit(doc, score, snippet, [], "")),
+  knowsChainlog: (id) => chainlogToAddr.has(id),
+  post,
+};
+
 self.addEventListener("message", (e: MessageEvent<WorkerInMessage>) => {
   const msg = e.data;
   if (msg.type === "preload") {
@@ -432,9 +450,8 @@ self.addEventListener("message", (e: MessageEvent<WorkerInMessage>) => {
     return;
   }
   if (msg.type === "query") {
-    const t0 = performance.now();
-    const hits = search(msg.q);
-    post({ type: "results", id: msg.id, hits, durationMs: performance.now() - t0 });
+    cancelSemanticLeg();
+    answerQuery(msg, queryDeps);
   }
 });
 

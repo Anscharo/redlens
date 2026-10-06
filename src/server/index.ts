@@ -23,8 +23,9 @@ import { startUpdater, startBootEmbeddings } from "./atlas-updater.ts";
 import { handleAuth } from "./auth.ts";
 import { canonicalRedirect } from "./history/canonical.ts";
 import { handleChat } from "./chat/chat.ts";
-import { handleConversations } from "./chat/conversations.ts";
+import { handleConversations, handleSharedConversationCollection } from "./chat/conversations.ts";
 import { handleCollections, handleSharedCollection } from "./collections.ts";
+import { handleCollectionSummary } from "./collection-summary.ts";
 import { handleFeedback } from "./feedback.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history/history.ts";
@@ -32,6 +33,7 @@ import { handleBalances } from "./balances/balances.ts";
 import { handleChainState } from "./chain-state.ts";
 import { handleForumTopics } from "./forum.ts";
 import { handleReportsSearch } from "./reports-search.ts";
+import { handleSemanticSearch, semanticLaneShown } from "./search-semantic.ts";
 import { handleModCounts } from "./history/mod-counts.ts";
 import { handleModTimeline } from "./history/mod-timeline.ts";
 import { registerSSEClient, sseClientCount } from "./sse.ts";
@@ -380,6 +382,7 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
     .replace("{{USERS_ENABLED}}", String(config.usersEnabled))
     .replace("{{CHAT_ENABLED}}", String(config.chatEnabled))
     .replace("{{AUTH_PROVIDERS}}", config.authProvidersCsv)
+    .replace("{{SEMANTIC_SEARCH}}", String(semanticLaneShown()))
     .replace("{{OG_TAGS}}", ogTags);
   const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };
   // Bare `/preview` too, not just `/preview/<id>` — the homepage card links to
@@ -457,6 +460,13 @@ export function buildRoutes() {
     // stays in the browser; this scores paraphrases with on-device ternlight.
     "/api/reports/search": (req: Request) => handleReportsSearch(req),
 
+    // Semantic hits for the reader's search bar — ids + cosine scores only, out
+    // of the same pgvector index chat retrieval uses. The client holds docs.json
+    // and renders the rows itself. Ungated: the reader is public, and an
+    // unconfigured deployment answers `available: false` rather than 404, so the
+    // UI can say why the lane is missing instead of guessing.
+    "/api/search/semantic": (req: Request) => handleSemanticSearch(req),
+
     // Auth + collections need only a logged-in session (usersEnabled); chat +
     // usage additionally need chatEnabled (itself AND-gated by usersEnabled).
     "/api/auth/*": (req: Request) => canonicalRedirect(req) ?? auth(req),
@@ -464,9 +474,13 @@ export function buildRoutes() {
     "/api/usage":  gated(chatOn, handleUsage),
     "/api/chat/conversations":     conversations,
     "/api/chat/conversations/:id": conversations,
+    "/api/chat/conversations/:id/collection": conversations,
+    // Public, like /api/collections/:id/shared: the share-link read of a conversation's collection.
+    "/api/chat/conversations/:id/shared": gated(chatOn, handleSharedConversationCollection),
     // Public share read is unauthenticated (anyone with the link) — declared
     // before the auth-gated :id route so the more specific path wins.
     "/api/collections/:id/shared": gated(usersOn, handleSharedCollection),
+    "/api/collections/:id/summary": gated(usersOn, handleCollectionSummary),
     "/api/collections":     collections,
     "/api/collections/:id": collections,
     /* v8 ignore start -- request glue; handleFeedback is unit-tested directly in feedback.test.ts */

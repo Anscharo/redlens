@@ -12,7 +12,11 @@ import type { RateLimitState } from "./types";
 vi.mock("../../lib/docs", () => ({ loadAtlas: () => Promise.resolve({ docs: {} }) }));
 // ChatEmptyState's "Continue a previous chat" fetch — additive-only and not
 // this file's concern; keep it a resolved empty list so it never renders.
-vi.mock("../../lib/conversationsApi", () => ({ listConversations: vi.fn(async () => []) }));
+const { getConversationCollection } = vi.hoisted(() => ({ getConversationCollection: vi.fn() }));
+vi.mock("../../lib/conversationsApi", () => ({
+  listConversations: vi.fn(async () => []),
+  getConversationCollection,
+}));
 
 const { track, refresh, send, stop, setRateLimit, newChat, openConversation, openAuth } = vi.hoisted(() => ({
   track: vi.fn(),
@@ -218,17 +222,13 @@ describe("ChatPanel rate limiting", () => {
     expect(screen.getByText("slow down")).toBeInTheDocument();
   });
 
-  it("normalizes a rate-limited send() result into session.setRateLimit, defaulting kind from resetsAt", async () => {
-    // The real send() always sets `kind` (see the comment in ChatPanel.doSend) —
-    // this exercises the defensive fallback for a caller that doesn't, which
-    // only a loosened (non-`RateLimitState`) mock can express.
-    send.mockResolvedValueOnce({
-      rateLimited: { message: "slow down", resetsAt: "2099-01-01T00:00:00Z" },
-    } as unknown as SendResult);
+  it("hands a rate-limited send() result to session.setRateLimit unchanged", async () => {
+    const rateLimited = { message: "slow down", resetsAt: "2099-01-01T00:00:00Z", kind: "token" } as const;
+    send.mockResolvedValueOnce({ rateLimited });
     renderPanel();
     fireEvent.change(screen.getByPlaceholderText("Ask about the Sky Atlas…"), { target: { value: "q1" } });
     fireEvent.click(screen.getByLabelText("Send"));
-    await waitFor(() => expect(setRateLimit).toHaveBeenCalledWith({ message: "slow down", resetsAt: "2099-01-01T00:00:00Z", kind: "token" }));
+    await waitFor(() => expect(setRateLimit).toHaveBeenCalledWith(rateLimited));
   });
 
   it("clears the lock (setRateLimit(null)) on a normal, non-rate-limited send", async () => {
@@ -342,6 +342,34 @@ describe("ChatPanel with messages", () => {
     });
     fireEvent.click(screen.getByLabelText("Stop"));
     expect(stop).toHaveBeenCalled();
+  });
+});
+
+describe("ChatPanel citations collection link", () => {
+  const DOC = "11111111-1111-1111-1111-111111111111";
+  const cited: ChatMsg = {
+    role: "assistant",
+    content: `See [Some Doc](/atlas/${DOC}).`,
+    draft: "",
+    generated: true,
+    trace: [],
+    rounds: 0,
+    sources: [],
+    done: true,
+  };
+
+  it("opens the conversation's collection from 'view all docs from this conversation' under the citations", async () => {
+    getConversationCollection.mockResolvedValue({ id: "conv-1", name: "Spark", ids: [DOC], auto: true });
+    renderPanel({ session: { conversationId: "conv-1", messages: [cited] } });
+    expect(screen.getByText("citations · 1")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "view all docs from this conversation" }));
+    await waitFor(() => expect(getConversationCollection).toHaveBeenCalledWith("conv-1"));
+  });
+
+  it("offers no collection link before the conversation has an id", () => {
+    renderPanel({ session: { conversationId: null, messages: [cited] } });
+    expect(screen.getByText("citations · 1")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "view all docs from this conversation" })).toBeNull();
   });
 });
 

@@ -16,66 +16,57 @@ const COLUMNS: [label: string, width: string][] = [
   ["UUID", "w-20"],
 ];
 
-export function ProcessesTable({
-  category,
-  rows,
-  docs,
-  childrenByParentDocNo,
-  expandedUuid,
-  onToggle,
-  onNavigate,
-  ignoresByUuid,
-  onMark,
-  onUnmark,
-  rq,
-}: {
+function ProcessesTableHead() {
+  return (
+    <thead>
+      <tr className="text-xs mono text-tan-3">
+        {COLUMNS.map(([label, w], i) => (
+          <th key={i} className={`py-1 px-3 font-normal ${w}`}>
+            {label}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+
+type ProcessesTableProps = {
   category: string;
   rows: ProcessRowData[];
   docs: Record<string, AtlasNode>;
   childrenByParentDocNo: Map<string, AtlasNode[]>;
   expandedUuid: string | null;
   onToggle: (uuid: string) => void;
-  onNavigate: (id: string) => void;
   ignoresByUuid: Map<string, LocalIgnore>;
   onMark: (uuid: string, reason: string) => void;
   onUnmark: (uuid: string) => void;
   rq: ReportQuery;
-}) {
+};
+
+export function ProcessesTable({ category, rows, docs, childrenByParentDocNo, expandedUuid, onToggle, ...rest }: ProcessesTableProps) {
+  const { ignoresByUuid, onMark, onUnmark, rq } = rest;
   return (
     <div className="mb-8">
       <h2 className="text-xs mono text-tan-3 uppercase tracking-wider mb-3 pb-1 border-b border-[var(--border)]">
         {category} <span className="text-tan-3">({rows.length})</span>
       </h2>
       <table className="w-full text-left">
-        <thead>
-          <tr className="text-xs mono text-tan-3">
-            {COLUMNS.map(([label, w], i) => (
-              <th key={i} className={`py-1 px-3 font-normal ${w}`}>
-                {label}
-              </th>
-            ))}
-          </tr>
-        </thead>
+        <ProcessesTableHead />
         <tbody>
-          {rows.map((r) => {
-            const node = docs[r.uuid];
-            const stepChildren = r.shape === "child" ? getStepChildren(node, childrenByParentDocNo) : [];
-            return (
-              <ProcessRow
-                key={r.uuid}
-                r={r}
-                node={node}
-                stepChildren={stepChildren}
-                expanded={expandedUuid === r.uuid}
-                onToggle={() => onToggle(r.uuid)}
-                onNavigate={onNavigate}
-                existing={ignoresByUuid.get(r.uuid)}
-                onMark={onMark}
-                onUnmark={onUnmark}
-                rq={rq}
-              />
-            );
-          })}
+          {rows.map((r) => (
+            <ProcessRow
+              key={r.uuid}
+              r={r}
+              node={docs[r.uuid]}
+              stepChildren={r.shape === "child" ? getStepChildren(docs[r.uuid], childrenByParentDocNo) : []}
+              expanded={expandedUuid === r.uuid}
+              onToggle={() => onToggle(r.uuid)}
+              existing={ignoresByUuid.get(r.uuid)}
+              onMark={onMark}
+              onUnmark={onUnmark}
+              rq={rq}
+            />
+          ))}
         </tbody>
       </table>
     </div>

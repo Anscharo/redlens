@@ -3,11 +3,12 @@ import { useLocation } from "wouter";
 import { Link } from "../Link";
 import { useSelection } from "../../lib/selection";
 import { getSharedCollection } from "../../lib/collectionsApi";
+import { getSharedConversationCollection } from "../../lib/conversationsApi";
 import { track } from "../../lib/analytics";
 import { ROUTES } from "@/lib/routes";
 
-// /c/:id — opens a SHARED collection (public read, works logged-out). Fetches the
-// collection by id, loads it into the working selection, and hands off to the
+// /c/:id — opens a SHARED collection (public read, works logged-out), saved or
+// conversation-built. Fetches the collection by id, loads it into the working selection, and hands off to the
 // reader's selected-only view. Replaces whatever the viewer had selected.
 //
 // We set the collection NAME (for the pill) but explicitly CLEAR the active
@@ -25,6 +26,11 @@ import { ROUTES } from "@/lib/routes";
 // shared collection is empty) is what guarantees the save modal falls back to
 // "save as new" and the viewer's own collection is left alone. (P1 data-loss
 // bug, PR #230 review, 2026-08-03.)
+// A /c/<id> link is either a saved collection or a conversation's auto
+// collection (a conversation's id is its share token). The two id spaces are
+// separate uuids, so trying the saved collection first can never shadow one.
+const loadShared = (id: string) => getSharedCollection(id).catch(() => getSharedConversationCollection(id));
+
 export function SharedCollectionOpener({ id }: { id: string }) {
   const { replace, setActiveCollectionId, setActiveCollectionName } = useSelection();
   const [, navigate] = useLocation();
@@ -32,7 +38,7 @@ export function SharedCollectionOpener({ id }: { id: string }) {
 
   useEffect(() => {
     let alive = true;
-    getSharedCollection(id)
+    loadShared(id)
       .then((c) => {
         if (!alive) return;
         replace(c.ids);

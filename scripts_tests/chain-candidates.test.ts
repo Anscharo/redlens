@@ -8,7 +8,7 @@
 // were attributed to unichain while the census reported it unseen.
 
 import { describe, it, expect } from "vitest";
-import { chainNamedIn, rowLabel, findChainKeyedOddRows } from "../scripts/lib/chain-candidates.mjs";
+import { chainNamedIn, rowLabel, findChainKeyedOddRows } from "../scripts/lib/chain-candidates.ts";
 
 // The real shape from the atlas doc that surfaced the Unichain bug, with the
 // offending chain swapped for one the registry still doesn't know.

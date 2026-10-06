@@ -6,43 +6,16 @@
 // conversation never sends prompt or response text to PostHog.
 
 import { sql } from "../db.ts";
-import { getModel } from "./llm.ts";
 import type { PageContext } from "./system-prompt.ts";
 import { authorizeUserRepoAccess, type AccessDecision } from "../preview/access.ts";
 import { CANONICAL_REPO, decodeId } from "../preview/resolve.ts";
 import type { ToolCallContext } from "./tools/tool-context.ts";
 
-export interface ChatBody {
-  message: string;
-  conversationId?: string;
-  pageContext?: PageContext;
-}
-
+/** A conversation the caller owns (endpoint/history.ts resolveConversation). */
 export interface ResolvedConversation {
   id: string;
   /** Private repos whose preview text this conversation already holds. */
   privateRepos: string[];
-}
-
-// Resolve the target conversation: verify ownership of an existing one, or open
-// a new row. Returns null if the id was supplied but isn't the caller's.
-export async function resolveConversation(userId: string, body: ChatBody): Promise<ResolvedConversation | null> {
-  if (body.conversationId) {
-    const owned = (await sql`
-      SELECT id, private_repos FROM conversations WHERE id = ${body.conversationId} AND user_id = ${userId}
-    `) as { id: string; private_repos?: string[] | null }[];
-    return owned[0] ? { id: owned[0].id, privateRepos: owned[0].private_repos ?? [] } : null;
-  }
-  // Pass the RAW object (not JSON.stringify'd) + ::jsonb cast — Bun JSON-encodes
-  // the value once for the cast; pre-stringifying double-encodes it into a jsonb
-  // string scalar. Matches the jsonb pattern in sync.ts.
-  const pc = body.pageContext ?? null;
-  const created = (await sql`
-    INSERT INTO conversations (user_id, model, page_context, title)
-    VALUES (${userId}, ${getModel()}, ${pc}::jsonb, ${body.message.slice(0, 60)})
-    RETURNING id
-  `) as { id: string }[];
-  return { id: created[0].id, privateRepos: [] };
 }
 
 export type ScopeDenied = { denied: "preview_access_revoked"; status: 403 } | { denied: "access_check_unavailable"; status: 503 };

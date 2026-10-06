@@ -100,13 +100,14 @@ uncited normative claims. See CLAUDE.md "Citation dictate".
    colocated **`<name>Index.test.ts`** (test colocation rule). The `.tsx` component is a thin
    renderer over the module's output.
 
-5. **Register the report** in all four places:
-   - `src/types.ts` — add the slug to the `ReportId` union.
-   - `src/lib/routes.ts` — add `REPORTS_<NAME>: "/reports/<slug>"`.
-   - `src/App.tsx` — add a `<Route>` with a lazy `<Suspense fallback={<Loading />}>`.
-   - `src/lib/reportCatalog.ts` — add the id to the right section's `ids` list
-     (title + description come from `REPORT_TITLES` / `REPORT_DESCRIPTIONS` in
-     `routes.ts`; the catalog is what the index and its search both read).
+5. **Register the report** in two places:
+   - `src/lib/reports/<slug>.ts` — a new entry (`id`, `title`, `description`,
+     `group`, `provenance`, optional search-pill `scope` and `chatTool`), plus one
+     line appending it to `REPORTS` in `src/lib/reports/registry.ts`. `ReportId`,
+     the routes tables, the /reports index and its search, chat page context, OG
+     cards and the page's `<ReportShell>` h1 all derive from it.
+   - `apps/web/src/lib/lazyRoutes.tsx` — a `lazyImport` line and the report's
+     `REPORT_PAGES` entry (keyed by `ReportId`, so a missing page fails to compile).
     (`report_open` is auto-tracked in `App.tsx` on route entry — don't re-add it.)
 
 6. **Result count + empty state.** Pass `count` (e.g. `` `${filtered.length} <unit>` ``) and
@@ -182,7 +183,7 @@ uncited normative claims. See CLAUDE.md "Citation dictate".
 - [ ] Filters URL-synced (via the hooks) + rendered with `FilterPills`/`CategoryPills`
 - [ ] Header search filters the report in place (`q` param)
 - [ ] Pure `src/lib/<name>Index.ts` + colocated `.test.ts`
-- [ ] Registered in `types.ts`, `routes.ts`, `App.tsx`, `src/lib/reportCatalog.ts`
+- [ ] Registered in `src/lib/reports/` (entry + `REPORTS` line) and `REPORT_PAGES` in `lazyRoutes.tsx`
 - [ ] `count`/`noRows`/`loading` passed to the shell; visible error state on load failure
 - [ ] `report_export` tracked via `DownloadCsvButton` (`report_view`/`report_filter` come from the harness)
 - [ ] Deterministic sort; `patch-notes.md` bullet added

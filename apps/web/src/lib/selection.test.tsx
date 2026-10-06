@@ -348,4 +348,64 @@ describe("useSelection", () => {
     });
     expect(result.current.ids.size).toBe(0);
   });
+  describe("manual edits to an opened collection", () => {
+    // Opens a collection the way SharedCollectionOpener / useOpenConversationCollection
+    // do: ids replaced, no owned id, the collection's name in the pill.
+    function openUnowned(result: { current: ReturnType<typeof useSelection> }) {
+      act(() => {
+        result.current.replace(["a", "b"]);
+        result.current.setActiveCollectionId(null);
+        result.current.setActiveCollectionName("Spark rates");
+      });
+    }
+
+    it("toggleDoc drops the name of a shared / conversation collection, leaving the edit applied", () => {
+      const { result } = renderHook(() => useSelection(), { wrapper });
+      openUnowned(result);
+      expect(result.current.activeCollectionName).toBe("Spark rates");
+
+      act(() => result.current.toggleDoc("c"));
+      expect(result.current.activeCollectionName).toBeNull(); // the pill reads "Selected"
+      expect(result.current.activeCollectionId).toBeNull();
+      expect(result.current.ids).toEqual(new Set(["a", "b", "c"]));
+    });
+
+    it("unchecking a doc, selecting a subtree and clearing each drop it too", () => {
+      const { result } = renderHook(() => useSelection(), { wrapper });
+      openUnowned(result);
+      act(() => result.current.toggleDoc("a"));
+      expect(result.current.activeCollectionName).toBeNull();
+
+      openUnowned(result);
+      act(() => result.current.selectSubtree(["x", "y"]));
+      expect(result.current.activeCollectionName).toBeNull();
+
+      openUnowned(result);
+      act(() => result.current.clear());
+      expect(result.current.activeCollectionName).toBeNull();
+    });
+
+    it("opening a collection is not an edit: the name stays until the first toggle", () => {
+      const { result } = renderHook(() => useSelection(), { wrapper });
+      openUnowned(result);
+      // Opening another one replaces the name rather than clearing it.
+      act(() => {
+        result.current.replace(["q"]);
+        result.current.setActiveCollectionName("Other chat");
+      });
+      expect(result.current.activeCollectionName).toBe("Other chat");
+    });
+
+    it("keeps the name of one of the viewer's OWN collections (its id is set, so Save can Update it)", () => {
+      const { result } = renderHook(() => useSelection(), { wrapper });
+      act(() => {
+        result.current.replace(["a", "b"]);
+        result.current.setActiveCollectionId("own-123");
+        result.current.setActiveCollectionName("My Collection");
+      });
+      act(() => result.current.toggleDoc("c"));
+      expect(result.current.activeCollectionId).toBe("own-123");
+      expect(result.current.activeCollectionName).toBe("My Collection");
+    });
+  });
 });

@@ -5,7 +5,7 @@ import { loadAtlas } from "../../lib/docs";
 import { useDataSource, type PreviewInfo } from "../../lib/dataSource";
 import { previewLabel } from "../../lib/previewLocal";
 
-// Mirrors the server's PageContext (src/server/chat/page-context.ts) plus the
+// Mirrors the server's PageContext (src/server/chat/system-prompt-page.ts) plus the
 // UI-only fields the launcher/composer render (short, placeholder, chip).
 export interface PageContext {
   path?: string;
@@ -60,6 +60,59 @@ const baseContext = {
   chip: "atlas",
 };
 
+interface NodeMeta {
+  title: string;
+  doc_no: string;
+}
+
+// The open atlas node's title and doc_no, resolved asynchronously from the
+// cached docs.json (loadAtlas is memoised per base) — the preview's own inside
+// a preview, so a document only the PR adds still gets its title. Null while
+// loading or unknown.
+function useNodeMeta(nodeId: string | null, base: string): NodeMeta | null {
+  const [node, setNode] = useState<NodeMeta | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const settle = (n: NodeMeta | null) => {
+      if (alive) setNode(n);
+    };
+    if (!nodeId) setNode(null);
+    else
+      loadAtlas(base)
+        .then(({ docs }) => settle(docs[nodeId] ? { title: docs[nodeId].title, doc_no: docs[nodeId].doc_no } : null))
+        .catch(() => settle(null));
+    return () => {
+      alive = false;
+    };
+  }, [nodeId, base]);
+  return node;
+}
+
+function nodeContext(location: string, nodeId: string, node: NodeMeta | null): PageContextView {
+  const doc = node?.doc_no;
+  return { ...baseContext, path: location, nodeId, nodeTitle: node?.title, nodeDocNo: doc, chip: doc ? `atlas · ${doc}` : "atlas" };
+}
+
+// Radar actor page (/radar/:slug) and its settlements sub-page.
+function radarContext(location: string, searchParams: URLSearchParams): PageContextView {
+  const [rawSlug, sub] = location.slice(ROUTES.RADAR.length + 1).split("/");
+  const slug = decodeURIComponent(rawSlug ?? "");
+  const settlements = sub === "settlements";
+  const mscMonth = settlements ? searchParams.get("msc")?.trim() || undefined : undefined;
+  return { ...baseContext, path: location, actorSlug: slug, mscMonth, chip: settlements ? "radar · settlement" : `radar · ${deslug(slug)}` };
+}
+
+// Every titled report is name-aware (launcher + system prompt). When it also
+// has a backing atlas_report_* tool, the chat can load/query the report
+// itself — tool + active filter only attach in that case. The report's header
+// search box is the shared global query param `q`; it is passed so the chat
+// can scope its report-tool call to what the user is viewing.
+function reportContext(location: string, reportName: string, searchParams: URLSearchParams): PageContextView {
+  const reportTool = REPORT_CHAT_TOOLS[location];
+  const reportFilter = (reportTool && searchParams.get("q")?.trim()) || undefined;
+  return { ...baseContext, path: location, reportName, reportTool, reportFilter, chip: `${reportName}` };
+}
+
 // Inside a preview every page is about the PR: the chip and composer say so,
 // and the preview id rides along so "review this PR" needs no PR number.
 function inPreview(view: PageContextView, p: PreviewInfo): PageContextView {
@@ -82,85 +135,15 @@ export function usePageContext(): PageContextView {
   return ds.preview ? inPreview(view, ds.preview) : view;
 }
 
-// Atlas node titles are resolved asynchronously from the cached docs.json
-// (loadAtlas is memoised per base) — the preview's own, inside a preview, so a
-// document only the PR adds still gets its title.
+// The route's context: an atlas node, a radar actor, a report, or anywhere else.
 function useRouteContext(base: string): PageContextView {
   const [location] = useLocation();
   const [searchParams] = useSearchParams();
   const nodeId = location === ROUTES.ATLAS ? searchParams.get("id") : null;
-  const [node, setNode] = useState<{ title: string; doc_no: string } | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    if (!nodeId) {
-      setNode(null);
-      return;
-    }
-    loadAtlas(base)
-      .then((b) => {
-        if (!alive) return;
-        const n = b.docs[nodeId];
-        setNode(n ? { title: n.title, doc_no: n.doc_no } : null);
-      })
-      .catch(() => alive && setNode(null));
-    return () => {
-      alive = false;
-    };
-  }, [nodeId, base]);
-
-  // Atlas node page
-  if (nodeId) {
-    const doc = node?.doc_no;
-    return {
-      ...baseContext,
-      path: location,
-      nodeId,
-      nodeTitle: node?.title,
-      nodeDocNo: doc,
-      chip: doc ? `atlas · ${doc}` : "atlas",
-    };
-  }
-
-  // Radar actor page (/radar/:slug) and its settlements sub-page
-  if (location.startsWith(ROUTES.RADAR + "/")) {
-    const rest = location.slice(ROUTES.RADAR.length + 1);
-    const [rawSlug, sub] = rest.split("/");
-    const slug = decodeURIComponent(rawSlug ?? "");
-    const name = deslug(slug);
-    const settlements = sub === "settlements";
-    const mscMonth = settlements ? searchParams.get("msc")?.trim() || undefined : undefined;
-    return {
-      ...baseContext,
-      path: location,
-      actorSlug: slug,
-      mscMonth,
-      chip: settlements ? "radar · settlement" : `radar · ${name}`,
-    };
-  }
-
-  // Reports. Every titled report is name-aware (launcher + system prompt).
-  // When it also has a backing atlas_report_* tool, the chat can load/query
-  // the report itself — tool + active filter only attach in that case.
+  const node = useNodeMeta(nodeId, base);
+  if (nodeId) return nodeContext(location, nodeId, node);
+  if (location.startsWith(ROUTES.RADAR + "/")) return radarContext(location, searchParams);
   const reportName = reportTitleForPath(location);
-  if (reportName) {
-    const reportTool = REPORT_CHAT_TOOLS[location];
-    // The report's header search box is the shared global query param `q`; pass
-    // it so the chat can scope its report-tool call to what the user is viewing.
-    const reportFilter = (reportTool && searchParams.get("q")?.trim()) || undefined;
-    return {
-      ...baseContext,
-      path: location,
-      reportName,
-      reportTool,
-      reportFilter,
-      chip: `${reportName}`,
-    };
-  }
-
-  // Everywhere else
-  return {
-    ...baseContext,
-    path: location,
-  };
+  if (reportName) return reportContext(location, reportName, searchParams);
+  return { ...baseContext, path: location };
 }

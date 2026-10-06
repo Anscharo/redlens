@@ -44,10 +44,7 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      # bun: census:risk and census:concepts run under it.
       - uses: ./.github/actions/setup
-        with:
-          bun: "true"
 
       # Same wholesale stderr capture as atlas-update.yml — now also carrying
       # the [drift] tripwire and [drift-count] lines from graph-tripwires.mjs.

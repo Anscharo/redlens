@@ -110,7 +110,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Inline (not a repo script) so a skills-only PR that doesn't contain
-      # scripts/lib/deploy-skip.mjs still skips. Allowlist = APP_READ_MARKDOWN
+      # scripts/lib/deploy-skip.ts still skips. Allowlist = APP_READ_MARKDOWN
       # in that module: patch-notes.md, PRIVACY.md,
       # docs/risk-assessment-rubric.md, docs/crossview/concepts.md,
       # docs/crossview/concepts-audit.md.

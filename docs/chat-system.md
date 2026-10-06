@@ -81,13 +81,14 @@ component are gone — a stage row's working content opens per-row now (see
 above), and tool calls render inside their stage row.
 
 The client `ChatEvent` union in `api.ts` mirrors the server's `HarnessEvent` in
-`chat-orchestrator.ts` — **they must stay in sync**. The rule that keeps them
+`harness/types.ts` — **they must stay in sync**. The rule that keeps them
 honest: *every input to `CheckReport.failed` must reach the client* — arrays and
 booleans alike. Each one can be a turn's only finding, and a hard failure the
 badge can't name renders a red chip that says the answer failed and then can't
 say why. Three (`paramMismatches`, `ungroundedCitationValues`, `lengthCapped`)
-were missing until 2026-08-21; when adding a fourth, wire it through to
-`VerifyBadge`'s `issues` count in the same change. Supporting surfaces:
+were missing until 2026-08-21; when adding a fourth, add its row to
+`FINDING_ROWS` (`findingRows.tsx`) in the same change: that one table drives
+both the badge's findings list and its chip. Supporting surfaces:
 `VerifyBadge` (harness verdict), `ReasoningBlock` (the model's thinking trace,
 open by default and height-capped), `SupersededAnswer` (a draft set aside for a
 tool round, kept dimmed rather than deleted), `StageList` (the stage
@@ -95,7 +96,7 @@ checklist), `Sources`, `LimitsMeter` + `ContextPie` (usage and context size),
 `RateLimitNote`, `ProfileButton` / `SignInButtons` (auth), `usePrefs`
 (display + placement preferences), `resume.ts` (conversation resume).
 
-## 2. Server lifecycle (`src/server/chat/chat.ts`)
+## 2. Server lifecycle (`src/server/chat/chat.ts`, `endpoint/`)
 
 `handleChat` (mounted at `POST /api/chat`) runs in order:
 
@@ -137,7 +138,7 @@ checklist), `Sources`, `LimitsMeter` + `ContextPie` (usage and context size),
    prefetch judgement, tier routing (`routeTier` + `resolveTierModels`), system
    prompt, full history, facts round and Jev-filtered `/teach` notes. It is
    the one assembly `pnpm eval:tools` also runs; the per-user `/teach` lookup
-   stays in `chat.ts` and comes in as an argument.
+   stays in the endpoint (`endpoint/turn.ts`) and comes in as an argument.
 8. **Model tier routing** — part of step 7, decided before the prompt is
    built because the citation format depends on the model.
 9. **SSE stream** — emit `meta`, then run the harness, forwarding every event
@@ -422,7 +423,7 @@ margin is set on the marginal trade rather than a clean separation, and why the
 cost asymmetry is the justification: a false fire buys a better *and* faster
 model, so it costs tokens, never correctness.
 
-## 4. The agentic loop (`chat-loop.ts`)
+## 4. The agentic loop (`chat-loop.ts`, `loop/`)
 
 `runChat` is a pure async generator (the LLM is injected as `ChatStream`, so it
 unit-tests with no network/DB). Each iteration (max `CHAT_MAX_ITERATIONS`,
@@ -486,7 +487,7 @@ live chat context. `fitToBudget` greedily keeps items under the byte budget,
 always keeps at least one item (a lone oversized item beats an empty result),
 and reports `truncated` so the caller pages or narrows instead of blowing up.
 
-## 6. Reliability harness (`chat-orchestrator.ts`, `chat/verify/`)
+## 6. Reliability harness (`chat-orchestrator.ts`, `harness/`, `chat/verify/`)
 
 `runVerifiedChat` wraps the loop and is what the SSE route iterates. Every stage
 degrades gracefully — harness flakiness never breaks a turn — and
@@ -627,7 +628,7 @@ see §12.
 
 **Per-paragraph refutation is the default (`CHAT_REFUTE_MODE=paragraph`,
 `verify/paragraph-refute.ts`).** Instead of one `refute` call over the
-finished answer, `chat-orchestrator.ts` submits each paragraph to a
+finished answer, `harness/paragraphs.ts` submits each paragraph to a
 `createParagraphRefuter` as it closes during streaming (the same
 `verify/paragraphs.ts` segmentation the deterministic `paragraph_check` pass
 already uses) — a `paragraph_refute` SSE event lands per paragraph, either
@@ -838,7 +839,7 @@ One follow-up the refutation-only overhaul surfaced but did not build:
   (2026-09-24 as disputes only; generalized 2026-10-01, `review-round.ts` +
   `verify/review-note.ts`). The browser renders a verification badge and its
   findings, the Sources chips and an answer-coverage line under every answer;
-  the replay carried none of it, because `chat.ts`'s history SELECT reads four
+  the replay carried none of it, because `endpoint/history.ts`'s history SELECT reads four
   columns. So a user pointing at the screen ("why was verification failed?") was
   asking about something the model had never seen, and it answered with
   speculation — observed twice: once as a dispute the model asked the user to
@@ -870,8 +871,8 @@ One follow-up the refutation-only overhaul surfaced but did not build:
   back instead of capitulating. And it is **excluded from evidence entirely**, at
   **four** sites via one shared `isReviewRound` predicate: `verifier.ts`
   (both `evidenceFromTranscript` and `evidenceFromResults`), `tool-recall.ts`'s
-  `SYNTHETIC_TOOL_IDS`, `chat-orchestrator.ts`'s `toolTextsOf`, and
-  `chat-loop.ts`'s `exportEvidence`. Only the first two excluded the dispute round
+  `SYNTHETIC_TOOL_IDS`, `harness/repair.ts`'s `toolTextsOf`, and
+  `loop/export-evidence.ts`'s `exportEvidence`. Only the first two excluded the dispute round
   it replaces; the other two **leaked** until 2026-10-01, so an address or figure
   appearing only in the round counted as retrieved (the quote check was never
   affected — it reads `evidenceSplit.atlasTexts`, built by `splitFromTranscript`,
@@ -884,7 +885,7 @@ One follow-up the refutation-only overhaul surfaced but did not build:
   is deliberately NOT a join onto the history SELECT (that would multiply history
   rows) and it keeps its `.catch(() => [])`, so a DB error degrades to "no
   ledger". It is **counted by `replayTokens`**, so the meter, the 90% compaction
-  trigger and the tail sizing stay one quantity — and `conversations.ts`'s
+  trigger and the tail sizing stay one quantity — and `conversations/detail.ts`'s
   `toReplayRow` sets it too, or a reopened thread would meter low. Compaction
   **strips** it: `rowsAfterCursor` drops folded rows before the round is built and
   `rowPart` reads only content + recalls, so the summarizer never sees a verdict
@@ -954,7 +955,7 @@ the user. All are unit-tested and cost nothing.
 
 ## 8. Delivery and the stage tree
 
-There is one delivery mode, not a mode switch. The SSE route (`chat.ts`)
+There is one delivery mode, not a mode switch. The SSE route (`chat.ts`, `endpoint/stream.ts`)
 forwards every event the harness yields, unchanged, as `data: {json}\n\n` —
 `resolveDeliveryMode`/`ChatBody.delivery`/`CHAT_DELIVERY_MODE` are gone. The
 client always renders the in-flight turn as a stage checklist and reveals the
@@ -962,10 +963,10 @@ answer once (§1), rather than the server picking between two client shapes.
 
 **Stage production is the orchestrator's job**, not the route's:
 
-- `recalling` — fires in `chat.ts` before the harness runs, when a fact fired
+- `recalling` — fires in `endpoint/stream.ts` before the harness runs, when a fact fired
   (§3's facts prefetch).
 - `querying` — fires per tool call, in the conversationalist pass
-  (`runVerifiedChat`, `chat-orchestrator.ts`).
+  (`runVerifiedChat`, `harness/stream-pass.ts`).
 - `synthesizing` — fires once per **generation burst** (the run of tokens
   since the last `tool_call`, or since the stream started), right before that
   burst's first `token`. A `tool_call` resets the burst, so a turn that calls
@@ -1140,7 +1141,7 @@ Every post-answer check now rehydrates on reload — the marks first
 (2026-09-23), the verify badge and the answer-coverage line with it
 (2026-09-24), so a refresh no longer silently drops a turn's verification.
 `GET /api/chat/conversations/:id`
-(`conversations.ts`'s `citationMarksFor`) re-runs `aggregateMarks` over each
+(`conversations/checks.ts`'s `citationMarksFor`) re-runs `aggregateMarks` over each
 assistant message's stored `judged` pairs — the same fold a live turn uses,
 so a later change to the aggregation rule applies to old rows too without a
 backfill — and the client (`hydrate.ts`) restores the result straight into
@@ -1150,7 +1151,7 @@ the live registry never judged. Measurement and the residual error classes:
 [`docs/plans/jev-typesafe.md`](plans/jev-typesafe.md) §A1.
 `CHAT_CITATION_CHECK_MODEL=""` turns it off.
 
-The **verify badge** restores the same way (`conversations.ts`'s `verifyFor`,
+The **verify badge** restores the same way (`conversations/checks.ts`'s `verifyFor`,
 parsers in `verify/persisted-verdict.ts`): agreed contradictions from the
 `verify` row, the deterministic findings from the `round_checks` row, and
 `status` recomputed with the live `computeOverall` rather than trusting the
@@ -1209,7 +1210,7 @@ the atlas doesn't cover this" (`declines`) as neutral facts; "Didn't address:
 (or the plural), flagged. A row of ✓✓ adds no line. The badge itself is the third fact
 (whole-answer contradictions) and is not repeated. Raw distribution, per-part scores and latency persist as a
 `message_checks` row of kind `answer_coverage`, and the line now rehydrates
-from it (2026-09-24, `conversations.ts`'s `answerCoverageFor`) like the marks
+from it (2026-09-24, `conversations/checks.ts`'s `answerCoverageFor`) like the marks
 and the badge. Only the wire shape is restored: the stored `parts` are
 `{ text, p }` objects kept for calibration, mapped down to their text exactly
 as the live event does, and `probabilities`/`rawToolOutput` never reach the
@@ -1296,11 +1297,20 @@ routing chains, not the primary's 256k, because an OpenRouter failover sends the
 same full context and the honest ceiling is the chain minimum. Swap it alongside
 `CHAT_MODEL` / `CHAT_MODEL_*` when the chains change.
 
-Embeddings use `EMBED_MODEL` (default `qwen/qwen3-embedding-8b`, native 4096
-dims) sliced + L2-renormalized client-side to `EMBED_DIM = 1024` — a constant
+Embeddings use `EMBED_MODEL` (default `google/gemini-embedding-2`, asked for
+1024 dims and L2-renormalized client-side) at `EMBED_DIM = 1024` — a constant
 locked to the `vector(1024)` column and HNSW index. `sync-embeddings.ts` is a
-separate best-effort lane, incremental by unit `content_hash`, that keeps
-`atlas_doc_embeddings` current. Embeddings are a derived recall index, not atlas
+separate best-effort lane, incremental by unit `content_hash` and by the
+`embed_model` each row records (migration 038), that keeps
+`atlas_doc_embeddings` current; a model change re-embeds every row, resumably.
+Three settings follow the model: the query prefix (`queryPrefixFor`, Qwen's
+instruction or none), the cosine floor (`semanticMinScore`: 0.55 for Gemini,
+0.30 for Qwen) and the leaf rule (`leafRuleFor`). Gemini replaced
+`qwen/qwen3-embedding-8b` for every semantic caller because every host serving
+Qwen took 7 to 36 s for one call in ten at equal quality; the measurement is in
+`docs/research/embedding-model-comparison.md`. While any stored vector is from
+another model, the reader's meaning lane is off (`vectorsCurrent`); chat keeps
+searching through the re-embed. Embeddings are a derived recall index, not atlas
 truth: a stale vector only means that doc leans on lexical search for a while,
 so the lane never blocks structural sync or the deploy/health gate.
 
@@ -1320,12 +1330,44 @@ Mainnet`, too short to retrieve as its own vector — exact match on that slice 
 from 3 of 40 to 18 of 40. See `scripts/eval/eval-retrieval.ts`'s header.
 
 Folded members keep their own vector, flagged `attribution_only` (migration 023)
-and excluded from search: once a group is retrieved, the query is re-embedded with
-the retrieved anchor titles stripped out — inside a group the instance name
-discriminates nothing — and members are scored against that residual to pick the
-leaf. One extra embed per query, with a lexical fallback on any failure. Hybrid
+and excluded from search: once a group is retrieved, its members are scored to
+pick the leaf, because inside a group the instance name discriminates nothing —
+every member carries it. That rule is load-bearing, not a refinement: scoring
+members against the plain query vector instead collapses ICD disambiguation from
+62.5% to 2.5%, worse than no semantic attribution at all (measured 2026-09-30,
+98 queries whose target is folded).
+
+**It costs no round trip of its own** (changed 2026-09-30). It used to re-embed
+the query with the *retrieved* anchor titles stripped, which needs the semantic
+results and so bought a second embed — and an embed costs a round trip, not a
+payload (~2.3s p50 whether it carries one text or two), so that was half the
+request. The residual is now built from the **lexical** leg's titles, which
+`runLexical` has in memory before the embed, and rides in the query's own call;
+members are then scored by `fuseLeafScores` (`retrieval/leaf-scores.ts`) — an RRF fusion of
+cosine-to-residual with cosine-to-query-minus-a-penalty-for-resembling-its-own-anchor.
+Measured 43.9% against the old rule's 48.0%: −4.1 points, 95% CI [−14.3, +6.1]
+over 4,000 paired resamples, i.e. not distinguishable on this sample, against
++14.3 [+4.1, +24.5] over the lexical fallback. The residual-from-lexical ranking
+alone measured 39.8%, which the same bootstrap *does* separate from the old rule
+(P(better) = 0.01), so the second ranking is what makes one round trip affordable
+rather than a regression. Lexical fallback still covers any failure. Hybrid
 search then fuses ancestor/descendant lexical+semantic pairs onto the more
 specific doc (`via` on the tool result).
+
+Chat retrieval calls the same `runSemantic` as the reader's meaning lane. Since
+2026-10-01 it also returns a list of briefing hits, ranked by the same query
+vector against `atlas_doc_briefings`. The hybrid lane (`tools.ts`, `query.ts`)
+now fuses three lists in one RRF stage: lexical, attributed semantic and
+briefings. `atlas_search` with `mode="semantic"` fuses only the attributed leaves
+with the briefings, which is the form the eval measured first. The three-way
+form was measured 2026-10-01 on the whole corpus (`--hybrid --briefings none,s2docs
+--pool all`, 179 queries, exact recall@10): +4.5 [1.7, 7.8] on questions and
++3.4 [0.6, 6.7] on keywords, against +12.8 and +11.2 on the semantic lane
+alone. The lexical list already finds most of what the briefings add, and MRR
+falls (0.626 → 0.582 on questions): more right documents reach the top 10, but
+they sit lower. MCP
+clients see the same tools, so both forms reach them too. The measured gains and the design are in the semantic-lane
+note in `CLAUDE.md` and in `docs/plans/atlas-doc-briefings.md`.
 
 ## 10. Data model (Postgres)
 
@@ -1345,15 +1387,17 @@ idle and a migration to remove it isn't worth the churn. Retrieval tables are
 `atlas_addresses`, and `atlas_history`, with `sync_state`/`sync_log` as the
 "what's loaded" pointer.
 
-`conversations.private_repos` (migration 037) lists the private repos whose PR
+`conversations.private_repos` (migration 040) lists the private repos whose PR
 preview text a conversation's tools have read. A preview tool records the repo
 (`conversation-access.ts`) before returning the text, and withholds the text if
 it cannot. Every later turn and every reopen (`GET /api/chat/conversations/:id`)
-re-checks the user's live access to each listed repo and answers 403
+re-checks the user's live access to each listed repo (`conversations/detail.ts` for the reopen) and answers 403
 `preview_access_revoked` once any is gone (503 `access_check_unavailable` when
 GitHub cannot answer). A conversation with a non-empty list, or a turn asked
 from inside a fork or private preview, sends PostHog metadata only
-(`ChatObservability.privacyMode`). Known limits: the conversation's title stays
+(`ChatObservability.privacyMode`), and its auto collection is never served
+through the public share link (`conversations/citations.ts`), since the title
+is written from that text. Known limits: the conversation's title stays
 in the user's own list, and a browser's local resume snapshot is not revoked. Document content, full-text (MiniSearch), and the graph
 live **in memory** (loaded once at boot, kept fresh by an in-process updater);
 Postgres holds only what benefits from SQL.
@@ -1371,12 +1415,15 @@ cookie.
 | `POST /api/auth/signout` | Clears the session cookie. `200 → { ok: true }`. |
 | `GET /api/usage` | `{ window: { tokens, limit, exceeded, resetsAt, windowMinutes, boosted }, global?: CommonsPool }`. Fetch on widget open and after each `done`. `global` is omitted when the commons feature is off or the credits API is unreachable. |
 | `POST /api/chat` | SSE (below). |
+| `GET /api/chat/conversations` | The signed-in user's conversations, newest first (max 100). Each row carries `messageCount`, the estimated `contextTokens`, and `citationCount`: the distinct atlas docs its answers cite. |
+| `GET /api/chat/conversations/:id/collection` | The conversation's **auto collection**: `{ id, name, ids, auto: true }`, where `ids` are the docs its assistant answers cite, oldest citation first, and `name` is the title (or "Untitled chat"). Owner only (404 otherwise). Derived on every read from the stored answers by the scan the Sources chips use (`src/lib/citationScan.ts`), so `citationCount` and the collection can never disagree, and there is no write route (any other method is 405). Nothing is stored: the collection cannot drift from the thread and disappears with the conversation. Stored answers only carry citations that survived `verify/citation-repair.ts`. |
+| `GET /api/chat/conversations/:id/shared` | The share-link read of the same collection, **public** (no session): the conversation's id is the token, as a saved collection's id is for `/c/<id>`. Returns the same `{ id, name, ids, auto: true }` and nothing else (no message text); the conversation itself stays owner-only. The SPA's `/c/<id>` opener tries the saved collection first, then this. 404 on an unknown or malformed id, 405 on any other method. |
 
 **Request body:** `{ message, conversationId?, pageContext? }`, where
 `pageContext` carries `{ path?, nodeId?, nodeTitle?, nodeDocNo?, actorSlug?, reportName? }`.
 
 **Response:** `text/event-stream`, frames of `data: <json>\n\n`. The event union
-(server `HarnessEvent` in `chat-orchestrator.ts`, mirrored client-side in `api.ts`):
+(server `HarnessEvent` in `harness/types.ts`, mirrored client-side in `api.ts`):
 
 ```ts
 { type: "meta",        conversationId, tier? }
@@ -1408,7 +1455,7 @@ own field and never into `content` — it is scratch work, not answer prose, so
 it is never markdown-rendered as the answer, citation-extracted, or verified.
 It is emitted only when a provider actually sends one (`delta.reasoning`,
 `delta.reasoning_content`, or a `reasoning_details` array — normalized by
-`reasoningDelta` in `chat-loop.ts`). Forwarding is unconditional and there is
+`reasoningDelta` in `loop/stream-round.ts`). Forwarding is unconditional and there is
 **no request-side knob** — we never send OpenRouter's `reasoning` param. We
 don't need one: the strong tier's `openai/gpt-5.6-luna` already reasons
 unprompted on 94 of 96 generations (30d production PostHog, 2026-08-24), so
@@ -1523,7 +1570,7 @@ The reader waits the whole turn (the answer only reveals at
 (Not the malformed-delta path the loop also documents: `chat_loop_malformed_tool_call`
 has never fired.)
 
-`chat-loop.ts` now buys ONE more round **with tools still available**, steered
+`loop/finish.ts` buys ONE more round **with tools still available**, steered
 by `PROMISED_TOOL_STEER`, when a round produced text, the turn has made zero
 tool calls, a round remains, and `announcesUnmadeToolCall` (chat/announcement.ts)
 fires. The announcement never lands on `msgs`, so the replay sees the

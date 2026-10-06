@@ -1,146 +1,54 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useAuth } from "./auth";
-import { usePrefs } from "./usePrefs";
 import { SignedOutMenu } from "./SignedOutMenu";
 import { MenuGlyph } from "./glyphs";
-import { MenuButton, MenuLink, MenuRule } from "./MenuRow";
-import { PrefSwitch } from "./PrefSwitch";
-import { chatEnabled } from "../../lib/chatEnabled";
-import { ROUTES } from "@/lib/routes";
+import { AccountMenu } from "./AccountMenu";
+import { AccountPanel } from "./AccountPanel";
+import { useOutsidePress } from "./useLightDismiss";
+
+// Open/closed plus which panel of the signed-in menu shows. A press outside
+// closes the menu AND returns it to its main list; a navigation or sign-out
+// only closes it.
+function useProfileMenu() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [showPrefs, setShowPrefs] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  const dismiss = useCallback(() => {
+    setOpen(false);
+    setShowPrefs(false);
+  }, []);
+  useOutsidePress(ref, open, dismiss);
+  return { ref, open, toggle: () => setOpen((v) => !v), close, showPrefs, setShowPrefs };
+}
 
 // NavBar profile control. Signed-out: a menu pill → dropdown with Sign in
 // (a sub-panel offering GitHub / Google, both routing through the shared
 // openAuth) and History — see SignedOutMenu. Signed-in: avatar → dropdown with
 // name, an Account sub-panel (reduce-motion switch, persisted to localStorage,
-// plus Delete account), History, Collections, and Sign out. Theme lives on
-// ThemeButton in the nav, not in this menu.
+// plus Delete account), History, Collections, and Sign out — see
+// AccountMenu / AccountPanel. Theme lives on ThemeButton in the nav, not in this menu.
 // Per the FE handoff we omit the GitHub @handle (not returned by /api/auth/me).
 export function ProfileButton() {
-  const { user, signOut, deleteAccount } = useAuth();
-  const { prefs, setPref } = usePrefs();
-  const [open, setOpen] = useState(false);
-  const [showPrefs, setShowPrefs] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-        setShowPrefs(false);
-      }
-    };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [open]);
-
-  if (!user) {
-    return (
-      <div ref={ref} className="relative shrink-0">
-        <button
-          className="rlc-signin"
-          onClick={() => setOpen((v) => !v)}
-          aria-haspopup="menu"
-          aria-expanded={open}
-          aria-label="Menu"
-          title="Menu"
-        >
+  const { user } = useAuth();
+  const menu = useProfileMenu();
+  return (
+    <div ref={menu.ref} className="relative shrink-0">
+      {user ? (
+        <img className="rlc-avatar" src={user.avatarUrl} alt={user.name ?? "Signed in"} onClick={menu.toggle} />
+      ) : (
+        <button className="rlc-signin" onClick={menu.toggle} aria-haspopup="menu" aria-expanded={menu.open} aria-label="Menu" title="Menu">
           <MenuGlyph />
         </button>
-        {open && (
-          <div className="rlc-menu" role="menu">
-            <SignedOutMenu onNavigate={() => setOpen(false)} />
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  const close = () => setOpen(false);
-  const name = user.name ?? "Signed in";
-
-  return (
-    <div ref={ref} className="relative shrink-0">
-      <img
-        className="rlc-avatar"
-        src={user.avatarUrl}
-        alt={name}
-        onClick={() => setOpen((v) => !v)}
-      />
-      {open && (
+      )}
+      {menu.open && (
         <div className="rlc-menu" role="menu">
-          {!showPrefs ? (
-            <>
-              <div className="flex items-center gap-[10px] px-3 pt-3 pb-[10px]">
-                <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full border border-border" />
-                <div className="min-w-0">
-                  <div className="rlc-menu-name">{name}</div>
-                </div>
-              </div>
-              <MenuRule />
-              <MenuButton label="Account" onClick={() => setShowPrefs(true)} />
-              <MenuRule />
-              <MenuLink to={ROUTES.HISTORY} label="History" onNavigate={close} />
-              <MenuRule />
-              <MenuLink to={ROUTES.COLLECTIONS} label="Collections" onNavigate={close} />
-              {chatEnabled() && (
-                <>
-                  <MenuRule />
-                  <MenuLink to={ROUTES.CONVERSATIONS} label="Conversations" onNavigate={close} />
-                </>
-              )}
-              <MenuRule />
-              <button
-                className="rlc-menu-item"
-                onClick={() => {
-                  setOpen(false);
-                  void signOut();
-                }}
-              >
-                <span>Sign out</span>
-              </button>
-            </>
+          {!user ? (
+            <SignedOutMenu onNavigate={menu.close} />
+          ) : menu.showPrefs ? (
+            <AccountPanel onBack={() => menu.setShowPrefs(false)} onClose={menu.close} />
           ) : (
-            <>
-              <button
-                className="rlc-menu-item mono text-[11px] text-tan-3"
-                onClick={() => setShowPrefs(false)}
-              >
-                <span>← account</span>
-              </button>
-              <MenuRule />
-              <PrefSwitch
-                label="Reduce motion"
-                on={prefs.reduceMotion}
-                onChange={() => setPref("reduceMotion", !prefs.reduceMotion)}
-              />
-              <div className="px-3 pt-2 pb-[11px]">
-                <div className="mono text-[9.5px] text-gray leading-normal">
-                  surfaced from local storage · syncs per-browser
-                </div>
-              </div>
-              <MenuRule />
-              <button
-                className="rlc-menu-item text-[12.5px] text-red"
-                onClick={() => {
-                  // Confirm before an irreversible wipe. Name everything the
-                  // delete actually takes (PRIVACY.md §6 is the same list) —
-                  // preview history cascades with the account too.
-                  if (
-                    !window.confirm(
-                      "Delete your account and all your chats, Collections, and preview history? This can't be undone.",
-                    )
-                  )
-                    return;
-                  setOpen(false);
-                  void deleteAccount().then((ok) => {
-                    if (!ok) window.alert("Couldn't delete your account. Please try again.");
-                  });
-                }}
-              >
-                <span>Delete account</span>
-              </button>
-            </>
+            <AccountMenu user={user} onAccount={() => menu.setShowPrefs(true)} onClose={menu.close} />
           )}
         </div>
       )}

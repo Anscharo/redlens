@@ -36,6 +36,47 @@ export interface Limit {
   color: string;
 }
 
+// "~": the server estimates the replay size (4 chars/token) rather than
+// reporting a measured prompt — it is the number compaction acts on, but it is
+// an estimate, and the conversation list marks its own the same way.
+function contextLimit(contextTokens: number | null, contextWindowTokens: number | null): Limit {
+  const known = contextTokens !== null && contextWindowTokens !== null;
+  return {
+    key: "context",
+    label: "context window",
+    scope: "this chat",
+    pct: ratioPct(contextTokens, contextWindowTokens),
+    detail: known ? `~${formatTokens(contextTokens)} / ${formatTokens(contextWindowTokens)}` : null,
+    color: "var(--accent)",
+  };
+}
+
+function timeLimit(usage: UsageWindow | null): Limit {
+  return {
+    key: "time",
+    label: "time limit",
+    scope: "all your chats",
+    pct: ratioPct(usage?.tokens ?? null, usage?.limit ?? null),
+    detail: usage && usage.limit > 0 ? `resets in ${humanizeReset(usage.resetsAt)}` : null,
+    color: "var(--warn)",
+  };
+}
+
+// A drained pool (total <= 0) is the hard-gate state chat.ts pauses everyone
+// for — treat it as 100% full, not unknown.
+function commonsLimit(commons: CommonsPool | null): Limit {
+  return {
+    key: "commons",
+    label: "shared credits",
+    scope: "all users",
+    pct: commons ? (commons.total > 0 ? ratioPct(commons.used, commons.total) : 100) : null,
+    detail: commons ? `$${commons.remaining.toFixed(2)} left` : null,
+    pctSuffix: " used",
+    tooltipDetail: commons ? `$${commons.remaining.toFixed(2)} left of $${commons.total.toFixed(2)}` : undefined,
+    color: "var(--lilac)",
+  };
+}
+
 // The three limits a chat turn can hit, each as a 0–100 fullness fraction.
 // null means unknown (missing/zero denominator) — never treated as 0.
 export function buildLimits(
@@ -44,42 +85,7 @@ export function buildLimits(
   contextTokens: number | null,
   contextWindowTokens: number | null,
 ): Limit[] {
-  const ctxKnown = contextTokens !== null && contextWindowTokens !== null;
-  // A drained pool (total <= 0) is the hard-gate state chat.ts pauses everyone
-  // for — treat it as 100% full, not unknown.
-  const commonsPct = commons ? (commons.total > 0 ? ratioPct(commons.used, commons.total) : 100) : null;
-
-  return [
-    {
-      key: "context",
-      label: "context window",
-      scope: "this chat",
-      pct: ratioPct(contextTokens, contextWindowTokens),
-      // "~": the server estimates the replay size (4 chars/token) rather than
-      // reporting a measured prompt — it is the number compaction acts on, but
-      // it is an estimate, and the conversation list marks its own the same way.
-      detail: ctxKnown ? `~${formatTokens(contextTokens)} / ${formatTokens(contextWindowTokens)}` : null,
-      color: "var(--accent)",
-    },
-    {
-      key: "time",
-      label: "time limit",
-      scope: "all your chats",
-      pct: ratioPct(usage?.tokens ?? null, usage?.limit ?? null),
-      detail: usage && usage.limit > 0 ? `resets in ${humanizeReset(usage.resetsAt)}` : null,
-      color: "var(--warn)",
-    },
-    {
-      key: "commons",
-      label: "shared credits",
-      scope: "all users",
-      pct: commonsPct,
-      detail: commons ? `$${commons.remaining.toFixed(2)} left` : null,
-      pctSuffix: " used",
-      tooltipDetail: commons ? `$${commons.remaining.toFixed(2)} left of $${commons.total.toFixed(2)}` : undefined,
-      color: "var(--lilac)",
-    },
-  ];
+  return [contextLimit(contextTokens, contextWindowTokens), timeLimit(usage), commonsLimit(commons)];
 }
 
 // The two account-wide limits only take the meter over once they're genuinely

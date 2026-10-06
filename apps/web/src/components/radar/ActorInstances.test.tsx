@@ -221,3 +221,14 @@ describe("ActorInstances parameter value rendering", () => {
     expect(within(section).getByText("Suspended")).toBeInTheDocument();
   });
 });
+
+describe("ActorInstances link targets", () => {
+  it("gives every card an instance-<id> anchor and keeps the status anchors", () => {
+    const a = inst({ status: "Active" });
+    const b = inst({ status: "Active" });
+    const { container } = render(<ActorInstances primitives={[prim({ instances: [a, b] })]} />);
+    expect(container.querySelector(`#instance-${a.id}`)).not.toBeNull();
+    expect(container.querySelector(`#instance-${b.id}`)).not.toBeNull();
+    expect(container.querySelectorAll("#dr-active")).toHaveLength(1);
+  });
+});

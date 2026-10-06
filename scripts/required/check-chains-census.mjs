@@ -25,12 +25,12 @@
  *                list of chain names someone thought of ahead of time: a drift
  *                detector built from known names cannot detect drift.
  *   odd rows   — chain-keyed address lists with a row naming no known chain
- *                (chain-candidates.mjs). Both halves above still need the
+ *                (chain-candidates.ts). Both halves above still need the
  *                chain's name to appear in a shape they recognize, and a
  *                single-word name in a plain bullet row fits neither: unichain
  *                had three attributed addresses while this census called it
  *                unseen. This half reasons about the *list* instead of the
- *                name — see chain-candidates.mjs for why that needs no advance
+ *                name — see chain-candidates.ts for why that needs no advance
  *                knowledge of the missing chain.
  *
  * All three halves bucket into known / deferred (FUTURE_TO_ETHEREUM, an
@@ -74,7 +74,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { CHAINS, FUTURE_TO_ETHEREUM, classifyChainLabel } from "../lib/chains.mjs";
 import { CHAIN_HINTS } from "../lib/address-chains.mjs";
-import { findChainKeyedOddRows } from "../lib/chain-candidates.mjs";
+import { findChainKeyedOddRows } from "../lib/chain-candidates.ts";
 import { EXPLORER } from "../../src/lib/explorer.ts";
 import { NATIVE_TOKEN } from "../../src/lib/tokens.ts";
 import { naturalCompare } from "../lib/natural-sort.mjs";

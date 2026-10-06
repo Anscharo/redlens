@@ -12,7 +12,8 @@
 // gracefully to an empty/"not found" result with no rows (proven by
 // tools-history.test.ts's pure summarizeHistoryStats tests), so this is about
 // exercising the handler wiring, not re-testing DB query logic.
-import { test, expect, mock, beforeEach } from "bun:test";
+import { test, expect, mock, beforeEach, beforeAll, afterAll } from "bun:test";
+import { config } from "../../config.ts";
 import { z } from "zod";
 import { toUuidArrayLiteral, fromUuidArray } from "../../pg-array.ts";
 import { ATLAS_TOOLS, TOOLS_BY_NAME, invokeTool, omitEmptyArgs, toolDescription, type AtlasTool } from "./tool-registry.ts";
@@ -20,6 +21,24 @@ import { PREVIEW_TOOLS } from "./tools-preview.ts";
 import { execToolDetailed, CHAT_TOOLS } from "./llm-tools.ts";
 import { buildIndexes, type AtlasNode, type Entity, type Edge, type Indexes } from "../../retrieval/indexes.ts";
 import { REPORT_CHAT_TOOLS } from "../../../lib/routes.ts";
+import { REPORTS } from "../../../lib/reports/registry.ts";
+import { REPORT_TOOLS } from "../../reports/index.ts";
+
+// The semantic leg is inert only while `config.openrouterApiKey` is falsy, and
+// leaving that to ambient env is a trap: bun auto-loads `.env.local`, and this
+// repo's containers now inject OPENROUTER_API_KEY, so every keyless assertion
+// below silently became a LIVE embedding request — four retries with 1s/2s/4s/8s
+// of real sleep, which blows the 5s test timeout rather than failing honestly.
+// Pinned here the same way src/server/retrieval/search.test.ts pins it.
+let prevOpenRouterKey: string;
+beforeAll(() => {
+  prevOpenRouterKey = config.openrouterApiKey;
+  config.openrouterApiKey = "";
+});
+afterAll(() => {
+  config.openrouterApiKey = prevOpenRouterKey;
+});
+
 
 function mockDb(rows: unknown[] = []) {
   const fn = Object.assign(
@@ -114,6 +133,20 @@ test("REPORT_CHAT_TOOLS names only registered tools — a route wired to a renam
   }
 });
 
+test("every chatTool a report page names is a REPORT_TOOLS entry", () => {
+  const reportToolNames = new Set(REPORT_TOOLS.map((t) => t.name));
+  for (const r of REPORTS) {
+    if ("chatTool" in r) expect(reportToolNames.has(r.chatTool), `${r.id} -> ${r.chatTool}`).toBe(true);
+  }
+});
+
+test("REPORT_TOOLS is exactly the atlas_report_* set, registered last in its own order", () => {
+  const reportNames = ATLAS_TOOLS.map((t) => t.name).filter((n) => n.startsWith("atlas_report_"));
+  expect(reportNames).toEqual(REPORT_TOOLS.map((t) => t.name));
+  expect(ATLAS_TOOLS.slice(-REPORT_TOOLS.length)).toEqual([...REPORT_TOOLS]);
+  for (const t of REPORT_TOOLS) expect(t.promptBlurb, t.name).toMatch(/\.$/);
+});
+
 // The preview tools are the one open-world group: their answer follows GitHub's
 // live PR state, not only the served atlas.
 const OPEN_WORLD = new Set(PREVIEW_TOOLS.map((t) => t.name));
@@ -149,20 +182,10 @@ const ARGS: Record<string, Record<string, unknown>> = {
   atlas_changed_between: { commit_a: "abc1234", commit_b: "def5678" },
   atlas_first_seen: { ids: ["D1", "ent"] },
   atlas_query: { query: "governance" },
-  atlas_report_multisigs: {},
-  atlas_report_primitive_matrix: {},
-  atlas_report_facilitator_responsibilities: {},
-  atlas_report_govops_responsibilities: {},
-  atlas_report_rewards: {},
-  atlas_report_active_data: {},
-  atlas_report_stale_dates: {},
-  atlas_report_processes: {},
-  atlas_report_oea_assessment: {},
-  atlas_report_risk_rules: {},
-  atlas_report_addresses: {},
   atlas_open_prs: {},
   atlas_preview_diff: { preview_id: 1 },
   atlas_preview_get: { preview_id: "pull-1", ids: ["D1"] },
+  ...Object.fromEntries(REPORT_TOOLS.map((t) => [t.name, {}])),
 };
 
 test("ARGS fixture covers exactly the registered tool set (fails loudly on drift)", () => {
@@ -369,11 +392,15 @@ test("invokeTool strips blanks when the tool opted in, and passes them through w
 // what let the two transports drift), and a new transport must not call
 // `.handler(` directly (that is what left MCP out).
 test("no handler strips its own arguments, and every transport goes through invokeTool", async () => {
-  const registry = await Bun.file(new URL("./tool-registry.ts", import.meta.url)).text();
-  const handlerStrips = registry
-    .split("\n")
-    .filter((l) => l.includes("handler:") && l.includes("omitEmptyArgs("));
-  expect(handlerStrips).toEqual([]);
+  const definitionFiles = [
+    "./registry-core.ts", "./registry-graph.ts", "./registry-lookup.ts", "./registry-history.ts", "./registry-query.ts",
+    "../../reports/report-tool.ts",
+  ];
+  for (const rel of definitionFiles) {
+    const src = await Bun.file(new URL(rel, import.meta.url)).text();
+    expect(src, rel).toContain("handler:");
+    expect(src, rel).not.toContain("omitEmptyArgs(");
+  }
 
   for (const rel of ["./llm-tools.ts", "../../mcp.ts"]) {
     const src = await Bun.file(new URL(rel, import.meta.url)).text();

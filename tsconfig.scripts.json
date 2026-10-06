@@ -5,10 +5,15 @@
 
      A glob, not a list of trees, so a new scripts/foo/ is covered the day it
      appears. "strict" is stricter than the server project on purpose — it is
-     what makes an implicitly-any parameter an error. "allowJs" is for the one
-     .mjs helper these trees import that has no .d.mts. scripts/lib is excluded
-     because its 13 files are all *.test.ts and carry 62 errors of their own; no
-     non-test .ts lives there, so nothing goes unchecked by leaving it out. */
+     what makes an implicitly-any parameter an error. "allowJs" lets these trees
+     import .mjs modules that have no .d.mts. The *.test.ts files
+     under scripts/lib are excluded: they carry errors of their own.
+
+     Worth one concrete example of what went unchecked before: eval-retrieval.ts
+     shipped a use-before-declaration of `queryVec`, a TDZ ReferenceError on the
+     first query of every `--backend openrouter` run. The tfidf lane takes the
+     other branch, so no test reached it either. `strict` here is what catches
+     that class. */
   "extends": "./tsconfig.server.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.scripts.tsbuildinfo",
@@ -17,5 +22,5 @@
     "checkJs": false
   },
   "include": ["scripts/**/*.ts"],
-  "exclude": ["scripts/lib/**"]
+  "exclude": ["scripts/lib/**/*.test.ts"]
 }

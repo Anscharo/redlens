@@ -27,9 +27,10 @@
 // [uuid/pointer]-then-[doc_no] is attested in the docs today.
 
 import { visit } from "unist-util-visit";
-import type { Root, Text, Element, ElementContent } from "hast";
+import type { Root, Element } from "hast";
 import type { AtlasNode } from "@/types";
 import { atlasHref } from "@/lib/routes";
+import { replaceCodeSpans, replaceTextMatches } from "./rehypeReplace";
 import { DOC_NO_RE, FULL_UUID_RE, SHORT_UUID_RE, refLabel, refTooltip, type DocRefResolver } from "./docRefResolver";
 
 const LINK_CLASS = "mono text-xs link-accent";
@@ -80,49 +81,26 @@ export function rehypeDocRefs(resolver: DocRefResolver) {
   return () => (tree: Root) => {
     // Pass 1: a code span (backtick span) whose ENTIRE trimmed text is a full
     // or short-form uuid that resolves becomes a link, dropping code styling.
-    const codeReplacements: Array<{ parent: Element; index: number; node: Element }> = [];
-    visit(tree, "element", (node: Element, index, parent) => {
-      if (index == null || !parent || node.tagName !== "code") return;
-      if (node.children.length !== 1 || node.children[0].type !== "text") return;
-      const t = node.children[0].value.trim();
+    replaceCodeSpans(tree, (t) => {
       let hit: AtlasNode | undefined;
       if (FULL_UUID_RE.test(t)) hit = resolver.resolveFullUuid(t);
       else if (SHORT_UUID_RE.test(t)) hit = resolver.resolveShortUuid(t);
-      if (!hit) return;
-      codeReplacements.push({ parent: parent as Element, index, node: linkElement(hit) });
+      return hit ? linkElement(hit) : null;
     });
-    for (const { parent, index, node } of codeReplacements.reverse()) {
-      parent.children.splice(index, 1, node);
-    }
 
     // Pass 2: bare doc_no mentions in plain text (paragraph body, list items,
     // bold/italic runs). Skipped inside code spans, existing links, and
-    // evidence pills (see isSkippedParent).
-    const textReplacements: Array<{ parent: Element; index: number; nodes: ElementContent[] }> = [];
-    visit(tree, "text", (node: Text, index, parent) => {
-      if (index == null || !parent || !("tagName" in parent)) return;
-      if (isSkippedParent(parent as Element)) return;
-      DOC_NO_RE.lastIndex = 0;
-      if (!DOC_NO_RE.test(node.value)) return;
-      DOC_NO_RE.lastIndex = 0;
-
-      const parts: ElementContent[] = [];
-      let last = 0;
-      let m: RegExpExecArray | null;
-      while ((m = DOC_NO_RE.exec(node.value))) {
+    // evidence pills (see isSkippedParent). An unresolved mention (renumbered /
+    // unknown) is left as plain text.
+    replaceTextMatches(
+      tree,
+      DOC_NO_RE,
+      (m) => {
         const hit = resolver.resolveDocNo(m[0]);
-        if (!hit) continue; // unresolved (renumbered / unknown) — leave as plain text
-        if (m.index > last) parts.push({ type: "text", value: node.value.slice(last, m.index) });
-        parts.push(linkElement(hit));
-        last = m.index + m[0].length;
-      }
-      if (parts.length === 0) return; // every candidate match was unresolved
-      if (last < node.value.length) parts.push({ type: "text", value: node.value.slice(last) });
-      textReplacements.push({ parent: parent as Element, index, nodes: parts });
-    });
-    for (const { parent, index, nodes } of textReplacements.reverse()) {
-      parent.children.splice(index, 1, ...nodes);
-    }
+        return hit ? linkElement(hit) : null;
+      },
+      (parent) => !("tagName" in parent) || isSkippedParent(parent),
+    );
 
     // Pass 3: collapse an adjacent same-target link pair (either order) into
     // one link, dropping the redundant second link and the separator between

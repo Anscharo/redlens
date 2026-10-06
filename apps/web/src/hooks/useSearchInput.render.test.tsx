@@ -11,9 +11,13 @@ import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import type { SearchScope } from "@/lib/routes";
 
-const { search, track } = vi.hoisted(() => ({ search: vi.fn(), track: vi.fn() }));
+const { search, track, searchState } = vi.hoisted(() => ({
+  search: vi.fn(),
+  track: vi.fn(),
+  searchState: { current: { status: "idle", query: "", hits: [] } as Record<string, unknown> },
+}));
 vi.mock("./useSearch", () => ({
-  useSearch: () => ({ state: { status: "idle", query: "", hits: [] }, search, ready: true }),
+  useSearch: () => ({ state: searchState.current, search, ready: true }),
 }));
 vi.mock("../lib/analytics", () => ({ track }));
 vi.mock("../lib/recentSearches", () => ({
@@ -50,6 +54,7 @@ function setup(path: string, location: string, scope: SearchScope = "atlas") {
 }
 
 beforeEach(() => {
+  searchState.current = { status: "idle", query: "", hits: [] };
   search.mockClear();
   track.mockClear();
 });
@@ -63,9 +68,43 @@ describe("useSearchInput (rendered)", () => {
 
   it("on HOME, runs search() with the applied-mode query", () => {
     setup("/?q=governance&mode=phrase", "/");
-    // effect fires search() with the phrase-wrapped query.
+    // effect fires search() with the phrase-wrapped query, plus the lane and
+    // blend strategy. No injected window flags in jsdom → the wording lane and
+    // a semantic leg that never runs.
     expect(search).toHaveBeenCalled();
-    expect(search).toHaveBeenLastCalledWith('"governance"');
+    expect(search).toHaveBeenLastCalledWith('"governance"', { lane: "lexical" });
+  });
+
+  it("reads ?lane, and falls back off an unavailable meaning lane", () => {
+    setup("/?q=governance&lane=semantic", "/");
+    // window.__SEMANTIC_SEARCH__ is unset here, so a shared ?lane=semantic link
+    // must not leave the reader searching a permanently empty index.
+    expect(api.lane).toBe("lexical");
+    expect(search).toHaveBeenLastCalledWith("governance", { lane: "lexical" });
+  });
+
+  it("uses the meaning lane when the deployment can answer it", () => {
+    window.__SEMANTIC_SEARCH__ = true;
+    try {
+      setup("/?q=governance&lane=semantic", "/");
+      expect(api.lane).toBe("semantic");
+      expect(search).toHaveBeenLastCalledWith("governance", { lane: "semantic" });
+    } finally {
+      delete window.__SEMANTIC_SEARCH__;
+    }
+  });
+
+  it("does not apply the mode wrap on the meaning lane", () => {
+    // A `?mode=strict` left over from a wording search would quote the query,
+    // and the lane would then strip those quotes and report them back as
+    // ignored syntax the reader never typed.
+    window.__SEMANTIC_SEARCH__ = true;
+    try {
+      setup("/?q=governance&mode=strict&lane=semantic", "/");
+      expect(search).toHaveBeenLastCalledWith("governance", { lane: "semantic" });
+    } finally {
+      delete window.__SEMANTIC_SEARCH__;
+    }
   });
 
   it("off HOME, clears the search worker (search(''))", () => {
@@ -127,6 +166,26 @@ describe("useSearchInput (rendered)", () => {
     expect(api.query).toBe('"governance"');
   });
 
+  it("selectLane records the change and re-runs the query against the other index", () => {
+    window.__SEMANTIC_SEARCH__ = true;
+    try {
+      setup("/?q=governance", "/");
+      act(() => api.selectLane("semantic"));
+      expect(track).toHaveBeenCalledWith("search_lane_change", { product: "search", lane: "semantic" });
+      expect(api.lane).toBe("semantic");
+      // Switching index must not touch the query itself.
+      expect(api.query).toBe("governance");
+      expect(search).toHaveBeenLastCalledWith("governance", { lane: "semantic" });
+    } finally {
+      delete window.__SEMANTIC_SEARCH__;
+    }
+  });
+
+  it("decodes a retired ?lane=graph link to the wording lane", () => {
+    setup("/?q=governance&lane=graph", "/");
+    expect(api.lane).toBe("lexical");
+  });
+
   it("wrapModeClick toggles a phrase back off to bare text", () => {
     setup('/?q="governance"', "/", "atlas");
     // Already phrase-wrapped → clicking phrase again reverts to bare text.
@@ -157,5 +216,48 @@ describe("useSearchInput (rendered)", () => {
     cleanup();
     setup('/?q=half "quoted', "/", "atlas");
     expect(api.isMixed).toBe(true);
+  });
+
+  describe("searchAnyway (Enter on a held meaning query)", () => {
+    const held = { status: "done", query: "xkcdq", hits: [], lane: "semantic", semantic: "none", heldWords: ["xkcdq"] };
+
+    it("re-posts the query with force when the meaning lane held it", () => {
+      window.__SEMANTIC_SEARCH__ = true;
+      try {
+        searchState.current = held;
+        setup("/?q=xkcdq&lane=semantic", "/");
+        let sent = false;
+        act(() => { sent = api.searchAnyway(); });
+        expect(sent).toBe(true);
+        expect(search).toHaveBeenLastCalledWith("xkcdq", { lane: "semantic", force: true });
+      } finally {
+        delete window.__SEMANTIC_SEARCH__;
+      }
+    });
+
+    it("does nothing when nothing was held", () => {
+      window.__SEMANTIC_SEARCH__ = true;
+      try {
+        searchState.current = { ...held, heldWords: undefined };
+        setup("/?q=governance&lane=semantic", "/");
+        search.mockClear();
+        let sent = true;
+        act(() => { sent = api.searchAnyway(); });
+        expect(sent).toBe(false);
+        expect(search).not.toHaveBeenCalled();
+      } finally {
+        delete window.__SEMANTIC_SEARCH__;
+      }
+    });
+
+    it("does nothing on the wording lane", () => {
+      searchState.current = { ...held, lane: "lexical" };
+      setup("/?q=xkcdq", "/");
+      search.mockClear();
+      let sent = true;
+      act(() => { sent = api.searchAnyway(); });
+      expect(sent).toBe(false);
+      expect(search).not.toHaveBeenCalled();
+    });
   });
 });

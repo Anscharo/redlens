@@ -16,6 +16,20 @@ export interface ConversationSummary {
   // renders those with a "~". Null only when the server sent nothing.
   contextTokens: number | null;
   contextEstimated?: boolean;
+  // Distinct atlas docs the conversation's answers cite — the size of its auto
+  // collection.
+  citationCount: number;
+}
+
+// A conversation's auto collection: the docs its answers cite, derived by the
+// server on every read. Not a user collection — it has no id of its own, no
+// rename/delete, and no write route.
+export interface ConversationCollection {
+  /** The conversation's id. */
+  id: string;
+  name: string;
+  ids: string[];
+  auto: true;
 }
 
 // The wire shape of one persisted message row (GET .../conversations/:id).
@@ -99,6 +113,16 @@ export function listConversations(): Promise<ConversationSummary[]> {
 
 export function getConversation(id: string): Promise<ConversationDetail> {
   return request<ConversationDetail>(`chat/conversations/${id}`);
+}
+
+export function getConversationCollection(id: string): Promise<ConversationCollection> {
+  return request<ConversationCollection>(`chat/conversations/${id}/collection`);
+}
+
+// Public read by conversation id — no auth, so a shared /c/<id> link opens for
+// anyone. Returns only the title and cited doc ids.
+export function getSharedConversationCollection(id: string): Promise<ConversationCollection> {
+  return request<ConversationCollection>(`chat/conversations/${id}/shared`);
 }
 
 // The server's RETURNING clause is id/title/updated_at only — renaming
