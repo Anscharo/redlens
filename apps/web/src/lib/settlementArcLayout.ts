@@ -193,13 +193,27 @@ function venueBands(rows: Stacked[], i0: number, stop: number | ((b: Stacked) =>
   return rows.map((b, i) => ({ ...b, d: arcPath(CX, CY, b.r, start(i0 + i), end(b)), labelAt: labelAt(b.r, b.w, start(i0 + i)) }));
 }
 
-export function layoutSettlementArc(m: StreamModel): ArcLayout {
+function arcRows(m: StreamModel) {
   const src = arcSources(m);
   const revRows = src.revenue.filter((v) => Math.abs(v.value) >= NEAR);
   const cofRows = src.revenue.filter((v) => Math.abs(v.cof) >= NEAR).map((v) => ({ ...v, value: v.cof }));
   const demandRows = [...m.demand].sort((a, b) => INNER_ORDER.indexOf(a.key) - INNER_ORDER.indexOf(b.key));
-  const max = Math.max(total(src.sde) + Math.max(total(revRows), total(cofRows)), total(demandRows));
-  const scale = max > 0 ? BAND / Math.max(max, FULL_SCALE_USD) : 0;
+  const extent = Math.max(total(src.sde) + Math.max(total(revRows), total(cofRows)), total(demandRows));
+  return { src, revRows, cofRows, demandRows, extent };
+}
+
+/** The dollars the month's larger lane carries: what BAND stands for when
+ *  the month is drawn on its own. */
+export function arcExtentUsd(m: StreamModel): number {
+  return arcRows(m).extent;
+}
+
+/** `extentUsd` is the dollars BAND stands for: a Prime's settlement page
+ *  passes the largest extent of all its months, so every month is drawn on
+ *  one scale and a band's width can be compared month to month. */
+export function layoutSettlementArc(m: StreamModel, extentUsd?: number): ArcLayout {
+  const { src, revRows, cofRows, demandRows, extent } = arcRows(m);
+  const scale = extent > 0 ? BAND / Math.max(extentUsd ?? extent, extent, FULL_SCALE_USD) : 0;
 
   // A negative SDE (a loss on Sky's own exposure) runs innermost, striped,
   // and ends at the Prime: it lowers what reaches Sky, so it is no part of
@@ -274,11 +288,14 @@ function primeNode(node: Span | null, kept: number, scale: number): ArcLayout["p
 
 /** The box one Prime's circle is drawn in: left far enough for every
  *  month's venue names, top high enough for every month's outermost band.
- *  Fixed across the Prime's months, so changing month never moves the
- *  circle. `left` measures one layout's leftmost name. */
+ *  Fixed across the Prime's months, with one width scale, so changing
+ *  month never moves the circle or rescales its bands. `left` measures one layout's leftmost name. */
 export interface ArcFrame {
   left: number;
   top: number;
+  /** The dollars BAND stands for across the Prime's months (see
+   *  layoutSettlementArc); absent, each month uses its own. */
+  extentUsd?: number;
 }
 export function arcFrame(layouts: readonly ArcLayout[], left: (l: ArcLayout) => number): ArcFrame {
   return {

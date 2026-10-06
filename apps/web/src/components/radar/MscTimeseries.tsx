@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { formatUsd } from "../../lib/settlements";
+import { formatUsd, SETTLEMENT_NEAR_ZERO } from "../../lib/settlements";
 import type { PrimeStackMonth } from "@/lib/settlementsOverview";
 import { MscMonthLabel } from "./MscMonthLabel";
 import { MonthColumn } from "./MscTimeseriesColumn";
@@ -76,6 +76,10 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect, 
   const px = (v: number) => (v / span) * usableH;
   const y = (v: number) => zeroY - px(v);
   const colorOf = (prime: string) => primeFill(primes.indexOf(prime));
+  // The legend lists only Primes with a bar in the window: Keel and Skybase
+  // send Sky nothing, and a key for a colour never drawn sends the reader
+  // looking for it. Colours stay keyed to the full roster.
+  const drawn = primes.filter((p) => months.some((m) => m.skyParts.some((s) => s.prime === p && Math.abs(s.value) >= SETTLEMENT_NEAR_ZERO)));
   const width = AXIS_W + months.length * COL_W + (months.length - 1) * GAP_PX;
   const monthKeys = months.map((m) => m.month);
   // The hover pill is portalled out of the chart — see MscTimeseriesPill for
@@ -90,9 +94,9 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect, 
         To Sky by month, per Prime
       </p>
       <p className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mb-2" style={{ color: "var(--tan-3)", maxWidth: width }}>
-        {primes.map((p, i) => (
+        {drawn.map((p) => (
           <span key={p}>
-            <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background: primeFill(i) }} />
+            <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background: colorOf(p) }} />
             {primeLabel(p)}
           </span>
         ))}

@@ -152,13 +152,16 @@
   --msc-prime-4: #b191ea;
   --msc-prime-5: #7e4d8a;
   --msc-prime-6: #fab2cd;
-  /* Settlement venues (circle and AUM bars): a categorical order checked for lightness,
-     chroma and colour-blind separation against this theme's --bg-deep. */
-  --msc-venue-1: #3987e5;
-  --msc-venue-2: #199e70;
-  --msc-venue-3: #c98500;
-  --msc-venue-4: #d55181;
-  --msc-venue-5: #9085e9;
+  /* Settlement venues (circle and AUM bars): violet, teal, yellow, magenta,
+     olive — hues the settlement flows (Sky blue, kept green, the demand
+     oranges and pinks, loss red) do not use, so a venue band never reads as
+     a flow. Each is at least ΔE 23 from every flow ink and readable on
+     --bg-deep; slots 1/4 and 3/5 are the closest pairs (see venueInks.ts). */
+  --msc-venue-1: #a07df0;
+  --msc-venue-2: #22b3a3;
+  --msc-venue-3: #e0cc3a;
+  --msc-venue-4: #d05fd0;
+  --msc-venue-5: #7f9a2a;
 }
 
 /* ─── Alternate themes ────────────────────────────────────────────────────
@@ -336,13 +339,16 @@
   --msc-prime-4: #6c44a4;
   --msc-prime-5: #552660;
   --msc-prime-6: #cb7196;
-  /* Settlement venues (circle and AUM bars): a categorical order checked for lightness,
-     chroma and colour-blind separation against this theme's --bg-deep. */
-  --msc-venue-1: #2a78d6;
-  --msc-venue-2: #1baf7a;
-  --msc-venue-3: #eda100;
-  --msc-venue-4: #e87ba4;
-  --msc-venue-5: #4a3aa7;
+  /* Settlement venues (circle and AUM bars): violet, teal, yellow, magenta,
+     olive — hues the settlement flows (Sky blue, kept green, the demand
+     oranges and pinks, loss red) do not use, so a venue band never reads as
+     a flow. Each is at least ΔE 23 from every flow ink and readable on
+     --bg-deep; slots 1/4 and 3/5 are the closest pairs (see venueInks.ts). */
+  --msc-venue-1: #6a4bc9;
+  --msc-venue-2: #0f8a80;
+  --msc-venue-3: #9a7e00;
+  --msc-venue-4: #a02fb0;
+  --msc-venue-5: #5f7a10;
 }
 
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
@@ -660,13 +666,16 @@
   --msc-prime-4: #a37734;
   --msc-prime-5: #c5b59b;
   --msc-prime-6: #bd7221;
-  /* Settlement venues (circle and AUM bars): a categorical order checked for lightness,
-     chroma and colour-blind separation against this theme's --bg-deep. */
-  --msc-venue-1: #3987e5;
-  --msc-venue-2: #199e70;
-  --msc-venue-3: #c98500;
-  --msc-venue-4: #d55181;
-  --msc-venue-5: #9085e9;
+  /* Settlement venues (circle and AUM bars): violet, teal, yellow, magenta,
+     olive — hues the settlement flows (Sky blue, kept green, the demand
+     oranges and pinks, loss red) do not use, so a venue band never reads as
+     a flow. Each is at least ΔE 23 from every flow ink and readable on
+     --bg-deep; slots 1/4 and 3/5 are the closest pairs (see venueInks.ts). */
+  --msc-venue-1: #a07df0;
+  --msc-venue-2: #22b3a3;
+  --msc-venue-3: #c6d636;
+  --msc-venue-4: #d05fd0;
+  --msc-venue-5: #7f9a2a;
 }
 
 /* ─── Giedi structural override ──────────────────────────────────────────
@@ -3434,7 +3443,7 @@ a.atlas-annotates:focus-visible {
 /* Hovering the selected month's To-Sky line point lights every To-Sky
    ribbon on the ring — they are the same flow (the ribbons sum to the
    line's value for that month). */
-.msc-overview-row:has(.msc-ts-dot[data-selected="true"]:hover) .msc-ring-prime :is(.msc-ring-sky, .msc-ring-cof, .msc-ring-sde) {
+.msc-overview-row:has(.msc-ts-dot[data-selected="true"]:hover) .msc-ring-prime .msc-ring-sky {
   opacity: 1;
   stroke: var(--tan);
   stroke-width: 2;
@@ -3502,12 +3511,6 @@ a.atlas-annotates:focus-visible {
   pointer-events: none;
 }
 .msc-ring-figure[data-kind="sky"],
-.msc-ring-figure[data-kind="cof"] {
-  fill: var(--msc-sky-ink);
-}
-.msc-ring-figure[data-kind="sde"] {
-  fill: var(--msc-sde-ink);
-}
 .msc-ring-figure[data-kind="kept"] {
   fill: var(--msc-kept-ink);
 }
@@ -3573,8 +3576,8 @@ a.atlas-annotates:focus-visible {
 .msc-ring-chroniclePoints {
   fill: var(--msc-cp);
 }
-/* The loss hole: striped in the kept color over the card, same mark as the
-   key's "supply loss". */
+/* The loss disc: striped in loss red, the same mark as the key's
+   "supply-side loss". */
 .msc-ring-hole {
   stroke: var(--bg-deep);
   stroke-width: 1;
@@ -3653,11 +3656,13 @@ a.atlas-annotates:focus-visible {
 .msc-ring-card:has(.msc-key-item:hover) .msc-ring :is(.msc-ring-slice, .msc-ring-hole, .msc-ring-arrow, .msc-ring-figure, .msc-ring-sky-disc, .msc-ring-sky-wedge) {
   opacity: 0.5;
 }
-.msc-ring-card:has(.msc-key-item:is([data-key="cof"], [data-key="sde"]):hover) .msc-ring :is(.msc-ring-sky-disc, .msc-ring-sky-wedge, .msc-ring-figure[data-kind="sky"]) {
+/* The CoF and SDE rows light only Sky's wedge parts of that kind, and the
+   arrows that carry it; Sky's pie and its figures stay up for context. */
+.msc-ring-card:has(.msc-key-item:is([data-key="cof"], [data-key="sde"]):hover) .msc-ring :is(.msc-ring-sky-disc, .msc-ring-figure[data-kind="sky"]) {
   opacity: 1;
 }
-.msc-ring-card:has(.msc-key-item[data-key="cof"]:hover) .msc-ring-prime :is(.msc-ring-cof, .msc-ring-arrow[data-cof]),
-.msc-ring-card:has(.msc-key-item[data-key="sde"]:hover) .msc-ring-prime :is(.msc-ring-sde, .msc-ring-arrow[data-sde]),
+.msc-ring-card:has(.msc-key-item[data-key="cof"]:hover) .msc-ring :is(.msc-ring-sky-wedge[data-kind="cof"], .msc-ring-prime .msc-ring-arrow[data-cof]),
+.msc-ring-card:has(.msc-key-item[data-key="sde"]:hover) .msc-ring :is(.msc-ring-sky-wedge[data-kind="sde"], .msc-ring-prime .msc-ring-arrow[data-sde]),
 .msc-ring-card:has(.msc-key-item[data-key="kept"]:hover) .msc-ring-prime .msc-ring-kept,
 .msc-ring-card:has(.msc-key-item[data-key="agentRate"]:hover) .msc-ring-prime .msc-ring-agentRate,
 .msc-ring-card:has(.msc-key-item[data-key="distributionRewards"]:hover) .msc-ring-prime .msc-ring-distributionRewards,
@@ -3670,8 +3675,6 @@ a.atlas-annotates:focus-visible {
 }
 /* The lit slice's figure comes back up with it — opacity only: a stroke on
    SVG text paints over its fill and smears the figure. */
-.msc-ring-card:has(.msc-key-item[data-key="cof"]:hover) .msc-ring-prime .msc-ring-figure[data-kind="cof"],
-.msc-ring-card:has(.msc-key-item[data-key="sde"]:hover) .msc-ring-prime .msc-ring-figure[data-kind="sde"],
 .msc-ring-card:has(.msc-key-item[data-key="kept"]:hover) .msc-ring-prime .msc-ring-figure[data-kind="kept"],
 .msc-ring-card:has(.msc-key-item[data-key="agentRate"]:hover) .msc-ring-prime .msc-ring-figure[data-kind="agentRate"],
 .msc-ring-card:has(.msc-key-item[data-key="distributionRewards"]:hover) .msc-ring-prime .msc-ring-figure[data-kind="distributionRewards"],

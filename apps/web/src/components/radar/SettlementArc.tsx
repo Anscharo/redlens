@@ -54,7 +54,7 @@ function KeyLink({ figure, children }: { figure: string; children: ReactNode }) 
  *  round the bottom, the demand side comes back to the Prime. The venue
  *  table under it splits every venue row by row. */
 export function SettlementArc({ model, primeLabel, month, inks, frame }: { model: StreamModel; primeLabel: string; month?: string; inks: Map<string, string>; frame?: ArcFrame }) {
-  const layout = useMemo(() => layoutSettlementArc(model), [model]);
+  const layout = useMemo(() => layoutSettlementArc(model, frame?.extentUsd), [model, frame?.extentUsd]);
   const ids = useMemo(() => model.venues.map((v) => v.id), [model.venues]);
   const { toSky, fromSky, execVote, cof, sde } = SETTLEMENT_CITATIONS;
   return (

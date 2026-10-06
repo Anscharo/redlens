@@ -161,6 +161,12 @@ describe("MscTimeseries", () => {
     expect(legend.compareDocumentPosition(chart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it("leaves a Prime with no bar in the window out of the legend", () => {
+    render(<MscTimeseries primes={[...PRIMES, "skybase"]} months={MONTHS} primeLabel={label} selected="2026-07" onSelect={vi.fn()} />);
+    expect(screen.getByText("Spark")).toBeInTheDocument();
+    expect(screen.queryByText("Skybase")).not.toBeInTheDocument();
+  });
+
   it("assigns fills by roster order and folds the overflow to gray", () => {
     expect(primeFill(0)).toBe("var(--msc-prime-1)");
     expect(primeFill(5)).toBe("var(--msc-prime-6)");

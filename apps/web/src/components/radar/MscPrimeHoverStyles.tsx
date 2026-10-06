@@ -26,16 +26,16 @@ export function PrimeHoverStyles({ primes }: { primes: string[] }) {
       // Every segment of the selected month that is not prime p's.
       const colOthers = `.msc-bar-col[data-active="true"] .msc-ts-seg:not([data-prime="${p}"])`;
       return [
-        // Timeseries → ring: a To-Sky segment = the two To-Sky slices, the
-        // arrow and the wedge of that Prime.
+        // Timeseries → ring: a To-Sky segment = that Prime's To-Sky arrow
+        // and its wedge of Sky's pie.
         `${seg("sky")} ${ringOthers} { opacity: ${DIM}; }`,
         `${seg("sky")} ${prime} .msc-ring-label { fill: var(--tan); }`,
-        `${seg("sky")} ${prime} :is(.msc-ring-cof, .msc-ring-sde, .msc-ring-arrow) ${lit}`,
+        `${seg("sky")} ${prime} .msc-ring-arrow.msc-ring-sky ${lit}`,
         `${seg("sky")} .msc-ring-sky-wedge[data-prime="${p}"] ${lit}`,
         // Ring → timeseries: the prime's pie (or its wedge) in focus fades
         // the month's other primes; the To-Sky marks name its segment.
         `.msc-overview-row:has(${prime}:hover, .msc-ring-mark[data-mark="${p}::share"]:hover) ${colOthers} { opacity: ${DIM}; }`,
-        `${mark(["cof", "sde", "sky", "share"])} ${layer("sky")} { outline: 2px solid var(--tan); outline-offset: -2px; }`,
+        `${mark(["sky", "share"])} ${layer("sky")} { outline: 2px solid var(--tan); outline-offset: -2px; }`,
       ].join("\n");
     })
     .join("\n");

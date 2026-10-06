@@ -7,9 +7,9 @@
 // so far. So two venues side by side never share a colour, or wear the one
 // pair of slots that read alike.
 const SLOTS = 5;
-/** Slot pairs too alike to sit side by side: blue and violet are under the
- *  normal-vision ΔE floor on the dark surface. */
-const ALIKE: Record<number, number[]> = { 0: [4], 4: [0] };
+/** Slot pairs too alike to sit side by side: violet and magenta, yellow and
+ *  olive, the two closest pairs in every theme (see --msc-venue-N). */
+const ALIKE: Record<number, number[]> = { 0: [3], 3: [0], 2: [4], 4: [2] };
 /** Folded tails ("Other venues") are grey in every chart. */
 const OTHER_IDS = new Set(["_other", "_arc_other"]);
 

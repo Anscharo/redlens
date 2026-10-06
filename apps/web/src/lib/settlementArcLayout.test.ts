@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StreamModel, VenueStream } from "@/lib/settlementStreams";
-import { ARRIVE_GAP, BAND, CX, CY, OUTER0, PRIME_HALF, arcFrame, layoutSettlementArc } from "./settlementArcLayout";
+import { ARRIVE_GAP, BAND, CX, CY, OUTER0, PRIME_HALF, arcExtentUsd, arcFrame, layoutSettlementArc } from "./settlementArcLayout";
 import { ARC_OTHER_ID, ARC_TOP_N, arcSources } from "./settlementArcRows";
 
 const venue = (id: string, revenue: number, cof: number, sde = 0): VenueStream => ({ id, label: id, synthetic: false, revenue, sde, cof, kept: revenue - cof });
@@ -168,6 +168,17 @@ describe("layoutSettlementArc", () => {
     expect(small.outerEdge).toBeLessThan(OUTER0 + 10);
     expect(big.outerEdge).toBeCloseTo(OUTER0 + BAND);
     expect(small.top).toBeGreaterThan(big.top + BAND - 10);
+  });
+
+  it("draws every month of a Prime on one scale when given the Prime's largest extent", () => {
+    const small = model([mv("A", 50, 30)]);
+    const big = model([mv("A", 200, 120)]);
+    expect(arcExtentUsd(big)).toBe(200 * M);
+    // On its own the small month fills BAND; on the Prime's scale it is a quarter of it.
+    expect(layoutSettlementArc(small).revenue[0].w).toBeCloseTo(BAND);
+    expect(layoutSettlementArc(small, arcExtentUsd(big)).revenue[0].w).toBeCloseTo(BAND / 4);
+    // A shared extent never lets a band overflow BAND.
+    expect(layoutSettlementArc(big, arcExtentUsd(small)).revenue[0].w).toBeCloseTo(BAND);
   });
 
   it("frames a Prime's months in one box: the leftmost names and the highest band of any month", () => {

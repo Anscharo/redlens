@@ -13,7 +13,7 @@ describe("venueInks", () => {
     expect(inks.get("_other")).toBe("var(--gray)");
   });
 
-  it("never gives neighbours the same colour, or blue next to violet, in any stack or list", () => {
+  it("never gives neighbours the same colour, or one of the two alike pairs, in any stack or list", () => {
     const order = ["A", "B", "C", "D", "E", "F", "G", "H"];
     const sequences = [
       ["F", "G", "A", "B", "C", "D", "E"],
@@ -25,7 +25,7 @@ describe("venueInks", () => {
       for (let i = 1; i < seq.length; i++) {
         const pair = [slotOf(inks.get(seq[i - 1])), slotOf(inks.get(seq[i]))];
         expect(pair[0]).not.toBe(pair[1]);
-        expect(pair.sort().join()).not.toBe("1,5");
+        expect(["1,4", "3,5"]).not.toContain(pair.sort().join());
       }
     }
   });

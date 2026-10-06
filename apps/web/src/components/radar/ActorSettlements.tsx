@@ -15,7 +15,7 @@ import { loadForumTopics } from "../../lib/forumTopics";
 import { forumTopicUrlForMonth } from "@/lib/forumMonths";
 import { SettlementCharts } from "./SettlementCharts";
 import { ActorSettlementVenues } from "./ActorSettlementVenues";
-import { arcFrame, layoutSettlementArc } from "../../lib/settlementArcLayout";
+import { arcExtentUsd, arcFrame, layoutSettlementArc } from "../../lib/settlementArcLayout";
 import { streamModel } from "@/lib/settlementStreams";
 import { labelsLeft } from "./SettlementArcLabels";
 import { MscHeadline } from "./MscHeadline";
@@ -53,10 +53,12 @@ function ActorSettlementsLoaded({ slug, name }: ActorSettlementsProps) {
   const months = reports.map((r) => r.month);
   // One box for the settlement circle across every month, so the names of
   // the longest month fit and a month change never moves the circle.
-  const frame = useMemo(
-    () => arcFrame(reports.map((r) => layoutSettlementArc(streamModel(r))), (l) => labelsLeft([...l.revenue, ...l.sde])),
-    [reports],
-  );
+  const frame = useMemo(() => {
+    const models = reports.map(streamModel);
+    const extentUsd = Math.max(0, ...models.map(arcExtentUsd));
+    const layouts = models.map((m) => layoutSettlementArc(m, extentUsd));
+    return { ...arcFrame(layouts, (l) => labelsLeft([...l.revenue, ...l.sde])), extentUsd };
+  }, [reports]);
   const latest = months[months.length - 1] ?? null;
   const [msc, setMsc] = useUrlState("msc", mscCodec);
   const month = months.includes(msc ?? "") ? msc! : latest;

@@ -227,9 +227,10 @@ const LANE_GAP = 3;
 /** Working canvas height (see WIDTH). */
 export const HEIGHT = 2 * (R_MAX + DONUT_GAP + 2 * R_MAX + 2 * LABEL_OUT + 8);
 
-/** Slice kinds, in the pie's clockwise order: the To-Sky pair first (they
- *  face Sky), then supply kept, then the demand-side series. */
-export type SliceKind = "cof" | "sde" | "kept" | DemandKey;
+/** Slice kinds, in the pie's clockwise order: supply kept, then what Sky
+ *  pays the Prime. Cost of funds and SDE are Sky's receipts and live in
+ *  Sky's wedges, never in a Prime's pie. */
+export type SliceKind = "kept" | DemandKey;
 
 export interface RingSlice {
   kind: SliceKind;
@@ -317,7 +318,7 @@ export interface RingPrime {
   cx: number;
   cy: number;
   r: number;
-  /** Slices, clockwise, To-Sky pair first. */
+  /** Slices, clockwise: kept, then the from-Sky series facing Sky. */
   slices: RingSlice[];
   /** The loss disc, or null when no item is negative. */
   hole: RingHole | null;
