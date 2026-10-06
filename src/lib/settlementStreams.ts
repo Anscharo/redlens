@@ -75,10 +75,15 @@ function fold(tail: VenueStream[]): VenueStream {
   return { id: OTHER_ID, label: `Other venues (${tail.length})`, synthetic: false, revenue: sum("revenue"), sde: sum("sde"), cof: sum("cof"), kept: sum("kept") };
 }
 
-/** Largest first; anything all-zero dropped; past `topN`, one Other row. */
+/** Largest first; anything all-zero dropped; past `topN`, one Other row.
+ *  A venue with Sky Direct Exposure is never folded: SDE goes to Sky
+ *  without becoming the Prime's revenue, so it keeps its own name. */
 export function collapseStreams(rows: readonly VenueStream[], topN = STREAM_TOP_N): VenueStream[] {
-  const kept = rows.filter((s) => !near(weight(s))).sort((a, b) => weight(b) - weight(a));
-  return kept.length <= topN ? kept : [...kept.slice(0, topN), fold(kept.slice(topN))];
+  const ranked = rows.filter((s) => !near(weight(s))).sort((a, b) => weight(b) - weight(a));
+  if (ranked.length <= topN) return ranked;
+  const rest = ranked.slice(topN);
+  const tail = rest.filter((s) => near(s.sde));
+  return [...ranked.slice(0, topN), ...rest.filter((s) => !near(s.sde)), ...(tail.length ? [fold(tail)] : [])];
 }
 
 export function streamModel(report: SettlementReport, topN = STREAM_TOP_N): StreamModel {
