@@ -1,34 +1,53 @@
 // Venue colours shared by a Prime's settlement circle and its AUM bars, so
-// a venue wears one colour in both. The colour follows the venue, not its
-// rank: its slot is hashed from its id, and a clash moves the later id (in
-// id order) to the next free slot, so a venue keeps its colour as it
-// re-ranks from month to month.
+// a venue wears one colour in both. Colours are chosen for the month's
+// layout, not hashed from the venue: walking the venues largest first,
+// each takes a slot none of its neighbours has — neighbours being bands
+// stacked next to each other in the circle (either side of the Prime) and
+// rows next to each other in the AUM list — preferring the slot used least
+// so far. So two venues side by side never share a colour, or wear the one
+// pair of slots that read alike.
 const SLOTS = 5;
+/** Slot pairs too alike to sit side by side: blue and violet are under the
+ *  normal-vision ΔE floor on the dark surface. */
+const ALIKE: Record<number, number[]> = { 0: [4], 4: [0] };
 /** Folded tails ("Other venues") are grey in every chart. */
 const OTHER_IDS = new Set(["_other", "_arc_other"]);
-const hash = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0);
 
-/** Each venue's `var(--msc-venue-N)`. `first` (the circle's venues) take
- *  distinct slots before `rest` (venues only the AUM bars show); once the
- *  five slots are taken, a venue keeps its hashed slot and may share it. */
-export function venueInks(first: readonly string[], rest: readonly string[] = []): Map<string, string> {
-  const inks = new Map<string, string>();
-  const taken = new Set<number>();
-  const assign = (ids: readonly string[]) => {
-    for (const id of [...new Set(ids)].sort()) {
-      if (inks.has(id)) continue;
-      if (OTHER_IDS.has(id)) {
-        inks.set(id, "var(--gray)");
-        continue;
-      }
-      let slot = hash(id) % SLOTS;
-      for (let n = 0; taken.has(slot) && n < SLOTS; n++) slot = (slot + 1) % SLOTS;
-      if (taken.size >= SLOTS) slot = hash(id) % SLOTS;
-      taken.add(slot);
-      inks.set(id, `var(--msc-venue-${slot + 1})`);
-    }
+function neighbours(sequences: readonly (readonly string[])[]): Map<string, Set<string>> {
+  const near = new Map<string, Set<string>>();
+  const link = (a: string, b: string) => {
+    if (a === b) return;
+    if (!near.has(a)) near.set(a, new Set());
+    near.get(a)!.add(b);
   };
-  assign(first);
-  assign(rest);
+  for (const seq of sequences) {
+    for (let i = 1; i < seq.length; i++) {
+      link(seq[i - 1], seq[i]);
+      link(seq[i], seq[i - 1]);
+    }
+  }
+  return near;
+}
+
+/** Each venue's `var(--msc-venue-N)`, or grey for a folded tail. `order` is
+ *  who chooses first (largest first); `sequences` are the stacks and lists
+ *  whose adjacent members must differ. */
+export function venueInks(order: readonly string[], sequences: readonly (readonly string[])[]): Map<string, string> {
+  const near = neighbours(sequences);
+  const slot = new Map<string, number>();
+  const used = new Array<number>(SLOTS).fill(0);
+  const ids = [...new Set([...order, ...sequences.flat()])].filter((id) => !OTHER_IDS.has(id));
+  for (const id of ids) {
+    const taken = [...(near.get(id) ?? [])].map((n) => slot.get(n)).filter((s): s is number => s !== undefined);
+    const clash = (s: number) => taken.includes(s);
+    const alike = (s: number) => taken.some((t) => ALIKE[t]?.includes(s));
+    const bySparing = [...Array(SLOTS).keys()].sort((a, b) => used[a] - used[b] || a - b);
+    const pick = bySparing.find((s) => !clash(s) && !alike(s)) ?? bySparing.find((s) => !clash(s)) ?? bySparing[0];
+    slot.set(id, pick);
+    used[pick]++;
+  }
+  const inks = new Map<string, string>();
+  for (const id of OTHER_IDS) inks.set(id, "var(--gray)");
+  for (const [id, s] of slot) inks.set(id, `var(--msc-venue-${s + 1})`);
   return inks;
 }

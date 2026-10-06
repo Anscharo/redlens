@@ -7,7 +7,7 @@ import { useTweened } from "../../hooks/useTweened";
 import { tweenStreamModel, tweenVenues } from "../../lib/mscTween";
 import { SettlementArc } from "./SettlementArc";
 import { SettlementAum } from "./SettlementAum";
-import { arcSources } from "../../lib/settlementArcRows";
+import { NEAR, arcSources } from "../../lib/settlementArcRows";
 import { venueInks } from "../../lib/venueInks";
 import { atlasAmountDue } from "@/lib/settlementAtlasCheck";
 
@@ -28,10 +28,16 @@ export function ActorSettlementVenues({
   const target = useMemo(() => streamModel(report), [report]);
   const model = useTweened(target, tweenStreamModel, SETTLE_TWEEN_MS);
   const venues = useTweened(report.venues, tweenVenues, SETTLE_TWEEN_MS);
-  // One colour per venue across both views, from the month being shown.
+  // One colour per venue across both views, chosen so that bands stacked
+  // side by side in the circle, and rows side by side in the AUM list,
+  // never match (see venueInks.ts).
   const inks = useMemo(() => {
     const arc = arcSources(target);
-    return venueInks([...arc.revenue, ...arc.sde].map((v) => v.venue), collapseAum(report.venues).map((v) => v.id));
+    const sde = arc.sde.map((v) => v.venue);
+    const left = [...sde, ...arc.revenue.filter((v) => Math.abs(v.value) >= NEAR).map((v) => v.venue)];
+    const right = [...sde, ...arc.revenue.filter((v) => Math.abs(v.cof) >= NEAR).map((v) => v.venue)];
+    const aum = collapseAum(report.venues).map((v) => v.id);
+    return venueInks([...arc.revenue.map((v) => v.venue), ...sde, ...aum], [left, right, aum]);
   }, [target, report.venues]);
   const flows = hasStreams(target);
   const aum = hasVenueAum(report);
