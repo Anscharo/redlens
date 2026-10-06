@@ -212,14 +212,25 @@ describe("SaveCollectionModal — the documents being saved", () => {
     expect(screen.getByText("A.2")).toBeInTheDocument();
   });
 
-  it("truncates past 60 rows with a '+N more' tail while the count still shows the whole selection", () => {
+  it("lists up to 240 rows, then a '+N more' tail, while the count still shows the whole selection", () => {
     mocks.user = { id: "u1" };
-    const ids = Array.from({ length: 70 }, (_, i) => `d${i}`);
+    const ids = Array.from({ length: 250 }, (_, i) => `d${i}`);
     mocks.docs = Object.fromEntries(ids.map((id, i) => [id, node(id, `B.${i}`, `Title ${i}`)]));
     render(<SaveCollectionModal ids={ids} onClose={() => {}} />);
-    expect(screen.getAllByRole("listitem")).toHaveLength(61);
+    expect(screen.getAllByRole("listitem")).toHaveLength(241);
+    expect(screen.getByText("Title 239")).toBeInTheDocument();
+    expect(screen.queryByText("Title 240")).toBeNull();
     expect(screen.getByText("+10 more")).toBeInTheDocument();
-    expect(screen.getByText("70 / 8,000 Max Docs")).toBeInTheDocument();
+    expect(screen.getByText("250 / 8,000 Max Docs")).toBeInTheDocument();
+  });
+
+  it("shows every row when the list fits within the limit", () => {
+    mocks.user = { id: "u1" };
+    const ids = Array.from({ length: 240 }, (_, i) => `d${i}`);
+    mocks.docs = Object.fromEntries(ids.map((id, i) => [id, node(id, `B.${i}`, `Title ${i}`)]));
+    render(<SaveCollectionModal ids={ids} onClose={() => {}} />);
+    expect(screen.getAllByRole("listitem")).toHaveLength(240);
+    expect(screen.queryByText(/more$/)).toBeNull();
   });
 
   it("shows no list (just the count) before the docs have loaded", () => {

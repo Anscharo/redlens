@@ -3,7 +3,7 @@ import type { AtlasNode } from "@/types";
 import { CollectionDocList } from "../collections/CollectionDocList";
 
 // Rows past this are summarised as "+N more" (the full set is still saved).
-const PREVIEW_LIMIT = 60;
+const PREVIEW_LIMIT = 240;
 // The choice view's box keeps one height whatever it holds, so previewing never
 // moves the buttons below it.
 const STABLE_HEIGHT = 200;
