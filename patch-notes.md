@@ -35,6 +35,7 @@
 
 ## 2026-10-06
 
+- Fixed chat citations that showed as raw `[Title](/atlas/…)` text instead of clickable links
 - Added a hover tooltip to the footer's "update available" and "atlas updated" pills showing which code and Atlas versions the reload will switch to
 
 ## 2026-10-05

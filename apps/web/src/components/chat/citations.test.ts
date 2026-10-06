@@ -22,6 +22,21 @@ describe("unwrapCodeCitations", () => {
     );
   });
 
+  it("repairs a backtick opened inside the link text and closed after the link", () => {
+    // Real answer shape: [`Alignment Engineering](/atlas/<uuid>)`
+    expect(unwrapCodeCitations(`Solved structurally. [\`Alignment Engineering](${U})\``)).toBe(
+      `Solved structurally. [Alignment Engineering](${U})`,
+    );
+    expect(unwrapCodeCitations("[`Doubt (AC)][doubt-ac]` and [`Other](" + U + ")`")).toBe(
+      `[Doubt (AC)][doubt-ac] and [Other](${U})`,
+    );
+  });
+
+  it("leaves code that merely starts with a bracket and backtick", () => {
+    const src = "Pass [`a`, `b`] to it, then [`x](not-a-citation)`.";
+    expect(unwrapCodeCitations(src)).toBe(src);
+  });
+
   it("leaves a code span that is more than a citation alone", () => {
     const src = `\`foo [128](${U})\``;
     expect(unwrapCodeCitations(src)).toBe(src);
