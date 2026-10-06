@@ -44,7 +44,7 @@
     { "files": ["apps/web/src/components/atlas/JuniorPane.tsx"], "rules": { "max-lines": ["error", { "max": 203, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 171, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/atlas/NodeMeta.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 93, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/atlas/RightPanel.tsx"], "rules": { "max-lines": ["error", { "max": 324, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 300, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/components/collections/CollectionCard.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 127, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["apps/web/src/components/collections/CollectionCard.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 109, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/conversations/ConversationCard.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 90, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/crossview/CrossViewPage.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 79, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/crossview/CrossViewShape.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 88, "skipBlankLines": true, "skipComments": true }] } },
@@ -197,7 +197,7 @@
     { "files": ["src/server/history/history-db.ts"], "rules": { "max-lines": ["error", { "max": 276, "skipBlankLines": true, "skipComments": true }] } },
     // Raised by 3 / 1: one route-table entry (/api/search/semantic) and its placeholder
     // replacement — the appended-line-per-registry shape, not growth inside a function.
-    { "files": ["src/server/index.ts"], "rules": { "max-lines": ["error", { "max": 340, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 129, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["src/server/index.ts"], "rules": { "max-lines": ["error", { "max": 341, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 129, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/jev.ts"], "rules": { "max-lines-per-function": ["error", { "max": 67, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/mcp.ts"], "rules": { "max-lines-per-function": ["error", { "max": 67, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/og-image.ts"], "rules": { "max-lines": ["error", { "max": 209, "skipBlankLines": true, "skipComments": true }] } },

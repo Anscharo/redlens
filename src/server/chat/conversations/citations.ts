@@ -33,12 +33,26 @@ async function answersOf(conversationId: string): Promise<string[]> {
   return rows.map((r) => r.content);
 }
 
+async function collectionOf(row: { id: string; title: string | null }): Promise<ConversationCollectionOut> {
+  return { id: row.id, name: row.title ?? UNTITLED, ids: citedDocIds(await answersOf(row.id)), auto: true };
+}
+
 export async function getConversationCollection(userId: string, id: string): Promise<ConversationCollectionOut | null> {
   const owned = (await sql`
     SELECT c.id, c.title FROM conversations c WHERE c.id = ${id} AND c.user_id = ${userId}
   `) as { id: string; title: string | null }[];
-  if (!owned.length) return null;
-  return { id: owned[0].id, name: owned[0].title ?? UNTITLED, ids: citedDocIds(await answersOf(id)), auto: true };
+  return owned.length ? collectionOf(owned[0]) : null;
+}
+
+// The share-link read: no owner check, the conversation's own (unguessable) id
+// is the token, as a saved collection's id is for /c/<id>. Exposes only what
+// ConversationCollectionOut holds — the title, the cited doc ids and the id —
+// never a message.
+export async function getSharedConversationCollection(id: string): Promise<ConversationCollectionOut | null> {
+  const rows = (await sql`
+    SELECT c.id, c.title FROM conversations c WHERE c.id = ${id}
+  `) as { id: string; title: string | null }[];
+  return rows.length ? collectionOf(rows[0]) : null;
 }
 
 // One query for the whole list page (no N+1). Only answers that contain an

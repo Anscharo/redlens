@@ -230,10 +230,9 @@ describe("CollectionsPage — collections from conversations", () => {
     expect(screen.queryByText("No links")).toBeNull();
     expect(screen.getByText("3 documents cited")).toBeInTheDocument();
     expect(screen.getByText("1 document cited")).toBeInTheDocument();
-    // Immutable: nothing to rename, delete or share.
+    // Immutable: nothing to rename or delete (Share only copies a link).
     expect(screen.queryByText("Rename")).toBeNull();
     expect(screen.queryByText("Delete")).toBeNull();
-    expect(screen.queryByText("Share")).toBeNull();
   });
 
   it("Open on a conversation card opens that conversation's collection", () => {
@@ -257,5 +256,17 @@ describe("CollectionsPage — collections from conversations", () => {
     mocks.openFailed = true;
     render(<CollectionsPage />);
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't open that collection");
+  });
+  it("Share on a conversation card copies a /c/<conversation id> link", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    mocks.user = { id: "u1" };
+    mocks.search = "view=conversations";
+    mocks.conversations = [chat({})];
+    render(<CollectionsPage />);
+    fireEvent.click(screen.getByText("Share"));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/c/k1`));
+    expect(await screen.findByText("Copied!")).toBeInTheDocument();
+    vi.unstubAllGlobals();
   });
 });

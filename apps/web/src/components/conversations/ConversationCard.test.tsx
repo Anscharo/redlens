@@ -199,7 +199,7 @@ describe("ConversationCard", () => {
     expect(screen.getByText("4 messages · 1 citation")).toBeInTheDocument();
   });
 
-  it("View collection calls onViewCollection and does not open the chat", () => {
+  it("View Doc Collection calls onViewCollection and does not open the chat", () => {
     const onOpen = vi.fn();
     const onViewCollection = vi.fn();
     render(
@@ -211,12 +211,12 @@ describe("ConversationCard", () => {
         onDelete={() => {}}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "View collection" }));
+    fireEvent.click(screen.getByRole("button", { name: "View Doc Collection" }));
     expect(onViewCollection).toHaveBeenCalledTimes(1);
     expect(onOpen).not.toHaveBeenCalled();
   });
 
-  it("disables View collection when the conversation cites nothing", () => {
+  it("disables View Doc Collection when the conversation cites nothing", () => {
     const onViewCollection = vi.fn();
     render(
       <ConversationCard
@@ -227,13 +227,13 @@ describe("ConversationCard", () => {
         onDelete={() => {}}
       />,
     );
-    const button = screen.getByRole("button", { name: "View collection" });
+    const button = screen.getByRole("button", { name: "View Doc Collection" });
     expect(button).toBeDisabled();
     fireEvent.click(button);
     expect(onViewCollection).not.toHaveBeenCalled();
   });
 
-  it("puts View collection and the right-aligned Rename/Delete in one row", () => {
+  it("puts View Doc Collection and the right-aligned Rename/Delete in one row", () => {
     render(
       <ConversationCard
         conversation={conversation({ citationCount: 3 })}
@@ -243,7 +243,7 @@ describe("ConversationCard", () => {
         onDelete={() => {}}
       />,
     );
-    const view = screen.getByRole("button", { name: "View collection" });
+    const view = screen.getByRole("button", { name: "View Doc Collection" });
     const rename = screen.getByRole("button", { name: "Rename" });
     const group = rename.parentElement!;
     expect(group).toContainElement(screen.getByRole("button", { name: "Delete" }));

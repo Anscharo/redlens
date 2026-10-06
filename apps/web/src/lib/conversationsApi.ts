@@ -119,6 +119,12 @@ export function getConversationCollection(id: string): Promise<ConversationColle
   return request<ConversationCollection>(`chat/conversations/${id}/collection`);
 }
 
+// Public read by conversation id — no auth, so a shared /c/<id> link opens for
+// anyone. Returns only the title and cited doc ids.
+export function getSharedConversationCollection(id: string): Promise<ConversationCollection> {
+  return request<ConversationCollection>(`chat/conversations/${id}/shared`);
+}
+
 // The server's RETURNING clause is id/title/updated_at only — renaming
 // doesn't change the message count, so the row isn't re-aggregated (see the
 // chat-conversation-memory plan §2). Callers that need the full row

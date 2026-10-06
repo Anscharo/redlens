@@ -9,7 +9,7 @@ import { getSessionUser } from "../session.ts";
 import { json } from "../http.ts";
 import { listConversations } from "./conversations/list.ts";
 import { getConversation } from "./conversations/detail.ts";
-import { getConversationCollection } from "./conversations/citations.ts";
+import { getConversationCollection, getSharedConversationCollection } from "./conversations/citations.ts";
 import { UUID_RE } from "../../lib/patterns.ts";
 
 // Server-side safety cap on a renamed title (the UI enforces a tighter
@@ -92,6 +92,23 @@ async function collectionRoute({ req, userId, id, refresh }: RouteCtx): Promise<
   const collection = UUID_RE.test(id) ? await getConversationCollection(userId, id) : null;
   if (!collection) return json({ error: "not_found" }, 404);
   return json(collection, 200, refresh);
+}
+
+// GET /api/chat/conversations/:id/shared — public (no session) read of the
+// collection behind a shared /c/<id> link. Anyone holding the conversation's id
+// can read its cited doc ids and title, and nothing else: the conversation
+// itself stays owner-only (readRoute). Gated on chat at the route, so it 404s
+// where chat does not exist.
+export async function handleSharedConversationCollection(req: Request): Promise<Response> {
+  if (req.method !== "GET") return json({ error: "method_not_allowed" }, 405);
+  const id = new URL(req.url).pathname.match(/^\/api\/chat\/conversations\/([^/]+)\/shared$/)?.[1];
+  if (!id || !UUID_RE.test(id)) return json({ error: "not_found" }, 404);
+  try {
+    const collection = await getSharedConversationCollection(id);
+    return collection ? json(collection, 200) : json({ error: "not_found" }, 404);
+  } catch {
+    return json({ error: "server_error" }, 500);
+  }
 }
 
 // Methods on /api/chat/conversations/:id. The bare collection path answers GET only.

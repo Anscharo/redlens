@@ -129,13 +129,13 @@ describe("ConversationsPage — signed in", () => {
     expect(mocks.rename).toHaveBeenCalledWith("c1", "Renamed");
     await waitFor(() => expect(mocks.track).toHaveBeenCalledWith("chat_conversation_rename", { id: "c1" }));
   });
-  it("View collection opens that conversation's collection without opening the chat", () => {
+  it("View Doc Collection opens that conversation's collection without opening the chat", () => {
     mocks.user = { id: "u1" };
     mocks.conversations = [
       { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3, contextTokens: null, citationCount: 2 },
     ];
     render(<ConversationsPage />);
-    fireEvent.click(screen.getByRole("button", { name: "View collection" }));
+    fireEvent.click(screen.getByRole("button", { name: "View Doc Collection" }));
     expect(mocks.openCollection).toHaveBeenCalledWith("c1");
     expect(mocks.openChat).not.toHaveBeenCalled();
   });

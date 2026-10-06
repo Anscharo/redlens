@@ -20,7 +20,7 @@ function isInteractiveDescendant(target: EventTarget | null, container: Element)
 }
 
 // Single conversation row: title (inline-editable), updated date + message,
-// context and citation counts, a "View collection" button (the conversation's
+// context and citation counts, a "View Doc Collection" button (the conversation's
 // auto collection of cited docs) and, right-aligned, Rename/Delete (see
 // ConversationActions). Mirrors CollectionCard, with one structural difference — the row itself is the "open" affordance (clicking
 // anywhere on it opens the chat widget on this conversation, no navigation),

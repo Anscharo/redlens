@@ -72,6 +72,11 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
       c ? [{ id: c.id, title: c.title, updated_at: c.updated_at, summary: c.summary, summary_upto_id: c.summary_upto_id }] : [],
     );
   }
+  if (text.includes("FROM conversations c WHERE c.id") && !text.includes("AND c.user_id")) {
+    const [id] = values as [string];
+    const c = conversations.find((x) => x.id === id);
+    return Promise.resolve(c ? [{ id: c.id, title: c.title }] : []);
+  }
   if (text.includes("SELECT content FROM messages") && text.includes("role = 'assistant'")) {
     const [id] = values as [string];
     return Promise.resolve(
@@ -151,7 +156,7 @@ mock.module("../db.ts", () => ({
   fromUuidArray,
 }));
 
-const { handleConversations } = await import("./conversations.ts");
+const { handleConversations, handleSharedConversationCollection } = await import("./conversations.ts");
 const { config } = await import("../config.ts");
 const { signSession, SESSION_COOKIE } = await import("../session.ts");
 
@@ -991,5 +996,39 @@ describe("conversation auto collection", () => {
       req(`/api/chat/conversations/${CONV}/collection`, { cookie: await authed(), method: "PATCH", body: "{}" }),
     );
     expect(write.status).toBe(405);
+  });
+});
+
+describe("GET /api/chat/conversations/:id/shared (share link)", () => {
+  it("reads a conversation's collection with no session, exposing only title and cited ids", async () => {
+    seedConversation({ id: CONV, user_id: "user-1", title: "Spark rates" });
+    seedMessage({ conversation_id: CONV, role: "user", content: "private question" });
+    seedMessage({ conversation_id: CONV, role: "assistant", content: `See [A](/atlas/${DOC_A}) and [B](/atlas/${DOC_B}).` });
+
+    const res = await handleSharedConversationCollection(req(`/api/chat/conversations/${CONV}/shared`));
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(JSON.parse(text)).toEqual({ id: CONV, name: "Spark rates", ids: [DOC_A, DOC_B], auto: true });
+    expect(text).not.toContain("private question");
+  });
+
+  it("404s an unknown or malformed id and refuses writes", async () => {
+    const unknown = await handleSharedConversationCollection(req(`/api/chat/conversations/${CONV}/shared`));
+    expect(unknown.status).toBe(404);
+    const bad = await handleSharedConversationCollection(req("/api/chat/conversations/not-a-uuid/shared"));
+    expect(bad.status).toBe(404);
+    const write = await handleSharedConversationCollection(
+      req(`/api/chat/conversations/${CONV}/shared`, { method: "PATCH", body: "{}" }),
+    );
+    expect(write.status).toBe(405);
+  });
+
+  it("the conversation itself stays owner-only", async () => {
+    seedConversation({ id: CONV, user_id: "user-1" });
+    seedMessage({ conversation_id: CONV, role: "assistant", content: `[A](/atlas/${DOC_A})` });
+    const anon = await handleConversations(req(`/api/chat/conversations/${CONV}`));
+    expect(anon.status).toBe(401);
+    const stranger = await handleConversations(req(`/api/chat/conversations/${CONV}`, { cookie: await authed("user-2") }));
+    expect(stranger.status).toBe(404);
   });
 });

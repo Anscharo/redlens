@@ -1,10 +1,11 @@
 import type { ConversationSummary } from "../../lib/conversationsApi";
+import { ShareLinkButton } from "./ShareLinkButton";
 
 const UNTITLED = "Untitled chat";
 
 // One conversation's auto collection. Read-only: it is rebuilt from the chat
-// on every open, so there is no rename, delete or share here — manage the chat
-// itself on /conversations.
+// on every open, so there is no rename or delete here — manage the chat itself
+// on /conversations. Share copies /c/<conversation id>.
 export function ConversationCollectionCard({
   conversation,
   onOpen,
@@ -26,14 +27,17 @@ export function ConversationCollectionCard({
       <p className="text-xs text-tan-3 mb-3">
         {n} {n === 1 ? "document" : "documents"} cited
       </p>
-      <button
-        type="button"
-        className="mono text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[var(--hover)]"
-        style={{ borderColor: "var(--border)", color: "var(--accent)" }}
-        onClick={onOpen}
-      >
-        Open
-      </button>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className="mono text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[var(--hover)]"
+          style={{ borderColor: "var(--border)", color: "var(--accent)" }}
+          onClick={onOpen}
+        >
+          Open
+        </button>
+        <ShareLinkButton id={conversation.id} />
+      </div>
     </article>
   );
 }

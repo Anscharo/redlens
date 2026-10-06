@@ -23,7 +23,7 @@ import { startUpdater, startBootEmbeddings } from "./atlas-updater.ts";
 import { handleAuth } from "./auth.ts";
 import { canonicalRedirect } from "./history/canonical.ts";
 import { handleChat } from "./chat/chat.ts";
-import { handleConversations } from "./chat/conversations.ts";
+import { handleConversations, handleSharedConversationCollection } from "./chat/conversations.ts";
 import { handleCollections, handleSharedCollection } from "./collections.ts";
 import { handleFeedback } from "./feedback.ts";
 import { handleUsage } from "./rate-limit.ts";
@@ -474,6 +474,8 @@ export function buildRoutes() {
     "/api/chat/conversations":     conversations,
     "/api/chat/conversations/:id": conversations,
     "/api/chat/conversations/:id/collection": conversations,
+    // Public, like /api/collections/:id/shared: the share-link read of a conversation's collection.
+    "/api/chat/conversations/:id/shared": gated(chatOn, handleSharedConversationCollection),
     // Public share read is unauthenticated (anyone with the link) — declared
     // before the auth-gated :id route so the more specific path wins.
     "/api/collections/:id/shared": gated(usersOn, handleSharedCollection),
