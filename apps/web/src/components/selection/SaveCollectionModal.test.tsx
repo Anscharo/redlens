@@ -178,7 +178,7 @@ describe("SaveCollectionModal — signed in, with an active collection", () => {
     expect(screen.getByText("Save changes")).toBeInTheDocument();
     expect(screen.getByText("Update “Existing”")).toBeInTheDocument();
     expect(screen.getByText("Save as new collection")).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Save as new collection without docs from “Existing”" })).toBeEnabled();
+    expect(await screen.findByRole("button", { name: "Save as new, minus “Existing”" })).toBeEnabled();
   });
 
   it("Update calls updateCollectionItems + track + onClose", async () => {
@@ -249,7 +249,7 @@ describe("SaveCollectionModal — comparing with the opened collection", () => {
     openOwnCollection(["a", "b"]);
     render(<SaveCollectionModal ids={["b", "a"]} onClose={() => {}} />);
     expect(await screen.findByText("No changes since opening “Existing”.")).toBeInTheDocument();
-    const without = screen.getByRole("button", { name: /without docs from/ });
+    const without = screen.getByRole("button", { name: /Save as new, minus/ });
     expect(without).toBeDisabled();
     expect(without).toHaveAttribute("title", "Nothing was added beyond “Existing”");
   });
@@ -261,7 +261,7 @@ describe("SaveCollectionModal — comparing with the opened collection", () => {
     mocks.updateCollectionItems.mockResolvedValue({});
     render(<SaveCollectionModal ids={["a"]} onClose={() => {}} />);
     expect(await screen.findByText(/Couldn’t load “Existing” to compare/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /without docs from/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Save as new, minus/ })).toBeDisabled();
     await user.click(screen.getByText("Update “Existing”"));
     await waitFor(() => expect(mocks.updateCollectionItems).toHaveBeenCalledWith("existing1", ["a"]));
   });
@@ -274,32 +274,88 @@ describe("SaveCollectionModal — previewing each option", () => {
     await screen.findByText(/You have made changes/);
   }
 
-  it("Update previews removed and added rows with +/− and a summary, and restores on leave", async () => {
+  const SUMMARY = "+2 added · −1 removed · 1 unchanged";
+
+  it("Update previews removed and added rows with +/−, with the summary on the count line", async () => {
     await ready();
-    const update = screen.getByText("Update “Existing”");
-    fireEvent.mouseEnter(update);
-    expect(screen.getByText("+2 added · −1 removed · 1 unchanged")).toBeInTheDocument();
+    fireEvent.mouseEnter(screen.getByText("Update “Existing”"));
+    expect(screen.getByText(SUMMARY)).toBeInTheDocument();
     expect(screen.getAllByLabelText("added")).toHaveLength(2);
     expect(screen.getByLabelText("removed")).toBeInTheDocument();
     expect(screen.getByText("Doc A")).toBeInTheDocument(); // removed doc is shown though not in the selection
-
-    fireEvent.mouseLeave(update);
-    expect(screen.queryByText(/added · /)).toBeNull();
-    expect(screen.queryByText("Doc A")).toBeNull();
+    // Same line as "N / 8,000 documents", not a paragraph of its own.
+    expect(screen.getByText(SUMMARY).closest("p")).toBe(screen.getByText("3 / 8,000 documents").closest("p"));
   });
 
-  it("keyboard focus previews too", async () => {
+  it("keeps the preview after the pointer or focus leaves, until another button is hovered", async () => {
+    await ready();
+    const update = screen.getByText("Update “Existing”");
+    fireEvent.mouseEnter(update);
+    fireEvent.mouseLeave(update);
+    expect(screen.getByText(SUMMARY)).toBeInTheDocument();
+    expect(screen.getByText("Doc A")).toBeInTheDocument();
+
+    fireEvent.blur(update);
+    expect(screen.getByText(SUMMARY)).toBeInTheDocument();
+
+    const fresh = screen.getByText("Save as new collection");
+    fireEvent.mouseEnter(fresh);
+    fireEvent.mouseLeave(fresh);
+    expect(screen.queryByText(SUMMARY)).toBeNull();
+    expect(screen.queryByText("Doc A")).toBeNull(); // the plain selection stays
+    expect(screen.getByText("Doc B")).toBeInTheDocument();
+  });
+
+  it("keyboard focus previews too, and stays on blur", async () => {
     await ready();
     const update = screen.getByText("Update “Existing”");
     fireEvent.focus(update);
-    expect(screen.getByText("+2 added · −1 removed · 1 unchanged")).toBeInTheDocument();
+    expect(screen.getByText(SUMMARY)).toBeInTheDocument();
     fireEvent.blur(update);
-    expect(screen.queryByText(/added · /)).toBeNull();
+    expect(screen.getByText(SUMMARY)).toBeInTheDocument();
+  });
+
+  it("never adds or removes an element between the heading and the buttons while previewing", async () => {
+    await ready();
+    const card = screen.getByRole("dialog").firstElementChild as HTMLElement;
+    const count = card.children.length;
+    const buttons = [screen.getByText("Update “Existing”"), screen.getByText("Save as new collection"), screen.getByRole("button", { name: /Save as new, minus/ })];
+    for (const button of buttons) {
+      fireEvent.mouseEnter(button);
+      expect(card.children.length).toBe(count);
+      fireEvent.mouseLeave(button);
+      expect(card.children.length).toBe(count);
+    }
+  });
+
+  it("opens previewing Update, then rings whichever button was last hovered", async () => {
+    await ready();
+    const update = screen.getByText("Update “Existing”");
+    const fresh = screen.getByText("Save as new collection");
+    expect(update).toHaveAttribute("data-previewing", "true");
+    expect(screen.getByText(SUMMARY)).toBeInTheDocument();
+    fireEvent.mouseEnter(fresh);
+    expect(update).not.toHaveAttribute("data-previewing");
+    expect(fresh).toHaveAttribute("data-previewing", "true");
+    expect(screen.queryByText(SUMMARY)).toBeNull();
+    fireEvent.mouseEnter(update);
+    expect(update).toHaveAttribute("data-previewing", "true");
+  });
+
+  it("starts each preview at the top of the list", async () => {
+    await ready();
+    fireEvent.mouseEnter(screen.getByText("Update “Existing”"));
+    const box = screen.getByText("Doc A").closest("div[style*='overflow']") as HTMLElement;
+    box.scrollTop = 50;
+    fireEvent.mouseEnter(screen.getByText("Save as new collection"));
+    const next = screen.getByText("Doc B").closest("div[style*='overflow']") as HTMLElement;
+    expect(next).not.toBe(box);
+    expect(next.scrollTop).toBe(0);
   });
 
   it("'without' previews only the docs added beyond the opened collection", async () => {
     await ready();
-    fireEvent.mouseEnter(screen.getByRole("button", { name: /without docs from/ }));
+    fireEvent.mouseEnter(screen.getByRole("button", { name: /Save as new, minus/ }));
     expect(screen.getByText("Doc C")).toBeInTheDocument();
     expect(screen.getByText("Doc D")).toBeInTheDocument();
     expect(screen.queryByText("Doc B")).toBeNull();
@@ -321,9 +377,9 @@ describe("SaveCollectionModal — saving as new", () => {
     openOwnCollection(["a", "b"]);
     mocks.createCollection.mockResolvedValue({ id: "new1", name: "Extras" });
     render(<SaveCollectionModal ids={["b", "c", "d"]} onClose={onClose} />);
-    await user.click(await screen.findByRole("button", { name: /without docs from/ }));
+    await user.click(await screen.findByRole("button", { name: /Save as new, minus/ }));
 
-    expect(screen.getByText("Save as new collection without docs from “Existing”", { selector: "h2" })).toBeInTheDocument();
+    expect(screen.getByText("Save as new, minus “Existing”", { selector: "h2" })).toBeInTheDocument();
     expect(screen.getByText("2 / 8,000 documents")).toBeInTheDocument();
     await user.type(screen.getByPlaceholderText("Collection name"), "Extras");
     await user.click(screen.getByText("save"));
@@ -347,5 +403,16 @@ describe("SaveCollectionModal — saving as new", () => {
     await waitFor(() => expect(mocks.createCollection).toHaveBeenCalledWith("Copy", ["b", "c"]));
     expect(mocks.replace).not.toHaveBeenCalled();
     expect(mocks.track).toHaveBeenCalledWith("collection_save", { count: 2 });
+  });
+});
+
+describe("SaveCollectionModal — list box in the choice view", () => {
+  it("is there before the docs have loaded, so loading cannot move the buttons", async () => {
+    openOwnCollection(["a"]);
+    mocks.docs = null;
+    render(<SaveCollectionModal ids={["a", "b"]} onClose={() => {}} />);
+    await screen.findByText(/You have made changes/);
+    const card = screen.getByRole("dialog").firstElementChild as HTMLElement;
+    expect(card.querySelector("div[style*='overflow']")).not.toBeNull();
   });
 });

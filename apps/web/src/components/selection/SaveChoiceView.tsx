@@ -13,8 +13,10 @@ interface SaveChoiceViewProps {
   over: boolean;
   onUpdate: () => void;
   onSaveNew: (option: "new" | "without") => void;
-  /** The option whose result the doc list should show; null for the default. */
-  onPreview: (option: SaveOption | null) => void;
+  /** The option whose result the doc list shows (Update when the dialog opens). */
+  previewing: SaveOption | null;
+  /** Hover or focus: show this option's result, and keep it until another. */
+  onPreview: (option: SaveOption) => void;
 }
 
 // The line over the buttons: how the selection now relates to the saved docs.
@@ -26,17 +28,19 @@ function comparison(name: string, baseline: Baseline, diff: IdDiff | null): stri
   return `You have made changes since opening “${name}” · ${n.toLocaleString()} ${n === 1 ? "doc overlaps" : "docs overlap"}`;
 }
 
-// Update / Save as new / Save as new without the opened collection's docs.
+// Update / Save as new / Save as new minus the opened collection's docs.
 // Hovering or focusing a button previews what it would save in the doc list.
-export function SaveChoiceView({ collectionName, baseline, diff, pending, over, onUpdate, onSaveNew, onPreview }: SaveChoiceViewProps) {
+// Leaving does not undo it, so the list can be scrolled; the previewed button
+// is ringed to say whose result the list shows.
+export function SaveChoiceView({ collectionName, baseline, diff, pending, over, onUpdate, onSaveNew, previewing, onPreview }: SaveChoiceViewProps) {
   const without = diff?.added.length ?? 0;
   const withoutBlocked = !diff || without === 0 || without > MAX_COLLECTION_DOCS;
   const preview = (option: SaveOption) => ({
     onMouseEnter: () => onPreview(option),
     onFocus: () => onPreview(option),
-    onMouseLeave: () => onPreview(null),
-    onBlur: () => onPreview(null),
+    "data-previewing": previewing === option ? "true" : undefined,
   });
+  const ring = (option: SaveOption) => (previewing === option ? { outline: "2px solid var(--accent)", outlineOffset: 2 } : undefined);
   const withoutTitle = !diff
     ? "Available once the saved collection has loaded"
     : without === 0
@@ -52,11 +56,11 @@ export function SaveChoiceView({ collectionName, baseline, diff, pending, over, 
         onClick={onUpdate}
         disabled={pending || over}
         className="mono"
-        style={{ ...primaryBtn, opacity: pending || over ? 0.6 : 1, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+        style={{ ...primaryBtn, ...ring("update"), opacity: pending || over ? 0.6 : 1, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
       >
         {pending ? "saving…" : `Update “${collectionName}”`}
       </button>
-      <button {...preview("new")} onClick={() => onSaveNew("new")} disabled={pending} className="mono" style={ghostBtn}>
+      <button {...preview("new")} onClick={() => onSaveNew("new")} disabled={pending} className="mono" style={{ ...ghostBtn, ...ring("new") }}>
         Save as new collection
       </button>
       <button
@@ -65,9 +69,9 @@ export function SaveChoiceView({ collectionName, baseline, diff, pending, over, 
         disabled={pending || withoutBlocked}
         title={withoutTitle}
         className="mono"
-        style={{ ...ghostBtn, textAlign: "left", opacity: withoutBlocked ? 0.6 : 1 }}
+        style={{ ...ghostBtn, ...ring("without"), textAlign: "left", opacity: withoutBlocked ? 0.6 : 1 }}
       >
-        Save as new collection without docs from “{collectionName}”
+        Save as new, minus “{collectionName}”
       </button>
     </>
   );

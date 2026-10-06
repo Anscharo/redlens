@@ -38,13 +38,26 @@ function useRun(onClose: () => void) {
   return { pending, error, run };
 }
 
-function Heading({ title, count, over }: { title: string; count: number; over: boolean }) {
+// The count line also carries Update's "+A added · −R removed · U unchanged"
+// summary. It never wraps, so its height cannot change while previewing.
+function Heading({ title, count, over, summary }: { title: string; count: number; over: boolean; summary?: string }) {
   return (
     <div>
       <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--tan)", margin: 0 }}>{title}</h2>
-      <p className="mono" style={{ fontSize: 10, color: over ? "var(--red)" : "var(--tan-3)", margin: "2px 0 0" }}>
-        {count.toLocaleString()} / {MAX_COLLECTION_DOCS.toLocaleString()} document{count === 1 ? "" : "s"}
-        {over ? " — over the limit" : ""}
+      <p
+        className="mono"
+        style={{ fontSize: 10, color: over ? "var(--red)" : "var(--tan-3)", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+      >
+        <span>
+          {count.toLocaleString()} / {MAX_COLLECTION_DOCS.toLocaleString()} document{count === 1 ? "" : "s"}
+          {over ? " — over the limit" : ""}
+        </span>
+        {summary && (
+          <>
+            <span aria-hidden="true"> · </span>
+            <span>{summary}</span>
+          </>
+        )}
       </p>
     </div>
   );
@@ -52,9 +65,10 @@ function Heading({ title, count, over }: { title: string; count: number; over: b
 
 // Save the current selection as a collection, in the shared Modal shell.
 // When one of the user's saved collections is open (activeCollectionId), the
-// choice comes first: Update it, save as new, or save as new without the docs
-// it already holds. The doc list shows what each option would save. A
-// successful save sets the active collection so its name shows in the pill.
+// choice comes first: Update it, save as new, or save as new minus the docs it
+// already holds. The doc list shows what the last hovered or focused option
+// would save, and stays on it until another is. A successful save sets the
+// active collection so its name shows in the pill.
 function SaveBody({ ids, onClose }: SaveCollectionModalProps) {
   const { activeCollectionId, activeCollectionName } = useSelection();
   const docs = useLoaded(loadDocs, { soft: true });
@@ -63,11 +77,13 @@ function SaveBody({ ids, onClose }: SaveCollectionModalProps) {
   const diff = saved ? diffIds(saved, ids) : null;
   // null: still choosing; otherwise the save-as-new option the name is for.
   const [naming, setNaming] = useState<"new" | "without" | null>(activeCollectionId ? null : "new");
-  const [hover, setHover] = useState<SaveOption | null>(null);
+  // Opens on Update, the primary action (the shell focuses it, which previews it
+  // anyway); hovering or focusing another button moves the preview there.
+  const [previewing, setPreviewing] = useState<SaveOption | null>(activeCollectionId ? "update" : null);
   const [name, setName] = useState("");
   const { pending, error, run } = useRun(onClose);
 
-  const preview = previewFor(naming ?? hover ?? "new", ids, saved);
+  const preview = previewFor(naming ?? previewing ?? "new", ids, saved);
   const saveIds = naming ? previewFor(naming, ids, saved).ids : ids;
   const over = saveIds.length > MAX_COLLECTION_DOCS;
   const collectionName = activeCollectionName ?? "collection";
@@ -78,14 +94,19 @@ function SaveBody({ ids, onClose }: SaveCollectionModalProps) {
     naming === null
       ? "Save changes"
       : naming === "without"
-        ? `Save as new collection without docs from “${collectionName}”`
+        ? `Save as new, minus “${collectionName}”`
         : activeCollectionId
           ? "Save as new collection"
           : "Save as collection";
   return (
     <>
-      <Heading title={title} count={naming ? saveIds.length : ids.length} over={naming ? over : ids.length > MAX_COLLECTION_DOCS} />
-      <SaveDocPreview preview={preview} docs={docs} stable={naming === null} />
+      <Heading
+        title={title}
+        count={naming ? saveIds.length : ids.length}
+        over={naming ? over : ids.length > MAX_COLLECTION_DOCS}
+        summary={preview.summary}
+      />
+      <SaveDocPreview preview={preview} docs={docs} stable={naming === null} resetKey={naming ?? previewing ?? "default"} />
       {error && (
         <p className="mono" style={{ fontSize: 11, color: "var(--red)", margin: 0 }}>
           {error}
@@ -99,11 +120,9 @@ function SaveBody({ ids, onClose }: SaveCollectionModalProps) {
           pending={pending}
           over={ids.length > MAX_COLLECTION_DOCS}
           onUpdate={update}
-          onSaveNew={(option) => {
-            setHover(null);
-            setNaming(option);
-          }}
-          onPreview={setHover}
+          onSaveNew={setNaming}
+          previewing={previewing}
+          onPreview={setPreviewing}
         />
       ) : (
         <SaveNameView name={name} onName={setName} onSave={create} onCancel={onClose} pending={pending} blocked={!name.trim() || over} />
