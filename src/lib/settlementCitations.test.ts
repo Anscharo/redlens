@@ -20,8 +20,7 @@ describe("settlement citations", () => {
   });
 
   it.skipIf(!fs.existsSync(DOCS))("resolves every UUID in the built docs.json", () => {
-    const docs = JSON.parse(fs.readFileSync(DOCS, "utf8")) as Record<string, unknown>;
-    const byId = (docs.docs ?? docs) as Record<string, unknown>;
-    for (const c of Object.values(SETTLEMENT_CITATIONS)) expect(byId[c.uuid], c.term).toBeDefined();
+    const docs = JSON.parse(fs.readFileSync(DOCS, "utf8")) as { nodes: Record<string, unknown> };
+    for (const c of Object.values(SETTLEMENT_CITATIONS)) expect(docs.nodes[c.uuid], c.term).toBeDefined();
   });
 });

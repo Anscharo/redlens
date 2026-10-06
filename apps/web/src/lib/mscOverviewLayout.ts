@@ -4,7 +4,7 @@
 // it, with an arrow from the pie's To-Sky slices into its own wedge. (Sky
 // is a full pie, not a donut: on this chart a hole means a loss.)
 // Pure math, no DOM — the view just maps over prebuilt SVG path strings
-// (settlementRingLayout.ts does the same).
+// (settlementArcLayout.ts does the same).
 //
 // ONE area scale for everything: the month's biggest amount (the To-Sky
 // total, or a Prime's positive line items) renders at R_MAX, and every

@@ -208,7 +208,7 @@ describe("ActorSettlements", () => {
     expect(screen.getByRole("button", { name: /Play through the months/ })).toBeInTheDocument();
     // No identity swatch on the card; what stays with the Prime is supply-side green.
     expect(container.querySelector(".msc-identity-swatch")).toBeNull();
-    expect(container.querySelector(".msc-ring-band[data-key='cof'] .msc-ring-body[stroke='var(--msc-sky)']")).toBeInTheDocument();
+    expect(container.querySelector(".msc-arc-band[data-key$=':kept'] .msc-arc-body[stroke='var(--msc-kept)']")).toBeInTheDocument();
     expect(container.querySelector("[fill='var(--msc-prime-1)'], [stroke='var(--msc-prime-1)']")).not.toBeInTheDocument();
   });
 
@@ -226,8 +226,8 @@ describe("ActorSettlements", () => {
     await waitFor(() => screen.getByText("Demand-side from Sky to Keel"));
     // A demand-only Prime still has its flows: the lane back from Sky.
     expect(screen.getByLabelText(/Settlement flows between Keel and Sky/)).toBeInTheDocument();
-    expect(document.querySelectorAll(".msc-ring-band").length).toBe(2);
-    expect(document.querySelector(".msc-ring-band[data-key='cof']")).toBeNull();
+    expect(document.querySelectorAll(".msc-arc-band").length).toBe(2);
+    expect(document.querySelector(".msc-arc-band[data-venue]")).toBeNull();
     expect(screen.getByText("To Sky")).toBeInTheDocument();
     expect(screen.getByText(/^Supply-side kept by /)).toBeInTheDocument();
     expect(screen.getByText("Demand-side from Sky to Keel")).toBeInTheDocument();
@@ -247,12 +247,14 @@ describe("ActorSettlements", () => {
     expect(screen.getByText("$402.00M")).toBeInTheDocument();
   });
 
-  it("links the ring's cited figures to the Atlas and tags table rows with data-venue ids", async () => {
+  it("tags venue stripes, their labels and table rows with matching data-venue ids, and links cited figures", async () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
     await waitFor(() => expect(screen.getByRole("table")).toBeInTheDocument());
     const row = screen.getByRole("cell", { name: /SparkLend USDS/ }).closest("tr")!;
     expect(row).toHaveAttribute("data-venue", "S1");
-    expect(document.querySelector('.msc-ring-link[href$="id=e98ddd17-a8c3-4523-8464-cc41247c66e8"]')).toBeInTheDocument();
+    expect(document.querySelector('.msc-arc-band[data-venue="S1"]')).toBeInTheDocument();
+    expect(document.querySelector('.msc-arc-venue-label[data-venue="S1"]')).toBeInTheDocument();
+    expect(document.querySelector('.msc-arc-link[href$="id=e98ddd17-a8c3-4523-8464-cc41247c66e8"]')).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "CoF to Sky" })).toHaveAttribute("href", expect.stringContaining("6b2b7302-e63b-457e-afeb-daab5ca7a7de"));
   });
 

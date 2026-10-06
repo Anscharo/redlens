@@ -1,4 +1,4 @@
-// Circular-arc paths for the settlement ring. Angles are radians in SVG
+// Circular-arc paths for the settlement arc. Angles are radians in SVG
 // screen space (y down), so an INCREASING angle runs clockwise on screen.
 // Pure math, no DOM.
 
@@ -24,10 +24,4 @@ export function arcArrowHead(cx: number, cy: number, r: number, w: number, a: nu
   const half = w / 2 + flare;
   const tip = a + (dir * len) / r;
   return `M${polar(cx, cy, r - half, a)} L${polar(cx, cy, r, tip)} L${polar(cx, cy, r + half, a)} Z`;
-}
-
-/** A triangle pointing at the centre: base on radius `rFrom` spanning
- *  `halfAngle` either side of `a`, tip on radius `rTo`. */
-export function inwardHead(cx: number, cy: number, rFrom: number, rTo: number, a: number, halfAngle: number): string {
-  return `M${polar(cx, cy, rFrom, a - halfAngle)} L${polar(cx, cy, rTo, a)} L${polar(cx, cy, rFrom, a + halfAngle)} Z`;
 }
