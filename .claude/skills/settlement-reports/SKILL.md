@@ -49,9 +49,14 @@ daily_sky_revenue = utilized × [(1 + apy)^(1/365) − 1]
 apy               = base_apy | subsidised_apy
 base_apy          = SSR ⊕ spread          30bps; 20bps from 2026-07-23
 subsidised_apy    = ref_rate + (base − ref_rate) × T / 24     (24-month ramp)
-utilized          = cum_debt − alm_proxy_usds − psm_usds
-                             − curve_idle_usds − lending_idle_usds
+utilized          = cum_debt − alm_proxy_usds − psm_usds − sde_asset_value
+                             − curve_idle_usds − lending_idle_usds − basin_idle
 ```
+
+The SDE deduction is the Atlas's (A.2.4.2.1.2): no borrow rate on USDS
+financing a Sky Direct Exposure. `sky_revenue` then adds the realised SDE
+yield back, so `cof = sky_revenue − sde_revenue = BR × (utilized − SDE)` —
+no double charge (`docs/reviews/2026-10-06-sde-cost-of-funds.md`).
 
 Charged daily on `max(utilized_d, 0)`, not monthly on an average. The
 workbook's `CoF on utilized (BR × Net_Subs)` is shorthand for this.
