@@ -26,6 +26,18 @@ export function primeLinkLabel(flow: PrimeFlowTotals, label: string, month: stri
   return `${label}, ${formatMonth(month)}: owed Sky ${formatUsd(flow.sky, true)} — ${formatUsd(flow.cof, true)} cost of funds, ${formatUsd(flow.sde, true)} Sky Direct Exposure; received ${formatUsd(flow.kept + flow.demand, true)} — ${formatUsd(flow.kept, true)} supply-side kept, ${formatUsd(flow.demand, true)} demand-side from Sky. Open settlement page.`;
 }
 
+/** The loss, striped in loss red: the same mark the key uses for
+ *  "supply-side loss". Its AREA is the loss, on the slices' scale. A
+ *  smaller loss is a hole drawn over the slices; a larger one is a disc
+ *  behind them, so its striped ring is the net loss. */
+function LossDisc({ ring, prime }: { ring: RingPrime; prime: string }) {
+  return (
+    <g className="msc-ring-mark" data-mark={markId(prime, "loss")}>
+      <circle cx={ring.cx} cy={ring.cy} r={ring.hole!.r} className="msc-ring-hole" fill="url(#msc-ring-loss)" />
+    </g>
+  );
+}
+
 /** One prime: a pie of what it RECEIVED — supply-side kept and the
  *  demand-side series — with a loss as a hole in the middle, its name
  *  outside, and its two arrows: what it owed Sky, and what Sky owed it. */
@@ -59,6 +71,7 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
           one stroke that says whose pie this is; slices are separated by a
           card-colored gap (CSS), not by outlines. */}
       <circle cx={ring.cx} cy={ring.cy} r={ring.r + 2.5} className="msc-ring-rim" style={{ stroke: bandColor }} />
+      {ring.hole?.outside && <LossDisc ring={ring} prime={flow.prime} />}
       {ring.slices.map((s) => (
         <g key={s.kind} className="msc-ring-mark" data-mark={markId(flow.prime, s.kind)}>
           <path d={s.path} fillRule="evenodd" className={`msc-ring-slice msc-ring-${s.kind}`} />
@@ -72,14 +85,7 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
           </text>
         ) : null,
       )}
-      {/* The loss hole: striped in the kept color, the same mark the key
-          uses for "supply-side loss". Its AREA is the loss, on the same
-          scale as the slices around it. */}
-      {ring.hole && (
-        <g className="msc-ring-mark" data-mark={markId(flow.prime, "loss")}>
-          <circle cx={ring.cx} cy={ring.cy} r={ring.hole.r} className="msc-ring-hole" fill="url(#msc-ring-loss)" />
-        </g>
-      )}
+      {ring.hole && !ring.hole.outside && <LossDisc ring={ring} prime={flow.prime} />}
       <g className="msc-ring-mark" data-mark={markId(flow.prime, "received")}>
         <text x={ring.labelX} y={ring.labelY} textAnchor="middle" fontSize={NAME_SIZE} className="msc-ring-label">
           {label}

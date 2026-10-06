@@ -61,7 +61,7 @@ describe("layoutMscRing (orbital pies)", () => {
     }
   });
 
-  it("turns a loss into a hole, and clamps it when the Prime received less than nothing", () => {
+  it("draws a loss larger than the positives as a disc behind a smaller pie, so the striped ring is the net loss", () => {
     const layout = layoutMscRing([MARCH_GROVE, flow({ prime: "spark" })]);
     const grove = layout.primes.find((p) => p.prime === "grove")!;
     const spark = layout.primes.find((p) => p.prime === "spark")!;
@@ -70,15 +70,27 @@ describe("layoutMscRing (orbital pies)", () => {
     expect(grove.hole!.kinds).toEqual(["kept"]);
     // Slices exclude the loss, and no longer carry Sky's cost of funds / SDE.
     expect(grove.slices.map((s) => s.kind)).toEqual(["agentRate", "distributionRewards"]);
-    // Grove's loss outran everything it received that month, so `received`
-    // is negative and the hole is clamped to just inside the rim.
+    // Grove's loss outran everything it received that month: the loss disc
+    // is the pie's outer edge and the slices sit in front of it, on the same
+    // area scale, so the striped ring left showing is the net loss.
     expect(grove.received).toBeCloseTo(198_000 - 2_070_000, 0);
-    expect(grove.hole!.r).toBeLessThan(grove.r - 3);
-    expect(grove.hole!.r).toBeGreaterThan(grove.r - 5);
+    expect(grove.hole!.outside).toBe(true);
+    expect(grove.hole!.r).toBe(grove.r);
+    const sliceR = Math.max(...grove.slices.map((s) => Math.hypot(s.amountX - grove.cx, s.amountY - grove.cy))) * 2;
+    expect((sliceR / grove.r) ** 2).toBeCloseTo(198_000 / 2_070_000, 1);
     // A Prime with no loss has no hole and a positive area.
     expect(spark.hole).toBeNull();
     expect(spark.received).toBeGreaterThan(0);
     expect(sliceArea(spark)).toBeGreaterThan(0);
+  });
+
+  it("draws a small loss as a hole sized to the loss, not inflated", () => {
+    const osero = layoutMscRing([flow({ prime: "osero", sky: 497, cof: 497, sde: 0, kept: -107, demand: 12_000, demandParts: { agentRate: 12_000 } }), flow({ prime: "spark" })])
+      .primes.find((p) => p.prime === "osero")!;
+    expect(osero.hole!.outside).toBe(false);
+    // Under 1% of the pie is a hole of at most the 2px floor, not a third of it.
+    expect(osero.hole!.r).toBeLessThanOrEqual(2);
+    expect((osero.hole!.r / osero.r) ** 2).toBeLessThan(0.1);
   });
 
   it("faces the demand-side slices toward Sky, where the demand arrow brings them in", () => {
@@ -312,7 +324,7 @@ describe("layoutMscRing (orbital pies)", () => {
         // Anchor inside the ring (between hole and rim), pill outside the pie.
         const d = Math.hypot(s.amountX - p.cx, s.amountY - p.cy);
         expect(d).toBeLessThanOrEqual(p.r);
-        expect(d).toBeGreaterThanOrEqual(p.hole?.r ?? 0);
+        if (!p.hole?.outside) expect(d).toBeGreaterThanOrEqual(p.hole?.r ?? 0);
         expect(Math.hypot(s.pillX - p.cx, s.pillY - p.cy)).toBeGreaterThan(p.r);
       }
       if (p.hole) expect(Math.hypot(p.hole.pillX - p.cx, p.hole.pillY - p.cy)).toBeGreaterThan(p.r);

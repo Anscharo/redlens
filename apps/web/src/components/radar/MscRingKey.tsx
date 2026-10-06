@@ -19,7 +19,7 @@ export function RingKey() {
         </KeyGroup>
         <KeyGroup title="Supply-side">
           <KeyItem id="kept" label="supply-side kept" />
-          <KeyItem id="neg" code="striped" label="supply-side loss (the hole)" striped />
+          <KeyItem id="neg" code="striped" label="supply-side loss" striped />
         </KeyGroup>
         <KeyGroup title="Demand-side">
           {DEMAND_SERIES.map((s) => (

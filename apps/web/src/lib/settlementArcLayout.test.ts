@@ -94,6 +94,19 @@ describe("layoutSettlementArc", () => {
     expect(l.sky!.r1 - l.sky!.r0).toBeCloseTo((BAND * 100) / 150 + 2);
   });
 
+  it("ends a negative SDE at the Prime, striped, and leaves it out of the to-Sky lane", () => {
+    const l = layoutSettlementArc(model([mv("A", 100, 50), mv("J", 0, 0, -20), mv("K", 0, 0, 30)]));
+    const [j, k] = l.sde;
+    expect([j.venue, j.loss, k.venue, k.loss]).toEqual(["J", true, "K", false]);
+    expect(j.r - j.w / 2).toBeCloseTo(OUTER0);
+    // J stops short of the Prime's left side; K runs on to Sky.
+    expect(arc(j.d).to[0]).toBeLessThan(CX);
+    expect(arc(k.d).to[0]).toBeGreaterThan(CX + 100);
+    // Sky's node spans only what reaches it: K, the gap, A's cost of funds.
+    expect(l.sky!.r0).toBeCloseTo(OUTER0 + j.w);
+    expect(l.sky!.r1 - l.sky!.r0).toBeCloseTo(k.w + 2 + l.cof[0].w);
+  });
+
   it("runs the demand side clockwise from Sky round the bottom up into the Prime", () => {
     const l = layoutSettlementArc(model([], [{ key: "gar", label: "GAR", value: 5 * M }, { key: "agentRate", label: "Agent rate", value: 5 * M }]));
     expect(l.revenue).toEqual([]);

@@ -186,9 +186,11 @@ function laneEnd(r0: number, r1: number, from: number, edge: number): LaneEnd & 
   return { stop, w, head: arcArrowHead(CX, CY, r, w, stop, 1, len, (base - w) / 2), flow: arcPath(CX, CY, r, from, stop) };
 }
 
+type Stacked = ArcFlow & { r: number; w: number; loss: boolean };
 /** Venue bands from staggered starts to `stop`; band i starts at slot i0+i. */
-function venueBands(rows: (ArcFlow & { r: number; w: number; loss: boolean })[], i0: number, stop: number): VenueBand[] {
-  return rows.map((b, i) => ({ ...b, d: arcPath(CX, CY, b.r, start(i0 + i), stop), labelAt: labelAt(b.r, b.w, start(i0 + i)) }));
+function venueBands(rows: Stacked[], i0: number, stop: number | ((b: Stacked) => number)): VenueBand[] {
+  const end = typeof stop === "number" ? () => stop : stop;
+  return rows.map((b, i) => ({ ...b, d: arcPath(CX, CY, b.r, start(i0 + i), end(b)), labelAt: labelAt(b.r, b.w, start(i0 + i)) }));
 }
 
 export function layoutSettlementArc(m: StreamModel): ArcLayout {
@@ -199,7 +201,12 @@ export function layoutSettlementArc(m: StreamModel): ArcLayout {
   const max = Math.max(total(src.sde) + Math.max(total(revRows), total(cofRows)), total(demandRows));
   const scale = max > 0 ? BAND / Math.max(max, FULL_SCALE_USD) : 0;
 
-  const sde = stack(src.sde, OUTER0, scale, 1, VENUE_MIN_W);
+  // A negative SDE (a loss on Sky's own exposure) runs innermost, striped,
+  // and ends at the Prime: it lowers what reaches Sky, so it is no part of
+  // the to-Sky lane, whose width is what Sky receives.
+  const sdeRows = [...src.sde].sort((a, b) => Number(a.value >= 0) - Number(b.value >= 0));
+  const sde = stack(sdeRows, OUTER0, scale, 1, VENUE_MIN_W);
+  const skyStart = sde.out.filter((b) => b.loss).reduce((r, b) => r + b.w, OUTER0);
   // Left of the Prime the venues stack by revenue; right of it, in the same
   // order, by cost of funds. What a venue's revenue band has and its cost
   // band lacks stays with the Prime.
@@ -209,25 +216,25 @@ export function layoutSettlementArc(m: StreamModel): ArcLayout {
   const cof = stack(cofRows, venue0, scale, 1, VENUE_MIN_W);
   // The to-Sky lane spans SDE, the gap and cost of funds; with no cost of
   // funds it is SDE alone.
-  const cofEdge = cof.out.length ? cof.edge : sde.edge;
+  const cofEdge = cof.out.length ? cof.edge : Math.max(sde.edge, skyStart);
   const poolEdge = Math.max(rev.edge, cof.edge);
   const nr = rev.out.length;
-  const toSkyR = (OUTER0 + cofEdge) / 2;
-  const toSky = cofEdge > OUTER0 ? laneEnd(OUTER0, cofEdge, APEX, skyEdge(toSkyR, -1)) : null;
+  const toSkyR = (skyStart + cofEdge) / 2;
+  const toSky = cofEdge > skyStart ? laneEnd(skyStart, cofEdge, APEX, skyEdge(toSkyR, -1)) : null;
   const revenue = nr ? laneEnd(venue0, rev.edge, start(ns + nr - 1), primeEdge((venue0 + rev.edge) / 2, -1)) : null;
   const sdeFlow = ns ? { head: null, w: sde.edge - OUTER0, flow: arcPath(CX, CY, (OUTER0 + sde.edge) / 2, start(ns - 1), APEX) } : null;
   const d = stack(demandRows, INNER_OUT, scale, -1);
   const demandR = (d.edge + INNER_OUT) / 2;
   const demand = d.out.length ? laneEnd(d.edge, INNER_OUT, skyEdge(demandR, 1), primeEdge(demandR, -1)) : null;
   return {
-    sde: venueBands(sde.out, 0, toSky?.stop ?? SKY),
+    sde: venueBands(sde.out, 0, (b) => (b.loss ? primeEdge(b.r, -1) : (toSky?.stop ?? SKY))),
     revenue: venueBands(rev.out, ns, revenue?.stop ?? APEX),
     cof: toSky ? cof.out.map((b) => ({ ...b, key: `${b.key}::cof`, d: arcPath(CX, CY, b.r, primeEdge(b.r, 1), toSky.stop), labelAt: labelAt(b.r, b.w, APEX) })) : [],
     demand: d.out.map((b) => ({ key: b.key, value: b.value, r: b.r, w: b.w, loss: b.loss, d: arcPath(CX, CY, b.r, skyEdge(b.r, 1), demand!.stop) })),
     demandLabels: d.out.map((b, i) => demandLabel(b, i)),
     lanes: { sde: sdeFlow, revenue, toSky, demand },
     prime: primeNode(nodeSpan(d.out.length ? d.edge : null, poolEdge > venue0 ? venue0 : null, poolEdge > venue0 ? poolEdge : INNER_OUT), m.kept, scale),
-    sky: nodeSpan(d.out.length ? d.edge : null, cofEdge > OUTER0 ? OUTER0 : null, cofEdge > OUTER0 ? cofEdge : INNER_OUT),
+    sky: nodeSpan(d.out.length ? d.edge : null, cofEdge > skyStart ? skyStart : null, cofEdge > skyStart ? cofEdge : INNER_OUT),
     outerEdge: Math.max(poolEdge, cofEdge, INNER_OUT),
     top: CY - Math.max(poolEdge, cofEdge, INNER_OUT) - TOP_ROOM,
   };

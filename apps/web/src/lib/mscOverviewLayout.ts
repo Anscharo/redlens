@@ -25,10 +25,12 @@
 //   SKY'S PIE      = cost of funds + Sky Direct Exposure, subdivided by
 //                    Prime so "these flows add up to Sky" stays visible
 //
-// Positive items are the slices; the pie's AREA is their sum. A negative
-// item (a supply LOSS — Grove in 3 of 7 months) is a HOLE in the middle
-// whose area is the loss, so the visible ring area is exactly what the
-// party received. Two arrows run between each Prime and Sky, in
+// Positive items are the slices; their AREA is their sum. A negative
+// item (a supply LOSS) is a striped disc whose area is the loss, and the
+// visible part of the larger of the two is what the party received: a
+// loss smaller than the positives is a HOLE in the pie, leaving a ring of
+// what it received; a loss larger than them is a striped disc behind a
+// smaller pie, leaving a striped ring of what it lost. Two arrows run between each Prime and Sky, in
 // opposite lanes: what it owed Sky, and the demand-side Sky owed it.
 //
 // Placement: Primes go clockwise from 12 o'clock in the order given (the
@@ -130,11 +132,13 @@ const SIZE_EXP = 0.5;
  *  Jan 2026's $6.3k Grove, the only floored row in seven months — or the
  *  pile-up comes straight back. */
 const PIE_MIN_R = 6;
-/** A loss hole is never smaller than this (a hairline hole reads as a
- *  rendering glitch) nor closer than HOLE_RIM to the pie's edge. Both sit
- *  under PIE_MIN_R, or the floor pie would be all hole. */
-const HOLE_MIN_R = 4;
-const HOLE_RIM = 4;
+/** A loss is never drawn smaller than this, so it can still be seen and
+ *  hovered; small enough that a tiny loss is not inflated into a large
+ *  share of the pie. */
+const HOLE_MIN_R = 2;
+/** A hole always leaves at least this much ring, so the pie does not
+ *  vanish when the loss nearly equals the positives. */
+const HOLE_RIM = 1;
 /** Minimum clearance between two pies (including their names). */
 const CLEARANCE = 22;
 /** Minimum gap between a pie and the donut — room for the arrow. */
@@ -246,13 +250,17 @@ export interface RingSlice {
   figureY: number | null;
 }
 
-/** The loss hole: every negative line item, summed. */
+/** The loss: every negative line item, summed, as a striped disc. */
 export interface RingHole {
   /** Negative. */
   signed: number;
   /** Which items were negative (usually just supply kept). */
   kinds: SliceKind[];
   r: number;
+  /** True when the loss outruns the positives: the disc sits behind the
+   *  slices and is the pie's outer edge, so the striped ring left showing
+   *  is the net loss. False: a hole in the middle of the slices. */
+  outside: boolean;
   pillX: number;
   pillY: number;
 }
@@ -311,7 +319,7 @@ export interface RingPrime {
   r: number;
   /** Slices, clockwise, To-Sky pair first. */
   slices: RingSlice[];
-  /** Loss hole, or null when no item is negative. */
+  /** The loss disc, or null when no item is negative. */
   hole: RingHole | null;
   /** The To-Sky arrow, or null for a prime that pays Sky nothing. */
   arrow: RingArrow | null;
@@ -502,10 +510,10 @@ export function layoutMscRing(
 
   // Area ∝ dollars on one scale shared by the donut and the pies (see
   // SIZE_EXP), pinned so the month's biggest amount is R_MAX. A pie's
-  // outer area is its positive items; its hole's area is its loss; the
-  // visible ring is what it received.
+  // positive items and its loss each have their own area; the visible ring
+  // between them is what it received (or, striped, what it lost).
   const skyTotal = rows.reduce((n, r) => n + Math.abs(r.sky), 0);
-  const ref = Math.max(1, skyTotal, ...rows.map((r) => r.positives));
+  const ref = Math.max(1, skyTotal, ...rows.map((r) => Math.max(r.positives, r.loss)));
   const radiusFor = (v: number) => R_MAX * Math.pow(Math.max(0, v) / ref, SIZE_EXP);
   const skyR = Math.max(SKY_MIN_R, radiusFor(skyTotal));
   const skyInnerR = 0;
@@ -521,10 +529,15 @@ export function layoutMscRing(
   // moment SIZE_EXP is not 0.5.
   const shape = rows.map((r) => {
     const grow = r.alpha < 1 ? Math.pow(r.alpha, 0.5 - SIZE_EXP) : 1;
-    const r0 = Math.max(PIE_MIN_R * r.alpha, radiusFor(r.positives) * grow);
-    const holeR =
-      r.loss > 0 ? Math.max(0, Math.min(r0 - HOLE_RIM, Math.max(HOLE_MIN_R * r.alpha, radiusFor(r.loss) * grow))) : 0;
-    return { r: r0, holeR, spaceR: r0 + LABEL_OUT * r.alpha, clear: (CLEARANCE / 2) * r.alpha };
+    const outside = r.loss > r.positives;
+    const r0 = Math.max(PIE_MIN_R * r.alpha, radiusFor(Math.max(r.positives, r.loss)) * grow);
+    const lossR = r.loss > 0 ? Math.max(HOLE_MIN_R * r.alpha, radiusFor(r.loss) * grow) : 0;
+    // Slices run from sliceIn to sliceR: round a hole, or a whole pie in
+    // front of a larger loss disc.
+    const sliceR = outside ? Math.min(r0 - HOLE_RIM, radiusFor(r.positives) * grow) : r0;
+    const holeR = outside ? r0 : Math.min(r0 - HOLE_RIM, lossR);
+    const sliceIn = outside ? 0 : holeR;
+    return { r: r0, sliceR, sliceIn, holeR, outside, spaceR: r0 + LABEL_OUT * r.alpha, clear: (CLEARANCE / 2) * r.alpha };
   });
 
   // Sky's wedges in row order (the caller's PRIME_ORDER), rotated so the
@@ -681,19 +694,19 @@ export function layoutMscRing(
       const a1 = a + span;
       a = a1;
       const mid = (a0 + a1) / 2;
-      const midR = (s.r + s.holeR) / 2;
+      const midR = (s.sliceR + s.sliceIn) / 2;
       const amountX = px + midR * Math.cos(mid);
       const amountY = py + midR * Math.sin(mid);
       // A permanent "CoF $7.86M" only where its measured box fits inside
       // the slice; otherwise the hover pill carries it.
       const text = `${SLICE_CODE[it.kind]} ${formatUsd(it.signed, true)}`;
-      const fit = fitInSector(px, py, s.r, s.holeR, a0, a1, textWidth(text, FIGURE_FONT, FIGURE_CHAR_PX), FIGURE_H);
+      const fit = fitInSector(px, py, s.sliceR, s.sliceIn, a0, a1, textWidth(text, FIGURE_FONT, FIGURE_CHAR_PX), FIGURE_H);
       return {
         kind: it.kind,
         signed: it.signed,
         a0,
         a1,
-        path: annulusPath(px, py, s.r, s.holeR, a0, a1),
+        path: annulusPath(px, py, s.sliceR, s.sliceIn, a0, a1),
         amountX,
         amountY,
         pillX: px + (s.r + PILL_OFFSET) * Math.cos(mid),
@@ -709,6 +722,7 @@ export function layoutMscRing(
             signed: -r.loss,
             kinds: r.items.filter((it) => it.signed < 0).map((it) => it.kind),
             r: s.holeR,
+            outside: s.outside,
             // Off the pie on the side away from Sky.
             pillX: px + (s.r + PILL_OFFSET) * Math.cos(toward),
             pillY: py + (s.r + PILL_OFFSET) * Math.sin(toward),

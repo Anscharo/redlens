@@ -31,6 +31,12 @@ function Lane({ lane, ink }: { lane: LaneEnd | null; ink: string }) {
   );
 }
 
+function sdeTitle(v: VenueBand): string {
+  return v.value < 0
+    ? `${v.label}: ${formatUsd(v.value)} Sky Direct Exposure — a loss on Sky's own exposure, which lowers what reaches Sky`
+    : `${v.label}: ${formatUsd(v.value)} Sky Direct Exposure, straight to Sky`;
+}
+
 function cofTitle(v: VenueBand, revenue: number, prime: string): string {
   const kept = revenue - v.value;
   return `${v.label}: ${formatUsd(v.value)} cost of funds to Sky; ${prime} ${kept < 0 ? `covers ${formatUsd(-kept)} more than the venue earned` : `keeps ${formatUsd(kept)}`}`;
@@ -44,7 +50,7 @@ function OuterLane({ layout, prime, inks }: { layout: ArcLayout; prime: string; 
   const revenueOf = (venue: string) => layout.revenue.find((r) => r.venue === venue)?.value ?? 0;
   return (
     <g>
-      {layout.sde.map((v) => <Band key={v.key} b={v} ink={ink(v.venue)} venue={v.venue} kind="sde" title={`${v.label}: ${formatUsd(v.value)} Sky Direct Exposure, straight to Sky`} />)}
+      {layout.sde.map((v) => <Band key={v.key} b={v} ink={ink(v.venue)} venue={v.venue} kind="sde" title={sdeTitle(v)} />)}
       <Lane lane={lanes.sde} ink="var(--msc-sky)" />
       {layout.revenue.map((v) => <Band key={v.key} b={v} ink={ink(v.venue)} venue={v.venue} kind="revenue" title={`${v.label}: ${formatUsd(v.value)} revenue to ${prime}`} />)}
       <Lane lane={lanes.revenue} ink="var(--tan-3)" />

@@ -88,7 +88,7 @@ describe("MscOverview", () => {
     );
     expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
     expect(screen.getByText(/not the Protocol's Net Revenue/)).toBeInTheDocument();
-    expect(screen.getByText(/supply-side loss \(the hole\)/)).toBeInTheDocument();
+    expect(screen.getAllByText(/supply-side loss/).length).toBeGreaterThan(0);
     // No "kept · supply kept" — a row carries a code only when it adds one.
     expect(screen.getAllByText("supply-side kept").length).toBeGreaterThanOrEqual(1);
     // The pies are the only chart: no sankey, no style pills.
