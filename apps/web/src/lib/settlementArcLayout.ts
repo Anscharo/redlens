@@ -41,10 +41,11 @@ export const OUTER_END = OUTER0 + BAND;
 export const PRIME_HALF = 7;
 export const SKY_HALF = 4;
 /** Every arrowhead has the same tip angle: its length is this share of its
- *  lane's width, and its base is exactly the lane's width (no overhang). A
- *  hairline lane's head still gets HEAD_MIN so it is visible at all. */
+ *  base. The base is the lane's width, so a head lines up with its lane,
+ *  except that it is never narrower than HEAD_MIN_W: a thin lane's head
+ *  overhangs it evenly so it can still be seen. */
 const HEAD_RATIO = 0.6;
-const HEAD_MIN = 5;
+const HEAD_MIN_W = 9;
 /** Clear space between an arrow's tip and the node it reaches. */
 export const ARRIVE_GAP = 8;
 /** BAND's worth of dollars is never less than this, so a small month (a
@@ -105,12 +106,23 @@ export interface Span {
   r1: number;
 }
 
+/** A demand series' name, outside the lane at the bottom of the circle,
+ *  with a leader from its band to the text. */
+export interface DemandLabel {
+  key: string;
+  value: number;
+  x: number;
+  y: number;
+  leader: string;
+}
+
 export interface ArcLayout {
   sde: VenueBand[];
   revenue: VenueBand[];
   /** Each venue's cost of funds, from the Prime on to Sky. */
   cof: VenueBand[];
   demand: ArcBand[];
+  demandLabels: DemandLabel[];
   lanes: { sde: LaneEnd | null; revenue: LaneEnd | null; toSky: LaneEnd | null; demand: LaneEnd | null };
   prime: {
     /** One node across every band meeting the Prime: the demand side in,
@@ -153,9 +165,10 @@ function stack<T extends { value: number }>(rows: T[], r0: number, scale: number
 function laneEnd(r0: number, r1: number, from: number, edge: number): LaneEnd & { stop: number } {
   const r = (r0 + r1) / 2;
   const w = r1 - r0;
-  const len = Math.max(HEAD_MIN, w * HEAD_RATIO);
+  const base = Math.max(w, HEAD_MIN_W);
+  const len = base * HEAD_RATIO;
   const stop = edge - (ARRIVE_GAP + len) / r;
-  return { stop, w, head: arcArrowHead(CX, CY, r, w, stop, 1, len), flow: arcPath(CX, CY, r, from, stop) };
+  return { stop, w, head: arcArrowHead(CX, CY, r, w, stop, 1, len, (base - w) / 2), flow: arcPath(CX, CY, r, from, stop) };
 }
 
 /** Venue bands from staggered starts to `stop`; band i starts at slot i0+i. */
@@ -193,6 +206,7 @@ export function layoutSettlementArc(m: StreamModel): ArcLayout {
     revenue: venueBands(rev.out, ns, revenue?.stop ?? APEX),
     cof: toSky ? cof.out.map((b) => ({ ...b, key: `${b.key}::cof`, d: arcPath(CX, CY, b.r, primeEdge(b.r, 1), toSky.stop), labelAt: labelAt(b.r, b.w, APEX) })) : [],
     demand: d.out.map((b) => ({ key: b.key, value: b.value, r: b.r, w: b.w, loss: b.loss, d: arcPath(CX, CY, b.r, skyEdge(b.r, 1), demand!.stop) })),
+    demandLabels: d.out.map((b, i) => demandLabel(b, i)),
     lanes: { sde: sdeFlow, revenue, toSky, demand },
     prime: {
       span: nodeSpan(d.out.length ? d.edge : null, poolEdge > sde.edge ? sde.edge : null, poolEdge > sde.edge ? poolEdge : INNER_OUT),
@@ -200,6 +214,20 @@ export function layoutSettlementArc(m: StreamModel): ArcLayout {
     },
     sky: nodeSpan(d.out.length ? d.edge : null, cofEdge > OUTER0 ? OUTER0 : null, cofEdge > OUTER0 ? cofEdge : INNER_OUT),
   };
+}
+
+/** Demand series are named one by one round the bottom-left of the circle,
+ *  where nothing else is drawn: series i at DEMAND_LABEL0 + i·DEMAND_LABEL_STEP,
+ *  a leader running out from its band past the lane to the text. */
+const DEMAND_LABEL0 = 0.6 * Math.PI;
+const DEMAND_LABEL_STEP = 0.1 * Math.PI;
+function demandLabel(b: { key: string; value: number; r: number }, i: number): DemandLabel {
+  const a = DEMAND_LABEL0 + i * DEMAND_LABEL_STEP;
+  const at = (r: number) => ({ x: CX + r * Math.cos(a), y: CY + r * Math.sin(a) });
+  const from = at(b.r);
+  const to = at(INNER_OUT + 10);
+  const text = at(INNER_OUT + 14);
+  return { key: b.key, value: b.value, x: text.x, y: text.y, leader: `M${from.x.toFixed(1)},${from.y.toFixed(1)} L${to.x.toFixed(1)},${to.y.toFixed(1)}` };
 }
 
 /** A node from the demand lane's inner edge (or, with no demand, the outer

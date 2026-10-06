@@ -3216,6 +3216,11 @@ a.atlas-annotates:focus-visible {
 .msc-arc-band[data-kind="sde"] .msc-arc-body {
   stroke-opacity: 0.55;
 }
+/* A demand series' leader, from its band out to its name. */
+.msc-arc-leader {
+  fill: none;
+  stroke-width: 1;
+}
 /* Venue names sit beside their bands, on the page background. */
 .msc-arc-venue-label {
   fill: var(--tan-2);

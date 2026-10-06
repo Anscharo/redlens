@@ -6,7 +6,8 @@ import { layoutSettlementArc } from "../../lib/settlementArcLayout";
 import { AtlasLink } from "../AtlasLink";
 import { formatUsd } from "../../lib/settlements";
 import type { AtlasAmountDue } from "@/lib/settlementAtlasCheck";
-import { SettlementArcSvg, arcInk } from "./SettlementArcSvg";
+import { SettlementArcSvg } from "./SettlementArcSvg";
+import { arcInk } from "./arcInk";
 import { UNCITED } from "./SettlementArcLabels";
 import { SettlementVenueTable } from "./SettlementVenueTable";
 

@@ -124,6 +124,26 @@ describe("layoutSettlementArc", () => {
     expect(base(l.lanes.demand!.head!)).toBeCloseTo(l.lanes.demand!.w, 0);
   });
 
+  it("never draws an arrowhead narrower than 9px: a thin lane's head overhangs it evenly", () => {
+    const l = layoutSettlementArc(model([mv("A", 100, 60)], [{ key: "agentRate", label: "Agent rate", value: 0.5 * M }]));
+    const [a, , c] = l.lanes.demand!.head!.slice(1, -2).split(/ L/).map((p) => p.split(",").map(Number));
+    expect(l.lanes.demand!.w).toBeLessThan(9);
+    expect(Math.hypot(a[0] - c[0], a[1] - c[1])).toBeCloseTo(9, 0);
+  });
+
+  it("names each demand series round the bottom-left, outside the lane, with a leader from its band", () => {
+    const l = layoutSettlementArc(model([], [{ key: "agentRate", label: "Agent rate", value: 5 * M }, { key: "gar", label: "GAR", value: 3 * M }]));
+    expect(l.demandLabels.map((d) => d.key)).toEqual(["agentRate", "gar"]);
+    for (const d of l.demandLabels) {
+      expect(d.x).toBeLessThan(CX);
+      expect(d.y).toBeGreaterThan(CY);
+      expect(Math.hypot(d.x - CX, d.y - CY)).toBeGreaterThan(160);
+      expect(d.leader).toMatch(/^M[\d.]+,[\d.]+ L[\d.]+,[\d.]+$/);
+    }
+    // Each further round than the last, so they never stack on one another.
+    expect(l.demandLabels[1].y).toBeLessThan(l.demandLabels[0].y);
+  });
+
   it("starts each venue band further up the arch than the one inside it", () => {
     const l = layoutSettlementArc(model([mv("A", 1000, 900), mv("B", 1, 1), mv("C", 0, 0, 5)]));
     const [c, a, b] = [...l.sde, ...l.revenue].map((v) => arc(v.d).from);

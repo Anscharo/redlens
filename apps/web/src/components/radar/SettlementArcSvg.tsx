@@ -1,18 +1,10 @@
 import { formatUsd } from "../../lib/settlements";
 import type { StreamModel } from "@/lib/settlementStreams";
 import { HEIGHT, WIDTH, type ArcBand, type ArcLayout, type LaneEnd, type VenueBand } from "../../lib/settlementArcLayout";
-import { ArcNodeLabels, VenueLabels, labelsLeft } from "./SettlementArcLabels";
+import { arcInk } from "./arcInk";
+import { ArcNodeLabels, DemandLabels, VenueLabels, labelsLeft } from "./SettlementArcLabels";
 import { PrimeNode, SkyNode } from "./SettlementArcNodes";
 
-/** Demand bands and kept wear their series' colour. */
-const INK: Record<string, string> = {
-  kept: "var(--msc-kept)",
-  agentRate: "var(--msc-rate)",
-  distributionRewards: "var(--msc-dr)",
-  gar: "var(--msc-gar)",
-  chroniclePoints: "var(--msc-cp)",
-};
-export const arcInk = (key: string) => INK[key] ?? "var(--msc-demand)";
 const LOSS = "url(#msc-arc-loss)";
 
 /** One band: a hit area under it for its tooltip, then the band. A hairline
@@ -80,6 +72,7 @@ export function SettlementArcSvg({ layout, model, primeLabel, month, inks }: { l
         </pattern>
       </defs>
       {demand.map((b) => <Band key={b.key} b={b} ink={arcInk(b.key)} title={`${demandLabel(b.key)}: ${formatUsd(b.value)} from Sky to ${primeLabel}`} />)}
+      <DemandLabels labels={layout.demandLabels} name={demandLabel} />
       <Lane lane={layout.lanes.demand} ink={arcInk(demand[0]?.key ?? "")} />
       <OuterLane layout={layout} prime={primeLabel} inks={inks} />
       <PrimeNode node={layout.prime} model={model} primeLabel={primeLabel} />

@@ -4,18 +4,19 @@ import type { StreamModel } from "@/lib/settlementStreams";
 import { citationFor } from "@/lib/settlementCitations";
 import { ROUTES, atlasHref } from "@/lib/routes";
 import { textWidth } from "../../lib/textWidth";
-import { CX, CY, INNER_OUT, OUTER_END, type Span, type VenueBand } from "../../lib/settlementArcLayout";
+import { CX, CY, INNER_OUT, OUTER_END, type DemandLabel, type Span, type VenueBand } from "../../lib/settlementArcLayout";
 import { SvgRouteLink } from "./SvgRouteLink";
+import { arcInk } from "./arcInk";
 
 export const UNCITED = "A workbook figure: the Atlas defines no term for it";
 const VENUE_FONT = "11px 'Inter', system-ui, sans-serif";
 
 /** A figure's text, linked to the Atlas document that defines it — or
  *  muted and unlinked when the Atlas defines no term for it. */
-export function Cited({ figure, x, y, children, className = "" }: { figure: string; x: number; y: number; children: ReactNode; className?: string }) {
+export function Cited({ figure, x, y, children, className = "", anchor }: { figure: string; x: number; y: number; children: ReactNode; className?: string; anchor?: "end" }) {
   const c = citationFor(figure);
   const text = (
-    <text x={x} y={y} className={`${c ? "msc-arc-cited" : "msc-arc-uncited"} ${className}`}>
+    <text x={x} y={y} textAnchor={anchor} className={`${c ? "msc-arc-cited" : "msc-arc-uncited"} ${className}`}>
       <title>{c ? `${c.term} — open in the Atlas` : UNCITED}</title>
       {children}
     </text>
@@ -42,6 +43,22 @@ export function VenueLabels({ venues }: { venues: VenueBand[] }) {
           <title>{v.key.endsWith("::sde") ? `${v.label}: Sky Direct Exposure` : v.label}</title>
           {venueText(v)}
         </text>
+      ))}
+    </g>
+  );
+}
+
+/** Each demand series named beside its band at the bottom-left of the
+ *  circle, a leader in the series' colour running out to it. Cited series
+ *  link to their Atlas definition. */
+export function DemandLabels({ labels, name }: { labels: DemandLabel[]; name: (key: string) => string }) {
+  return (
+    <g className="mono" fontSize={10}>
+      {labels.map((l) => (
+        <g key={l.key}>
+          <path d={l.leader} className="msc-arc-leader" stroke={arcInk(l.key)} />
+          <Cited figure={l.key} x={l.x} y={l.y} anchor="end" className="msc-arc-demand-label">{`${name(l.key)} ${formatUsd(l.value, true)}`}</Cited>
+        </g>
       ))}
     </g>
   );
