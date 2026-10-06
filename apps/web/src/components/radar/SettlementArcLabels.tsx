@@ -72,9 +72,9 @@ const FROM_SKY_DROP = 28;
 
 /** Node names and lane totals: "to Sky" beside the arrow arriving at Sky,
  *  "from Sky" inside the circle beside the demand lane leaving it, SKY
- *  right of its node in the Prime name's size; the Prime over the apex
- *  with what it keeps (a workbook figure, muted). */
-export function ArcNodeLabels({ model, primeLabel, month, sky: span }: { model: StreamModel; primeLabel: string; month?: string; sky: Span | null }) {
+ *  right of its node in the Prime name's size; the Prime just over its
+ *  node with what it keeps (a workbook figure, muted). */
+export function ArcNodeLabels({ model, primeLabel, month, sky: span, outerEdge }: { model: StreamModel; primeLabel: string; month?: string; sky: Span | null; outerEdge: number }) {
   const r1 = span?.r1 ?? OUTER_END;
   const r0 = span?.r0 ?? INNER_OUT;
   // x of a circle of radius r at height dy from the centre line.
@@ -86,8 +86,8 @@ export function ArcNodeLabels({ model, primeLabel, month, sky: span }: { model: 
       {month ? <SvgRouteLink to={`${ROUTES.RADAR}?msc=${month}`} className="msc-arc-link" label="Open this month in the ecosystem Monthly Settlement Cycle overview">{sky}</SvgRouteLink> : sky}
       <Cited figure="toSky" x={atRise(r1, TO_SKY_RISE) + 10} y={CY - TO_SKY_RISE}>{`to Sky ${formatUsd(model.toSky, true)}`}</Cited>
       <Cited figure="fromSky" x={atRise(r0, FROM_SKY_DROP) - 8} y={CY + FROM_SKY_DROP} anchor="end">{`from Sky ${formatUsd(model.demandTotal, true)}`}</Cited>
-      <text x={CX} y={CY - OUTER_END - 40} textAnchor="middle" fontSize={12} className="msc-arc-node-name">{primeLabel}</text>
-      <text x={CX} y={CY - OUTER_END - 20} textAnchor="middle" className={`msc-arc-uncited${keptLoss ? " msc-arc-loss" : ""}`}>
+      <text x={CX} y={CY - outerEdge - 32} textAnchor="middle" fontSize={12} className="msc-arc-node-name">{primeLabel}</text>
+      <text x={CX} y={CY - outerEdge - 14} textAnchor="middle" className={`msc-arc-uncited${keptLoss ? " msc-arc-loss" : ""}`}>
         <title>{`${keptLoss ? "Supply-side loss" : "Supply-side kept"}. ${UNCITED}.`}</title>
         {`${keptLoss ? "loss" : "keeps"} ${formatUsd(model.kept, true)}`}
       </text>

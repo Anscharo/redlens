@@ -73,7 +73,10 @@ const SKY_GUTTER = 120;
 export const CX = LABEL_GUTTER + OUTER_END + 12;
 export const CY = OUTER_END + 64;
 export const WIDTH = CX + OUTER_END + SKY_GUTTER;
-export const HEIGHT = CY + INNER_OUT + 16;
+/** Bottom of the figure: the demand lane plus its series names below it. */
+export const HEIGHT = CY + INNER_OUT + 32;
+/** Room above the outermost band for the Prime's name and kept figure. */
+const TOP_ROOM = 52;
 
 export interface ArcBand {
   key: string;
@@ -135,6 +138,12 @@ export interface ArcLayout {
   /** One node across every band meeting Sky: the demand side out, and
    *  SDE plus cost of funds in. */
   sky: Span | null;
+  /** The outermost radius drawn above the centre line (the outer lane's
+   *  edge, or the demand lane's when there is no outer lane). The figure is
+   *  cropped to it, so a small month is not drawn under empty space. */
+  outerEdge: number;
+  /** The figure's top y. */
+  top: number;
 }
 
 const width = (v: number, scale: number, min = MIN_W) => Math.max(min, Math.abs(v) * scale);
@@ -213,6 +222,8 @@ export function layoutSettlementArc(m: StreamModel): ArcLayout {
       kept: rev.edge > cofEdge ? keptSpan(cofEdge, rev.edge, false) : keptSpan(rev.edge, cofEdge, true),
     },
     sky: nodeSpan(d.out.length ? d.edge : null, cofEdge > OUTER0 ? OUTER0 : null, cofEdge > OUTER0 ? cofEdge : INNER_OUT),
+    outerEdge: Math.max(poolEdge, cofEdge, INNER_OUT),
+    top: CY - Math.max(poolEdge, cofEdge, INNER_OUT) - TOP_ROOM,
   };
 }
 

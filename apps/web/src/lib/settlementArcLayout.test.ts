@@ -144,6 +144,14 @@ describe("layoutSettlementArc", () => {
     expect(l.demandLabels[1].y).toBeLessThan(l.demandLabels[0].y);
   });
 
+  it("crops the figure to what is drawn, so a small month has no empty band above it", () => {
+    const small = layoutSettlementArc(model([venue("A", 70_000, 77_000)], [{ key: "agentRate", label: "Agent rate", value: 31_000 }]));
+    const big = layoutSettlementArc(model([mv("A", 100, 60)]));
+    expect(small.outerEdge).toBeLessThan(OUTER0 + 10);
+    expect(big.outerEdge).toBeCloseTo(OUTER0 + BAND);
+    expect(small.top).toBeGreaterThan(big.top + BAND - 10);
+  });
+
   it("starts each venue band further up the arch than the one inside it", () => {
     const l = layoutSettlementArc(model([mv("A", 1000, 900), mv("B", 1, 1), mv("C", 0, 0, 5)]));
     const [c, a, b] = [...l.sde, ...l.revenue].map((v) => arc(v.d).from);

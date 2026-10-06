@@ -61,7 +61,7 @@ export function SettlementArcSvg({ layout, model, primeLabel, month, inks }: { l
   const left = labelsLeft([...layout.revenue, ...layout.sde]);
   const demandLabel = (key: string) => model.demand.find((d) => d.key === key)?.label ?? key;
   return (
-    <svg className="msc-arc" viewBox={`${left} 0 ${WIDTH - left} ${HEIGHT}`} style={{ width: WIDTH - left }} role="img" aria-labelledby="msc-arc-title msc-arc-desc">
+    <svg className="msc-arc" viewBox={`${left} ${layout.top} ${WIDTH - left} ${HEIGHT - layout.top}`} style={{ width: WIDTH - left }} role="img" aria-labelledby="msc-arc-title msc-arc-desc">
       <title id="msc-arc-title">{`${primeLabel}'s settlement arc`}</title>
       <desc id="msc-arc-desc">
         {`Clockwise round one circle. On the top half, venue revenue of ${formatUsd(model.revenue)} pools at ${primeLabel}, which pays Sky ${formatUsd(model.cof)} cost of funds and keeps ${formatUsd(model.kept)}; ${formatUsd(model.sde)} of Sky Direct Exposure goes past ${primeLabel} straight to Sky, ${formatUsd(model.toSky)} to Sky in all. On the inner lane, from Sky round the bottom up to ${primeLabel}, Sky owes ${primeLabel} ${formatUsd(model.demandTotal)} on the demand side. The two amounts are never netted.`}
@@ -78,7 +78,7 @@ export function SettlementArcSvg({ layout, model, primeLabel, month, inks }: { l
       <PrimeNode node={layout.prime} model={model} primeLabel={primeLabel} />
       <SkyNode node={layout.sky} model={model} primeLabel={primeLabel} />
       <VenueLabels venues={[...layout.revenue, ...layout.sde]} />
-      <ArcNodeLabels model={model} primeLabel={primeLabel} month={month} sky={layout.sky} />
+      <ArcNodeLabels model={model} primeLabel={primeLabel} month={month} sky={layout.sky} outerEdge={layout.outerEdge} />
     </svg>
   );
 }
