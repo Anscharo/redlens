@@ -54,7 +54,9 @@ export function pillText(kind: string, signed: number, primeLabel: string, share
       ? `${amount} to Sky — ${formatShare(share)} of what flowed through ${primeLabel}`
       : `${amount} to Sky`;
   }
-  if (kind === "share") return `${amount} to Sky from ${primeLabel}`;
+  // Cost of funds and SDE pass through the Prime from its venues; it is not
+  // their source.
+  if (kind === "share") return `${amount} to Sky via ${primeLabel}`;
   if (kind === "gross") return `${amount} through ${primeLabel}: To Sky + supply-side kept + demand-side`;
   // The orbit's pies are what each party RECEIVED, so its totals say so.
   if (kind === "received") return `${amount} received by ${primeLabel} — supply-side kept + demand-side`;

@@ -182,6 +182,8 @@ describe("MscRing", () => {
       "cof",
       "sde",
     ]);
+    // The wedge's pill says the money came via the Prime, not from it.
+    expect(screen.getByText("$10.00M to Sky via Spark")).toBeInTheDocument();
   });
 
   it("draws a supply loss as a striped hole in the pie's middle", () => {
