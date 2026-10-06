@@ -28,6 +28,10 @@ function comparison(name: string, baseline: Baseline, diff: IdDiff | null): stri
   return `You have made changes since opening “${name}” · ${n.toLocaleString()} ${n === 1 ? "doc overlaps" : "docs overlap"}`;
 }
 
+// One line each, sharing the row; a long collection name is cut with an ellipsis
+// (the full label is the tooltip) rather than wrapping the row taller.
+const rowBtn = { flex: "1 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } as const;
+
 // Update / Save as new / Save as new minus the opened collection's docs.
 // Hovering or focusing a button previews what it would save in the doc list.
 // Leaving does not undo it, so the list can be scrolled; the previewed button
@@ -41,6 +45,9 @@ export function SaveChoiceView({ collectionName, baseline, diff, pending, over, 
     "data-previewing": previewing === option ? "true" : undefined,
   });
   const ring = (option: SaveOption) => (previewing === option ? { outline: "2px solid var(--accent)", outlineOffset: 2 } : undefined);
+  const updateLabel = `Update “${collectionName}”`;
+  const newLabel = "Save as new collection";
+  const withoutLabel = `Save as new, minus “${collectionName}”`;
   const withoutTitle = !diff
     ? "Available once the saved collection has loaded"
     : without === 0
@@ -51,28 +58,38 @@ export function SaveChoiceView({ collectionName, baseline, diff, pending, over, 
       <p className="mono" style={{ fontSize: 11, color: "var(--tan-2)", margin: 0 }}>
         {comparison(collectionName, baseline, diff)}
       </p>
-      <button
-        {...preview("update")}
-        onClick={onUpdate}
-        disabled={pending || over}
-        className="mono"
-        style={{ ...primaryBtn, ...ring("update"), opacity: pending || over ? 0.6 : 1, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-      >
-        {pending ? "saving…" : `Update “${collectionName}”`}
-      </button>
-      <button {...preview("new")} onClick={() => onSaveNew("new")} disabled={pending} className="mono" style={{ ...ghostBtn, ...ring("new") }}>
-        Save as new collection
-      </button>
-      <button
-        {...preview("without")}
-        onClick={() => onSaveNew("without")}
-        disabled={pending || withoutBlocked}
-        title={withoutTitle}
-        className="mono"
-        style={{ ...ghostBtn, ...ring("without"), textAlign: "left", opacity: withoutBlocked ? 0.6 : 1 }}
-      >
-        Save as new, minus “{collectionName}”
-      </button>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          {...preview("update")}
+          onClick={onUpdate}
+          disabled={pending || over}
+          title={updateLabel}
+          className="mono"
+          style={{ ...primaryBtn, ...rowBtn, ...ring("update"), opacity: pending || over ? 0.6 : 1 }}
+        >
+          {pending ? "saving…" : updateLabel}
+        </button>
+        <button
+          {...preview("new")}
+          onClick={() => onSaveNew("new")}
+          disabled={pending}
+          title={newLabel}
+          className="mono"
+          style={{ ...ghostBtn, ...rowBtn, ...ring("new") }}
+        >
+          {newLabel}
+        </button>
+        <button
+          {...preview("without")}
+          onClick={() => onSaveNew("without")}
+          disabled={pending || withoutBlocked}
+          title={withoutTitle ?? withoutLabel}
+          className="mono"
+          style={{ ...ghostBtn, ...rowBtn, ...ring("without"), opacity: withoutBlocked ? 0.6 : 1 }}
+        >
+          {withoutLabel}
+        </button>
+      </div>
     </>
   );
 }

@@ -134,7 +134,7 @@ function SaveBody({ ids, onClose }: SaveCollectionModalProps) {
 export function SaveCollectionModal({ ids, onClose }: SaveCollectionModalProps) {
   const { user } = useAuth();
   return (
-    <Modal label="Save as collection" onClose={onClose} width={user ? 460 : undefined}>
+    <Modal label="Save as collection" onClose={onClose} width={user ? 560 : undefined}>
       {user ? (
         <SaveBody ids={ids} onClose={onClose} />
       ) : (

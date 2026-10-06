@@ -328,6 +328,18 @@ describe("SaveCollectionModal — previewing each option", () => {
     }
   });
 
+  it("lays the three buttons out in one row, not a column", async () => {
+    await ready();
+    const update = screen.getByText("Update “Existing”");
+    const row = update.parentElement as HTMLElement;
+    expect(row).toBe(screen.getByText("Save as new collection").parentElement);
+    expect(row).toBe(screen.getByRole("button", { name: /Save as new, minus/ }).parentElement);
+    expect(row).toHaveStyle({ display: "flex" });
+    expect(row.style.flexDirection).not.toBe("column");
+    // One line each: a long name is cut, never wrapped onto a second line.
+    expect(update).toHaveStyle({ whiteSpace: "nowrap" });
+  });
+
   it("opens previewing Update, then rings whichever button was last hovered", async () => {
     await ready();
     const update = screen.getByText("Update “Existing”");
