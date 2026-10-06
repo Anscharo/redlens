@@ -3210,16 +3210,9 @@ a.atlas-annotates:focus-visible {
 .msc-arc-flow {
   pointer-events: none;
 }
-/* Venue bands take any of the AUM view's colours, so names carry a halo
-   of the background to stay legible on light and dark bands alike. */
-.msc-arc-venue-label text {
-  fill: var(--tan);
-  paint-order: stroke;
-  stroke: var(--bg-deep);
-  stroke-width: 2.5px;
-  stroke-linejoin: round;
-  font-weight: 500;
-  pointer-events: none;
+/* Venue names sit beside their bands, on the page background. */
+.msc-arc-venue-label {
+  fill: var(--tan-2);
 }
 /* The Prime bar is an outline, so the venue bands crossing it stay
    visible: they pass through the Prime without stopping. */
@@ -3254,6 +3247,25 @@ a.atlas-annotates:focus-visible {
   }
 }
 /* ─── MSC ecosystem timeseries (radar index overview) ─── */
+/* Sky Net Revenue over the To-Sky columns: an overlay that lets clicks
+   through to the columns except on its dots, which carry the tooltip. */
+.msc-ts-netrev {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.msc-ts-netrev-line {
+  stroke: var(--tan);
+  stroke-width: 2;
+}
+.msc-ts-netrev-dot {
+  fill: var(--tan);
+  stroke: var(--bg);
+  stroke-width: 2;
+  pointer-events: all;
+}
 /* Chart card — same look as the primitive-stats AgentPanel cards. */
 .msc-card {
   border: 1px solid var(--border);

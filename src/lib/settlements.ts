@@ -7,6 +7,8 @@
 // Σ per-venue profitToGrove), and cost of funds is a component of what goes
 // to Sky, not a fourth flow.
 
+import type { SkyTotalMonth } from "./skyNetRevenue";
+
 export interface SettlementVenue {
   id: string;
   label: string;
@@ -49,6 +51,8 @@ export interface SettlementReport {
 export interface SettlementsBundle {
   source: { repo?: string; fetched?: string; dir?: string };
   reports: SettlementReport[];
+  /** Soter Labs' consolidated monthly reports (skyNetRevenue.ts). */
+  skyTotal?: SkyTotalMonth[];
 }
 
 export const EMPTY_SETTLEMENTS: SettlementsBundle = { source: {}, reports: [] };

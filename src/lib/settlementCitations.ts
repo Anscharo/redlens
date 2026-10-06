@@ -25,6 +25,8 @@ export const SETTLEMENT_CITATIONS = {
   agentRate: { uuid: "012c953b-c522-4ea3-939b-3282af4e1d7e", term: "Agent Rate" },
   // A.2.2.9.1
   distributionRewards: { uuid: "e632c38f-3e4e-4c7e-acfd-b6ec45a422e6", term: "Distribution Reward Primitive" },
+  // A.2.3.1.2.1.1
+  netRevenue: { uuid: "bddce7bf-c568-444b-b196-e15a99016696", term: "Net Revenue" },
   // A.2.8.2.10.2.1.1
   chroniclePoints: { uuid: "a7ccb2d1-970e-4b91-a430-4173ade00396", term: "Chronicle Point Reward Instance" },
 } as const satisfies Record<string, SettlementCitation>;

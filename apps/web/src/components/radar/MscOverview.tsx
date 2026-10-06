@@ -29,6 +29,7 @@ import { MscOverviewSkeleton, OverviewIntro } from "./MscOverviewSkeleton";
 import { useMonthAutoplay } from "../../hooks/useMonthAutoplay";
 import { useTweened } from "../../hooks/useTweened";
 import { tweenPrimeFlows } from "../../lib/mscTween";
+import { netRevenueByMonth } from "@/lib/skyNetRevenue";
 
 const mscCodec = urlString(null);
 /** The cross-Prime Monthly Settlement Cycle section. Suspends on the
@@ -118,6 +119,7 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
             primes={stack.primes}
             months={stack.months}
             primeLabel={labelOf}
+            netRevenue={netRevenueByMonth(bundle?.skyTotal)}
             selected={month}
             onSelect={(m) => {
               play.pause();

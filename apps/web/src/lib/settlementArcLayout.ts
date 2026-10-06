@@ -50,9 +50,12 @@ const RIGHT = 2 * Math.PI;
  *  Atlas term) last. */
 const INNER_ORDER = ["agentRate", "distributionRewards", "chroniclePoints", "gar"];
 
-export const CX = OUTER_END + HEAD_FLARE + 12;
+/** Room left of the arch for the venue names, which sit beside each band's
+ *  start. */
+const LABEL_GUTTER = 170;
+export const CX = LABEL_GUTTER + OUTER_END + HEAD_FLARE + 12;
 export const CY = OUTER_END + 52;
-export const WIDTH = CX * 2;
+export const WIDTH = CX + OUTER_END + HEAD_FLARE + 12;
 export const HEIGHT = CY + 68;
 
 export interface ArcBand {
@@ -68,8 +71,9 @@ export interface ArcBand {
 
 export interface VenueBand extends ArcBand {
   label: string;
-  /** The band's centreline from the Venues foot to the Prime, for its name. */
-  labelD: string;
+  /** Where the venue's name ends: just left of where its band starts,
+   *  level with it. */
+  labelAt: { x: number; y: number };
   cof: number;
   sde: number;
 }
@@ -92,6 +96,9 @@ export interface ArcLayout {
 }
 
 const width = (v: number, scale: number, min = MIN_W) => Math.max(min, Math.abs(v) * scale);
+/** A name's anchor beside a band of radius r and width w starting at angle
+ *  a: level with the start, clear of the band's outer corner. */
+const labelAt = (r: number, w: number, a: number) => ({ x: CX + (r + w / 2) * Math.cos(a) - 8, y: CY + r * Math.sin(a) });
 /** The angle at which radius r meets the Prime bar's side. */
 const primeEdge = (r: number, side: 1 | -1) => APEX + (side * PRIME_HALF) / r;
 
@@ -149,7 +156,7 @@ export function layoutSettlementArc(m: StreamModel): ArcLayout {
   const inner = d.out.length ? laneEnd(d.edge, INNER_OUT, RIGHT, primeEdge((d.edge + INNER_OUT) / 2, 1), -1) : null;
   return {
     kept,
-    venues: v.out.map((b, i) => ({ ...b, d: arcPath(CX, CY, b.r, start(i), outer!.stop), labelD: arcPath(CX, CY, b.r, start(i), primeEdge(b.r, -1) - 4 / b.r) })),
+    venues: v.out.map((b, i) => ({ ...b, d: arcPath(CX, CY, b.r, start(i), outer!.stop), labelAt: labelAt(b.r, b.w, start(i)) })),
     demand: d.out.map((b) => ({ key: b.key, value: b.value, r: b.r, w: b.w, loss: b.loss, d: arcPath(CX, CY, b.r, RIGHT, inner!.stop) })),
     outer,
     inner,

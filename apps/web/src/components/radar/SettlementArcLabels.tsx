@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { formatUsd } from "../../lib/settlements";
 import type { StreamModel } from "@/lib/settlementStreams";
 import { citationFor } from "@/lib/settlementCitations";
@@ -8,9 +8,7 @@ import { CX, CY, INNER0, OUTER_END, PRIME_HALF, type ArcLayout, type VenueBand }
 import { SvgRouteLink } from "./SvgRouteLink";
 
 export const UNCITED = "A workbook figure: the Atlas defines no term for it";
-const VENUE_FONT = "9px 'Inter', system-ui, sans-serif";
-/** A venue group narrower than this carries no name; its tooltip still does. */
-const LABEL_MIN_W = 10;
+const VENUE_FONT = "11px 'Inter', system-ui, sans-serif";
 
 /** A figure's text, linked to the Atlas document that defines it — or
  *  muted and unlinked when the Atlas defines no term for it. */
@@ -27,9 +25,9 @@ export function Cited({ figure, x, y, children, className = "" }: { figure: stri
 
 /** The name, cut to fit an arc of length `room`. */
 function fit(label: string, room: number): string {
-  if (textWidth(label, VENUE_FONT, 5.2) <= room) return label;
+  if (textWidth(label, VENUE_FONT, 6.2) <= room) return label;
   let s = label;
-  while (s.length > 1 && textWidth(`${s}…`, VENUE_FONT, 5.2) > room) s = s.slice(0, -1);
+  while (s.length > 1 && textWidth(`${s}…`, VENUE_FONT, 6.2) > room) s = s.slice(0, -1);
   return `${s}…`;
 }
 
@@ -45,18 +43,16 @@ export function PrimeBar({ span, model, primeLabel }: { span: ArcLayout["prime"]
   );
 }
 
-/** Each venue's name written along its band, from the Venues foot up. */
+/** Each venue's name beside where its band starts, right-aligned to it, so
+ *  the staggered starts read as a list of sources. */
 export function VenueLabels({ venues }: { venues: VenueBand[] }) {
-  const id = useId();
   return (
-    <g className="msc-arc-venue-labels" fontSize={9}>
-      {venues.filter((v) => v.w >= LABEL_MIN_W).map((v, i) => (
-        <g key={v.key} className="msc-arc-venue-label" data-venue={v.key}>
-          <path id={`${id}-${i}`} d={v.labelD} fill="none" />
-          <text dominantBaseline="central">
-            <textPath href={`#${id}-${i}`} startOffset={6}>{fit(v.label, (v.r * Math.PI) / 2 - 18)}</textPath>
-          </text>
-        </g>
+    <g className="msc-arc-venue-labels" fontSize={11}>
+      {venues.map((v) => (
+        <text key={v.key} x={v.labelAt.x} y={v.labelAt.y} textAnchor="end" dominantBaseline="central" className="msc-arc-venue-label" data-venue={v.key}>
+          <title>{v.label}</title>
+          {fit(v.label, v.labelAt.x - 4)}
+        </text>
       ))}
     </g>
   );

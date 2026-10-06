@@ -166,4 +166,17 @@ describe("MscTimeseries", () => {
     expect(primeFill(5)).toBe("var(--msc-prime-6)");
     expect(primeFill(6)).toBe("var(--gray)");
   });
+  it("draws Sky Net Revenue as a line, broken where a month has no figure, with a cited legend entry", () => {
+    const netRevenue = new Map([["2026-07", 3_000_000], ["2026-08", 2_500_000]]);
+    render(<MscTimeseries primes={PRIMES} months={MONTHS} primeLabel={label} selected="2026-07" onSelect={vi.fn()} netRevenue={netRevenue} />);
+    expect(document.querySelectorAll(".msc-ts-netrev-dot")).toHaveLength(2);
+    expect(document.querySelectorAll(".msc-ts-netrev-line")).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Sky Net Revenue" })).toHaveAttribute("href", expect.stringContaining("bddce7bf-c568-444b-b196-e15a99016696"));
+  });
+
+  it("draws no line or legend entry without Net Revenue figures", () => {
+    renderChart();
+    expect(document.querySelector(".msc-ts-netrev")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Sky Net Revenue" })).toBeNull();
+  });
 });
