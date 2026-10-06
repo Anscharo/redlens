@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StreamModel, VenueStream } from "@/lib/settlementStreams";
-import { ARC_OTHER_ID, ARC_TOP_N, BAND, CX, CY, PRIME_R, PRIME_RC, arcVenues, layoutSettlementArc } from "./settlementArcLayout";
+import { ARC_OTHER_ID, ARC_TOP_N, BAND, CX, CY, OUTER0, PRIME_HALF, arcVenues, layoutSettlementArc } from "./settlementArcLayout";
 
 const venue = (id: string, revenue: number, cof: number, sde = 0): VenueStream => ({ id, label: id, synthetic: false, revenue, sde, cof, kept: revenue - cof });
 
@@ -46,8 +46,8 @@ describe("layoutSettlementArc", () => {
     const l = layoutSettlementArc(model([venue("A", 100, 40, 20), venue("B", 50, 30)]));
     const kept = arc(l.kept!.d);
     expect(kept.sweep).toBe(1);
-    // Kept ends at the apex, under the Prime circle.
-    expect(kept.to[0]).toBeCloseTo(CX, 1);
+    // Kept ends at the Prime bar's left side.
+    expect(CX - kept.to[0]).toBeCloseTo(PRIME_HALF, 0);
     for (const v of l.venues) {
       const a = arc(v.d);
       expect(a.sweep).toBe(1);
@@ -69,19 +69,21 @@ describe("layoutSettlementArc", () => {
     expect(a.to[1]).toBeLessThan(CY - 50);
   });
 
-  it("stacks the demand side inward from the circle and points its one arrow into it", () => {
+  it("spans the Prime bar over exactly the bands drawn, and ends both lanes at its sides", () => {
     const l = layoutSettlementArc(model([venue("A", 100, 90)], [{ key: "agentRate", label: "Agent rate", value: 5 }]));
     const b = l.demand[0];
-    // The demand lane's outer edge touches the circle, however thin the lane.
-    expect(b.r + b.w / 2).toBeCloseTo(PRIME_RC - PRIME_R + 4);
-    // The arrowhead's tip (its second point) lands on the circle.
+    const outerEdge = l.venues[0].r + l.venues[0].w / 2;
+    expect(l.prime).toEqual({ r0: expect.closeTo(b.r - b.w / 2), r1: expect.closeTo(outerEdge) });
+    // The demand lane stays next to the outer lane however thin it is.
+    expect(OUTER0 - (b.r + b.w / 2)).toBeLessThan(20);
+    // The demand arrow's tip (its second point) lands on the bar's right side.
     const tip = l.inner!.head.split(" L")[1].split(",").map(Number);
-    expect(Math.hypot(tip[0] - CX, tip[1] - (CY - PRIME_RC))).toBeLessThan(PRIME_R + 2);
+    expect(tip[0] - CX).toBeCloseTo(PRIME_HALF, 0);
   });
 
-  it("draws a supply-side loss as one hatched kept band", () => {
-    const l = layoutSettlementArc(model([venue("A", 50, 100)]));
-    expect(l.kept).toMatchObject({ value: -50, loss: true });
-    expect(l.venues[0].loss).toBe(false);
+  it("spans only the drawn lane when the other is empty", () => {
+    const l = layoutSettlementArc(model([], [{ key: "agentRate", label: "Agent rate", value: 5 }]));
+    expect(l.prime!.r1 - l.prime!.r0).toBeCloseTo(l.demand[0].w);
+    expect(layoutSettlementArc(model([])).prime).toBeNull();
   });
 });

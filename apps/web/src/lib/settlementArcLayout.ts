@@ -2,15 +2,16 @@
 // Venues at the left foot (angle π), the Prime at the apex (3π/2), Sky at
 // the right foot (2π). Angles grow clockwise on screen.
 //
-// The Prime is a circle at the apex, between the two lanes. The OUTER lane
-// runs clockwise. Innermost is what the Prime keeps, one band that ends at
-// the circle. Outside it, one band per venue carries that
-// venue's cost of funds + Sky Direct Exposure through the Prime without
-// stopping, on to Sky — together the amount due from the Prime to Sky
-// (A.2.4.1.2.2.1.1.2). The INNER lane runs counterclockwise, Sky → Prime,
-// into the circle: the demand side (A.2.4.1.2.2.1.1.1). It stacks inward
-// from the circle, so however thin it is it still reaches the Prime. The lanes are never netted, so each
-// is drawn whole, with one arrowhead and one dash overlay per lane.
+// The Prime is an outlined bar across the apex, spanning exactly the bands
+// drawn that month. The OUTER lane runs clockwise. Innermost is what the
+// Prime keeps, one band that ends at the bar. Outside it, one band per venue
+// carries that venue's cost of funds + Sky Direct Exposure through the bar
+// without stopping, on to Sky — together the amount due from the Prime to
+// Sky (A.2.4.1.2.2.1.1.2). The INNER lane runs counterclockwise, Sky →
+// Prime, into the bar: the demand side (A.2.4.1.2.2.1.1.1). It stacks
+// inward from the gap between the lanes, so the two lanes stay close
+// however thin the demand side is. The lanes are never netted, so each is
+// drawn whole, with one arrowhead and one dash overlay per lane.
 //
 // One width scale for both lanes: the larger lane fills BAND. The radii are
 // fixed, so a month change only re-widths bands — the arch never moves.
@@ -21,10 +22,10 @@ export const BAND = 72;
 /** The demand lane's outer edge; its bands stack inward from here. */
 const INNER_OUT = 160;
 export const INNER0 = INNER_OUT - BAND;
-export const PRIME_R = 20;
-/** The Prime circle's centre radius: it overlaps each lane by 4px. */
-export const PRIME_RC = INNER_OUT + PRIME_R - 4;
-export const OUTER0 = PRIME_RC + PRIME_R - 4;
+const LANE_GAP = 16;
+export const OUTER0 = INNER_OUT + LANE_GAP;
+/** Half the Prime bar's width. */
+export const PRIME_HALF = 5;
 export const OUTER_END = OUTER0 + BAND;
 const HEAD_LEN = 14;
 export const HEAD_FLARE = 4;
@@ -79,17 +80,13 @@ export interface ArcLayout {
   demand: ArcBand[];
   outer: LaneEnd | null;
   inner: LaneEnd | null;
+  /** The Prime bar's radial span: the bands actually drawn, inside out. */
+  prime: { r0: number; r1: number } | null;
 }
 
 const width = (v: number, scale: number) => Math.max(MIN_W, Math.abs(v) * scale);
-/** The angle at which a demand arrow travelling at radius r touches the
- *  circle (law of cosines, aiming just inside its edge). A lane too thick
- *  for its middle to reach the circle stops just right of the apex. */
-function innerTip(r: number): number {
-  const reach = PRIME_R * 0.9;
-  const cos = (r * r + PRIME_RC * PRIME_RC - reach * reach) / (2 * r * PRIME_RC);
-  return APEX + (cos <= 1 ? Math.acos(cos) : (PRIME_R * 0.5) / r);
-}
+/** The angle at which radius r meets the Prime bar's side. */
+const primeEdge = (r: number, side: 1 | -1) => APEX + (side * PRIME_HALF) / r;
 
 type VenueFlow = { key: string; label: string; cof: number; sde: number; value: number };
 
@@ -137,16 +134,24 @@ export function layoutSettlementArc(m: StreamModel): ArcLayout {
   const scale = max > 0 ? BAND / max : 0;
 
   const keptStack = stack(keptV ? [{ key: "kept", value: keptV }] : [], OUTER0, scale);
-  const kept = keptStack.out[0] ? { ...keptStack.out[0], d: arcPath(CX, CY, keptStack.out[0].r, LEFT, APEX) } : null;
+  const kept = keptStack.out[0] ? { ...keptStack.out[0], d: arcPath(CX, CY, keptStack.out[0].r, LEFT, primeEdge(keptStack.out[0].r, -1)) } : null;
   const v = stack(venues, keptStack.edge, scale);
   const outer = v.out.length ? laneEnd(keptStack.edge, v.edge, LEFT, RIGHT, 1) : null;
   const d = stack(demandRows, INNER_OUT, scale, -1);
-  const inner = d.out.length ? laneEnd(d.edge, INNER_OUT, RIGHT, innerTip((d.edge + INNER_OUT) / 2), -1) : null;
+  const inner = d.out.length ? laneEnd(d.edge, INNER_OUT, RIGHT, primeEdge((d.edge + INNER_OUT) / 2, 1), -1) : null;
   return {
     kept,
-    venues: v.out.map((b) => ({ ...b, d: arcPath(CX, CY, b.r, LEFT, outer!.stop), labelD: arcPath(CX, CY, b.r, LEFT, APEX - 8 / b.r) })),
+    venues: v.out.map((b) => ({ ...b, d: arcPath(CX, CY, b.r, LEFT, outer!.stop), labelD: arcPath(CX, CY, b.r, LEFT, primeEdge(b.r, -1) - 4 / b.r) })),
     demand: d.out.map((b) => ({ key: b.key, value: b.value, r: b.r, w: b.w, loss: b.loss, d: arcPath(CX, CY, b.r, RIGHT, inner!.stop) })),
     outer,
     inner,
+    prime: primeSpan(d.out.length ? d.edge : null, v.out.length ? v.edge : kept ? keptStack.edge : null),
   };
+}
+
+/** The bar spans from the demand lane's inner edge to the outer lane's outer
+ *  edge; with one lane empty, just the other lane. */
+function primeSpan(innerEdge: number | null, outerEdge: number | null): ArcLayout["prime"] {
+  if (innerEdge === null && outerEdge === null) return null;
+  return { r0: innerEdge ?? OUTER0, r1: outerEdge ?? INNER_OUT };
 }

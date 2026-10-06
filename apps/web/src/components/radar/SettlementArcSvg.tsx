@@ -1,7 +1,7 @@
 import { formatUsd } from "../../lib/settlements";
 import type { StreamModel } from "@/lib/settlementStreams";
 import { ARC_OTHER_ID, CX, CY, HEAD_FLARE, HEIGHT, INNER0, OUTER0, OUTER_END, WIDTH, type ArcBand, type ArcLayout, type LaneEnd, type VenueBand } from "../../lib/settlementArcLayout";
-import { ArcNodeLabels, PrimeNode, VenueLabels } from "./SettlementArcLabels";
+import { ArcNodeLabels, PrimeBar, VenueLabels } from "./SettlementArcLabels";
 import { venueFill } from "./SettlementAum";
 
 /** Demand bands and kept wear their series' colour. */
@@ -46,8 +46,8 @@ function venueTitle(v: VenueBand, prime: string): string {
   return `${v.label}: ${formatUsd(v.value)} through ${prime} to Sky (${parts})`;
 }
 
-/** Venues and Sky as bars under the feet; the Prime is a circle at the
- *  apex (PrimeNode), drawn over kept and the demand arrow. */
+/** Venues and Sky as bars under the feet; the Prime is an outlined bar at
+ *  the apex (PrimeBar), drawn over the bands it spans. */
 function Feet() {
   return (
     <g>
@@ -75,9 +75,9 @@ export function SettlementArcSvg({ layout, model, primeLabel, month }: { layout:
       {demand.map((b) => <Band key={b.key} b={b} ink={arcInk(b.key)} title={`${demandLabel(b.key)}: ${formatUsd(b.value)} from Sky to ${primeLabel}`} />)}
       <Lane lane={layout.inner} ink={arcInk(demand[0]?.key ?? "")} />
       {kept && <Band b={kept} ink={arcInk("kept")} title={kept.loss ? `${primeLabel} paid ${formatUsd(-kept.value)} more cost of funds than its venues earned` : `${formatUsd(kept.value)} of venue revenue stays with ${primeLabel}`} />}
-      <PrimeNode model={model} primeLabel={primeLabel} />
       {venues.map((v) => <Band key={v.key} b={v} ink={venueInk(v.key)} venue={v.key} title={venueTitle(v, primeLabel)} />)}
       <Lane lane={layout.outer} ink="var(--msc-sky)" />
+      <PrimeBar span={layout.prime} model={model} primeLabel={primeLabel} />
       <VenueLabels venues={venues} />
       <ArcNodeLabels model={model} primeLabel={primeLabel} month={month} />
     </svg>

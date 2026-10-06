@@ -253,8 +253,7 @@ describe("ActorSettlements", () => {
     const row = screen.getByRole("cell", { name: /SparkLend USDS/ }).closest("tr")!;
     expect(row).toHaveAttribute("data-venue", "S1");
     expect(document.querySelector('.msc-arc-band[data-venue="S1"]')).toBeInTheDocument();
-    expect(document.querySelector("circle.msc-arc-prime")).toBeInTheDocument();
-    expect(document.querySelector(".msc-arc-prime-name")).toHaveTextContent("Spark");
+    expect(document.querySelector("rect.msc-arc-prime")).toBeInTheDocument();
     expect(document.querySelector('.msc-arc-venue-label[data-venue="S1"]')).toBeInTheDocument();
     expect(document.querySelector('.msc-arc-link[href$="id=e98ddd17-a8c3-4523-8464-cc41247c66e8"]')).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "CoF to Sky" })).toHaveAttribute("href", expect.stringContaining("6b2b7302-e63b-457e-afeb-daab5ca7a7de"));

@@ -3203,15 +3203,13 @@ a.atlas-annotates:focus-visible {
 .msc-arc-node {
   fill: var(--tan-3);
 }
-/* The Prime circle covers the ends of kept and of the demand arrow, so
-   both read as arriving at it. */
+/* The Prime bar is an outline, so the venue bands crossing it stay
+   visible: they pass through the Prime without stopping. */
 .msc-arc-prime {
   fill: var(--bg-deep);
-  stroke: var(--tan-2);
+  fill-opacity: 0.25;
+  stroke: var(--tan);
   stroke-width: 1.5;
-}
-.msc-arc-prime-name {
-  fill: var(--tan);
 }
 .msc-arc-sky {
   fill: var(--msc-sky);
