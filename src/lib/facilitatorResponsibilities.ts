@@ -26,11 +26,10 @@ import {
   assignmentRows,
   buildRoleCtx,
   processStepRows,
-  roleRowsToCSV,
-  roleSearchFields,
   type RoleCtx,
   type RoleSpec,
 } from "./roleResponsibilityRows";
+import { roleRowsToCSV, roleSearchFields } from "./roleResponsibilityOutput";
 import type { SearchField } from "./reportFilter";
 import dutyExclusions from "./data/duty-known-exclusions.json";
 
@@ -78,12 +77,12 @@ const ANY_FAC_RE = /facilitator/i;
 
 const dutySnippet = (content: string) => sharedDutySnippet(content, ANY_FAC_RE);
 
-const facilitatorSpec: RoleSpec<OFResponsibility> = {
+const facilitatorSpec: RoleSpec<OFResponsibility, "facilitator"> = {
   label: "Facilitator",
   anyRe: ANY_FAC_RE,
   coreRe: CORE_FAC_RE,
   snippet: dutySnippet,
-  holder: (facilitator) => ({ facilitator }),
+  holderKey: "facilitator",
 };
 
 function dutyCategory(declared: string): OFResponsibility["category"] {

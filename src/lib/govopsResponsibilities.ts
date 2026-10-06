@@ -27,11 +27,10 @@ import {
   assignmentRows,
   buildRoleCtx,
   processStepRows,
-  roleRowsToCSV,
-  roleSearchFields,
   type RoleCtx,
   type RoleSpec,
 } from "./roleResponsibilityRows";
+import { roleRowsToCSV, roleSearchFields } from "./roleResponsibilityOutput";
 import type { SearchField } from "./reportFilter";
 import definitionDocs from "./data/govops-definition-docs.json";
 import dutyExclusions from "./data/duty-known-exclusions.json";
@@ -85,12 +84,12 @@ const ANY_GOVOPS_RE = /gov[\s-]*ops/i;
 
 const dutySnippet = (content: string) => sharedDutySnippet(content, ANY_GOVOPS_RE);
 
-const govopsSpec: RoleSpec<OGResponsibility> = {
+const govopsSpec: RoleSpec<OGResponsibility, "govops"> = {
   label: "GovOps",
   anyRe: ANY_GOVOPS_RE,
   coreRe: CORE_ROLE_RE,
   snippet: dutySnippet,
-  holder: (govops) => ({ govops }),
+  holderKey: "govops",
 };
 
 // Role definitions (curated, stable Preamble docs).
