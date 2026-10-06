@@ -53,13 +53,41 @@ export function useSelection(): Selection {
   return useContext(SelectionContext);
 }
 
+// The collection the selection was opened from, if any: `id` only for one the
+// viewer owns (Save can "Update" it), `name` for the view pill.
+//
+// A manual edit makes the selection something other than the collection that
+// was opened. An owned collection keeps its name; a shared or conversation-built
+// one has no id, is not theirs to overwrite, and stops claiming its name — the
+// pill falls back to "Selected". Opening a collection (replace) is not an edit.
+function useActiveCollection() {
+  const [id, setId] = useState<string | null>(null);
+  const [name, setName] = useState<string | null>(null);
+  // Mirror of `id` for the stable edit callbacks that call dropUnownedName.
+  const idRef = useRef<string | null>(null);
+  useEffect(() => {
+    idRef.current = id;
+  }, [id]);
+  const dropUnownedName = useCallback(() => {
+    if (idRef.current === null) setName(null);
+  }, []);
+  const resetCollection = useCallback(() => {
+    setId(null);
+    setName(null);
+  }, []);
+  const collection = useMemo(
+    () => ({ activeCollectionId: id, setActiveCollectionId: setId, activeCollectionName: name, setActiveCollectionName: setName }),
+    [id, name],
+  );
+  return { collection, dropUnownedName, resetCollection };
+}
+
 export function SelectionProvider({ children }: { children: ReactNode }) {
   const [ids, setIds] = useState<Set<string>>(() => new Set(loadSelection()));
   const [subset, setSubset] = useAtlasSubset();
   const selectedOnly = subset === "selected";
   const setSelectedOnly = useCallback((v: boolean) => setSubset(v ? "selected" : "all"), [setSubset]);
-  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
-  const [activeCollectionName, setActiveCollectionName] = useState<string | null>(null);
+  const { collection, dropUnownedName, resetCollection } = useActiveCollection();
   // True when the most recent mutation to `ids` was a bulk replace() (loading a
   // collection wholesale) rather than an interactive add/remove/clear. Read by
   // the empties-effect below to tell "the user just opened a collection that
@@ -106,9 +134,8 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
     if (ids.size > 0) return;
     if (openedFromReplaceRef.current) return;
     if (selectedOnly) setSelectedOnly(false);
-    setActiveCollectionId(null);
-    setActiveCollectionName(null);
-  }, [selectedOnly, ids, setSelectedOnly]);
+    resetCollection();
+  }, [selectedOnly, ids, setSelectedOnly, resetCollection]);
 
   useEffect(() => {
     const handler = (e: StorageEvent) => {
@@ -120,17 +147,19 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
 
   const toggleDoc = useCallback((id: string) => {
     openedFromReplaceRef.current = false;
+    dropUnownedName();
     setIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  }, []);
+  }, [dropUnownedName]);
 
   const selectSubtree = useCallback((subtreeIds: string[]) => {
     if (subtreeIds.length === 0) return;
     openedFromReplaceRef.current = false;
+    dropUnownedName();
     setIds((prev) => {
       const next = new Set(prev);
       // Root-keyed toggle: an already-selected root deselects the whole subtree,
@@ -142,12 +171,13 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
       }
       return next;
     });
-  }, []);
+  }, [dropUnownedName]);
 
   const clear = useCallback(() => {
     openedFromReplaceRef.current = false;
+    dropUnownedName();
     setIds(new Set());
-  }, []);
+  }, [dropUnownedName]);
 
   // Bulk load — used to open a collection wholesale (CollectionsPage,
   // SharedCollectionOpener). Marks openedFromReplaceRef so the empties-effect
@@ -166,12 +196,9 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
       replace,
       selectedOnly,
       setSelectedOnly,
-      activeCollectionId,
-      setActiveCollectionId,
-      activeCollectionName,
-      setActiveCollectionName,
+      ...collection,
     }),
-    [ids, toggleDoc, selectSubtree, clear, replace, selectedOnly, setSelectedOnly, activeCollectionId, activeCollectionName],
+    [ids, toggleDoc, selectSubtree, clear, replace, selectedOnly, setSelectedOnly, collection],
   );
 
   return <SelectionContext.Provider value={value}>{children}</SelectionContext.Provider>;
