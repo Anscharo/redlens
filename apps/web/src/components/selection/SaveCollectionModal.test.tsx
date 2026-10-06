@@ -3,6 +3,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { AtlasNode } from "@/types";
 
 const mocks = vi.hoisted(() => ({
   user: null as unknown,
@@ -12,6 +13,9 @@ const mocks = vi.hoisted(() => ({
   setActiveCollectionName: vi.fn(),
   createCollection: vi.fn(),
   updateCollectionItems: vi.fn(),
+  getCollection: vi.fn(),
+  replace: vi.fn(),
+  docs: null as Record<string, AtlasNode> | null,
   stashResumeSave: vi.fn(),
   track: vi.fn(),
 }));
@@ -28,11 +32,15 @@ vi.mock("../../lib/selection", () => ({
     activeCollectionName: mocks.activeCollectionName,
     setActiveCollectionId: mocks.setActiveCollectionId,
     setActiveCollectionName: mocks.setActiveCollectionName,
+    replace: mocks.replace,
   }),
 }));
+vi.mock("../../hooks/useAtlasData", () => ({ useLoaded: () => mocks.docs }));
+vi.mock("../../lib/docs", () => ({ loadDocs: vi.fn() }));
 vi.mock("../../lib/collectionsApi", () => ({
   createCollection: mocks.createCollection,
   updateCollectionItems: mocks.updateCollectionItems,
+  getCollection: mocks.getCollection,
   MAX_COLLECTION_NAME_LEN: 32,
 }));
 vi.mock("../../lib/authReturn", () => ({ stashResumeSave: mocks.stashResumeSave }));
@@ -40,12 +48,27 @@ vi.mock("../../lib/analytics", () => ({ track: mocks.track }));
 
 import { SaveCollectionModal } from "./SaveCollectionModal";
 
+const node = (id: string, doc_no: string, title: string) => ({ id, doc_no, title }) as AtlasNode;
+const DOCS = Object.fromEntries(
+  ["a", "b", "c", "d"].map((id, i) => [id, node(id, `A.${i + 1}`, `Doc ${id.toUpperCase()}`)]),
+);
+
+// An own collection is open and the server holds `saved` for it.
+function openOwnCollection(saved: string[]) {
+  mocks.user = { id: "u1" };
+  mocks.activeCollectionId = "existing1";
+  mocks.activeCollectionName = "Existing";
+  mocks.docs = DOCS;
+  mocks.getCollection.mockResolvedValue({ id: "existing1", name: "Existing", ids: saved, updatedAt: "" });
+}
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   mocks.user = null;
   mocks.activeCollectionId = null;
   mocks.activeCollectionName = null;
+  mocks.docs = null;
 });
 
 describe("SaveCollectionModal — signed out", () => {
@@ -149,22 +172,19 @@ describe("SaveCollectionModal — signed in, no active collection", () => {
 });
 
 describe("SaveCollectionModal — signed in, with an active collection", () => {
-  it("offers Update vs Save-as-new first", () => {
-    mocks.user = { id: "u1" };
-    mocks.activeCollectionId = "existing1";
-    mocks.activeCollectionName = "Existing";
-    render(<SaveCollectionModal ids={["a"]} onClose={() => {}} />);
+  it("offers Update, Save as new and Save as new without the opened collection's docs", async () => {
+    openOwnCollection(["a"]);
+    render(<SaveCollectionModal ids={["a", "b"]} onClose={() => {}} />);
     expect(screen.getByText("Save changes")).toBeInTheDocument();
     expect(screen.getByText("Update “Existing”")).toBeInTheDocument();
     expect(screen.getByText("Save as new collection")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Save as new collection without docs from “Existing”" })).toBeEnabled();
   });
 
   it("Update calls updateCollectionItems + track + onClose", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    mocks.user = { id: "u1" };
-    mocks.activeCollectionId = "existing1";
-    mocks.activeCollectionName = "Existing";
+    openOwnCollection([]);
     mocks.updateCollectionItems.mockResolvedValue({ id: "existing1", name: "Existing" });
     render(<SaveCollectionModal ids={["a", "b"]} onClose={onClose} />);
     await user.click(screen.getByText("Update “Existing”"));
@@ -175,12 +195,157 @@ describe("SaveCollectionModal — signed in, with an active collection", () => {
 
   it("Save as new collection reveals the naming form with the 'new' heading", async () => {
     const user = userEvent.setup();
-    mocks.user = { id: "u1" };
-    mocks.activeCollectionId = "existing1";
-    mocks.activeCollectionName = "Existing";
+    openOwnCollection([]);
     render(<SaveCollectionModal ids={["a"]} onClose={() => {}} />);
     await user.click(screen.getByText("Save as new collection"));
     expect(screen.getByText("Save as new collection", { selector: "h2" })).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Collection name")).toBeInTheDocument();
+  });
+});
+
+describe("SaveCollectionModal — the documents being saved", () => {
+  it("lists the selection's docs in the naming flow", () => {
+    mocks.user = { id: "u1" };
+    mocks.docs = DOCS;
+    render(<SaveCollectionModal ids={["a", "b"]} onClose={() => {}} />);
+    expect(screen.getByText("Doc A")).toBeInTheDocument();
+    expect(screen.getByText("A.2")).toBeInTheDocument();
+  });
+
+  it("truncates past 60 rows with a '+N more' tail while the count still shows the whole selection", () => {
+    mocks.user = { id: "u1" };
+    const ids = Array.from({ length: 70 }, (_, i) => `d${i}`);
+    mocks.docs = Object.fromEntries(ids.map((id, i) => [id, node(id, `B.${i}`, `Title ${i}`)]));
+    render(<SaveCollectionModal ids={ids} onClose={() => {}} />);
+    expect(screen.getAllByRole("listitem")).toHaveLength(61);
+    expect(screen.getByText("+10 more")).toBeInTheDocument();
+    expect(screen.getByText("70 / 8,000 documents")).toBeInTheDocument();
+  });
+
+  it("shows no list (just the count) before the docs have loaded", () => {
+    mocks.user = { id: "u1" };
+    render(<SaveCollectionModal ids={["a"]} onClose={() => {}} />);
+    expect(screen.queryAllByRole("listitem")).toHaveLength(0);
+    expect(screen.getByText("1 / 8,000 document")).toBeInTheDocument();
+  });
+});
+
+describe("SaveCollectionModal — comparing with the opened collection", () => {
+  it("says how many docs overlap once the saved docs have loaded", async () => {
+    openOwnCollection(["a", "b", "x"]);
+    render(<SaveCollectionModal ids={["a", "b", "c"]} onClose={() => {}} />);
+    expect(screen.getByText("Comparing with “Existing”…")).toBeInTheDocument();
+    expect(await screen.findByText("You have made changes since opening “Existing” · 2 docs overlap")).toBeInTheDocument();
+    expect(mocks.getCollection).toHaveBeenCalledWith("existing1");
+  });
+
+  it("uses the singular for one overlapping doc", async () => {
+    openOwnCollection(["a", "x"]);
+    render(<SaveCollectionModal ids={["a", "c"]} onClose={() => {}} />);
+    expect(await screen.findByText("You have made changes since opening “Existing” · 1 doc overlaps")).toBeInTheDocument();
+  });
+
+  it("says there are no changes when the selection equals the saved docs, and disables 'without'", async () => {
+    openOwnCollection(["a", "b"]);
+    render(<SaveCollectionModal ids={["b", "a"]} onClose={() => {}} />);
+    expect(await screen.findByText("No changes since opening “Existing”.")).toBeInTheDocument();
+    const without = screen.getByRole("button", { name: /without docs from/ });
+    expect(without).toBeDisabled();
+    expect(without).toHaveAttribute("title", "Nothing was added beyond “Existing”");
+  });
+
+  it("falls back when the saved docs cannot be loaded: Update still works, 'without' is off", async () => {
+    const user = userEvent.setup();
+    openOwnCollection([]);
+    mocks.getCollection.mockRejectedValue(new Error("boom"));
+    mocks.updateCollectionItems.mockResolvedValue({});
+    render(<SaveCollectionModal ids={["a"]} onClose={() => {}} />);
+    expect(await screen.findByText(/Couldn’t load “Existing” to compare/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /without docs from/ })).toBeDisabled();
+    await user.click(screen.getByText("Update “Existing”"));
+    await waitFor(() => expect(mocks.updateCollectionItems).toHaveBeenCalledWith("existing1", ["a"]));
+  });
+});
+
+describe("SaveCollectionModal — previewing each option", () => {
+  async function ready() {
+    openOwnCollection(["a", "b"]);
+    render(<SaveCollectionModal ids={["b", "c", "d"]} onClose={() => {}} />);
+    await screen.findByText(/You have made changes/);
+  }
+
+  it("Update previews removed and added rows with +/− and a summary, and restores on leave", async () => {
+    await ready();
+    const update = screen.getByText("Update “Existing”");
+    fireEvent.mouseEnter(update);
+    expect(screen.getByText("+2 added · −1 removed · 1 unchanged")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("added")).toHaveLength(2);
+    expect(screen.getByLabelText("removed")).toBeInTheDocument();
+    expect(screen.getByText("Doc A")).toBeInTheDocument(); // removed doc is shown though not in the selection
+
+    fireEvent.mouseLeave(update);
+    expect(screen.queryByText(/added · /)).toBeNull();
+    expect(screen.queryByText("Doc A")).toBeNull();
+  });
+
+  it("keyboard focus previews too", async () => {
+    await ready();
+    const update = screen.getByText("Update “Existing”");
+    fireEvent.focus(update);
+    expect(screen.getByText("+2 added · −1 removed · 1 unchanged")).toBeInTheDocument();
+    fireEvent.blur(update);
+    expect(screen.queryByText(/added · /)).toBeNull();
+  });
+
+  it("'without' previews only the docs added beyond the opened collection", async () => {
+    await ready();
+    fireEvent.mouseEnter(screen.getByRole("button", { name: /without docs from/ }));
+    expect(screen.getByText("Doc C")).toBeInTheDocument();
+    expect(screen.getByText("Doc D")).toBeInTheDocument();
+    expect(screen.queryByText("Doc B")).toBeNull();
+  });
+
+  it("'Save as new' previews the whole selection", async () => {
+    await ready();
+    fireEvent.mouseEnter(screen.getByText("Save as new collection"));
+    expect(screen.getByText("Doc B")).toBeInTheDocument();
+    expect(screen.getByText("Doc C")).toBeInTheDocument();
+    expect(screen.queryByLabelText("added")).toBeNull();
+  });
+});
+
+describe("SaveCollectionModal — saving as new", () => {
+  it("'without' saves only the added docs, then moves the selection and active collection to the new one", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    openOwnCollection(["a", "b"]);
+    mocks.createCollection.mockResolvedValue({ id: "new1", name: "Extras" });
+    render(<SaveCollectionModal ids={["b", "c", "d"]} onClose={onClose} />);
+    await user.click(await screen.findByRole("button", { name: /without docs from/ }));
+
+    expect(screen.getByText("Save as new collection without docs from “Existing”", { selector: "h2" })).toBeInTheDocument();
+    expect(screen.getByText("2 / 8,000 documents")).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText("Collection name"), "Extras");
+    await user.click(screen.getByText("save"));
+
+    await waitFor(() => expect(mocks.createCollection).toHaveBeenCalledWith("Extras", ["c", "d"]));
+    expect(mocks.replace).toHaveBeenCalledWith(["c", "d"]);
+    expect(mocks.setActiveCollectionId).toHaveBeenCalledWith("new1");
+    expect(mocks.setActiveCollectionName).toHaveBeenCalledWith("Extras");
+    expect(mocks.track).toHaveBeenCalledWith("collection_save", { count: 2, without_opened: true });
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it("plain 'Save as new' saves the whole selection and leaves the selection alone", async () => {
+    const user = userEvent.setup();
+    openOwnCollection(["a", "b"]);
+    mocks.createCollection.mockResolvedValue({ id: "new1", name: "Copy" });
+    render(<SaveCollectionModal ids={["b", "c"]} onClose={() => {}} />);
+    await user.click(screen.getByText("Save as new collection"));
+    await user.type(screen.getByPlaceholderText("Collection name"), "Copy");
+    await user.click(screen.getByText("save"));
+    await waitFor(() => expect(mocks.createCollection).toHaveBeenCalledWith("Copy", ["b", "c"]));
+    expect(mocks.replace).not.toHaveBeenCalled();
+    expect(mocks.track).toHaveBeenCalledWith("collection_save", { count: 2 });
   });
 });

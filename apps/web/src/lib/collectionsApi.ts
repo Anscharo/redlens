@@ -37,6 +37,11 @@ export function listCollections(): Promise<Collection[]> {
   return request<Collection[]>("collections");
 }
 
+// One of the user's own collections with its doc ids (auth-gated, owner only).
+export function getCollection(id: string): Promise<Collection> {
+  return request<Collection>(`collections/${id}`);
+}
+
 export function createCollection(name: string, ids: string[]): Promise<Collection> {
   return request<Collection>("collections", {
     method: "POST",

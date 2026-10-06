@@ -125,10 +125,24 @@ async function updateCollection(userId: string, id: string, body: CollectionBody
     await sql`UPDATE collections SET updated_at = now() WHERE id = ${id}`;
   }
 
-  const rows = (await sql`SELECT id, name, updated_at FROM collections WHERE id = ${id}`) as CollectionRow[];
+  return readCollection(userId, id);
+}
+
+async function readBody(req: Request): Promise<CollectionBody | null> {
+  try {
+    return (await req.json()) as CollectionBody;
+  } catch {
+    return null;
+  }
+}
+
+async function readCollection(userId: string, id: string): Promise<CollectionOut | null> {
+  const rows = (await sql`
+    SELECT id, name, updated_at FROM collections WHERE id = ${id} AND user_id = ${userId}
+  `) as CollectionRow[];
+  if (!rows.length) return null;
   const row = rows[0];
-  const ids = await itemsFor(id);
-  return { id: row.id, name: row.name, updatedAt: new Date(row.updated_at).toISOString(), ids };
+  return { id: row.id, name: row.name, updatedAt: new Date(row.updated_at).toISOString(), ids: await itemsFor(id) };
 }
 
 async function deleteCollection(userId: string, id: string): Promise<boolean> {
@@ -166,9 +180,7 @@ export async function handleCollections(req: Request): Promise<Response> {
   if (!session) return json({ error: "unauthenticated" }, 401);
   const userId = session.user.id;
 
-  const { pathname } = new URL(req.url);
-  const match = pathname.match(/^\/api\/collections(?:\/([^/]+))?$/);
-  const id = match?.[1];
+  const id = new URL(req.url).pathname.match(/^\/api\/collections(?:\/([^/]+))?$/)?.[1];
   // Same bad-::uuid-cast concern as handleSharedCollection above — reject a
   // malformed id before it ever reaches the PATCH/DELETE queries below. A
   // well-formed id that just doesn't exist (or isn't owned) still 404s further
@@ -180,12 +192,8 @@ export async function handleCollections(req: Request): Promise<Response> {
   }
 
   if (!id && req.method === "POST") {
-    let body: CollectionBody;
-    try {
-      body = (await req.json()) as CollectionBody;
-    } catch {
-      return json({ error: "invalid_json" }, 400);
-    }
+    const body = await readBody(req);
+    if (!body) return json({ error: "invalid_json" }, 400);
     if (!isNonEmptyString(body.name)) return json({ error: "empty_name" }, 400);
     if (body.ids !== undefined && !isStringArray(body.ids)) return json({ error: "invalid_ids" }, 400);
     if (body.name.trim().length > MAX_NAME_LEN) return json({ error: "name_too_long" }, 400);
@@ -193,13 +201,18 @@ export async function handleCollections(req: Request): Promise<Response> {
     return json(await createCollection(userId, body), 201, session.refresh);
   }
 
+  // One of the user's own collections with its doc ids — what the save dialog
+  // diffs the selection against. The public read is handleSharedCollection.
+  if (id && req.method === "GET") {
+    return readCollection(userId, id).then(
+      (c) => (c ? json(c, 200, session.refresh) : json({ error: "not_found" }, 404)),
+      () => json({ error: "server_error" }, 500),
+    );
+  }
+
   if (id && req.method === "PATCH") {
-    let body: CollectionBody;
-    try {
-      body = (await req.json()) as CollectionBody;
-    } catch {
-      return json({ error: "invalid_json" }, 400);
-    }
+    const body = await readBody(req);
+    if (!body) return json({ error: "invalid_json" }, 400);
     if (body.name !== undefined && !isNonEmptyString(body.name)) return json({ error: "empty_name" }, 400);
     if (body.ids !== undefined && !isStringArray(body.ids)) return json({ error: "invalid_ids" }, 400);
     if (body.name !== undefined && body.name.trim().length > MAX_NAME_LEN) return json({ error: "name_too_long" }, 400);

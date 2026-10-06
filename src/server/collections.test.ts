@@ -85,6 +85,12 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
     if (c) c.updated_at = nowIso();
     return Promise.resolve([]);
   }
+  if (text.includes("SELECT id, name, updated_at FROM collections WHERE id") && text.includes("AND user_id")) {
+    const [id, userId] = values as [string, string];
+    if (id === DB_ERROR_ID) throw new Error("simulated db failure");
+    const c = collections.find((x) => x.id === id && x.user_id === userId);
+    return Promise.resolve(c ? [{ id: c.id, name: c.name, updated_at: c.updated_at }] : []);
+  }
   if (text.includes("SELECT id, name, updated_at FROM collections WHERE id")) {
     const [id] = values as [string];
     if (id === DB_ERROR_ID) throw new Error("simulated db failure");
@@ -319,6 +325,40 @@ describe("GET /api/collections (list)", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { name: string }[];
     expect(body.map((c) => c.name)).toEqual(["second", "first"]);
+  });
+});
+
+describe("GET /api/collections/:id (one collection)", () => {
+  it("returns an owned collection with its doc ids in order", async () => {
+    const token = await authed();
+    const created = await handleCollections(
+      req("/api/collections", { method: "POST", cookie: token, body: JSON.stringify({ name: "mine", ids: ["b", "a", "c"] }) }),
+    );
+    const { id } = (await created.json()) as { id: string };
+
+    const res = await handleCollections(req(`/api/collections/${id}`, { cookie: token }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ id, name: "mine", ids: ["b", "a", "c"] });
+  });
+
+  it("404s a collection owned by someone else, one that does not exist, and a malformed id", async () => {
+    const owner = await signSession({ id: "user-2", provider: "github" });
+    const created = await handleCollections(
+      req("/api/collections", { method: "POST", cookie: owner, body: JSON.stringify({ name: "theirs", ids: ["a"] }) }),
+    );
+    const { id } = (await created.json()) as { id: string };
+
+    const token = await authed(); // user-1
+    expect((await handleCollections(req(`/api/collections/${id}`, { cookie: token }))).status).toBe(404);
+    expect((await handleCollections(req(`/api/collections/${ABSENT_ID}`, { cookie: token }))).status).toBe(404);
+    expect((await handleCollections(req("/api/collections/not-a-uuid", { cookie: token }))).status).toBe(404);
+  });
+
+  it("500s as JSON when the DB errors unexpectedly", async () => {
+    const token = await authed();
+    const res = await handleCollections(req(`/api/collections/${DB_ERROR_ID}`, { cookie: token }));
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "server_error" });
   });
 });
 
