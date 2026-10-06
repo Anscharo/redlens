@@ -12,7 +12,7 @@ let stored: Row | null = null;
 let itemIds: string[] = [];
 let failDb = false;
 
-function sqlMock(strings: TemplateStringsArray, ...values: unknown[]): Promise<Row[]> {
+function query(strings: TemplateStringsArray, ...values: unknown[]): Promise<Row[]> {
   const text = strings.join("?").replace(/\s+/g, " ").trim();
   queryLog.push({ text, values });
   if (failDb) return Promise.reject(new Error("db down"));
@@ -20,6 +20,10 @@ function sqlMock(strings: TemplateStringsArray, ...values: unknown[]): Promise<R
   if (text.includes("SELECT doc_id FROM collection_items")) return Promise.resolve(itemIds.map((doc_id) => ({ doc_id })));
   return Promise.resolve([]);
 }
+
+// `unsafe` exists because bun leaks this module mock into later test files, and
+// some of them spy on it (search-semantic.test.ts).
+const sqlMock = Object.assign(query, { unsafe: () => Promise.resolve([] as Row[]) });
 
 mock.module("./db.ts", () => ({
   sql: sqlMock,
@@ -32,7 +36,6 @@ mock.module("./db.ts", () => ({
 
 const { buildSummaryPrompt, idsHash, parseSummary, summaryInput } = await import("./collection-summary-prompt.ts");
 const { handleCollectionSummary, summarizeIds } = await import("./collection-summary.ts");
-const { setIndexes, _clearIndexes } = await import("./retrieval/indexes.ts");
 const { config } = await import("./config.ts");
 const { signSession, SESSION_COOKIE } = await import("./session.ts");
 
@@ -46,16 +49,17 @@ const DOCS = [
   node("b1", "Oracle Policy", "scope-b"),
 ];
 
+// Passed in, never installed globally: other test files share the real indexes.
+const IX = { docMap: new Map(DOCS.map((d) => [d.id, d])) } as never;
+
 const origSecret = config.jwtSecret;
 const origModel = config.chatTitleModel;
 beforeAll(() => {
   config.jwtSecret = "test-secret-0123456789abcdef0123456789abcdef";
-  setIndexes({ docMap: new Map(DOCS.map((d) => [d.id, d])) } as never);
 });
 afterAll(() => {
   config.jwtSecret = origSecret;
   config.chatTitleModel = origModel;
-  _clearIndexes();
   mock.restore();
 });
 beforeEach(() => {
@@ -70,15 +74,15 @@ const answer = (text: string): JsonCall => async () => ({ text, usage: { input: 
 const GOOD = answer('{"label":"Rate and oracle rules","summary":"Rate limits and oracle policy."}');
 const COLLECTION_ID = "22222222-2222-2222-2222-222222222222";
 
-async function get(path: string, call?: JsonCall, method = "GET", authed = true): Promise<Response> {
+async function get(path: string, call: JsonCall, method = "GET", authed = true): Promise<Response> {
   const token = await signSession({ id: "user-1", provider: "github" });
   const headers = authed ? { cookie: `${SESSION_COOKIE}=${token}` } : undefined;
-  return handleCollectionSummary(new Request(`http://x${path}`, { method, headers }), call);
+  return handleCollectionSummary(new Request(`http://x${path}`, { method, headers }), { call, ix: IX });
 }
 
 describe("summaryInput + buildSummaryPrompt", () => {
   it("counts top-level scopes and repeats of a title", () => {
-    const input = summaryInput({ docMap: new Map(DOCS.map((d) => [d.id, d])) } as never, ["a1", "a2", "b1", "gone"]);
+    const input = summaryInput(IX, ["a1", "a2", "b1", "gone"]);
     expect(input.total).toBe(3);
     expect(input.scopes).toEqual([
       { title: "Stability Scope", count: 2 },
@@ -94,7 +98,7 @@ describe("summaryInput + buildSummaryPrompt", () => {
   });
 
   it("uses a node's own title as its scope when it has no parent", () => {
-    const input = summaryInput({ docMap: new Map(DOCS.map((d) => [d.id, d])) } as never, ["scope-a"]);
+    const input = summaryInput(IX, ["scope-a"]);
     expect(input.scopes).toEqual([{ title: "Stability Scope", count: 1 }]);
   });
 });
@@ -124,17 +128,17 @@ describe("parseSummary", () => {
 describe("summarizeIds", () => {
   it("is null with the model off, no ids, or no known docs", async () => {
     config.chatTitleModel = "";
-    expect(await summarizeIds(["a1"], GOOD)).toBeNull();
+    expect(await summarizeIds(["a1"], { call: GOOD, ix: IX })).toBeNull();
     config.chatTitleModel = "test/model";
-    expect(await summarizeIds([], GOOD)).toBeNull();
-    expect(await summarizeIds(["gone"], GOOD)).toBeNull();
+    expect(await summarizeIds([], { call: GOOD, ix: IX })).toBeNull();
+    expect(await summarizeIds(["gone"], { call: GOOD, ix: IX })).toBeNull();
   });
 
   it("is null when the call fails", async () => {
     const failing: JsonCall = async () => {
       throw new Error("provider down");
     };
-    expect(await summarizeIds(["a1"], failing)).toBeNull();
+    expect(await summarizeIds(["a1"], { call: failing, ix: IX })).toBeNull();
   });
 });
 
