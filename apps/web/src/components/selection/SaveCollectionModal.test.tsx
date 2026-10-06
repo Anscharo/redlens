@@ -86,7 +86,7 @@ describe("SaveCollectionModal — signed in, no active collection", () => {
     mocks.user = { id: "u1" };
     render(<SaveCollectionModal ids={["a", "b"]} onClose={() => {}} />);
     expect(screen.getByText("Save as collection")).toBeInTheDocument();
-    expect(screen.getByText("2 / 8,000 documents")).toBeInTheDocument();
+    expect(screen.getByText("2 / 8,000 Max Docs")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Collection name")).toBeInTheDocument();
   });
 
@@ -219,14 +219,14 @@ describe("SaveCollectionModal — the documents being saved", () => {
     render(<SaveCollectionModal ids={ids} onClose={() => {}} />);
     expect(screen.getAllByRole("listitem")).toHaveLength(61);
     expect(screen.getByText("+10 more")).toBeInTheDocument();
-    expect(screen.getByText("70 / 8,000 documents")).toBeInTheDocument();
+    expect(screen.getByText("70 / 8,000 Max Docs")).toBeInTheDocument();
   });
 
   it("shows no list (just the count) before the docs have loaded", () => {
     mocks.user = { id: "u1" };
     render(<SaveCollectionModal ids={["a"]} onClose={() => {}} />);
     expect(screen.queryAllByRole("listitem")).toHaveLength(0);
-    expect(screen.getByText("1 / 8,000 document")).toBeInTheDocument();
+    expect(screen.getByText("1 / 8,000 Max Docs")).toBeInTheDocument();
   });
 });
 
@@ -283,8 +283,8 @@ describe("SaveCollectionModal — previewing each option", () => {
     expect(screen.getAllByLabelText("added")).toHaveLength(2);
     expect(screen.getByLabelText("removed")).toBeInTheDocument();
     expect(screen.getByText("Doc A")).toBeInTheDocument(); // removed doc is shown though not in the selection
-    // Same line as "N / 8,000 documents", not a paragraph of its own.
-    expect(screen.getByText(SUMMARY).closest("p")).toBe(screen.getByText("3 / 8,000 documents").closest("p"));
+    // Same line as "N / 8,000 Max Docs", not a paragraph of its own.
+    expect(screen.getByText(SUMMARY).closest("p")).toBe(screen.getByText("3 / 8,000 Max Docs").closest("p"));
   });
 
   it("keeps the preview after the pointer or focus leaves, until another button is hovered", async () => {
@@ -326,6 +326,35 @@ describe("SaveCollectionModal — previewing each option", () => {
       fireEvent.mouseLeave(button);
       expect(card.children.length).toBe(count);
     }
+  });
+
+  it("shows how many docs the previewed option would save in N / 8,000 Max Docs", async () => {
+    await ready(); // saved a, b; selection b, c, d
+    // Update writes the 3 selected docs, though its list also shows the 1 removed row.
+    expect(screen.getByText("3 / 8,000 Max Docs")).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(4);
+
+    fireEvent.mouseEnter(screen.getByRole("button", { name: /Save as new, minus/ }));
+    expect(screen.getByText("2 / 8,000 Max Docs")).toBeInTheDocument(); // c and d only
+
+    fireEvent.mouseEnter(screen.getByText("Save as new collection"));
+    expect(screen.getByText("3 / 8,000 Max Docs")).toBeInTheDocument();
+
+    fireEvent.mouseEnter(screen.getByText("Update “Existing”"));
+    expect(screen.getByText("3 / 8,000 Max Docs")).toBeInTheDocument();
+  });
+
+  it("flags 'over the limit' for the option that is over, not for one that fits", async () => {
+    const selection = Array.from({ length: 8001 }, (_, i) => `d${i}`);
+    openOwnCollection(selection.slice(0, 7999));
+    mocks.docs = null;
+    render(<SaveCollectionModal ids={selection} onClose={() => {}} />);
+    await screen.findByText(/You have made changes/);
+    expect(screen.getByText(/8,001 \/ 8,000 Max Docs — over the limit/)).toBeInTheDocument();
+
+    fireEvent.mouseEnter(screen.getByRole("button", { name: /Save as new, minus/ }));
+    expect(screen.getByText("2 / 8,000 Max Docs")).toBeInTheDocument();
+    expect(screen.queryByText(/over the limit/)).toBeNull();
   });
 
   it("lays the three buttons out in one row, not a column", async () => {
@@ -392,7 +421,7 @@ describe("SaveCollectionModal — saving as new", () => {
     await user.click(await screen.findByRole("button", { name: /Save as new, minus/ }));
 
     expect(screen.getByText("Save as new, minus “Existing”", { selector: "h2" })).toBeInTheDocument();
-    expect(screen.getByText("2 / 8,000 documents")).toBeInTheDocument();
+    expect(screen.getByText("2 / 8,000 Max Docs")).toBeInTheDocument();
     await user.type(screen.getByPlaceholderText("Collection name"), "Extras");
     await user.click(screen.getByText("save"));
 

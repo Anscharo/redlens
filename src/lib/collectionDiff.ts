@@ -51,6 +51,9 @@ export type SaveOption = "update" | "new" | "without";
 export interface Preview {
   /** The rows to list, in display order. */
   ids: string[];
+  /** How many docs the save would write. Not `ids.length` for Update, whose
+   *  rows also list the removed docs. */
+  count: number;
   /** Per-id marks; only Update has any (+/−). */
   marks?: Map<string, RowMark>;
   /** One line over the list; only Update has one. */
@@ -61,12 +64,13 @@ export interface Preview {
  *  (`saved` null: no collection open, or its copy has not loaded) every option
  *  is just the selection. */
 export function previewFor(option: SaveOption, selection: readonly string[], saved: readonly string[] | null): Preview {
-  if (!saved || option === "new") return { ids: [...selection] };
+  if (!saved || option === "new") return { ids: [...selection], count: selection.length };
   const diff = diffIds(saved, selection);
-  if (option === "without") return { ids: diff.added };
+  if (option === "without") return { ids: diff.added, count: diff.added.length };
   const rows = diffRows(diff);
   return {
     ids: rows.map((r) => r.id),
+    count: diff.added.length + diff.unchanged.length,
     marks: new Map(rows.map((r) => [r.id, r.mark])),
     summary: `+${diff.added.length} added · −${diff.removed.length} removed · ${diff.unchanged.length} unchanged`,
   };

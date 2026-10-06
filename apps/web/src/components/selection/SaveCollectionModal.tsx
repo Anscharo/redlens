@@ -38,9 +38,11 @@ function useRun(onClose: () => void) {
   return { pending, error, run };
 }
 
-// The count line also carries Update's "+A added · −R removed · U unchanged"
+// The count line is how many docs the previewed option would save, against the
+// limit. It also carries Update's "+A added · −R removed · U unchanged"
 // summary. It never wraps, so its height cannot change while previewing.
-function Heading({ title, count, over, summary }: { title: string; count: number; over: boolean; summary?: string }) {
+function Heading({ title, count, summary }: { title: string; count: number; summary?: string }) {
+  const over = count > MAX_COLLECTION_DOCS;
   return (
     <div>
       <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--tan)", margin: 0 }}>{title}</h2>
@@ -49,7 +51,7 @@ function Heading({ title, count, over, summary }: { title: string; count: number
         style={{ fontSize: 10, color: over ? "var(--red)" : "var(--tan-3)", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
       >
         <span>
-          {count.toLocaleString()} / {MAX_COLLECTION_DOCS.toLocaleString()} document{count === 1 ? "" : "s"}
+          {count.toLocaleString()} / {MAX_COLLECTION_DOCS.toLocaleString()} Max Docs
           {over ? " — over the limit" : ""}
         </span>
         {summary && (
@@ -100,12 +102,7 @@ function SaveBody({ ids, onClose }: SaveCollectionModalProps) {
           : "Save as collection";
   return (
     <>
-      <Heading
-        title={title}
-        count={naming ? saveIds.length : ids.length}
-        over={naming ? over : ids.length > MAX_COLLECTION_DOCS}
-        summary={preview.summary}
-      />
+      <Heading title={title} count={preview.count} summary={preview.summary} />
       <SaveDocPreview preview={preview} docs={docs} stable={naming === null} resetKey={naming ?? previewing ?? "default"} />
       {error && (
         <p className="mono" style={{ fontSize: 11, color: "var(--red)", margin: 0 }}>

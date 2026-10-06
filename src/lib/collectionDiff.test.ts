@@ -46,13 +46,13 @@ describe("previewFor", () => {
   const selection = ["c", "x", "a"];
 
   it("is just the selection for 'new', or when the saved docs are unknown", () => {
-    expect(previewFor("new", selection, saved)).toEqual({ ids: ["c", "x", "a"] });
-    expect(previewFor("update", selection, null)).toEqual({ ids: ["c", "x", "a"] });
-    expect(previewFor("without", selection, null)).toEqual({ ids: ["c", "x", "a"] });
+    expect(previewFor("new", selection, saved)).toEqual({ ids: ["c", "x", "a"], count: 3 });
+    expect(previewFor("update", selection, null)).toEqual({ ids: ["c", "x", "a"], count: 3 });
+    expect(previewFor("without", selection, null)).toEqual({ ids: ["c", "x", "a"], count: 3 });
   });
 
   it("'without' is what was added beyond the saved collection", () => {
-    expect(previewFor("without", selection, saved)).toEqual({ ids: ["x"] });
+    expect(previewFor("without", selection, saved)).toEqual({ ids: ["x"], count: 1 });
     expect(previewFor("without", ["a"], saved).ids).toEqual([]);
   });
 
@@ -61,5 +61,8 @@ describe("previewFor", () => {
     expect(p.ids).toEqual(["b", "x", "c", "a"]);
     expect([...p.marks!]).toEqual([["b", "remove"], ["x", "add"], ["c", "same"], ["a", "same"]]);
     expect(p.summary).toBe("+1 added · −1 removed · 2 unchanged");
+    // The removed doc is listed but not saved: 3 docs go into the collection, not 4 rows.
+    expect(p.count).toBe(3);
+    expect(p.ids).toHaveLength(4);
   });
 });
