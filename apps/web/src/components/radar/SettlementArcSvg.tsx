@@ -1,7 +1,7 @@
 import { formatUsd } from "../../lib/settlements";
 import type { StreamModel } from "@/lib/settlementStreams";
-import { CX, CY, HEAD_FLARE, HEIGHT, INNER0, OUTER0, OUTER_END, PRIME_HALF, WIDTH, type ArcBand, type ArcLayout, type LaneEnd, type VenueBand } from "../../lib/settlementArcLayout";
-import { ArcNodeLabels, VenueLabels } from "./SettlementArcLabels";
+import { CX, CY, HEAD_FLARE, HEIGHT, INNER0, OUTER0, OUTER_END, WIDTH, type ArcBand, type ArcLayout, type LaneEnd, type VenueBand } from "../../lib/settlementArcLayout";
+import { ArcNodeLabels, PrimeNode, VenueLabels } from "./SettlementArcLabels";
 
 /** Demand bands wear their series' colour; venues alternate the Sky shades
  *  so neighbours stay apart, with the folded tail in a neutral. */
@@ -46,14 +46,13 @@ function venueTitle(v: VenueBand, prime: string): string {
   return `${v.label}: ${formatUsd(v.value)} through ${prime} to Sky (${parts})`;
 }
 
-/** The three nodes: Venues and Sky as bars under the feet, the Prime as a
- *  bar across the apex that the venue bands run through. */
-function Nodes() {
+/** Venues and Sky as bars under the feet; the Prime is a circle at the
+ *  apex (PrimeNode), drawn over kept and the demand arrow. */
+function Feet() {
   return (
     <g>
       <rect x={CX - OUTER_END - HEAD_FLARE} y={CY + 2} width={OUTER_END - OUTER0 + 2 * HEAD_FLARE} height={6} rx={2} className="msc-arc-node" />
       <rect x={CX + INNER0 - HEAD_FLARE} y={CY + 2} width={OUTER_END - INNER0 + 2 * HEAD_FLARE} height={6} rx={2} className="msc-arc-sky" />
-      <rect x={CX - PRIME_HALF} y={CY - OUTER_END - 4} width={PRIME_HALF * 2} height={OUTER_END - INNER0 + 8} rx={3} className="msc-arc-prime" />
     </g>
   );
 }
@@ -72,10 +71,11 @@ export function SettlementArcSvg({ layout, model, primeLabel, month }: { layout:
           <rect width={3} height={6} style={{ fill: "var(--msc-loss)" }} />
         </pattern>
       </defs>
-      <Nodes />
+      <Feet />
       {demand.map((b) => <Band key={b.key} b={b} ink={arcInk(b.key)} title={`${demandLabel(b.key)}: ${formatUsd(b.value)} from Sky to ${primeLabel}`} />)}
       <Lane lane={layout.inner} ink={arcInk(demand[0]?.key ?? "")} />
       {kept && <Band b={kept} ink={arcInk("kept")} title={kept.loss ? `${primeLabel} paid ${formatUsd(-kept.value)} more cost of funds than its venues earned` : `${formatUsd(kept.value)} of venue revenue stays with ${primeLabel}`} />}
+      <PrimeNode model={model} primeLabel={primeLabel} />
       {venues.map((v, i) => <Band key={v.key} b={v} ink={venueInk(i, v.key.startsWith("_"))} venue={v.key} title={venueTitle(v, primeLabel)} />)}
       <Lane lane={layout.outer} ink="var(--msc-sky)" />
       <VenueLabels venues={venues} />

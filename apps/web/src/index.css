@@ -3194,11 +3194,18 @@ a.atlas-annotates:focus-visible {
   font-weight: 500;
   pointer-events: none;
 }
-/* The Prime sits UNDER the bands, so the venues' flows read as passing
-   through it; the kept band ends at its side. */
-.msc-arc-prime,
 .msc-arc-node {
   fill: var(--tan-3);
+}
+/* The Prime circle covers the ends of kept and of the demand arrow, so
+   both read as arriving at it. */
+.msc-arc-prime {
+  fill: var(--bg-deep);
+  stroke: var(--tan-2);
+  stroke-width: 1.5;
+}
+.msc-arc-prime-name {
+  fill: var(--tan);
 }
 .msc-arc-sky {
   fill: var(--msc-sky);

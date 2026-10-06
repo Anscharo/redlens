@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StreamModel, VenueStream } from "@/lib/settlementStreams";
-import { ARC_OTHER_ID, ARC_TOP_N, BAND, CX, CY, arcVenues, layoutSettlementArc } from "./settlementArcLayout";
+import { ARC_OTHER_ID, ARC_TOP_N, BAND, CX, CY, PRIME_R, PRIME_RC, arcVenues, layoutSettlementArc } from "./settlementArcLayout";
 
 const venue = (id: string, revenue: number, cof: number, sde = 0): VenueStream => ({ id, label: id, synthetic: false, revenue, sde, cof, kept: revenue - cof });
 
@@ -42,12 +42,12 @@ describe("layoutSettlementArc", () => {
     expect(l.kept!.r).toBeLessThan(l.venues[0].r);
   });
 
-  it("stops kept at the Prime and carries the venues through to one arrowhead at Sky", () => {
+  it("ends kept at the Prime circle and carries the venues through to one arrowhead at Sky", () => {
     const l = layoutSettlementArc(model([venue("A", 100, 40, 20), venue("B", 50, 30)]));
     const kept = arc(l.kept!.d);
     expect(kept.sweep).toBe(1);
-    expect(kept.to[0]).toBeLessThan(CX);
-    expect(kept.to[0]).toBeGreaterThan(CX - 10);
+    // Kept ends at the apex, under the Prime circle.
+    expect(kept.to[0]).toBeCloseTo(CX, 1);
     for (const v of l.venues) {
       const a = arc(v.d);
       expect(a.sweep).toBe(1);
@@ -67,6 +67,16 @@ describe("layoutSettlementArc", () => {
     expect(a.sweep).toBe(0);
     expect(a.from[1]).toBeCloseTo(CY, 0);
     expect(a.to[1]).toBeLessThan(CY - 50);
+  });
+
+  it("stacks the demand side inward from the circle and points its one arrow into it", () => {
+    const l = layoutSettlementArc(model([venue("A", 100, 90)], [{ key: "agentRate", label: "Agent rate", value: 5 }]));
+    const b = l.demand[0];
+    // The demand lane's outer edge touches the circle, however thin the lane.
+    expect(b.r + b.w / 2).toBeCloseTo(PRIME_RC - PRIME_R + 4);
+    // The arrowhead's tip (its second point) lands on the circle.
+    const tip = l.inner!.head.split(" L")[1].split(",").map(Number);
+    expect(Math.hypot(tip[0] - CX, tip[1] - (CY - PRIME_RC))).toBeLessThan(PRIME_R + 2);
   });
 
   it("draws a supply-side loss as one hatched kept band", () => {
