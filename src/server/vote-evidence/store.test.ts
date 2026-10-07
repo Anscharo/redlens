@@ -128,13 +128,13 @@ describe("the worker lane's caches", () => {
 
   it("caches a found pull request but looks a miss up again", async () => {
     const lookup = mock((needle: string) => (needle === "found" ? 12 : null));
-    const repo = new URL("../../..", import.meta.url).pathname;
-    const firstPr = cachedFirstPr(fakeSql, repo, lookup);
+    const firstPr = cachedFirstPr(fakeSql, "/atlas", lookup, true);
     expect(await firstPr("found")).toBe(12);
     expect(await firstPr("found")).toBe(12);
     expect(await firstPr("missing")).toBeNull();
     expect(await firstPr("missing")).toBeNull();
     expect(lookup.mock.calls.map((c) => c[0])).toEqual(["found", "missing", "missing"]);
+    // A checkout with no history (here, no repository at all) matches nothing.
     expect(await cachedFirstPr(fakeSql, "/nonexistent-dir", lookup)("found")).toBeNull();
   });
 });

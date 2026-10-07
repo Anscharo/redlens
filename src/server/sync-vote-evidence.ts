@@ -93,8 +93,12 @@ export function cachedJudge(db: SqlTag, model: string, perCycle: number, deadlin
  * The first pull request writing `needle`, cached once found. A miss is not
  * cached: a checkout behind the database finds the words on a later run.
  */
-export function cachedFirstPr(db: SqlTag, atlasDir: string, lookup = firstPr): (needle: string) => Promise<number | null> {
-  const on = hasHistory(atlasDir);
+export function cachedFirstPr(
+  db: SqlTag,
+  atlasDir: string,
+  lookup = firstPr,
+  on = hasHistory(atlasDir),
+): (needle: string) => Promise<number | null> {
   if (!on) console.warn(`sync:vote-evidence — ${atlasDir} has no full git history; no poll is matched through history`);
   return async (needle) => {
     if (!on) return null;
