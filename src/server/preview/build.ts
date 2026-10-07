@@ -12,6 +12,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { config } from "../config.ts";
+import { sleep } from "../retry.ts";
+import { createSemaphore } from "../pool.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { fetchAndExtract, CapExceededError, SourceGoneError } from "./tarball.ts";
 import { startCandidates, writeDiffBases } from "./diff-base.ts";
@@ -103,23 +105,7 @@ export function subscribeBuild(sha: string, send: Send): () => void {
 // ---------------------------------------------------------------------------
 // Global concurrency semaphore (cap distinct-sha builds; dedup handles same-sha)
 // ---------------------------------------------------------------------------
-let active = 0;
-const waiters: Array<() => void> = [];
-function acquire(): Promise<void> {
-  if (active < config.previewMaxConcurrentBuilds) {
-    active++;
-    return Promise.resolve();
-  }
-  return new Promise((r) => waiters.push(r));
-}
-function release(): void {
-  active--;
-  const w = waiters.shift();
-  if (w) {
-    active++;
-    w();
-  }
-}
+const buildSlots = createSemaphore(() => config.previewMaxConcurrentBuilds);
 
 // stderr is captured (and still forwarded to the server log) so a failed build
 // can tell the user WHAT was malformed — e.g. parseTree invariant violations
@@ -193,7 +179,7 @@ export async function countNewAddresses(outDir: string, mainDir: string = config
       return n;
     } catch (e) {
       if (attempt === 0) {
-        await new Promise((r) => setTimeout(r, 150));
+        await sleep(150);
         continue;
       }
       console.error(`[preview] countNewAddresses: failed to read address maps for ${outDir}:`, e);
@@ -383,7 +369,7 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       fail(f, sha, "app-not-installed", (await appInstallUrl(resolved.repo).catch(() => null)) ?? undefined);
       return;
     }
-    await acquire();
+    await buildSlots.acquire();
     // A rebuild replaces the bundle: a verdict still being made for the old one
     // must not land in the new directory.
     stopRefine(sha);
@@ -511,7 +497,7 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       // and lands in identity.json for the reader to pick up.
       void startRefine(sha, paths.outDir, db.refine, deps.refineIdentity);
     } finally {
-      release();
+      buildSlots.release();
     }
   } catch (e) {
     const code: PreviewErrorCode =

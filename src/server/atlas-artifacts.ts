@@ -8,13 +8,10 @@
 // own Bun.sql client without importing the web service's config-bound `sql`
 // (same seam as chain-state.ts and preview/pr-state.ts).
 import { sql } from "./db.ts";
+import type { SqlTag, SqlWithTx } from "./sql-types.ts";
 
-type SqlTag = (strings: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>;
-// putArtifacts needs the transaction primitive too; the structural type keeps
-// the fake in the tests a plain object rather than a whole Bun.sql stand-in.
-interface SqlWithTx extends SqlTag {
-  begin<T>(fn: (tx: SqlTag) => Promise<T>): Promise<T>;
-}
+// putArtifacts needs the transaction primitive too (SqlWithTx); the structural
+// type keeps the fake in the tests a plain object rather than a whole Bun.sql stand-in.
 const defaultSql = sql as unknown as SqlWithTx;
 
 export interface StoredArtifact {

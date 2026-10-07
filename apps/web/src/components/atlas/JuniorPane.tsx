@@ -4,6 +4,7 @@ import { CollapsibleNode } from "./CollapsibleNode";
 import { AtlasActionsContext } from "./AtlasActionsContext";
 import { useSplitHeight } from "./useSplitHeight";
 import { depthColor, realDepth } from "@/lib/depth";
+import { descendantIds } from "../../lib/instanceDescendants";
 
 const ViewChildrenFill = ({ docNo, onExpand }: { docNo: string; onExpand: () => void }) => (
   <button
@@ -79,19 +80,12 @@ export function JuniorPane({
 
     // Collect descendants via parent links (byParent), not doc_no prefix —
     // doc_nos are editorial and get renumbered, parent ids are stable identity.
-    const descendantIds = new Set<string>();
-    const stack = [splitId];
-    while (stack.length) {
-      for (const child of data.atlas.byParent.get(stack.pop()!) ?? []) {
-        descendantIds.add(child.id);
-        stack.push(child.id);
-      }
-    }
+    const descendants = new Set(descendantIds(splitId, data.atlas.byParent));
 
     const slice: FlatEntry[] = [entry];
     let hasMore = false;
     for (const e of data.flatNodes) {
-      if (descendantIds.has(e.node.id)) {
+      if (descendants.has(e.node.id)) {
         if (e.depth <= maxDepth || showMore) slice.push(e);
         else hasMore = true;
       }

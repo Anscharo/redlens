@@ -1,20 +1,14 @@
-import { useState } from "react";
+import { useCopyState } from "../../hooks/useCopyState";
 
 // Copies the public /c/<id> link — a saved collection's id, or a conversation's
 // (see SharedCollectionOpener) — and says so for a moment. Falls back to a
 // prompt when the clipboard is unavailable.
 export function ShareLinkButton({ id }: { id: string }) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyState(1500);
 
   const share = async () => {
     const url = `${window.location.origin}/c/${id}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      window.prompt("Copy this share link:", url);
-    }
+    if (!(await copy(url))) window.prompt("Copy this share link:", url);
   };
 
   return (

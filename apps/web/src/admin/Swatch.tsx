@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import type { ContrastLevel } from "./contrast";
+import { checkerBg } from "./checkerBg";
 import type { PaletteToken } from "./palette-tokens";
 
 const BADGE_COLOR: Record<ContrastLevel, string> = {
@@ -17,14 +18,7 @@ interface SwatchProps {
   contrastBadge?: { ratio: number; level: ContrastLevel };
 }
 
-// Checkerboard pattern for alpha previews.
-const CHECKER_BG: React.CSSProperties = {
-  backgroundImage:
-    "linear-gradient(45deg, var(--surface) 25%, transparent 25%), linear-gradient(-45deg, var(--surface) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--surface) 75%), linear-gradient(-45deg, transparent 75%, var(--surface) 75%)",
-  backgroundSize: "12px 12px",
-  backgroundPosition: "0 0, 0 6px, 6px -6px, -6px 0",
-  backgroundColor: "var(--bg-deep)",
-};
+const CHECKER_BG = checkerBg("var(--surface)", "var(--bg-deep)");
 
 export const Swatch = forwardRef<HTMLButtonElement, SwatchProps>(function Swatch(
   { token, value, isOverridden, onClick, contrastBadge },

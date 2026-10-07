@@ -27,6 +27,7 @@ import {
   REPLACE_MAX_OVERLAP, REPLACE_MAX_WORD_OVERLAP, SHORT_BODY_MAX_LINES, JUDGEABLE_MIN_WORDS,
 } from "../../src/server/preview/identity.ts";
 import { loadCorpus, lineCount, wordCount, prng, type LiveDoc } from "./identity-corpus.ts";
+import { groupBy } from "../../src/lib/collections.ts";
 
 const args = process.argv.slice(2);
 const ORIGIN = args.includes("--origin") ? args[args.indexOf("--origin") + 1] : "https://atlas.redline.support";
@@ -96,8 +97,7 @@ const main = async () => {
     }
     return out;
   };
-  const byParent = new Map<string, LiveDoc[]>();
-  for (const d of live) if (d.parentId) (byParent.get(d.parentId) ?? byParent.set(d.parentId, []).get(d.parentId)!).push(d);
+  const byParent = groupBy(live, (d) => d.parentId || null);
   const sibsOf = (o: LiveDoc) => (o.parentId ? (byParent.get(o.parentId) ?? []).filter((s) => s.id !== o.id) : []);
   // A sibling of similar size is the realistic repurposing: a slot in a
   // template family now holding its neighbour.

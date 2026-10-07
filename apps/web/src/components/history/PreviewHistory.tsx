@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDataSource } from "../../lib/dataSource";
 import { usePreviewDiff, usePreviewPatch } from "../../lib/previewDiff";
-import { diffBaseLabel, type PreviewMeta } from "../../lib/previewMetaCopy";
+import { CANONICAL_REPO, diffBaseLabel, type PreviewMeta } from "../../lib/previewMetaCopy";
 import { NodeHistory } from "./NodeHistory";
 import { DiffView } from "./DiffView";
 import { PreviewChangeNotes } from "./PreviewChangeNotes";
@@ -11,8 +11,6 @@ import { CONTENT_INDENT, LINE1_H, TimelineRow } from "./Timeline";
 // the *live* atlas, which is meaningless for an unmerged branch — so instead we
 // synthesize "this preview adds/changes this doc" from the accurate diff, with a
 // link to the source. (Diff-as-history; real per-commit history is P2.)
-const CANONICAL = "sky-ecosystem/next-gen-atlas";
-
 export function PreviewHistory({ nodeId }: { nodeId: string }) {
   const { base } = useDataSource();
   const diff = usePreviewDiff();
@@ -46,7 +44,7 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
   const isPr = !!meta?.prNumber;
   const srcUrl = meta
     ? isPr
-      ? `https://github.com/${meta.kind === "pr" ? CANONICAL : meta.repo}/pull/${meta.prNumber}`
+      ? `https://github.com/${meta.kind === "pr" ? CANONICAL_REPO : meta.repo}/pull/${meta.prNumber}`
       : `https://github.com/${meta.repo}/commit/${meta.sha}`
     : null;
   // What actually made the change — a PR or a bare branch. Until meta.json lands

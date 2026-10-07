@@ -93,16 +93,12 @@ const MAIN_ALLOWLIST = new Set([
   "addresses.atlas.json",
 ]);
 
-// Preview artifacts. meta.json/diff.json/patches.json are preview-only and live
-// at the bundle root or are computed by the handler — publishBundle skips them.
-const PREVIEW_ALLOWLIST = new Set([
-  "docs.json",
-  "docs-shallow.json",
-  "docs-deep.json",
-  "relations.json",
-  "glossary.json",
-  "search-index.json",
-  "addresses.atlas.json",
+// Preview-only / handler-computed artifacts: they are allowlisted for serving
+// but are never materialised by publishBundle or hydrateBundleFromStore (they
+// are written by the preview build itself, and meta.json does not even live in
+// the artifact subdir). meta.json/diff.json/patches.json live at the bundle
+// root or are computed by the handler — publishBundle skips them.
+const NOT_MATERIALISED = new Set([
   "meta.json",
   "diff.json",
   "patches.json",
@@ -117,6 +113,19 @@ const PREVIEW_ALLOWLIST = new Set([
   "identity.json",
   "identity.sky.json",
   "identity.repo.json",
+]);
+
+// Preview artifacts: the atlas-derived files publishBundle materialises, then
+// the preview-only ones above.
+const PREVIEW_ALLOWLIST = new Set([
+  "docs.json",
+  "docs-shallow.json",
+  "docs-deep.json",
+  "relations.json",
+  "glossary.json",
+  "search-index.json",
+  "addresses.atlas.json",
+  ...NOT_MATERIALISED,
 ]);
 
 export const MAIN_STORE: BundleStore = {
@@ -289,23 +298,6 @@ export function evictLru(store: BundleStore, skip?: Set<string>): string[] {
   }
   return evicted;
 }
-
-// Preview-only / handler-computed artifacts: they are allowlisted for serving
-// but are never materialised by publishBundle or hydrateBundleFromStore (they
-// are written by the preview build itself, and meta.json does not even live in
-// the artifact subdir).
-const NOT_MATERIALISED = new Set([
-  "meta.json",
-  "diff.json",
-  "patches.json",
-  "diff.sky.json",
-  "diff.repo.json",
-  "patches.sky.json",
-  "patches.repo.json",
-  "identity.json",
-  "identity.sky.json",
-  "identity.repo.json",
-]);
 
 /** Names a bundle writer may materialise into <sha>'s artifact dir. */
 function materialisable(store: BundleStore, name: string): boolean {

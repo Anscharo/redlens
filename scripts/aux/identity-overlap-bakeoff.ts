@@ -29,6 +29,7 @@
 //     what it costs (real swaps it talks us out of).
 
 import { lineOverlap, orderedWordContainment } from "../../src/server/preview/identity.ts";
+import { groupBy } from "../../src/lib/collections.ts";
 
 const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(n);
@@ -181,13 +182,7 @@ const main = async () => {
   ]);
 
   const unrelated = Array.from({ length: 800 }, () => { const a = pick(oneLiners), b = pick(oneLiners); return a.id === b.id ? null : score(a.content, b.content); }).filter(Boolean) as Row[];
-  const byParent = new Map<string, any[]>();
-  for (const n of oneLiners) {
-    if (!n.parentId) continue;
-    const g = byParent.get(n.parentId);
-    if (g) g.push(n);
-    else byParent.set(n.parentId, [n]);
-  }
+  const byParent = groupBy(oneLiners, (n) => n.parentId || null);
   const sibGroups = [...byParent.values()].filter((g) => g.length >= 2);
   const siblings = Array.from({ length: 800 }, () => { const g = pick(sibGroups); const a = pick(g), b = pick(g); return a.id === b.id ? null : score(a.content, b.content); }).filter(Boolean) as Row[];
 

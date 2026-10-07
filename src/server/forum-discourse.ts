@@ -2,6 +2,7 @@
 // tagged cycle threads are public. Inject `fetch`/`sleep` so tests never hit
 // the network. The worker is the only production caller.
 
+import { sleep as defaultSleep } from "./retry.ts";
 import { classifyForumTopic, FORUM_CYCLES, FORUM_ORIGIN, tagSlugs, type ForumKind } from "../lib/forumKinds.ts";
 
 export interface DiscourseTopic {
@@ -36,8 +37,6 @@ const UA = "redline-atlas-forum-sync";
 
 /** Retry backoff: 500ms, then 1s. Injectable so tests never actually wait. */
 const RETRY_BASE_MS = 500;
-
-const defaultSleep = (ms: number): Promise<unknown> => new Promise((r) => setTimeout(r, ms));
 
 /**
  * Retry only what a second request could plausibly fix: 429 (we crawled too

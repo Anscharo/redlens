@@ -1,16 +1,11 @@
 import { useEffect, useState } from "react";
+import { useCopyState } from "../hooks/useCopyState";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { ENDPOINT, CLIENTS, USAGE_EXAMPLES } from "./connectData";
 import { loadTools, type ToolInfo } from "../lib/tools";
 
 function CodeBlock({ code }: { code: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
-    navigator.clipboard?.writeText(code).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
+  const { copied, copy } = useCopyState(1500);
   return (
     <div className="relative group mb-4">
       <pre
@@ -21,7 +16,7 @@ function CodeBlock({ code }: { code: string }) {
       </pre>
       <button
         type="button"
-        onClick={copy}
+        onClick={() => void copy(code)}
         className="mono text-xs absolute top-2 right-2 px-2 py-1 rounded"
         style={{ background: "var(--hover)", color: "var(--tan-3)" }}
       >

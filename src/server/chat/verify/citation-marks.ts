@@ -15,6 +15,7 @@
 // conflict the document does not contain. It draws nothing until confirm is
 // given the record.
 import { withDeadline } from "../../jev.ts";
+import { mapPool } from "../../pool.ts";
 import { citationPairs, type CitationPair } from "./cite-pairs.ts";
 import { judgeCitation, type CiteVerdict } from "./cite-support.ts";
 import { judgeMetadata, type MetadataVerdict } from "./cite-metadata.ts";
@@ -300,31 +301,22 @@ export async function runCitationMarks(p: {
     const deadlineMs = p.deadlineMs ?? 8000;
     const signal = withDeadline(deadlineMs, p.signal);
 
-    const results: { pair: CitationPair; verdict: MarkVerdict | null; confidence: number | null; costUsd: number | null; lane: CiteLane; confirmed?: boolean }[] = new Array(
-      pairs.length,
-    );
-    let nextIndex = 0;
+    type MarkResult = { pair: CitationPair; verdict: MarkVerdict | null; confidence: number | null; costUsd: number | null; lane: CiteLane; confirmed?: boolean };
     let calls = 0;
     let failed = 0;
     let costUsd = 0;
-    const worker = async () => {
-      for (;;) {
-        const i = nextIndex++;
-        if (i >= pairs.length) return;
-        calls++;
-        const prov = p.provenance?.get(pairs[i].uuid);
-        const lane: CiteLane = prov?.kind === "identity" ? "record" : "content";
-        const j =
-          lane === "record"
-            ? await judgeMetadata({ claim: pairs[i].claim, record: prov!.record, model: p.model, signal })
-            : await judgeCitation({ pair: pairs[i], ix: p.ix, model: p.model, signal });
-        if (j.verdict === null) failed++;
-        if (j.costUsd) costUsd += j.costUsd;
-        results[i] = { pair: pairs[i], verdict: j.verdict, confidence: j.confidence, costUsd: j.costUsd, lane };
-      }
-    };
-    const workerCount = Math.min(p.concurrency ?? 6, pairs.length);
-    await Promise.all(Array.from({ length: workerCount }, worker));
+    const results: MarkResult[] = await mapPool(pairs, p.concurrency ?? 6, async (pair): Promise<MarkResult> => {
+      calls++;
+      const prov = p.provenance?.get(pair.uuid);
+      const lane: CiteLane = prov?.kind === "identity" ? "record" : "content";
+      const j =
+        lane === "record"
+          ? await judgeMetadata({ claim: pair.claim, record: prov!.record, model: p.model, signal })
+          : await judgeCitation({ pair, ix: p.ix, model: p.model, signal });
+      if (j.verdict === null) failed++;
+      if (j.costUsd) costUsd += j.costUsd;
+      return { pair, verdict: j.verdict, confidence: j.confidence, costUsd: j.costUsd, lane };
+    });
 
     // Content-lane `contradicts` goes through confirm against the document —
     // same discipline the whole-turn verifier applies before a hard fail.

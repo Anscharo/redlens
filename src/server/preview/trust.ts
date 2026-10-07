@@ -18,6 +18,7 @@
 // screen, fork banner, interstitial, and address warning.
 
 import { CANONICAL_REPO, type GhClient } from "./resolve.ts";
+import { createCache } from "../ttl-cache.ts";
 import { config } from "../config.ts";
 
 export type TrustTier = "trusted" | "known" | "unknown" | "refused";
@@ -56,9 +57,7 @@ export function effectivePrTier(t: TrustTier): Exclude<TrustTier, "refused"> {
 // 24h cache. Trust changes slowly; this keeps us far under the search-API
 // rate limit even under hostile request churn. FIFO cap prevents unbounded
 // growth under adversarial churn with many distinct owners.
-const cache = new Map<string, { at: number; v: Trust }>();
-const TTL_MS = 24 * 60 * 60_000;
-const MAX_TRUST_CACHE = 1000;
+const cache = createCache<Trust>({ max: 1000, ttlMs: 24 * 60 * 60_000 });
 
 async function searchMergedCount(gh: GhClient, q: string): Promise<number> {
   const r = await gh.fetchJson(`/search/issues?q=${encodeURIComponent(q)}&per_page=1`);
@@ -71,8 +70,8 @@ async function searchMergedCount(gh: GhClient, q: string): Promise<number> {
  *  the owner also has no merged history. */
 export async function computeTrust(owner: string, gh: GhClient): Promise<Trust> {
   const hit = cache.get(owner);
+  if (hit) return hit;
   const now = Date.now();
-  if (hit && now - hit.at < TTL_MS) return hit.v;
 
   const whitelisted = TRUSTED_FORK_OWNERS.has(owner);
   let orgMerged = 0;
@@ -91,7 +90,6 @@ export async function computeTrust(owner: string, gh: GhClient): Promise<Trust> 
   }
 
   const v: Trust = { tier: tierFor(orgMerged, atlasMerged, accountAgeDays, whitelisted), orgMerged, atlasMerged, accountAgeDays };
-  cache.set(owner, { at: now, v });
-  if (cache.size > MAX_TRUST_CACHE) cache.delete(cache.keys().next().value!);
+  cache.set(owner, v, now);
   return v;
 }

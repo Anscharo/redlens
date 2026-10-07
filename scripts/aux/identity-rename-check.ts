@@ -12,6 +12,7 @@
 
 import { bodyWhollyReplaced, renameScore, JUDGEABLE_MIN_WORDS, type SwapNode } from "../../src/server/preview/identity.ts";
 import { parentOf, prng, quantile, share, swappable, walkRetitles, wordCount } from "./identity-corpus.ts";
+import { groupBy } from "../../src/lib/collections.ts";
 
 const SAMPLES = process.argv.includes("--samples");
 
@@ -28,12 +29,11 @@ const latest = walkRetitles((c, before, after, ids) => {
 
 const live: SwapNode[] = [...latest.values()].filter((n) => wordCount(n.content) >= JUDGEABLE_MIN_WORDS);
 const { pick, rnd } = prng(7);
-const group = <K,>(key: (n: SwapNode) => K) => { const m = new Map<K, SwapNode[]>(); for (const n of live) (m.get(key(n)) ?? m.set(key(n), []).get(key(n))!).push(n); return m; };
-const byParent = group(parentOf);
+const byParent = groupBy(live, parentOf);
 // Cousins: titles that differ only in their FIRST word(s) — the agent's name —
 // found by grouping on the title with its first word removed.
 const tail = (n: SwapNode) => (n.title ?? "").split(/\s+/).slice(1).join(" ").toLowerCase();
-const byTail = group(tail);
+const byTail = groupBy(live, tail);
 const shuffled = [...live];
 for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
 let nSib = 0, nCous = 0, nUnrel = 0;

@@ -1,5 +1,7 @@
 import type { AtlasNode } from "../types";
 import { toCSV } from "./csv";
+import { pushTo } from "./collections";
+import { byDocNo } from "./docNo";
 import { atlasUrl } from "./routes";
 import type { SearchField } from "./reportFilter";
 
@@ -61,9 +63,7 @@ export function indexByParentDocNo(docs: Record<string, AtlasNode>): Map<string,
     const lastDot = node.doc_no.lastIndexOf(".");
     if (lastDot < 0) continue;
     const parentDocNo = node.doc_no.slice(0, lastDot);
-    const list = map.get(parentDocNo) ?? [];
-    list.push(node);
-    map.set(parentDocNo, list);
+    pushTo(map, parentDocNo, node);
   }
   return map;
 }
@@ -123,7 +123,7 @@ export function getStepChildren(
 ): AtlasNode[] {
   return (childrenByParentDocNo.get(node.doc_no) ?? [])
     .filter(isStepChild)
-    .sort((a, b) => a.doc_no.localeCompare(b.doc_no, undefined, { numeric: true }));
+    .sort(byDocNo);
 }
 
 // ---------------------------------------------------------------------------

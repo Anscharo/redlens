@@ -22,6 +22,7 @@
 //         JUDGE_MODELS="typesafe/jev-1.13,~typesafe/jev-latest" bun …
 import { judgeSmalltalkJev, SMALLTALK_JEV_THRESHOLD } from "../../src/server/chat/verify/smalltalk-jev.ts";
 import { config } from "../../src/server/config.ts";
+import { mapPool } from "../../src/server/pool.ts";
 import { CASES } from "./eval-smalltalk-cases.ts";
 import fs from "node:fs";
 import path from "node:path";
@@ -35,21 +36,6 @@ interface CaseResult {
   q: string; expected: boolean; hard: boolean;
   got: boolean; p: number | null; failed: boolean;
   latencyMs: number | null; costUsd: number | null;
-}
-
-async function pool<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let i = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, async () => {
-      for (;;) {
-        const idx = i++;
-        if (idx >= items.length) return;
-        out[idx] = await fn(items[idx]);
-      }
-    }),
-  );
-  return out;
 }
 
 const pct = (n: number, d: number) => (d === 0 ? "—" : `${((n / d) * 100).toFixed(1)}%`);
@@ -83,7 +69,7 @@ const report: Record<string, unknown> = {};
 
 for (const model of MODELS) {
   const t0 = Date.now();
-  const results: CaseResult[] = await pool(runs, CONCURRENCY, async (c) => {
+  const results: CaseResult[] = await mapPool(runs, CONCURRENCY, async (c) => {
     // threshold 0 keeps the raw probability meaningful for the sweep; the
     // boolean is re-derived below at the shipped threshold.
     const r = await judgeSmalltalkJev({ question: c.q, model, threshold: 0 });

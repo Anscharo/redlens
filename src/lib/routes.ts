@@ -156,3 +156,11 @@ export const actorHref = (slug: string, fragment?: string) =>
   `${ROUTES.RADAR}/${slug}${fragment ? `#${fragment}` : ""}`;
 export const settlementsHref = (slug: string) => `${ROUTES.RADAR}/${slug}/settlements`;
 export const reportHref = (id: string) => `${ROUTES.REPORTS}/${id}`;
+/** Home URL carrying a search `q` and the open split pane, each only when set. */
+export const homeSearchHref = (q: string | null | undefined, split?: string | null): string => {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (split) params.set("split", split);
+  const qs = params.toString();
+  return qs ? `${ROUTES.HOME}?${qs}` : ROUTES.HOME;
+};
