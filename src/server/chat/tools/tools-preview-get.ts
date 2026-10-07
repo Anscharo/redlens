@@ -33,46 +33,59 @@ function resolveDoc(docs: PreviewDocs, ref: string): AtlasNode | undefined {
   return docs.byId.get(ref.toLowerCase()) ?? docs.byDocNo.get(ref);
 }
 
-export function buildPreviewGet(ix: Indexes, open: Extract<ToolOpen, { status: "ready" }>, a: PreviewGetArgs): ToolResult {
-  const { sha, meta, id } = open;
-  const docs = loadPreviewDocs(sha);
+// Everything one call reads from the bundle once, shared by every document it returns.
+interface GetCtx {
+  ix: Indexes;
+  sha: string;
+  args: PreviewGetArgs;
+  docs: PreviewDocs;
+  added: Set<string>;
+  changed: Set<string>;
+  patches: ReturnType<typeof readPreviewPatches>;
+}
+
+function getCtx(ix: Indexes, sha: string, args: PreviewGetArgs): GetCtx {
   const diff = readPreviewDiff(sha);
   const added = new Set(diff?.added ?? []);
   const changed = new Set(diff?.changed ?? []);
-  const patches = readPreviewPatches(sha);
-  const missing: string[] = [];
-  const documents = [];
-  for (const ref of a.ids.slice(0, 5)) {
-    const node = resolveDoc(docs, ref);
-    if (!node) {
-      missing.push(ref);
-      continue;
-    }
-    const status = added.has(node.id) ? "added" : changed.has(node.id) ? "changed" : "unchanged";
-    const parent = node.parentId ? docs.byId.get(node.parentId) : undefined;
-    documents.push({
-      id: node.id,
-      doc_no: node.doc_no,
-      title: node.title,
-      type: node.type,
-      status,
-      parent: parent ? { id: parent.id, doc_no: parent.doc_no, title: parent.title, type: parent.type } : null,
-      ancestors: ancestors(node, docs),
-      content: node.content,
-      ...(a.include_base && status !== "added" ? { base: liveBase(ix, node.id) } : {}),
-      ...(patches[node.id] ? { patch: renderPatch(patches[node.id], PATCH_LINES) } : {}),
-      ...(a.include_children ? { children: (docs.children.get(node.id) ?? []).map((c) => ({ id: c.id, doc_no: c.doc_no, title: c.title, type: c.type })) } : {}),
-      cite: previewCite(sha, node.id),
-    });
-  }
+  return { ix, sha, args, docs: loadPreviewDocs(sha), added, changed, patches: readPreviewPatches(sha) };
+}
+
+const summary = (n: AtlasNode) => ({ id: n.id, doc_no: n.doc_no, title: n.title, type: n.type });
+
+const statusOf = (c: GetCtx, id: string) => (c.added.has(id) ? "added" : c.changed.has(id) ? "changed" : "unchanged");
+
+function documentOut(c: GetCtx, node: AtlasNode) {
+  const status = statusOf(c, node.id);
+  const parent = node.parentId ? c.docs.byId.get(node.parentId) : undefined;
+  const patch = c.patches[node.id];
+  return {
+    ...summary(node),
+    status,
+    parent: parent ? summary(parent) : null,
+    ancestors: ancestors(node, c.docs),
+    content: node.content,
+    ...(c.args.include_base && status !== "added" ? { base: liveBase(c.ix, node.id) } : {}),
+    ...(patch ? { patch: renderPatch(patch, PATCH_LINES) } : {}),
+    ...(c.args.include_children ? { children: (c.docs.children.get(node.id) ?? []).map(summary) } : {}),
+    cite: previewCite(c.sha, node.id),
+  };
+}
+
+const STYLE_HINT =
+  "To check conformance, compare against live documents of the same type under the same parent: atlas_filter " +
+  "({ type, ancestor_id: <parent's live id or doc_no> }) or atlas_search, then atlas_get on two or three of them.";
+
+export function buildPreviewGet(ix: Indexes, open: Extract<ToolOpen, { status: "ready" }>, a: PreviewGetArgs): ToolResult {
+  const c = getCtx(ix, open.sha, a);
+  const refs = a.ids.slice(0, 5).map((ref) => ({ ref, node: resolveDoc(c.docs, ref) }));
+  const missing = refs.filter((r) => !r.node).map((r) => r.ref);
   return {
     source_class: PREVIEW_SOURCE_CLASS,
-    preview: previewHeader(meta, id),
-    documents,
+    preview: previewHeader(open.meta, open.id),
+    documents: refs.flatMap((r) => (r.node ? [documentOut(c, r.node)] : [])),
     ...(missing.length ? { not_found: missing } : {}),
-    style_hint:
-      "To check conformance, compare against live documents of the same type under the same parent: atlas_filter " +
-      "({ type, ancestor_id: <parent's live id or doc_no> }) or atlas_search, then atlas_get on two or three of them.",
+    style_hint: STYLE_HINT,
     citation_note: CITATION_NOTE,
   };
 }
