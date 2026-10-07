@@ -141,6 +141,29 @@ pnpm eval:vote-evidence --decision-models typesafe/jev-1.13,openai/gpt-6-luna-de
 Each model gets its own column, its own threshold sweeps, and its own name in the disagreement
 list. Answers are cached per model, so Jev's answers replay and only the new model is paid.
 
+## Third run: Jev against `openai/gpt-6-luna-decisions`, 2026-10-07
+
+| Task | jev-1.13 | gpt-6-luna-decisions |
+|---|---|---|
+| Subject, real (39) at τ 0.5 | 95%, 2 false alarms | 62%, 15 false alarms |
+| Subject, swapped (34) at τ 0.5 | 33/34 | 33/34 (plus one swapped case answered "anchor") |
+| Subject, best threshold (both slices) | 97% at τ 0.3–0.4 | 87% at τ 0.1 |
+| Poll at τ 0.5 | 5/14 found, 0/4 false | 2/14 found, 0/4 false |
+| Poll, best threshold | 78% at τ 0.1–0.15 | 50% at τ ≤ 0.2 |
+
+**Where Luna fails.** Its subject misses are the hard cases: grants inside proxy-spell sections, the
+renamed agents (Osero, Obex), and the two Solana bridge phases. These are the ones Jev missed only
+while executives were truncated. Luna now sees the whole executive and still says no, and its
+probabilities run low (best threshold 0.1).
+
+**Luna adds nothing beside Jev:** it matches Jev on the swapped slice and is worse everywhere else,
+so an ensemble gains nothing.
+
+**Caveat:** the questions were written with Jev in mind. Luna may want different phrasing, but this
+run gives no reason to pursue it.
+
+**Decision:** Jev is the decision model for both tasks.
+
 ## Osero was enacted: the research's headline case is a false alarm
 
 The gold labelling found that the March 26, 2026 executive does carry the Osero genesis transfer.
