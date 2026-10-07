@@ -3,6 +3,7 @@
 // file's path). The fetcher is injected so the paging and normalising rules
 // are testable offline.
 
+import { safeDecode } from "./markdown.ts";
 import type { ExecutivePortal, PollPortal } from "./types.ts";
 
 export const PORTAL_API = "https://vote.sky.money/api";
@@ -16,6 +17,8 @@ export type FetchJson = (url: string) => Promise<unknown>;
 export interface PortalData {
   executivesByAddress: Map<string, ExecutivePortal>;
   pollsByPath: Map<string, PollPortal>;
+  /** Keys the portal lists more than once; the later row wins, so these are reported. */
+  duplicates: string[];
 }
 
 interface RawExecutive {
@@ -42,27 +45,34 @@ interface RawPollPage {
 
 export async function readPortal(fetchJson: FetchJson): Promise<PortalData> {
   const [executives, polls] = await Promise.all([fetchExecutives(fetchJson), fetchPolls(fetchJson)]);
+  const duplicates: string[] = [];
+  const put = <T>(map: Map<string, T>, key: string, value: T) => {
+    if (map.has(key)) duplicates.push(key);
+    map.set(key, value);
+  };
   const executivesByAddress = new Map<string, ExecutivePortal>();
-  for (const e of executives) executivesByAddress.set(e.address.toLowerCase(), toExecutivePortal(e));
+  for (const e of executives) put(executivesByAddress, e.address.toLowerCase(), toExecutivePortal(e));
   const pollsByPath = new Map<string, PollPortal>();
   for (const p of polls) {
     const key = pollPathFromUrl(p.url ?? "");
-    if (key) pollsByPath.set(key, toPollPortal(p));
+    if (key) put(pollsByPath, key, toPollPortal(p));
   }
-  return { executivesByAddress, pollsByPath };
+  return { executivesByAddress, pollsByPath, duplicates };
 }
 
-// The executive endpoint reports no total, so paging stops at the first short page.
+// The executive endpoint reports no total, so paging runs until an empty page.
+// A short page is not taken as the end: a page cut short mid-stream would
+// otherwise truncate the list without a trace.
 async function fetchExecutives(fetchJson: FetchJson): Promise<RawExecutive[]> {
   const rows: RawExecutive[] = [];
   for (let page = 0; page < MAX_PAGES; page++) {
     const url = `${PORTAL_API}/executive?network=mainnet&start=${page * PAGE_SIZE}&limit=${PAGE_SIZE}`;
     const batch = await fetchJson(url);
     if (!Array.isArray(batch)) throw new Error(`votes: ${url} did not return an array`);
+    if (batch.length === 0) return rows;
     rows.push(...(batch as RawExecutive[]));
-    if (batch.length < PAGE_SIZE) return rows;
   }
-  throw new Error(`votes: executive paging passed ${MAX_PAGES} pages without a short page`);
+  throw new Error(`votes: executive paging passed ${MAX_PAGES} pages without an empty page`);
 }
 
 // The poll endpoint reports its total; a fetch that collects fewer rows is truncated, not small.
@@ -89,7 +99,7 @@ async function fetchPolls(fetchJson: FetchJson): Promise<RawPoll[]> {
  * the same repository under its former owner, with the same paths.
  */
 export function pollPathFromUrl(url: string): string | null {
-  const m = /\/(\d{4}\/[^/]+\.md)$/.exec(decodeURIComponent(url));
+  const m = /\/(\d{4}\/[^/]+\.md)$/.exec(safeDecode(url));
   return m ? m[1] : null;
 }
 

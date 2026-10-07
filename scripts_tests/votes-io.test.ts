@@ -54,6 +54,9 @@ describe("byDateThenFile", () => {
   it("orders by date, then by path within a date", () => {
     const rows = [{ date: "2026-01-02", file: "b" }, { date: "2026-01-01", file: "z" }, { date: "2026-01-02", file: "a" }];
     expect(rows.sort(byDateThenFile).map((r) => r.file)).toEqual(["z", "a", "b"]);
+    // Code-point order: "B" (0x42) sorts before "a" (0x61), where a locale collation would not.
+    const mixed = [{ date: "d", file: "a" }, { date: "d", file: "B" }];
+    expect(mixed.sort(byDateThenFile).map((r) => r.file)).toEqual(["B", "a"]);
   });
 });
 
@@ -136,13 +139,14 @@ describe("summarize", () => {
   });
 
   it("lists join misses, or says everything joined", () => {
-    const misses: JoinStats = { executivesWithoutPortal: ["2026/a.md"], portalExecutivesWithoutFile: 2, pollsWithoutPortal: ["2026/b.md"], portalPollsWithoutFile: 1 };
+    const misses: JoinStats = { executivesWithoutPortal: ["2026/a.md"], portalExecutivesWithoutFile: 2, pollsWithoutPortal: ["2026/b.md"], portalPollsWithoutFile: 1, portalDuplicates: ["2026/c.md"] };
     const text = summarize(artifact, misses).join("\n");
     expect(text).toContain("no portal row for executive 2026/a.md");
     expect(text).toContain("no portal row for poll 2026/b.md");
     expect(text).toContain("2 portal executives have no file");
     expect(text).toContain("1 portal polls have no file");
-    const clean: JoinStats = { executivesWithoutPortal: [], portalExecutivesWithoutFile: 0, pollsWithoutPortal: [], portalPollsWithoutFile: 0 };
+    expect(text).toContain("portal lists 2026/c.md more than once; the later row was kept");
+    const clean: JoinStats = { executivesWithoutPortal: [], portalExecutivesWithoutFile: 0, pollsWithoutPortal: [], portalPollsWithoutFile: 0, portalDuplicates: [] };
     expect(summarize(artifact, clean)).toContain("portal      every document joined");
   });
 

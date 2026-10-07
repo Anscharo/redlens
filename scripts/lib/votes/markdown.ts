@@ -96,8 +96,20 @@ export function classifyLink(url: string, text: string): VoteLink {
   return link;
 }
 
+/**
+ * decodeURIComponent, or the input unchanged when it holds a malformed escape
+ * ("#A.1%2"): these links are hand-written, and one typo is not worth the run.
+ */
+export function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
 function atlasDetail(url: URL): Partial<VoteLink> {
-  const frag = decodeURIComponent(url.hash.replace(/^#/, ""));
+  const frag = safeDecode(url.hash.replace(/^#/, ""));
   const uuid = UUID_RE.exec(frag)?.[0]?.toLowerCase();
   if (uuid) return { uuid };
   const docNo = DOCNO_RE.exec(frag)?.[0];
@@ -107,7 +119,7 @@ function atlasDetail(url: URL): Partial<VoteLink> {
 // Powerhouse ids are not next-gen-atlas uuids, so only the doc_no embedded in
 // the path or fragment ("A.1.9.2.1_Pause_Delay") is kept.
 function powerhouseDetail(url: URL): Partial<VoteLink> {
-  const where = decodeURIComponent(url.pathname + url.hash);
+  const where = safeDecode(url.pathname + url.hash);
   const docNo = DOCNO_RE.exec(where)?.[0];
   return docNo ? { docNo } : {};
 }

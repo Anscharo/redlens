@@ -57,6 +57,7 @@ function joinLines(join: JoinStats | null): string[] {
   for (const f of join.pollsWithoutPortal) lines.push(`  no portal row for poll ${f}`);
   if (join.portalExecutivesWithoutFile) lines.push(`  ${join.portalExecutivesWithoutFile} portal executives have no file`);
   if (join.portalPollsWithoutFile) lines.push(`  ${join.portalPollsWithoutFile} portal polls have no file`);
+  for (const k of join.portalDuplicates) lines.push(`  portal lists ${k} more than once; the later row was kept`);
   return lines.length ? lines : ["portal      every document joined"];
 }
 

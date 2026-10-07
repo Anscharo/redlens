@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { attachPortal, checkFloors, MIN_EXECUTIVES, MIN_POLLS, shrinkage } from "../scripts/lib/votes/assemble.ts";
+import { attachPortal, checkFloors, checkPortalJoin, MAX_EXECUTIVES_WITHOUT_PORTAL, MIN_EXECUTIVES, MIN_POLLS, shrinkage, type JoinStats } from "../scripts/lib/votes/assemble.ts";
 import { PAGE_SIZE, pollPathFromUrl, readPortal, type FetchJson } from "../scripts/lib/votes/portal.ts";
 import type { Executive, Poll, VotesArtifact } from "../scripts/lib/votes/types.ts";
 
@@ -53,10 +53,26 @@ describe("readPortal", () => {
     expect(pollsByPath.get("2026/2026-01-00-p.md")).toEqual({ pollId: 1500, slug: "Qm0", multiHash: "Qm0xx", tags: ["weekly", "spark"], winner: "Yes", numVoters: 9 });
   });
 
-  it("stops paging executives at a bound when the portal never returns a short page", async () => {
+  it("stops paging executives at a bound when the portal never returns an empty page", async () => {
     const full = Array.from({ length: PAGE_SIZE }, (_, i) => rawExec(`0x${String(i).padStart(40, "0")}`, i));
     const endless: FetchJson = async (url) => (url.includes("/executive") ? full : fakePortal([], [])(url));
-    await expect(readPortal(endless)).rejects.toThrow(/without a short page/);
+    await expect(readPortal(endless)).rejects.toThrow(/without an empty page/);
+  });
+
+  it("keeps paging past a short page, so a page cut short mid-stream truncates nothing", async () => {
+    const pages = [[rawExec("0x" + "1".repeat(40), 1)], [rawExec("0x" + "2".repeat(40), 2)], []];
+    const shortThenMore: FetchJson = async (url) => {
+      if (!url.includes("/executive")) return fakePortal([], [])(url);
+      return pages[Number(new URL(url).searchParams.get("start")) / PAGE_SIZE];
+    };
+    expect((await readPortal(shortThenMore)).executivesByAddress.size).toBe(2);
+  });
+
+  it("reports a key the portal lists twice instead of silently keeping one", async () => {
+    const twice = [rawPoll("2025/2025-06-02-x.md", 1), rawPoll("2025/2025-06-02-x.md", 2)];
+    const { pollsByPath, duplicates } = await readPortal(fakePortal([], twice));
+    expect(duplicates).toEqual(["2025/2025-06-02-x.md"]);
+    expect(pollsByPath.get("2025/2025-06-02-x.md")?.pollId).toBe(1502);
   });
 
   it("throws when an executive page is not an array", async () => {
@@ -73,6 +89,7 @@ describe("pollPathFromUrl", () => {
   it("ignores the org, so polls still pointing at makerdao/polls join too", () => {
     expect(pollPathFromUrl("https://raw.githubusercontent.com/makerdao/polls/refs/heads/main/2025/2025-06-09-AEP-11.md")).toBe("2025/2025-06-09-AEP-11.md");
     expect(pollPathFromUrl("https://example.com/not-a-poll")).toBeNull();
+    expect(pollPathFromUrl("https://raw.githubusercontent.com/sky-ecosystem/polls/main/2025/2025-06-02-50%-x.md")).toBe("2025/2025-06-02-50%-x.md");
   });
 });
 
@@ -89,7 +106,23 @@ describe("attachPortal", () => {
       portalExecutivesWithoutFile: 0,
       pollsWithoutPortal: ["2025/2025-06-09-y.md"],
       portalPollsWithoutFile: 0,
+      portalDuplicates: [],
     });
+  });
+});
+
+describe("checkPortalJoin", () => {
+  const join = (missing: number): JoinStats => ({
+    executivesWithoutPortal: Array.from({ length: missing }, (_, i) => `2026/e-${i}.md`),
+    portalExecutivesWithoutFile: 0,
+    pollsWithoutPortal: [],
+    portalPollsWithoutFile: 0,
+    portalDuplicates: [],
+  });
+
+  it("tolerates a few deployed executives the portal lacks and refuses more", () => {
+    expect(() => checkPortalJoin(join(MAX_EXECUTIVES_WITHOUT_PORTAL))).not.toThrow();
+    expect(() => checkPortalJoin(join(MAX_EXECUTIVES_WITHOUT_PORTAL + 1))).toThrow(/looks truncated/);
   });
 });
 

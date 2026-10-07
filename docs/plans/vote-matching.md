@@ -352,9 +352,11 @@ Powerhouse doc_no matches the number in its URL.
    break. Stage two adds the consumer and, with it, the Docker bake and `dev-preflight` callers and
    their assertion in `scripts_tests/build-steps.test.ts`, as settlements has. It also decides
    whether a build-time consumer needs the artifact committed, since `REPRO=1` builds are offline.
-4. **A portal outage is a warning, not a failure.** The repository data is still written, with
-   every `portal` null. The shrink guard refuses to overwrite an artifact that had more documents
-   or more portal coverage unless `--allow-shrink` is passed.
+4. **A portal failure fails the run.** A portal-less artifact reads to a consumer as "no vote
+   found", so writing one takes the explicit `--no-portal`. The run also fails when more than two
+   deployed executives find no portal row, and executive paging runs to an empty page, since that
+   endpoint reports no total. The shrink guard refuses to overwrite an artifact that had more
+   documents or more portal coverage unless `--allow-shrink` is passed.
 
 **Not exercised in this session:** the default fetch of each repository's main-branch tarball. The
 session's GitHub proxy refuses archive downloads for repositories not attached to it, so the live

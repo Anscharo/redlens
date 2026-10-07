@@ -14,7 +14,8 @@
  * Flags:
  *   --exec-dir <path>  local executive-votes checkout (default: fetch main's tarball)
  *   --poll-dir <path>  local polls checkout (default: fetch main's tarball)
- *   --no-portal        skip vote.sky.money; every document's `portal` is null
+ *   --no-portal        skip vote.sky.money; every document's `portal` is null.
+ *                      Without it, a portal failure fails the run.
  *   --out <path>       destination (default: public/votes.json)
  *   --dry-run          parse and print stats, write nothing
  *   --allow-shrink     overwrite even when the new record is smaller than the old
@@ -26,7 +27,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
-import { attachPortal, checkFloors, shrinkage, type JoinStats } from "../lib/votes/assemble.ts";
+import { attachPortal, checkFloors, checkPortalJoin, shrinkage, type JoinStats } from "../lib/votes/assemble.ts";
 import { readVoteTree } from "../lib/votes/corpus.ts";
 import { parseExecutive } from "../lib/votes/executive.ts";
 import { fetchJson, repoTree, type Tree } from "../lib/votes/fetch.ts";
@@ -37,18 +38,20 @@ import type { VotesArtifact } from "../lib/votes/types.ts";
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 
-// A portal outage leaves the repository data valid, so it is a warning here;
-// the shrink guard is what stops a portal-less artifact replacing a full one.
+// A portal failure fails the run. A portal-less artifact reads to a consumer as
+// "no vote found", so writing one takes the explicit --no-portal.
 async function joinPortal(artifact: VotesArtifact, skip: boolean): Promise<JoinStats | null> {
   if (skip) return null;
+  let portal;
   try {
-    const join = attachPortal(artifact.executives, artifact.polls, await readPortal(fetchJson));
-    artifact.sources.portal = PORTAL_API;
-    return join;
+    portal = await readPortal(fetchJson);
   } catch (err) {
-    console.warn(`votes: portal not read (${(err as Error).message}); every document's portal is null`);
-    return null;
+    throw new Error(`votes: portal not read (${(err as Error).message}); pass --no-portal to write the repository data alone`);
   }
+  const join = attachPortal(artifact.executives, artifact.polls, portal);
+  checkPortalJoin(join);
+  artifact.sources.portal = PORTAL_API;
+  return join;
 }
 
 function readPrevious(outPath: string): VotesArtifact | null {

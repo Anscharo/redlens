@@ -73,6 +73,11 @@ describe("classifyLink", () => {
     expect(classifyLink("https://vote.sky.money/polling/QmVAKhR6", "Governance Poll 1628").pollId).toBe(1628);
   });
 
+  it("survives a malformed percent-escape instead of aborting the run", () => {
+    expect(classifyLink("https://sky-atlas.io/#A.1%2", "")).toMatchObject({ family: "atlas-docno", docNo: "A.1" });
+    expect(classifyLink("https://sky-atlas.powerhouse.io/A.1.9.2.1_Pause_%E0%A4%A/abc", "").docNo).toBe("A.1.9.2.1");
+  });
+
   it("tells executives, snapshot votes, forum threads and everything else apart", () => {
     expect(classifyLink("https://vote.sky.money/executive/template-executive-vote-foo", "").family).toBe("executive");
     expect(classifyLink("https://snapshot.box/#/s:grovefinance.eth/proposal/0xf97c", "Snapshot Poll").family).toBe("snapshot");
