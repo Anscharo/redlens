@@ -39,7 +39,7 @@ import { renderCard } from "./og-image.ts";
 // ---------------------------------------------------------------------------
 // /mcp success-path setup. Two independent pieces:
 //
-// 1. WebStandardStreamableHTTPServerTransport is mocked. index.ts is the ONLY
+// 1. WebStandardStreamableHTTPServerTransport is mocked. mcp-route.ts is the ONLY
 //    importer of this specifier anywhere in the repo (no dedicated test file
 //    exists for it), so replacing it cannot affect any other test file.
 // 2. mcp.test.ts globally — and, per mock.module's own contract, irreversibly

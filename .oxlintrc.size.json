@@ -190,9 +190,6 @@
     { "files": ["src/server/history/first-seen.ts"], "rules": { "max-lines": ["error", { "max": 194, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 53, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/history/history-curate.ts"], "rules": { "max-lines-per-function": ["error", { "max": 52, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/history/history-db.ts"], "rules": { "max-lines": ["error", { "max": 276, "skipBlankLines": true, "skipComments": true }] } },
-    // Raised by 3 / 1: one route-table entry (/api/search/semantic) and its placeholder
-    // replacement — the appended-line-per-registry shape, not growth inside a function.
-    { "files": ["src/server/index.ts"], "rules": { "max-lines": ["error", { "max": 343, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 129, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/jev.ts"], "rules": { "max-lines-per-function": ["error", { "max": 67, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/mcp.ts"], "rules": { "max-lines-per-function": ["error", { "max": 67, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/og-image.ts"], "rules": { "max-lines": ["error", { "max": 209, "skipBlankLines": true, "skipComments": true }] } },
