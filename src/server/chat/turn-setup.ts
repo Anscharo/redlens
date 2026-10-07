@@ -21,6 +21,8 @@ import { judgePrefetch, filterTeachingsByJev, type PrefetchJudgement } from "./p
 import { teachingRound } from "./teach/inject.ts";
 import type { RankedTeaching } from "./teach/match.ts";
 import { reviewRound } from "./review-round.ts";
+import { largeReadFor, LARGE_READ_PROMPT, type LargeRead } from "./large-read.ts";
+import { validPreviewContext } from "./system-prompt-page.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -54,6 +56,8 @@ export interface PreparedTurn {
   /** What production routing chose. Equal to `route` unless forceTier was set. */
   routed: Route;
   models: string[];
+  /** The turn's large-read allowance for the PR preview tools, or null. */
+  largeRead: LargeRead | null;
   maxIterations: number;
   messages: Msg[];
   facts: FactInjection | null;
@@ -88,17 +92,25 @@ export async function prepareTurn(input: TurnInput): Promise<PreparedTurn> {
   // is built because the citation format the prompt asks for depends on which
   // model will read it.
   const priorAssistants = history.filter((m) => m.role === "assistant").length;
-  const routed = routeTier(message, { followUp: priorAssistants > 0, jevComplexity: judgement?.complexity });
+  const routed = routeTier(message, {
+    followUp: priorAssistants > 0,
+    jevComplexity: judgement?.complexity,
+    preview: validPreviewContext(pageContext) !== null,
+  });
   const route: Route = input.forceTier ? { tier: input.forceTier, reason: "forced" } : routed;
   const models = resolveTierModels(route.tier);
   const maxIterations = iterationsForTier(route.tier);
+  const largeRead = largeReadFor(models);
 
   // Full transcript. Older turns stay verbatim until compactForReplay (called
   // from chat.ts before this) replaces a prefix with `summary` at 90% of the
   // model window. Lookup cards ride inside history rows and expand here into
   // a tool round that was written once, at persist time.
   const messages: Msg[] = [
-    { role: "system", content: buildSystemPrompt(ix, pageContext, citationStyleFor(models[0]), undefined, maxIterations) },
+    {
+      role: "system",
+      content: buildSystemPrompt(ix, pageContext, citationStyleFor(models[0]), undefined, maxIterations) + (largeRead ? `\n${LARGE_READ_PROMPT}` : ""),
+    },
     ...(input.summary ? summaryReplay(input.summary) : []),
     ...historyReplay(history),
   ];
@@ -134,5 +146,5 @@ export async function prepareTurn(input: TurnInput): Promise<PreparedTurn> {
   const teachings = kept.length > 0 ? kept : null;
   if (teachings) messages.push(...teachingRound(message, teachings));
 
-  return { route, routed, models, maxIterations, messages, facts, judgement, jevLatencyMs, teachings };
+  return { route, routed, models, largeRead, maxIterations, messages, facts, judgement, jevLatencyMs, teachings };
 }

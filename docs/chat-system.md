@@ -215,10 +215,15 @@ summarizes past is only stored on that branch — so a conversation whose turns 
 all cancelled is left to the rejection backstop below. And the turn that crosses
 the line replays the thread un-compacted along with the turn or two after it,
 which is the safety argument above rather than a gap. The summarizer is pinned to
-`openai/gpt-5.6-luna` (`CHAT_SUMMARY_MODEL`) rather than following `CHAT_MODEL`:
+`openai/gpt-6-luna` (`CHAT_SUMMARY_MODEL`) rather than following `CHAT_MODEL`:
 one compaction per thread, reading up to ~140k tokens, whose output every later turn
 of that conversation then answers from and which is never rewritten — so it is
-worth a strong model and should not change whenever the default chat model does. The summary is a stable
+worth a strong model and should not change whenever the default chat model does.
+`pnpm eval:summary` is how a candidate earns the slot. The stored summary is at most
+`CHAT_SUMMARY_MAX_CHARS` (15k); the prompt's word target and the call's output
+limit both follow from it, and the output limit adds a fixed reasoning allowance,
+because reasoning tokens count against it and would otherwise cut the summary
+off. Only the parsed summary is stored. The summary is a stable
 message pair after the system prompt — provider caches match a byte-identical
 prefix, so the summary is not rewritten on the turns in between. A failed
 summary (timeout, error, or unparseable output) leaves the full thread in
@@ -486,6 +491,19 @@ the smaller chat transport budget that keeps one broad tool call from eating the
 live chat context. `fitToBudget` greedily keeps items under the byte budget,
 always keeps at least one item (a lone oversized item beats an empty result),
 and reports `truncated` so the caller pages or narrows instead of blowing up.
+
+Tools marked `largeResult` (`atlas_preview_diff`, `atlas_preview_get`) may go
+past the chat budget on a turn whose whole model chain is listed in
+`CHAT_LARGE_CONTEXT_MODELS` (`chat/large-read.ts`): up to
+`CHAT_LARGE_RESULT_MAX_CHARS` (300k) per result and `CHAT_LARGE_READ_MAX_CHARS`
+(600k) per turn, after which they fall back to the 30k budget. The per-turn total
+keeps a turn under the 272k-token step where OpenRouter doubles the OpenAI
+models' price. Such a turn's system prompt tells the model it may ask for large
+pages. A turn asked inside a preview, or naming an open PR, routes to the strong
+tier (`pr-review` in `model-router.ts`), because that tier holds the large-window
+models. The verifier's judges still read at most
+`CHAT_VERIFIER_EVIDENCE_MAX_CHARS` (120k) of evidence, so on a large-read turn
+they may mark a claim unsupported because its evidence fell outside that window.
 
 ## 6. Reliability harness (`chat-orchestrator.ts`, `harness/`, `chat/verify/`)
 

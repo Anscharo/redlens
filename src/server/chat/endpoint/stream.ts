@@ -51,7 +51,7 @@ async function forwardHarness(t: ChatTurn, turn: PreparedTurn, send: Send) {
   for await (const ev of runVerifiedChat({
     ix: t.ix, messages: turn.messages, stream: chatStream, jsonCall: makeOpenrouterJson(t.obs),
     question: t.body.message, signal: t.req.signal, obs: t.obs, maxIterations: turn.maxIterations,
-    toolCtx: chatToolContext(t.userId, t.req.signal, t.scope, t.obs),
+    toolCtx: { ...chatToolContext(t.userId, t.req.signal, t.scope, t.obs), largeRead: turn.largeRead },
   })) {
     if (ev.type !== "done") {
       send(ev);

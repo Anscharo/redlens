@@ -170,7 +170,7 @@
     // which is the call site itself — see retrieval/leaf-attribution.ts.
     { "files": ["src/server/chat/tools/tools.ts"], "rules": { "max-lines": ["error", { "max": 182, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/citation-marks.ts"], "rules": { "max-lines": ["error", { "max": 195, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 84, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["src/server/chat/verify/definition-block-gate.ts"], "rules": { "max-lines-per-function": ["error", { "max": 80, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["src/server/chat/verify/definition-block-gate.ts"], "rules": { "max-lines-per-function": ["error", { "max": 79, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/paragraph-refute.ts"], "rules": { "max-lines": ["error", { "max": 190, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 147, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/paragraphs.ts"], "rules": { "max-lines-per-function": ["error", { "max": 55, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/sliced-verifier.ts"], "rules": { "max-lines-per-function": ["error", { "max": 78, "skipBlankLines": true, "skipComments": true }] } },

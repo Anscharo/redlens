@@ -145,3 +145,20 @@ test("metaPrNumber names only a canonical PR", () => {
   expect(metaPrNumber({ ...meta, repo: "acme/mirror" })).toBeNull();
   expect(metaPrNumber({ ...meta, kind: "branch" } as PreviewMeta)).toBeNull();
 });
+
+test("get: past 5 ids needs a large read; without one the rest are named, not dropped silently", () => {
+  const ids = [KEPT, ADDED, ADDED2, "A.1", "Z.1", "Z.2", "Z.3"];
+  const small = buildPreviewGet(ix, open, { ids, include_base: false, include_children: false }) as any;
+  expect(small.not_found).toEqual(["Z.1"]);
+  expect(small.ids_note).toContain("first 5");
+  const read = { left: 600_000, perResult: 300_000 };
+  const large = buildPreviewGet(ix, open, { ids, include_base: false, include_children: false }, read) as any;
+  expect(large.not_found).toEqual(["Z.1", "Z.2", "Z.3"]);
+  expect(large.ids_note).toBeUndefined();
+});
+
+test("diff: page sizes above the small caps are clamped without a large read", () => {
+  const big = { offset: 0, limit: 1000, patch_lines: 400 };
+  expect((buildPreviewDiff(ix, open, big) as any).documents).toHaveLength(4);
+  expect((buildPreviewDiff(ix, open, big, { left: 600_000, perResult: 300_000 }) as any).documents).toHaveLength(4);
+});

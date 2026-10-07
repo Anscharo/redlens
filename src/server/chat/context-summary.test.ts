@@ -18,7 +18,7 @@ describe("parseSummary", () => {
   });
 
   it("recovers the summary from a generation cut off mid-string", () => {
-    // The 2048-token cap clips this call routinely, and the result is STORED
+    // The output limit can still clip this call, and the result is STORED
     // as the thread's prefix — the shared repair must salvage it.
     const cut = '{"summary":"The user asked about the freezer and the threshold was left open';
     expect(parseSummary(cut)).toBe("The user asked about the freezer and the threshold was left open");
