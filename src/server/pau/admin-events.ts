@@ -97,6 +97,13 @@ export function adminTopics(kind: PauKind, role: PauRole): { topic0: string; nam
 
 const ALL = Object.values(BY_ROLE).flatMap((r) => Object.values(r).flat());
 
+/**
+ * The argument a parameter event is keyed by: its first ABI input (the pool,
+ * token, domain or vault). Read from the ABI because stored args come back from
+ * jsonb, which orders keys by length, not by the event's argument order.
+ */
+export const subjectKey = (event: string): string | null => ALL.find((e) => e.name === event)?.inputs[0]?.name ?? null;
+
 /** JSON-safe copy: bigints as decimal strings, addresses lowercased, tuples kept as objects. */
 export function jsonSafe(v: unknown): unknown {
   if (typeof v === "bigint") return v.toString();

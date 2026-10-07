@@ -28,6 +28,12 @@ export interface LiveRateLimit extends RateLimitKey {
   available: string | null;
 }
 
+/** A contract's stored admin events, and whether they cover its whole history. */
+export interface ContractHistory {
+  events: PauEventRow[];
+  complete: boolean;
+}
+
 export interface ContractState {
   role: PauRole;
   address: string;
@@ -37,8 +43,10 @@ export interface ContractState {
   rateLimits?: LiveRateLimit[];
   params?: PauParam[];
   integrations?: ReturnType<typeof replayIntegrations>;
-  /** Admin events stored for this contract; 0 means its history has not been read yet. */
+  /** Admin events stored for this contract. */
   events: number;
+  /** Every event type's history is read to the confirmed head; until then an absent part means "not read yet". */
+  historyComplete: boolean;
 }
 
 export interface PauSnapshot {
@@ -71,8 +79,9 @@ async function liveRateLimits(read: ChainReader, chain: string, address: string,
 }
 
 /** What one contract's history and the chain say, by the parts that apply to it. */
-export async function contractState(read: ChainReader, chain: string, m: PauMember, events: PauEventRow[]): Promise<ContractState> {
-  const out: ContractState = { role: m.role, address: m.address, ...(m.label ? { label: m.label } : {}), events: events.length };
+export async function contractState(read: ChainReader, chain: string, m: PauMember, history: ContractHistory): Promise<ContractState> {
+  const { events, complete } = history;
+  const out: ContractState = { role: m.role, address: m.address, ...(m.label ? { label: m.label } : {}), events: events.length, historyComplete: complete };
   const holders = replayRoles(events);
   if (holders.length) out.roles = await liveRoles(read, chain, m.address, holders);
   const agent = replayAgent(events);
@@ -92,11 +101,11 @@ const READ_ROLES = new Set<PauRole>(["controller", "almProxy", "rateLimits", "ac
 export async function buildSnapshot(
   d: PauDeployment,
   read: ChainReader,
-  eventsOf: (chain: string, contract: string) => Promise<PauEventRow[]>,
+  historyOf: (chain: string, contract: string) => Promise<ContractHistory>,
 ): Promise<PauSnapshot> {
   const contracts: ContractState[] = [];
   for (const m of d.members.filter((x) => READ_ROLES.has(x.role))) {
-    contracts.push(await contractState(read, d.chain, m, await eventsOf(d.chain, m.address)));
+    contracts.push(await contractState(read, d.chain, m, await historyOf(d.chain, m.address)));
   }
   return { deployment: deploymentId(d), prime: d.prime, primeName: d.primeName, chain: d.chain, kind: d.kind, contracts };
 }

@@ -29,6 +29,19 @@ export async function eventsOf(db: SqlTag, chain: string, contract: string): Pro
   }));
 }
 
+/**
+ * Whether every admin-event cursor of a contract has read its history through
+ * to the confirmed head without an error. Until then a missing role or rate
+ * limit means "not read yet", not "none".
+ */
+export async function historyComplete(db: SqlTag, chain: string, contract: string): Promise<boolean> {
+  const rows = (await db`
+    SELECT count(*)::int AS total, (count(*) FILTER (WHERE next_block > 0 AND last_error IS NULL))::int AS read
+    FROM pau_cursor WHERE chain = ${chain} AND contract = ${contract}`) as { total: number; read: number }[];
+  const r = rows[0];
+  return !!r && r.total > 0 && r.read === r.total;
+}
+
 async function upsertSnapshot(db: SqlTag, s: PauSnapshot, now: Date): Promise<void> {
   await db`
     INSERT INTO pau_state (deployment, prime, chain, kind, state, fetched_at)
@@ -67,7 +80,8 @@ export async function maybeRefreshPauState(
   const removed = await dropUnlisted(db, [...stored.keys()].filter((x) => !ids.has(x)));
   if (![...ids].some(stale)) return { refreshed: 0, removed, reason: "fresh" };
   for (const d of reg.deployments) {
-    await upsertSnapshot(db, await buildSnapshot(d, read, (c, a) => eventsOf(db, c, a)), new Date(now));
+    const historyOf = async (c: string, a: string) => ({ events: await eventsOf(db, c, a), complete: await historyComplete(db, c, a) });
+    await upsertSnapshot(db, await buildSnapshot(d, read, historyOf), new Date(now));
   }
   return { refreshed: reg.deployments.length, removed, reason: "due" };
 }

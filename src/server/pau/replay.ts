@@ -3,6 +3,7 @@
 // RoleRevoked is how the holders are listed at all; the snapshot still asks
 // hasRole of each, so a missed event shows up as a holder the chain denies.
 import { keccak256, toHex } from "viem";
+import { subjectKey } from "./admin-events.ts";
 
 export interface PauEventRow {
   contract: string;
@@ -114,7 +115,7 @@ export function replayParams(events: PauEventRow[]): PauParam[] {
   const latest = new Map<string, PauParam>();
   for (const e of events) {
     if (NOT_PARAMS.test(e.event)) continue;
-    const subject = String(Object.values(e.args)[0] ?? "");
+    const subject = String(e.args[subjectKey(e.event) ?? ""] ?? "");
     latest.set(`${e.event}:${subject}`, { event: e.event, subject, args: e.args, setAt: setAt(e) });
   }
   return [...latest.values()];

@@ -20,7 +20,7 @@ mock.module("../db.ts", () => ({
   fromUuidArray,
 }));
 
-const { eventsOf, handlePau, maybeRefreshPauState, readPauState } = await import("./store.ts");
+const { eventsOf, handlePau, historyComplete, maybeRefreshPauState, readPauState } = await import("./store.ts");
 
 const NOW = Date.UTC(2026, 9, 7, 12);
 const reg = { shared: [], ignored: [], deployments: [{ prime: "p", primeName: "Spark", chain: "ethereum", kind: "monolithic", members: [] }] } as unknown as PauRegistry;
@@ -68,6 +68,16 @@ describe("reads", () => {
     const out = await readPauState(db);
     expect(out.map((s) => `${s.primeName}:${s.chain}`)).toEqual(["Grove:ethereum", "Spark:base"]);
     expect(out[0].fetchedAt).toBe(new Date(NOW).toISOString());
+  });
+});
+
+describe("historyComplete", () => {
+  it("is true only when every cursor has read past genesis without an error", async () => {
+    const counts = (total: number, read: number) => async () => [{ total, read }];
+    expect(await historyComplete(counts(3, 3), "ethereum", "0xc")).toBe(true);
+    expect(await historyComplete(counts(3, 2), "ethereum", "0xc")).toBe(false);
+    expect(await historyComplete(counts(0, 0), "ethereum", "0xc")).toBe(false);
+    expect(await historyComplete(async () => [], "ethereum", "0xc")).toBe(false);
   });
 });
 

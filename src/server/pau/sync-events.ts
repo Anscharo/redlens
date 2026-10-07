@@ -100,8 +100,8 @@ export interface SyncResult {
 
 const RATE_LIMITED = /\b429\b|rate.?limit|max calls per sec/i;
 
-/** One cursor: read its window, store what decodes, advance. Throws only on a rate limit. */
-async function visit(db: SqlTag, c: CursorRow, to: number, deps: SyncDeps, res: SyncResult): Promise<void> {
+/** One cursor: read its window, store what decodes, advance. "limited" on an explorer rate limit; a database error propagates. */
+async function visit(db: SqlTag, c: CursorRow, to: number, deps: SyncDeps, res: SyncResult): Promise<"limited" | void> {
   const at = new Date(deps.now?.() ?? Date.now());
   const from = Number(c.next_block);
   if (to < from) return mark(db, c, at, null);
@@ -112,7 +112,7 @@ async function visit(db: SqlTag, c: CursorRow, to: number, deps: SyncDeps, res: 
     const msg = (e as Error).message;
     res.errors++;
     // A rate-limited cursor stays unmarked, so it is first in line next tick.
-    if (RATE_LIMITED.test(msg)) throw e;
+    if (RATE_LIMITED.test(msg)) return "limited";
     return mark(db, c, at, msg.slice(0, 300));
   }
   if (logs === null) return mark(db, c, at, `no explorer serves ${c.chain}`);
@@ -142,13 +142,12 @@ export async function syncPauEvents(db: SqlTag, reg: PauRegistry, deps: SyncDeps
     if (clock() >= deadline) break;
     const head = res.rateLimited.includes(c.chain) ? null : await headOf(c.chain);
     if (head === null) continue;
-    try {
-      await visit(db, c, head - CONFIRMATIONS, deps, res);
-      res.visited++;
-      res.pending--;
-    } catch {
+    if ((await visit(db, c, head - CONFIRMATIONS, deps, res)) === "limited") {
       res.rateLimited.push(c.chain);
+      continue;
     }
+    res.visited++;
+    res.pending--;
   }
   return res;
 }

@@ -111,6 +111,13 @@ describe("syncPauEvents", () => {
     expect(failed).toMatchObject({ next_block: 0, last_error: "explorer logs: NOTOK boom" });
     expect(failed.checked_at).not.toBeNull();
   });
+  it("lets a database error propagate rather than reading it as a rate limit", async () => {
+    const broken = async (strings: TemplateStringsArray, ...v: unknown[]) => {
+      if (strings.join("?").includes("INSERT INTO pau_events")) throw new Error("connection refused");
+      return db(strings, ...v);
+    };
+    await expect(syncPauEvents(broken, reg(), deps())).rejects.toThrow("connection refused");
+  });
   it("notes a chain no explorer serves without advancing", async () => {
     await syncPauEvents(db, reg(), deps({ logs: async () => null }));
     expect(cursors.every((c) => c.next_block === 0 && c.last_error === "no explorer serves ethereum")).toBe(true);

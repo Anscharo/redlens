@@ -96,3 +96,27 @@ describe("replayParams", () => {
     ]);
   });
 });
+
+describe("replayParams with args read back from jsonb", () => {
+  // jsonb orders keys by length then bytewise, so the event's first argument
+  // is often not the first key; the subject must come from the ABI.
+  const jsonbOrder = (args: Record<string, unknown>) =>
+    Object.fromEntries(Object.entries(args).sort(([a], [b]) => a.length - b.length || (a < b ? -1 : 1)));
+  it("keys each parameter by its ABI subject, so a re-set replaces the old value", () => {
+    block = 0;
+    const params = replayParams([
+      ev("MintRecipientSet", jsonbOrder({ destinationDomain: 3, mintRecipient: "0xold" })),
+      ev("MintRecipientSet", jsonbOrder({ destinationDomain: 3, mintRecipient: "0xnew" })),
+      ev("CentrifugeRecipientSet", jsonbOrder({ centrifugeId: 7, recipient: "0xr" })),
+      ev("CCTPDomainParametersSet", jsonbOrder({ destinationDomain: 1, mintRecipient: "0xa", minFeeCapRate: 0, maxFeeCapRate: 5 })),
+      ev("CCTPDomainParametersSet", jsonbOrder({ destinationDomain: 2, mintRecipient: "0xb", minFeeCapRate: 0, maxFeeCapRate: 5 })),
+    ]);
+    expect(params.map((p) => [p.event, p.subject])).toEqual([
+      ["MintRecipientSet", "3"],
+      ["CentrifugeRecipientSet", "7"],
+      ["CCTPDomainParametersSet", "1"],
+      ["CCTPDomainParametersSet", "2"],
+    ]);
+    expect(params[0].args.mintRecipient).toBe("0xnew");
+  });
+});

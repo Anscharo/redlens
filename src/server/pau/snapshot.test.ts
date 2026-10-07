@@ -32,13 +32,14 @@ describe("buildSnapshot", () => {
         return c.args[0] === "0xk1" ? 6n : null;
       });
     };
-    const snap = await buildSnapshot(d, read, async (_c, a) => events[a] ?? []);
+    const snap = await buildSnapshot(d, read, async (_c, a) => ({ events: events[a] ?? [], complete: a === RL }));
     expect(snap).toMatchObject({ deployment: "p:ethereum:monolithic", primeName: "Spark", chain: "ethereum", kind: "monolithic" });
     expect(snap.contracts.map((c) => c.role)).toEqual(["controller", "rateLimits"]);
     const [ctrl, rl] = snap.contracts;
     expect(ctrl.roles?.map((r) => [r.account, r.name, r.holds])).toEqual([[A, "RELAYER", true], [B, "RELAYER", null]]);
     expect(ctrl.params?.map((p) => p.subject)).toEqual([A]);
     expect(ctrl.events).toBe(3);
+    expect([ctrl.historyComplete, rl.historyComplete]).toEqual([false, true]);
     expect(rl.rateLimits?.map((r) => [r.key, r.data, r.available])).toEqual([
       ["0xk1", { maxAmount: "10", slope: "1", lastAmount: "4", lastUpdated: "7" }, "6"],
       ["0xk2", null, null],
@@ -47,7 +48,7 @@ describe("buildSnapshot", () => {
   });
   it("lists a contract with no stored history and asks the chain nothing about it", async () => {
     let calls = 0;
-    const snap = await buildSnapshot(d, async (_c, cs) => ((calls += cs.length), []), async () => []);
+    const snap = await buildSnapshot(d, async (_c, cs) => ((calls += cs.length), []), async () => ({ events: [], complete: false }));
     expect(snap.contracts.map((c) => [c.role, c.events, c.roles, c.rateLimits])).toEqual([["controller", 0, undefined, undefined], ["rateLimits", 0, undefined, undefined]]);
     expect(calls).toBe(0);
   });
