@@ -51,7 +51,8 @@ test("diff: source_class leads, counts, doc_no order, cite forms", () => {
   const byId = Object.fromEntries(r.documents.map((d: any) => [d.id, d]));
   expect(byId[ADDED].cite).toBe(`/preview/${SHA}/atlas?id=${ADDED}`);
   expect(byId[GONE]).toMatchObject({ change: "removed", title: "Gone", cite: `/atlas/${GONE}` });
-  expect(byId[KEPT].patch).toEqual(["~ [-old-]{+new+} text"]);
+  // An in-line edit is whole old line, then whole new line, never word markup.
+  expect(byId[KEPT].patch).toEqual(["- old text", "+ new text"]);
   expect(byId[ADDED].parent).toEqual({ id: P, doc_no: "A.1", title: "Parent" });
   expect(r.preview).toMatchObject({ id: "pull-5", pr: { number: 5, title: "Tweak" }, base: { label: "live atlas" } });
   expect(r.citation_note).toContain("/preview/");

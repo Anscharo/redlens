@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { AtlasNode } from "../../types.ts";
-import type { DiffLine } from "../../lib/history";
+import type { DiffLine, WordSegment } from "../../lib/history";
 import { previewPaths } from "./cache.ts";
 import type { PreviewDiffJson } from "./diff-artifacts.ts";
 
@@ -56,8 +56,10 @@ export const readPreviewDiff = (sha: string): PreviewDiffJson | null => readJson
 export const readPreviewPatches = (sha: string): Record<string, DiffLine[]> =>
   readJson<Record<string, DiffLine[]>>(sha, "patches.json") ?? {};
 
-/** A patch as plain text lines a model reads: "+ added", "- removed",
- *  "~ [-old-]{+new+}" for an in-line edit, "…" for elided context. */
+/** A patch as plain text lines a model reads: "+ added", "- removed", "…" for
+ *  elided context. An in-line edit is written as the whole old line then the
+ *  whole new line: word-level markup splits values ("2,[-504-]{+693+}" reads as
+ *  504 → 693 when the value went 2,504 → 2,693), and a model quotes what it reads. */
 export function renderPatch(lines: DiffLine[], max: number): string[] {
   const out: string[] = [];
   for (const l of lines) {
@@ -66,10 +68,15 @@ export function renderPatch(lines: DiffLine[], max: number): string[] {
       break;
     }
     if (l[0] === "…") out.push("…");
-    else if (l[0] === "~") out.push("~ " + l[1].map(([op, t]) => (op === "+" ? `{+${t}+}` : op === "-" ? `[-${t}-]` : t)).join(""));
+    else if (l[0] === "~") out.push(`- ${sideOf(l[1], "-")}`, `+ ${sideOf(l[1], "+")}`);
     else if (l[0] !== "=") out.push(`${l[0]} ${l[1]}`);
   }
   return out;
+}
+
+/** One side of an in-line edit: the unchanged words plus that side's own. */
+function sideOf(segments: WordSegment[], side: "-" | "+"): string {
+  return segments.map(([op, t]) => (op === "=" || op === side ? t : "")).join("");
 }
 
 /** The reader URL that shows a preview's copy of a document — the citation
