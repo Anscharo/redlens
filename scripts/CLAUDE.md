@@ -169,7 +169,11 @@ They were four separate lists until every one of them was shown to fail silently
 ## Votes
 
 - `pnpm votes:sync` writes `public/votes.json`: every executive vote (`sky-ecosystem/executive-votes`) and governance poll (`sky-ecosystem/polls`), joined with the vote.sky.money portal API for each spell's pass and execute dates and each poll's id, slug and outcome. The design and the matching it feeds are in `docs/plans/vote-matching.md`.
-  - It is off the `pnpm build` chain (`REPRO=1` is offline) and has no automated caller yet, because nothing reads the file. The consumer that does must add its callers the way settlements has them.
+  - It is off the `pnpm build` chain (`REPRO=1` is offline). It has two automated callers, both asserted by `scripts_tests/build-steps.test.ts`, the way settlements has them.
+    - The Docker image bakes `dist/votes.json` (and its `.gz`) after `build:vite`. A fetch failure leaves Stale Dates without vote evidence; it does not fail the image.
+    - `dev-preflight` refreshes `public/votes.json` when it is missing or more than six hours old (`DEV_NO_VOTES=1` skips it).
+  - Its one consumer is Stale Dates' vote evidence (`src/lib/votes/`: `vote-index.ts` indexes the artifact, `evidence.ts` holds the matching rules, `claim.ts` and `subject.ts` read the atlas side), loaded in the browser by `apps/web/src/lib/votes.ts` and on the server by `src/server/votes.ts`. Both treat a missing or unreadable file as "no vote record" and render without the column.
+  - The artifact's types live in `src/lib/votes/types.ts`, shared by the writer and the matcher. Each executive section keeps its body as plain words (`text`) for the subject check, so the file is written compact.
   - Every rule lives in `scripts/lib/votes/` (pure parsers, the portal reader, assembly, stats) and is pinned by `scripts_tests/votes-*.test.ts`. `scripts/aux/sync-votes.ts` is only the I/O.
   - By default it fetches each repository's main-branch tarball. `--exec-dir` and `--poll-dir` read local checkouts instead. `--no-portal` skips the API, `--dry-run` writes nothing, `--quiet` prints one line.
   - **Executives key on the filename date**, the date atlas prose cites. The frontmatter and the portal can carry a different date for the same spell; the stats list every such drift. Filenames vary (no slug, an `oos-` prefix for out-of-schedule votes), so only the date is required.

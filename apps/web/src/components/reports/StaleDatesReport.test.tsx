@@ -25,6 +25,8 @@ function claim(over: Partial<DateClaim>): DateClaim {
     contextAfter: " Executive Vote",
     daysUntilStale: 5,
     transition: false,
+    recorded: false,
+    vote: null,
     ...over,
   };
 }
@@ -41,16 +43,36 @@ const staleClaim = claim({
 const upcomingClaim = claim({ docId: "d-up", docNo: "A.1.3", title: "Future Milestone", daysUntilStale: 60 });
 const dueSoonClaim = claim({ docId: "d-due", docNo: "A.1.4", title: "Imminent Deadline", daysUntilStale: 3 });
 
+const recordedClaim = claim({
+  docId: "d-rec",
+  docNo: "A.1.5",
+  title: "Osero Transfer",
+  raw: "March 26, 2026",
+  dateISO: "2026-03-26",
+  daysUntilStale: -195,
+  recorded: true,
+  vote: { outOfSchedule: false, anchor: false, subject: ["osero", "genesis"] },
+  voteEvidence: {
+    status: "subject-missing",
+    via: "date",
+    vote: { kind: "executive", title: "Genesis Funding Transfers", date: "2026-03-26", url: "https://vote.sky.money/executive/x", offsetDays: 0 },
+    subject: { found: ["genesis"], missing: ["osero"] },
+  },
+});
+
 const reportFixture: StaleDatesReportData = {
   stale: [staleClaim],
   dueSoon: [dueSoonClaim],
   upcoming: [upcomingClaim],
-  totalDateMentions: 3,
+  recorded: [recordedClaim],
+  totalDateMentions: 4,
 };
 
 let buildImpl = () => reportFixture;
+let voteIndex: { first: string; last: string } | null = { first: "2025-05-29", last: "2026-10-08" };
 
 vi.mock("../../lib/docs", () => ({ loadDocs: () => Promise.resolve({}) }));
+vi.mock("../../lib/votes", () => ({ loadVoteIndex: () => Promise.resolve(voteIndex) }));
 vi.mock("@/lib/staleDates", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/staleDates")>();
   return {
@@ -66,6 +88,7 @@ afterEach(() => {
   cleanup();
   window.history.pushState({}, "", "/");
   buildImpl = () => reportFixture;
+  voteIndex = { first: "2025-05-29", last: "2026-10-08" };
   vi.restoreAllMocks();
 });
 
@@ -91,7 +114,31 @@ describe("StaleDatesReport", () => {
     expect(screen.getByText("handoff")).toBeInTheDocument();
 
     // Scanned mentions count from the report.
-    expect(screen.getByText(/3 dated mentions scanned/)).toBeInTheDocument();
+    expect(screen.getByText(/4 dated mentions scanned/)).toBeInTheDocument();
+  });
+
+  it("renders recorded votes with their vote evidence, linking the matched executive", async () => {
+    render(<StaleDatesReport query="" mode="broad" />);
+    expect(await screen.findByRole("heading", { name: "Recorded votes (1)" })).toBeInTheDocument();
+    // Past tense: a passed date reads as "ago", never "overdue".
+    expect(screen.getByText("(195d ago)")).toBeInTheDocument();
+    expect(screen.getByText("subject missing")).toBeInTheDocument();
+    expect(screen.getByText(/not in that executive/)).toHaveTextContent("not in that executive: osero");
+    const link = screen.getByRole("link", { name: "executive 2026-03-26 (+0d)" });
+    expect(link).toHaveAttribute("href", "https://vote.sky.money/executive/x");
+    expect(screen.getByText(/Vote record: executives 2025-05-29 → 2026-10-08/)).toBeInTheDocument();
+  });
+
+  it("says so when the vote record is unavailable", async () => {
+    voteIndex = null;
+    render(<StaleDatesReport query="" mode="broad" />);
+    expect(await screen.findByText(/Vote record unavailable/)).toBeInTheDocument();
+  });
+
+  it("filters by vote evidence", async () => {
+    render(<StaleDatesReport query="subject missing" mode="broad" />);
+    expect(await screen.findByTitle("Osero Transfer")).toBeInTheDocument();
+    expect(screen.queryByTitle("Future Milestone")).not.toBeInTheDocument();
   });
 
   it("filters claims by the query prop within each bucket", async () => {

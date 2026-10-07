@@ -6,27 +6,30 @@ import type { DateClaim } from "@/lib/staleDates";
 import { hiddenMatches, type ReportQuery } from "@/lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
 import { staleSearchFields } from "@/lib/staleDatesSearch";
+import { VoteEvidenceLine } from "./VoteEvidenceLine";
 
 function staleness(c: DateClaim): string {
   // The viewer's local day and the day the atlas text was written against can
   // differ by a day either way, so near the boundary hedge with "~1d" rather
   // than claiming "today".
   if (Math.abs(c.daysUntilStale) <= 1) return "(~1d)";
-  if (c.daysUntilStale < 0) return `(${-c.daysUntilStale}d overdue)`;
+  // A recorded claim is past tense by definition, so a passed date is not overdue.
+  if (c.daysUntilStale < 0) return c.recorded ? `(${-c.daysUntilStale}d ago)` : `(${-c.daysUntilStale}d overdue)`;
   return `(in ${c.daysUntilStale}d)`;
 }
 
 function ClaimRow({ c, tone, rq }: { c: DateClaim; tone: string; rq: ReportQuery }) {
   // The tone lives on a left bar (the selected-node idiom) — --red on the
   // dark background is unreadable as small text, so the date stays tan.
-  // The whole row is one link to the doc; the doc number renders as plain
-  // text on the right (nested anchors are invalid HTML).
+  // The claim is one link to the doc; the doc number renders as plain text on
+  // the right, and the vote evidence sits below the link, since it carries a
+  // link of its own (nested anchors are invalid HTML).
   return (
+    <div className="border-b border-l-2 last:border-b-0" style={{ borderColor: "var(--border)", borderLeftColor: tone }}>
     <AtlasLink
       to={atlasHref(c.docId)}
       title={c.title}
-      className="relative block py-4 px-3 border-b border-l-2 last:border-b-0 no-underline transition-colors hover:bg-[var(--hover)]"
-      style={{ borderColor: "var(--border)", borderLeftColor: tone }}
+      className="relative block py-4 px-3 no-underline transition-colors hover:bg-[var(--hover)]"
     >
       <MatchAside matches={hiddenMatches(staleSearchFields(c), rq)} rq={rq} />
       <div className="flex items-baseline gap-6 flex-wrap">
@@ -60,6 +63,8 @@ function ClaimRow({ c, tone, rq }: { c: DateClaim; tone: string; rq: ReportQuery
         <Highlight text={c.contextAfter} rq={rq} />…
       </p>
     </AtlasLink>
+    {c.voteEvidence && <VoteEvidenceLine evidence={c.voteEvidence} rq={rq} />}
+    </div>
   );
 }
 

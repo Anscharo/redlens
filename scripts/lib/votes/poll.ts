@@ -2,7 +2,7 @@
 
 import { filenameDate } from "./executive.ts";
 import { ATLAS_FAMILIES, extractLinks, readFrontmatter } from "./markdown.ts";
-import type { Poll } from "./types.ts";
+import type { Poll } from "../../../src/lib/votes/types.ts";
 
 export function parsePoll(file: string, md: string): Poll {
   const { fields, body } = readFrontmatter(md);

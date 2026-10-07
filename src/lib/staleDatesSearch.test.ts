@@ -20,8 +20,18 @@ const claim = (over: Partial<DateClaim>): DateClaim => ({
   docId: "d", docNo: "A.1", title: "T", raw: "31 July 2026", dateISO: "2026-07-31",
   precision: "day", context: "will be included in the Executive Vote",
   contextBefore: "will be included in the ", contextAfter: " Executive Vote",
-  daysUntilStale: 5, transition: false,
+  daysUntilStale: 5, transition: false, recorded: false, vote: null,
   ...over,
+});
+
+describe("staleSearchFields vote evidence", () => {
+  it("makes the evidence line searchable, and is empty without it", () => {
+    const vote = { kind: "executive" as const, title: "T", date: "2026-03-26", url: "u", offsetDays: 0 };
+    const withEvidence = claim({ voteEvidence: { status: "subject-missing", via: "date", vote, subject: { found: [], missing: ["osero"] } } });
+    const field = (c: DateClaim) => staleSearchFields(c).find((f) => f.label === "vote")?.value;
+    expect(field(withEvidence)).toBe("subject missing · executive 2026-03-26 (+0d) · missing: osero");
+    expect(field(claim({}))).toBe("");
+  });
 });
 
 describe("staleSearchFields month matching", () => {

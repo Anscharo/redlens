@@ -5,8 +5,8 @@
 //
 // The artifact is independent of the atlas build. Atlas references are kept
 // as written (a uuid, or a doc_no as it read on the vote's date); joining them
-// to docs.json is the matcher's job, because a doc_no is an editorial label
-// that only means something against the atlas of its own date.
+// to docs.json is the matcher's job (./evidence.ts), because a doc_no is an
+// editorial label that only means something against the atlas of its own date.
 
 /** Where a link in a vote document points. */
 export type LinkFamily =
@@ -33,6 +33,8 @@ export interface VoteLink {
 /** One `### <action>` block under an executive's `## Proposal Details`. */
 export interface ExecutiveSection {
   heading: string;
+  /** The section body as plain words (links reduced to their text), for the subject check. */
+  text: string;
   authorization: VoteLink[];
   proposal: VoteLink[];
   /** Every atlas-family link in the section, authorization lines included. */

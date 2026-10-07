@@ -1,7 +1,7 @@
 // The coverage report `pnpm votes:sync` prints. Pure: builds lines, prints nothing.
 
 import type { JoinStats } from "./assemble.ts";
-import type { Executive, Poll, VoteLink, VotesArtifact } from "./types.ts";
+import type { Executive, Poll, VoteLink, VotesArtifact } from "../../../src/lib/votes/types.ts";
 
 export function summarize(a: VotesArtifact, join: JoinStats | null): string[] {
   return [...executiveLines(a.executives), ...pollLines(a.polls), ...linkLines(a), ...joinLines(join)];

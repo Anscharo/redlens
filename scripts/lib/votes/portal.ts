@@ -4,7 +4,7 @@
 // are testable offline.
 
 import { safeDecode } from "./markdown.ts";
-import type { ExecutivePortal, PollPortal } from "./types.ts";
+import type { ExecutivePortal, PollPortal } from "../../../src/lib/votes/types.ts";
 
 export const PORTAL_API = "https://vote.sky.money/api";
 // The portal returns at most 30 rows per page whatever pageSize or limit asks for.

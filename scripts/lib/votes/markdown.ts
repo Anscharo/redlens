@@ -1,7 +1,7 @@
 // Markdown primitives shared by the executive and poll parsers: a frontmatter
 // reader, a link extractor, and the classifier that says where a link points.
 
-import type { LinkFamily, VoteLink } from "./types.ts";
+import type { LinkFamily, VoteLink } from "../../../src/lib/votes/types.ts";
 
 export interface Frontmatter {
   fields: Record<string, string>;
@@ -52,6 +52,21 @@ export function extractLinks(text: string): VoteLink[] {
   const linked = text.replace(MD_LINK_RE, " ");
   for (const m of linked.matchAll(BARE_URL_RE)) out.push(classifyLink(m[0].replace(/[.,;]+$/, ""), ""));
   return out;
+}
+
+/**
+ * The words of a markdown block as a reader sees them: a link becomes its
+ * text, bare URLs, emphasis and code ticks drop out, and whitespace collapses.
+ * This is what the subject check searches, so a word that only appears inside
+ * a URL slug never counts as the executive naming it.
+ */
+export function plainText(md: string): string {
+  return md
+    .replace(MD_LINK_RE, "$1")
+    .replace(BARE_URL_RE, " ")
+    .replace(/[*_`]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;

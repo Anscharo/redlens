@@ -6,6 +6,7 @@
 import { test, expect } from "bun:test";
 import { buildStaleDatesReportTool } from "./stale-dates.ts";
 import type { Indexes, AtlasNode } from "../retrieval/indexes.ts";
+import { buildVoteIndex } from "../../lib/votes/vote-index.ts";
 
 const TODAY = new Date("2026-06-11T12:00:00Z");
 
@@ -55,6 +56,44 @@ test("filter scopes rows by the same fields the report page searches, across eve
   expect(r.stale).toHaveLength(1);
   expect(r.due_soon).toHaveLength(0);
   expect(r.upcoming).toHaveLength(0);
+});
+
+const VOTES = buildVoteIndex({
+  sources: { executives: "", polls: "", portal: null },
+  executives: [
+    {
+      file: "2026/executive-vote-2026-03-26.md",
+      date: "2026-03-26",
+      frontmatterDate: null,
+      outOfSchedule: false,
+      title: "Genesis Funding Transfers",
+      summary: "Transfer Genesis Capital to Keel.",
+      address: "0x1",
+      sections: [],
+      portal: { key: "genesis", date: "2026-03-26", active: false, hasBeenCast: true, datePassed: null, dateExecuted: null },
+    },
+  ],
+  polls: [],
+});
+
+test("recorded claims and vote evidence ride along when the vote record is given", () => {
+  const ix = makeIx();
+  const rec = node("E", "A.9.5", "Keel Transfer", "The transfer to Keel was included in the March 26, 2026 Executive Vote.");
+  (ix.docMap as Map<string, AtlasNode>).set("E", rec);
+  const r = buildStaleDatesReportTool(ix, { include_provenance: true }, TODAY, VOTES) as any;
+  expect(r.recorded.map((c: any) => c.docNo)).toEqual(["A.9.5"]);
+  // A one-executive record makes every term common, so the subject goes unchecked.
+  expect(r.recorded[0].voteEvidence).toMatchObject({ status: "vote-on-date", vote: { url: "https://vote.sky.money/executive/genesis" } });
+  expect(r.recorded[0].vote).toBeUndefined(); // the matcher's input stays internal
+  expect(r.stale[0].voteEvidence.status).toBe("vote-on-date");
+  expect(r.vote_record).toBe("executives 2026-03-26 → 2026-03-26");
+  expect(r.total).toBe(4);
+});
+
+test("without a vote record the rows carry no evidence and the result says so", () => {
+  const r = buildStaleDatesReportTool(makeIx(), { include_provenance: true }, TODAY, null) as any;
+  expect(r.stale[0].voteEvidence).toBeUndefined();
+  expect(r.vote_record).toMatch(/unavailable/);
 });
 
 test("defaults today to the real current date when omitted", () => {

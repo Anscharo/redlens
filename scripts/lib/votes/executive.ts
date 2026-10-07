@@ -1,7 +1,7 @@
 // Parses one sky-ecosystem/executive-votes markdown file. Pure: no I/O.
 
-import { ATLAS_FAMILIES, extractLinks, readFrontmatter } from "./markdown.ts";
-import type { Executive, ExecutiveSection, VoteLink } from "./types.ts";
+import { ATLAS_FAMILIES, extractLinks, plainText, readFrontmatter } from "./markdown.ts";
+import type { Executive, ExecutiveSection, VoteLink } from "../../../src/lib/votes/types.ts";
 
 const FILENAME_DATE_RE = /(\d{4}-\d{2}-\d{2})/;
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
@@ -51,6 +51,7 @@ export function parseSections(body: string): ExecutiveSection[] {
     const text = nl === -1 ? "" : block.slice(nl + 1);
     sections.push({
       heading,
+      text: plainText(text),
       authorization: labelledLinks(text, "Authorization"),
       proposal: labelledLinks(text, "Proposal"),
       // The heading counts: an action titled with an atlas link cites that document.

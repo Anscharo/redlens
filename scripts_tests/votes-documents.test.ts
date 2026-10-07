@@ -101,6 +101,11 @@ describe("parseSections", () => {
     ]);
   });
 
+  it("keeps each section's body as plain words, links reduced to their text", () => {
+    expect(sections[0].text).toBe("- Authorization: Sky Atlas - Proposal: Forum post");
+    expect(sections[2].text).not.toContain("sky-atlas.io");
+  });
+
   it("returns no sections when there is no Proposal Details heading", () => {
     expect(parseSections("## Executive Summary\nNothing here.")).toEqual([]);
   });

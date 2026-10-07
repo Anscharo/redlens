@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { attachPortal, checkFloors, checkPortalJoin, MAX_EXECUTIVES_WITHOUT_PORTAL, MIN_EXECUTIVES, MIN_POLLS, shrinkage, type JoinStats } from "../scripts/lib/votes/assemble.ts";
 import { PAGE_SIZE, pollPathFromUrl, readPortal, type FetchJson } from "../scripts/lib/votes/portal.ts";
-import type { Executive, Poll, VotesArtifact } from "../scripts/lib/votes/types.ts";
+import type { Executive, Poll, VotesArtifact } from "../src/lib/votes/types.ts";
 
 function exec(file: string, address: string | null): Executive {
   return { file, date: file.slice(-13, -3), frontmatterDate: null, outOfSchedule: false, title: "", summary: "", address, sections: [], portal: null };

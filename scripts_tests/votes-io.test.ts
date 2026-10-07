@@ -14,7 +14,7 @@ import { readVoteTree } from "../scripts/lib/votes/corpus.ts";
 import { fetchJson, repoTree } from "../scripts/lib/votes/fetch.ts";
 import { classifyLink } from "../scripts/lib/votes/markdown.ts";
 import { summarize, summaryLine } from "../scripts/lib/votes/stats.ts";
-import type { Executive, VotesArtifact } from "../scripts/lib/votes/types.ts";
+import type { Executive, VotesArtifact } from "../src/lib/votes/types.ts";
 
 const tmpDirs: string[] = [];
 function tmp(): string {
@@ -119,7 +119,7 @@ describe("summarize", () => {
         file: "2026/executive-vote-2026-01-29-x.md",
         frontmatterDate: "2026-01-26",
         portal,
-        sections: [{ heading: "H", proposal: [], authorization: [{ family: "poll", url: "u", text: "" }], atlasRefs: [{ family: "atlas", url: "u", text: "", uuid: "a" }] }],
+        sections: [{ heading: "H", text: "", proposal: [], authorization: [{ family: "poll", url: "u", text: "" }], atlasRefs: [{ family: "atlas", url: "u", text: "", uuid: "a" }] }],
       }),
       exec({ file: "2026/executive-vote-2026-10-08-y.md", date: "2026-10-08", address: null }),
     ],

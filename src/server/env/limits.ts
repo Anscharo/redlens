@@ -59,7 +59,8 @@ export const dev: EnvGroup = {
     { name: "DEV_NO_INSTALL", doc: "1 skips the pnpm install check." },
     { name: "DEV_NO_DB", doc: "1 skips Docker and Postgres; the reader works from disk artifacts, and history, chat and previews need a database." },
     { name: "DEV_NO_WORKER", doc: "1 brings the database up but skips the atlas sync; the server migrates at boot." },
-    { name: "DEV_NO_BUILD", doc: "1 skips the artifact build and the settlement refresh." },
+    { name: "DEV_NO_BUILD", doc: "1 skips the artifact build and the settlement and vote-record refreshes." },
     { name: "DEV_NO_SETTLEMENTS", doc: "1 skips only the settlement refresh." },
+    { name: "DEV_NO_VOTES", doc: "1 skips only the vote-record refresh (public/votes.json)." },
   ],
 };

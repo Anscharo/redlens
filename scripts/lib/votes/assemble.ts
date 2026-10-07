@@ -3,7 +3,7 @@
 // Pure: no I/O.
 
 import type { PortalData } from "./portal.ts";
-import type { Executive, Poll, VotesArtifact } from "./types.ts";
+import type { Executive, Poll, VotesArtifact } from "../../../src/lib/votes/types.ts";
 
 // Floors sit well under the corpus size so a quiet month never trips them;
 // they catch an empty or truncated fetch, which otherwise parses cleanly.

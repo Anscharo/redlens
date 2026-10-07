@@ -34,7 +34,7 @@ import { fetchJson, repoTree, type Tree } from "../lib/votes/fetch.ts";
 import { parsePoll } from "../lib/votes/poll.ts";
 import { PORTAL_API, readPortal } from "../lib/votes/portal.ts";
 import { summarize, summaryLine } from "../lib/votes/stats.ts";
-import type { VotesArtifact } from "../lib/votes/types.ts";
+import type { VotesArtifact } from "../../src/lib/votes/types.ts";
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -107,7 +107,8 @@ function emit(o: Flags, artifact: VotesArtifact, join: JoinStats | null, outPath
   else for (const line of summarize(artifact, join)) console.log(line);
   if (o["dry-run"]) return;
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, JSON.stringify(artifact, null, 2) + "\n");
+  // Compact: the browser fetches this for the Stale Dates report, and no one diffs it.
+  fs.writeFileSync(outPath, JSON.stringify(artifact) + "\n");
   if (!o.quiet) console.log(`\nwrote ${rel}`);
 }
 

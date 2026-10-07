@@ -9,6 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { STEPS, PROFILES, COMMUTES, GZIP_ARTIFACTS, stepById, stepsFor } from "../scripts/lib/build-steps.mjs";
+import { OFF_CHAIN_ARTIFACTS } from "../scripts/aux/dev-offchain-artifacts.ts";
 
 const ROOT = path.resolve(__dirname, "..");
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")) as {
@@ -130,6 +131,13 @@ describe("build-steps: non-JS consumers match their profile", () => {
   });
 });
 
+/** The off-chain artifact entry dev-preflight refreshes with `script`, asserting preflight runs the list at all. */
+function preflightRefreshes(script: string) {
+  const preflight = fs.readFileSync(path.join(ROOT, "scripts/aux/dev-preflight.mjs"), "utf8");
+  expect(preflight).toMatch(/^\s*ensureOffChainArtifacts\(/m);
+  return OFF_CHAIN_ARTIFACTS.find((a) => a.script === script);
+}
+
 // settlements.json is NOT an atlas build step — it fetches
 // github.com/soterlabs/settlement-reports, so it can't live in a chain that must
 // be offline and byte-reproducible at a fixed atlas sha (REPRO=1). It is baked
@@ -162,13 +170,38 @@ describe("settlements bake: the one prod producer of settlements.json", () => {
   it("dev-preflight refreshes it on every boot", () => {
     // The local half of the same guarantee: without this a fresh checkout has
     // no settlements.json and Radar hides the section with no error anywhere.
-    const preflight = fs.readFileSync(path.join(ROOT, "scripts/aux/dev-preflight.mjs"), "utf8");
-    expect(preflight).toContain("settlements:parse");
+    expect(preflightRefreshes("settlements:parse")).toMatchObject({ path: "public/settlements.json", maxAgeMs: 0 });
   });
 
   it("`pnpm build` does NOT run it — that chain stays offline + reproducible", () => {
     expect(pkg.scripts.build).not.toContain("settlements");
     expect(STEPS.map((s) => s.pnpmScript)).not.toContain("settlements:parse");
+  });
+});
+
+// votes.json follows the same rules as settlements.json, for the same reason:
+// it fetches the sky-ecosystem vote repositories and vote.sky.money, so it stays
+// off the reproducible chain. Its consumer is Stale Dates' vote evidence, which
+// renders without it, so a missing bake would only blank that column.
+describe("votes bake: the one prod producer of votes.json", () => {
+  const bake = /sync-votes\.ts/.exec(dockerfile);
+  const invocation = bake ? dockerfile.slice(bake.index, bake.index + 200) : "";
+
+  it("the Dockerfile bakes dist/votes.json after build:vite, and gzips it", () => {
+    expect(bake, "Dockerfile no longer runs scripts/aux/sync-votes.ts").not.toBeNull();
+    expect(invocation).toContain("--out dist/votes.json");
+    expect(invocation).toContain("gzip -9 -k dist/votes.json");
+    expect(bake!.index).toBeGreaterThan(dockerfile.indexOf("bun run build:vite"));
+  });
+
+  it("an outage of the vote sources warns instead of failing the image", () => {
+    expect(invocation).toMatch(/\|\|\s*echo/);
+  });
+
+  it("dev-preflight refreshes it, and `pnpm build` does not run it", () => {
+    expect(preflightRefreshes("votes:sync")).toMatchObject({ path: "public/votes.json" });
+    expect(pkg.scripts.build).not.toContain("votes");
+    expect(STEPS.map((s) => s.pnpmScript)).not.toContain("votes:sync");
   });
 });
 

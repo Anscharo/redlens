@@ -362,3 +362,70 @@ Powerhouse doc_no matches the number in its URL.
 session's GitHub proxy refuses archive downloads for repositories not attached to it, so the live
 run used `--exec-dir` and `--poll-dir` against fresh clones. The fetch code mirrors
 `settlements:parse`'s, which runs in production.
+
+## 9. Stage two: vote evidence on Stale Dates (built 2026-10-07)
+
+Every Stale Dates claim now carries a `voteEvidence` (src/lib/votes/), computed in the browser
+from `docs.json` and `votes.json` and on the server for the chat tool from the same files. The
+report gained a fourth section, **Recorded votes**, because the atlas moved under the plan.
+
+**The atlas retensed between the research run and this build.** On 2026-09-15, 13 of 19 dated
+Executive Vote sentences were future tense. At atlas `33fd2631` there are 39 dated Executive Vote
+mentions, and almost all are past tense ("was included in the March 26, 2026 Executive Vote").
+That includes the Osero transfer (A.2.8.2.6.2.2.2.2 · `65638659`), which now *asserts* enactment and
+is still absent from that executive. A future-tense-only report would have lost the one claim the
+whole join exists to catch, so past-tense sentences that name a dated Executive Vote are kept as
+`recorded` claims and checked too.
+
+**Keys, as built.**
+
+| Key | Applies to | Rule |
+|---|---|---|
+| K1 date | a date followed by "(Out-Of-Schedule) Executive Vote" | the executive filed on that date (the out-of-schedule one when named), else the first within +7 d |
+| K4 subject | K1 hits, unless the sentence only dates something by the vote ("Beginning with the …", "Following the execution of the …") | capitalised terms of the clause before the date (after it, if the clause has none); only rare terms count (in ≤ 25% of executives), or uncommon ones (≤ 75%) when there are no rare ones; found when the rarest is present and at least half are |
+| K2 link | every other claim | a vote whose atlas links include the claim's uuid or a parent up to two levels, never a Scope or Article, within −45…+70 d; a failed poll never counts |
+
+**Statuses.** `enacted` · `vote-on-date` (cast executive, nothing checkable in the sentence) ·
+`pending` (drafted or not yet cast) · `subject-missing` · `no-vote` · `not-covered` (the date falls outside
+the record's first and last executive) · `authorised` (only a passed poll links the doc) ·
+`unlinked`.
+
+**Live result, atlas `33fd2631`, vote record of 2026-10-07 (33 executives, 147 polls):**
+
+| Bucket | Claims | Evidence |
+|---|---|---|
+| Stale | 20 | 2 enacted (the 2025-10-02 Spark transfer, slipped +4 d; the Grove Q2 grant via a uuid link, +64 d), 2 vote-on-date (the Reviewer Checklist anchors), 16 unlinked |
+| Due within 7 days | 1 | 1 pending (the October 8 executive is drafted) |
+| Upcoming | 1 | 1 unlinked |
+| Recorded votes | 35 | 27 enacted, 5 vote-on-date, 2 pending, **1 subject-missing: Osero** |
+
+Every one of the 39 dated Executive Vote mentions resolves to an executive within +7 d. None is
+`no-vote`.
+
+**Where stage two departs from the plan, and why:**
+
+1. **No `voteClass`, and no `no-vote-in-window` for effective-date claims.** Measured on the 22 current
+   claims, uuid links reach 1 of the 18 that do not name an Executive Vote. Calling the other 17
+   "no vote in window" would be wrong for most of them, because weekly polls set those dates
+   without linking the document. They read `unlinked`, which the UI explains is not evidence of
+   absence. With only one key per kind of claim, a class field had nothing to choose between.
+2. **Subject terms are names, not all words.** IDF over every word let generic words in the claim
+   ("beginning", "notwithstanding") that no executive uses outweigh the subject. Restricting to capitalised
+   terms and to the clause that names what the vote carried separated Osero from its three
+   siblings with no exceptions.
+3. **Time-anchor sentences skip the subject check.** "Beginning with the June 18, 2026 Executive
+   Vote, a completed Agent Spell Reviewer Checklist must …" (A.1.10.2.5.1.2.1.1 · `badd8b62`) uses the vote as a date, so the
+   executive is not expected to mention the checklist. The research marked these PARTIAL; they now
+   read `vote-on-date`.
+4. **A poll-text date key was tried and dropped.** Matching the claim's date string inside poll
+   titles and summaries found almost only polls titled with their own date; poll bodies are not in
+   the artifact.
+5. **Doc_no-only links (`sky-atlas.io/#A.…`) are still unused.** Resolving them needs the atlas as of
+   each vote's date, and the image's atlas is a depth-1 clone. K2 uses uuid links only.
+6. **K3 (atlas history ↔ Atlas Edit poll) and the authoring-lag prior are not built.** Both need
+   `atlas_history`, which is in Postgres. The Stale Dates page computes from static files. They
+   are the next stage, through the history API.
+
+**Freshness.** The image bakes `votes.json` at build time, so the record is as fresh as the last
+deploy. An executive filed after it reads `not-covered`, measured from the record's last date,
+never from today.

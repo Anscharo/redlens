@@ -248,6 +248,16 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         ],
         note: "LLM-generated and re-run by hand, not when the Atlas updates — so a finding may already be fixed upstream. Each row is a suspicion to check, not a confirmed defect.",
       },
+      {
+        name: "Vote evidence on Stale Dates",
+        what: "Each dated claim on Stale Dates is checked against the Sky vote record (executive votes and governance polls), so you can tell a vote that happened but was never written up from one that did not happen.",
+        how: [
+          "Open Stale Dates; under each claim, a tag says what the vote record shows — enacted, vote pending, subject missing, no vote found, or no linked vote — with the matched vote linked to vote.sky.money and its offset in days.",
+          "The Recorded votes section lists sentences that say a dated Executive Vote already did something, and checks those too: subject missing means the executive on that date never mentions what the Atlas credits to it.",
+          "Hover a tag for what it means, type a tag (“subject missing”) in the search pill to filter by it, or download the CSV for the vote columns.",
+        ],
+        note: "Only claims that name an Executive Vote by date, or whose document a vote links, can be matched; “no linked vote” is not evidence that none happened. Hidden when the vote record has not been built (`pnpm votes:sync`).",
+      },
     ],
   },
   {
