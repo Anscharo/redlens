@@ -34,6 +34,10 @@ export const SETTLEMENT_CITATIONS = {
   distributionRewards: { uuid: "e632c38f-3e4e-4c7e-acfd-b6ec45a422e6", term: "Distribution Reward Primitive" },
   // A.2.3.1.2.1.1
   netRevenue: { uuid: "bddce7bf-c568-444b-b196-e15a99016696", term: "Net Revenue" },
+  // A.2.3.1.2.1.2
+  income: { uuid: "a0fab275-399d-41ad-a9b0-411d3e5ea5c9", term: "Income" },
+  // A.2.3.1.2.1.3
+  expenses: { uuid: "88e3c367-fe30-4d59-8ba1-eddc0d88a0ea", term: "Expenses" },
   // A.2.2.11.1 — the workbook's governance_accessibility_rewards
   gar: { uuid: "b22d1c08-042a-4466-94fe-9d28951e4d4a", term: "Core Governance Reward Primitive" },
   // A.2.8.2.10.2.1.2 — what Sky pays Grove under the Sky–Grove Accord

@@ -3286,34 +3286,20 @@ a.atlas-annotates:focus-visible {
 /* ─── MSC ecosystem timeseries (radar index overview) ─── */
 /* Sky Net Revenue over the To-Sky columns: an overlay that lets clicks
    through to the columns except on its dots, which carry the tooltip. */
-.msc-ts-netrev {
-  position: absolute;
-  top: 0;
-  left: 0;
-  overflow: visible;
-  pointer-events: none;
-}
-.msc-ts-netrev-line {
-  stroke: var(--tan);
-  stroke-width: 2;
-}
-.msc-ts-netrev-amount {
-  fill: var(--tan);
-  paint-order: stroke;
-  stroke: var(--bg);
-  stroke-width: 3px;
-  stroke-linejoin: round;
-}
 .msc-ts-netrev-note {
   margin-left: 2px;
   color: var(--tan-2);
   cursor: help;
 }
-.msc-ts-netrev-dot {
+/* Sky's Income / Expenses / Net Revenue panel (MscSkyRevenue). */
+.msc-skyrev-income {
+  fill: var(--msc-sky);
+}
+.msc-skyrev-expenses {
+  fill: var(--tan-3);
+}
+.msc-skyrev-net {
   fill: var(--tan);
-  stroke: var(--bg);
-  stroke-width: 2;
-  pointer-events: all;
 }
 /* Chart card — same look as the primitive-stats AgentPanel cards. */
 .msc-card {

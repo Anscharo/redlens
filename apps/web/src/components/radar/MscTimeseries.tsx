@@ -4,11 +4,6 @@ import type { PrimeStackMonth } from "@/lib/settlementsOverview";
 import { MscMonthLabel } from "./MscMonthLabel";
 import { MonthColumn } from "./MscTimeseriesColumn";
 import { MscTimeseriesPill, type PillHover } from "./MscTimeseriesPill";
-import { MscNetRevenueLine } from "./MscNetRevenueLine";
-import { SETTLEMENT_CITATIONS } from "@/lib/settlementCitations";
-import { atlasHref } from "@/lib/routes";
-import { AtlasLink } from "../AtlasLink";
-import { Tooltip } from "../Tooltip";
 
 // One stack per month: what each Prime sent TO SKY, in the Prime's identity
 // color, so the stack's top is the month's To-Sky total. Nothing else is
@@ -49,24 +44,17 @@ function ticksFor(posPeak: number, negPeak: number): number[] {
   return out;
 }
 
-/** Why the Net Revenue line starts where it does (skyNetRevenue.ts). */
-const NET_REVENUE_NOTE =
-  "From Soter Labs' consolidated sky_total report. The Atlas counts each settlement cycle in the month the cycle covers (A.2.3.1.2.1). Soter's reports do that from July 2026. Before then they counted each cycle in the month it was paid, one month later, and booked part of it with other expenses, so those months can't be re-dated cleanly. June's cycle was paid in July, as the basis changed, so no report counts it in June.";
-
 export interface MscTimeseriesProps {
   primes: string[];
   months: PrimeStackMonth[];
   primeLabel: (prime: string) => string;
   selected: string;
   onSelect: (month: string) => void;
-  /** Sky's Net Revenue by month (skyNetRevenue.ts), drawn as a line. */
-  netRevenue?: Map<string, number>;
 }
 
-export function MscTimeseries({ primes, months, primeLabel, selected, onSelect, netRevenue = new Map() }: MscTimeseriesProps) {
-  const line = months.flatMap((m) => (netRevenue.has(m.month) ? [netRevenue.get(m.month)!] : []));
-  const posPeak = Math.max(1, ...line, ...months.map((m) => m.skyParts.reduce((n, p) => n + Math.max(0, p.value), 0)));
-  const negPeak = Math.max(0, ...line.map((v) => -v), ...months.map((m) => -m.skyParts.reduce((n, p) => n + Math.min(0, p.value), 0)));
+export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }: MscTimeseriesProps) {
+  const posPeak = Math.max(1, ...months.map((m) => m.skyParts.reduce((n, p) => n + Math.max(0, p.value), 0)));
+  const negPeak = Math.max(0, ...months.map((m) => -m.skyParts.reduce((n, p) => n + Math.min(0, p.value), 0)));
   const span = posPeak + negPeak;
   // Inset the scale from the track's top/bottom edges so a peak segment
   // never lands exactly on the render boundary.
@@ -100,18 +88,9 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect, 
             {primeLabel(p)}
           </span>
         ))}
-        {line.length > 0 && (
-          <span>
-            <span className="inline-block w-3 h-0.5 mr-1 align-middle" style={{ background: "var(--tan)" }} />
-            <AtlasLink to={atlasHref(SETTLEMENT_CITATIONS.netRevenue.uuid)} className="msc-ring-caption-link">Sky Net Revenue</AtlasLink>
-            <Tooltip content={NET_REVENUE_NOTE}>
-              <button type="button" className="msc-ts-netrev-note" aria-label="Why Sky Net Revenue starts in July 2026">*</button>
-            </Tooltip>
-          </span>
-        )}
       </p>
       {/* The axis's unit, over its ticks: every figure on this chart (ticks,
-          bar totals, Net Revenue) is dollars in the month. */}
+          bar totals) is dollars in the month. */}
       <p className="mono text-[9px] m-0" style={{ color: "var(--tan-3)" }}>
         USD / month
       </p>
@@ -137,11 +116,6 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect, 
               label={<MscMonthLabel months={monthKeys} index={i} />} />
           ))}
         </div>
-        {line.length > 0 && (
-          <MscNetRevenueLine months={monthKeys} values={netRevenue} width={width} height={TRACK_H}
-            tops={months.map((m) => m.skyParts.reduce((n, p) => n + Math.max(0, p.value), 0))}
-            x={(i) => AXIS_W + i * (COL_W + GAP_PX) + COL_W / 2} y={y} />
-        )}
       </div>
       <MscTimeseriesPill hover={hover} onDismiss={clearHover} />
     </div>

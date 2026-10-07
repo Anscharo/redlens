@@ -30,7 +30,8 @@ import { MscOverviewSkeleton, OverviewIntro } from "./MscOverviewSkeleton";
 import { useMonthAutoplay } from "../../hooks/useMonthAutoplay";
 import { useTweened } from "../../hooks/useTweened";
 import { tweenPrimeFlows } from "../../lib/mscTween";
-import { netRevenueByMonth } from "@/lib/skyNetRevenue";
+import { skyIncomeExpenseByMonth } from "@/lib/skyNetRevenue";
+import { MscSkyRevenue } from "./MscSkyRevenue";
 
 const mscCodec = urlString(null);
 /** The cross-Prime Monthly Settlement Cycle section. Suspends on the
@@ -49,6 +50,7 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
   // The trailing year of cycles: what the timeseries shows and what the
   // month selector, autoplay and arrow keys step through.
   const months = useMemo(() => (bundle ? cycleWindow(settlementMonths(bundle)).rows : []), [bundle]);
+  const skyMonths = useMemo(() => (bundle ? skyIncomeExpenseByMonth(bundle.skyTotal, bundle.reports) : []), [bundle]);
   const latest = months[months.length - 1] ?? null;
   const [msc, setMsc] = useUrlState("msc", mscCodec);
   const month = months.includes(msc ?? "") ? msc! : latest;
@@ -124,7 +126,6 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
             primes={stack.primes}
             months={stack.months}
             primeLabel={labelOf}
-            netRevenue={netRevenueByMonth(bundle?.skyTotal)}
             selected={month}
             onSelect={(m) => {
               play.pause();
@@ -148,6 +149,11 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
           <RingKey />
         </div>
       </div>
+      {skyMonths.length > 0 && (
+        <div className="msc-card rounded p-4 mt-4 min-w-0 max-w-full inline-block">
+          <MscSkyRevenue months={skyMonths} />
+        </div>
+      )}
     </OverviewIntro>
   );
 }
