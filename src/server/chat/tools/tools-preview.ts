@@ -14,7 +14,6 @@ import { metaPrNumber, openForTool, prContext, withPrDescription } from "./tools
 import { ANON_MCP_CTX, type ToolCallContext } from "./tool-context.ts";
 import { buildPreviewDiff, type PreviewDiffArgs } from "./tools-preview-diff.ts";
 import { buildPreviewGet, type PreviewGetArgs } from "./tools-preview-get.ts";
-import { previewCaps } from "../large-read.ts";
 
 // openWorldHint: the answer depends on GitHub's live PR state, not only the atlas.
 const annotations = (title: string): ToolAnnotations => ({
@@ -111,9 +110,7 @@ export const PREVIEW_TOOLS: AtlasTool[] = [
     handler: async (ix, a, ctx) => {
       const o = await openForTool(a.preview_id, ctx);
       if ("result" in o) return o.result;
-      const caps = previewCaps(ctx?.largeRead);
-      const args = a as unknown as PreviewDiffArgs;
-      const r = buildPreviewDiff(ix, o.open, { ...args, limit: Math.min(args.limit, caps.limit), patch_lines: Math.min(args.patch_lines, caps.patchLines) });
+      const r = buildPreviewDiff(ix, o.open, a as unknown as PreviewDiffArgs, ctx?.largeRead);
       return withPrDescription(r, a.offset ? null : await prContext(metaPrNumber(o.open.meta)));
     },
   },
@@ -135,11 +132,7 @@ export const PREVIEW_TOOLS: AtlasTool[] = [
     largeResult: true,
     handler: async (ix, a, ctx) => {
       const o = await openForTool(a.preview_id, ctx);
-      if ("result" in o) return o.result;
-      const args = a as unknown as PreviewGetArgs;
-      const max = previewCaps(ctx?.largeRead).ids;
-      const r = buildPreviewGet(ix, o.open, { ...args, ids: args.ids.slice(0, max) });
-      return args.ids.length > max ? { ...r, ids_note: `Only the first ${max} ids were read. Ask again for the rest.` } : r;
+      return "result" in o ? o.result : buildPreviewGet(ix, o.open, a as unknown as PreviewGetArgs, ctx?.largeRead);
     },
   },
 ];
