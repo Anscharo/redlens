@@ -118,7 +118,7 @@ test("defaults when no env is set", async () => {
   expect(config.chatModelFast).toEqual([]);
   expect(config.chatModelStrong).toEqual([]);
   expect(config.chatModelFallbacks).toEqual([]);
-  expect(config.chatReferenceCitationModels).toEqual(["openai/gpt-5.6-luna", "openai/gpt-5-mini"]);
+  expect(config.chatReferenceCitationModels).toEqual(["openai/gpt-5.6-luna", "openai/gpt-5-mini", "openai/gpt-6-luna"]);
   expect(config.rateLimitTokensPerWindow).toBe(1_000_000_000_000);
   expect(config.rateLimitWindowMinutes).toBe(90);
   expect(config.rateLimitTokensPerWindowBoosted).toBe(3_000_000);
@@ -261,7 +261,7 @@ test("all env overrides take effect", async () => {
   expect(config.chatModelFallbacks).toEqual(["fb-a", "fb-b"]);
   // CHAT_REFERENCE_CITATION_MODELS was deliberately left out of this env batch —
   // see the dedicated decoupling test below for why this must NOT be ["strong-a"].
-  expect(config.chatReferenceCitationModels).toEqual(["openai/gpt-5.6-luna", "openai/gpt-5-mini"]);
+  expect(config.chatReferenceCitationModels).toEqual(["openai/gpt-5.6-luna", "openai/gpt-5-mini", "openai/gpt-6-luna"]);
   expect(config.rateLimitTokensPerWindow).toBe(777);
   expect(config.rateLimitWindowMinutes).toBe(30);
   expect(config.rateLimitTokensPerWindowBoosted).toBe(9999);
@@ -324,7 +324,7 @@ test("chatReferenceCitationModels does NOT inherit CHAT_MODEL_STRONG", async () 
   process.env.CHAT_MODEL_STRONG = "some-new-unmeasured-model";
   const config = await freshConfig();
   expect(config.chatReferenceCitationModels).not.toContain("some-new-unmeasured-model");
-  expect(config.chatReferenceCitationModels).toEqual(["openai/gpt-5.6-luna", "openai/gpt-5-mini"]);
+  expect(config.chatReferenceCitationModels).toEqual(["openai/gpt-5.6-luna", "openai/gpt-5-mini", "openai/gpt-6-luna"]);
 
   // An explicit override still works and still wins over CHAT_MODEL_STRONG.
   clearAll();

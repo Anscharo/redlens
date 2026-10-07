@@ -10,10 +10,17 @@
 // (inline-only answers, a bottom block, prose-first) degrades to the plain
 // inline gate, which passes `[label]: /atlas/…` lines through untouched.
 import { createLinkGate, type LinkGate } from "./stream-link-gate.ts";
+import { canonicalDefLine, couldBeTitledDef } from "./definition-line.ts";
 
 // A complete definition line: ≤3 leading spaces, `[label]:`, an /atlas/ dest.
 // Restricted to /atlas/ so a stray CommonMark ref-def to some URL isn't buffered.
 const DEF = /^ {0,3}\[[^[\]\n]{1,120}\]:\s*<?\/atlas\//;
+
+// A definition line in canonical form (see definition-line.ts), or null.
+const asDef = (line: string): string | null => {
+  const c = canonicalDefLine(line) ?? line;
+  return DEF.test(c) ? c : null;
+};
 
 // A definition block is small; never hold prose indefinitely waiting for a line
 // break that a single-line answer will never send.
@@ -21,15 +28,17 @@ const MAX_PRELUDE = 4000;
 
 // Could the buffered partial (no newline yet) still BECOME a definition line?
 // True for leading whitespace, mid-label `[…` with no `]` yet, or `[label]`
-// immediately followed by `:` (or nothing yet). An inline link (`[t](`), a
-// reference use (`[t][`), or `[label] ` with a space all diverge → false, so
-// those route to the inline gate promptly instead of stalling to end-of-stream.
+// immediately followed by `:` (or nothing yet), or a titled definition
+// `[Title][label]:` still arriving. An inline link (`[t](`), a reference use
+// with prose after it (`[t][label] `), or `[label] ` with a space all diverge →
+// false, so those route to the inline gate promptly instead of stalling to
+// end-of-stream.
 function couldBeDef(s: string): boolean {
   if (/^\s*$/.test(s)) return true;
   const m = /^ {0,3}\[[^[\]\n]{0,120}(\]?)([^\n]?)/.exec(s);
   if (!m) return false; // not `[`-led
   if (m[1] === "") return true; // `]` not seen yet — still inside the label
-  return m[2] === "" || m[2] === ":";
+  return m[2] === "" || m[2] === ":" || couldBeTitledDef(s);
 }
 
 export function createCitationGate(opts: {
@@ -72,9 +81,10 @@ export function createCitationGate(opts: {
           buf = buf.slice(nl + 1);
           continue;
         }
-        if (DEF.test(line)) {
+        const def = asDef(line);
+        if (def) {
           phase = "block";
-          blockLines.push(line);
+          blockLines.push(def);
           buf = buf.slice(nl + 1);
           continue;
         }
@@ -84,8 +94,9 @@ export function createCitationGate(opts: {
         break;
       }
       // phase === "block"
-      if (DEF.test(line)) {
-        blockLines.push(line);
+      const def = asDef(line);
+      if (def) {
+        blockLines.push(def);
         buf = buf.slice(nl + 1);
         continue;
       }
@@ -101,19 +112,16 @@ export function createCitationGate(opts: {
   return {
     push,
     flush: () => {
-      // A single definition-only line that never got a terminating newline.
-      if (phase === "prelude" && buf.trim() !== "" && DEF.test(buf)) {
+      // A definition line missing only its newline: the whole answer was one
+      // definition line (prelude), or the block ran to end of stream.
+      const last = phase !== "prose" && buf.trim() !== "" ? asDef(buf) : null;
+      if (last) {
         phase = "block";
-        blockLines.push(buf);
+        blockLines.push(last);
         buf = "";
       }
       if (phase === "block") {
-        // A final definition line missing only its newline (block ran to EOS).
-        if (buf.trim() !== "" && DEF.test(buf)) {
-          blockLines.push(buf);
-          buf = "";
-        }
-        let out = blockLines.length ? opts.repairBlock(blockLines.join("\n")) : "";
+        const out = blockLines.length ? opts.repairBlock(blockLines.join("\n")) : "";
         blockLines = [];
         // Any non-def remainder is prose — gate it, don't dump it raw.
         return out + inner.push(buf) + inner.flush();

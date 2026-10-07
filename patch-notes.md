@@ -36,6 +36,9 @@
 ## 2026-10-07
 
 - Renamed the app to Redline Portal across the home page, browser tab titles, link previews and the installable app, and renamed the chat to Redline Portal Chat
+- Fixed chat answers whose source list was written in an unexpected format, which left their citations without links
+- Made chat read a whole pull request at once when reviewing it, instead of a page at a time
+- Fixed long chat conversations losing detail when older messages were summarized
 
 ## 2026-10-06
 
