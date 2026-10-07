@@ -1,7 +1,7 @@
 // The history arm of the vote-evidence eval's poll task — the plan's K3 key
 // (docs/plans/vote-matching.md §4), no model involved: find the atlas commit
 // that first wrote the claim's words, read its pull request number from the
-// squash-merge subject ("… (#121)"), and return the poll whose body links
+// squash-merge subject (its trailing "(#N)"), and return the poll whose body links
 // that pull request. It needs the atlas submodule's full history.
 
 import { execFileSync } from "node:child_process";

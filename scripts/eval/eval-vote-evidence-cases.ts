@@ -122,7 +122,7 @@ function pollCase(base: ClaimText, polls: Poll[], bodies: Map<string, string>, k
 
 /**
  * Every subject and poll case the current atlas yields, joined to gold by
- * doc uuid and date. Gold rows whose claim the atlas no longer contains are
+ * doc uuid and date. Gold rows with no matching claim in the current atlas are
  * returned as `staleGold` so a rewritten sentence reads as such, not as a miss.
  */
 export function buildCases(
