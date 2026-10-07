@@ -23,8 +23,8 @@ export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-// Race a promise against a timeout, clearing the timer either way. Used to bound
-// the query-time embed so a slow provider can't hang the retrieve path.
+// Race a promise against a timeout, clearing the timer either way. Callers bound
+// the query-time embed with it so a slow provider can't hang the retrieve path.
 export function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   let tid: ReturnType<typeof setTimeout>;
   const timeout = new Promise<never>((_, reject) => {
