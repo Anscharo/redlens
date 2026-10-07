@@ -1,5 +1,5 @@
-// Printing for the vote-evidence eval: one score table per task, the Jev
-// threshold sweep, and every case where an arm disagrees with gold.
+// Printing for the vote-evidence eval: one score table per task, a threshold
+// sweep per decision model, and every case where an arm disagrees with gold.
 
 import { jevPoll, scorePoll, scoreSubject, jevSubject, type SubjectLabel } from "./eval-vote-evidence-score.ts";
 
@@ -10,7 +10,8 @@ export interface SubjectRow {
   vote: string;
   gold: string;
   heuristic: SubjectLabel;
-  jev: { anchor: number | null; carried: number | null; label: SubjectLabel } | null;
+  /** One entry per decision model, keyed by its arm name. */
+  decisions: Record<string, { anchor: number | null; carried: number | null; label: SubjectLabel }>;
   llm: { label: SubjectLabel; quote: string } | null;
 }
 
@@ -25,13 +26,14 @@ export interface PollRow {
   lexical: string;
   /** Undefined when the atlas checkout has no history. */
   history?: string;
-  jev: { nouls: Record<string, number | null> | null; pick: string | null } | null;
+  /** One entry per decision model, keyed by its arm name. */
+  decisions: Record<string, { nouls: Record<string, number | null> | null; pick: string | null }>;
   /** Undefined when the LLM arm did not run; null when it answered nothing usable. */
   llm?: string | null;
 }
 
 interface Report {
-  jevModel: string;
+  decisionModels: string[];
   llmModel: string;
   tau: number;
   staleGold: string[];
@@ -48,7 +50,7 @@ function subjectTable(rows: SubjectRow[], slice: "real" | "swapped"): void {
   console.log(`\nsubject · ${slice} (${scoped.length} labeled)\n  arm        accuracy  coverage  caught-no  false-alarms`);
   const arms: Array<[string, (r: SubjectRow) => SubjectLabel | undefined]> = [
     ["heuristic", (r) => r.heuristic],
-    ["jev", (r) => r.jev?.label],
+    ...decisionArms(scoped).map((a): [string, (r: SubjectRow) => SubjectLabel | undefined] => [a, (r) => r.decisions[a]?.label]),
     ["llm", (r) => r.llm?.label],
   ];
   for (const [name, get] of arms) {
@@ -58,14 +60,23 @@ function subjectTable(rows: SubjectRow[], slice: "real" | "swapped"): void {
   }
 }
 
-function jevSweep(rows: SubjectRow[]): void {
-  const scoped = rows.filter((r) => r.jev && (r.gold === "yes" || r.gold === "no"));
-  if (!scoped.length) return;
-  const line = [0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7].map((tau) => {
-    const s = scoreSubject(scoped.map((r) => ({ gold: r.gold, pred: jevSubject(r.jev!.anchor, r.jev!.carried, tau) })));
-    return `${tau}:${pct(s.accuracy).trim()}`;
-  });
-  console.log(`  jev carried threshold sweep (yes/no rows, both slices): ${line.join("  ")}`);
+const TAUS = [0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7];
+
+/** Decision arms present on every row, in first-seen order. */
+function decisionArms(rows: Array<{ decisions: Record<string, unknown> }>): string[] {
+  const names = [...new Set(rows.flatMap((r) => Object.keys(r.decisions ?? {})))];
+  return names.filter((a) => rows.every((r) => r.decisions?.[a] !== undefined));
+}
+
+function subjectSweeps(rows: SubjectRow[]): void {
+  const scoped = rows.filter((r) => r.gold === "yes" || r.gold === "no");
+  for (const arm of decisionArms(scoped)) {
+    const line = TAUS.map((tau) => {
+      const s = scoreSubject(scoped.map((r) => ({ gold: r.gold, pred: jevSubject(r.decisions[arm].anchor, r.decisions[arm].carried, tau) })));
+      return `${tau}:${pct(s.accuracy).trim()}`;
+    });
+    console.log(`  ${arm} carried threshold sweep (yes/no rows, both slices): ${line.join("  ")}`);
+  }
 }
 
 function pollTable(rows: PollRow[], r: Report): void {
@@ -77,7 +88,7 @@ function pollTable(rows: PollRow[], r: Report): void {
     ["heuristic", (x) => x.heuristic],
     ["lexical", (x) => x.lexical],
     ["history", (x) => x.history],
-    ["jev", (x) => x.jev?.pick],
+    ...decisionArms(scoped).map((a): [string, (x: PollRow) => string | null | undefined] => [a, (x) => x.decisions[a]?.pick]),
     ["llm", (x) => x.llm],
   ];
   for (const [name, get] of arms) {
@@ -85,13 +96,14 @@ function pollTable(rows: PollRow[], r: Report): void {
     const s = scorePoll(scoped.map((x) => ({ acceptable: x.acceptable, pred: get(x) ?? null })));
     console.log(`  ${name.padEnd(10)} ${pct(s.accuracy)}      ${s.found.padEnd(7)}  ${s.falseMatches.padEnd(13)}  ${s.errors}`);
   }
-  if (!scoped.some((x) => x.jev)) return;
-  // Re-picks from the stored Nouls, so the sweep costs no calls.
-  const sweep = [0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7].map((tau) => {
-    const rows = scoped.map((x) => ({ acceptable: x.acceptable, pred: jevPoll(candidatesOf(x), x.jev!.nouls, tau) }));
-    return `${tau}:${pct(scorePoll(rows).accuracy).trim()}`;
-  });
-  console.log(`  jev threshold sweep: ${sweep.join("  ")}`);
+  // Re-picks from the stored Nouls, so the sweeps cost no calls.
+  for (const arm of decisionArms(scoped)) {
+    const sweep = TAUS.map((tau) => {
+      const rows = scoped.map((x) => ({ acceptable: x.acceptable, pred: jevPoll(candidatesOf(x), x.decisions[arm].nouls, tau) }));
+      return `${tau}:${pct(scorePoll(rows).accuracy).trim()}`;
+    });
+    console.log(`  ${arm} threshold sweep: ${sweep.join("  ")}`);
+  }
 }
 
 // jevPoll needs each candidate's id and file; a row keeps them as the Noul keys
@@ -103,25 +115,30 @@ function candidatesOf(x: PollRow) {
 function disagreements(r: Report): void {
   console.log("\ndisagreements with gold");
   for (const x of r.subject.filter((x) => x.gold !== "unlabeled")) {
-    const preds = { heuristic: x.heuristic, jev: x.jev?.label, llm: x.llm?.label };
+    const preds = { heuristic: x.heuristic, ...labelsOf(x.decisions, (d) => d.label), llm: x.llm?.label };
     const off = Object.entries(preds).filter(([, p]) => p !== undefined && p !== x.gold && p !== "abstain");
     if (off.length) console.log(`  subject ${x.slice} ${x.docNo} ${x.key.slice(0, 8)}… gold=${x.gold} ${off.map(([a, p]) => `${a}=${p}`).join(" ")} (${x.vote})`);
   }
   for (const x of r.poll.filter((x) => x.gold !== "unlabeled")) {
     const want = x.acceptable.length ? x.acceptable : ["none"];
-    const off = Object.entries({ heuristic: x.heuristic, lexical: x.lexical, history: x.history, jev: x.jev?.pick, llm: x.llm }).filter(([, p]) => p !== undefined && !want.includes(String(p)));
+    const arms = { heuristic: x.heuristic, lexical: x.lexical, history: x.history, ...labelsOf(x.decisions, (d) => d.pick), llm: x.llm };
+    const off = Object.entries(arms).filter(([, p]) => p !== undefined && !want.includes(String(p)));
     if (off.length) console.log(`  poll ${x.docNo} ${x.key.slice(0, 8)}… want=${want.join("|")} ${off.map(([a, p]) => `${a}=${p}`).join(" ")}`);
   }
 }
 
+function labelsOf<T, V>(decisions: Record<string, T> | undefined, get: (d: T) => V): Record<string, V> {
+  return Object.fromEntries(Object.entries(decisions ?? {}).map(([arm, d]) => [arm, get(d)]));
+}
+
 export function printReport(r: Report): void {
-  console.log(`jev=${r.jevModel || "off"} llm=${r.llmModel || "off"} tau=${r.tau}`);
+  console.log(`decision=${r.decisionModels.join(",") || "off"} llm=${r.llmModel || "off"} tau=${r.tau}`);
   if (r.staleGold.length) console.log(`gold rows whose claim the atlas no longer holds (rewritten?): ${r.staleGold.length}`);
   const unlabeled = [...r.subject, ...r.poll].filter((x) => x.gold === "unlabeled").length;
   if (unlabeled) console.log(`cases without gold (new atlas claims; label them in eval-corpora/vote-evidence-gold.json): ${unlabeled}`);
   subjectTable(r.subject, "real");
   subjectTable(r.subject, "swapped");
-  jevSweep(r.subject);
+  subjectSweeps(r.subject);
   pollTable(r.poll, r);
   disagreements(r);
   console.log("\nfull rows → .cache/eval-vote-evidence.json");

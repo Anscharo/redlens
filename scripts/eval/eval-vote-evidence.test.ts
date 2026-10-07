@@ -1,13 +1,14 @@
 // The pure parts of the vote-evidence eval: sentence extraction, the lexical
 // prefilter, the judges' request shapes and answer parsing, and scoring.
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { Executive } from "../../src/lib/votes/types.ts";
 import { claimSentence, type PollCase, type SubjectCase } from "./eval-vote-evidence-cases.ts";
 import * as Q from "./eval-vote-evidence-judges.ts";
 import { hasHistory, pickaxeNeedle, pollsLinkingPr, prOfSubject } from "./eval-vote-evidence-history.ts";
 import { rankLexically } from "./eval-vote-evidence-lexical.ts";
+import { printReport } from "./eval-vote-evidence-report.ts";
 import * as S from "./eval-vote-evidence-score.ts";
 
 function exec(date: string, text: string): Executive {
@@ -38,6 +39,31 @@ describe("claimSentence", () => {
   it("falls back to the raw date, then to the context", () => {
     expect(claimSentence("Begins on May 1, 2026 for all.", { context: "nope", contextBefore: "", raw: "May 1, 2026" })).toBe("Begins on May 1, 2026 for all.");
     expect(claimSentence("No date here.", { context: "ctx", contextBefore: "", raw: "May 1, 2026" })).toBe("ctx");
+  });
+});
+
+describe("printReport with several decision models", () => {
+  it("prints one column and one sweep per decision model", () => {
+    const lines: string[] = [];
+    const spy = vi.spyOn(console, "log").mockImplementation((...a: unknown[]) => void lines.push(a.join(" ")));
+    const d = (carried: number) => ({ anchor: 0.05, carried, label: S.jevSubject(0.05, carried, 0.5) });
+    const subject = [
+      { key: "a", docNo: "A.1", slice: "real" as const, vote: "v", gold: "yes", heuristic: "yes" as const, decisions: { "jev-1.13": d(0.9), "gpt-6-luna-decisions": d(0.2) }, llm: null },
+      { key: "b", docNo: "A.2", slice: "swapped" as const, vote: "v", gold: "no", heuristic: "yes" as const, decisions: { "jev-1.13": d(0.1), "gpt-6-luna-decisions": d(0.1) }, llm: null },
+    ];
+    const poll = [
+      { key: "c", docNo: "A.3", gold: "authorised", acceptable: ["x.md"], candidates: ["x.md"], heuristic: "none", lexical: "x.md",
+        decisions: { "jev-1.13": { nouls: { p0: 0.9 }, pick: "x.md" }, "gpt-6-luna-decisions": { nouls: { p0: 0.1 }, pick: "none" } } },
+    ];
+    printReport({ decisionModels: ["typesafe/jev-1.13", "openai/gpt-6-luna-decisions"], llmModel: "", tau: 0.5, staleGold: [], prefilter: { topK: "1/1", window: "1/1" }, subject, poll });
+    spy.mockRestore();
+    const out = lines.join("\n");
+    expect(out).toMatch(/jev-1\.13\s+100%/);
+    expect(out).toMatch(/gpt-6-luna-decisions\s+0%/);
+    expect(out).toContain("gpt-6-luna-decisions carried threshold sweep");
+    expect(out).toContain("jev-1.13 threshold sweep");
+    expect(out).toContain("gpt-6-luna-decisions=no");
+    expect(S.armName("openai/gpt-6-luna-decisions")).toBe("gpt-6-luna-decisions");
   });
 });
 

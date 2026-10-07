@@ -1,14 +1,16 @@
-// Vote-evidence second-voice eval: would Jev or an LLM, beside the shipped
-// heuristic matcher (src/lib/votes/), judge Stale Dates claims better?
+// Vote-evidence second-voice eval: would a decision model (Jev, or any model
+// OpenRouter serves on its /systemone decisions endpoint) or an LLM, beside the
+// shipped heuristic matcher (src/lib/votes/), judge Stale Dates claims better?
 // Handoff and how to read the result: docs/research/vote-matching/second-voice-eval.md.
 //
 //   pnpm eval:vote-evidence                                  # heuristic + lexical, and Jev when OPENROUTER_API_KEY is set
-//   pnpm eval:vote-evidence --llm-model <openrouter-id>      # + one LLM arm
+//   pnpm eval:vote-evidence --decision-models typesafe/jev-1.13,openai/gpt-6-luna-decisions
+//   pnpm eval:vote-evidence --llm-model <openrouter-id>      # + one chat-completions LLM arm
 //   pnpm eval:vote-evidence --poll-dir ../polls --task poll  # a local polls checkout; one task only
 //
-// Flags: --task subject|poll|both · --jev-model <id> (default CHAT_JEV_MODEL) ·
-// --llm-model <id> · --k <n> poll candidates per claim (8) · --tau <p> Jev yes
-// threshold (0.5) · --no-swap · --poll-dir <dir> · --atlas-dir <dir> (the
+// Flags: --task subject|poll|both · --decision-models <id,id> (default
+// CHAT_JEV_MODEL; each asks the same typed questions) · --llm-model <id> ·
+// --k <n> poll candidates per claim (8) · --tau <p> decision yes threshold (0.5) · --no-swap · --poll-dir <dir> · --atlas-dir <dir> (the
 // submodule; the history arm needs its full history) · --concurrency <n> (4).
 //
 // Every model answer is cached under .cache/eval-vote-evidence/, keyed on the
@@ -39,7 +41,7 @@ const CACHE = path.join(ROOT, ".cache", "eval-vote-evidence");
 const { values: flags } = parseArgs({
   options: {
     task: { type: "string", default: "both" },
-    "jev-model": { type: "string" },
+    "decision-models": { type: "string" },
     "llm-model": { type: "string" },
     k: { type: "string", default: "8" },
     tau: { type: "string", default: "0.5" },
@@ -49,7 +51,9 @@ const { values: flags } = parseArgs({
     concurrency: { type: "string", default: "4" },
   },
 });
-const JEV_MODEL = config.openrouterApiKey ? flags["jev-model"] || config.chatJevModel : "";
+const DECISION_MODELS = config.openrouterApiKey
+  ? (flags["decision-models"] ?? config.chatJevModel).split(",").map((m) => m.trim()).filter(Boolean)
+  : [];
 const LLM_MODEL = config.openrouterApiKey ? (flags["llm-model"] ?? "") : "";
 const TAU = Number(flags.tau);
 const CONC = Number(flags.concurrency);
@@ -73,12 +77,19 @@ async function cached<T>(arm: string, keyObj: unknown, fn: () => Promise<T>): Pr
   }
 }
 
-async function jev(state: unknown, questions: Record<string, Q.Question>, lane: string) {
-  if (!JEV_MODEL) return null;
-  return cached("jev", { model: JEV_MODEL, state, questions }, async () => {
-    const run = await askJev({ state, questions, model: JEV_MODEL, lane, timeoutMs: 60_000 });
+// The cache folder keeps its name for every decision model: the key carries the model.
+async function decide(model: string, state: unknown, questions: Record<string, Q.Question>, lane: string) {
+  return cached("jev", { model, state, questions }, async () => {
+    const run = await askJev({ state, questions, model, lane, timeoutMs: 60_000 });
     return { nouls: Object.fromEntries(Object.keys(questions).map((id) => [id, noulOf(run, id)])), cost: run.cost };
   });
+}
+
+/** Each decision model's Nouls over the same request, keyed by its arm name. */
+async function decideAll(state: unknown, questions: Record<string, Q.Question>, lane: string) {
+  const out: Record<string, Record<string, number | null> | null> = {};
+  for (const model of DECISION_MODELS) out[S.armName(model)] = (await decide(model, state, questions, lane))?.nouls ?? null;
+  return out;
 }
 
 async function llm(messages: Q.Msg[]) {
@@ -90,19 +101,23 @@ async function llm(messages: Q.Msg[]) {
 }
 
 async function subjectRow(c: SubjectCase, slice: "real" | "swapped", heuristic: S.SubjectLabel): Promise<SubjectRow> {
-  const j = await jev(Q.subjectState(c), Q.SUBJECT_QUESTIONS, "vote-evidence-subject");
+  const d = await decideAll(Q.subjectState(c), Q.SUBJECT_QUESTIONS, "vote-evidence-subject");
   const l = await llm(Q.subjectMessages(c));
   const la = l ? Q.parseLlmSubject(l.text) : null;
   const llmLabel: S.SubjectLabel | null = !LLM_MODEL ? null : !la ? "error" : la.anchor ? "anchor" : la.carried === "unclear" ? "abstain" : la.carried;
   return {
     key: c.key, docNo: c.docNo, slice, vote: c.vote.file, gold: c.gold?.label ?? "unlabeled", heuristic,
-    jev: JEV_MODEL ? { anchor: j?.nouls.anchor ?? null, carried: j?.nouls.carried ?? null, label: S.jevSubject(j?.nouls.anchor ?? null, j?.nouls.carried ?? null, TAU) } : null,
+    decisions: Object.fromEntries(
+      Object.entries(d).map(([arm, n]) => [arm, { anchor: n?.anchor ?? null, carried: n?.carried ?? null, label: S.jevSubject(n?.anchor ?? null, n?.carried ?? null, TAU) }]),
+    ),
     llm: llmLabel === null ? null : { label: llmLabel, quote: la?.quote ?? "" },
   };
 }
 
 async function pollRow(c: PollCase, fileByTitle: Map<string, string>, bodies: Map<string, string>): Promise<PollRow> {
-  const j = c.candidates.length ? await jev(Q.pollState(c), Q.pollQuestions(c), "vote-evidence-poll") : { nouls: {} };
+  const d = c.candidates.length
+    ? await decideAll(Q.pollState(c), Q.pollQuestions(c), "vote-evidence-poll")
+    : Object.fromEntries(DECISION_MODELS.map((m) => [S.armName(m), {}]));
   const l = c.candidates.length ? await llm(Q.pollMessages(c)) : { text: '{"match":"none"}' };
   const ids = c.candidates.map((p) => p.id);
   const pick = (id: string | null) => (id === null || id === "none" ? id : (c.candidates.find((p) => p.id === id)?.file ?? null));
@@ -110,7 +125,7 @@ async function pollRow(c: PollCase, fileByTitle: Map<string, string>, bodies: Ma
     key: c.key, docNo: c.docNo, gold: c.gold?.label ?? "unlabeled", acceptable: c.gold?.authorising ?? [], candidates: c.candidates.map((p) => p.file),
     heuristic: S.heuristicPoll(c, fileByTitle), lexical: c.candidates[0]?.file ?? "none",
     history: HISTORY ? historyPoll(pickaxeNeedle(c.claim), ATLAS_DIR, bodies) : undefined,
-    jev: JEV_MODEL ? { nouls: j?.nouls ?? null, pick: S.jevPoll(c, j?.nouls ?? null, TAU) } : null,
+    decisions: Object.fromEntries(Object.entries(d).map(([arm, n]) => [arm, { nouls: n, pick: S.jevPoll(c, n, TAU) }])),
     llm: LLM_MODEL ? pick(l ? Q.parseLlmPoll(l.text, ids) : null) : undefined,
   };
 }
@@ -133,11 +148,12 @@ async function main(): Promise<void> {
   const cases = buildCases(docs, artifact, bodies, gold, { today: new Date(), k: Number(flags.k) });
   const index = buildVoteIndex(artifact);
   if (!HISTORY) console.log(`history arm off: ${ATLAS_DIR} has no full git history (run \`pnpm pull-atlas\`, or pass --atlas-dir)`);
-  console.log(`arms: heuristic, lexical${HISTORY ? ", history" : ""}${JEV_MODEL ? `, jev (${JEV_MODEL})` : ""}${LLM_MODEL ? `, llm (${LLM_MODEL})` : ""}`);
+  const decisionArms = DECISION_MODELS.map((m) => `, ${S.armName(m)} (${m})`).join("");
+  console.log(`arms: heuristic, lexical${HISTORY ? ", history" : ""}${decisionArms}${LLM_MODEL ? `, llm (${LLM_MODEL})` : ""}`);
   const subject = flags.task === "poll" ? [] : await runSubject(cases.subject, artifact, index);
   const fileByTitle = new Map(artifact.polls.map((p) => [`${p.date}|${p.title}`, p.file]));
   const poll = flags.task === "subject" ? [] : await mapPool(cases.poll, CONC, (c) => pollRow(c, fileByTitle, bodies));
-  const out = { generatedAt: new Date().toISOString(), jevModel: JEV_MODEL, llmModel: LLM_MODEL, tau: TAU, staleGold: cases.staleGold, prefilter: S.prefilterRecall(cases.poll), subject, poll };
+  const out = { generatedAt: new Date().toISOString(), decisionModels: DECISION_MODELS, llmModel: LLM_MODEL, tau: TAU, staleGold: cases.staleGold, prefilter: S.prefilterRecall(cases.poll), subject, poll };
   fs.mkdirSync(path.join(ROOT, ".cache"), { recursive: true });
   fs.writeFileSync(path.join(ROOT, ".cache/eval-vote-evidence.json"), JSON.stringify(out, null, 2));
   printReport(out);

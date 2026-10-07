@@ -26,7 +26,7 @@ and cut to the top 8. The models choose among those 8.
 | `heuristic` | the shipped matcher (`src/lib/votes/evidence.ts`) | always |
 | `lexical` | TF-IDF top-1 among the candidates (the plan's K5) | poll task, always |
 | `history` | `git log -S` on the claim's words, then the commit's pull request number, then the poll linking that pull request (the plan's K3, no model) | poll task, when the atlas submodule has full history |
-| `jev` | Jev Nouls. Subject task: `anchor` and `carried` over the sentence plus the executive's sections. Poll task: one Noul per candidate | `OPENROUTER_API_KEY` set; model `CHAT_JEV_MODEL` or `--jev-model` |
+| decision models (`jev-1.13`, …) | Typed Nouls from a `/systemone` decision model. Subject task: `anchor` and `carried` over the sentence plus the executive's sections. Poll task: one Noul per candidate | `OPENROUTER_API_KEY` set; models from `--decision-models a,b` (default `CHAT_JEV_MODEL`) |
 | `llm` | one JSON answer per case, same state as Jev | `--llm-model <openrouter id>` |
 
 ## Run it
@@ -102,6 +102,44 @@ pnpm votes:sync && pnpm eval:vote-evidence      # subject requests are new (re-p
 
 What to look for: whether the 9 truncated grants and Osero now read "yes", and whether the swapped
 slice stays at 34/34.
+
+## Second run: Jev (`typesafe/jev-1.13`) with whole executives, 2026-10-07
+
+| Task | heuristic | Jev at τ 0.5 | Jev, best threshold |
+|---|---|---|---|
+| Subject, real (39) | 97% of the 87% it answers, 1 false alarm (Osero) | **95% at 100% coverage**, Osero right | — |
+| Subject, swapped (34) | 17/34 caught | **33/34 caught** | 97% over both slices at τ 0.3–0.4 |
+| Poll (18) | 0/14 found | 5/14 found, 0/4 false | 78% at τ 0.1–0.15 (10/14 found, 0/4 false) |
+| Poll, history arm | — | — | 14/14, 0/4 false |
+
+**Jev's remaining subject misses.**
+- **Real slice, two false "no"s.**
+  - Stage 1 of the Monthly Settlement Cycle (A.2.4.1.2.2.1.2 · `ff3aa296`). The executive runs the
+    first settlement and cites the Stage 1 document as its authority, but never names "Stage 1".
+  - The Gnosis payment (A.4.1.1.1.1.1 · `418d496b`).
+- **Swapped slice, one false "yes":** the Grove Foundation grant (A.2.8.2.2.2.4.5.2.3.1 ·
+  `b5ab118c`). The swapped executive pays a Grove Foundation grant for a different month, so gold's
+  "no" there is the noisy kind the caveats describe.
+
+**What this says.**
+- **Subject task.** A decision model is worth building as the second voice. It catches the wrong-vote
+  case the heuristic lets through (33 against 17 of 34), and it follows the renamed agent the
+  heuristic flags. A threshold near 0.35 is the measured best.
+- **Poll task.** The history key stays first: free, deterministic, 14/14. A decision model at
+  τ 0.15 is the fallback for claims history does not reach.
+
+## Trying another decision model
+
+Any model OpenRouter serves on its `/systemone` decisions endpoint takes the same typed questions.
+`openai/gpt-6-luna-decisions` is one; it has no chat-completions API, so it does not fit the
+`--llm-model` arm. Run several side by side:
+
+```bash
+pnpm eval:vote-evidence --decision-models typesafe/jev-1.13,openai/gpt-6-luna-decisions
+```
+
+Each model gets its own column, its own threshold sweeps, and its own name in the disagreement
+list. Answers are cached per model, so Jev's answers replay and only the new model is paid.
 
 ## Osero was enacted: the research's headline case is a false alarm
 

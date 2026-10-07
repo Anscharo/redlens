@@ -23,6 +23,11 @@ export function heuristicSubject(c: SubjectCase): SubjectLabel {
   return e?.subject ? "yes" : "abstain";
 }
 
+/** A decision model's arm name in the report: its id without the provider ("jev-1.13"). */
+export function armName(model: string): string {
+  return model.split("/").pop() || model;
+}
+
 export function jevSubject(anchorP: number | null, carriedP: number | null, tau: number): SubjectLabel {
   if (anchorP === null || carriedP === null) return "error";
   if (anchorP >= 0.5) return "anchor";
