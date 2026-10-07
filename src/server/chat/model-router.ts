@@ -67,10 +67,20 @@ const STRONG_SIGNALS: [RegExp, string][] = [
   [/\b(generate|compile|enumerate|inventory|timeline|trends?)\b/i, "synthesis"],
   // Superlative over a class: the extreme is often not in BM25 top-k.
   [EXTREMUM_Q_RE, "extremum"],
+  // An unmerged PR: reviewing one reads its whole diff, which only the strong
+  // tier's large window holds. A bare issue number also matches merged PRs,
+  // which the strong tier answers as well as the default one.
+  [/\b(pull requests?|open PRs?|PR\s*#?\d+|upcoming changes?|proposed changes?)\b|(?:^|\s)#\d{2,5}\b/i, "pr-review"],
 ];
 
-export function routeTier(question: string, opts: { followUp?: boolean; jevComplexity?: number | null } = {}): Route {
+export function routeTier(
+  question: string,
+  opts: { followUp?: boolean; jevComplexity?: number | null; preview?: boolean } = {},
+): Route {
   const q = question.trim();
+  // A turn asked from inside a PR preview is a review of that PR. The strong
+  // tier holds the large-window models that can read a whole PR (large-read.ts).
+  if (opts.preview) return { tier: "strong", reason: "pr-review" };
   for (const [re, reason] of STRONG_SIGNALS) {
     if (re.test(q)) return { tier: "strong", reason };
   }

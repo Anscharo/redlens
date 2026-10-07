@@ -102,10 +102,11 @@ export const PREVIEW_TOOLS: AtlasTool[] = [
       preview_id: PREVIEW_ID,
       change: z.enum(["added", "changed", "removed"]).optional().describe("Only this kind of change."),
       offset: z.number().int().min(0).optional().default(0),
-      limit: z.number().int().min(1).max(100).optional().default(40),
-      patch_lines: z.number().int().min(0).max(40).optional().default(12).describe("Patch lines per document (0 for none)."),
+      limit: z.number().int().min(1).max(1000).optional().default(40),
+      patch_lines: z.number().int().min(0).max(400).optional().default(12).describe("Patch lines per document (0 for none)."),
     },
     emptyArgsAbsent: true,
+    largeResult: true,
     handler: async (ix, a, ctx) => {
       const o = await openForTool(a.preview_id, ctx);
       if ("result" in o) return o.result;
@@ -119,15 +120,16 @@ export const PREVIEW_TOOLS: AtlasTool[] = [
       "You need the full proposed text of documents in an unmerged PR — to review it closely or to check it reads like similar live documents (then fetch those with atlas_filter / atlas_get).",
     annotations: annotations("Atlas Preview Get"),
     description:
-      "Full text of up to 5 documents as a PR preview has them (by uuid or the preview's doc_no), with each one's " +
+      "Full text of up to 50 documents as a PR preview has them (by uuid or the preview's doc_no), with each one's " +
       "change status, parent and ancestors, the live Atlas's text of the same document for comparison, its patch, " +
       "and optionally its children.",
     shape: {
       preview_id: PREVIEW_ID,
-      ids: z.array(z.string()).min(1).max(5).describe("UUIDs or doc_nos as numbered in the preview."),
+      ids: z.array(z.string()).min(1).max(50).describe("UUIDs or doc_nos as numbered in the preview. Ask for 5 or fewer unless this turn can read large previews."),
       include_base: z.boolean().optional().default(true).describe("Include the live Atlas's text of each document (default true)."),
       include_children: z.boolean().optional().default(false),
     },
+    largeResult: true,
     handler: async (ix, a, ctx) => {
       const o = await openForTool(a.preview_id, ctx);
       return "result" in o ? o.result : buildPreviewGet(ix, o.open, a as unknown as PreviewGetArgs);

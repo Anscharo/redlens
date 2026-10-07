@@ -12,6 +12,8 @@
 // Inline-only answers — everything today's prompt produces — come back
 // BYTE-IDENTICAL, and the pass is idempotent: expanding twice changes nothing.
 
+import { canonicalDefLine, matchLabelBySlug } from "./definition-line.ts";
+
 export interface ReferenceExpansion {
   content: string;
   // Normalized label → destination exactly as declared (never repaired here).
@@ -90,9 +92,10 @@ function expandLine(line: string, ctx: ExpandCtx): string {
     // Split only when EVERY part resolves; a partial list is an undefined label.
     const parts = key.split(",").map((p) => p.trim()).filter(Boolean);
     const multi = parts.length > 1 && parts.every((p) => ctx.defs.has(p));
-    const hrefs = multi ? parts.map((p) => ctx.defs.get(p)!) : ctx.defs.has(key) ? [ctx.defs.get(key)!] : null;
+    const hit = ctx.defs.has(key) ? key : shortcut ? null : matchLabelBySlug(key, ctx.defs.keys());
+    const hrefs = multi ? parts.map((p) => ctx.defs.get(p)!) : hit ? [ctx.defs.get(hit)!] : null;
     if (hrefs) {
-      for (const p of multi ? parts : [key]) ctx.used.add(p);
+      for (const p of multi ? parts : [hit!]) ctx.used.add(p);
       // Consecutive links carrying the same text: byte-for-byte what a
       // prompt-compliant model writes when told "one label per citation, cite
       // twice for two sources", so downstream sees nothing novel.
@@ -125,7 +128,7 @@ export function expandReferenceLinks(answer: string, resolve?: (label: string) =
   let fence = false;
   for (const line of lines) {
     if (FENCE_RE.test(line)) fence = !fence;
-    const m = fence ? null : DEF_RE.exec(line);
+    const m = fence ? null : DEF_RE.exec(canonicalDefLine(line) ?? line);
     isDef.push(m !== null);
     if (!m) continue;
     const key = normLabel(m[1]);
