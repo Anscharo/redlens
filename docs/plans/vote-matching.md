@@ -136,6 +136,10 @@ This is the axis that answers "*was the sentence itself voted on?*" — distinct
 the sentence names happen?*".
 
 ### K4 · Subject-noun containment inside the executive body — **the disambiguator**
+> **Correction (§10):** the Osero claim below is true. The March 26, 2026 executive transfers its
+> 10 million USDS to the same SubProxy address under the agent's earlier name, Launch Agent 6
+> (also Prysm). Name matching misses a renamed agent.
+
 For a class-A/C claim with a K1 date hit, check the executive's Proposal Details for the
 claim's subject nouns (agent name, module name, amount). Tested regression case: the Osero genesis
 transfer (`65638659`) names the March 26, 2026 executive; that executive exists and scores 0.18 by
@@ -246,6 +250,10 @@ date, and 13 of 19 dated vote claims are exactly that — yet 18 of the 19 dates
 on that exact date, and the 19th slipped four days. So the report is, for this class, mostly measuring *editorial lag in the
 atlas*, not *governance that failed to happen*. Only the vote record separates the two, which is
 the whole argument for building the join.
+
+> **Correction (§10):** the paragraph below is wrong about Osero. The executive does carry the
+> transfer, to Osero's SubProxy address under its earlier name, Launch Agent 6. The authoring-lag
+> observation stands: the sentence was written 56 days after the vote.
 
 The corollary matters more: **the genuinely broken claim is textually identical to the healthy
 ones.** A.2.8.2.6.2.2.2.2 · `65638659` says the Osero Genesis Capital Allocation "will be included
@@ -372,10 +380,10 @@ report gained a fourth section, **Recorded votes**, because the atlas moved unde
 **The atlas retensed between the research run and this build.** On 2026-09-15, 13 of 19 dated
 Executive Vote sentences were future tense. At atlas `33fd2631` there are 39 dated Executive Vote
 mentions, and almost all are past tense ("was included in the March 26, 2026 Executive Vote").
-That includes the Osero transfer (A.2.8.2.6.2.2.2.2 · `65638659`), which now *asserts* enactment and
-is still absent from that executive. A future-tense-only report would have lost the one claim the
-whole join exists to catch, so past-tense sentences that name a dated Executive Vote are kept as
-`recorded` claims and checked too.
+That includes the Osero transfer (A.2.8.2.6.2.2.2.2 · `65638659`), which now *asserts* enactment.
+A future-tense-only report never checks such a sentence, so past-tense sentences that name a
+dated Executive Vote are kept as `recorded` claims and checked too. (The matcher flags Osero as
+`subject-missing`, which §10 shows is a false alarm: the vote names the agent by its earlier name.)
 
 **Keys, as built.**
 
@@ -397,7 +405,7 @@ the record's first and last executive) · `authorised` (only a passed poll links
 | Stale | 20 | 2 enacted (the 2025-10-02 Spark transfer, slipped +4 d; the Grove Q2 grant via a uuid link, +64 d), 2 vote-on-date (the Reviewer Checklist anchors), 16 unlinked |
 | Due within 7 days | 1 | 1 pending (the October 8 executive is drafted) |
 | Upcoming | 1 | 1 unlinked |
-| Recorded votes | 35 | 27 enacted, 5 vote-on-date, 2 pending, **1 subject-missing: Osero** |
+| Recorded votes | 35 | 27 enacted, 5 vote-on-date, 2 pending, 1 subject-missing: Osero (a false alarm, §10) |
 
 Every one of the 39 dated Executive Vote mentions resolves to an executive within +7 d. None is
 `no-vote`.
@@ -412,7 +420,7 @@ Every one of the 39 dated Executive Vote mentions resolves to an executive withi
 2. **Subject terms are names, not all words.** IDF over every word let generic words in the claim
    ("beginning", "notwithstanding") that no executive uses outweigh the subject. Restricting to capitalised
    terms and to the clause that names what the vote carried separated Osero from its three
-   siblings with no exceptions.
+   siblings, which turned out to be the wrong answer (§10).
 3. **Time-anchor sentences skip the subject check.** "Beginning with the June 18, 2026 Executive
    Vote, a completed Agent Spell Reviewer Checklist must …" (A.1.10.2.5.1.2.1.1 · `badd8b62`) uses the vote as a date, so the
    executive is not expected to mention the checklist. The research marked these PARTIAL; they now
@@ -429,3 +437,46 @@ Every one of the 39 dated Executive Vote mentions resolves to an executive withi
 **Freshness.** The image bakes `votes.json` at build time, so the record is as fresh as the last
 deploy. An executive filed after it reads `not-covered`, measured from the record's last date,
 never from today.
+
+## 10. Hand-checked gold, the Osero correction, and the second-voice eval
+
+To test whether Jev or an LLM would help as a second voice, every case was labelled by reading the
+vote itself. That produced `scripts/eval/eval-corpora/vote-evidence-gold.json`:
+- 38 dated Executive Vote sentences, each with the executive line that carries it;
+- 18 other dated claims, each with the poll bullet that authorised it.
+
+The harness is `pnpm eval:vote-evidence`. Its handoff is
+`docs/research/vote-matching/second-voice-eval.md`.
+
+**Osero was enacted.** The atlas document A.2.8.2.6.2.2.2.2 · `65638659` gives Osero's SubProxy as
+`0x24fdcd3b…78D3`. The March 26, 2026 executive's Genesis Funding Transfers section transfers
+"10 million USDS to the Launch Agent 6 SubProxy" at that address. The February 26 executive onboarded
+the same address as Launch Agent 6 (`PRYSM_SUBPROXY`). From July 16 the executives call it
+`OSERO_SUBPROXY`. One agent, three names. Every "no" this research reported for Osero, and the
+matcher's `subject-missing` for it, comes from matching names. The gold now holds no real negative
+among the 38 sentences.
+
+**What the gold shows about the keys:**
+
+| Task | Arm | Result |
+|---|---|---|
+| Executive sentences (38) | shipped heuristic | right on 97% of those it answers (87% coverage); its one "no", Osero, is wrong |
+| Executive swapped for one that does not carry the claim (34) | shipped heuristic | catches 17 of 34; it says yes on a different genesis transfer or grant |
+| Dated claims with a poll behind them (14 of 18) | shipped heuristic | 0 found (uuid links reach none of them) |
+| | lexical ranking (K5) | 5 of 14 found, and a poll named for 3 of the 4 claims that need none |
+| | history (K3) | 14 of 14 found, none named falsely |
+
+The history arm runs `git log -S` over the atlas submodule to find the commit that first wrote the
+claim's words. It reads the pull request number from that commit's subject, then finds the poll
+whose body links that pull request. It is the plan's K3 key, and it needs no model.
+
+The history arm's 14 of 14 is partly circular: the labeller found its polls by the same route. The
+labeller then read each poll's bullet to confirm the match, and three were re-checked by hand. In
+production the key would come from `atlas_history`, which already stores each commit's pull request
+number, rather than from a git checkout.
+
+**Next fixes suggested by the gold:**
+- **Recognise renamed agents.** Match a claim's agent through its aliases (Launch Agent N, the
+  earlier Prime name) or through the addresses its document links. Only the Osero document holds
+  an address itself today, so addresses alone reach one case.
+- **Build K3 for undated claims.** Use it to replace "no linked vote" with the authorising poll.

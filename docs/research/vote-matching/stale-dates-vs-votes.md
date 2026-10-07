@@ -1,5 +1,7 @@
 # Stale Dates vs the vote record — research note (2026-09-15)
 
+> **Correction (2026-10-07):** row 16's Osero verdict is wrong. The March 26, 2026 executive transfers the 10 million USDS to Osero's SubProxy address under the agent's earlier name, Launch Agent 6 (also Prysm). See `docs/plans/vote-matching.md` §10.
+
 Research only; produced by throwaway session scripts over `public/docs.json` (atlas `d64eca48`) and the vote corpora described in `vote-corpus.md`.
 
 ## 0. Corpora and coverage

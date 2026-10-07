@@ -165,16 +165,19 @@ describe("buildVoteIndex", () => {
   });
 });
 
-// The live regression: in the atlas the Osero transfer is credited to the
-// March 26, 2026 executive, which never mentions Osero. Skipped when either
-// artifact is missing (votes.json is gitignored and built by `pnpm votes:sync`).
+// Pins the matcher's behaviour on the live atlas. The Osero transfer is
+// flagged subject-missing because the March 26, 2026 executive names the agent
+// by its earlier name, Launch Agent 6: a known false alarm of name matching
+// (docs/plans/vote-matching.md §10). A fix that recognises renamed agents
+// updates this test. Skipped when either artifact is missing (votes.json is
+// gitignored and built by `pnpm votes:sync`).
 const ROOT = path.resolve(__dirname, "../../..");
 const votesPath = path.join(ROOT, "public/votes.json");
 const docsPath = path.join(ROOT, "public/docs.json");
 const live = fs.existsSync(votesPath) && fs.existsSync(docsPath);
 
 describe.skipIf(!live)("against the built atlas and vote record", () => {
-  it("flags the Osero transfer and confirms its siblings", () => {
+  it("flags the renamed Osero transfer and confirms its siblings", () => {
     const liveDocs: Record<string, AtlasNode> = JSON.parse(fs.readFileSync(docsPath, "utf8")).nodes;
     const votes = buildVoteIndex(JSON.parse(fs.readFileSync(votesPath, "utf8")));
     const report = buildStaleDatesReport(liveDocs, new Date("2026-10-07T12:00:00Z"), votes);

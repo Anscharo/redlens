@@ -76,6 +76,7 @@
     "eval:tools": "bun scripts/eval/eval-tools.ts",
     "eval:tools:compare": "bun scripts/eval/eval-tools-compare.ts",
     "eval:refute-screen": "bun scripts/eval/eval-refute-screen.ts",
+    "eval:vote-evidence": "bun scripts/eval/eval-vote-evidence.ts",
     "census:embed-units": "bun scripts/aux/embed-units-census.ts",
     "build:at": "bun scripts/required/build-at.mjs",
     "build:ts": "tsc -b",
