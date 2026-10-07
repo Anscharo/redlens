@@ -1,7 +1,6 @@
-// The lexical baseline and prefilter for the vote-evidence eval's poll task:
-// TF-IDF cosine between a claim and each candidate poll. It is the research's
-// "K5" key (docs/plans/vote-matching.md §4), kept here as the arm the judges
-// must beat and as the cut that decides what they see. Pure.
+// TF-IDF cosine between a claim and each candidate poll: the research's "K5"
+// key (docs/plans/vote-matching.md §4). It is the cut that decides which polls
+// a decision model sees (./requests.ts), and the eval's lexical baseline. Pure.
 
 const STOP = new Set(
   "the and for with from that this these those will shall must may are was were been have has its into per via any all each such which who".split(" "),

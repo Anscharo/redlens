@@ -9,6 +9,8 @@
 //
 // A claim with neither key is "unlinked", which is not evidence of absence:
 // most effective-date claims are authorised by weekly polls that link nothing.
+// The atlas worker refines these verdicts with atlas history and a decision
+// model (./overlay.ts); its results replace these where they exist.
 
 import type { AtlasNode } from "../../types";
 import type { VoteRef } from "./claim";
@@ -36,9 +38,16 @@ export interface VoteMatch {
 
 export interface VoteEvidence {
   status: VoteEvidenceStatus;
-  via: "date" | "link" | null;
+  /**
+   * How the vote was found: the date the sentence names, a vote linking the
+   * document, the atlas commit that wrote the claim (history), or a decision
+   * model's pick among nearby polls (judge).
+   */
+  via: "date" | "link" | "history" | "judge" | null;
   vote: VoteMatch | null;
   subject: Pick<SubjectCheck, "found" | "missing"> | null;
+  /** Set when a decision model decided the status; `rule` is what the rules alone said. */
+  judged?: { model: string; p: number; rule: VoteEvidenceStatus };
 }
 
 interface ClaimKey {

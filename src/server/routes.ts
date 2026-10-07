@@ -16,6 +16,7 @@ import { handleReportsSearch } from "./reports-search.ts";
 import { handleSemanticSearch } from "./search-semantic.ts";
 import { handleModCounts } from "./history/mod-counts.ts";
 import { handleModTimeline } from "./history/mod-timeline.ts";
+import { handleVoteEvidence } from "./vote-evidence/store.ts";
 
 export type RouteHandler = (req: Request) => Response | Promise<Response>;
 
@@ -46,6 +47,7 @@ const PUBLIC_ROUTES = {
   // An unconfigured deployment answers `available: false` rather than 404 so
   // the UI can say why the lane is missing.
   "/api/search/semantic": (req: Request) => handleSemanticSearch(req),
+  "/api/vote-evidence": () => handleVoteEvidence(),
 };
 
 function usersRoutes() {

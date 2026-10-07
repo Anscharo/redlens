@@ -472,11 +472,58 @@ whose body links that pull request. It is the plan's K3 key, and it needs no mod
 
 The history arm's 14 of 14 is partly circular: the labeller found its polls by the same route. The
 labeller then read each poll's bullet to confirm the match, and three were re-checked by hand. In
-production the key would come from `atlas_history`, which already stores each commit's pull request
-number, rather than from a git checkout.
+production the key runs on the atlas worker's full clone (§11): `atlas_history` stores each commit's
+pull request number per document, but not the commit that first wrote a given sentence, which is
+what the pickaxe search finds.
 
-**Next fixes suggested by the gold:**
+**Next fixes suggested by the gold** (§11 ships both: Jev follows the rename through the document's
+address, and K3 runs in the worker):
 - **Recognise renamed agents.** Match a claim's agent through its aliases (Launch Agent N, the
   earlier Prime name) or through the addresses its document links. Only the Osero document holds
   an address itself today, so addresses alone reach one case.
 - **Build K3 for undated claims.** Use it to replace "no linked vote" with the authorising poll.
+
+## 11. Stage three: the worker refines the evidence
+
+The eval's choices now run in production. The atlas worker has a tail lane, `sync:vote-evidence`
+(`src/server/sync-vote-evidence.ts`), that writes one row of final evidence per claim. The page and
+the chat's report tool lay that row over the rules' verdicts (`applyOverlay`, `src/lib/votes/overlay.ts`).
+Where the row has no entry for a claim (a sentence written since the last run), the rules' verdict
+stands.
+
+**Per claim, in order of measured trust:**
+
+| Claim | Source | Rule |
+|---|---|---|
+| Names an Executive Vote, matched by date | Jev | carried 0.35 and up → enacted (pending when uncast); anchor 0.5 and up → vote on date; else subject missing |
+| Names none | an executive linking the document (K2) | kept as the rules found it |
+| | atlas history (K3) | the passed poll linking the pull request that first wrote the claim |
+| | a poll linking the document (K2) | kept as the rules found it |
+| | Jev | the most probable of 8 lexical candidates within −120…+60 days, at p of 0.15 and up |
+
+The thresholds are the eval's best: 0.3–0.4 scored 97% on the executive sentences, and 0.15 matched
+the most polls with no false match among the claims that need none. A Jev verdict carries
+`judged: { model, p, rule }`, where `rule` is what the matching rules alone said. The page tags
+it "AI-judged" and, where the two differ, shows "rules said: …". So Osero now reads "enacted ·
+AI-judged · rules said: subject missing" instead of a false flag.
+
+**The run.**
+- It is time-gated: it reruns when the stored row is older than `VOTE_EVIDENCE_REFRESH_SECONDS`
+  (an hour), when the atlas commit moved, or when the last run left a claim unjudged.
+- It refetches the vote record and every poll body through `scripts/lib/votes/record.ts`, the reader
+  `votes:sync` uses. The row is therefore fresher than the `votes.json` baked into the web image.
+- Every Jev answer is cached in `vote_evidence_cache`, keyed by a hash of the model and the exact
+  request. A claim costs one request until its sentence, its document or its executive changes. So
+  do the pull request numbers history finds; a history miss is looked up again next run.
+- Spend is bounded by `VOTE_EVIDENCE_PER_CYCLE` (80 requests) and a six-minute deadline. A refused
+  key or exhausted credits stop the run's requests after the first. `VOTE_EVIDENCE_MODEL=""` turns
+  judging off and leaves history running.
+- `--no-fetch` (local dev) skips the lane. `pnpm sync:vote-evidence` runs it by hand.
+
+**On the current atlas** (57 claims): history places 13 of the 17 claims that name no executive, so
+the model sees four poll questions and the 39 executive sentences, about 40 requests for a fresh
+database and none after that until something changes.
+
+The questions are shared with the eval (`src/server/vote-evidence/requests.ts`), so the eval
+measures the requests production sends.
+

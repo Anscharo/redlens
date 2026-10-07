@@ -28,7 +28,7 @@ function StaleDatesCsvButton({ csvReport, report, query }: { csvReport: StaleDat
 }
 
 export function StaleDatesReport({ query, mode }: { query: string; mode: ReportMode }) {
-  const { report, voteRecord, rq, sections, csvReport, anyShown } = useStaleDatesState(query, mode);
+  const { report, voteRecord, judgedAt, rq, sections, csvReport, anyShown } = useStaleDatesState(query, mode);
   return (
     <ReportShell
       report={REPORT}
@@ -45,6 +45,7 @@ export function StaleDatesReport({ query, mode }: { query: string; mode: ReportM
               {voteRecord
                 ? ` Vote record: executives ${voteRecord.first} → ${voteRecord.last}.`
                 : " Vote record unavailable — no vote evidence shown."}
+              {judgedAt && ` Atlas history and AI judgments as of ${judgedAt.slice(0, 10)}.`}
             </span>
           )}
         </>

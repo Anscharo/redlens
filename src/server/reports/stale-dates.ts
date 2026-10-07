@@ -8,8 +8,10 @@ import type { ToolResult } from "../chat/tools/tools.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import { buildStaleDatesReport, type DateClaim } from "../../lib/staleDates.ts";
 import { staleSearchFields } from "../../lib/staleDatesSearch.ts";
+import { applyOverlay, type VoteEvidenceOverlay } from "../../lib/votes/overlay.ts";
 import type { VoteIndex } from "../../lib/votes/vote-index.ts";
 import { loadVoteIndexFromDisk } from "../votes.ts";
+import { currentVoteEvidence } from "../vote-evidence/store.ts";
 import { indexesToDocs } from "./ix-adapter.ts";
 import { applyReportFilter } from "./report-filter.ts";
 import { defineReportTool, type ReportArgs } from "./report-tool.ts";
@@ -42,8 +44,9 @@ export function buildStaleDatesReportTool(
   opts: ReportArgs,
   today: Date = new Date(),
   votes: VoteIndex | null = loadVoteIndexFromDisk(),
+  overlay: VoteEvidenceOverlay | null = currentVoteEvidence(),
 ): ToolResult {
-  const report = buildStaleDatesReport(indexesToDocs(ix), today, votes);
+  const report = applyOverlay(buildStaleDatesReport(indexesToDocs(ix), today, votes), overlay);
   const buckets = {
     stale: bucket(report.stale, opts),
     due_soon: bucket(report.dueSoon, opts),
@@ -59,6 +62,7 @@ export function buildStaleDatesReportTool(
     truncated,
     total_date_mentions: report.totalDateMentions,
     vote_record: votes ? `executives ${votes.first} → ${votes.last}` : "unavailable — no voteEvidence on rows",
+    judged_at: overlay?.computedAt ?? null,
     ...Object.fromEntries(Object.entries(buckets).map(([k, b]) => [k, b.kept])),
   };
   if (truncated) result.note = TRUNCATION_HINT;
@@ -74,9 +78,12 @@ export const staleDatesTool = defineReportTool({
     "recorded: past-tense sentences that say a dated Executive Vote did something. Each row: the doc, the matched date " +
     "text, its ISO boundary date, days until/since stale, and voteEvidence — what the Sky vote record (executive votes and " +
     "governance polls) shows: enacted, vote-on-date, pending, subject-missing (an executive on that date never mentions " +
-    "what the atlas says it carried), no-vote, not-covered, authorised (a poll links the doc) or unlinked (no evidence " +
-    "either way). The Atlas itself never defines \"stale\" — this is the Redline Portal's own extraction; say so if asked " +
-    "what the concept means.",
+    "what the atlas says it carried), no-vote, not-covered, authorised (a passed poll authorised it) or unlinked (no " +
+    "evidence either way). voteEvidence.via says how the vote was found: date, link, history (the poll linking the atlas " +
+    "pull request that wrote the claim) or judge (an AI model's pick). voteEvidence.judged is set when an AI model decided " +
+    "the status; judged.rule is what the matching rules alone said — say \"AI-judged\" when you report such a row. " +
+    "The Atlas itself never defines \"stale\" — this is the Redline Portal's own extraction; say so if asked what the " +
+    "concept means.",
   promptBlurb:
     "The Redline Portal's own dated-claim scan (stale / due-soon / upcoming / recorded), checked against the Sky vote record — not an atlas concept.",
   params: ["include_provenance", "filter"],

@@ -1,8 +1,10 @@
 // The vote-evidence line under a Stale Dates claim: what the Sky vote record
-// shows for it, the vote it matched (linked to vote.sky.money), and any of the
-// claim's named things that vote never mentions.
+// shows for it, the vote it matched (linked to vote.sky.money), any of the
+// claim's named things that vote never mentions, and who decided when it was
+// not the matching rules alone: atlas history, or an AI judge (with what the
+// rules said where the judge overruled them).
 import type { VoteEvidence, VoteEvidenceStatus } from "@/lib/votes/evidence";
-import { EVIDENCE_HINT, EVIDENCE_LABEL, missingSubject, signedDays } from "@/lib/votes/labels";
+import { EVIDENCE_LABEL, evidenceHint, missingSubject, ruleDisagrees, signedDays } from "@/lib/votes/labels";
 import type { ReportQuery } from "@/lib/reportFilter";
 import { Highlight } from "./Highlight";
 
@@ -25,7 +27,7 @@ export function VoteEvidenceLine({ evidence: e, rq }: { evidence: VoteEvidence; 
       <span
         className="mono text-xs px-1.5 py-0.5 rounded border"
         style={{ color: TONE[e.status], borderColor: "currentColor" }}
-        title={EVIDENCE_HINT[e.status]}
+        title={evidenceHint(e)}
       >
         <Highlight text={EVIDENCE_LABEL[e.status]} rq={rq} />
       </span>
@@ -33,6 +35,17 @@ export function VoteEvidenceLine({ evidence: e, rq }: { evidence: VoteEvidence; 
         <a href={e.vote.url} target="_blank" rel="noreferrer" title={e.vote.title} className="mono text-xs text-accent">
           {e.vote.kind} {e.vote.date} ({signedDays(e.vote.offsetDays)})
         </a>
+      )}
+      {e.via === "history" && <span className="text-xs">via atlas history</span>}
+      {e.judged && (
+        <span className="mono text-xs" title={evidenceHint(e)}>
+          AI-judged
+        </span>
+      )}
+      {ruleDisagrees(e) && (
+        <span className="text-xs">
+          rules said: <Highlight text={EVIDENCE_LABEL[e.judged!.rule]} rq={rq} />
+        </span>
       )}
       {missing.length > 0 && (
         <span className="text-xs">

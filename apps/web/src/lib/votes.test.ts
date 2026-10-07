@@ -5,7 +5,7 @@ vi.mock("@/lib/verify", () => ({
   fetchJson: (...a: unknown[]) => fetchJson(...a),
 }));
 
-import { loadVoteIndex, resetVoteIndexCache } from "./votes";
+import { loadVoteEvidence, loadVoteIndex, resetVoteIndexCache } from "./votes";
 
 const artifact = {
   sources: { executives: "", polls: "", portal: null },
@@ -36,5 +36,28 @@ describe("loadVoteIndex", () => {
     await expect(loadVoteIndex()).resolves.toBeNull();
     fetchJson.mockResolvedValueOnce(artifact);
     await expect(loadVoteIndex()).resolves.toMatchObject({ first: "2026-03-26" });
+  });
+});
+
+describe("loadVoteEvidence", () => {
+  beforeEach(() => {
+    resetVoteIndexCache();
+    fetchJson.mockReset();
+  });
+
+  it("fetches the worker's overlay once from the API root", async () => {
+    const overlay = { atlasSha: "abc", computedAt: "2026-10-07T00:00:00.000Z", claims: {} };
+    fetchJson.mockResolvedValue(overlay);
+    await expect(loadVoteEvidence()).resolves.toBe(overlay);
+    await loadVoteEvidence();
+    expect(fetchJson).toHaveBeenCalledTimes(1);
+    expect(fetchJson.mock.calls[0][0]).toBe("/api/vote-evidence");
+  });
+
+  it("resolves null before the worker has run, and asks again next time", async () => {
+    fetchJson.mockRejectedValueOnce(new Error("vote-evidence: 503"));
+    await expect(loadVoteEvidence()).resolves.toBeNull();
+    fetchJson.mockResolvedValueOnce({ atlasSha: "abc", computedAt: "t", claims: {} });
+    await expect(loadVoteEvidence()).resolves.toMatchObject({ atlasSha: "abc" });
   });
 });

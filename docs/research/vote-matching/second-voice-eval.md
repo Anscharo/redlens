@@ -5,6 +5,11 @@ capitalised-name check, and uuid links. Would Jev (TypeSafe System One) or an LL
 voice, judge these claims better? This eval answers that on hand-checked gold. Run it locally with
 your OpenRouter key. The model arms were not run in the building session (its key had no credits).
 
+**Outcome.** Jev passed both bars and ships at the thresholds this eval fitted: carried from 0.35 up
+for executive sentences, and poll picks from p 0.15 up, only where atlas history finds no poll. The atlas
+worker runs it (`docs/plans/vote-matching.md` §11). The questions now live in
+`src/server/vote-evidence/requests.ts`, shared by production and this eval.
+
 ## What is measured
 
 **Task 1 · subject.** An atlas sentence credits an action to a dated Executive Vote, and the
@@ -225,8 +230,8 @@ adding only if:
 - it reaches claims history misses: claims whose words were written in a commit without a pull
   request number, or in a Prime-side edit no Sky poll links.
 
-Whatever the models score, the cheapest win this eval points to is building K3 from `atlas_history`
-(it already stores each commit's pull request number) to replace "no linked vote".
+Whatever the models score, the cheapest win this eval points to is building K3 to replace "no
+linked vote". It shipped in the atlas worker, which runs the pickaxe search on its full atlas clone.
 
 ## Caveats
 
@@ -253,9 +258,10 @@ Whatever the models score, the cheapest win this eval points to is building K3 f
 |---|---|
 | `scripts/eval/eval-vote-evidence.ts` | entry: flags, model calls, cache, output |
 | `scripts/eval/eval-vote-evidence-cases.ts` | builds the cases from docs.json, votes.json and poll bodies; joins gold |
-| `scripts/eval/eval-vote-evidence-judges.ts` | the Jev questions, the LLM prompts, answer parsing |
-| `scripts/eval/eval-vote-evidence-lexical.ts` | the TF-IDF prefilter and lexical arm |
-| `scripts/eval/eval-vote-evidence-history.ts` | the history (K3) arm |
+| `src/server/vote-evidence/requests.ts` | the decision-model questions and the poll prefilter, shared with production |
+| `scripts/eval/eval-vote-evidence-judges.ts` | the LLM prompts and answer parsing |
+| `src/server/vote-evidence/lexical.ts` | the TF-IDF prefilter and lexical arm |
+| `src/server/vote-evidence/history.ts` | the history (K3) key |
 | `scripts/eval/eval-vote-evidence-score.ts` / `-report.ts` | labels, scores, printing |
 | `scripts/eval/eval-corpora/vote-evidence-gold.json` | the gold, with evidence quotes |
 | `scripts/eval/eval-vote-evidence.test.ts` | unit tests for the pure parts |

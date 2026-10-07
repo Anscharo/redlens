@@ -254,9 +254,11 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: [
           "Open Stale Dates; under each claim, a tag says what the vote record shows — enacted, vote pending, subject missing, no vote found, or no linked vote — with the matched vote linked to vote.sky.money and its offset in days.",
           "The Recorded votes section lists sentences that say a dated Executive Vote already did something, and checks those too: subject missing means the executive on that date never mentions what the Atlas credits to it.",
-          "Hover a tag for what it means, type a tag (“subject missing”) in the search pill to filter by it, or download the CSV for the vote columns.",
+          "A claim that names no vote shows the governance poll that authorised it when the Atlas edit that wrote it can be traced to one (“via atlas history”).",
+          "An “AI-judged” tag means an AI model decided the verdict; where it overruled the matching rules, “rules said: …” shows what they said. Hover the tag for the model and its confidence.",
+          "Hover a tag for what it means, type a tag (“subject missing”, “AI-judged”) in the search pill to filter by it, or download the CSV for the vote columns.",
         ],
-        note: "Only claims that name an Executive Vote by date, or whose document a vote links, can be matched; “no linked vote” is not evidence that none happened. Hidden when the vote record has not been built (`pnpm votes:sync`).",
+        note: "“No linked vote” is not evidence that none happened. AI-judged and history verdicts come from a background job and can lag a fresh Atlas edit by about an hour; until then a claim shows the rules' verdict. Hidden when the vote record has not been built (`pnpm votes:sync`).",
       },
     ],
   },

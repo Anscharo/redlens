@@ -27,13 +27,14 @@ import { mapPool } from "../../src/server/pool.ts";
 import { checkSubject } from "../../src/lib/votes/subject.ts";
 import { buildVoteIndex } from "../../src/lib/votes/vote-index.ts";
 import type { VotesArtifact } from "../../src/lib/votes/types.ts";
-import { readVoteTree } from "../lib/votes/corpus.ts";
 import { repoTree } from "../lib/votes/fetch.ts";
-import { readFrontmatter } from "../lib/votes/markdown.ts";
+import { readPollBodies } from "../lib/votes/record.ts";
 import { buildCases, type Gold, type PollCase, type SubjectCase } from "./eval-vote-evidence-cases.ts";
 import * as Q from "./eval-vote-evidence-judges.ts";
 import * as S from "./eval-vote-evidence-score.ts";
-import { hasHistory, historyPoll, pickaxeNeedle } from "./eval-vote-evidence-history.ts";
+import { firstPr, hasHistory, pickaxeNeedle, pollForPr } from "../../src/server/vote-evidence/history.ts";
+import * as R from "../../src/server/vote-evidence/requests.ts";
+import type { JevQuestion } from "../../src/server/jev.ts";
 import { printReport, type PollRow, type SubjectRow } from "./eval-vote-evidence-report.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
@@ -78,7 +79,7 @@ async function cached<T>(arm: string, keyObj: unknown, fn: () => Promise<T>): Pr
 }
 
 // The cache folder keeps its name for every decision model: the key carries the model.
-async function decide(model: string, state: unknown, questions: Record<string, Q.Question>, lane: string) {
+async function decide(model: string, state: unknown, questions: Record<string, JevQuestion>, lane: string) {
   return cached("jev", { model, state, questions }, async () => {
     const run = await askJev({ state, questions, model, lane, timeoutMs: 60_000 });
     return { nouls: Object.fromEntries(Object.keys(questions).map((id) => [id, noulOf(run, id)])), cost: run.cost };
@@ -86,7 +87,7 @@ async function decide(model: string, state: unknown, questions: Record<string, Q
 }
 
 /** Each decision model's Nouls over the same request, keyed by its arm name. */
-async function decideAll(state: unknown, questions: Record<string, Q.Question>, lane: string) {
+async function decideAll(state: unknown, questions: Record<string, JevQuestion>, lane: string) {
   const out: Record<string, Record<string, number | null> | null> = {};
   for (const model of DECISION_MODELS) out[S.armName(model)] = (await decide(model, state, questions, lane))?.nouls ?? null;
   return out;
@@ -101,7 +102,7 @@ async function llm(messages: Q.Msg[]) {
 }
 
 async function subjectRow(c: SubjectCase, slice: "real" | "swapped", heuristic: S.SubjectLabel): Promise<SubjectRow> {
-  const d = await decideAll(Q.subjectState(c), Q.SUBJECT_QUESTIONS, "vote-evidence-subject");
+  const d = await decideAll(R.subjectState(c), R.SUBJECT_QUESTIONS, "vote-evidence-subject");
   const l = await llm(Q.subjectMessages(c));
   const la = l ? Q.parseLlmSubject(l.text) : null;
   const llmLabel: S.SubjectLabel | null = !LLM_MODEL ? null : !la ? "error" : la.anchor ? "anchor" : la.carried === "unclear" ? "abstain" : la.carried;
@@ -116,7 +117,7 @@ async function subjectRow(c: SubjectCase, slice: "real" | "swapped", heuristic: 
 
 async function pollRow(c: PollCase, fileByTitle: Map<string, string>, bodies: Map<string, string>): Promise<PollRow> {
   const d = c.candidates.length
-    ? await decideAll(Q.pollState(c), Q.pollQuestions(c), "vote-evidence-poll")
+    ? await decideAll(R.pollState(c), R.pollQuestions(c), "vote-evidence-poll")
     : Object.fromEntries(DECISION_MODELS.map((m) => [S.armName(m), {}]));
   const l = c.candidates.length ? await llm(Q.pollMessages(c)) : { text: '{"match":"none"}' };
   const ids = c.candidates.map((p) => p.id);
@@ -124,15 +125,10 @@ async function pollRow(c: PollCase, fileByTitle: Map<string, string>, bodies: Ma
   return {
     key: c.key, docNo: c.docNo, gold: c.gold?.label ?? "unlabeled", acceptable: c.gold?.authorising ?? [], candidates: c.candidates.map((p) => p.file),
     heuristic: S.heuristicPoll(c, fileByTitle), lexical: c.candidates[0]?.file ?? "none",
-    history: HISTORY ? historyPoll(pickaxeNeedle(c.claim), ATLAS_DIR, bodies) : undefined,
+    history: HISTORY ? (pollForPr(firstPr(pickaxeNeedle(c.claim), ATLAS_DIR), bodies) ?? "none") : undefined,
     decisions: Object.fromEntries(Object.entries(d).map(([arm, n]) => [arm, { nouls: n, pick: S.jevPoll(c, n, TAU) }])),
     llm: LLM_MODEL ? pick(l ? Q.parseLlmPoll(l.text, ids) : null) : undefined,
   };
-}
-
-function pollBodies(dir: string): Map<string, string> {
-  const rows = readVoteTree(dir, (file, md) => ({ file, date: file.slice(5, 15), body: readFrontmatter(md).body.trim() }));
-  return new Map(rows.map((r) => [r.file, r.body]));
 }
 
 async function main(): Promise<void> {
@@ -143,7 +139,7 @@ async function main(): Promise<void> {
   }
   const gold = JSON.parse(fs.readFileSync(path.join(import.meta.dir, "eval-corpora/vote-evidence-gold.json"), "utf8")) as Gold;
   const tree = flags.task === "subject" ? null : await repoTree("polls", flags["poll-dir"]);
-  const bodies = tree ? pollBodies(tree.root) : new Map<string, string>();
+  const bodies = tree ? readPollBodies(tree.root) : new Map<string, string>();
   tree?.cleanup();
   const cases = buildCases(docs, artifact, bodies, gold, { today: new Date(), k: Number(flags.k) });
   const index = buildVoteIndex(artifact);

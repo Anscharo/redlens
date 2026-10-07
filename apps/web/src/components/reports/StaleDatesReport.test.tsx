@@ -11,6 +11,7 @@ globalThis.ResizeObserver ??= class {
 } as unknown as typeof ResizeObserver;
 
 import type { StaleDatesReport as StaleDatesReportData, DateClaim } from "@/lib/staleDates";
+import { claimKey, judgeSubject, type VoteEvidenceOverlay } from "@/lib/votes/overlay";
 
 function claim(over: Partial<DateClaim>): DateClaim {
   return {
@@ -70,9 +71,10 @@ const reportFixture: StaleDatesReportData = {
 
 let buildImpl = () => reportFixture;
 let voteIndex: { first: string; last: string } | null = { first: "2025-05-29", last: "2026-10-08" };
+let overlay: VoteEvidenceOverlay | null = null;
 
 vi.mock("../../lib/docs", () => ({ loadDocs: () => Promise.resolve({}) }));
-vi.mock("../../lib/votes", () => ({ loadVoteIndex: () => Promise.resolve(voteIndex) }));
+vi.mock("../../lib/votes", () => ({ loadVoteIndex: () => Promise.resolve(voteIndex), loadVoteEvidence: () => Promise.resolve(overlay) }));
 vi.mock("@/lib/staleDates", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/staleDates")>();
   return {
@@ -89,6 +91,7 @@ afterEach(() => {
   window.history.pushState({}, "", "/");
   buildImpl = () => reportFixture;
   voteIndex = { first: "2025-05-29", last: "2026-10-08" };
+  overlay = null;
   vi.restoreAllMocks();
 });
 
@@ -127,6 +130,17 @@ describe("StaleDatesReport", () => {
     const link = screen.getByRole("link", { name: "executive 2026-03-26 (+0d)" });
     expect(link).toHaveAttribute("href", "https://vote.sky.money/executive/x");
     expect(screen.getByText(/Vote record: executives 2025-05-29 → 2026-10-08/)).toBeInTheDocument();
+  });
+
+  it("shows the worker's AI-judged verdict, and what the rules said where it overrules them", async () => {
+    const judged = judgeSubject(recordedClaim.voteEvidence!, true, { model: "typesafe/jev-1.13", anchor: 0.05, carried: 0.9 });
+    overlay = { atlasSha: "abc", computedAt: "2026-10-07T12:00:00.000Z", claims: { [claimKey(recordedClaim)]: judged } };
+    render(<StaleDatesReport query="" mode="broad" />);
+    expect(await screen.findByText("enacted")).toBeInTheDocument();
+    expect(screen.getByText("AI-judged")).toHaveAttribute("title", expect.stringContaining("The matching rules alone said: subject missing."));
+    expect(screen.getByText(/rules said:/)).toHaveTextContent("rules said: subject missing");
+    expect(screen.queryByText(/not in that executive/)).toBeNull();
+    expect(screen.getByText(/AI judgments as of 2026-10-07/)).toBeInTheDocument();
   });
 
   it("says so when the vote record is unavailable", async () => {

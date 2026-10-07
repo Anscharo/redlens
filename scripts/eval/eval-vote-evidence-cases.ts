@@ -7,16 +7,15 @@
 // - subject: a sentence that credits an action to a dated Executive Vote, and
 //   the executive the shipped matcher chose for it. Does that executive carry it?
 // - poll: a dated claim that names no Executive Vote. Which passed governance
-//   poll, if any, authorised it? Candidates are the passed polls inside
-//   POLL_WINDOW, ranked lexically and cut to the top K: the judges choose among
-//   them, so the prefilter's recall caps every arm and is reported.
+//   poll, if any, authorised it? Candidates are the ones production asks about
+//   (src/server/vote-evidence/requests.ts): the judges choose among them, so
+//   the prefilter's recall caps every arm and is reported.
 
 import type { AtlasNode } from "../../src/types.ts";
-import { stripMarkdownLinks } from "../../src/lib/atlasHelpers.ts";
 import { buildStaleDatesReport, type DateClaim } from "../../src/lib/staleDates.ts";
 import type { Executive, Poll, VotesArtifact } from "../../src/lib/votes/types.ts";
-import { buildVoteIndex, offset } from "../../src/lib/votes/vote-index.ts";
-import { rankLexically } from "./eval-vote-evidence-lexical.ts";
+import { buildVoteIndex } from "../../src/lib/votes/vote-index.ts";
+import { claimSentence, documentText, pollCandidates, type PollCandidate } from "../../src/server/vote-evidence/requests.ts";
 
 export interface GoldSubject {
   docId: string;
@@ -60,14 +59,6 @@ export interface SubjectCase extends ClaimText {
   gold: GoldSubject | null;
 }
 
-export interface PollCandidate {
-  id: string; // p0…pK, the handle the judges answer with
-  file: string;
-  date: string;
-  title: string;
-  body: string;
-}
-
 export interface PollCase extends ClaimText {
   candidates: PollCandidate[];
   /** Passed polls in the window, before the top-K cut: what the prefilter could have kept. */
@@ -75,49 +66,18 @@ export interface PollCase extends ClaimText {
   gold: GoldPoll | null;
 }
 
-/** Days before and after a claim's date a poll may fall and still be a candidate. */
-export const POLL_WINDOW = { before: 120, after: 60 } as const;
-const SENTENCE_END = /[.!?](?=\s+[A-Z(])/g;
-const MAX_SENTENCE = 700;
-
-/** The whole sentence holding the claim's date, from link-stripped, whitespace-collapsed prose. */
-export function claimSentence(content: string, c: Pick<DateClaim, "context" | "contextBefore" | "raw">): string {
-  const prose = stripMarkdownLinks(content).replace(/\s+/g, " ");
-  const at = prose.indexOf(c.context);
-  const date = at === -1 ? prose.indexOf(c.raw) : at + c.contextBefore.length;
-  if (date === -1) return c.context;
-  let start = 0;
-  for (const m of prose.slice(0, date).matchAll(SENTENCE_END)) start = (m.index ?? 0) + 1;
-  const rest = prose.slice(date);
-  const end = rest.search(SENTENCE_END);
-  return prose.slice(start, end === -1 ? undefined : date + end + 1).trim().slice(0, MAX_SENTENCE);
-}
-
 const keyOf = (docId: string, date: string) => `${docId}@${date}`;
 
 function claimText(c: DateClaim, docs: Record<string, AtlasNode>): ClaimText {
   const doc = docs[c.docId];
-  const documentText = stripMarkdownLinks(doc.content).replace(/\s+/g, " ").trim();
-  return { key: keyOf(c.docId, c.dateISO), docId: c.docId, docNo: c.docNo, title: c.title, date: c.dateISO, sentence: claimSentence(doc.content, c), documentText, claim: c };
-}
-
-function passed(p: Poll): boolean {
-  const w = p.portal?.winner;
-  return !!w && !/^(no|against|reject)/i.test(w);
+  return {
+    key: keyOf(c.docId, c.dateISO), docId: c.docId, docNo: c.docNo, title: c.title, date: c.dateISO,
+    sentence: claimSentence(doc.content, c), documentText: documentText(doc.content), claim: c,
+  };
 }
 
 function pollCase(base: ClaimText, polls: Poll[], bodies: Map<string, string>, k: number, gold: GoldPoll | null): PollCase {
-  const inWindow = polls.filter((p) => {
-    const d = offset(base.date, p.date);
-    return passed(p) && d >= -POLL_WINDOW.before && d <= POLL_WINDOW.after;
-  });
-  const docs = inWindow.map((p) => `${p.title} ${p.summary} ${bodies.get(p.file) ?? ""}`);
-  const ranked = rankLexically(`${base.title} ${base.sentence}`, docs).slice(0, k);
-  const candidates = ranked.map((i, n) => {
-    const p = inWindow[i];
-    return { id: `p${n}`, file: p.file, date: p.date, title: p.title, body: bodies.get(p.file) ?? p.summary };
-  });
-  return { ...base, candidates, windowFiles: inWindow.map((p) => p.file), gold };
+  return { ...base, ...pollCandidates(base, polls, bodies, k), gold };
 }
 
 /**

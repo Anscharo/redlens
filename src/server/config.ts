@@ -231,6 +231,20 @@ export const config = {
   // pass off, while the seed load and the embed pass still run.
   briefingModel: process.env.BRIEFING_MODEL ?? "google/gemini-3.8-flash",
 
+  // Stale Dates vote evidence (sync-vote-evidence.ts). The decision model judges
+  // whether a matched executive carried a claim, and picks a poll for a claim
+  // atlas history cannot place. Jev 1.13 by default: on the hand-checked gold
+  // (docs/research/vote-matching/second-voice-eval.md) it caught 33 of 34 wrong
+  // executives where the rules caught 17, at 97% accuracy. Every answer is cached
+  // by request, so a cycle only asks about new or changed claims; perCycle caps
+  // the requests one run makes (a fresh database needs about 40). An empty
+  // model or 0 turns judging off; history still runs.
+  voteEvidenceModel: process.env.VOTE_EVIDENCE_MODEL ?? JEV_DEFAULT,
+  voteEvidencePerCycle: Number(process.env.VOTE_EVIDENCE_PER_CYCLE ?? 80),
+  // Minimum age of the stored evidence before the worker refetches the vote
+  // record and runs again; an atlas commit or an unfinished run reruns sooner.
+  voteEvidenceRefreshSeconds: Number(process.env.VOTE_EVIDENCE_REFRESH_SECONDS ?? 3600),
+
   // Semantic search relevance floor (cosine, 0..1). pgvector's ORDER BY returns
   // the k nearest docs regardless of absolute similarity, so a query with few
   // true matches drags in unrelated neighbors that then occupy top slots after

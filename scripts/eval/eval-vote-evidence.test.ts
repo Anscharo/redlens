@@ -4,10 +4,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { Executive } from "../../src/lib/votes/types.ts";
-import { claimSentence, type PollCase, type SubjectCase } from "./eval-vote-evidence-cases.ts";
+import type { PollCase, SubjectCase } from "./eval-vote-evidence-cases.ts";
 import * as Q from "./eval-vote-evidence-judges.ts";
-import { hasHistory, pickaxeNeedle, pollsLinkingPr, prOfSubject } from "./eval-vote-evidence-history.ts";
-import { rankLexically } from "./eval-vote-evidence-lexical.ts";
 import { printReport } from "./eval-vote-evidence-report.ts";
 import * as S from "./eval-vote-evidence-score.ts";
 
@@ -28,19 +26,6 @@ const pollCase = (files: string[], authorising: string[] = []): PollCase =>
     candidates: files.map((file, i) => ({ id: `p${i}`, file, date: "2025-11-24", title: file, body: "b" })),
     windowFiles: files, gold: { docId: "d", date: "2026-01-01", label: authorising.length ? "authorised" : "none-expected", authorising, enacting: [], evidence: "" },
   }) as unknown as PollCase;
-
-describe("claimSentence", () => {
-  it("returns the whole sentence around the date, links reduced to text", () => {
-    const content = "First one. The [transfer](https://x) to Keel was included in the March 26, 2026 Executive Vote. Next one.";
-    const c = { context: "to Keel was included in the March 26, 2026 Executive Vote.", contextBefore: "to Keel was included in the ", raw: "March 26, 2026" };
-    expect(claimSentence(content, c)).toBe("The transfer to Keel was included in the March 26, 2026 Executive Vote.");
-  });
-
-  it("falls back to the raw date, then to the context", () => {
-    expect(claimSentence("Begins on May 1, 2026 for all.", { context: "nope", contextBefore: "", raw: "May 1, 2026" })).toBe("Begins on May 1, 2026 for all.");
-    expect(claimSentence("No date here.", { context: "ctx", contextBefore: "", raw: "May 1, 2026" })).toBe("ctx");
-  });
-});
 
 describe("printReport with several decision models", () => {
   it("prints one column and one sweep per decision model", () => {
@@ -67,47 +52,8 @@ describe("printReport with several decision models", () => {
   });
 });
 
-describe("history arm helpers", () => {
-  it("builds a pickaxe needle from the words before the date, cut at markdown", () => {
-    expect(pickaxeNeedle({ contextBefore: "subsidized rate for an initial period of 2 years, beginning ", raw: "January 1, 2026" })).toBe(
-      "eriod of 2 years, beginning January 1, 2026",
-    );
-    expect(pickaxeNeedle({ contextBefore: "see [the doc](x) effective ", raw: "May 20, 2026" })).toBe("effective May 20, 2026");
-  });
-
-  it("reads a squash-merge PR number and finds the polls linking it", () => {
-    expect(prOfSubject("Nov 24 Atlas edit (#121)")).toBe(121);
-    expect(prOfSubject("Merge branch main")).toBeNull();
-    const bodies = new Map([
-      ["a.md", "see https://github.com/sky-ecosystem/next-gen-atlas/pull/121"],
-      ["b.md", "see https://github.com/sky-ecosystem/next-gen-atlas/pull/1210"],
-    ]);
-    expect(pollsLinkingPr(121, bodies)).toEqual(["a.md"]);
-  });
-
-  it("reports no history for a directory that is not a repository", () => {
-    expect(hasHistory("/nonexistent-dir")).toBe(false);
-  });
-});
-
-describe("rankLexically", () => {
-  it("ranks the document sharing the rare words first", () => {
-    const docs = ["weekly cycle edits for spark", "trigger subsidized borrowing for spark and grove as of january", "weekly cycle edits for grove"];
-    expect(rankLexically("subsidized borrowing beginning january", docs)[0]).toBe(1);
-  });
-});
-
 describe("judges", () => {
-  it("sends section text with link markup stripped from headings", () => {
-    const state = Q.subjectState(subjectCase());
-    expect(state.executive_vote.sections[0].heading).toBe("Genesis Transfers");
-    expect(state.claim.vote_date_named).toBe("2026-03-26");
-  });
-
-  it("asks one poll Noul per candidate, by position", () => {
-    const q = Q.pollQuestions(pollCase(["a.md", "b.md"]));
-    expect(Object.keys(q)).toEqual(["p0", "p1"]);
-    expect(String(q.p1.instructions)).toContain("`polls[1]`");
+  it("gives the LLM the decision models' state, polls numbered", () => {
     expect(JSON.parse(Q.pollMessages(pollCase(["a.md"]))[1].content).polls[0].id).toBe("p0");
     expect(Q.subjectMessages(subjectCase())[0].role).toBe("system");
   });

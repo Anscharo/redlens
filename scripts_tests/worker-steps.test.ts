@@ -32,7 +32,7 @@ describe("worker step registry", () => {
 
   it("runs the tick steps and tail lanes in their declared order", () => {
     expect(stepsIn(WORKER_STEPS, "tick").map((s) => s.id)).toEqual(["pr-state", "chain-state", "balances", "forum"]);
-    expect(stepsIn(WORKER_STEPS, "tail").map((s) => s.id)).toEqual(["embeddings", "history", "doc-versions", "briefings"]);
+    expect(stepsIn(WORKER_STEPS, "tail").map((s) => s.id)).toEqual(["embeddings", "history", "doc-versions", "briefings", "vote-evidence"]);
   });
 
   it("every tick step has a failure label; only network steps skip under --no-fetch", () => {
@@ -113,6 +113,7 @@ describe("runTailSteps", () => {
       "--full",
     ]);
     expect(byScript.get("src/server/sync-briefings.ts")?.env).toEqual({ GITHUB_TOKEN: "t", KEEP: "1", ATLAS_WORKER_NO_FETCH: "1" });
+    expect(byScript.get("src/server/sync-vote-evidence.ts")?.env).toEqual({ GITHUB_TOKEN: "t", KEEP: "1", ATLAS_WORKER_NO_FETCH: "1" });
   });
 
   it("without --full or --no-fetch passes neither flag", async () => {

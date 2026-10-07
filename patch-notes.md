@@ -35,7 +35,7 @@
 
 ## 2026-10-07
 
-- Added vote evidence to the Stale Dates report: each dated claim is checked against Sky's executive votes and governance polls, including past-tense claims that a vote happened
+- Added vote evidence to the Stale Dates report: each dated claim is checked against Sky's executive votes and governance polls, including past-tense claims that a vote happened, with an AI second opinion and the authorising poll traced through Atlas history
 - Renamed the app to Redline Portal across the home page, browser tab titles, link previews and the installable app, and renamed the chat to Redline Portal Chat
 - Fixed chat answers whose source list was written in an unexpected format, which left their citations without links
 - Made chat read a whole pull request at once when reviewing it, instead of a page at a time

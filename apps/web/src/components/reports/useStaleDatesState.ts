@@ -1,12 +1,13 @@
 // Data loading + filtered buckets for the Stale Dates report.
 import { useMemo } from "react";
 import { loadDocs } from "../../lib/docs";
-import { loadVoteIndex } from "../../lib/votes";
+import { loadVoteEvidence, loadVoteIndex } from "../../lib/votes";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUTCDay } from "../../hooks/useUTCDay";
 import { buildStaleDatesReport, DUE_SOON_DAYS, type DateClaim, type StaleDatesReport } from "@/lib/staleDates";
 import { filterRows, type ReportMode } from "@/lib/reportFilter";
 import { staleSearchFields } from "@/lib/staleDatesSearch";
+import { applyOverlay } from "@/lib/votes/overlay";
 import { useReportQuery } from "./useReportQuery";
 
 type BucketKey = "upcoming" | "dueSoon" | "stale" | "recorded";
@@ -61,8 +62,9 @@ function onScreenReport(report: StaleDatesReport, sections: Section[]): StaleDat
   };
 }
 
-// Wrapped so "still loading" (null) differs from "loaded, but there is no vote record" ({ index: null }).
-const loadVotes = () => loadVoteIndex().then((index) => ({ index }));
+// Wrapped so "still loading" (null) differs from "loaded, but there is no vote
+// record" ({ index: null }). The worker's overlay rides along; either may be null.
+const loadVotes = () => Promise.all([loadVoteIndex(), loadVoteEvidence()]).then(([index, overlay]) => ({ index, overlay }));
 
 export function useStaleDatesState(query: string, mode: ReportMode) {
   // A load failure re-throws out of useLoaded into the route's ErrorBoundary,
@@ -73,8 +75,9 @@ export function useStaleDatesState(query: string, mode: ReportMode) {
   const day = useUTCDay();
   // Recomputed from the loaded atlas + the current UTC day — no build step
   // involved, and the day-keyed memo re-buckets a tab left open past midnight.
+  // The worker's verdicts then replace the rules' on every claim it judged.
   const report = useMemo(
-    () => (docs && votes ? buildStaleDatesReport(docs, new Date(`${day}T12:00:00Z`), votes.index) : null),
+    () => (docs && votes ? applyOverlay(buildStaleDatesReport(docs, new Date(`${day}T12:00:00Z`), votes.index), votes.overlay) : null),
     [docs, votes, day],
   );
   // Text filter applies within each bucket; buckets keep their order/heading.
@@ -88,6 +91,7 @@ export function useStaleDatesState(query: string, mode: ReportMode) {
   return {
     report,
     voteRecord: votes?.index ?? null,
+    judgedAt: votes?.overlay?.computedAt ?? null,
     rq,
     sections,
     csvReport,

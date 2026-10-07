@@ -10,7 +10,7 @@ export const EVIDENCE_LABEL: Record<VoteEvidenceStatus, string> = {
   "subject-missing": "subject missing",
   "no-vote": "no vote found",
   "not-covered": "outside vote record",
-  authorised: "poll links doc",
+  authorised: "authorised by poll",
   unlinked: "no linked vote",
 };
 
@@ -28,6 +28,30 @@ export const EVIDENCE_HINT: Record<VoteEvidenceStatus, string> = {
     "No vote names this date or links this document. Not evidence of absence: most effective dates are set by weekly polls that link nothing.",
 };
 
+// What the vote was found through, where the status hint alone would mislead.
+const VIA_HINT: Partial<Record<NonNullable<VoteEvidence["via"]>, string>> = {
+  history: "The atlas change that first wrote this claim came from a pull request this passed poll links.",
+  judge: "An AI judge picked this passed poll, among those near the date, as the one authorising the claim.",
+};
+
+/** The tooltip for an evidence badge: what the status means, how the vote was found, and who decided. */
+export function evidenceHint(e: VoteEvidence): string {
+  const parts = [VIA_HINT[e.via ?? "date"] ?? EVIDENCE_HINT[e.status]];
+  if (e.judged) parts.push(`AI-judged by ${e.judged.model} (p ${e.judged.p.toFixed(2)}).`);
+  if (ruleDisagrees(e)) parts.push(`The matching rules alone said: ${EVIDENCE_LABEL[e.judged!.rule]}.`);
+  return parts.join(" ");
+}
+
+/** Who found the vote: the matching rules, the atlas history, or an AI judge. */
+export function evidenceSource(e: VoteEvidence): "rules" | "history" | "ai" {
+  return e.judged ? "ai" : e.via === "history" ? "history" : "rules";
+}
+
+/** Whether an AI judge overruled the matching rules on this claim. */
+export function ruleDisagrees(e: VoteEvidence): boolean {
+  return !!e.judged && e.judged.rule !== e.status;
+}
+
 /**
  * The subject terms the matched vote lacks, shown only when that decided the
  * status: an enacted claim can still miss a minor term, and listing it there
@@ -37,10 +61,15 @@ export function missingSubject(e: VoteEvidence): string[] {
   return e.status === "subject-missing" ? (e.subject?.missing ?? []) : [];
 }
 
-/** One line for a filter or the chat: the label, the vote and its offset, and any decisive missing terms. */
+/**
+ * One line for a filter or the chat: the label, the vote and its offset, who
+ * found it when not the rules, and any decisive missing terms.
+ */
 export function evidenceText(e: VoteEvidence): string {
   const parts = [EVIDENCE_LABEL[e.status]];
   if (e.vote) parts.push(`${e.vote.kind} ${e.vote.date} (${signedDays(e.vote.offsetDays)})`);
+  if (e.via === "history") parts.push("via atlas history");
+  if (e.judged) parts.push(ruleDisagrees(e) ? `AI-judged, rules said ${EVIDENCE_LABEL[e.judged.rule]}` : "AI-judged");
   const missing = missingSubject(e);
   if (missing.length) parts.push(`missing: ${missing.join(", ")}`);
   return parts.join(" · ");

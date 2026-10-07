@@ -168,9 +168,10 @@ describe("buildVoteIndex", () => {
 // Pins the matcher's behaviour on the live atlas. The Osero transfer is
 // flagged subject-missing because the March 26, 2026 executive names the agent
 // by its earlier name, Launch Agent 6: a known false alarm of name matching
-// (docs/plans/vote-matching.md §10). A fix that recognises renamed agents
-// updates this test. Skipped when either artifact is missing (votes.json is
-// gitignored and built by `pnpm votes:sync`).
+// (docs/plans/vote-matching.md §10), which the worker's Jev judgment overrules
+// (./overlay.ts). A rules fix that recognises renamed agents updates this test.
+// Skipped when either artifact is missing (votes.json is gitignored and built
+// by `pnpm votes:sync`).
 const ROOT = path.resolve(__dirname, "../../..");
 const votesPath = path.join(ROOT, "public/votes.json");
 const docsPath = path.join(ROOT, "public/docs.json");

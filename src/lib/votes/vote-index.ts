@@ -50,7 +50,7 @@ export function buildVoteIndex(a: VotesArtifact): VoteIndex {
     const uuids = e.sections.flatMap((s) => s.atlasRefs.map((l) => l.uuid));
     add(uuids, { kind: "executive", date: e.date, executive: indexed[i] });
   });
-  for (const p of a.polls.filter(passed)) {
+  for (const p of a.polls.filter(pollPassed)) {
     add(p.atlasRefs.map((l) => l.uuid), { kind: "poll", date: p.date, title: p.title, url: pollUrl(p) });
   }
   const executives = [...indexed].sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0));
@@ -75,12 +75,13 @@ function indexExecutive(e: Executive): IndexedExecutive {
   };
 }
 
-function passed(p: Poll): boolean {
+/** Whether a poll's winning option carried it: a poll that rejected its proposal authorises nothing. */
+export function pollPassed(p: Poll): boolean {
   const w = p.portal?.winner;
   return !!w && !/^(no|against|reject)/i.test(w);
 }
 
-function pollUrl(p: Poll): string {
+export function pollUrl(p: Poll): string {
   return p.portal ? `https://vote.sky.money/polling/${p.portal.slug}` : POLLS_REPO + p.file;
 }
 

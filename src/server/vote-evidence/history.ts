@@ -1,8 +1,8 @@
-// The history arm of the vote-evidence eval's poll task — the plan's K3 key
-// (docs/plans/vote-matching.md §4), no model involved: find the atlas commit
-// that first wrote the claim's words, read its pull request number from the
-// squash-merge subject (its trailing "(#N)"), and return the poll whose body links
-// that pull request. It needs the atlas submodule's full history.
+// The plan's K3 key (docs/plans/vote-matching.md §4), no model involved: find
+// the atlas commit that first wrote a claim's words, read its pull request
+// number from the squash-merge subject (its trailing "(#N)"), and take the poll
+// whose body links that pull request. It needs the atlas checkout's full
+// history, which the worker image clones.
 
 import { execFileSync } from "node:child_process";
 
@@ -30,19 +30,21 @@ export function prOfSubject(subject: string): number | null {
 /** Whether `dir` holds enough history for a pickaxe search to mean anything. */
 export function hasHistory(dir: string, min = 50): boolean {
   try {
-    return Number(execFileSync("git", ["-C", dir, "rev-list", "--count", "HEAD"]).toString()) >= min;
+    return Number(execFileSync("git", ["-C", dir, "rev-list", "--count", "HEAD"], { stdio: ["ignore", "pipe", "ignore"] }).toString()) >= min;
   } catch {
     return false;
   }
 }
 
-/** The poll that authorised the commit first writing `needle`, or "none". */
-export function historyPoll(needle: string, atlasDir: string, bodies: ReadonlyMap<string, string>): string {
+/** The pull request of the atlas commit that first wrote `needle`, or null when its subject names none. */
+export function firstPr(needle: string, atlasDir: string): number | null {
   const out = execFileSync("git", ["-C", atlasDir, "log", "--no-renames", "-S", needle, "--reverse", "--format=%s", "--", "."], {
     stdio: ["ignore", "pipe", "ignore"],
   }).toString();
-  const pr = prOfSubject(out.split("\n")[0] ?? "");
-  if (pr === null) return "none";
-  // A pull request linked by several polls (a re-run) resolves to the earliest.
-  return pollsLinkingPr(pr, bodies).sort()[0] ?? "none";
+  return prOfSubject(out.split("\n")[0] ?? "");
+}
+
+/** The poll that authorised pull request `pr`, or null. A pull request several polls link (a re-run) resolves to the earliest. */
+export function pollForPr(pr: number | null, bodies: ReadonlyMap<string, string>): string | null {
+  return pr === null ? null : (pollsLinkingPr(pr, bodies).sort()[0] ?? null);
 }

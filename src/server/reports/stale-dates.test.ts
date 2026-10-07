@@ -7,6 +7,7 @@ import { test, expect } from "bun:test";
 import { buildStaleDatesReportTool } from "./stale-dates.ts";
 import type { Indexes, AtlasNode } from "../retrieval/indexes.ts";
 import { buildVoteIndex } from "../../lib/votes/vote-index.ts";
+import { claimKey, judgeSubject } from "../../lib/votes/overlay.ts";
 
 const TODAY = new Date("2026-06-11T12:00:00Z");
 
@@ -88,6 +89,21 @@ test("recorded claims and vote evidence ride along when the vote record is given
   expect(r.stale[0].voteEvidence.status).toBe("vote-on-date");
   expect(r.vote_record).toBe("executives 2026-03-26 → 2026-03-26");
   expect(r.total).toBe(4);
+});
+
+test("the worker's overlay replaces the rules' verdict on the claims it judged", () => {
+  const ix = makeIx();
+  const rec = node("E", "A.9.5", "Keel Transfer", "The transfer to Keel was included in the March 26, 2026 Executive Vote.");
+  (ix.docMap as Map<string, AtlasNode>).set("E", rec);
+  const rules = buildStaleDatesReportTool(ix, { include_provenance: true }, TODAY, VOTES, null) as any;
+  const claim = rules.recorded[0];
+  expect(rules.judged_at).toBeNull();
+  const judged = judgeSubject(claim.voteEvidence, true, { model: "typesafe/jev-1.13", anchor: 0.05, carried: 0.9 });
+  const overlay = { atlasSha: "abc", computedAt: "2026-06-11T00:00:00.000Z", claims: { [claimKey(claim)]: judged } };
+  const r = buildStaleDatesReportTool(ix, { include_provenance: true }, TODAY, VOTES, overlay) as any;
+  expect(r.recorded[0].voteEvidence).toMatchObject({ status: "enacted", judged: { rule: "vote-on-date" } });
+  expect(r.judged_at).toBe("2026-06-11T00:00:00.000Z");
+  expect(r.stale[0].voteEvidence.judged).toBeUndefined();
 });
 
 test("without a vote record the rows carry no evidence and the result says so", () => {

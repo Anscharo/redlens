@@ -1,4 +1,5 @@
 import { fetchJson } from "@/lib/verify";
+import type { VoteEvidenceOverlay } from "@/lib/votes/overlay";
 import type { VotesArtifact } from "@/lib/votes/types";
 import { buildVoteIndex, type VoteIndex } from "@/lib/votes/vote-index";
 
@@ -21,7 +22,26 @@ export function loadVoteIndex(): Promise<VoteIndex | null> {
   return cached;
 }
 
-/** Test-only: drop the memoised fetch so the next loadVoteIndex() hits the network again. */
+let overlay: Promise<VoteEvidenceOverlay | null> | null = null;
+
+/**
+ * The atlas worker's refined vote evidence (GET /api/vote-evidence), laid over
+ * the rules' verdicts by applyOverlay. Root-relative like /api/chain-state: an
+ * API route, not a BASE_URL asset. Null until the worker has run, or when the
+ * API is unreachable; the page then shows the rules' verdicts.
+ */
+export function loadVoteEvidence(): Promise<VoteEvidenceOverlay | null> {
+  if (!overlay) {
+    overlay = fetchJson<VoteEvidenceOverlay>("/api/vote-evidence", "vote-evidence").catch(() => {
+      overlay = null;
+      return null;
+    });
+  }
+  return overlay;
+}
+
+/** Test-only: drop the memoised fetches so the next load hits the network again. */
 export function resetVoteIndexCache(): void {
   cached = null;
+  overlay = null;
 }
