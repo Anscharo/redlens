@@ -166,6 +166,17 @@ They were four separate lists until every one of them was shown to fail silently
   - Radar's Monthly settlement section reads that file. **A missing file is SILENT.** Vite's SPA fallback answers the path with 200 text/html, `loadSettlements()` swallows the parse error, and every radar page hides the section. That is why neither caller is optional.
   - Reading or auditing these workbooks has two load-bearing accounting invariants. Follow `.claude/skills/settlement-reports/SKILL.md` (skill: `settlement-reports`).
 
+## Votes
+
+- `pnpm votes:sync` writes `public/votes.json`: every executive vote (`sky-ecosystem/executive-votes`) and governance poll (`sky-ecosystem/polls`), joined with the vote.sky.money portal API for each spell's pass and execute dates and each poll's id, slug and outcome. The design and the matching it feeds are in `docs/plans/vote-matching.md`.
+  - It is off the `pnpm build` chain (`REPRO=1` is offline) and has no automated caller yet, because nothing reads the file. The consumer that does must add its callers the way settlements has them.
+  - Every rule lives in `scripts/lib/votes/` (pure parsers, the portal reader, assembly, stats) and is pinned by `scripts_tests/votes-*.test.ts`. `scripts/aux/sync-votes.ts` is only the I/O.
+  - By default it fetches each repository's main-branch tarball. `--exec-dir` and `--poll-dir` read local checkouts instead. `--no-portal` skips the API, `--dry-run` writes nothing, `--quiet` prints one line.
+  - **Executives key on the filename date**, the date atlas prose cites. The frontmatter and the portal can carry a different date for the same spell; the stats list every such drift. Filenames vary (no slug, an `oos-` prefix for out-of-schedule votes), so only the date is required.
+  - A drafted executive is committed before its spell is deployed, carrying the template's `$spell_address` placeholder. It is recorded with a null address and no portal row.
+  - **Atlas links are kept as written.** A uuid is a stable key. A doc_no only means something against the atlas of the vote's date, so the artifact never resolves one against the current build; that is the matcher's job. Legacy `sky-atlas.powerhouse.io` links keep only their doc_no, because their ids are not next-gen-atlas uuids.
+  - **It fails loud on a fetch that parses cleanly but is wrong.** It throws under the floors (`MIN_EXECUTIVES`, `MIN_POLLS` in `assemble.ts`), on a vote file with no date in its name, on an executive address that is neither an address nor the placeholder, and on portal paging that collects fewer polls than the portal reports. A portal outage only warns, but the shrink guard then refuses to replace an artifact that had more documents or more portal coverage, unless `--allow-shrink` is passed.
+
 ## Environment variables
 
 - `pnpm env:example` writes `.env.example` from the env registry in `src/server/env/`. `--check` fails on drift instead. `src/server/env/env.test.ts` holds the registry to the code: every variable the server, the worker, the build scripts and `pnpm dev` read is declared, every declared one is read. It checks names only and never prints values.

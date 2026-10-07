@@ -1,7 +1,8 @@
 # Matching atlas vote references to vote.sky.money — plan + micro-tests
 
-*Status: PLAN ONLY (2026-09-15; revised the same day after the sky.money domains were
-whitelisted — see §2b). Nothing is built. Three research notes carry the evidence:
+*Status: stage one BUILT (2026-10-07) — `pnpm votes:sync` writes `public/votes.json`; see §8.
+Stage two (matching and the `voteEvidence` column) is not built. Plan first written 2026-09-15 and
+revised the same day after the sky.money domains were whitelisted (§2b). Three research notes carry the evidence:
 `docs/research/vote-matching/atlas-vote-references.md` (what the atlas says about votes),
 `docs/research/vote-matching/vote-corpus.md` (polls vs executives, API shape, the link census),
 `docs/research/vote-matching/stale-dates-vs-votes.md` (the Stale Dates cross-check). Numbers
@@ -99,8 +100,10 @@ research notes; none of this is implemented.
 
 ### K1 · Exact executive date (atlas prose → executive)  — **highest precision**
 Pattern `<Month D, YYYY>[ Out-Of-Schedule] Executive Vote` → executive file whose **filename** date
-equals it (tolerate +7d: one spell slipped 10-02 → 10-06). Tested: **16/19 mentions resolve** to an
-existing executive by exact date (the 3 misses are the +4d slip and a frontmatter drift). The
+equals it (tolerate +7d: one spell slipped 10-02 → 10-06). Tested against the stage-one artifact:
+**18/19 mentions resolve** to an executive by exact filename date, and **19/19 within +7d** (the
+one slip is the 2025-10-02 claim, enacted by the 2025-10-06 executive). The research notes' lower
+counts (16 and 17) missed the out-of-schedule file, whose name starts `oos-` (§8). The
 sentence's tense says whether the atlas records enactment ("was executed in") or a plan ("will be
 included in"). Generalising `ALLOCATION_VOTE_RE` to a doc-level annotation covers 17/60 class-A
 docs with one regex. Covers class A/C(a).
@@ -148,9 +151,9 @@ executive corpus (or restricts to entity nouns from the graph's entity list), an
 match only when at least one *discriminating* token is present. A claim whose only matches are corpus-wide tokens is
 `date-hit-no-subject`, not `enacted`.
 
-**End-to-end result (K1 → K4, live API, all 19 dated claims):** 17 of 19 resolve to an executive
-(the 2 misses are both the January date drift above, recovered by the filename rule); every one of
-those 17 spells passed and executed. Subject confirmed in the body for 15 of 19 — but that 15
+**End-to-end result (K1 → K4, live API, all 19 dated claims):** keyed on the API date alone, 17 of
+19 resolve; the 2 misses are the January date drift above, and the filename rule recovers both, so
+all 19 resolve. Every one of those spells passed and executed. Subject confirmed in the body for 15 of 19 — but that 15
 includes the Osero false positive under the unweighted rule, which is what motivates the IDF
 weighting above. Two rows land at PARTIAL and are correct to flag: `ff3aa296` (Stage 1, whose subject
 words are calendar months) and `badd8b62` (the Spell Reviewer Checklist, genuinely absent from the
@@ -217,7 +220,7 @@ dates is now in the past.
 | Sentences whose date has passed | 19 |
 | …still written in the future tense ("will be included in the March 26, 2026 Executive Vote") | **13** |
 | …written in the past tense | 5 (1 mixed) |
-| Dates with a matching executive file in `sky-ecosystem/executive-votes` | **17 of 19** |
+| Dates with a matching executive file in `sky-ecosystem/executive-votes` | **18 of 19** (19 within +7d) |
 | Rewritten in place from future to past | **2** |
 | Born in the past tense (written after the fact) | 3 |
 | Authored before the vote / same week / after it | 8 / 6 / 5 |
@@ -239,8 +242,8 @@ Retensing, where it happens at all, is slow and inconsistent:
   although the executive dated 2025-10-30 exists and does contain the Kicker activation.
 
 **This inverts the naive reading of Stale Dates.** A stale claim is future-tense with a passed
-date, and 13 of 19 dated vote claims are exactly that — yet 17 of the 19 dates have a real
-executive behind them. So the report is, for this class, mostly measuring *editorial lag in the
+date, and 13 of 19 dated vote claims are exactly that — yet 18 of the 19 dates have an executive
+on that exact date, and the 19th slipped four days. So the report is, for this class, mostly measuring *editorial lag in the
 atlas*, not *governance that failed to happen*. Only the vote record separates the two, which is
 the whole argument for building the join.
 
@@ -265,7 +268,7 @@ authored *after* the vote it names has either been back-dated or missed its slot
   `pollId`/`slug`/tallies/`spellData` — reachable today (§2b), so the sync writes enactment dates,
   not just file existence. Keep the chain as the offline fallback for poll ids and spell status (`PollCreated` logs, `spell.done()`,
   `chief.approvals`), read with the viem multicall pattern in
-  `scripts/required/snap-chainstate.mjs`.
+  `scripts/required/fetch-chain-state.mjs`.
 - Carry the authoring lag: `atlas_history` already stores `committed_at` per doc change, so the
   "authored after the vote it names" check (§5b) needs no new data, only the first-seen commit.
 - Graph: one new edge type (`scheduled_in_vote` / `enacted_in_vote`, source doc → vote id, with
@@ -287,3 +290,73 @@ authored *after* the vote it names has either been back-dated or missed its slot
 - `pnpm check:atlas`-style tripwire: if the executive-votes repo changes its filename convention
   the K1/K3 keys silently go dark — assert a floor count and the date-in-filename invariant at
   sync time, and throw.
+
+## 8. Stage one: `pnpm votes:sync` (built 2026-10-07)
+
+`pnpm votes:sync` reads every executive in `sky-ecosystem/executive-votes` and every poll in
+`sky-ecosystem/polls`, joins the portal API onto them, and writes `public/votes.json`
+(gitignored, like `settlements.json`). The rules live in `scripts/lib/votes/` and are pinned by
+`scripts_tests/votes-*.test.ts`; `scripts/aux/sync-votes.ts` is only the I/O. The runbook is the
+Votes section of `scripts/CLAUDE.md`.
+
+**Artifact shape.** Each executive carries its file, its **filename date** (the K1 key), its
+frontmatter date, an out-of-schedule flag, its spell address, one entry per `### <action>` section
+(heading, authorization links, proposal links, every atlas link in the section), and the portal's
+`key`, `date`, `hasBeenCast`, `datePassed` and `dateExecuted`. Each poll carries its file, filename
+date, start and end, discussion link, atlas links, and the portal's `pollId`, `slug`, `multiHash`,
+tags and winner. Every link is classified (`atlas`, `atlas-docno`, `powerhouse`, `poll`,
+`executive`, `snapshot`, `forum`, `other`) with its uuid, doc_no, poll slug and id, or forum topic.
+
+**First live run, 2026-10-07:**
+
+| Measure | Value |
+|---|---|
+| Executives | 33, 2025-05-29 → 2026-10-08 (1 out-of-schedule, 1 drafted) |
+| Joined to the portal | 32 of 33 (the drafted one has no spell yet); all 32 cast |
+| Polls | 147, 2025-05-26 → 2026-10-05, all joined; 146 passed, 1 failed |
+| Action sections | 198 |
+| Atlas links | 255 uuid links (71 distinct uuids), 274 doc_no links, 493 legacy Powerhouse links |
+
+The atlas-link counts match an independent recount, per family, in both corpora, and every
+Powerhouse doc_no matches the number in its URL.
+
+**What building it found that the research missed:**
+
+- **Executive filenames are not uniform.** Three have no slug (`executive-vote-2025-07-24.md`) and
+  one carries an `oos-` prefix. Every one still has its date, so the tripwire checks for the date,
+  not the whole pattern. The `oos-` file is why the research counted 17 executive matches, not 18.
+- **Drafted executives are committed before their spell exists**, with the template's literal
+  `$spell_address` placeholder. They are recorded with a null address; any other non-address
+  throws.
+- **Legacy doc numbers.** A Powerhouse path runs the doc_no into its title
+  (`A.1.9.2.1_Pause_Delay`), agent artifacts use an `AG<n>` segment (`A.AG1.3.2.1.1.1.15`), and
+  Prime instances a `P<n>` segment (`A.AG1.2.6.P15.2.1.2.3`). A naive pattern cut the last segment
+  off every one, and stopped at `.P15` to return an ancestor's number. The pattern now ends only at
+  a delimiter, so an unknown shape yields no doc_no rather than a wrong one. All 859 doc_no links
+  agree with an independent whole-token reading.
+- **Early polls point at the repository's former owner** (`makerdao/polls`), so the poll join keys
+  on the year-and-file path and ignores the org.
+
+**Where stage one departs from the §6 sketch, and why:**
+
+1. **No doc_no → uuid resolution at sync time.** A doc_no is an editorial label that means
+   something only against the atlas of its own date, so resolving a 2025 executive's doc_no
+   against today's numbering would quietly point at the wrong document after any renumbering. The
+   artifact keeps doc_nos verbatim beside the vote's date and stays independent of the atlas
+   build. Stage two resolves each one against the atlas as of that date, through the submodule
+   history.
+2. **The `makerdao/community` archive is not ingested.** None of the 19 dated claims falls before
+   the sky-ecosystem repositories begin, and the archive's atlas links are all Powerhouse-era. It
+   slots in later as another source in the same artifact.
+3. **No automated callers yet.** Nothing reads `votes.json`, so a missing file has nothing to
+   break. Stage two adds the consumer and, with it, the Docker bake and `dev-preflight` callers and
+   their assertion in `scripts_tests/build-steps.test.ts`, as settlements has. It also decides
+   whether a build-time consumer needs the artifact committed, since `REPRO=1` builds are offline.
+4. **A portal outage is a warning, not a failure.** The repository data is still written, with
+   every `portal` null. The shrink guard refuses to overwrite an artifact that had more documents
+   or more portal coverage unless `--allow-shrink` is passed.
+
+**Not exercised in this session:** the default fetch of each repository's main-branch tarball. The
+session's GitHub proxy refuses archive downloads for repositories not attached to it, so the live
+run used `--exec-dir` and `--poll-dir` against fresh clones. The fetch code mirrors
+`settlements:parse`'s, which runs in production.

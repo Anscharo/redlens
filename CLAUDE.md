@@ -47,6 +47,7 @@ pnpm check:atlas     # MERGE GATE for atlas bumps: refuses a build that did not 
 pnpm census:check | census:govops | census:risk | census:chains | census:concepts  # drift censuses against .github/*-baseline.json; --update rewrites; always exit 0 (scripts/CLAUDE.md)
 pnpm census:embed-units # embedding-unit family census (histograms of ICD/directory/hub sizes; no fold/skip decisions)
 pnpm settlements:parse # Soter settlement workbooks → public/settlements.json; two automated callers, neither optional (scripts/CLAUDE.md, skill settlement-reports)
+pnpm votes:sync      # Sky executive votes + governance polls + vote.sky.money portal → public/votes.json; off the build chain, fails loud on a truncated fetch (scripts/CLAUDE.md)
 pnpm mistakes:status | mistakes:plan | mistakes:merge | mistakes:bootstrap | mistakes:render  # the Potential Mistakes sweep (scripts/CLAUDE.md, skill mistakes-report)
 pnpm briefings:status | briefings:plan | briefings:merge | briefings:pull  # document briefings, bulk pass and database pull (scripts/CLAUDE.md)
 pnpm sync:briefings  # the atlas worker's briefing tail: seed, write, embed (src/server/retrieval/CLAUDE.md)
