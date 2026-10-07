@@ -43,7 +43,7 @@ const ERROR_TEXT: Record<string, string> = {
   "auth-required": "Sign in with GitHub to view this private preview.",
   forbidden: "You don't have access to this repository.",
   // Public name in the UI; internal short name is SAbR.
-  "app-not-installed": "The Redline Portal GitHub App isn't installed on this repository.",
+  "app-not-installed": "The Sky Atlas by Redline GitHub App isn't installed on this repository.",
 };
 
 export function usePreviewBuild(id: string) {
@@ -120,7 +120,7 @@ export function PreviewGate({ id, routerBase }: { id: string; routerBase: string
       const repoName = repo ? <span className="mono">{repo}</span> : "this repository";
       return (
         <Centered>
-          <p className="text-red">The Redline Portal GitHub App isn't installed on {repoName} yet.</p>
+          <p className="text-red">The Sky Atlas by Redline GitHub App isn't installed on {repoName} yet.</p>
           {installUrl ? (
             <>
               {/* GitHub's install page defaults to "All repositories" and we can't
@@ -138,7 +138,7 @@ export function PreviewGate({ id, routerBase }: { id: string; routerBase: string
                 className="px-4 py-2 rounded mono text-sm"
                 style={{ background: "var(--hover)", border: "1px solid var(--accent)", color: "var(--tan)" }}
               >
-                Install the Redline Portal GitHub App ↗
+                Install the Sky Atlas by Redline GitHub App ↗
               </a>
               <button
                 type="button"

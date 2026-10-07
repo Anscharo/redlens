@@ -261,7 +261,7 @@ export function broadGrantCopy(
   meta: Pick<PreviewMeta, "repo" | "grantTooBroad" | "installSettingsUrl">,
 ): BannerNotice | null {
   if (!meta.grantTooBroad) return null;
-  const lead = `The Redline Portal GitHub App was granted every repository on this account; it only needs ${meta.repo}.`;
+  const lead = `The Sky Atlas by Redline GitHub App was granted every repository on this account; it only needs ${meta.repo}.`;
   return {
     label: "ACCESS",
     body: meta.installSettingsUrl

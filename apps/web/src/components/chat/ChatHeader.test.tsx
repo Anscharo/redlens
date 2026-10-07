@@ -28,7 +28,7 @@ afterEach(() => {
 });
 
 describe("ChatHeader", () => {
-  it("falls back to 'Atlas' when there is no conversation title", () => {
+  it("falls back to 'Redline Portal Chat' when there is no conversation title", () => {
     renderHeader({ title: null });
     expect(screen.getByText("Redline Portal Chat")).toBeInTheDocument();
   });
