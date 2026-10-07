@@ -82,7 +82,6 @@
     { "files": ["apps/web/src/lib/previewMetaCopy.ts"], "rules": { "max-lines": ["error", { "max": 199, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/lib/primitiveStats.ts"], "rules": { "max-lines-per-function": ["error", { "max": 112, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/lib/rehypeEthAddresses.ts"], "rules": { "max-lines-per-function": ["error", { "max": 80, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/lib/settlementSankey.ts"], "rules": { "max-lines-per-function": ["error", { "max": 74, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/lib/visitHistory.ts"], "rules": { "max-lines": ["error", { "max": 191, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/test/workerFixtures.ts"], "rules": { "max-lines": ["error", { "max": 229, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 153, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/test/workerGlobal.ts"], "rules": { "max-lines-per-function": ["error", { "max": 53, "skipBlankLines": true, "skipComments": true }] } },

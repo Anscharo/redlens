@@ -19,6 +19,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import ExcelJS from "exceljs";
+import { parseSkyTotalDir } from "./settlement-sky-total.ts";
 
 export const VENUE_HEADERS = Object.freeze([
   "Venue",
@@ -108,6 +109,7 @@ export async function parseReportsDir(root, source = {}) {
   return {
     source: { repo: "soterlabs/settlement-reports", ...source },
     reports,
+    skyTotal: parseSkyTotalDir(reportsDir),
   };
 }
 

@@ -7,6 +7,8 @@
 // Σ per-venue profitToGrove), and cost of funds is a component of what goes
 // to Sky, not a fourth flow.
 
+import type { SkyTotalMonth } from "./skyNetRevenue";
+
 export interface SettlementVenue {
   id: string;
   label: string;
@@ -16,6 +18,8 @@ export interface SettlementVenue {
   cofAlloc: number;
   profitToSky: number;
   profitToGrove: number;
+  /** Sky Direct Exposure revenue on this venue — Sky's, not the Prime's. */
+  sdRevenue?: number;
   /** End-of-month position; parsed from the workbook, 0 when absent. */
   valueEom?: number;
 }
@@ -47,6 +51,8 @@ export interface SettlementReport {
 export interface SettlementsBundle {
   source: { repo?: string; fetched?: string; dir?: string };
   reports: SettlementReport[];
+  /** Soter Labs' consolidated monthly reports (skyNetRevenue.ts). */
+  skyTotal?: SkyTotalMonth[];
 }
 
 export const EMPTY_SETTLEMENTS: SettlementsBundle = { source: {}, reports: [] };
@@ -108,6 +114,20 @@ export function formatUsd(n: number, compact = false): string {
     if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}k`;
   }
   return `${sign}$${abs.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+/** A chart label: rounded to `step` dollars, then "$15.5M" (one decimal,
+ *  a whole number drops its ".0": "$5M"), "$950k" or "$0". One shape for
+ *  a chart's axis ticks, bar totals and line labels, so the same unit is
+ *  never written two ways on one chart. */
+export function formatUsdShort(n: number, step = 1): string {
+  const rounded = Math.round(n / step) * step;
+  const sign = rounded < 0 ? "−" : "";
+  const abs = Math.abs(rounded);
+  // Decide the unit after rounding, so $999.6k reads "$1M", not "$1000k".
+  if (Math.round(abs / 1_000) >= 1_000) return `${sign}$${Number((abs / 1_000_000).toFixed(1))}M`;
+  if (Math.round(abs) >= 1_000) return `${sign}$${Math.round(abs / 1_000)}k`;
+  return `${sign}$${Math.round(abs)}`;
 }
 
 export function revenueGap(report: SettlementReport): number {
@@ -177,6 +197,40 @@ export function teaserFigure(report: SettlementReport): { amount: number; suffix
   return { amount: sky, suffix: "to Sky" };
 }
 
+// There is deliberately no `grossByMonth` / "gross revenue" helper here any
+// more. It summed sky + kept + demand, which adds what a Prime owes Sky to
+// what Sky owes the Prime — two settlement amounts running in opposite
+// directions (A.2.4.1.2.2.1.1.2 and A.2.4.1.2.2.1.1.1) that the Atlas never
+// totals, and "gross revenue" is not an Atlas term. Use `cycleTotals` and
+// keep the three apart.
+
+/** The most cycles any settlement chart shows at once: a year. */
+export const CYCLE_WINDOW = 12;
+
+/** The window of at most `size` rows (chronological input) ending `offset`
+ *  rows before the last one — offset 0 is the trailing year. The window is
+ *  always full when there are enough rows, so paging never shows a stub. */
+export function cycleWindow<T>(
+  rows: readonly T[],
+  offset = 0,
+  size = CYCLE_WINDOW,
+): { rows: T[]; earlier: boolean; later: boolean } {
+  const end = rows.length - Math.min(Math.max(0, offset), Math.max(0, rows.length - size));
+  const start = Math.max(0, end - size);
+  return { rows: rows.slice(start, end), earlier: start > 0, later: end < rows.length };
+}
+
+/** The window offset that keeps row `index` on screen: the current offset
+ *  when the row is already in its window, else the window that ends on
+ *  the row (a selected month is never hidden by paging). */
+export function windowOffsetFor(total: number, offset: number, index: number, size = CYCLE_WINDOW): number {
+  const max = Math.max(0, total - size);
+  const o = Math.min(Math.max(0, offset), max);
+  const end = total - o;
+  if (index >= end - size && index < end) return o;
+  return Math.min(total - 1 - index, max);
+}
+
 /** Summary three-way: Sky take, supply-side kept (`par − CoF`), demand-side. */
 export interface ThreeWayMonth {
   month: string;
@@ -219,11 +273,28 @@ export function barFillStyle(
   return { bottom: `${zero - h}%`, height: `${h}%` };
 }
 
+/** One name per settlement quantity, used by every chart, card, legend
+ *  and hover so the same money never goes by two names. "From Sky" rather
+ *  than "demand-side": it includes rewards Sky pays alongside the demand
+ *  side (see DEMAND_SERIES). */
+export const TERM = {
+  toSky: "to Sky",
+  kept: "supply-side kept",
+  loss: "supply-side loss",
+  fromSky: "from Sky",
+} as const;
+
+/** What Sky pays a Prime, by workbook row. `msc` marks the two that make
+ *  up the Stage 1 amount due from Sky (A.2.4.1.2.2.1.1.1.3): the agent
+ *  rate and distribution rewards. The others are paid alongside under
+ *  their own documents: the Core Governance Reward (A.2.2.11.1; the
+ *  workbook's governance_accessibility_rewards) and Grove's Chronicle
+ *  compensation (A.2.8.2.10.2.1.2). */
 export const DEMAND_SERIES = [
-  { key: "agentRate", label: "Agent rate", barClass: "msc-bar-rate" },
-  { key: "distributionRewards", label: "Distribution rewards", barClass: "msc-bar-dr" },
-  { key: "gar", label: "Accessibility rewards", barClass: "msc-bar-gar" },
-  { key: "chroniclePoints", label: "Chronicle points", barClass: "msc-bar-chronicle" },
+  { key: "agentRate", label: "Agent rate", barClass: "msc-bar-rate", msc: true },
+  { key: "distributionRewards", label: "Distribution rewards", barClass: "msc-bar-dr", msc: true },
+  { key: "gar", label: "Core governance reward", barClass: "msc-bar-gar", msc: false },
+  { key: "chroniclePoints", label: "Chronicle points", barClass: "msc-bar-chronicle", msc: false },
 ] as const;
 
 export type DemandKey = (typeof DEMAND_SERIES)[number]["key"];
@@ -238,14 +309,51 @@ export function activeDemandSeries(reports: readonly SettlementReport[]) {
   );
 }
 
-export function venuePnlCount(report: SettlementReport): number {
-  return report.venues.filter(
-    (v) => Math.abs(v.profitToSky) + Math.abs(v.profitToGrove) >= NEAR_ZERO,
-  ).length;
+/** The two sides are summed SEPARATELY and never added together. The
+ *  Monthly Settlement Cycle settles them as two amounts running in
+ *  opposite directions: what a Prime owes Sky for Supply Side Primitives
+ *  (A.2.4.1.2.2.1.1.2) and what Sky owes the Prime for Demand Side
+ *  Primitives and the Agent Rate (A.2.4.1.2.2.1.1.1). They are settled in
+ *  the same vote (A.2.4.1.2.2.1.1.3), but the Atlas defines no term for
+ *  their sum — so neither do we. */
+
+/** Supply-side kept (`par − CoF`), summed over the given months. Signed: a
+ *  month whose cost of funds outran its revenue is a loss. */
+export function supplyKeptTotal(reports: readonly SettlementReport[]): number {
+  return reports.reduce((sum, r) => sum + supplyKept(r), 0);
 }
 
-export function hasMultiVenuePnl(report: SettlementReport): boolean {
-  return venuePnlCount(report) >= 2;
+/** What the Prime owed Sky, summed over the given months. */
+export function skyTotal(reports: readonly SettlementReport[]): number {
+  return reports.reduce((sum, r) => sum + r.headline.skyRevenue, 0);
+}
+
+/** The three running totals of a window of cycles, kept APART. There is no
+ *  fourth field on purpose: adding them would mix what the Prime owes Sky
+ *  with what Sky owes the Prime, and the Atlas defines no such total. */
+export interface CycleTotals {
+  sky: number;
+  kept: number;
+  demand: number;
+}
+
+export function cycleTotals(reports: readonly SettlementReport[]): CycleTotals {
+  return { sky: skyTotal(reports), kept: supplyKeptTotal(reports), demand: demandSideTotal(reports) };
+}
+
+/** Which total leads the actor page's card: what went to Sky, unless this
+ *  Prime sent Sky nothing over the window (Keel and Skybase never do), in
+ *  which case the demand side is the only figure it has. */
+export function leadCycleTotal(t: CycleTotals): { amount: number; label: string } {
+  if (Math.abs(t.sky) >= NEAR_ZERO) return { amount: t.sky, label: TERM.toSky };
+  if (Math.abs(t.demand) >= NEAR_ZERO) return { amount: t.demand, label: TERM.fromSky };
+  return { amount: t.kept, label: TERM.kept };
+}
+
+/** Demand-side (agent rate + rewards) over the given months — what Sky
+ *  owes the Prime, not what the Prime kept out of its own revenue. */
+export function demandSideTotal(reports: readonly SettlementReport[]): number {
+  return reports.reduce((sum, r) => sum + demandSideRevenue(r.headline), 0);
 }
 
 export function hasVenueAum(report: SettlementReport): boolean {
