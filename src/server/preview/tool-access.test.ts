@@ -156,6 +156,17 @@ test("chat: a build still running when the wait ends is building; a failed one i
   expect(await openPreviewForTool(7, { surface: "chat", userId: "u" }, { waitMs: 1000 }, failing)).toMatchObject({ status: "failed", code: "cap-exceeded", detail: "too many docs" });
 });
 
+test("chat: a private repo's failed build keeps its error text from the model", async () => {
+  const failing = (send: (ev: PreviewEvent) => void) => send({ phase: "failed", code: "build-failed", message: "A.9.9 in secret.md" });
+  const d = deps({
+    open: async () => ({ r: resolved({ private: true, repo: "acme/secret" }), viaPrivateResolve: true }) as GateOpened,
+    ready: () => false,
+    subscribe: (_s, send) => (failing(send), () => {}),
+  }).d;
+  const o = await openPreviewForTool("acme:secret:main", { surface: "chat", userId: "u" }, { waitMs: 1000 }, d);
+  expect(o).toEqual({ status: "failed", id: "acme:secret:main", code: "build-failed" });
+});
+
 test("chat: the build path is rate limited per user; a ready bundle is not", async () => {
   const limitedKeys: string[] = [];
   const limited = (k: string) => {

@@ -10,7 +10,7 @@ import type { ToolResult } from "./tools.ts";
 import { fetchOpenPrs } from "../../preview/open-prs.ts";
 import { bundleReady, readMeta } from "../../preview/cache.ts";
 import { diffBaseLabel } from "../../preview/diff-base-record.ts";
-import { openForTool, prContext } from "./tools-preview-common.ts";
+import { metaPrNumber, openForTool, prContext, withPrDescription } from "./tools-preview-common.ts";
 import { ANON_MCP_CTX, type ToolCallContext } from "./tool-context.ts";
 import { buildPreviewDiff, type PreviewDiffArgs } from "./tools-preview-diff.ts";
 import { buildPreviewGet, type PreviewGetArgs } from "./tools-preview-get.ts";
@@ -95,7 +95,7 @@ export const PREVIEW_TOOLS: AtlasTool[] = [
     annotations: annotations("Atlas Preview Diff"),
     description:
       "What a PR preview adds, changes and removes in the Atlas, against the base its redline uses (the PR's own base " +
-      "branch, or the live Atlas). Returns the PR (with its GitHub description) and base, counts, and a page of documents " +
+      "branch, or the live Atlas). Returns the PR and base (the first page adds the PR's GitHub description), counts, and a page of documents " +
       "sorted by doc_no, each with its doc_no, title, type, parent, renumber/retitle flags, a short patch, and a `cite` " +
       "link. In chat it builds a preview nobody has built yet; if the build fails it still returns the PR's description.",
     shape: {
@@ -109,8 +109,8 @@ export const PREVIEW_TOOLS: AtlasTool[] = [
     handler: async (ix, a, ctx) => {
       const o = await openForTool(a.preview_id, ctx);
       if ("result" in o) return o.result;
-      const pr = await prContext(o.open.id);
-      return { ...buildPreviewDiff(ix, o.open, a as unknown as PreviewDiffArgs), ...(pr ? { pr_description: pr.description } : {}) };
+      const r = buildPreviewDiff(ix, o.open, a as unknown as PreviewDiffArgs);
+      return withPrDescription(r, a.offset ? null : await prContext(metaPrNumber(o.open.meta)));
     },
   },
   {

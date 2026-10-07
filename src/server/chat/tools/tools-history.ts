@@ -457,7 +457,7 @@ export async function atlasPr(_ix: Indexes, pr_number: number): Promise<ToolResu
   return { pr, count: rows.length, events: rows.map((r) => ({ ...r, change_type: userType(r.change_type) })), ...(rows.length ? {} : { note: NOT_MERGED_NOTE }) };
 }
 
-const NOT_MERGED_NOTE = "No merged history for this PR. If it is still open, atlas_preview_diff with preview_id pull-N reads what it proposes.";
+const NOT_MERGED_NOTE = "No merged history for this PR. If it is still open, atlas_open_prs lists it and says how to read what it proposes.";
 
 // ── atlas_changed_between ──────────────────────────────────────────────────
 export async function atlasChangedBetween(

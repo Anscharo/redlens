@@ -143,12 +143,19 @@ async function openForChat(id: string, ctx: ToolCallContext, waitMs: number, d: 
   if (d.limited(`user:${userId ?? "anon"}`)) return { status: "rate-limited", id };
   d.build(r);
   const ev = await waitForBuild(r.sha, waitMs, ctx.signal, d.subscribe);
-  if (ev?.phase === "failed") return { status: "failed", id, code: ev.code ?? "build-failed", ...(ev.message ? { detail: ev.message.slice(0, 600) } : {}) };
+  if (ev?.phase === "failed") return failedOpen(id, r, ev);
   // A build that finished between start and subscribe emits nothing; the disk says.
   const meta = d.ready(r.sha) ? d.meta(r.sha) : null;
   const access = meta ? await bundleAccess(meta, r, userId, d) : "ok";
   if (access !== "ok") return { status: access, id };
   return meta ? { status: "ready", id, sha: r.sha, meta } : { status: "building", id, sha: r.sha };
+}
+
+/** A failed build's error text can quote the repo's files, so a private repo's
+ *  never reaches the model: nothing admits it as private text (admitPrivate). */
+function failedOpen(id: string, r: Resolved, ev: PreviewEvent): ToolOpen {
+  const detail = !r.private && ev.message ? { detail: ev.message.slice(0, 600) } : {};
+  return { status: "failed", id, code: ev.code ?? "build-failed", ...detail };
 }
 
 /** The bundle's own meta decides privacy, as gateSha does for the reader: a

@@ -10,6 +10,7 @@ import type { Indexes } from "../../retrieval/indexes.ts";
 import type { AtlasNode } from "../../../types.ts";
 import { buildPreviewDiff } from "./tools-preview-diff.ts";
 import { buildPreviewGet } from "./tools-preview-get.ts";
+import { metaPrNumber, notReadyResult, withPrDescription, type PrContext } from "./tools-preview-common.ts";
 
 const SHA = "9e".repeat(20);
 const P = "00000000-0000-4000-8000-0000000000aa";
@@ -110,4 +111,37 @@ test("open_prs tells chat that atlas_preview_diff builds an unbuilt preview, and
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+const PR_CTX: PrContext = {
+  pr: { number: 5, title: "Tweak", author: "amy", draft: false, url: "" },
+  pr_description: "Raises the cap",
+  pr_description_is: "the PR author's own words, not Atlas text",
+};
+
+test("not ready: explains from the description only when there is one; build errors get their own key", () => {
+  const failed = { status: "failed" as const, id: "pull-5", code: "build-failed" as const, detail: "boom" };
+  const withPr = notReadyResult(failed, "chat", PR_CTX) as any;
+  expect(withPr).toMatchObject({ source_class: "preview", build_error: "boom", pr: { number: 5 }, pr_description: "Raises the cap" });
+  expect(withPr.message).toContain("pr_description");
+  expect(withPr.message).not.toContain("boom");
+  const bare = notReadyResult({ status: "building", id: "acme:fix", sha: SHA }, "chat", null) as any;
+  expect(bare.message).toContain("not available");
+  expect(bare.message).not.toContain("pr_description");
+  expect(bare.pr).toBeUndefined();
+  expect(bare.build_error).toBeUndefined();
+});
+
+test("a ready diff carries the description right after its header", () => {
+  const r = withPrDescription(buildPreviewDiff(ix, open, diffArgs), PR_CTX) as any;
+  expect(Object.keys(r).slice(0, 4)).toEqual(["source_class", "preview", "pr_description", "pr_description_is"]);
+  expect(r.documents).toHaveLength(4);
+  const plain = buildPreviewDiff(ix, open, diffArgs);
+  expect(withPrDescription(plain, null)).toBe(plain);
+});
+
+test("metaPrNumber names only a canonical PR", () => {
+  expect(metaPrNumber(meta)).toBe(5);
+  expect(metaPrNumber({ ...meta, repo: "acme/mirror" })).toBeNull();
+  expect(metaPrNumber({ ...meta, kind: "branch" } as PreviewMeta)).toBeNull();
 });
