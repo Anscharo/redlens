@@ -8,8 +8,9 @@ import { usePageVisitTracking } from "./hooks/usePageVisitTracking";
 import { useModifierKeyAttrs } from "./hooks/useModifierKeyAttrs";
 import { useContextHints } from "./hooks/useContextHints";
 import { track } from "./lib/analytics";
-import { useUrlState, urlString } from "./hooks/useUrlState";
-import { ROUTES, REPORT_SCOPE_CONFIG, activeNavPageFor, usesWindowScroll, type SearchScope } from "@/lib/routes";
+import { useUrlState, urlString, urlEnum } from "./hooks/useUrlState";
+import { ATLAS_TABS } from "./lib/atlasTab";
+import { ROUTES, REPORT_SCOPE_CONFIG, activeNavPageFor, homeSearchHref, usesWindowScroll, type SearchScope } from "@/lib/routes";
 import { SIMPLE_ROUTES, RadarPage, SharedCollectionOpener, AdminEntry, lazyRetry } from "./lib/lazyRoutes";
 import { LEGACY_REDIRECTS, LEGACY_REDIRECT_PREFIXES } from "./lib/legacyRedirects";
 import { SearchBar } from "./components/SearchBar";
@@ -49,6 +50,8 @@ const ConversationsPage = lazy(() =>
 );
 
 const splitCodec = urlString(null);
+// Notes is the default panel, so an absent (or unrecognized) ?view= lands there.
+const ATLAS_TAB_CODEC = urlEnum("notes", ATLAS_TABS);
 
 prefetchNodeContent();
 
@@ -69,13 +72,7 @@ export default function App() {
   useContextHints();
 
   const nodeId = location === ROUTES.ATLAS ? searchParams.get("id") : null;
-  // Notes is the default panel, so an absent (or unrecognized) ?view= lands there.
-  const atlasView =
-    searchParams.get("view") === "history"
-      ? ("history" as const)
-      : searchParams.get("view") === "glossary"
-        ? ("glossary" as const)
-        : ("notes" as const);
+  const atlasView = ATLAS_TAB_CODEC.decode(searchParams.get("view"));
   const activeNavPage = activeNavPageFor(location);
 
   const scope: SearchScope = activeNavPage ?? "atlas";
@@ -275,13 +272,7 @@ export default function App() {
             </Route>
             <Route path={ROUTES.SEARCH_HINTS}>
               <SearchHintsPage
-                onHintClick={(q) => {
-                  const np = new URLSearchParams();
-                  if (q) np.set("q", q);
-                  if (splitId) np.set("split", splitId);
-                  const qs = np.toString();
-                  navigate(qs ? `${ROUTES.HOME}?${qs}` : ROUTES.HOME);
-                }}
+                onHintClick={(q) => navigate(homeSearchHref(q, splitId))}
               />
             </Route>
             {LEGACY_REDIRECTS.map(([from, to]) => (

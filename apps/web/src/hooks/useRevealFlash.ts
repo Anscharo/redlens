@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { added, removed } from "../lib/setOps";
 
 // Kept in sync with the --change-flash-ms CSS variable; falls back to 600 ms.
 const CHANGE_FLASH_MS = (() => {
@@ -118,21 +119,11 @@ export function useRevealFlash(
           timers.current.delete(staleEnd);
           endTimers.current.delete(id);
         }
-        setFlashing((prev) => {
-          if (prev.has(id)) return prev;
-          const next = new Set(prev);
-          next.add(id);
-          return next;
-        });
+        setFlashing((prev) => added(prev, id));
         const end = setTimeout(() => {
           timers.current.delete(end);
           endTimers.current.delete(id);
-          setFlashing((prev) => {
-            if (!prev.has(id)) return prev;
-            const next = new Set(prev);
-            next.delete(id);
-            return next;
-          });
+          setFlashing((prev) => removed(prev, id));
         }, CHANGE_FLASH_MS);
         timers.current.add(end);
         endTimers.current.set(id, end);

@@ -20,8 +20,8 @@ import {
   type DiscoursePost,
   type DiscourseTopic,
 } from "./forum-discourse.ts";
+import type { SqlTag } from "./sql-types.ts";
 
-type SqlTag = (strings: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>;
 
 export interface ForumTopicRow {
   topicId: number;

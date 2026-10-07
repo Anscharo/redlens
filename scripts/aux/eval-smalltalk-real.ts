@@ -23,6 +23,7 @@ import { isUncheckableAnswer } from "../../src/server/chat/verify/smalltalk.ts";
 import { judgeSmalltalkJev, SMALLTALK_JEV_THRESHOLD } from "../../src/server/chat/verify/smalltalk-jev.ts";
 import { config } from "../../src/server/config.ts";
 import { sql } from "../../src/server/db.ts";
+import { mapPool } from "../../src/server/pool.ts";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -34,21 +35,6 @@ const CONCURRENCY = 4;
 // can speak for — the labeled set, the hard tier and the first-turn real
 // check were all first messages. "all" = both.
 const POPULATION = (process.env.JUDGE_POPULATION ?? "first") as "first" | "later" | "all";
-
-async function pool<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let i = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, async () => {
-      for (;;) {
-        const idx = i++;
-        if (idx >= items.length) return;
-        out[idx] = await fn(items[idx]);
-      }
-    }),
-  );
-  return out;
-}
 
 const clean = (s: string) => s.slice(0, 100).replace(/\s+/g, " ");
 
@@ -72,7 +58,7 @@ if (!eligible.length) {
 
 interface Row { q: string; jevP: number | null; jev: boolean; jevMs: number | null; cost: number | null }
 
-const results: Row[] = await pool(eligible, CONCURRENCY, async (q) => {
+const results: Row[] = await mapPool(eligible, CONCURRENCY, async (q) => {
   const j = await judgeSmalltalkJev({ question: q, model: JEV, threshold: 0 });
   return { q, jevP: j.p, jev: j.p !== null && j.p >= SMALLTALK_JEV_THRESHOLD, jevMs: j.latencyMs, cost: j.costUsd };
 });

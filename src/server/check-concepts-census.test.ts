@@ -3,6 +3,7 @@
 // from its own file location, not an env var), so it can't be unit-tested by
 // importing it directly. Instead we materialize a minimal standalone copy of
 // its relative layout (scripts/required + scripts/lib + src/lib/conceptsCensus.ts
+// + src/lib/collections.ts
 // + public/docs.json + .github/) in a scratch dir and shell out to it with
 // `bun`, exercising the guard's actual contract: baseline creation via
 // --update, silence on a no-op rerun, [drift] warnings on an injected
@@ -70,6 +71,7 @@ beforeEach(() => {
   );
   fs.copyFileSync(path.join(REPO_ROOT, "scripts/lib/natural-sort.mjs"), path.join(tmpRoot, "scripts/lib/natural-sort.mjs"));
   fs.copyFileSync(path.join(REPO_ROOT, "src/lib/conceptsCensus.ts"), path.join(tmpRoot, "src/lib/conceptsCensus.ts"));
+  fs.copyFileSync(path.join(REPO_ROOT, "src/lib/collections.ts"), path.join(tmpRoot, "src/lib/collections.ts"));
   // conceptsCensus.ts only imports `type AtlasNode` from "../types" — a
   // type-only import bun erases at runtime, but give it a real (empty) module
   // so any tool that doesn't strip it still resolves.

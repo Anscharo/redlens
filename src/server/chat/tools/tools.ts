@@ -10,6 +10,8 @@ import { runLexical, runSemantic, mergeForMode, filterByType, buildAgentSnippet,
 import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "../../retrieval/leaf-attribution.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { statsSection } from "./tools-stats.ts";
+import { countBy } from "../../../lib/collections.ts";
+import { byDocNo } from "../../../lib/docNo.ts";
 import { censusesSection } from "./tools-censuses.ts";
 import { sql } from "../../db.ts";
 import { normalizeAddress } from "../../../../scripts/lib/address-chains.mjs";
@@ -51,35 +53,26 @@ export function atlasDescribe(ix: Indexes, sections?: string[]): ToolResult {
   const want = (s: string) =>
     sections && sections.length ? sections.includes(s) || sections.includes("all") : DEFAULT_SECTIONS.has(s);
 
-  const docTypeCounts = new Map<string, number>();
+  const docTypeCounts = countBy(ix.docMap.values(), (d) => d.type);
   const typeSpecs: { id: string; doc_no: string; title: string }[] = [];
   for (const d of ix.docMap.values()) {
-    docTypeCounts.set(d.type, (docTypeCounts.get(d.type) ?? 0) + 1);
     if (d.type === "Type Specification") typeSpecs.push({ id: d.id, doc_no: d.doc_no, title: d.title });
   }
 
-  const edgeTypeCounts = new Map<string, number>();
-  for (const e of ix.edges) edgeTypeCounts.set(e.edge_type, (edgeTypeCounts.get(e.edge_type) ?? 0) + 1);
+  const edgeTypeCounts = countBy(ix.edges, (e) => e.edge_type);
 
-  const entityTypeCounts = new Map<string, number>();
-  let entityCount = 0;
-  for (const e of ix.entities) {
-    if (!e.is_active) continue;
-    const key = `${e.entity_type} ${e.subtype ?? ""}`;
-    entityTypeCounts.set(key, (entityTypeCounts.get(key) ?? 0) + 1);
-    entityCount++;
-  }
+  const activeEntities = ix.entities.filter((e) => e.is_active);
+  const entityCount = activeEntities.length;
+  const entityTypeCounts = countBy(activeEntities, (e) => `${e.entity_type} ${e.subtype ?? ""}`);
 
   // entity_type_graph: how entity types connect via edges (traversal chains).
-  const etg = new Map<string, number>();
-  for (const e of ix.edges) {
-    if (e.from_type !== "entity" || e.to_type !== "entity") continue;
+  const etg = countBy(ix.edges, (e) => {
+    if (e.from_type !== "entity" || e.to_type !== "entity") return null;
     const from = ix.entityById.get(e.from_id);
     const to = ix.entityById.get(e.to_id);
-    if (!from?.is_active || !to?.is_active) continue;
-    const key = `${from.entity_type} ${e.edge_type} ${to.entity_type}`;
-    etg.set(key, (etg.get(key) ?? 0) + 1);
-  }
+    if (!from?.is_active || !to?.is_active) return null;
+    return `${from.entity_type} ${e.edge_type} ${to.entity_type}`;
+  });
 
   const sortDesc = <T>(m: Map<string, number>, shape: (k: string, count: number) => T): T[] =>
     [...m.entries()].sort((a, b) => b[1] - a[1]).map(([k, c]) => shape(k, c));
@@ -102,7 +95,7 @@ export function atlasDescribe(ix: Indexes, sections?: string[]): ToolResult {
       return { from_type, edge_type, to_type, count };
     });
   if (want("type_specifications"))
-    out.type_specifications = typeSpecs.sort((a, b) => a.doc_no.localeCompare(b.doc_no, "en", { numeric: true }));
+    out.type_specifications = typeSpecs.sort(byDocNo);
   if (want("stats")) out.stats = statsSection(ix);
   // "censuses" → summary rows for all ten; "censuses:<slug>" → that census
   // with its full member list (the prefetch lane's drill-down path).

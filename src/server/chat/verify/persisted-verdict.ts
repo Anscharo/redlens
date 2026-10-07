@@ -17,17 +17,9 @@ import type { CheckReport } from "./verify-checks.ts";
 import type { ParamMismatch } from "./param-checks.ts";
 import type { CoverageVerdict } from "./answer-coverage.ts";
 
-// Reliability-harness badge + dispute list, reconstructed on reload — shaped
-// to match the client's VerifyState (apps/web/src/components/chat/chatTypes.ts)
-// field for field, minus its "checking" status member (a restored row is
-// always already resolved). Server-side type, not imported from apps/web:
-// src/server and apps/web are separate tsc -b projects (tsconfig.server.json
-// only includes src/server). See conversations.ts's verifyFor for how each
-// field is reconstructed.
-export interface VerifyOut {
-  status: VerifyOverall;
-  contradictions: AgreedContradiction[];
-  rulingIssued: boolean;
+// The deterministic-check fields VerifyOut carries to the client; DeterministicChecks
+// adds the `failed` flag the fold needs.
+interface CheckFields {
   invalidCitations: string[];
   invalidDocNos: string[];
   docNoMismatches: string[];
@@ -39,6 +31,19 @@ export interface VerifyOut {
   missingExternalDisclaimer: boolean;
   mscCitedAsAtlas: string[];
   lengthCapped: boolean;
+}
+
+// Reliability-harness badge + dispute list, reconstructed on reload — shaped
+// to match the client's VerifyState (apps/web/src/components/chat/chatTypes.ts)
+// field for field, minus its "checking" status member (a restored row is
+// always already resolved). Server-side type, not imported from apps/web:
+// src/server and apps/web are separate tsc -b projects (tsconfig.server.json
+// only includes src/server). See conversations.ts's verifyFor for how each
+// field is reconstructed.
+export interface VerifyOut extends CheckFields {
+  status: VerifyOverall;
+  contradictions: AgreedContradiction[];
+  rulingIssued: boolean;
 }
 
 // Every CiteVerdict value the persisted citation_check payload can carry,
@@ -88,19 +93,22 @@ export function judgedPairsFrom(verdict: unknown): { uuid: string; claim: string
 // does not actually conform to CheckReport (its `citations` is a number, not
 // Citation[]) — one of the two reasons `status` sometimes can't be an honest
 // recompute; see verifyFor's comment for the other.
-export interface DeterministicChecks {
-  invalidCitations: string[];
-  invalidDocNos: string[];
-  docNoMismatches: string[];
-  ungroundedQuotes: string[];
-  ungroundedAddresses: string[];
-  ungroundedCitationValues: string[];
-  paramMismatches: ParamMismatch[];
-  completenessFailures: string[];
-  missingExternalDisclaimer: boolean;
-  mscCitedAsAtlas: string[];
-  lengthCapped: boolean;
+export interface DeterministicChecks extends CheckFields {
   failed: boolean;
+}
+
+// What a 'verify' row with no parseable 'round_checks' row restores: every check clean.
+const EMPTY_CHECKS: DeterministicChecks = {
+  invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [],
+  ungroundedAddresses: [], ungroundedCitationValues: [], paramMismatches: [],
+  completenessFailures: [], missingExternalDisclaimer: false, mscCitedAsAtlas: [],
+  lengthCapped: false, failed: false,
+};
+
+// The client-visible check fields of `det`, or all-clean when it is absent.
+function checkFields(det: DeterministicChecks | null): CheckFields {
+  const { failed: _failed, ...fields } = det ?? structuredClone(EMPTY_CHECKS);
+  return fields;
 }
 
 function strArray(v: unknown): string[] {
@@ -155,15 +163,7 @@ export function deterministicChecksFrom(roundChecksVerdict: unknown): Determinis
 // `untracedNumbers`) exist solely to satisfy the type and are never consulted
 // by it, so defaulting them costs nothing and asserts nothing false.
 export function checkReportForOverall(det: DeterministicChecks): CheckReport {
-  return {
-    citations: [], invalidCitations: det.invalidCitations, invalidDocNos: det.invalidDocNos,
-    docNoMismatches: det.docNoMismatches, bareAtlasLinks: [], uncitedParagraphs: 0,
-    ungroundedQuotes: det.ungroundedQuotes, ungroundedAddresses: det.ungroundedAddresses,
-    ungroundedCitationValues: det.ungroundedCitationValues, untracedNumbers: [],
-    paramMismatches: det.paramMismatches, completenessFailures: det.completenessFailures,
-    missingExternalDisclaimer: det.missingExternalDisclaimer, mscCitedAsAtlas: det.mscCitedAsAtlas,
-    lengthCapped: det.lengthCapped, failed: det.failed,
-  };
+  return { citations: [], bareAtlasLinks: [], uncitedParagraphs: 0, untracedNumbers: [], ...det };
 }
 
 export function rulingIssuedFrom(verdict: unknown): boolean {
@@ -271,17 +271,7 @@ export function restoreVerify(
       status: computeOverall(checkReportForOverall(det), null), // "fail" — checks.failed is computeOverall's first, unconditional branch
       contradictions: [],
       rulingIssued: false,
-      invalidCitations: det.invalidCitations,
-      invalidDocNos: det.invalidDocNos,
-      docNoMismatches: det.docNoMismatches,
-      ungroundedQuotes: det.ungroundedQuotes,
-      ungroundedAddresses: det.ungroundedAddresses,
-      ungroundedCitationValues: det.ungroundedCitationValues,
-      paramMismatches: det.paramMismatches,
-      completenessFailures: det.completenessFailures,
-      missingExternalDisclaimer: det.missingExternalDisclaimer,
-      mscCitedAsAtlas: det.mscCitedAsAtlas,
-      lengthCapped: det.lengthCapped,
+      ...checkFields(det),
     };
   }
 
@@ -297,17 +287,7 @@ export function restoreVerify(
     status,
     contradictions: agreed,
     rulingIssued: rulingIssuedFrom(verifyRow.verdict),
-    invalidCitations: det?.invalidCitations ?? [],
-    invalidDocNos: det?.invalidDocNos ?? [],
-    docNoMismatches: det?.docNoMismatches ?? [],
-    ungroundedQuotes: det?.ungroundedQuotes ?? [],
-    ungroundedAddresses: det?.ungroundedAddresses ?? [],
-    ungroundedCitationValues: det?.ungroundedCitationValues ?? [],
-    paramMismatches: det?.paramMismatches ?? [],
-    completenessFailures: det?.completenessFailures ?? [],
-    missingExternalDisclaimer: det?.missingExternalDisclaimer ?? false,
-    mscCitedAsAtlas: det?.mscCitedAsAtlas ?? [],
-    lengthCapped: det?.lengthCapped ?? false,
+    ...checkFields(det),
   };
 }
 

@@ -12,8 +12,7 @@ import { ErrorBoundary, InlineError } from "../ErrorBoundary";
 import { useDataSource } from "../../lib/dataSource";
 import { glide } from "../../lib/animatedScroll";
 import { track } from "../../lib/analytics";
-
-type RightTab = "notes" | "glossary" | "history";
+import type { AtlasTab } from "../../lib/atlasTab";
 
 const HIDE = new Set(["parent_of", "mentions", "proxies_to", "cites"]);
 
@@ -64,8 +63,8 @@ export function RightPanel({
   onNavigateByDocNo: (docNo: string) => void;
   /** The section the pill bar highlights and the scroll area jumps to. Driven by
    *  the URL's ?view= exactly as the old tabs were. */
-  tab: RightTab;
-  onTabChange: (t: RightTab) => void;
+  tab: AtlasTab;
+  onTabChange: (t: AtlasTab) => void;
   /** Show self-subscribing selection checkboxes on related cards. The checkbox
    *  state lives in each card's RelatedSelectBox, so a selection toggle doesn't
    *  re-render this panel (or the sibling reader) — only the checkbox itself. */
@@ -131,14 +130,14 @@ export function RightPanel({
   const noteCount = annotationCount + citedBy.length + graphRels.length;
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const sectionRefs = useRef<Record<RightTab, HTMLElement | null>>({
+  const sectionRefs = useRef<Record<AtlasTab, HTMLElement | null>>({
     notes: null,
     history: null,
     glossary: null,
   });
   // Bring a section to the top of the scroll area. The active section's divider
   // stays highlighted (see SectionDivider), so no transient flash is needed.
-  const scrollToSection = useCallback((view: RightTab, animate: boolean) => {
+  const scrollToSection = useCallback((view: AtlasTab, animate: boolean) => {
     const container = scrollRef.current;
     const section = sectionRefs.current[view];
     if (!container || !section) return;
@@ -160,7 +159,7 @@ export function RightPanel({
   // Clicking a pill always brings its section to the top — even the already-active
   // one, which wouldn't change `tab` and so wouldn't trigger the effect above.
   const selectSection = useCallback(
-    (view: RightTab) => {
+    (view: AtlasTab) => {
       if (tab === view) scrollToSection(view, true);
       onTabChange(view);
     },

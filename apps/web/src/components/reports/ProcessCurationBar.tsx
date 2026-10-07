@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCopyState } from "../../hooks/useCopyState";
+import { downloadFile } from "../../lib/csvDownload";
 import { toDecisionsJson, type LocalIgnore } from "../../lib/curationStore";
 import { track } from "../../lib/analytics";
 
@@ -16,31 +17,19 @@ export function ProcessCurationBar({
   showIgnored: boolean;
   onToggleShowIgnored: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy: copyText } = useCopyState(1500);
   if (marks.length === 0) return null;
 
   const json = toDecisionsJson(marks);
 
   const download = () => {
     track("report_export", { report: "processes", format: "json", method: "download" });
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "processes-decisions.json";
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadFile("processes-decisions.json", json, "application/json");
   };
 
-  const copy = async () => {
+  const copy = () => {
     track("report_export", { report: "processes", format: "json", method: "copy" });
-    try {
-      await navigator.clipboard.writeText(json);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard write failed — ignore */
-    }
+    void copyText(json);
   };
 
   return (

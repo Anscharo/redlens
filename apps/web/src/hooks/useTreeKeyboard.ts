@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { added, removed } from "../lib/setOps";
 import type { VisibleNode } from "../components/tree/TreeRow";
 
 interface Params {
@@ -60,7 +61,7 @@ export function useTreeKeyboard({
           e.preventDefault();
           const entry = visibleNodes[idx];
           if (entry && entry.hasChildren && !expandedIds.has(entry.node.id)) {
-            setExpandedIds((prev) => new Set(prev).add(entry.node.id));
+            setExpandedIds((prev) => added(prev, entry.node.id));
           }
           break;
         }
@@ -68,11 +69,7 @@ export function useTreeKeyboard({
           e.preventDefault();
           const entry = visibleNodes[idx];
           if (entry && expandedIds.has(entry.node.id)) {
-            setExpandedIds((prev) => {
-              const next = new Set(prev);
-              next.delete(entry.node.id);
-              return next;
-            });
+            setExpandedIds((prev) => removed(prev, entry.node.id));
           }
           break;
         }

@@ -1,6 +1,8 @@
 // URL-synced filter state + derived rows for the Processes report, so the page
 // file is chrome + table only (mirrors useRoleReportState for the role reports).
 import { useMemo } from "react";
+import { groupBy } from "@/lib/collections";
+import { cmpDocNo } from "@/lib/docNo";
 import { urlBool, urlString } from "../../hooks/useUrlState";
 import { loadAtlas } from "../../lib/docs";
 import { buildProcessRows, indexByParentDocNo, processSearchFields, type ProcessRow } from "@/lib/processesIndex";
@@ -48,13 +50,8 @@ function matchesPills(r: ProcessRow, f: PillValues, ignoresByUuid: Map<string, u
 
 /** Rows per category, each list in doc-number order. */
 function groupByCategory(rows: readonly ProcessRow[]): Map<string, ProcessRow[]> {
-  const map = new Map<string, ProcessRow[]>();
-  for (const r of rows) {
-    const list = map.get(r.category);
-    if (list) list.push(r);
-    else map.set(r.category, [r]);
-  }
-  for (const list of map.values()) list.sort((a, b) => a.docNo.localeCompare(b.docNo, undefined, { numeric: true }));
+  const map = groupBy(rows, (r) => r.category);
+  for (const list of map.values()) list.sort((a, b) => cmpDocNo(a.docNo, b.docNo));
   return map;
 }
 

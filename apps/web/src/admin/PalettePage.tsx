@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useCopyState } from "../hooks/useCopyState";
 import { ColorPickerModal } from "./ColorPickerModal";
 import { ContrastAudit } from "./ContrastAudit";
 import { PalettePreview } from "./PalettePreview";
@@ -10,15 +11,16 @@ import {
   TOKEN_BY_NAME,
   type PaletteGroup,
 } from "./palette-tokens";
+import { buildOverrideSnippet } from "./palette-storage";
 import { useColorOverrides } from "./useColorOverrides";
 
 const SEMANTIC_GROUPS: readonly PaletteGroup[] = GROUP_ORDER.filter((g) => g !== "depth");
 
 export function PalettePage() {
-  const { draft, isDirty, hasSaved, setDraftValue, apply, reset, copySnippet, effectiveValue } =
+  const { draft, isDirty, hasSaved, setDraftValue, apply, reset, effectiveValue } =
     useColorOverrides();
   const [editing, setEditing] = useState<string | null>(null);
-  const [copyFlash, setCopyFlash] = useState(false);
+  const { copied: copyFlash, copy } = useCopyState(1500);
 
   const tokensByGroup = useMemo(() => {
     const m = new Map<PaletteGroup, typeof PALETTE_TOKENS>();
@@ -31,10 +33,8 @@ export function PalettePage() {
 
   const editingToken = editing ? TOKEN_BY_NAME.get(editing) : null;
 
-  async function handleCopy() {
-    await copySnippet();
-    setCopyFlash(true);
-    setTimeout(() => setCopyFlash(false), 1500);
+  function handleCopy() {
+    void copy(buildOverrideSnippet(draft, PALETTE_TOKENS));
   }
 
   const hasDraft = Object.keys(draft).length > 0;

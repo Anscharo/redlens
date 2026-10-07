@@ -5,18 +5,9 @@
 import { sql } from "../../db.ts";
 import { type ToolResult } from "./tools.ts";
 import { type Indexes, resolveNode } from "../../retrieval/indexes.ts";
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// Map user-facing change_type → stored value.
-const TO_PG: Record<string, string> = { modified: "content", moved: "structural" };
-// Map stored value → user-facing.
-const FROM_PG: Record<string, string> = { content: "modified", structural: "moved" };
-// Exported: retrieval/query.ts accepts the same two vocabularies on atlas_query
-// and must normalize them identically — a second copy of this map is how one
-// side silently returns zero rows for a name the other accepts.
-export function pgType(t: string) { return TO_PG[t] ?? t; }
-function userType(t: string) { return FROM_PG[t] ?? t; }
+import { pgType, userType } from "../../history/change-type.ts";
+import { countBy } from "../../../lib/collections.ts";
+import { UUID_RE } from "../../../lib/patterns.ts";
 
 // Reconstructed history splits into two classes that must not be collapsed.
 // mip/genesis/severed predate the repo entirely: no commits, no PR attribution,
@@ -109,8 +100,7 @@ function groupValue(r: HistoryStatsRow, group: HistoryStatsGroupBy): string {
 // per-doc events derivable (2025-11-21), so any single cutoff would be wrong.
 function reconstructionWarnings(rows: Array<{ era: string | null }>): string[] {
   const total = rows.length;
-  const counts = new Map<string, number>();
-  for (const r of rows) if (r.era) counts.set(r.era, (counts.get(r.era) ?? 0) + 1);
+  const counts = countBy(rows, (r) => r.era || null);
   if (!counts.size) return [];
 
   const tally = (eras: string[]) => eras.reduce((n, e) => n + (counts.get(e) ?? 0), 0);

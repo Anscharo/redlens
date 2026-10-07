@@ -20,6 +20,7 @@ import { isICD } from "../lib/graph-patterns.mjs";
 import { extractInstanceParams, buildChildrenIndex } from "../lib/graph-instances.mjs";
 import { DIRECTORY_RE, HUB_TITLE_RE, ancestorTitles, buildUnits } from "../../src/server/retrieval/embed-units.ts";
 import { paraphraseFor } from "./eval-retrieval-paraphrase.ts";
+import { groupBy, pushTo } from "../../src/lib/collections.ts";
 
 export type RetrievalSlice =
   | "icd-param"
@@ -104,9 +105,7 @@ export function generateRetrievalQueries(docs: AtlasNode[], limit = 80): Retriev
   for (const icd of icds) {
     const params = extractInstanceParams(icd, childrenByDocNo) as Record<string, [string, string, string]>;
     for (const [name, [value, uuid]] of Object.entries(params)) {
-      const arr = byParamName.get(name) ?? [];
-      arr.push({ icd, leafId: uuid, value });
-      byParamName.set(name, arr);
+      pushTo(byParamName, name, { icd, leafId: uuid, value });
     }
   }
 
@@ -148,13 +147,7 @@ export function generateRetrievalQueries(docs: AtlasNode[], limit = 80): Retriev
   }
   // Round-robin by field name so no single field can dominate the way
   // "Rate Limit IDs" took 39 of 40 slots.
-  const byField = new Map<string, typeof paramCandidates>();
-  for (const c of paramCandidates) {
-    const k = c.name.toLowerCase();
-    const arr = byField.get(k) ?? [];
-    arr.push(c);
-    byField.set(k, arr);
-  }
+  const byField = groupBy(paramCandidates, (c) => c.name.toLowerCase());
   // Rotate each field's picks by its own index: without this, round 0 takes the first
   // entry of every field and they are all the same (alphabetically first) instance.
   const fields = [...byField.values()].map((v, i) => {
@@ -243,9 +236,7 @@ export function generateRetrievalQueries(docs: AtlasNode[], limit = 80): Retriev
     // Outermost non-generic ancestor = the agent (Spark / Grove / Keel / Obex).
     const agent = ancestorTitles(root, byDocNo)[0];
     if (!agent) continue;
-    const arr = kvRoots.get(root.title) ?? [];
-    arr.push({ root, leaves, agent });
-    kvRoots.set(root.title, arr);
+    pushTo(kvRoots, root.title, { root, leaves, agent });
   }
   // Most-collided titles first: more instances of the same record title = a harder,
   // more informative disambiguation.

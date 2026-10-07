@@ -26,6 +26,7 @@ import { planEmbedRows, shippedPolicy } from "../../src/server/retrieval/embed-r
 import { buildEmbedText } from "../../src/server/retrieval/embed-text.ts";
 import { bodyWhollyReplaced, bodyWordsKept, detectIdentitySwaps, lineOverlap, JUDGEABLE_MIN_WORDS, REPLACE_MAX_OVERLAP, SHORT_BODY_MAX_LINES, type SwapNode } from "../../src/server/preview/identity.ts";
 import { auc, dot, lineCount, parentOf, prng, quantile, qwenVectors, share, swappable, walkRetitles, wordCount, type HistoryNode } from "./identity-corpus.ts";
+import { groupBy } from "../../src/lib/collections.ts";
 
 const args = process.argv.slice(2);
 
@@ -104,8 +105,7 @@ const retitleCount = pairs.length;
 const live = live0;
 const liveNodes = [...live.byId.values()].filter((n) => wordCount(n.content) >= JUDGEABLE_MIN_WORDS && !live.anchors.has(n.id));
 const { pick, rnd } = prng(7);
-const byParent = new Map<string, Node[]>();
-for (const n of liveNodes) (byParent.get(parentOf(n)) ?? byParent.set(parentOf(n), []).get(parentOf(n))!).push(n);
+const byParent = groupBy(liveNodes, parentOf);
 const swap = (group: Pair["group"], o: Node, c: Node) => pairs.push({
   group, band: band(o.content), anchor: false, shapeChanged: false, oldTitle: o.title, newTitle: c.title,
   bodyA: o.content, bodyB: c.content,

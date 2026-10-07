@@ -11,6 +11,7 @@
 // run in parallel over ONE `state` and are blind to each other, so a caller
 // that needs answer A to build state B must make two requests.
 import { config } from "./config.ts";
+import { sleep } from "./retry.ts";
 import { captureAiCall } from "./ai-telemetry.ts";
 import { openrouterAttributionHeaders } from "./openrouter-attribution.ts";
 
@@ -166,32 +167,8 @@ export async function askJev(params: {
     // one backoff late (~1.6 s against the prefetch judge's documented 600 ms
     // cap). Only refute-screen.ts noticed, and worked around it locally with a
     // Promise.race; fixing it here makes every caller's deadline hard.
-    await sleepUnlessAborted(wait, params.signal);
+    await sleep(wait, params.signal);
     if (params.signal?.aborted) throw err;
     return askJev({ ...params, attempt: attempt + 1 });
   }
-}
-
-/**
- * Resolves after `ms`, or as soon as `signal` aborts — whichever comes first.
- *
- * Deliberately does NOT removeEventListener. On Bun 1.3.14 removing a listener
- * from an `AbortSignal.timeout()` signal DISARMS it: the signal then never
- * aborts at all, so the caller's whole wall-clock deadline silently stops
- * working (verified — attach+remove leaves `.aborted` false forever, while
- * never attaching, or attaching and keeping, both abort on time). `once`
- * retires the listener when it fires; when the timer wins instead, the extra
- * `resolve()` is a no-op on a settled promise and the listener dies with the
- * signal. At most one listener per retry, three per call.
- */
-function sleepUnlessAborted(ms: number, signal?: AbortSignal): Promise<void> {
-  if (!signal) return Bun.sleep(ms);
-  if (signal.aborted) return Promise.resolve();
-  return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener("abort", () => {
-      clearTimeout(timer);
-      resolve();
-    }, { once: true });
-  });
 }

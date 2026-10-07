@@ -14,8 +14,8 @@
 // BEFORE swapping `window.__ATLAS_SHA__`, so this path is the cold-instance
 // fallback rather than the swap-window fix.
 import { MAIN_STORE, artifactPath, hydrateBundleFromStore, serveBundleArtifact, type ArtifactFetch } from "./bundle-store.ts";
+import { SHA_RE } from "../lib/patterns.ts";
 
-const SHA_RE = /^[0-9a-f]{40}$/i;
 // Immutable: bytes are pinned to the sha. Indexable (no noindex) — unlike preview.
 const IMMUTABLE: Record<string, string> = { "Cache-Control": "public, max-age=31536000, immutable" };
 

@@ -36,6 +36,8 @@ import {
   cleanOrgProseName,
 } from "./graph-patterns.mjs";
 import { normalizeAddress } from "./address-chains.mjs";
+import { FACILITATOR_FOR_PREFIX } from "./graph-entity-edges/facilitator-for.mjs";
+import { GOVOPS_FOR_PREFIX } from "./graph-entity-edges/govops-for.mjs";
 import {
   buildKnownPrimitives,
   primitiveSlugFromTitle,
@@ -122,10 +124,7 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
 
   // --- 1d. Facilitators (Pattern 5) — entity_type = facilitator_org ---
   for (const d of allDocs.filter(isFacilitatorDoc)) {
-    const name = extractAssignment(
-      d.content,
-      "(?:The )?(?:(?:Operational|Core) (?:Executor )?)?Facilitator for [^.]+",
-    );
+    const name = extractAssignment(d.content, FACILITATOR_FOR_PREFIX);
     if (name)
       addEntity(slugify(name), name, "facilitator_org", null, d.id, {
         source: "facilitator_doc",
@@ -135,7 +134,7 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
 
   // --- 1e. GovOps (Pattern 5) — entity_type = govops_org ---
   for (const d of allDocs.filter(isGovOpsDoc)) {
-    const name = extractAssignment(d.content, "(?:(?:Operational|Core) )?GovOps for [^.]+");
+    const name = extractAssignment(d.content, GOVOPS_FOR_PREFIX);
     if (name)
       addEntity(slugify(name), name, "govops_org", null, d.id, {
         source: "govops_doc",

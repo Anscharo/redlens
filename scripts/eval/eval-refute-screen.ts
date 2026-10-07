@@ -30,6 +30,7 @@ import { openrouterJson } from "../../src/server/chat/llm.ts";
 import { sliceModels } from "../../src/server/chat/verify/sliced-verifier.ts";
 import { createParagraphRefuter } from "../../src/server/chat/verify/paragraph-refute.ts";
 import { buildScreenRequest, readScreen, screenParagraph, type ScreenResult } from "../../src/server/chat/verify/refute-screen.ts";
+import { mapPool } from "../../src/server/pool.ts";
 import { buildAllCases, loadRuns, prodEvidence, type Case } from "./eval-refute-screen-cases.ts";
 import { printReport, type GemmaOutcome, type Row } from "./eval-refute-screen-report.ts";
 
@@ -68,18 +69,6 @@ const pending = new Map<string, Promise<unknown>>();
 function once<T>(k: string, fn: () => Promise<T>): Promise<T> {
   if (!pending.has(k)) pending.set(k, fn());
   return pending.get(k) as Promise<T>;
-}
-async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let i = 0;
-  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
-    for (;;) {
-      const k = i++;
-      if (k >= items.length) return;
-      out[k] = await fn(items[k]);
-    }
-  }));
-  return out;
 }
 
 const ix = loadIndexes();
@@ -148,7 +137,7 @@ async function gemmaCall(k: string, question: string, paragraph: string, evidenc
 }
 
 console.log(`${cases.length} cases from ${runs.length} stored answers — Jev ${JEV_MODEL}${GEMMA ? `, gemma arm ${gemmaModel}` : ""}`);
-const rows: Row[] = await pool(cases, CONC, async (c) => {
+const rows: Row[] = await mapPool(cases, CONC, async (c) => {
   const [screen, gemma] = await Promise.all([jevArm(c), GEMMA ? gemmaArm(c) : Promise.resolve(null)]);
   return { c, screen, gemma };
 });

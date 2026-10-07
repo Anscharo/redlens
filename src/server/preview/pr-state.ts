@@ -6,12 +6,12 @@
 
 import { makeGhClient, CANONICAL_REPO } from "./resolve.ts";
 import { config } from "../config.ts";
+import type { SqlTag } from "../sql-types.ts";
 
-// Minimal structural type so the worker can pass its own Bun.sql client without
-// importing the web service's config-bound `sql`. (config.ts itself is fine to
-// import here — it's already in this file's module graph via resolve.ts, has
-// no side effects, and no DB binding of its own.)
-type SqlTag = (strings: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>;
+// `sql` is a parameter (SqlTag) so the worker can pass its own Bun.sql client
+// without importing the web service's config-bound one. (config.ts itself is
+// fine to import here — it's already in this file's module graph via
+// resolve.ts, has no side effects, and no DB binding of its own.)
 
 export async function sweepPrStates(
   sql: SqlTag,

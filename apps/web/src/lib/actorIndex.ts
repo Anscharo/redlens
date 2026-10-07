@@ -1,5 +1,7 @@
 import type { AtlasNode, GraphEntity, RelationEdge } from "@/types";
 import { ROUTES } from "@/lib/routes";
+import { pushTo, groupBy } from "@/lib/collections";
+import { cmpDocNo } from "@/lib/docNo";
 import { parseMeta } from "@/lib/meta";
 import { EXEC_EDGES, FAC_EDGES, GOV_EDGES } from "@/lib/roleEdges";
 import type { GraphData } from "./graph";
@@ -7,6 +9,7 @@ import type { InstanceMeta, InvocationMeta, RewardsAgent } from "@/lib/rewardsTy
 import type { ActiveDataRow } from "@/lib/activeDataIndex";
 import {
   EXCLUDED_INSTANCE_TYPES,
+  buildInstanceOfMap,
   instanceSignalParams,
   isRelationEdge,
   type InstanceParam,
@@ -131,7 +134,7 @@ export function buildSidebarActors(
       .sort((a, b) => {
         const da = (a.did && docs[a.did]?.doc_no) ?? "";
         const db = (b.did && docs[b.did]?.doc_no) ?? "";
-        return da.localeCompare(db, undefined, { numeric: true });
+        return cmpDocNo(da, db);
       })
       .map((e) => ({ id: e.id, slug: e.slug, name: e.name, et: e.et, st: e.st, docId: e.did }));
   return [
@@ -160,8 +163,8 @@ export function buildActorProfile(
   const edgesFrom = new Map<string, RelationEdge[]>();
   const edgesTo = new Map<string, RelationEdge[]>();
   for (const e of graph.edges) {
-    (edgesFrom.get(e.f) ?? (edgesFrom.set(e.f, []), edgesFrom.get(e.f)!)).push(e);
-    (edgesTo.get(e.t) ?? (edgesTo.set(e.t, []), edgesTo.get(e.t)!)).push(e);
+    pushTo(edgesFrom, e.f, e);
+    pushTo(edgesTo, e.t, e);
   }
   const cn = (p: GraphEntity): ChainNode => ({
     id: p.id,
@@ -275,12 +278,7 @@ export function buildActorProfile(
 
   // ICD doc ID → primitive doc ID. Both instance_of (operational instances)
   // and invocation_of (in-progress invocations) resolve to the parent primitive.
-  const instanceOfMap = new Map<string, string>();
-  for (const e of graph.edges) {
-    if ((e.e === "instance_of" || e.e === "invocation_of") && e.ft === "doc" && e.tt === "doc") {
-      instanceOfMap.set(e.f, e.t);
-    }
-  }
+  const instanceOfMap = buildInstanceOfMap(graph.edges);
 
   function toRadarInstance(
     ent: GraphEntity,
@@ -335,14 +333,8 @@ export function buildActorProfile(
       status: string | null;
       is_unknown_primitive?: boolean;
     }
-    const instancesBySt = new Map<string, RadarInstance[]>();
-    for (const inst of instances) {
-      (instancesBySt.get(inst.st) ?? (instancesBySt.set(inst.st, []), instancesBySt.get(inst.st)!)).push(inst);
-    }
-    const invocationsBySt = new Map<string, RadarInstance[]>();
-    for (const invo of invocations) {
-      (invocationsBySt.get(invo.st) ?? (invocationsBySt.set(invo.st, []), invocationsBySt.get(invo.st)!)).push(invo);
-    }
+    const instancesBySt = groupBy(instances, (inst) => inst.st);
+    const invocationsBySt = groupBy(invocations, (invo) => invo.st);
     for (const p of graph.primitives) {
       if (!p.m || !p.st) continue;
       const meta = parseMeta<PrimitiveMeta>(p.m);
@@ -368,7 +360,7 @@ export function buildActorProfile(
       if (a.categoryOrder !== b.categoryOrder) return a.categoryOrder - b.categoryOrder;
       const docA = a.docId ? docs[a.docId]?.doc_no ?? "" : "";
       const docB = b.docId ? docs[b.docId]?.doc_no ?? "" : "";
-      return docA.localeCompare(docB, undefined, { numeric: true });
+      return cmpDocNo(docA, docB);
     });
   }
 

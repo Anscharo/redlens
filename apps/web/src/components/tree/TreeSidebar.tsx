@@ -108,17 +108,9 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
     if (!bundle || !nodeId || !parentOf.has(nodeId)) return;
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      let changed = false;
       // Expand every ancestor so the selected node is visible, stepping upward
       // along the same relation the tree is grouped by.
-      let pid = parentOf.get(nodeId) ?? null;
-      while (pid) {
-        if (!next.has(pid)) {
-          next.add(pid);
-          changed = true;
-        }
-        pid = parentOf.get(pid) ?? null;
-      }
+      const changed = addAncestors(parentOf, nodeId, next);
       // Deliberately NOT expanding the selected node itself. Ancestors have to
       // open or the row could not be shown at all, but unfolding the node's own
       // children turns "open this doc" into "open this doc and rearrange the

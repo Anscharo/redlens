@@ -20,6 +20,18 @@ export const PARAM_BLACKLIST = new Set(["Tracking Methodology", "Operational Exe
 
 const NON_RELATION_EDGES = new Set(["comprises", "member_of", "cites", "cited_by"]);
 
+/**
+ * ICD doc id → primitive doc id. Both `instance_of` (operational instances) and
+ * `invocation_of` (in-progress invocations) resolve to the parent primitive.
+ */
+export function buildInstanceOfMap(edges: readonly RelationEdge[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const e of edges) {
+    if ((e.e === "instance_of" || e.e === "invocation_of") && e.ft === "doc" && e.tt === "doc") out.set(e.f, e.t);
+  }
+  return out;
+}
+
 /** The params an instance card shows, in meta order. */
 export function instanceSignalParams(meta: Pick<InstanceMeta, "params">): InstanceParam[] {
   return Object.entries(meta.params)

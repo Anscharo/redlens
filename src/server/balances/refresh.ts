@@ -36,10 +36,10 @@
 // they only advance the timestamp). An empty result set therefore means "the
 // RPC did not answer", which is the one case where not writing is correct.
 import { config } from "../config.ts";
+import type { SqlTag } from "../sql-types.ts";
 import { REFRESH_INTERVAL_MS, refreshAllowed } from "../../lib/balances.ts";
 import { fetchBalances, type AddressInput, type BalanceResult } from "./fetch-balances.ts";
 
-type SqlTag = (strings: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>;
 interface SqlWithTx extends SqlTag {
   begin?: <T>(fn: (tx: SqlTag) => Promise<T>) => Promise<T>;
 }

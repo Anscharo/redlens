@@ -17,6 +17,7 @@
 
 import crypto from "node:crypto";
 import { config } from "../config.ts";
+import { createCache } from "../ttl-cache.ts";
 
 function b64url(buf: Buffer): string {
   return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -159,20 +160,18 @@ let cachedInstallUrl: string | null = null;
 // install page ever errors on it, drop INSTALL_REPO_PLACEHOLDER first. The
 // install screen's copy names the repo to pick either way.
 const INSTALL_REPO_PLACEHOLDER = "&repository_ids[]=0";
-const OWNER_ID_CACHE_MAX = 1000;
-const OWNER_ID_TTL_MS = 24 * 60 * 60_000; // account ids never change; TTL only bounds a deleted/renamed login
-const ownerIdCache = new Map<string, { id: number; exp: number }>();
+// Account ids never change; the TTL only bounds a deleted/renamed login.
+const ownerIdCache = createCache<number>({ max: 1000, ttlMs: 24 * 60 * 60_000 });
 
 /** Numeric GitHub account id for a user/org login, or null if unknown. Public endpoint. */
 export async function accountIdForLogin(login: string): Promise<number | null> {
   const now = Date.now();
   const cached = ownerIdCache.get(login);
-  if (cached && cached.exp > now) return cached.id;
+  if (cached !== undefined) return cached;
   const r = await ghFetch(`https://api.github.com/users/${encodeURIComponent(login)}`, config.githubToken);
   const id = r?.ok ? r.json?.id : null;
   if (typeof id !== "number" || !Number.isFinite(id)) return null;
-  ownerIdCache.set(login, { id, exp: now + OWNER_ID_TTL_MS });
-  if (ownerIdCache.size > OWNER_ID_CACHE_MAX) ownerIdCache.delete(ownerIdCache.keys().next().value!);
+  ownerIdCache.set(login, id, now);
   return id;
 }
 
@@ -201,11 +200,10 @@ export async function appInstallUrl(repo?: string): Promise<string | null> {
 // Installation lookup + token minting
 // ---------------------------------------------------------------------------
 
-const INSTALLATION_CACHE_MAX = 1000; // FIFO cap — matches handler.ts's RESOLVE_CACHE_MAX pattern
-// TTL'd (unlike the old permanent cache): an uninstall+reinstall mints a NEW
-// installation id, so a permanently-cached old id would strand the repo on a
-// dead id until process restart. Bounded staleness + eviction-on-mint-failure
-// (see installationToken) recover from a reinstall promptly.
+// TTL'd, not permanent: an uninstall+reinstall mints a NEW installation id, so a
+// permanently-cached old id would strand the repo on a dead id until process
+// restart. Bounded staleness + eviction-on-mint-failure (see installationToken)
+// recover from a reinstall promptly.
 const INSTALLATION_ID_TTL_MS = 30 * 60_000;
 
 export interface InstallationInfo {
@@ -219,7 +217,7 @@ export interface InstallationInfo {
   repositorySelection: "all" | "selected" | null;
 }
 
-const installationCache = new Map<string, { info: InstallationInfo; exp: number }>();
+const installationCache = createCache<InstallationInfo>({ max: 1000, ttlMs: INSTALLATION_ID_TTL_MS }); // FIFO cap
 
 function parseInstallation(json: any): InstallationInfo | null {
   const id = json?.id;
@@ -255,7 +253,7 @@ export function installationHasPullsRead(permissions: Record<string, string> | u
 export async function installationInfoForRepo(repo: string, opts?: { refresh?: boolean }): Promise<InstallationInfo | null> {
   const now = Date.now();
   const cached = opts?.refresh ? undefined : installationCache.get(repo);
-  if (cached && cached.exp > now) return cached.info;
+  if (cached) return cached;
 
   const r = await ghFetch(`https://api.github.com/repos/${repo}/installation`, await appJwt());
   if (!r) return null; // network throw
@@ -269,10 +267,7 @@ export async function installationInfoForRepo(repo: string, opts?: { refresh?: b
   const info = parseInstallation(r.json);
   if (!info) return null;
 
-  installationCache.set(repo, { info, exp: now + INSTALLATION_ID_TTL_MS });
-  if (installationCache.size > INSTALLATION_CACHE_MAX) {
-    installationCache.delete(installationCache.keys().next().value!);
-  }
+  installationCache.set(repo, info, now);
   return info;
 }
 
@@ -282,18 +277,15 @@ export async function installationIdForRepo(repo: string): Promise<number | null
   return info?.id ?? null;
 }
 
-interface TokenCacheEntry {
-  token: string;
-  exp: number; // ms epoch; our own cache cutoff, already backed off from GitHub's real 60min expiry
-}
-const TOKEN_CACHE_MAX = 1000;
-const installationTokenCache = new Map<string, TokenCacheEntry>();
+// GitHub tokens expire ~60min from mint; cache for 55min so we refresh a
+// little early instead of racing expiry mid-request.
+const installationTokenCache = createCache<string>({ max: 1000, ttlMs: 55 * 60_000 });
 
 /** A short-lived, repo-scoped installation access token, or null if unavailable. */
 export async function installationToken(repo: string): Promise<string | null> {
   const now = Date.now();
   const cached = installationTokenCache.get(repo);
-  if (cached && cached.exp > now) return cached.token;
+  if (cached) return cached;
 
   const id = await installationIdForRepo(repo);
   if (id === null) return null;
@@ -314,12 +306,7 @@ export async function installationToken(repo: string): Promise<string | null> {
   const token = r.json?.token;
   if (typeof token !== "string" || !token) return null;
 
-  // GitHub tokens expire ~60min from mint; cache for 55min so we refresh a
-  // little early instead of racing expiry mid-request.
-  installationTokenCache.set(repo, { token, exp: now + 55 * 60_000 });
-  if (installationTokenCache.size > TOKEN_CACHE_MAX) {
-    installationTokenCache.delete(installationTokenCache.keys().next().value!);
-  }
+  installationTokenCache.set(repo, token, now);
   return token;
 }
 

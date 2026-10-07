@@ -28,6 +28,7 @@ import { judgeCitation, buildCiteRequest, CITE_QUESTION, type CiteVerdict } from
 import { buildCases, type CaseKind, type CiteCase } from "./eval-citation-cases.ts";
 import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
 import { config } from "../../src/server/config.ts";
+import { mapPool } from "../../src/server/pool.ts";
 
 const KINDS: CaseKind[] = ["positive", "random", "parent", "sibling", "same_title", "cited_elsewhere"];
 const MODEL = process.env.JEV_MODEL ?? config.chatJevModel;
@@ -47,28 +48,13 @@ function cached(key: string): Judged | null {
   }
 }
 
-async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let i = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(n, items.length) }, async () => {
-      for (;;) {
-        const k = i++;
-        if (k >= items.length) return;
-        out[k] = await fn(items[k]);
-      }
-    }),
-  );
-  return out;
-}
-
 const ix = await loadIndexes();
 const cases = buildCases(ix, new Set(KINDS));
 console.log(`${cases.length} cases | model ${MODEL}`);
 
 let spend = 0;
 let calls = 0;
-const rows = await pool(cases, 6, async (c: CiteCase) => {
+const rows = await mapPool(cases, 6, async (c: CiteCase) => {
   const req = buildCiteRequest(c, ix, { question: CITE_QUESTION });
   if (!req) return { c, verdict: null, confidence: null, probabilities: null } as Judged & { c: CiteCase };
   const key = crypto.createHash("sha256").update(JSON.stringify({ MODEL, s: req.state, q: req.questions })).digest("hex");

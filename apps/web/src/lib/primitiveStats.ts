@@ -2,6 +2,8 @@ import type { AtlasNode } from "@/types";
 import type { GraphData } from "./graph";
 import type { InstanceMeta, InvocationMeta } from "@/lib/rewardsTypes";
 import { parseMeta } from "@/lib/meta";
+import { cmpDocNo } from "@/lib/docNo";
+import { buildInstanceOfMap } from "@/lib/radarRules";
 
 const CURRENT_PRIMITIVES_UUID = "203b8c79-c7cf-4fcc-94e3-5bf42f791619";
 
@@ -79,12 +81,7 @@ export function buildPrimitiveStats(
 
   // Map ICD doc id → primitive doc id for both kinds. instance_of for
   // Instances, invocation_of for Invocations — both resolve the parent primitive.
-  const instanceOfMap = new Map<string, string>();
-  for (const e of graph.edges) {
-    if ((e.e === "instance_of" || e.e === "invocation_of") && e.ft === "doc" && e.tt === "doc") {
-      instanceOfMap.set(e.f, e.t);
-    }
-  }
+  const instanceOfMap = buildInstanceOfMap(graph.edges);
 
   const entityById = new Map(
     [...graph.participants, ...graph.instances, ...graph.invocations, ...graph.primitives].map(
@@ -200,6 +197,6 @@ export function buildPrimitiveStats(
     .sort((a, b) => {
       const da = docs[a.docId]?.doc_no ?? "";
       const db = docs[b.docId]?.doc_no ?? "";
-      return da.localeCompare(db, undefined, { numeric: true });
+      return cmpDocNo(da, db);
     });
 }

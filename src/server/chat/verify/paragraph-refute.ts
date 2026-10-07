@@ -31,6 +31,8 @@
 import type { JsonCall } from "../llm.ts";
 import { callWithTimeout } from "../llm.ts";
 import { config } from "../../config.ts";
+import { sleep } from "../../retry.ts";
+import { createSemaphore } from "../../pool.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import { captureEvent, type ErrorContext } from "../../posthog-node.ts";
 import type { Contradiction, EvidenceEntry } from "./verifier.ts";
@@ -69,7 +71,6 @@ export interface ParagraphRefuter {
   settle(deadlineMs: number): Promise<ParagraphRefute[]>;
 }
 
-const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 /**
  * The no-candidates, no-cost result shape. One source of these defaults, so a
  * field added to ParagraphRefute is reasoned about once rather than at each of
@@ -118,8 +119,8 @@ export function createParagraphRefuter(opts: {
   const mode = resolveMode(opts.screenMode ?? config.chatRefuteScreen, screenFn);
 
   let burst = 0;
-  let active = 0;
-  const waiters: (() => void)[] = [];
+  // Outside the per-burst state reset() clears: see the note in reset().
+  const slots = createSemaphore(opts.concurrency);
   const textByIndex = new Map<number, string>();
   const overflow: number[] = [];
   const inFlight = new Map<number, Promise<void>>();
@@ -130,13 +131,6 @@ export function createParagraphRefuter(opts: {
   // is recorded, since shadow never holds gemma's result back for it.
   const screens = new Map<number, NonNullable<ParagraphRefute["screen"]>>();
   let landed: number[] = [];
-
-  const acquire = (): Promise<void> => (active < opts.concurrency ? (active++, Promise.resolve()) : new Promise((r) => waiters.push(r)));
-  function release(): void {
-    active--;
-    const next = waiters.shift();
-    if (next) (active++, next());
-  }
 
   async function gemmaOne(index: number, text: string, evidence: EvidenceEntry[] | null): Promise<ParagraphRefute> {
     const timed: JsonCall = (args) => callWithTimeout(opts.call, args, opts.timeoutMs, opts.signal);
@@ -212,13 +206,13 @@ export function createParagraphRefuter(opts: {
     inFlight.set(
       key,
       (async () => {
-        await acquire();
+        await slots.acquire();
         try {
           const result = await runOne(key, text, myBurst);
           if (myBurst !== burst) return; // stale burst — dropped, never written
           land(key, result);
         } finally {
-          release();
+          slots.release();
         }
       })(),
     );
@@ -238,14 +232,14 @@ export function createParagraphRefuter(opts: {
       else startTask(index, text);
     },
     reset() {
-      // NOT `active`/`waiters`: a still-running old-burst task holds a real
-      // semaphore slot and will call release() when it lands (the myBurst
-      // check only skips WRITING its result, not its own cleanup) — zeroing
-      // `active` here would double-count that later release() and drive it
-      // negative, letting the new burst exceed `concurrency`. An old-burst
-      // task still queued in `waiters` may get a slot back before a new-burst
-      // one does; it runs to completion and is discarded the same way, which
-      // costs one wasted call in that rare case, never a wrong result.
+      // NOT the `slots` semaphore: a still-running old-burst task holds a real
+      // slot and will call release() when it lands (the myBurst check only
+      // skips WRITING its result, not its own cleanup) — resetting the count
+      // here would double-count that later release() and drive it negative,
+      // letting the new burst exceed `concurrency`. An old-burst task still
+      // queued for a slot may get one back before a new-burst one does; it runs
+      // to completion and is discarded the same way, which costs one wasted
+      // call in that rare case, never a wrong result.
       burst++;
       textByIndex.clear();
       overflow.length = 0;

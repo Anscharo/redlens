@@ -144,29 +144,19 @@ console.log(`  ${Object.keys(addressesAtlas).length} atlas, ${Object.keys(addres
   for (const doc of allDocs) {
     const content = doc.content ?? "";
 
-    ETH_ADDR_RE.lastIndex = 0;
-    let m;
-    while ((m = ETH_ADDR_RE.exec(content)) !== null) {
-      const key = normalizeAddress(m[0]);
-      const table = findTableContext(content, m.index);
-      let g = agg.get(key);
-      if (!g) { g = { labels: new Set(), roles: new Set(), tokens: new Set() }; agg.set(key, g); }
-      const label = extractEntityLabel(content, m.index, table);
-      if (label) g.labels.add(label);
-      for (const r of extractRoles(content, m.index, m[0].length, table)) g.roles.add(r);
-      for (const t of extractExpectedTokens(content, m.index, m[0].length, table)) g.tokens.add(t);
-    }
-
-    SOL_ADDR_RE.lastIndex = 0;
-    while ((m = SOL_ADDR_RE.exec(content)) !== null) {
-      const key = normalizeAddress(m[0]);
-      const table = findTableContext(content, m.index);
-      let g = agg.get(key);
-      if (!g) { g = { labels: new Set(), roles: new Set(), tokens: new Set() }; agg.set(key, g); }
-      const label = extractEntityLabel(content, m.index, table);
-      if (label) g.labels.add(label);
-      for (const r of extractRoles(content, m.index, m[0].length, table)) g.roles.add(r);
-      for (const t of extractExpectedTokens(content, m.index, m[0].length, table)) g.tokens.add(t);
+    for (const re of [ETH_ADDR_RE, SOL_ADDR_RE]) {
+      re.lastIndex = 0;
+      let m;
+      while ((m = re.exec(content)) !== null) {
+        const key = normalizeAddress(m[0]);
+        const table = findTableContext(content, m.index);
+        let g = agg.get(key);
+        if (!g) { g = { labels: new Set(), roles: new Set(), tokens: new Set() }; agg.set(key, g); }
+        const label = extractEntityLabel(content, m.index, table);
+        if (label) g.labels.add(label);
+        for (const r of extractRoles(content, m.index, m[0].length, table)) g.roles.add(r);
+        for (const t of extractExpectedTokens(content, m.index, m[0].length, table)) g.tokens.add(t);
+      }
     }
   }
 

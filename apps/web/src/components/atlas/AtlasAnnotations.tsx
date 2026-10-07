@@ -1,13 +1,9 @@
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useState, type ComponentProps } from "react";
 import { useResizeDrag } from "../../hooks/useResizeDrag";
 import { useIsNarrow } from "../../hooks/useAvailableWidth";
 import { useGraphEdges } from "../../hooks/useGraphEdges";
 import { RightPanel } from "./RightPanel";
 import { ErrorBoundary, PanelError } from "../ErrorBoundary";
-import type { AtlasNode, AddressInfo } from "@/types";
-import type { ChainValue } from "../../lib/chainstate";
-import type { GlossaryEntry } from "../../lib/glossary";
-import type { CousinDoc } from "../../lib/cousins";
 import {
   READER_MIN_PX,
   RIGHT_PANEL_BREAKPOINT,
@@ -19,39 +15,10 @@ import {
 
 const RIGHT_PANEL_KEY = "redline-sky-atlas:right-panel-width";
 
-export function AtlasAnnotations({
-  id,
-  annotationDocs,
-  linkedNodes,
-  cousinDocs,
-  targetAddresses,
-  chainValues,
-  byNameOnly,
-  glossaryTerms,
-  annotationCount,
-  tab,
-  onTabChange,
-  onNavigate,
-  onNavigateByDocNo,
-  selectable,
-  byParent,
-}: {
-  id: string;
-  annotationDocs: AtlasNode[];
-  linkedNodes: AtlasNode[];
-  cousinDocs: CousinDoc[];
-  targetAddresses: Record<string, AddressInfo>;
-  chainValues: Record<string, Record<string, ChainValue>>;
-  byNameOnly?: Set<string>;
-  glossaryTerms: GlossaryEntry[][];
-  annotationCount: number;
-  tab: "notes" | "glossary" | "history";
-  onTabChange: (v: "notes" | "glossary" | "history") => void;
-  onNavigate: (id: string) => void;
-  onNavigateByDocNo: (docNo: string) => void;
-  selectable?: boolean;
-  byParent?: Map<string | null, AtlasNode[]>;
-}) {
+type AtlasAnnotationsProps = Omit<ComponentProps<typeof RightPanel>, "graphEdges">;
+
+export function AtlasAnnotations(props: AtlasAnnotationsProps) {
+  const { id } = props;
   const graphEdges = useGraphEdges(id);
   const hideForBreakpoint = useIsNarrow(RIGHT_PANEL_BREAKPOINT);
   const [rowWidth, setRowWidth] = useState(0);
@@ -113,24 +80,7 @@ export function AtlasAnnotations({
         }}
       />
       <ErrorBoundary resetKey={id} fallback={(error, reset) => <PanelError error={error} reset={reset} />}>
-        <RightPanel
-          id={id}
-          annotationDocs={annotationDocs}
-          linkedNodes={linkedNodes}
-          cousinDocs={cousinDocs}
-          targetAddresses={targetAddresses}
-          chainValues={chainValues}
-          byNameOnly={byNameOnly}
-          annotationCount={annotationCount}
-          graphEdges={graphEdges}
-          glossaryTerms={glossaryTerms}
-          onNavigate={onNavigate}
-          onNavigateByDocNo={onNavigateByDocNo}
-          tab={tab}
-          onTabChange={onTabChange}
-          selectable={selectable}
-          byParent={byParent}
-        />
+        <RightPanel {...props} graphEdges={graphEdges} />
       </ErrorBoundary>
     </div>
   );

@@ -1,19 +1,12 @@
-// Tiny event channel from the tree sidebar to the reader: "put this node into
-// view now". URL-driven scrolling (useAtlasScroll) only reacts to id changes,
-// so clicking the already-selected sidebar row would otherwise do nothing.
-// Same pattern as selectionStore / revealStore.
+// Event channel from the tree sidebar to the reader: "put this node into view
+// now". URL-driven scrolling (useAtlasScroll) only reacts to id changes, so
+// clicking the already-selected sidebar row would otherwise do nothing.
+// Same shape as selectionStore / revealStore.
+import { createChannel } from "./createChannel";
 
-type Listener = (id: string) => void;
-const listeners = new Set<Listener>();
+const channel = createChannel<string>();
 
 export const scrollRequestStore = {
-  request(id: string): void {
-    for (const l of listeners) l(id);
-  },
-  subscribe(cb: Listener): () => void {
-    listeners.add(cb);
-    return () => {
-      listeners.delete(cb);
-    };
-  },
+  request: (id: string): void => channel.emit(id),
+  subscribe: channel.subscribe,
 };
