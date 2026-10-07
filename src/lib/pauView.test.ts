@@ -2,7 +2,7 @@
 // and the unlimited sentinel), and the instance label each rate-limit key gets.
 import { describe, expect, it } from "vitest";
 import type { StoredPauSnapshot } from "./pau.ts";
-import { instanceKeyIndex, formatAmount, formatPerDay, inferDecimals, snapshotsForPrime } from "./pauView.ts";
+import { instanceKeyIndex, labelOnChain, formatAmount, formatPerDay, inferDecimals, snapshotsForPrime } from "./pauView.ts";
 
 const snap = (prime: string, chain: string, kind: "monolithic" | "diamond") =>
   ({ deployment: `${prime}:${chain}:${kind}`, prime, primeName: "P", chain, kind, contracts: [], fetchedAt: "" }) as StoredPauSnapshot;
@@ -51,5 +51,13 @@ describe("instanceKeyIndex", () => {
   it("lowercases and trims the key, keeps a missing source doc as null, and skips non-key values", () => {
     expect(index.get(H2.toLowerCase())).toEqual([{ docId: null, label: "Curve AUSD/USDC · Outflow (AUSD)" }]);
     expect(index.size).toBe(2);
+  });
+});
+
+describe("labelOnChain", () => {
+  it("drops an instance prefix naming the deployment's chain and keeps any other", () => {
+    expect(labelOnChain("Ethereum Mainnet - Aave Core v3 USDC · Inflow", "ethereum")).toBe("Aave Core v3 USDC · Inflow");
+    expect(labelOnChain("Base - Spark Savings · Inflow", "ethereum")).toBe("Base - Spark Savings · Inflow");
+    expect(labelOnChain("USDS Mint", "ethereum")).toBe("USDS Mint");
   });
 });

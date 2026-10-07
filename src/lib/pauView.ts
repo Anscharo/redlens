@@ -68,6 +68,16 @@ export function instanceKeyIndex(instances: KeyedInstance[]): Map<string, AtlasK
   return index;
 }
 
+/**
+ * A key label without the instance-name prefix that names the deployment's own
+ * chain ("Ethereum Mainnet - Aave Core v3 USDC · Inflow" on the Ethereum card
+ * reads "Aave Core v3 USDC · Inflow"). A prefix naming another chain stays.
+ */
+export function labelOnChain(label: string, chain: string): string {
+  const m = /^([^·]+?) - (.+)$/.exec(label);
+  return m && m[1].toLowerCase().includes(chain.toLowerCase()) ? m[2] : label;
+}
+
 /** "holds" / "denied" (the history says granted, the chain says no) / "unread" (hasRole failed) / "member" (AdministeredAgent, enumerated). */
 export type HolderStatus = "holds" | "denied" | "unread" | "member";
 
