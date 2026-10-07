@@ -47,8 +47,7 @@ const realBootDeps: BootDeps = {
   },
 };
 
-// Boot is driven with fakes in index-boot.test.ts. The DB seed is not awaited so it never delays serving.
-export async function boot(deps: BootDeps = realBootDeps): Promise<void> {
+function loadAndPinIndexes(deps: BootDeps): void {
   const t0 = performance.now();
   const ix = deps.loadIndexes();
   // Keeps the bundle being served from LRU eviction (see bundle-store.ts's pinnedSha).
@@ -57,6 +56,9 @@ export async function boot(deps: BootDeps = realBootDeps): Promise<void> {
     `indexes: ${ix.docMap.size} docs, ${ix.entities.length} entities, ${ix.edges.length} edges ` +
       `(${Math.round(performance.now() - t0)}ms)`,
   );
+}
+
+async function warnOnMisconfig(): Promise<void> {
   checkAuthConfig();
   // POSTHOG_KEY is a runtime variable and every server-side capture no-ops without it.
   if (!serverAnalyticsEnabled) {
@@ -66,17 +68,24 @@ export async function boot(deps: BootDeps = realBootDeps): Promise<void> {
   const { canonicalRedirectBootLog } = await import("./history/canonical.ts");
   const bootLine = canonicalRedirectBootLog(config);
   if (bootLine) console.warn(bootLine);
+}
 
-  const server = deps.serve({ port: config.port, idleTimeout: 120, routes: buildRoutes(), fetch: handleRequest });
-  console.log(`listening on :${server.port}  (mcp: POST ${config.mcpPath})`);
-
-  // Flush batched PostHog events on SIGTERM so a redeploy keeps the last window.
+// Flushes batched PostHog events on SIGTERM so a redeploy keeps the last window.
+function flushPosthogOnSignal(deps: BootDeps): void {
   for (const sig of ["SIGTERM", "SIGINT"] as const) {
     deps.onSignal(sig, () => {
       void shutdownPosthog().finally(() => process.exit(0));
     });
   }
+}
 
+// Boot is driven with fakes in index-boot.test.ts. The DB seed is not awaited so it never delays serving.
+export async function boot(deps: BootDeps = realBootDeps): Promise<void> {
+  loadAndPinIndexes(deps);
+  await warnOnMisconfig();
+  const server = deps.serve({ port: config.port, idleTimeout: 120, routes: buildRoutes(), fetch: handleRequest });
+  console.log(`listening on :${server.port}  (mcp: POST ${config.mcpPath})`);
+  flushPosthogOnSignal(deps);
   void seedDbIfEmpty(deps);
   deps.startBootEmbeddings();
   deps.startUpdater(); // ATLAS_UPDATE_ENABLED=0 disables

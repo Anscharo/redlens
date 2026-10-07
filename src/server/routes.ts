@@ -26,47 +26,66 @@ export function gated(enabled: () => boolean, handler: RouteHandler): RouteHandl
   return (req) => (enabled() ? handler(req) : NOT_FOUND());
 }
 
-// Bun's `routes` table: dynamic :id / wildcard patterns that handleRequest does
-// not reproduce. A function so each entry's gating is assertable without a
-// socket. These match before `fetch` for every method, so none sees the CORS
-// preflight; they are same-origin routes.
-export function buildRoutes() {
-  const usersOn = () => config.usersEnabled;
-  const chatOn = () => config.chatEnabled;
+const usersOn = () => config.usersEnabled;
+const chatOn = () => config.chatEnabled;
+
+// Static segments win over the `:id` param route.
+const HISTORY_ROUTES = {
+  "/api/history/batch": { POST: (req: Request) => handleHistoryBatch(req) },
+  "/api/history/mod-counts": () => handleModCounts(),
+  "/api/history/mod-timeline": (req: Request) => handleModTimeline(req),
+  "/api/history/:id": (req: Request) => handleHistory(req, new URL(req.url).pathname),
+};
+
+// Ungated reads: the reader shows these to everyone, signed in or not.
+const PUBLIC_ROUTES = {
+  "/api/balances": { GET: (req: Request) => handleBalances(req), POST: (req: Request) => handleBalances(req) },
+  "/api/chain-state": () => handleChainState(),
+  "/api/forum-topics": (req: Request) => handleForumTopics(req),
+  "/api/reports/search": (req: Request) => handleReportsSearch(req),
+  // An unconfigured deployment answers `available: false` rather than 404 so
+  // the UI can say why the lane is missing.
+  "/api/search/semantic": (req: Request) => handleSemanticSearch(req),
+};
+
+function usersRoutes() {
   // OAuth needs the canonical host (registered callback, host-only state cookie),
   // so the redirect runs outside the gate, whether or not logins are enabled.
   const auth = gated(usersOn, (req) => handleAuth(req, new URL(req.url).pathname));
   const collections = gated(usersOn, handleCollections);
-  const conversations = gated(chatOn, handleConversations);
   return {
-    // Static segments win over the `:id` param route.
-    "/api/history/batch": { POST: (req: Request) => handleHistoryBatch(req) },
-    "/api/history/mod-counts": () => handleModCounts(),
-    "/api/history/mod-timeline": (req: Request) => handleModTimeline(req),
-    "/api/history/:id": (req: Request) => handleHistory(req, new URL(req.url).pathname),
-
-    // Ungated reads: the reader shows these to everyone, signed in or not.
-    "/api/balances": { GET: (req: Request) => handleBalances(req), POST: (req: Request) => handleBalances(req) },
-    "/api/chain-state": () => handleChainState(),
-    "/api/forum-topics": (req: Request) => handleForumTopics(req),
-    "/api/reports/search": (req: Request) => handleReportsSearch(req),
-    // An unconfigured deployment answers `available: false` rather than 404 so
-    // the UI can say why the lane is missing.
-    "/api/search/semantic": (req: Request) => handleSemanticSearch(req),
-
-    // Auth + collections need usersEnabled; chat + usage also need chatEnabled.
     "/api/auth/*": (req: Request) => canonicalRedirect(req) ?? auth(req),
-    "/api/chat":   gated(chatOn, handleChat),
-    "/api/usage":  gated(chatOn, handleUsage),
-    "/api/chat/conversations":     conversations,
-    "/api/chat/conversations/:id": conversations,
-    "/api/chat/conversations/:id/collection": conversations,
-    // Public share-link reads, declared before the auth-gated :id routes.
-    "/api/chat/conversations/:id/shared": gated(chatOn, handleSharedConversationCollection),
+    // Public share-link read, declared before the auth-gated :id routes.
     "/api/collections/:id/shared": gated(usersOn, handleSharedCollection),
     "/api/collections/:id/summary": gated(usersOn, handleCollectionSummary),
-    "/api/collections":     collections,
+    "/api/collections": collections,
     "/api/collections/:id": collections,
+  };
+}
+
+function chatRoutes() {
+  const conversations = gated(chatOn, handleConversations);
+  return {
+    "/api/chat": gated(chatOn, handleChat),
+    "/api/usage": gated(chatOn, handleUsage),
+    "/api/chat/conversations": conversations,
+    "/api/chat/conversations/:id": conversations,
+    "/api/chat/conversations/:id/collection": conversations,
+    "/api/chat/conversations/:id/shared": gated(chatOn, handleSharedConversationCollection),
+  };
+}
+
+// Bun's `routes` table: dynamic :id / wildcard patterns that handleRequest does
+// not reproduce. A function so each entry's gating is assertable without a
+// socket. These match before `fetch` for every method, so none sees the CORS
+// preflight; they are same-origin routes. Users routes need usersEnabled; chat
+// routes also need chatEnabled.
+export function buildRoutes() {
+  return {
+    ...HISTORY_ROUTES,
+    ...PUBLIC_ROUTES,
+    ...usersRoutes(),
+    ...chatRoutes(),
     /* v8 ignore start -- request glue; handleFeedback is unit-tested directly in feedback.test.ts */
     "/api/feedback": gated(() => config.feedbackEnabled, handleFeedback),
     /* v8 ignore stop */

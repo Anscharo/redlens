@@ -15,6 +15,14 @@ async function migrateAtBoot(deps: BootDeps): Promise<void> {
   }
 }
 
+// to_regclass is NULL (not an error) for a missing table, which tells a fresh DB from a failed query.
+async function isSeeded(deps: BootDeps): Promise<boolean> {
+  const reg = await deps.query`SELECT to_regclass('public.sync_state') AS t`;
+  if (reg[0]?.t == null) return false;
+  const row = await deps.query`SELECT 1 FROM sync_state WHERE id = 1`;
+  return row.length > 0;
+}
+
 // Seeds Postgres from the baked-in atlas ONLY when it has never been initialized
 // (no sync_state row). Afterwards the atlas worker is the sole writer; re-seeding
 // on boot would roll the DB, and every reader via the updater, back to this
@@ -23,14 +31,9 @@ export async function seedDbIfEmpty(deps: BootDeps): Promise<SeedOutcome> {
   try {
     await deps.waitForDb();
     await migrateAtBoot(deps);
-    // to_regclass is NULL (not an error) for a missing table, which tells a fresh DB from a failed query.
-    const reg = await deps.query`SELECT to_regclass('public.sync_state') AS t`;
-    if (reg[0]?.t != null) {
-      const seeded = await deps.query`SELECT 1 FROM sync_state WHERE id = 1`;
-      if (seeded.length > 0) {
-        console.log("sync:atlas — skipped (DB already seeded; atlas worker owns updates)");
-        return "already-seeded";
-      }
+    if (await isSeeded(deps)) {
+      console.log("sync:atlas — skipped (DB already seeded; atlas worker owns updates)");
+      return "already-seeded";
     }
   } catch {
     // Fail closed: if we can't confirm the DB is empty, a regressive write is worse than waiting for the worker.
