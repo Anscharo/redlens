@@ -31,7 +31,7 @@ export const previews: EnvGroup = {
     {
       name: "CHAT_PREVIEW_BUILD_WAIT_MS",
       doc: "How long a chat preview tool waits for a build it started before answering \"still building\". The build carries on either way.",
-      default: "60000",
+      default: "45000",
     },
     {
       name: "PREVIEW_MAX_DECOMPRESSED_BYTES",
