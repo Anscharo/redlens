@@ -4,7 +4,8 @@
 // is read live, because usage moves the available amount between settings.
 import { parseAbi } from "viem";
 import { deploymentId, type PauDeployment, type PauMember, type PauRole } from "../../lib/pauRegistry.ts";
-import { replayAgent, replayIntegrations, replayParams, replayRateLimitKeys, replayRoles, roleName, type PauEventRow, type PauParam, type RateLimitKey, type RoleHolder } from "./replay.ts";
+import type { ContractState, LiveRateLimit, PauSnapshot, RateLimitKey, RoleHolder } from "../../lib/pau.ts";
+import { replayAgent, replayIntegrations, replayParams, replayRateLimitKeys, replayRoles, roleName, type PauEventRow } from "./replay.ts";
 
 export const PAU_STATE_ABI = parseAbi([
   "function hasRole(bytes32, address) view returns (bool)",
@@ -21,41 +22,12 @@ export interface ChainCall {
 /** Reads every call on one chain with PAU_STATE_ABI; a call that fails resolves to null. */
 export type ChainReader = (chain: string, calls: ChainCall[]) => Promise<unknown[]>;
 
-export interface LiveRateLimit extends RateLimitKey {
-  /** On-chain RateLimitData, null when the read failed. */
-  data: { maxAmount: string; slope: string; lastAmount: string; lastUpdated: string } | null;
-  /** Amount available now, null when the read failed. */
-  available: string | null;
-}
+export type { ContractState, LiveRateLimit, PauSnapshot };
 
 /** A contract's stored admin events, and whether they cover its whole history. */
 export interface ContractHistory {
   events: PauEventRow[];
   complete: boolean;
-}
-
-export interface ContractState {
-  role: PauRole;
-  address: string;
-  label?: string;
-  roles?: (RoleHolder & { name: string | null; holds: boolean | null })[];
-  agent?: ReturnType<typeof replayAgent>;
-  rateLimits?: LiveRateLimit[];
-  params?: PauParam[];
-  integrations?: ReturnType<typeof replayIntegrations>;
-  /** Admin events stored for this contract. */
-  events: number;
-  /** Every event type's history is read to the confirmed head; until then an absent part means "not read yet". */
-  historyComplete: boolean;
-}
-
-export interface PauSnapshot {
-  deployment: string;
-  prime: string;
-  primeName: string;
-  chain: string;
-  kind: PauDeployment["kind"];
-  contracts: ContractState[];
 }
 
 const str = (v: unknown) => (typeof v === "bigint" ? v.toString() : null);

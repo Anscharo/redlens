@@ -54,7 +54,7 @@
     { "files": ["apps/web/src/components/preview/PreviewPrTabs.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 112, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/preview/PreviewRollupBadge.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 77, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/provenance/HistoryProvenance.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 166, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/components/radar/ActorDashboard.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 113, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["apps/web/src/components/radar/ActorDashboard.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 110, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/radar/ActorSettlements.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 77, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/reports/MistakesFilters.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 91, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/reports/OeaAssessmentTable.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 90, "skipBlankLines": true, "skipComments": true }] } },
@@ -151,7 +151,7 @@
     { "files": ["src/lib/crossviewShape.ts"], "rules": { "max-lines-per-function": ["error", { "max": 125, "skipBlankLines": true, "skipComments": true }] } },
     // One catalog of Features-guide entries (search lanes, Radar search, …). Adding an
     // entry is how the guide is meant to grow; a split would scatter one catalog.
-    { "files": ["src/lib/featuresData.ts"], "rules": { "max-lines": ["error", { "max": 388, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["src/lib/featuresData.ts"], "rules": { "max-lines": ["error", { "max": 399, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/oeaTasks.ts"], "rules": { "max-lines-per-function": ["error", { "max": 97, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/onchainAddressesIndex.ts"], "rules": { "max-lines": ["error", { "max": 345, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 57, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/rewardsIndex.ts"], "rules": { "max-lines": ["error", { "max": 299, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }] } },
