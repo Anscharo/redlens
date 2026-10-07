@@ -25,45 +25,48 @@ function ClaimRow({ c, tone, rq }: { c: DateClaim; tone: string; rq: ReportQuery
   // the right, and the vote evidence sits below the link, since it carries a
   // link of its own (nested anchors are invalid HTML).
   return (
-    <div className="border-b border-l-2 last:border-b-0" style={{ borderColor: "var(--border)", borderLeftColor: tone }}>
-    <AtlasLink
-      to={atlasHref(c.docId)}
-      title={c.title}
-      className="relative block py-4 px-3 no-underline transition-colors hover:bg-[var(--hover)]"
+    <div
+      className="border-b border-l-2 last:border-b-0"
+      style={{ borderColor: "var(--border)", borderLeftColor: tone }}
     >
-      <MatchAside matches={hiddenMatches(staleSearchFields(c), rq)} rq={rq} />
-      <div className="flex items-baseline gap-6 flex-wrap">
-        <span className="flex items-baseline gap-2">
-          <span className="mono text-base font-semibold text-tan">
-            <Highlight text={c.dateISO} rq={rq} />
+      <AtlasLink
+        to={atlasHref(c.docId)}
+        title={c.title}
+        className="relative block py-4 px-3 no-underline transition-colors hover:bg-[var(--hover)]"
+      >
+        <MatchAside matches={hiddenMatches(staleSearchFields(c), rq)} rq={rq} />
+        <div className="flex items-baseline gap-6 flex-wrap">
+          <span className="flex items-baseline gap-2">
+            <span className="mono text-base font-semibold text-tan">
+              <Highlight text={c.dateISO} rq={rq} />
+            </span>
+            <span className="mono text-base text-tan-2">{staleness(c)}</span>
           </span>
-          <span className="mono text-base text-tan-2">{staleness(c)}</span>
-        </span>
-        <span className="text-lg text-tan">
-          <Highlight text={c.title} rq={rq} />
-        </span>
-        {c.transition && (
-          <span
-            className="mono text-xs px-1.5 py-0.5 rounded"
-            style={{ background: "var(--hover)", color: "var(--accent)" }}
-            title="Operational control handoff — checked against the date the transition was estimated for"
-          >
-            handoff
+          <span className="text-lg text-tan">
+            <Highlight text={c.title} rq={rq} />
           </span>
-        )}
-        <span className="mono text-xs text-accent ml-auto">
-          <Highlight text={c.docNo} rq={rq} />
-        </span>
-      </div>
-      <p className="text-sm mt-1 ml-4 text-tan-2" style={{ maxWidth: "95ch" }}>
-        …<Highlight text={c.contextBefore} rq={rq} />
-        <em>
-          <Highlight text={c.raw} rq={rq} />
-        </em>
-        <Highlight text={c.contextAfter} rq={rq} />…
-      </p>
-    </AtlasLink>
-    {c.voteEvidence && <VoteEvidenceLine evidence={c.voteEvidence} rq={rq} />}
+          {c.transition && (
+            <span
+              className="mono text-xs px-1.5 py-0.5 rounded"
+              style={{ background: "var(--hover)", color: "var(--accent)" }}
+              title="Operational control handoff — checked against the date the transition was estimated for"
+            >
+              handoff
+            </span>
+          )}
+          <span className="mono text-xs text-accent ml-auto">
+            <Highlight text={c.docNo} rq={rq} />
+          </span>
+        </div>
+        <p className="text-sm mt-1 ml-4 text-tan-2" style={{ maxWidth: "95ch" }}>
+          …<Highlight text={c.contextBefore} rq={rq} />
+          <em>
+            <Highlight text={c.raw} rq={rq} />
+          </em>
+          <Highlight text={c.contextAfter} rq={rq} />…
+        </p>
+      </AtlasLink>
+      {c.voteEvidence && <VoteEvidenceLine evidence={c.voteEvidence} rq={rq} />}
     </div>
   );
 }
