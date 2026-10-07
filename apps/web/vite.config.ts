@@ -173,8 +173,8 @@ export default defineConfig(() => {
       // imported module: …/RadarPage-<hash>.js" until the user reloads).
       registerType: "prompt",
       manifest: {
-        name: "Sky Atlas by Redline",
-        short_name: "redline-atlas",
+        name: "Redline Portal",
+        short_name: "Redline Portal",
         description: "Search-first interface for the Sky ecosystem Atlas",
         start_url: base,
         scope: base,

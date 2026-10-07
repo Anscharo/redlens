@@ -52,14 +52,14 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
   }, [actorSlug, graph, docs, rewardsIndex, allActiveDataRows]);
 
   const title = searching
-    ? "Radar search: Sky Atlas by Redline"
+    ? "Radar search: Redline Portal"
     : !actorSlug
     ? "Redline Radar for Sky Atlas"
     : !profile
       ? null
       : page === "settlements"
-        ? `${profile.entity.name} monthly settlement · Radar: Sky Atlas by Redline`
-        : `${profile.entity.name} Radar: Sky Atlas by Redline`;
+        ? `${profile.entity.name} monthly settlement · Radar: Redline Portal`
+        : `${profile.entity.name} Radar: Redline Portal`;
   useDocumentTitle(title);
 
   // Append the actor / settlements page to the visit log once it resolves.

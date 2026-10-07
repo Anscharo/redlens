@@ -12,7 +12,7 @@ afterEach(() => {
 describe("ProvenancePage", () => {
   it("sets the document title", () => {
     render(<ProvenancePage />);
-    expect(document.title).toBe("Provenance: Sky Atlas by Redline");
+    expect(document.title).toBe("Provenance: Redline Portal");
   });
 
   it("renders the current data flow and supporting sources", () => {

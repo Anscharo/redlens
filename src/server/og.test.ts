@@ -98,7 +98,7 @@ describe("renderOgTags", () => {
   it("emits exactly one <title> for the site default", () => {
     const html = tags("/");
     expect(html.match(/<title>/g)?.length).toBe(1);
-    expect(html).toContain("<title>Sky Atlas by Redline</title>");
+    expect(html).toContain("<title>Redline Portal</title>");
     expect(html).toContain('property="og:type" content="website"');
     // Every route now gets a generated large card + dimensions.
     expect(html).toContain('name="twitter:card" content="summary_large_image"');
@@ -108,9 +108,9 @@ describe("renderOgTags", () => {
 
   it("uses the doc title + summary for a resolved /atlas?id= link", () => {
     const html = tags("/atlas", "id=abc", (id) => (id === "abc" ? DOC : undefined));
-    expect(html).toContain("<title>Accessibility Scope · Sky Atlas by Redline</title>");
+    expect(html).toContain("<title>Accessibility Scope · Redline Portal</title>");
     expect(html).toContain('property="og:type" content="article"');
-    expect(html).toContain('property="og:title" content="Accessibility Scope · Sky Atlas by Redline"');
+    expect(html).toContain('property="og:title" content="Accessibility Scope · Redline Portal"');
     expect(html).toContain("A.1 — The Accessibility Scope governs how users reach the protocol");
     expect(html).toContain('property="og:url" content="https://example.com/atlas?id=abc"');
     expect(html).toContain('rel="canonical" href="https://example.com/atlas?id=abc"');
@@ -123,39 +123,39 @@ describe("renderOgTags", () => {
 
   it("falls back to the default card when the id does not resolve", () => {
     const html = tags("/atlas", "id=missing");
-    expect(html).toContain("<title>Sky Atlas by Redline</title>");
+    expect(html).toContain("<title>Redline Portal</title>");
     expect(html).toContain('property="og:type" content="website"');
     expect(html).toContain("api/og.png?kind=default");
   });
 
   it("radar index + actor pages get their own cards", () => {
     const idx = tags("/radar");
-    expect(idx).toContain("<title>Radar · Sky Atlas by Redline</title>");
+    expect(idx).toContain("<title>Radar · Redline Portal</title>");
     expect(idx).toContain('property="og:image" content="https://example.com/api/og.png?kind=radar"');
 
     // Actor name resolved via the injected lookup.
     const actor = tags("/radar/spark-protocol", "", () => undefined, (s) => (s === "spark-protocol" ? "Spark Protocol" : undefined));
-    expect(actor).toContain("<title>Spark Protocol · Radar · Sky Atlas</title>");
+    expect(actor).toContain("<title>Spark Protocol · Radar · Redline Portal</title>");
     expect(actor).toContain('property="og:type" content="profile"');
     expect(actor).toContain("api/og.png?kind=radar-actor&amp;name=Spark%20Protocol");
 
     const settlements = tags("/radar/spark-protocol/settlements", "", () => undefined, (s) => (s === "spark-protocol" ? "Spark Protocol" : undefined));
-    expect(settlements).toContain("<title>Spark Protocol · Radar · Sky Atlas</title>");
+    expect(settlements).toContain("<title>Spark Protocol · Radar · Redline Portal</title>");
 
     // Unresolved slug → NOT an actor card; falls through to the site default.
     const fallback = tags("/radar/redline");
-    expect(fallback).toContain("<title>Sky Atlas by Redline</title>");
+    expect(fallback).toContain("<title>Redline Portal</title>");
     expect(fallback).toContain("api/og.png?kind=default");
     expect(fallback).not.toContain("kind=radar-actor");
   });
 
   it("reports index + named report get their own cards", () => {
     const idx = tags("/reports");
-    expect(idx).toContain("<title>Reports · Sky Atlas by Redline</title>");
+    expect(idx).toContain("<title>Reports · Redline Portal</title>");
     expect(idx).toContain("api/og.png?kind=reports");
 
     const rep = tags("/reports/stale-dates");
-    expect(rep).toContain("<title>Stale Dates · Sky Atlas Reports</title>");
+    expect(rep).toContain("<title>Stale Dates · Reports · Redline Portal</title>");
     expect(rep).toContain("api/og.png?kind=report&amp;name=Stale%20Dates");
 
     // Unknown report sub-page → reports index card.
@@ -165,22 +165,22 @@ describe("renderOgTags", () => {
 
   it("connect page gets its own card", () => {
     const html = tags("/connect");
-    expect(html).toContain("<title>Connect · Sky Atlas by Redline</title>");
+    expect(html).toContain("<title>Connect · Redline Portal</title>");
     expect(html).toContain("api/og.png?kind=connect");
   });
 
   it("preview landing gets a preview card labeled by PR number or ref", () => {
     const pr = tags("/preview/184");
-    expect(pr).toContain("<title>Previewing PR #184 · Sky Atlas</title>");
+    expect(pr).toContain("<title>Previewing PR #184 · Redline Portal</title>");
     expect(pr).toContain("api/og.png?kind=preview&amp;label=PR%20%23184");
 
     const branch = tags("/preview/my-branch");
-    expect(branch).toContain("Previewing my-branch · Sky Atlas");
+    expect(branch).toContain("Previewing my-branch · Redline Portal");
   });
 
   it("a doc viewed inside a preview is marked as a preview", () => {
     const html = tags("/preview/184/atlas", "id=abc", () => DOC);
-    expect(html).toContain("<title>Preview · Accessibility Scope · Sky Atlas by Redline</title>");
+    expect(html).toContain("<title>Preview · Accessibility Scope · Redline Portal</title>");
     // Doc card route carries the preview label so the image says PREVIEW.
     expect(html).toContain("api/og/abc.png?preview=PR%20%23184");
   });
@@ -201,7 +201,7 @@ describe("renderOgTags", () => {
 
   it("defaultOgTags is a bare site-level block", () => {
     const html = defaultOgTags("https://example.com");
-    expect(html).toContain("<title>Sky Atlas by Redline</title>");
+    expect(html).toContain("<title>Redline Portal</title>");
     expect(html).toContain('content="website"');
   });
 });

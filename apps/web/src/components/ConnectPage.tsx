@@ -32,7 +32,7 @@ function CodeBlock({ code }: { code: string }) {
 }
 
 export function ConnectPage() {
-  useDocumentTitle("Connect (MCP) — Sky Atlas by Redline");
+  useDocumentTitle("Connect (MCP) — Redline Portal");
   const [tools, setTools] = useState<ToolInfo[] | null>(null);
   useEffect(() => {
     loadTools().then(setTools).catch(() => setTools([]));

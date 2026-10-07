@@ -5,7 +5,7 @@ import { Link } from "./Link";
 import { FEATURE_GROUPS } from "@/lib/featuresData";
 
 export function FeaturesPage() {
-  useDocumentTitle("Features: Sky Atlas by Redline");
+  useDocumentTitle("Features: Redline Portal");
   // The browser's own hash scroll fires before this route's content exists, so
   // a link straight to /features#radar would land at the top. Same pattern as
   // ProvenancePage. Anchors are the group `key`, not the title — a title can be
@@ -23,7 +23,7 @@ export function FeaturesPage() {
           Everything you can do
         </h1>
         <p className="text-base mb-8" style={{ color: "var(--tan-2)" }}>
-          A complete guide to Sky Atlas by Redline, with a short how-to for each feature.
+          A complete guide to Redline Portal, with a short how-to for each feature.
         </p>
 
         {FEATURE_GROUPS.map((g) => (

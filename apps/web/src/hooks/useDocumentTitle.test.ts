@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { render, renderHook, cleanup } from "@testing-library/react";
 import { useDocumentTitle } from "./useDocumentTitle";
 
-const DEFAULT_TITLE = "Sky Atlas by Redline";
+const DEFAULT_TITLE = "Redline Portal";
 
 afterEach(() => {
   cleanup();
@@ -13,8 +13,8 @@ afterEach(() => {
 
 describe("useDocumentTitle", () => {
   it("sets document.title to the given title", () => {
-    renderHook(() => useDocumentTitle("Some Doc — Sky Atlas by Redline"));
-    expect(document.title).toBe("Some Doc — Sky Atlas by Redline");
+    renderHook(() => useDocumentTitle("Some Doc — Redline Portal"));
+    expect(document.title).toBe("Some Doc — Redline Portal");
   });
 
   it("falls back to the default title when given null", () => {
@@ -49,28 +49,28 @@ describe("useDocumentTitle", () => {
 
   it("a parent title wins over a child page title", () => {
     function Child() {
-      useDocumentTitle("Some Doc — Sky Atlas by Redline");
+      useDocumentTitle("Some Doc — Redline Portal");
       return null;
     }
     function Parent() {
-      useDocumentTitle("PR 88 preview on Sky Atlas by Redline -- feat/x");
+      useDocumentTitle("PR 88 preview on Redline Portal -- feat/x");
       return createElement(Child);
     }
     render(createElement(Parent));
-    expect(document.title).toBe("PR 88 preview on Sky Atlas by Redline -- feat/x");
+    expect(document.title).toBe("PR 88 preview on Redline Portal -- feat/x");
   });
 
   it("a branch preview title wins when the preview is not a pull request", () => {
     function Child() {
-      useDocumentTitle("Some Doc — Sky Atlas by Redline");
+      useDocumentTitle("Some Doc — Redline Portal");
       return null;
     }
     function Parent() {
-      useDocumentTitle("Preview feature on Sky Atlas by Redline");
+      useDocumentTitle("Preview feature on Redline Portal");
       return createElement(Child);
     }
     render(createElement(Parent));
-    expect(document.title).toBe("Preview feature on Sky Atlas by Redline");
+    expect(document.title).toBe("Preview feature on Redline Portal");
   });
 
   it("restores the default title on unmount", () => {

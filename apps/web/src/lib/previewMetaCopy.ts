@@ -114,8 +114,8 @@ export function previewKind(meta: PreviewMeta | null): PreviewKind {
 }
 
 /** Browser tab while a preview is open.
- *  A pull request: "PR 88 preview on Sky Atlas by Redline -- feat/x — Title".
- *  Anything else: "Preview feat/x on Sky Atlas by Redline".
+ *  A pull request: "PR 88 preview on Redline Portal -- feat/x — Title".
+ *  Anything else: "Preview feat/x on Redline Portal".
  *  Null only before meta arrives, so the open document keeps the tab until then. */
 export function previewTabTitle(meta: PreviewMeta | null): string | null {
   if (!meta) return null;
@@ -124,10 +124,10 @@ export function previewTabTitle(meta: PreviewMeta | null): string | null {
   if (n != null) {
     const branch = meta.ref && !pull ? meta.ref : "";
     const info = [branch, meta.prTitle?.trim() || ""].filter(Boolean).join(" — ");
-    return info ? `PR ${n} preview on Sky Atlas by Redline -- ${info}` : `PR ${n} preview on Sky Atlas by Redline`;
+    return info ? `PR ${n} preview on Redline Portal -- ${info}` : `PR ${n} preview on Redline Portal`;
   }
   const branch = meta.ref?.trim() || (meta.sha ? meta.sha.slice(0, 7) : "");
-  return branch ? `Preview ${branch} on Sky Atlas by Redline` : null;
+  return branch ? `Preview ${branch} on Redline Portal` : null;
 }
 
 /** "Comparing HEAD — TITLE to BASE", dropping any piece that is missing. */
@@ -261,7 +261,7 @@ export function broadGrantCopy(
   meta: Pick<PreviewMeta, "repo" | "grantTooBroad" | "installSettingsUrl">,
 ): BannerNotice | null {
   if (!meta.grantTooBroad) return null;
-  const lead = `The Sky Atlas by Redline GitHub App was granted every repository on this account; it only needs ${meta.repo}.`;
+  const lead = `The Redline Portal GitHub App was granted every repository on this account; it only needs ${meta.repo}.`;
   return {
     label: "ACCESS",
     body: meta.installSettingsUrl

@@ -31,7 +31,7 @@ export function useAtlasView(id: string, onNavigate: (id: string) => void) {
   const annotations = useNodeAnnotations(id, data, graph);
   useDocViewTracking(data?.atlas ?? null, id, graph);
   const docTitle = id ? data?.atlas.docs[id]?.title : null;
-  useDocumentTitle(docTitle ? `${docTitle} — Sky Atlas by Redline` : null);
+  useDocumentTitle(docTitle ? `${docTitle} — Redline Portal` : null);
   const ancestors = useMemo(
     () => (data && id ? buildAncestorsWithSelf(data.atlas.docs, data.atlas.docNoToId, id) : []),
     [data, id],

@@ -161,10 +161,8 @@ function footerLine(segs: Seg[]) {
 // Shared footers, one span per word (the flex gap does the spacing).
 const TAN6 = { c: TAN, w: 600 };
 const RED6 = { c: RED, w: 600 };
-const BY_REDLINE: Seg[] = [{ t: "By" }, { t: "Redline", ...RED6 }];
-const BY_REDLINE_LC: Seg[] = [{ t: "by" }, { t: "Redline", ...RED6 }];
+const REDLINE_PORTAL: Seg[] = [{ t: "Redline", ...RED6 }, { t: "Portal", ...TAN6 }];
 const SKY_ATLAS_BY_REDLINE: Seg[] = [{ t: "Sky", ...TAN6 }, { t: "Atlas", ...TAN6 }, { t: "by" }, { t: "Redline", ...RED6 }];
-const SKY_ATLAS_REPORT_BY_REDLINE: Seg[] = [{ t: "Sky", ...TAN6 }, { t: "Atlas", ...TAN6 }, { t: "Report", ...TAN6 }, { t: "by" }, { t: "Redline", ...RED6 }];
 
 // The lines (below the accent rule) for a given card.
 function cardLines(spec: CardSpec): unknown[] {
@@ -174,25 +172,25 @@ function cardLines(spec: CardSpec): unknown[] {
         ...(spec.preview ? [previewEyebrow(spec.preview)] : []),
         ...(spec.docNo ? [eyebrow(spec.docNo)] : []),
         titleLine([{ t: truncateTitle(spec.title), c: TAN }]),
-        footerLine(SKY_ATLAS_BY_REDLINE),
+        footerLine(REDLINE_PORTAL),
       ];
     case "radar":
-      return [titleLine([{ t: "Sky Atlas Radar", c: TAN }]), footerLine(BY_REDLINE)];
+      return [titleLine([{ t: "Radar", c: TAN }]), footerLine(REDLINE_PORTAL)];
     case "radarActor": {
       const agent = truncateTitle(spec.agent || "Radar", NAME_MAX);
-      const segs: Seg[] = [{ t: "Sky Atlas ", c: TAN_3 }, { t: agent, c: TAN, w: 700 }, { t: " Radar", c: TAN_3 }];
-      return [titleLine(segs, fitSize("Sky Atlas  Radar".length + agent.length)), footerLine(BY_REDLINE)];
+      const segs: Seg[] = [{ t: agent, c: TAN, w: 700 }, { t: " Radar", c: TAN_3 }];
+      return [titleLine(segs, fitSize(" Radar".length + agent.length)), footerLine(REDLINE_PORTAL)];
     }
     case "reports":
-      return [titleLine([{ t: "Sky Atlas Reports", c: TAN }]), footerLine(BY_REDLINE)];
+      return [titleLine([{ t: "Reports", c: TAN }]), footerLine(REDLINE_PORTAL)];
     case "report":
-      return [titleLine([{ t: truncateTitle(spec.name || "Reports"), c: TAN }]), footerLine(SKY_ATLAS_REPORT_BY_REDLINE)];
+      return [titleLine([{ t: truncateTitle(spec.name || "Reports"), c: TAN }]), footerLine(REDLINE_PORTAL)];
     case "connect":
-      return [eyebrow("Connect to"), titleLine([{ t: "Redline", c: RED }, { t: " Sky Atlas", c: TAN }]), footerLine([{ t: "MCP Server", c: TAN_3 }])];
+      return [eyebrow("Connect to"), titleLine([{ t: "Redline", c: RED }, { t: " Portal", c: TAN }]), footerLine([{ t: "MCP Server", c: TAN_3 }])];
     case "preview":
-      return [eyebrow("Previewing"), titleLine([{ t: truncateTitle(spec.label || "a proposed change", NAME_MAX), c: TAN }]), footerLine(SKY_ATLAS_BY_REDLINE)];
+      return [eyebrow("Previewing"), titleLine([{ t: truncateTitle(spec.label || "a proposed change", NAME_MAX), c: TAN }]), footerLine(REDLINE_PORTAL)];
     default:
-      return [titleLine([{ t: "Sky Atlas", c: TAN }]), footerLine(BY_REDLINE_LC)];
+      return [titleLine([{ t: "Redline Portal", c: TAN }]), footerLine(SKY_ATLAS_BY_REDLINE)];
   }
 }
 

@@ -35,7 +35,7 @@
 
 ## 2026-10-07
 
-- Renamed the app to Redline Portal on the home page, and renamed the chat to Redline Portal Chat
+- Renamed the app to Redline Portal across the home page, browser tab titles, link previews and the installable app, and renamed the chat to Redline Portal Chat
 
 ## 2026-10-06
 

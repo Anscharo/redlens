@@ -26,7 +26,7 @@ const components: Components = {
 // (docs/risk-assessment-rubric.md, bundled at build time). The report header
 // links here from its "rubric <hash>" provenance token.
 export function RubricPage() {
-  useDocumentTitle("Risk Assessment Rubric: Sky Atlas by Redline");
+  useDocumentTitle("Risk Assessment Rubric: Redline Portal");
   return (
     <div className="px-6 py-6">
       <div className="max-w-3xl mx-auto">

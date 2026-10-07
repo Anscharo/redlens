@@ -11,7 +11,7 @@ import { useDocumentTitle } from "../hooks/useDocumentTitle";
 function SearchResultsMain({ children }: { children: ReactNode }) {
   const { state, query, mode, displayed } = useSearchResults();
   const scrollRef = useRef<HTMLElement>(null);
-  useDocumentTitle(query ? `${query} — Sky Atlas by Redline` : null);
+  useDocumentTitle(query ? `${query} — Redline Portal` : null);
   useSearchTracking(state, mode);
   useScrollRestore(scrollRef, state.status === "done" && displayed.length > 0, ["n"]);
   return (

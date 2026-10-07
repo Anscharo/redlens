@@ -17,7 +17,7 @@ import { ReportHeader } from "./ReportHeader";
 import { useReportView } from "./useReportQuery";
 
 export interface ReportShellProps {
-  /** Report id: the analytics `report` property, and the h1 is its registered title. The document title defaults to "<title>: Sky Atlas by Redline". */
+  /** Report id: the analytics `report` property, and the h1 is its registered title. The document title defaults to "<title>: Redline Portal". */
   report: ReportId;
   documentTitle?: string;
   description?: ReactNode;
@@ -64,7 +64,7 @@ export function ReportCountRow({ count, actions }: { count?: ReactNode; actions?
 export function ReportShell(props: ReportShellProps) {
   const { report, maxWidth = "max-w-5xl", query, count, actions, loading = false } = props;
   const title = REPORT_TITLES[report];
-  useDocumentTitle(props.documentTitle ?? `${title}: Sky Atlas by Redline`);
+  useDocumentTitle(props.documentTitle ?? `${title}: Redline Portal`);
   useReportView(report, props.ready ?? !loading, props.viewProps);
   const showCountRow = count != null || actions != null;
 

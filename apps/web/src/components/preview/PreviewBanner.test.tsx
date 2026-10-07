@@ -91,7 +91,7 @@ describe("PreviewBanner", () => {
         <PreviewBanner onTabTitle={(t) => titles.push(t)} />
       </DataSourceContext.Provider>,
     );
-    await waitFor(() => expect(titles.at(-1)).toBe("PR 88 preview on Sky Atlas by Redline -- feat/x — Add a thing"));
+    await waitFor(() => expect(titles.at(-1)).toBe("PR 88 preview on Redline Portal -- feat/x — Add a thing"));
   });
 
   it("renders a FORK PREVIEW header with risk signals for an untrusted fork", async () => {

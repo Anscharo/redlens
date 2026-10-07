@@ -80,7 +80,7 @@ afterEach(cleanup);
 describe("CrossViewPage", () => {
   it("sets the document title", () => {
     render(<CrossViewPage tab="shape" />, { wrapper: wrap() });
-    expect(document.title).toBe("Atlas CrossView: Sky Atlas by Redline");
+    expect(document.title).toBe("Atlas CrossView: Redline Portal");
   });
 
   it("fires report_view analytics once on mount with the crossview report id", () => {

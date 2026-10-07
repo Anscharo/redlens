@@ -39,8 +39,8 @@ describe("AdminEntry routing", () => {
 
   it("sets the document title while mounted and restores it on unmount", () => {
     const { unmount } = renderAt("/admin");
-    expect(document.title).toBe("Admin: Sky Atlas by Redline");
+    expect(document.title).toBe("Admin: Redline Portal");
     unmount();
-    expect(document.title).toBe("Sky Atlas by Redline");
+    expect(document.title).toBe("Redline Portal");
   });
 });
