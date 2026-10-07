@@ -20,6 +20,7 @@ import type { RankedTeaching } from "./teach/match.ts";
 import { reviewRound } from "./review-round.ts";
 import type { AgreedContradiction } from "./verify/disputes.ts";
 import { prepareTurn } from "./turn-setup.ts";
+import { largeReadFor, LARGE_READ_PROMPT } from "./large-read.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type Judge = typeof judgePrefetch;
@@ -42,7 +43,10 @@ async function legacyAssemble(
   const models = resolveTierModels(route.tier);
   const maxIterations = iterationsForTier(route.tier);
   const messages: Msg[] = [
-    { role: "system", content: buildSystemPrompt(ix, pageContext, citationStyleFor(models[0]), undefined, maxIterations) },
+    {
+      role: "system",
+      content: buildSystemPrompt(ix, pageContext, citationStyleFor(models[0]), undefined, maxIterations) + (largeReadFor(models) ? `\n${LARGE_READ_PROMPT}` : ""),
+    },
     ...(summary ? summaryReplay(summary) : []),
     ...historyReplay(history),
   ];

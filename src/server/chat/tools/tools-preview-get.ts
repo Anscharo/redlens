@@ -7,6 +7,7 @@ import type { ToolResult } from "./tools.ts";
 import type { ToolOpen } from "../../preview/tool-access.ts";
 import { loadPreviewDocs, previewCite, readPreviewDiff, readPreviewPatches, renderPatch, type PreviewDocs } from "../../preview/bundle-read.ts";
 import { CITATION_NOTE, PREVIEW_SOURCE_CLASS, previewHeader } from "./tools-preview-common.ts";
+import { previewCaps, type LargeRead } from "../large-read.ts";
 
 export interface PreviewGetArgs {
   ids: string[];
@@ -76,15 +77,18 @@ const STYLE_HINT =
   "To check conformance, compare against live documents of the same type under the same parent: atlas_filter " +
   "({ type, ancestor_id: <parent's live id or doc_no> }) or atlas_search, then atlas_get on two or three of them.";
 
-export function buildPreviewGet(ix: Indexes, open: Extract<ToolOpen, { status: "ready" }>, a: PreviewGetArgs): ToolResult {
+/** `read` is the chat turn's large-read state: only a turn with room left may ask for more than 5 ids (large-read.ts). */
+export function buildPreviewGet(ix: Indexes, open: Extract<ToolOpen, { status: "ready" }>, a: PreviewGetArgs, read?: LargeRead | null): ToolResult {
   const c = getCtx(ix, open.sha, a);
-  const refs = a.ids.slice(0, 5).map((ref) => ({ ref, node: resolveDoc(c.docs, ref) }));
+  const max = previewCaps(read).ids;
+  const refs = a.ids.slice(0, max).map((ref) => ({ ref, node: resolveDoc(c.docs, ref) }));
   const missing = refs.filter((r) => !r.node).map((r) => r.ref);
   return {
     source_class: PREVIEW_SOURCE_CLASS,
     preview: previewHeader(open.meta, open.id),
     documents: refs.flatMap((r) => (r.node ? [documentOut(c, r.node)] : [])),
     ...(missing.length ? { not_found: missing } : {}),
+    ...(a.ids.length > max ? { ids_note: `Only the first ${max} ids were read. Ask again for the rest.` } : {}),
     style_hint: STYLE_HINT,
     citation_note: CITATION_NOTE,
   };

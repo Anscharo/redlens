@@ -34,11 +34,17 @@ import { buildCases, type CaseKind, type CiteCase } from "./eval-citation-cases.
 import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
 import { config } from "../../src/server/config.ts";
 import { mapPool } from "../../src/server/pool.ts";
+import { buildFullRequest, judgeFull } from "./eval-citation-context.ts";
 
 const KINDS: CaseKind[] = ["positive", "random", "parent", "sibling", "same_title", "cited_elsewhere"];
 const CONCURRENCY = 6;
 const MODEL = process.env.JEV_MODEL ?? config.chatJevModel;
 const CACHE = path.join(".cache", "jev", "citation");
+// `--context full` attaches ancestors, the subtree and the answer (eval-citation-context.ts).
+const FULL = process.argv.includes("--context") && process.argv[process.argv.indexOf("--context") + 1] === "full";
+const ARM = FULL ? "full" : "state";
+interface Stat { ms: number | null; cost: number; chars: number; truncated: boolean }
+const stats: Stat[] = [];
 
 // Disk cache keyed on everything that can change an answer, so a rerun makes
 // ZERO network requests and prints identical numbers.
@@ -71,14 +77,21 @@ if (!cases.length) {
 // ── Jev ────────────────────────────────────────────────────────────
 type Q = typeof CITE_QUESTION | typeof CITE_QUESTION_3;
 async function jevVerdict(c: CiteCase, question: Q): Promise<{ verdict: CiteVerdict | null; cost: number; ms: number | null; cacheHit: boolean }> {
-  const req = buildCiteRequest(c, ix, { question });
+  const full = FULL ? buildFullRequest(c, ix, question) : null;
+  const req = full ?? buildCiteRequest(c, ix, { question });
   if (!req) return { verdict: null, cost: 0, ms: null, cacheHit: true };
   const key = cacheKey(MODEL, req.state, req.questions);
-  const hit = cached<{ verdict: CiteVerdict | null; ms: number | null }>(key);
-  if (hit) return { ...hit, cost: 0, cacheHit: true };
-  const j = await judgeCitation({ pair: c, ix, model: MODEL, question });
-  putCache(key, { verdict: j.verdict, ms: j.latencyMs });
-  return { verdict: j.verdict, cost: j.costUsd ?? 0, ms: j.latencyMs, cacheHit: false };
+  const chars = JSON.stringify(req.state).length;
+  const truncated = full?.truncated ?? false;
+  const hit = cached<{ verdict: CiteVerdict | null; ms: number | null; cost?: number }>(key);
+  if (hit) {
+    stats.push({ ms: hit.ms, cost: hit.cost ?? 0, chars, truncated });
+    return { verdict: hit.verdict, ms: hit.ms, cost: 0, cacheHit: true };
+  }
+  const j = full ? await judgeFull(full, MODEL) : await judgeCitation({ pair: c, ix, model: MODEL, question }).then((r) => ({ verdict: r.verdict, ms: r.latencyMs, cost: r.costUsd ?? 0 }));
+  putCache(key, { verdict: j.verdict, ms: j.ms, cost: j.cost });
+  stats.push({ ms: j.ms, cost: j.cost, chars, truncated });
+  return { verdict: j.verdict, cost: j.cost, ms: j.ms, cacheHit: false };
 }
 
 interface Row { c: CiteCase; q3: CiteVerdict | null; q4: CiteVerdict | null }
@@ -97,7 +110,7 @@ const rows: Row[] = await mapPool(cases, CONCURRENCY, async (c) => {
 const flags = (v: CiteVerdict | null) => v === "contradicts" || v === "says_nothing";
 const pct = (n: number, d: number) => (d === 0 ? "   —" : `${((100 * n) / d).toFixed(0).padStart(3)}%`);
 
-console.log(`\nnetwork calls ${calls} (rest cached) | spend $${spend.toFixed(4)} | model ${MODEL}\n`);
+console.log(`\nnetwork calls ${calls} (rest cached) | spend $${spend.toFixed(4)} | model ${MODEL} | arm ${ARM}\n`);
 console.log("                     n   3-option  +pointer      (flag rate; for POSITIVE this is the FALSE-flag rate)");
 for (const k of KINDS) {
   const rs = rows.filter((r) => r.c.kind === k);
@@ -128,7 +141,24 @@ for (const r of rows.filter((r) => r.c.kind === "positive" && flags(r.q4))) {
   console.log(`  [${r.q4}] ${r.c.uuid}\n     claim: ${r.c.claim.slice(0, 220)}\n     doc:   ${d.title} — ${d.content.replace(/\s+/g, " ").slice(0, 220)}`);
 }
 
+// Latency and cost are over the 3-option and +pointer calls together: one row per call.
+const msList = stats.map((x) => x.ms).filter((x): x is number => x !== null).sort((a, b) => a - b);
+const at = (q: number) => msList[Math.min(msList.length - 1, Math.floor(q * msList.length))];
+const summary = {
+  calls: stats.length,
+  latencyMs: { p50: at(0.5), p95: at(0.95), max: msList[msList.length - 1] },
+  over8000ms: msList.filter((x) => x > 8000).length,
+  failedCalls: stats.filter((x) => x.ms === null).length,
+  meanCostUsd: stats.reduce((a, x) => a + x.cost, 0) / (stats.length || 1),
+  meanInputChars: Math.round(stats.reduce((a, x) => a + x.chars, 0) / (stats.length || 1)),
+  truncatedSubtrees: stats.filter((x) => x.truncated).length,
+};
+console.log(`\nlatency/cost/size (${ARM}): ${JSON.stringify(summary)}`);
+
 const out = path.join(".cache", "eval-citation.json");
 fs.mkdirSync(".cache", { recursive: true });
-fs.writeFileSync(out, JSON.stringify({ generatedAt: new Date().toISOString(), model: MODEL, spend, rows }, null, 2));
-console.log(`\nwrote ${out}`);
+const report = JSON.stringify({ generatedAt: new Date().toISOString(), model: MODEL, arm: ARM, spend, summary, rows }, null, 2);
+fs.writeFileSync(out, report);
+const armOut = path.join(".cache", `eval-citation-${MODEL.replace(/[^\w.-]+/g, "_")}-${ARM}.json`);
+fs.writeFileSync(armOut, report);
+console.log(`\nwrote ${out} and ${armOut}`);

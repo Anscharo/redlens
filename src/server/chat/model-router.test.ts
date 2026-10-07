@@ -207,3 +207,25 @@ describe("iterationsForTier", () => {
     }
   });
 });
+
+describe("routeTier: PR review", () => {
+  test("a turn asked inside a preview routes strong before any other signal", () => {
+    expect(routeTier("what is A.1.2?", { preview: true })).toEqual({ tier: "strong", reason: "pr-review" });
+  });
+
+  test("questions naming an unmerged change route strong", () => {
+    for (const q of ["review PR 470", "what does #470 change?", "any open PRs?", "summarize the upcoming changes", "check this pull request", "list open pull requests"]) {
+      expect(routeTier(q)).toEqual({ tier: "strong", reason: "pr-review" });
+    }
+  });
+
+  test("general pull-request questions and short numbers are not PR reviews", () => {
+    expect(routeTier("how do pull requests work in the atlas?").reason).not.toBe("pr-review");
+    expect(routeTier("why is #10 priority?").reason).not.toBe("pr-review");
+  });
+
+  test("a doc_no or a markdown heading is not a PR reference", () => {
+    expect(routeTier("summarize A.1.2 for me").reason).toBe("doc-ref");
+    expect(routeTier("# notes").reason).not.toBe("pr-review");
+  });
+});

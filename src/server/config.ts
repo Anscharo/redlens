@@ -306,19 +306,25 @@ export const config = {
   // Narrative compaction of a chat prefix once the replay reaches 90% of
   // chatContextWindowTokens (context-compact.ts).
   //
-  // Pinned to luna rather than following CHAT_MODEL, deliberately: this call
+  // Pinned to a large-window model rather than following CHAT_MODEL, deliberately: this call
   // reads up to SUMMARY_INPUT_RATIO of the whole window (~140k tokens) and its
   // output becomes the conversation's PERMANENT replayed prefix — every later
   // turn answers from it, and it is never rewritten. That is a different job
   // from answering one turn, so it should not silently change whenever the
   // default chat model does, and it is worth a stronger model than the default
   // tier: one fold per thread, against an answer quality that persists for the
-  // rest of that thread's life. luna is already in the routing chain, so the
-  // 200k ceiling above still holds for it.
+  // rest of that thread's life. gpt-6-luna is the measured choice (eval:summary):
+  // it kept 64-80% of probed facts on 150k-550k-char threads against 47-58% for
+  // gpt-5.6-luna, at half the cost, once reasoning stopped sharing the
+  // summary's output limit. Its window exceeds the 200k ceiling above.
   // CHAT_SUMMARY_MODEL="" disables compaction; the full transcript is sent
   // until the provider rejects it (context-overflow.ts then recovers).
-  chatSummaryModel: process.env.CHAT_SUMMARY_MODEL ?? "openai/gpt-5.6-luna",
+  chatSummaryModel: process.env.CHAT_SUMMARY_MODEL ?? "openai/gpt-6-luna",
   chatSummaryTimeoutMs: Number(process.env.CHAT_SUMMARY_TIMEOUT_MS ?? 60_000),
+  // Longest stored summary (context-summary.ts derives the prompt's word target
+  // and the call's output limit from it). The summary is replayed on every later
+  // turn, so it is counted against the window before compaction fires.
+  chatSummaryMaxChars: Number(process.env.CHAT_SUMMARY_MAX_CHARS ?? 15_000),
   // NOTE: the OFFLINE HTML-era curation model knobs (selector/cluster/frontier/audit)
   // used to live here but had zero runtime readers in src/server — every reader is
   // one of the scripts/htmlhist/*.mjs offline tools. Moved to
@@ -358,6 +364,15 @@ export const config = {
   // its larger client-facing budget in output-budget.ts; this smaller cap keeps
   // a single broad tool call from eating the live chat context.
   chatToolResultMaxChars: Number(process.env.CHAT_TOOL_RESULT_MAX_CHARS ?? 30_000),
+  // Large reads (chat/large-read.ts): a turn whose WHOLE model chain has a ~1M
+  // window may read tools marked `largeResult` (the PR preview tools) past the
+  // budget above, up to a per-result and a per-turn total. A failover inherits
+  // the context, so one small-window model in the chain turns this off. The
+  // per-turn total keeps a turn's input under the 272k-token step where
+  // OpenRouter doubles the OpenAI models' price.
+  chatLargeContextModels: csv(process.env.CHAT_LARGE_CONTEXT_MODELS ?? "openai/gpt-6-luna,openai/gpt-5.6-luna"),
+  chatLargeReadMaxChars: Number(process.env.CHAT_LARGE_READ_MAX_CHARS ?? 600_000),
+  chatLargeResultMaxChars: Number(process.env.CHAT_LARGE_RESULT_MAX_CHARS ?? 300_000),
 
   // Chat reliability harness (docs/chat-system.md §6).
   // Final claim-audit model — should be a stronger, DIFFERENT-family model than
@@ -646,7 +661,10 @@ export const config = {
   // 86%/86%, with zero undefined labels, zero shipped brackets and zero
   // ungrounded values. gpt-5-mini stays listed: it is no longer in any chain,
   // but it is still measured-clean, and dropping it would lose that fact.
-  chatReferenceCitationModels: (process.env.CHAT_REFERENCE_CITATION_MODELS ?? "openai/gpt-5.6-luna,openai/gpt-5-mini")
+  //
+  // gpt-6-luna is listed on its own bakeoff: 80% adoption over 15 queries, zero
+  // undefined labels once definition-line.ts reads its `[Title][label]:` lines.
+  chatReferenceCitationModels: (process.env.CHAT_REFERENCE_CITATION_MODELS ?? "openai/gpt-5.6-luna,openai/gpt-5-mini,openai/gpt-6-luna")
     .split(",").map((s) => s.trim()).filter(Boolean),
 
   // Per-user rolling token window — the HARD rate-limit gate. Counts

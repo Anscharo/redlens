@@ -26,6 +26,9 @@ export interface AtlasTool extends DescribedTool {
   // Read "" / [] / [""] / null as absent, in invokeTool() for every consumer and
   // in the chat transport before zod (an optional field rejects null).
   emptyArgsAbsent?: boolean;
+  // Chat may return this tool's result past the ordinary result budget when
+  // the turn's model chain has a large window (chat/large-read.ts).
+  largeResult?: boolean;
   handler: AtlasHandler;
 }
 
