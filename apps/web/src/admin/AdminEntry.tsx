@@ -4,7 +4,7 @@ import { PalettePage } from "./PalettePage";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function AdminEntry() {
-  useDocumentTitle("Admin: Sky Atlas by Redline");
+  useDocumentTitle("Admin: Redline Portal");
   return (
     <Switch>
       <Route path="/admin/palette">

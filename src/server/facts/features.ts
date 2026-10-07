@@ -107,10 +107,10 @@ function detailGroups(question: string): Set<string> {
 const UPCOMING_KEY = "upcoming";
 
 const NOTE =
-  "SAbR (Sky Atlas by Redline) product documentation — how this app works — injected because the question asks what can be done here. " +
+  "Redline Portal (Sky Atlas by Redline) product documentation — how this app works — injected because the question asks what can be done here. " +
   "It is NOT atlas text: never cite an atlas document for it, and never say the Atlas states it. " +
   "Keep the two halves apart and name which one you are answering about: `chat` is what YOU, in this panel, can do; " +
-  "`app` is what the person does themselves in the Sky Atlas by Redline web app, by going somewhere and clicking. When both apply, say both. " +
+  "`app` is what the person does themselves in the Redline Portal web app, by going somewhere and clicking. When both apply, say both. " +
   "Link an app area as an ordinary markdown link to its `where` route (e.g. [Reports](/reports)) — those are app pages, not " +
   "documents, so they never belong in a citation definition block. " +
   "`available: false` marks an area that is not switched on yet: describe it as planned, never as something to use today. " +
@@ -120,7 +120,7 @@ const VOCABULARY = {
   the_atlas:
     "The Sky Atlas itself — the governance documents this app reads. Authoritative: quotes and citations come from here and nowhere else.",
   our_extraction:
-    "Everything SAbR derives from those documents: the entity/relation graph, roles, on-chain addresses, parameters, censuses, " +
+    "Everything the Redline Portal derives from those documents: the entity/relation graph, roles, on-chain addresses, parameters, censuses, " +
     "and every report and view built on them. It is our parse of the atlas text, not atlas text — attribute it as ours " +
     "(\"our extraction shows…\", \"our graph links…\") and never present a derived label, count, or relation as something the Atlas states.",
 };
@@ -131,7 +131,7 @@ const VOCABULARY = {
 // user would use. Add a chat capability, add a line here.
 const CHAT = {
   what_i_am:
-    "The assistant in the Sky Atlas by Redline chat panel. I read the Sky Atlas and SAbR's extracted graph through tools and answer with citations. " +
+    "Redline Portal Chat, the assistant in the Redline Portal chat panel. I read the Sky Atlas and the Redline Portal's extracted graph through tools and answer with citations. " +
     "I am part of the app, but I am not the app.",
   i_can: [
     "Search and read atlas documents, quote them, and link the exact document.",
@@ -144,7 +144,7 @@ const CHAT = {
   ],
   i_cannot: [
     "Change anything — not the Atlas, not the app, not your collections, not on-chain state.",
-    "Read the web, or any source outside the Atlas and SAbR's own data.",
+    "Read the web, or any source outside the Atlas and the Redline Portal's own data.",
     "See your screen or click for you: everything under `app` is something you do in the browser.",
     "Rule on governance — I report what the Atlas says; facilitators and governance decide.",
   ],
@@ -167,7 +167,7 @@ function shapeGroup(g: FeatureGroup, detailed: boolean) {
 
 export const featuresFact: Fact = {
   id: "features",
-  what: "SAbR product documentation (the /features guide) for questions about what the app or this chat can do.",
+  what: "Redline Portal product documentation (the /features guide) for questions about what the app or this chat can do.",
   // Count is areas, which means nothing to a reader — name the thing instead.
   summarize: () => "the app's features guide",
   prototypes: FEATURES_PROTOTYPES,

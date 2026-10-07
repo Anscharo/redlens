@@ -83,22 +83,22 @@ describe("compareLine", () => {
 describe("previewTabTitle", () => {
   it("names the PR and the branch", () => {
     expect(previewTabTitle(meta(undefined, { ref: "feat/x", prNumber: 88, prTitle: "Add a thing" }))).toBe(
-      "PR 88 preview on Sky Atlas by Redline -- feat/x — Add a thing",
+      "PR 88 preview on Redline Portal -- feat/x — Add a thing",
     );
   });
 
   it("uses a pull-N ref's number and title when there is no branch name", () => {
     expect(previewTabTitle(meta(undefined, { ref: "pull-7", prTitle: "Spark" }))).toBe(
-      "PR 7 preview on Sky Atlas by Redline -- Spark",
+      "PR 7 preview on Redline Portal -- Spark",
     );
   });
 
   it("names the branch when the preview is not a pull request", () => {
     expect(previewTabTitle(meta(undefined, { ref: "feature", kind: "branch" }))).toBe(
-      "Preview feature on Sky Atlas by Redline",
+      "Preview feature on Redline Portal",
     );
     expect(previewTabTitle(meta(undefined, { ref: "", sha: "abcdef1234567890", kind: "sha" }))).toBe(
-      "Preview abcdef1 on Sky Atlas by Redline",
+      "Preview abcdef1 on Redline Portal",
     );
     expect(previewTabTitle(null)).toBeNull();
   });

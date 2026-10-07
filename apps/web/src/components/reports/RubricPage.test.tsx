@@ -25,8 +25,8 @@ describe("RubricPage", () => {
 
   it("sets the document title while mounted", () => {
     const { unmount } = render(<RubricPage />);
-    expect(document.title).toBe("Risk Assessment Rubric: Sky Atlas by Redline");
+    expect(document.title).toBe("Risk Assessment Rubric: Redline Portal");
     unmount();
-    expect(document.title).toBe("Sky Atlas by Redline");
+    expect(document.title).toBe("Redline Portal");
   });
 });

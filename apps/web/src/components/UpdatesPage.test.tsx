@@ -42,7 +42,7 @@ describe("UpdatesPage", () => {
     const { UpdatesPage } = await import("./UpdatesPage");
 
     render(<UpdatesPage />, { wrapper: wrap() });
-    expect(document.title).toBe("Updates: Sky Atlas by Redline");
+    expect(document.title).toBe("Updates: Redline Portal");
   });
 
   it("renders the full uncapped history, unlike the 10-bullet homepage teaser", async () => {

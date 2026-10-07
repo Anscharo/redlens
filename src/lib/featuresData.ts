@@ -300,7 +300,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "Asking the Atlas",
         what: "A page-aware agent that reads the Sky Atlas and cites the documents it used.",
         how: [
-          "Click the Atlas agent launcher in the bottom-right (it shows ⌘K), or press ⌘K / Ctrl-K — it already knows the document or report you're viewing.",
+          "Click the Redline Portal Chat launcher in the bottom-right (it shows ⌘K), or press ⌘K / Ctrl-K — it already knows the document or report you're viewing.",
           "Ask it what the app can do, or what it can do itself — it answers from this guide, and keeps the two apart.",
           "Ask about a Prime Agent's monthly settlement dollars — Chat uses an isolated helper on Soter Labs workbooks / Sky Forum and says those figures are not from the Atlas.",
           "Ask across every Prime at once — top venues by revenue, ecosystem totals, a range of months, or which month was the largest — not just one Prime at a time.",
@@ -361,7 +361,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "The whole app can run in the original charcoal dark scheme, a high-contrast greyscale one, or a light one.",
         how: [
           "Click the sun, moon, or eclipse button in the top-right corner — it shows which scheme is on — and pick Dark, Giedi, or Light.",
-          "Every page follows the choice — the reader, Radar, reports, and the Atlas agent.",
+          "Every page follows the choice — the reader, Radar, reports, and Redline Portal Chat.",
         ],
         note: "No sign-in needed. Until you pick one, the app follows your device's light/dark setting and keeps following it; once you choose, that choice sticks. It is kept in this browser only, so another browser or device starts from your device setting again.",
       },

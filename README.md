@@ -1,4 +1,6 @@
-# SAbR — Sky Atlas by Redline
+# Redline Portal
+
+_Sky Atlas by Redline_
 
 A search-first reader for the [Sky Atlas](https://github.com/sky-ecosystem/next-gen-atlas), the canonical document describing the Sky ecosystem's structure, governance, and operations.
 
@@ -98,7 +100,7 @@ The on-chain contract-state snapshot is **not** a build stage: it lives in Postg
 
 ### Build at any historical atlas commit
 
-The atlas is a moving target. To audit SAbR against a specific atlas revision:
+The atlas is a moving target. To audit the Redline Portal against a specific atlas revision:
 
 ```bash
 pnpm build:at <atlas-commit-sha>   # e.g. ede66d5f2cf3…
@@ -156,7 +158,7 @@ Setup instructions for common clients live on the in-app **`/connect`** page. Th
 
 > API note: `atlas_query` is lean by default (`enrich=false` → title/doc_no/snippet/sources); pass `enrich=true` for full document content + ancestor ids, or fetch specific docs with `atlas_get`.
 
-> The earlier Cloudflare Worker (`redlens-mcp/`, `https://redlens-mcp.anscharo.workers.dev/mcp`) predates the Railway move and is no longer the connection SAbR uses.
+> The earlier Cloudflare Worker (`redlens-mcp/`, `https://redlens-mcp.anscharo.workers.dev/mcp`) predates the Railway move and is no longer the connection the Redline Portal uses.
 
 ### Auxiliary scripts
 

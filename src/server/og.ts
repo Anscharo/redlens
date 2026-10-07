@@ -16,8 +16,8 @@
 import { ROUTES, REPORT_TITLES } from "../lib/routes.ts";
 import { cardToQuery } from "./og-image.ts";
 
-const SITE_NAME = "Sky Atlas by Redline";
-const SITE_TITLE = "Sky Atlas by Redline";
+const SITE_NAME = "Redline Portal";
+const SITE_TITLE = "Redline Portal";
 const SITE_DESCRIPTION =
   "A search-first interface for the Sky ecosystem's next-gen atlas — documents, on-chain addresses, relationships, and history.";
 // og:description hard cap, measured on the whole string INCLUDING the
@@ -153,7 +153,7 @@ function describeRoute(input: OgInput): RouteDesc {
   // Preview landing (or a preview whose inner route isn't a resolvable doc).
   if (previewLabel) {
     return {
-      title: `Previewing ${previewLabel} · Sky Atlas`,
+      title: `Previewing ${previewLabel} · Redline Portal`,
       description: `Previewing a proposed change to the Sky Atlas (${previewLabel}).`,
       ogType: "website",
       canonical,
@@ -168,7 +168,7 @@ function describeRoute(input: OgInput): RouteDesc {
     const agent = actor?.(actorSlug);
     if (agent) {
       return {
-        title: `${agent} · Radar · Sky Atlas`,
+        title: `${agent} · Radar · Redline Portal`,
         description: `${agent} on the Sky Atlas radar — chain, responsibilities, instances, and governance relationships.`,
         ogType: "profile",
         canonical,
@@ -178,7 +178,7 @@ function describeRoute(input: OgInput): RouteDesc {
   }
   if (pathname === ROUTES.RADAR) {
     return {
-      title: "Radar · Sky Atlas by Redline",
+      title: "Radar · Redline Portal",
       description: "Entity-focused view of the Sky ecosystem — agents, their responsibilities, and governance relationships.",
       ogType: "website",
       canonical,
@@ -192,7 +192,7 @@ function describeRoute(input: OgInput): RouteDesc {
     const name = REPORT_TITLES[slug];
     if (name) {
       return {
-        title: `${name} · Sky Atlas Reports`,
+        title: `${name} · Reports · Redline Portal`,
         description: `${name} — a structured report over the Sky Atlas.`,
         ogType: "website",
         canonical,
@@ -202,7 +202,7 @@ function describeRoute(input: OgInput): RouteDesc {
   }
   if (pathname === ROUTES.REPORTS || pathname.startsWith(`${ROUTES.REPORTS}/`)) {
     return {
-      title: "Reports · Sky Atlas by Redline",
+      title: "Reports · Redline Portal",
       description: "Structured reports over the Sky Atlas — responsibilities, active data, rewards, processes, and more.",
       ogType: "website",
       canonical,
@@ -213,7 +213,7 @@ function describeRoute(input: OgInput): RouteDesc {
   // Connect (MCP) page.
   if (pathname === ROUTES.CONNECT) {
     return {
-      title: "Connect · Sky Atlas by Redline",
+      title: "Connect · Redline Portal",
       description: "Connect to the Redline Sky Atlas MCP server.",
       ogType: "website",
       canonical,

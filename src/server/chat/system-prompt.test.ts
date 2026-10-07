@@ -87,7 +87,7 @@ describe("agentArtifactRoster", () => {
 describe("buildSystemPrompt", () => {
   it("builds a prompt with atlas structure, entity chains, tools, and citation rules — no page context", () => {
     const prompt = buildSystemPrompt(ix);
-    expect(prompt).toContain("Sky Atlas by Redline assistant");
+    expect(prompt).toContain("Redline Portal Chat, the assistant in the Redline Portal");
     expect(prompt).toContain("## Atlas structure");
     expect(prompt).toContain("The atlas is a tree of");
     expect(prompt).toContain("Every document under an agent's root belongs to that agent");
@@ -137,7 +137,7 @@ describe("buildSystemPrompt", () => {
   // block reinforces when the question is about the app (facts/features.ts).
   it("says the graph is our extraction, not atlas text", () => {
     const prompt = buildSystemPrompt(ix);
-    expect(prompt).toContain("SAbR's own EXTRACTION from the atlas documents");
+    expect(prompt).toContain("Redline Portal's own EXTRACTION from the atlas documents");
     expect(prompt).toContain("our extraction shows");
   });
 

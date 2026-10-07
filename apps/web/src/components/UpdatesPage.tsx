@@ -8,13 +8,13 @@ import { PatchNoteGroups } from "./PatchNotes";
 const groups = parsePatchNotes(notesRaw, Infinity);
 
 export function UpdatesPage() {
-  useDocumentTitle("Updates: Sky Atlas by Redline");
+  useDocumentTitle("Updates: Redline Portal");
   return (
     <main className="flex-1 overflow-y-auto px-6 py-8">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-3xl font-semibold text-tan mb-2">Updates</h1>
         <p className="text-sm text-tan-3 mb-8">
-          Every improvement shipped to Sky Atlas by Redline, newest first.
+          Every improvement shipped to Redline Portal, newest first.
         </p>
         <PatchNoteGroups groups={groups} />
       </div>

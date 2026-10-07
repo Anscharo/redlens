@@ -24,7 +24,7 @@ export const REFUTE_PROMPT = [
   "For each, copy the answer sentence verbatim into `answer_span`, copy the contradicting evidence VERBATIM into `evidence_span` (it is re-checked by code; an inexact span is discarded), and give ≤20 words `why`.",
   "A statement the evidence merely does not mention is NOT a contradiction — leave it out entirely.",
   "Do not report omissions or missing list members.",
-  "Entries marked [REFERENCE] are context SAbR injected (product guide, glossary, entity rows) — not atlas text; a faithful restatement of one is never a contradiction.",
+  "Entries marked [REFERENCE] are context the Redline Portal injected (product guide, glossary, entity rows) — not atlas text; a faithful restatement of one is never a contradiction.",
   "Entries marked [USER NOTE, not Atlas] are this user's private /teach notes — never treat them as atlas text or as a quotation of the atlas.",
   "Entries marked [NOT ATLAS] did not come from the atlas — never treat them as atlas text or as a quotation of the atlas.",
   "[E-prev] holds the assistant's earlier answers.",

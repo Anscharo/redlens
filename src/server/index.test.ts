@@ -547,7 +547,7 @@ describe("handleRequest — SPA fallback + OG tag substitution", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toContain("text/html");
     const html = await res.text();
-    expect(html).toContain("<title>Test Doc · Sky Atlas by Redline</title>");
+    expect(html).toContain("<title>Test Doc · Redline Portal</title>");
     expect(html).toContain(`window.__ATLAS_SHA__="${ATLAS_SHA}"`);
     expect(html).not.toContain("{{OG_TAGS}}");
     expect(html).not.toContain("{{ATLAS_SHA}}");
@@ -568,7 +568,7 @@ describe("handleRequest — SPA fallback + OG tag substitution", () => {
     // is still the real SPA shell — the client renders its own not-found view.
     expect(res.status).toBe(404);
     const html = await res.text();
-    expect(html).toContain("<title>Sky Atlas by Redline</title>");
+    expect(html).toContain("<title>Redline Portal</title>");
   });
 
   it("marks preview routes noindex", async () => {
@@ -581,7 +581,7 @@ describe("handleRequest — SPA fallback + OG tag substitution", () => {
     const req = new Request("http://localhost/atlas?id=00000000-0000-0000-0000-000000000000");
     const res = await handleRequest(req, stubServer);
     const html = await res.text();
-    expect(html).toContain("<title>Sky Atlas by Redline</title>");
+    expect(html).toContain("<title>Redline Portal</title>");
   });
 });
 

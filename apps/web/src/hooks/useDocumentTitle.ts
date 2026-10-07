@@ -1,13 +1,13 @@
 import { useEffect } from "react";
 
-const DEFAULT_TITLE = "Sky Atlas by Redline";
+const DEFAULT_TITLE = "Redline Portal";
 
 /**
  * Sets `document.title` to the given full title string while mounted, restoring
- * the default site title (`Sky Atlas by Redline`) on unmount. Pass
+ * the default site title (`Redline Portal`) on unmount. Pass
  * `null`/empty to fall back to the default.
  *
- * Callers compose the full title (e.g. `<doc> — Sky Atlas by Redline`).
+ * Callers compose the full title (e.g. `<doc> — Redline Portal`).
  *
  * `active` false leaves the title alone. A parent that passes `active` true
  * runs after its children, so it wins over a page that also sets the title.

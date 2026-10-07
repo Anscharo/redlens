@@ -57,11 +57,11 @@ export const staleDatesTool = defineReportTool({
   name: "atlas_report_stale_dates",
   title: "Atlas Report Stale Dates",
   description:
-    "Curated report (not raw graph calls) — SAbR's OWN computed report, not atlas text: every future-tense dated claim " +
+    "Curated report (not raw graph calls) — the Redline Portal's OWN computed report, not atlas text: every future-tense dated claim " +
     "in atlas prose checked against today, bucketed stale (date passed) / due_soon (within a week) / upcoming. Each row: " +
     "the doc, the matched date text, its ISO boundary date, and days until/since stale. The Atlas itself never defines " +
-    "\"stale\" — this is SAbR's own extraction; say so if asked what the concept means.",
-  promptBlurb: "SAbR's own dated-claim scan (stale / due-soon / upcoming) — not an atlas concept.",
+    "\"stale\" — this is the Redline Portal's own extraction; say so if asked what the concept means.",
+  promptBlurb: "The Redline Portal's own dated-claim scan (stale / due-soon / upcoming) — not an atlas concept.",
   params: ["include_provenance", "filter"],
   build: buildStaleDatesReportTool,
 });

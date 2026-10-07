@@ -23,7 +23,7 @@ describe("ChatLauncher", () => {
   it("calls onOpen when clicked", () => {
     const onOpen = vi.fn();
     render(<ChatLauncher onOpen={onOpen} context={context} />);
-    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    fireEvent.click(screen.getByLabelText("Open Redline Portal Chat"));
     expect(onOpen).toHaveBeenCalled();
   });
 });

@@ -2,7 +2,7 @@
 
 _Last updated: 28 September 2026_
 
-This is the privacy policy for the Sky Atlas reader at **atlas.redline.support**
+This is the privacy policy for the Redline Portal (Sky Atlas by Redline) at **atlas.redline.support**
 ("the app"). It is written to be short and plain.
 
 The short version: you can read the atlas without an account and without giving

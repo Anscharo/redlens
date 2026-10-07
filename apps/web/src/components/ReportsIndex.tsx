@@ -35,7 +35,7 @@ function Card({ card, rq }: { card: ReportCard; rq: ReturnType<typeof parseRepor
 }
 
 export function ReportsIndex({ query }: { query: string }) {
-  useDocumentTitle("Sky Atlas Reports");
+  useDocumentTitle("Reports: Redline Portal");
   const { wording, meaning, pending, byMeaning } = useReportIndexSearch(query);
   const rq = parseReportQuery(query);
   const sections = (groups: ReportCardGroup[], keyPrefix: string) =>

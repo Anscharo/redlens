@@ -222,7 +222,7 @@
     },
     {
       "name": "Chat Usage",
-      "description": "Atlas agent engagement.",
+      "description": "Redline Portal Chat engagement.",
       "tiles": [
         { "name": "Opens & messages", "type": "trends", "viz": "line", "series": [{ "event": "chat_open", "math": "total" }, { "event": "chat_message_sent", "math": "total" }] },
         { "name": "Open → message funnel", "type": "funnel", "viz": "funnel", "funnelAggregateBy": "$session_id", "steps": [{ "event": "chat_open" }, { "event": "chat_message_sent" }] },

@@ -3,7 +3,7 @@ import { SLASH_COMMANDS } from "../lib/shortcuts";
 import { HINT_GROUPS } from "../lib/searchHintsData";
 
 export function SearchHintsPage({ onHintClick }: { onHintClick: (q: string) => void }) {
-  useDocumentTitle("Search Hints: Sky Atlas by Redline");
+  useDocumentTitle("Search Hints: Redline Portal");
   return (
     <main className="flex-1 overflow-y-auto">
       <SearchHints onSearch={onHintClick} />

@@ -30,7 +30,7 @@ function ConversationsLink() {
 }
 
 // Panel chrome, left to right: a link to the Conversations page, brand mark,
-// conversation title (falls back to "Atlas" for a fresh thread), New chat
+// conversation title (falls back to "Redline Portal Chat" for a fresh thread), New chat
 // beside it (only once there is a thread to leave); dock-toggle / close on
 // the right.
 export function ChatHeader({ title, onNewChat, onClose, placement, onTogglePlacement }: ChatHeaderProps) {
@@ -40,7 +40,7 @@ export function ChatHeader({ title, onNewChat, onClose, placement, onTogglePlace
       <ConversationsLink />
       <SparkMark size={15} />
       <div>
-        <div className="rlc-header-title">{title ?? "Atlas"}</div>
+        <div className="rlc-header-title">{title ?? "Redline Portal Chat"}</div>
         <div className="rlc-header-sub">page-aware agent</div>
       </div>
       {onNewChat && (

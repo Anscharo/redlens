@@ -21,7 +21,7 @@ const TABS: { tab: CrossViewTab; label: string; to: string }[] = [
 ];
 
 export function CrossViewPage({ tab }: { tab: CrossViewTab }) {
-  useDocumentTitle("Atlas CrossView: Sky Atlas by Redline");
+  useDocumentTitle("Atlas CrossView: Redline Portal");
   const { base } = useDataSource();
   const [data, setData] = useState<CrossViewData | null>(null);
   const [error, setError] = useState<string | null>(null);

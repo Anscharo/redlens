@@ -79,7 +79,7 @@ describe("SearchHints (slash filter mode)", () => {
 describe("SearchHintsPage", () => {
   it("sets the document title and renders the hints table", () => {
     render(<SearchHintsPage onHintClick={vi.fn()} />);
-    expect(document.title).toBe("Search Hints: Sky Atlas by Redline");
+    expect(document.title).toBe("Search Hints: Redline Portal");
     expect(screen.getByText("govern")).toBeTruthy();
   });
 });

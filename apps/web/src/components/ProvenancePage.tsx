@@ -92,7 +92,7 @@ function PipelineStage({ stage, index }: { stage: Stage; index: number }) {
 }
 
 export function ProvenancePage() {
-  useDocumentTitle("Provenance: Sky Atlas by Redline");
+  useDocumentTitle("Provenance: Redline Portal");
   useEffect(() => {
     const hash = window.location.hash.slice(1);
     if (!hash) return;

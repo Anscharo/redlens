@@ -29,7 +29,7 @@ describe("ReportShell", () => {
     expect(screen.getByText("report")).toBeInTheDocument();
     expect(screen.getByText("2 sections")).toBeInTheDocument();
     expect(screen.getByText("body")).toBeInTheDocument();
-    expect(document.title).toBe("Active Data Index: Sky Atlas by Redline");
+    expect(document.title).toBe("Active Data Index: Redline Portal");
   });
 
   it("fires report_view once, with the page's extra properties", () => {

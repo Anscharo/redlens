@@ -26,7 +26,7 @@ const components: Components = {
 };
 
 export function PrivacyPage() {
-  useDocumentTitle("Privacy Policy: Sky Atlas by Redline");
+  useDocumentTitle("Privacy Policy: Redline Portal");
   return (
     <main className="flex-1 overflow-y-auto px-6 py-8">
       <div className="max-w-3xl mx-auto atlas-md text-sm text-tan-2">
