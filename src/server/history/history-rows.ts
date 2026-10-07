@@ -1,71 +1,58 @@
-// Row types and event→row mappers for the `atlas_history` table. Pure: no database,
+// Event→row mappers for the `atlas_history` table. Pure: no database,
 // so the era artifacts can be mapped without a connection. history-db.ts re-exports
 // these and owns the SQL.
-import type { DiffLine } from "../../lib/history.ts";
 import { pgType } from "./change-type.ts";
+import type { HistoryEvent, HistoryInsert } from "./history-row-types.ts";
 
-/** A single history entry as emitted by build-history.mjs (also the on-disk
- *  `public/history/<uuid>.json` array element). */
-export interface HistoryEvent {
-  date?: string;
-  commitHash?: string;
-  changeType?: string;
-  pr?: number;
-  prTitle?: string;
-  prUrl?: string;
-  prAuthor?: string;
-  summary?: string;
-  description?: string;
-  movedFrom?: string;
-  movedTo?: string;
-  diff?: DiffLine[];
-  changeKind?: string;
-  reviewCount?: number;
-  approvalCount?: number;
-  commentCount?: number;
-  // HTML-era additive fields (plan §7); absent for markdown-era events.
-  era?: string;
-  seam?: string;
-  extractedFrom?: string;
-  mergedInto?: string;
-  moveKind?: string;
-  // Per-change provenance (plan §10.4): "ai" | "human" on a reconstructed link; else absent.
-  method?: string;
-  // Pre-git origin events only (docs/plans/pre-git-history.md): the event's baked
-  // negative ordering position (mip/genesis/severed reserved blocks) and its external
-  // source link (mips-repo section / genesis IPFS gateway). Absent for git-derived eras,
-  // whose commit_seq is always looked up fresh via seqByCommit.
-  commitSeq?: number;
-  sourceUrl?: string;
+export type { HistoryEvent, HistoryInsert };
+
+type PrFields = Pick<
+  HistoryInsert,
+  "pr_number" | "pr_title" | "pr_url" | "pr_author" | "review_count" | "approval_count" | "comment_count"
+>;
+type ChangeFields = Pick<
+  HistoryInsert,
+  "summary" | "description" | "moved_from" | "moved_to" | "change_type" | "diff" | "change_kind"
+>;
+type ProvenanceFields = Pick<
+  HistoryInsert,
+  "era" | "seam" | "extracted_from" | "merged_into" | "move_kind" | "method" | "source_url"
+>;
+
+function prFields(e: HistoryEvent): PrFields {
+  return {
+    pr_number: e.pr ?? null,
+    pr_title: e.prTitle ?? null,
+    pr_url: e.prUrl ?? null,
+    pr_author: e.prAuthor ?? null,
+    review_count: e.reviewCount ?? null,
+    approval_count: e.approvalCount ?? null,
+    comment_count: e.commentCount ?? null,
+  };
 }
 
-/** One row to upsert into atlas_history. */
-export interface HistoryInsert {
-  doc_id: string;
-  commit_sha: string;
-  committed_at: string | null;
-  commit_seq: number | null;
-  pr_number: number | null;
-  pr_title: string | null;
-  pr_url: string | null;
-  pr_author: string | null;
-  summary: string | null;
-  description: string | null;
-  moved_from: string | null;
-  moved_to: string | null;
-  change_type: string;
-  diff: DiffLine[] | null;
-  change_kind: string | null;
-  review_count: number | null;
-  approval_count: number | null;
-  comment_count: number | null;
-  era: string | null;
-  seam: string | null;
-  extracted_from: string | null;
-  merged_into: string | null;
-  move_kind: string | null;
-  method: string | null;
-  source_url: string | null;
+function changeFields(e: HistoryEvent, changeType: string): ChangeFields {
+  return {
+    summary: e.summary ?? null,
+    description: e.description ?? null,
+    moved_from: e.movedFrom ?? null,
+    moved_to: e.movedTo ?? null,
+    change_type: pgType(changeType),
+    diff: e.diff ?? null,
+    change_kind: e.changeKind ?? null,
+  };
+}
+
+function provenanceFields(e: HistoryEvent): ProvenanceFields {
+  return {
+    era: e.era ?? null,
+    seam: e.seam ?? null,
+    extracted_from: e.extractedFrom ?? null,
+    merged_into: e.mergedInto ?? null,
+    move_kind: e.moveKind ?? null,
+    method: e.method ?? null,
+    source_url: e.sourceUrl ?? null,
+  };
 }
 
 /** Map a history event to a row, or null if it lacks the natural-key fields. */
@@ -85,27 +72,9 @@ export function eventToRow(
     // Nulling here would silently discard the whole negative-seq ordering design at
     // ingestion (docs/plans/pre-git-history.md, Gate 3).
     commit_seq: seqByCommit.get(e.commitHash) ?? e.commitSeq ?? null,
-    pr_number: e.pr ?? null,
-    pr_title: e.prTitle ?? null,
-    pr_url: e.prUrl ?? null,
-    pr_author: e.prAuthor ?? null,
-    summary: e.summary ?? null,
-    description: e.description ?? null,
-    moved_from: e.movedFrom ?? null,
-    moved_to: e.movedTo ?? null,
-    change_type: pgType(e.changeType),
-    diff: e.diff ?? null,
-    change_kind: e.changeKind ?? null,
-    review_count: e.reviewCount ?? null,
-    approval_count: e.approvalCount ?? null,
-    comment_count: e.commentCount ?? null,
-    era: e.era ?? null,
-    seam: e.seam ?? null,
-    extracted_from: e.extractedFrom ?? null,
-    merged_into: e.mergedInto ?? null,
-    move_kind: e.moveKind ?? null,
-    method: e.method ?? null,
-    source_url: e.sourceUrl ?? null,
+    ...prFields(e),
+    ...changeFields(e, e.changeType),
+    ...provenanceFields(e),
   };
 }
 

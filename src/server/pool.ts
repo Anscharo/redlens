@@ -20,13 +20,11 @@ export function createSemaphore(limit: number | (() => number)): Semaphore {
       }
       return new Promise((resolve) => waiters.push(resolve));
     },
+    // A freed slot goes straight to the oldest waiter, so `active` only drops when nobody waits.
     release() {
-      active--;
       const next = waiters.shift();
-      if (next) {
-        active++;
-        next();
-      }
+      if (next) next();
+      else active--;
     },
   };
 }
