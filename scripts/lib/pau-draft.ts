@@ -2,8 +2,9 @@
  * Folds atlas observations into registry form: one deployment per
  * (prime, chain, generation), shared contracts per chain. A governance
  * multisig that names no chain or generation joins the deployments of its
- * prime that list no holder of that role themselves. Used for `pau:candidates --draft`, whose output is
- * reviewed by hand (pau-triage skill) before anything reaches the registry.
+ * prime that list no holder of that role themselves. Used for
+ * `pau:candidates --draft`, whose output is reviewed by hand (pau-triage
+ * skill) before anything reaches the registry.
  */
 import { deploymentId, type PauDeployment, type PauMember, type PauRegistry } from "../../src/lib/pauRegistry.ts";
 import { ANY_CHAIN, type PauObservation } from "./pau-discover.ts";

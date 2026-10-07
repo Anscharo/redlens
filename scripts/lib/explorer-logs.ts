@@ -80,9 +80,11 @@ export const explorerLogs: LogFetcher = async (chain, address, topics) => {
     const logs = await page(`${base}module=logs&action=getLogs&address=${address}&fromBlock=${from}&toBlock=latest${topicParams(topics)}`);
     const before = byKey.size;
     for (const l of logs) byKey.set(`${l.transactionHash}:${l.logIndex}`, l);
-    // A full page may end mid-block, so the next page restarts at that block;
-    // the Map drops the overlap, and a page that adds nothing ends the walk.
-    if (logs.length < PAGE || byKey.size === before) break;
+    // A full page may end mid-block, so the next page restarts at that block
+    // and the Map drops the overlap. A full page that adds nothing means one
+    // block holds more logs than a page: fail rather than return part of it.
+    if (logs.length < PAGE) break;
+    if (byKey.size === before) throw new Error(`explorer logs: block ${from} holds more than ${PAGE} matching logs`);
     from = Math.max(...logs.map((l) => l.blockNumber));
   }
   return [...byKey.values()].sort((a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex);

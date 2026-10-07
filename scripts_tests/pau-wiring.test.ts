@@ -63,6 +63,14 @@ describe("monolithic wiring", () => {
   });
 });
 
+describe("monolithic role constants", () => {
+  it("fails a role whose constant cannot be read instead of skipping its holders", async () => {
+    const chain = { ...monolithChain, [`${CTRL}.RELAYER()`]: null };
+    const r = await checkRegistryWiring(registry([monolith]), fakeReader(chain), null);
+    expect(r.checks.find((c) => c.check === "relayer")).toMatchObject({ ok: false, detail: "RELAYER() call failed; holders not checked" });
+  });
+});
+
 describe("diamond wiring", () => {
   const diamond: PauDeployment = {
     prime: P, primeName: "P", chain: "base", kind: "diamond",

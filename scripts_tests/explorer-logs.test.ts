@@ -3,7 +3,8 @@
 // with a key, Blockscout keyless, none at all → null rather than an empty
 // history), the topic query shape, the "no records" answer reading as empty,
 // and the pagination contract — a full page restarts at its last block and the
-// overlap is deduped, so a page that adds nothing ends the walk.
+// overlap is deduped; a full page that adds nothing fails instead of
+// returning a truncated history.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { explorerLogs } from "../scripts/lib/explorer-logs.ts";
@@ -99,10 +100,9 @@ describe("explorerLogs pagination", () => {
     expect(logs[0]).toMatchObject({ blockNumber: 100, logIndex: 0 });
     expect(logs.at(-1)).toMatchObject({ blockNumber: 200 });
   });
-  it("stops when a full page adds nothing new", async () => {
+  it("fails, rather than truncating, when one block holds more than a page", async () => {
     const full = Array.from({ length: 1000 }, (_, i) => log(300, i));
     stubFetch(respond({ status: "1", result: full }), respond({ status: "1", result: full }));
-    expect(await explorerLogs("ethereum", RL, [])).toHaveLength(1000);
-    expect(calls).toHaveLength(2);
+    await expect(explorerLogs("ethereum", RL, [])).rejects.toThrow("block 300 holds more than 1000 matching logs");
   });
 });

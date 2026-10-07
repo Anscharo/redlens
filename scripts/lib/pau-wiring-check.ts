@@ -14,7 +14,7 @@ import { toEventSelector } from "viem";
 import { deploymentId, membersOf, type PauDeployment, type PauRegistry } from "../../src/lib/pauRegistry.ts";
 import type { LogFetcher } from "./explorer-logs.ts";
 import { checkDiamond } from "./pau-wiring-diamond.ts";
-import { addrs, expectAddress, expectHolders, pointerProposals, readNamed, type OnchainProposal, type Reader, type WiringCheck, type WiringReport } from "./pau-wiring.ts";
+import { addrs, expectAddress, expectHolders, pointerProposals, readNamed, type OnchainProposal, type Reader, type WiringCall, type WiringCheck, type WiringReport } from "./pau-wiring.ts";
 
 const ROLE_GRANTED = toEventSelector("RoleGranted(bytes32,address,address)");
 const day = (ts: number) => new Date(ts * 1000).toISOString().slice(0, 10);
@@ -63,6 +63,19 @@ async function controllerChecks(d: PauDeployment, read: Reader, logs: LogFetcher
   return { checks, proposals };
 }
 
+/** hasRole for each registry holder of `role`; an unreadable role constant fails the check rather than skipping it. */
+async function roleHolders(
+  read: Reader,
+  d: PauDeployment,
+  role: "freezer" | "relayer",
+  constant: unknown,
+  holds: (role: unknown) => (a: string) => WiringCall,
+): Promise<WiringCheck[]> {
+  if (constant !== null) return expectHolders(read, d, role, holds(constant));
+  if (!addrs(d, role).length) return [];
+  return [{ deployment: deploymentId(d), check: role, ok: false, detail: `${role.toUpperCase()}() call failed; holders not checked` }];
+}
+
 export async function checkMonolith(d: PauDeployment, read: Reader): Promise<WiringReport> {
   const controller = membersOf(d, "controller")[0].address;
   const r = await readNamed(read, d.chain, {
@@ -76,8 +89,8 @@ export async function checkMonolith(d: PauDeployment, read: Reader): Promise<Wir
   const proposals = pointerProposals(d, pointers, { proxy: "almProxy", rateLimits: "rateLimits" });
   const checks = [
     ...pointers,
-    ...(r.FREEZER === null ? [] : await expectHolders(read, d, "freezer", holds(r.FREEZER))),
-    ...(r.RELAYER === null ? [] : await expectHolders(read, d, "relayer", holds(r.RELAYER))),
+    ...(await roleHolders(read, d, "freezer", r.FREEZER, holds)),
+    ...(await roleHolders(read, d, "relayer", r.RELAYER, holds)),
   ];
   return { checks, proposals };
 }
