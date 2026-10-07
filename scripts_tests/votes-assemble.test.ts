@@ -53,6 +53,17 @@ describe("readPortal", () => {
     expect(pollsByPath.get("2026/2026-01-00-p.md")).toEqual({ pollId: 1500, slug: "Qm0", multiHash: "Qm0xx", tags: ["weekly", "spark"], winner: "Yes", numVoters: 9 });
   });
 
+  it("stops paging executives at a bound when the portal never returns a short page", async () => {
+    const full = Array.from({ length: PAGE_SIZE }, (_, i) => rawExec(`0x${String(i).padStart(40, "0")}`, i));
+    const endless: FetchJson = async (url) => (url.includes("/executive") ? full : fakePortal([], [])(url));
+    await expect(readPortal(endless)).rejects.toThrow(/without a short page/);
+  });
+
+  it("throws when an executive page is not an array", async () => {
+    const notArray: FetchJson = async (url) => (url.includes("/executive") ? { error: "down" } : fakePortal([], [])(url));
+    await expect(readPortal(notArray)).rejects.toThrow(/did not return an array/);
+  });
+
   it("throws when paging collects fewer polls than the portal's total", async () => {
     await expect(readPortal(fakePortal([], [rawPoll("2026/a.md")], 40))).rejects.toThrow(/reported 40 polls but paging collected/);
   });
