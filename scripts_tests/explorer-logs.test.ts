@@ -52,6 +52,11 @@ describe("explorerLogs routing", () => {
     expect(calls[0]).toMatch(/^https:\/\/eth\.blockscout\.com\/api\?module=logs&action=getLogs/);
     expect(calls[0]).toContain(`address=${RL}&fromBlock=0&toBlock=latest&topic0=0xaa&topic1=0xbb&topic0_1_opr=and`);
   });
+  it("reads only the requested block window when one is given", async () => {
+    stubFetch(respond({ status: "1", message: "OK", result: [] }));
+    await explorerLogs("ethereum", RL, ["0xaa"], { fromBlock: 120, toBlock: 450 });
+    expect(calls[0]).toContain(`address=${RL}&fromBlock=120&toBlock=450&topic0=0xaa`);
+  });
   it("uses Etherscan v2 on any supported chain once a key is set", async () => {
     vi.stubEnv("ETHERSCAN_API_KEY", "k");
     stubFetch(respond({ status: "1", message: "OK", result: [] }));
