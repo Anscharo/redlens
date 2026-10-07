@@ -1,6 +1,6 @@
 // The pau_state gate and reads. The gate's job is to spend RPC only when a
 // snapshot is due (or missing) and to drop snapshots of deployments the
-// registry no longer lists; the reads tolerate a double-encoded jsonb value.
+// registry does not list; the reads tolerate a double-encoded jsonb value.
 import { describe, expect, it, mock } from "bun:test";
 import type { PauRegistry } from "../../lib/pauRegistry.ts";
 import { fromUuidArray, toUuidArrayLiteral } from "../pg-array.ts";

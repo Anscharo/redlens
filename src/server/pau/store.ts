@@ -51,7 +51,7 @@ export interface StateRefresh {
 /**
  * Rebuilds every deployment's snapshot once the oldest is older than
  * `refreshSeconds`, or when the registry names a deployment with none; drops
- * snapshots of deployments the registry no longer lists.
+ * snapshots of deployments absent from the registry.
  */
 export async function maybeRefreshPauState(
   db: SqlTag,
