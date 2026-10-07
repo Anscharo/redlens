@@ -1,6 +1,7 @@
 // Lookup cards persisted ONCE, when a turn is saved, and replayed unchanged
 // after that. The live turn still sees the full tool result (capped by
-// CHAT_TOOL_RESULT_MAX_CHARS) — that is what the answer is written from.
+// CHAT_TOOL_RESULT_MAX_CHARS, or the large-read budget in large-read.ts) —
+// that is what the answer is written from.
 // Later turns cannot afford to re-read those payloads: a handful of 30k
 // results crowds out the conversation, and recomputing a card on every read
 // would change bytes in the middle of the prompt. Provider prompt caches

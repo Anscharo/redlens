@@ -1,9 +1,7 @@
-// React-free half of the Radar actor history panel: which of an actor's docs
-// count as relevant (and why), and how per-doc history merges into per-commit rows.
+// React-free half of the Radar actor history panel: how per-doc history merges
+// into per-commit rows (which docs count as relevant is actorHistoryCategories.ts).
 import { movePaths, type HistoryEntry } from "@/lib/history";
-import type { ActorProfile } from "../../lib/actorIndex";
 import type { AtlasNode } from "@/types";
-import { descendantIds } from "../../lib/instanceDescendants";
 
 export type Category = "definition" | "instance" | "param" | "primitive" | "reward" | "config";
 export type ChangeKind = "lint" | "typo" | "semantic";
@@ -38,42 +36,6 @@ export interface MergedEntry {
   docs: AffectedDoc[];
 }
 
-export function buildDocCategoryMap(
-  profile: ActorProfile,
-  byParent: Map<string | null, AtlasNode[]>,
-): Map<string, Category> {
-  const map = new Map<string, Category>();
-  // Invocation ICDs feed into history alongside instance ICDs — they're the
-  // same kind of governance doc, just at a different lifecycle stage.
-  const icds = [...profile.instances, ...profile.invocations];
-  // Lowest priority first; later writes override.
-  for (const inst of icds) {
-    if (inst.primitiveDocId) map.set(inst.primitiveDocId, "primitive");
-  }
-  if (profile.rewardsAgent?.dr?.primitiveId) map.set(profile.rewardsAgent.dr.primitiveId, "reward");
-  if (profile.rewardsAgent?.ib?.primitiveId) map.set(profile.rewardsAgent.ib.primitiveId, "reward");
-  // Every doc nested under an instance/invocation root, so subtree edits (rate
-  // limits, contract addresses, off-chain params) surface. Written before
-  // param/instance/definition so those more-specific categories override a doc
-  // that is both a descendant and, say, a param source.
-  for (const inst of icds) {
-    if (!inst.docId) continue;
-    for (const id of descendantIds(inst.docId, byParent)) map.set(id, "config");
-  }
-  // Param-source docs next so the instance-root override wins if a param
-  // points at its own config root (rare but possible).
-  for (const inst of icds) {
-    for (const p of inst.signalParams) {
-      if (p.srcDocId) map.set(p.srcDocId, "param");
-    }
-  }
-  for (const inst of icds) {
-    if (inst.docId) map.set(inst.docId, "instance");
-  }
-  if (profile.definingDoc) map.set(profile.definingDoc.id, "definition");
-  return map;
-}
-
 // "moved" events (renumbers, atomization) surface like any other structural
 // change, but guard the self-move quirk: some rows record movedFrom === movedTo
 // because only the title/ancestors changed, not the doc_no, so the from/to
@@ -90,66 +52,93 @@ function attachMoveDetail(affected: AffectedDoc, entry: HistoryEntry): void {
   }
 }
 
+// Rows are keyed per commit (mirroring byCommit's own keying). A doc can carry
+// BOTH a "modified" and a "moved" event in the same commit — the history builder
+// emits both when a node is edited and renumbered together
+// (scripts/required/build-history.mjs: "A node can appear twice ... both entries
+// are emitted"). Keying rows through this map lets the second event for a
+// (commit, docId) pair merge onto the first one's row instead of being dropped,
+// so neither the changeKind nor the movedFrom/movedTo detail is lost whichever
+// event the batch query returns first.
+interface CommitGroup {
+  commitEntry: MergedEntry;
+  rows: Map<string, AffectedDoc>;
+}
+
+function newCommitEntry(entry: HistoryEntry): MergedEntry {
+  return {
+    date: entry.date,
+    commitHash: entry.commitHash,
+    pr: entry.pr,
+    prTitle: entry.prTitle,
+    prAuthor: entry.prAuthor,
+    prUrl: entry.prUrl,
+    era: entry.era,
+    docs: [],
+  };
+}
+
+function commitGroup(
+  byCommit: Map<string, MergedEntry>,
+  rowsByCommit: Map<string, Map<string, AffectedDoc>>,
+  entry: HistoryEntry,
+): CommitGroup {
+  const commitEntry = byCommit.get(entry.commitHash);
+  const rows = rowsByCommit.get(entry.commitHash);
+  if (commitEntry && rows) return { commitEntry, rows };
+  const fresh: CommitGroup = { commitEntry: newCommitEntry(entry), rows: new Map() };
+  byCommit.set(entry.commitHash, fresh.commitEntry);
+  rowsByCommit.set(entry.commitHash, fresh.rows);
+  return fresh;
+}
+
+interface DocRef {
+  docId: string;
+  category: Category;
+  node: AtlasNode | undefined;
+}
+
+function newAffected(doc: DocRef, entry: HistoryEntry): AffectedDoc {
+  return {
+    docId: doc.docId,
+    docNo: doc.node?.doc_no ?? null,
+    title: doc.node?.title ?? null,
+    category: doc.category,
+    changeType: entry.changeType,
+    changeKind: entry.changeKind,
+  };
+}
+
+function upsertAffected({ commitEntry, rows }: CommitGroup, doc: DocRef, entry: HistoryEntry): void {
+  let affected = rows.get(doc.docId);
+  if (!affected) {
+    affected = newAffected(doc, entry);
+    rows.set(doc.docId, affected);
+    commitEntry.docs.push(affected);
+  } else if (entry.changeType !== "moved") {
+    // A content-edit event landing on a row a same-commit "moved" event
+    // already created: the edit is the more informative primary indicator
+    // (edit significance beats a bare "renumbered"), so it takes over
+    // changeType/changeKind. The move detail is merged below independently
+    // of this branch, so arrival order does not matter.
+    affected.changeType = entry.changeType;
+    affected.changeKind = entry.changeKind;
+  }
+  attachMoveDetail(affected, entry);
+}
+
 export function mergeByCommit(
   perDoc: ReadonlyArray<readonly [string, HistoryEntry[]]>,
   docCategory: Map<string, Category>,
   docs: Record<string, AtlasNode>,
 ): MergedEntry[] {
   const byCommit = new Map<string, MergedEntry>();
-  // docId → its row, scoped per commit (mirrors byCommit's own keying). A doc
-  // can carry BOTH a "modified" and a "moved" event in the same commit — the
-  // history builder emits both when a node is edited and renumbered together
-  // (scripts/required/build-history.mjs: "A node can appear twice ... both
-  // entries are emitted"). Keying rows through this map lets the second event
-  // for a (commit, docId) pair merge onto the first one's row instead of being
-  // dropped, so neither the changeKind nor the movedFrom/movedTo detail is lost
-  // whichever event the batch query returns first.
   const rowsByCommit = new Map<string, Map<string, AffectedDoc>>();
   for (const [docId, entries] of perDoc) {
     const category = docCategory.get(docId);
     if (!category) continue;
     for (const entry of entries) {
-      let commitEntry = byCommit.get(entry.commitHash);
-      let rows = rowsByCommit.get(entry.commitHash);
-      if (!commitEntry || !rows) {
-        rows = new Map();
-        commitEntry = {
-          date: entry.date,
-          commitHash: entry.commitHash,
-          pr: entry.pr,
-          prTitle: entry.prTitle,
-          prAuthor: entry.prAuthor,
-          prUrl: entry.prUrl,
-          era: entry.era,
-          docs: [],
-        };
-        byCommit.set(entry.commitHash, commitEntry);
-        rowsByCommit.set(entry.commitHash, rows);
-      }
-
-      let affected = rows.get(docId);
-      if (!affected) {
-        affected = {
-          docId,
-          docNo: docs[docId]?.doc_no ?? null,
-          title: docs[docId]?.title ?? null,
-          category,
-          changeType: entry.changeType,
-          changeKind: entry.changeKind,
-        };
-        rows.set(docId, affected);
-        commitEntry.docs.push(affected);
-      } else if (entry.changeType !== "moved") {
-        // A content-edit event landing on a row a same-commit "moved" event
-        // already created: the edit is the more informative primary indicator
-        // (edit significance beats a bare "renumbered"), so it takes over
-        // changeType/changeKind. The move detail is merged below independently
-        // of this branch, so arrival order does not matter.
-        affected.changeType = entry.changeType;
-        affected.changeKind = entry.changeKind;
-      }
-
-      attachMoveDetail(affected, entry);
+      upsertAffected(commitGroup(byCommit, rowsByCommit, entry), { docId, category, node: docs[docId] }, entry);
     }
   }
   return [...byCommit.values()].sort((a, b) => b.date.localeCompare(a.date));

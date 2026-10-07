@@ -52,6 +52,7 @@ pnpm mistakes:status | mistakes:plan | mistakes:merge | mistakes:bootstrap | mis
 pnpm briefings:status | briefings:plan | briefings:merge | briefings:pull  # document briefings, bulk pass and database pull (scripts/CLAUDE.md)
 pnpm sync:briefings  # the atlas worker's briefing tail: seed, write, embed (src/server/retrieval/CLAUDE.md)
 pnpm chains:add      # add a chain to src/data/chain-registry.json, verified; never hand-edit the derived chain tables (scripts/CLAUDE.md)
+pnpm pau:candidates  # PAU registry queue: atlas vs src/data/pau-registry.json, --rpc wiring checks, --draft; never edits the registry (skill pau-triage)
 pnpm env:prune       # delete dead GitHub deployment-environment records; dry run unless --apply (scripts/CLAUDE.md)
 pnpm env:example     # writes .env.example from the env registry in src/server/env/; --check fails on drift (scripts/CLAUDE.md)
 pnpm eval:*          # chat and retrieval bakeoffs; see scripts/eval/CLAUDE.md. Evals outside scripts/eval/ need OPENROUTER_APP_KIND=eval (see Conventions)

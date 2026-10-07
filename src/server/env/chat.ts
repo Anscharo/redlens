@@ -15,7 +15,7 @@ export const chatModels: EnvGroup = {
     {
       name: "CHAT_REFERENCE_CITATION_MODELS",
       doc: "Models prompted for reference-style citations. A literal list of models measured clean for the format, independent of CHAT_MODEL_STRONG, so swapping the strong tier never asks an unmeasured model for it. Every model accepts both formats; see docs/plans/reference-citations.md.",
-      default: "openai/gpt-5.6-luna,openai/gpt-5-mini",
+      default: "openai/gpt-5.6-luna,openai/gpt-5-mini,openai/gpt-6-luna",
     },
     { name: "CHAT_TEMPERATURE", doc: "Sampling temperature of the conversationalist. Judges stay at 0.", default: "0.3" },
     {
@@ -35,6 +35,21 @@ export const chatModels: EnvGroup = {
       default: "30000",
     },
     {
+      name: "CHAT_LARGE_CONTEXT_MODELS",
+      doc: "Models with a window of about 1M tokens. A turn whose whole chain is in this list may read large PR preview results. \"\" turns large reads off.",
+      default: "openai/gpt-6-luna,openai/gpt-5.6-luna",
+    },
+    {
+      name: "CHAT_LARGE_READ_MAX_CHARS",
+      doc: "Characters of large tool results one turn may read in total. 600000 is about 150k tokens, which keeps a turn under the 272k-token price step OpenAI models have on OpenRouter.",
+      default: "600000",
+    },
+    {
+      name: "CHAT_LARGE_RESULT_MAX_CHARS",
+      doc: "Budget for one large tool result, inside CHAT_LARGE_READ_MAX_CHARS.",
+      default: "300000",
+    },
+    {
       name: "CHAT_CONTEXT_WINDOW_TOKENS",
       doc: "Window the context meter and compaction use: the smallest model in the deployed routing chains, because a failover sends the same context. Change it with the chains.",
       default: "200000",
@@ -42,9 +57,14 @@ export const chatModels: EnvGroup = {
     {
       name: "CHAT_SUMMARY_MODEL",
       doc: "Compacts a thread's prefix at 90% of the window. Its output is replayed for the rest of the thread, so it is pinned rather than following CHAT_MODEL. \"\" turns compaction off.",
-      default: "openai/gpt-5.6-luna",
+      default: "openai/gpt-6-luna",
     },
     { name: "CHAT_SUMMARY_TIMEOUT_MS", doc: "Ceiling on the compaction call.", default: "60000" },
+    {
+      name: "CHAT_SUMMARY_MAX_CHARS",
+      doc: "Longest stored compaction summary. The prompt's word target and the call's output limit follow from it.",
+      default: "15000",
+    },
     {
       name: "CHAT_TITLE_MODEL",
       doc: "Writes 3-6 word conversation titles after assistant turns 1, 4 and 10; a manual rename freezes the title. \"\" turns titling off and keeps the first 60 characters of the opening message.",

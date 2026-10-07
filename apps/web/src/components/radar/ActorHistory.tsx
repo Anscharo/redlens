@@ -4,8 +4,10 @@ import type { ActorProfile } from "../../lib/actorIndex";
 import { useRadar } from "./RadarContext";
 import { loadAtlas } from "../../lib/docs";
 import { track } from "../../lib/analytics";
-import { buildDocCategoryMap, mergeByCommit, type MergedEntry } from "./actorHistoryMerge";
-import { CHANGE_INDICATOR, DocTable } from "./ActorHistoryDocTable";
+import { mergeByCommit, type MergedEntry } from "./actorHistoryMerge";
+import { buildDocCategoryMap } from "./actorHistoryCategories";
+import { DocTable } from "./ActorHistoryDocTable";
+import { CHANGE_INDICATOR } from "./actorHistoryLabels";
 
 interface Props {
   profile: ActorProfile;

@@ -88,6 +88,8 @@ playwright/.cache/
 # Chat/model eval report outputs — regenerable by re-running the evals; the
 # durable corpus they grade against lives in scripts/eval/eval-corpora/ (committed).
 .cache/eval-*.json
+# `pnpm eval:summary` caches summaries, probes and grades per input hash here.
+.cache/eval-summary/
 # identity-overlap-bakeoff --qwen writes its embeddings here (large, rebuildable)
 .cache/identity-bakeoff/
 # `pnpm eval:retrieval` embedding cache: the .idx.json half is covered by the glob above, the Float32 rows are not.
@@ -104,6 +106,10 @@ playwright/.cache/
 .cache/audit-html-report.json
 .cache/forward-reverse-diff.json
 .cache/processes-audit.md
+# `pnpm pau:candidates` queue and registry draft: regenerated per run, read by the pau-triage skill.
+.cache/pau-candidates.json
+.cache/pau-candidates.md
+.cache/pau-registry.draft.json
 .cache/processes-heuristic.json
 .cache/risk-assessment.md
 

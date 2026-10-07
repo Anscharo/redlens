@@ -297,7 +297,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "History inside a preview is scoped to that preview, so you can see the change against what it edits.",
           "Open the Atlas agent inside a preview and ask \"review this PR\" — the launcher reads \"Ask about this PR\" and it already knows which preview you're in. Links in its answer to the PR's documents open in the preview.",
         ],
-        note: "Previewing a private fork requires signing in with GitHub, and only works if your account can already see that repository. The same applies when Chat reads a private preview, and a chat that read one reopens only while your account can still see that repository.",
+        note: "Previewing a private fork requires signing in with GitHub, and only works if your account can already see that repository. The same applies when Chat reads a private preview, and a chat that read one reopens only while your account can still see that repository. Where the deployment's stronger chat model has a large context window, a PR review reads the whole change at once instead of a page at a time.",
       },
     ],
   },

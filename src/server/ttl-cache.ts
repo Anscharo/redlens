@@ -26,37 +26,60 @@ interface Cache<V> {
   readonly size: number;
 }
 
+type Entry<V> = { v: V; at: number };
+
+class TtlCache<V> implements Cache<V> {
+  private readonly entries = new Map<string, Entry<V>>();
+  private readonly opts: CacheOptions;
+  private readonly cap: () => number;
+
+  constructor(opts: CacheOptions) {
+    this.opts = opts;
+    const { max } = opts;
+    this.cap = typeof max === "function" ? max : () => max;
+  }
+
+  get(key: string): V | undefined {
+    const e = this.entries.get(key);
+    if (!e) return undefined;
+    if (this.opts.ttlMs !== undefined && Date.now() - e.at >= this.opts.ttlMs) {
+      this.entries.delete(key);
+      return undefined;
+    }
+    if (this.opts.lru) {
+      this.entries.delete(key);
+      this.entries.set(key, e);
+    }
+    return e.v;
+  }
+
+  set(key: string, value: V, at = Date.now()): void {
+    this.entries.set(key, { v: value, at });
+    const max = this.cap();
+    while (this.entries.size > max) {
+      const oldest = this.entries.keys().next().value;
+      if (oldest === undefined) break;
+      this.entries.delete(oldest);
+    }
+  }
+
+  has(key: string): boolean {
+    return this.entries.has(key);
+  }
+
+  delete(key: string): void {
+    this.entries.delete(key);
+  }
+
+  clear(): void {
+    this.entries.clear();
+  }
+
+  get size(): number {
+    return this.entries.size;
+  }
+}
+
 export function createCache<V>(opts: CacheOptions): Cache<V> {
-  const entries = new Map<string, { v: V; at: number }>();
-  const cap = typeof opts.max === "function" ? opts.max : () => opts.max as number;
-  return {
-    get(key) {
-      const e = entries.get(key);
-      if (!e) return undefined;
-      if (opts.ttlMs !== undefined && Date.now() - e.at >= opts.ttlMs) {
-        entries.delete(key);
-        return undefined;
-      }
-      if (opts.lru) {
-        entries.delete(key);
-        entries.set(key, e);
-      }
-      return e.v;
-    },
-    set(key, value, at = Date.now()) {
-      entries.set(key, { v: value, at });
-      const max = cap();
-      while (entries.size > max) {
-        const oldest = entries.keys().next().value;
-        if (oldest === undefined) break;
-        entries.delete(oldest);
-      }
-    },
-    has: (key) => entries.has(key),
-    delete: (key) => void entries.delete(key),
-    clear: () => entries.clear(),
-    get size() {
-      return entries.size;
-    },
-  };
+  return new TtlCache<V>(opts);
 }

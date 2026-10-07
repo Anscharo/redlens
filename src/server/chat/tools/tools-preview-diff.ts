@@ -6,6 +6,7 @@ import type { ToolResult } from "./tools.ts";
 import type { ToolOpen } from "../../preview/tool-access.ts";
 import { loadPreviewDocs, previewCite, readPreviewDiff, readPreviewPatches, renderPatch, type PreviewDocs } from "../../preview/bundle-read.ts";
 import { CITATION_NOTE, PREVIEW_SOURCE_CLASS, byDocNo, previewHeader } from "./tools-preview-common.ts";
+import { previewCaps, type LargeRead } from "../large-read.ts";
 
 export interface PreviewDiffArgs {
   change?: "added" | "changed" | "removed";
@@ -43,7 +44,10 @@ function collectRows(ix: Indexes, docs: PreviewDocs, diff: NonNullable<ReturnTyp
   return rows.sort((x, y) => byDocNo(x.node, y.node));
 }
 
-export function buildPreviewDiff(ix: Indexes, open: Extract<ToolOpen, { status: "ready" }>, a: PreviewDiffArgs): ToolResult {
+/** `read` is the chat turn's large-read state: page sizes above 100 documents and 40 patch lines need one with room left (large-read.ts). */
+export function buildPreviewDiff(ix: Indexes, open: Extract<ToolOpen, { status: "ready" }>, args: PreviewDiffArgs, read?: LargeRead | null): ToolResult {
+  const caps = previewCaps(read);
+  const a = { ...args, limit: Math.min(args.limit, caps.limit), patch_lines: Math.min(args.patch_lines, caps.patchLines) };
   const { sha, meta, id } = open;
   const diff = readPreviewDiff(sha);
   if (!diff) {

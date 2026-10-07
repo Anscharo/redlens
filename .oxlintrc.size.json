@@ -114,7 +114,7 @@
     { "files": ["scripts/htmlhist/curate-clusters.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 51, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/htmlhist/history-anchored-align.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 68, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/htmlhist/history-html-era.mjs"], "rules": { "max-lines": ["error", { "max": 192, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 101, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["scripts/lib/address-enrich.mjs"], "rules": { "max-lines": ["error", { "max": 238, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 69, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["scripts/lib/address-enrich.mjs"], "rules": { "max-lines": ["error", { "max": 202, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 69, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/atlas-git-source.mjs"], "rules": { "max-lines": ["error", { "max": 198, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 131, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/atlas-html.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 52, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/atlas-parser.mjs"], "rules": { "max-lines": ["error", { "max": 332, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 73, "skipBlankLines": true, "skipComments": true }] } },
@@ -170,7 +170,7 @@
     // which is the call site itself — see retrieval/leaf-attribution.ts.
     { "files": ["src/server/chat/tools/tools.ts"], "rules": { "max-lines": ["error", { "max": 182, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/citation-marks.ts"], "rules": { "max-lines": ["error", { "max": 195, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 84, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["src/server/chat/verify/definition-block-gate.ts"], "rules": { "max-lines-per-function": ["error", { "max": 80, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["src/server/chat/verify/definition-block-gate.ts"], "rules": { "max-lines-per-function": ["error", { "max": 79, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/paragraph-refute.ts"], "rules": { "max-lines": ["error", { "max": 190, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 147, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/paragraphs.ts"], "rules": { "max-lines-per-function": ["error", { "max": 55, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/sliced-verifier.ts"], "rules": { "max-lines-per-function": ["error", { "max": 78, "skipBlankLines": true, "skipComments": true }] } },
