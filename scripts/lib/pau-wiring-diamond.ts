@@ -56,6 +56,30 @@ function readDiamond(d: PauDeployment, read: Reader, controller: string, agent: 
   });
 }
 
+/**
+ * The sets the diamond enumerates itself: facets from `integrations()`, and
+ * the AdministeredAgent's actors (relayers) and revokers (freezers), each
+ * compared with the registry both ways.
+ */
+async function compareEnumerated(d: PauDeployment, reg: PauRegistry, read: Reader, r: Record<string, unknown>, agent: string | undefined) {
+  const facets = ((r.integrations as Integration[] | null) ?? []).map((i) => i.config.facet.toLowerCase());
+  const shared = sharedOnChain(reg, d.chain, "facet");
+  const parts = [compareSets(d, "facet", [...new Set(facets)], [...addrs(d, "facet"), ...shared], "Controller.integrations()")];
+  if (agent) {
+    const actors = await enumerate(read, d, agent, "Actor", r.actorCount);
+    const revokers = await enumerate(read, d, agent, "Revoker", r.revokerCount);
+    parts.push(compareSets(d, "relayer", actors, addrs(d, "relayer"), "AdministeredAgent actors"));
+    parts.push(compareSets(d, "freezer", revokers, addrs(d, "freezer"), "AdministeredAgent revokers"));
+  }
+  // Shared facets are checked against every diamond on their chain; only the
+  // ones this diamond actually dispatches to are expected here.
+  const undispatchedShared = (c: WiringCheck) => c.check.startsWith("facet ") && !c.ok && shared.includes(c.check.slice(6));
+  return {
+    checks: parts.flatMap((p) => p.checks).filter((c) => !undispatchedShared(c)),
+    proposals: parts.flatMap((p) => p.proposals),
+  };
+}
+
 export async function checkDiamond(d: PauDeployment, reg: PauRegistry, read: Reader): Promise<WiringReport> {
   const controller = membersOf(d, "controller")[0].address;
   const agent = membersOf(d, "administeredAgent")[0]?.address;
@@ -66,21 +90,10 @@ export async function checkDiamond(d: PauDeployment, reg: PauRegistry, read: Rea
     expectAddress(d, "accessControls", r.accessControls, addrs(d, "accessControls")),
     expectAddress(d, "beacon", r.beacon, [...addrs(d, "beacon"), ...sharedOnChain(reg, d.chain, "beacon")]),
   ];
-  const facets = ((r.integrations as Integration[] | null) ?? []).map((i) => i.config.facet.toLowerCase());
-  const parts = [compareSets(d, "facet", [...new Set(facets)], [...addrs(d, "facet"), ...sharedOnChain(reg, d.chain, "facet")], "Controller.integrations()")];
-  if (agent) {
-    parts.push(compareSets(d, "relayer", await enumerate(read, d, agent, "Actor", r.actorCount), addrs(d, "relayer"), "AdministeredAgent actors"));
-    parts.push(compareSets(d, "freezer", await enumerate(read, d, agent, "Revoker", r.revokerCount), addrs(d, "freezer"), "AdministeredAgent revokers"));
-  }
-  // Shared facets are checked against every diamond on their chain; only the
-  // ones this diamond actually dispatches to are expected here.
-  const shared = new Set(sharedOnChain(reg, d.chain, "facet"));
-  const undispatchedShared = (c: WiringCheck) => c.check.startsWith("facet ") && !c.ok && shared.has(c.check.slice(6));
+  const enumerated = await compareEnumerated(d, reg, read, r, agent);
+  const pointerRoles = { proxy: "almProxy", rateLimits: "rateLimits", accessControls: "accessControls", beacon: "beacon" } as const;
   return {
-    checks: [...checks, ...parts.flatMap((p) => p.checks).filter((c) => !undispatchedShared(c))],
-    proposals: [
-      ...pointerProposals(d, checks, { proxy: "almProxy", rateLimits: "rateLimits", accessControls: "accessControls", beacon: "beacon" }),
-      ...parts.flatMap((p) => p.proposals),
-    ],
+    checks: [...checks, ...enumerated.checks],
+    proposals: [...pointerProposals(d, checks, pointerRoles), ...enumerated.proposals],
   };
 }

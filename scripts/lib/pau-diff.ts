@@ -91,6 +91,24 @@ function groupBy<T>(items: T[], key: (t: T) => string): Map<string, T[]> {
 
 const distinct = (xs: string[]) => [...new Set(xs)];
 
+/** Each role@chain claim on `address` whose verified explorer name contradicts the role. */
+function explorerNameConflicts(
+  address: string,
+  group: PauObservation[],
+  explorerName: (address: string, chain: string) => string | undefined,
+): PauConflict[] {
+  const out: PauConflict[] = [];
+  for (const [where, same] of groupBy(group, (o) => `${o.role}@${o.chain}`)) {
+    const o = same[0];
+    const name = o.chain === ANY_CHAIN ? undefined : explorerName(address, o.chain);
+    if (name && !EXPECTED_NAME[o.role].test(name)) {
+      const docs = distinct(same.map((s) => s.doc));
+      out.push({ address, reason: "explorer-name", detail: `${where} but the explorer names it ${name}`, docs });
+    }
+  }
+  return out;
+}
+
 /**
  * Where the atlas disagrees with itself or with the explorer.
  * `explorerName(address, chain)` is the verified contract name on that chain,
@@ -107,13 +125,7 @@ export function atlasConflicts(
     if (distinct(group.map((o) => o.role)).length > 1) out.push({ address, reason: "roles", detail: roles.join(", "), docs });
     const primes = distinct(group.flatMap((o) => (o.prime ? [o.prime] : [])));
     if (primes.length > 1) out.push({ address, reason: "primes", detail: primes.join(", "), docs });
-    for (const [where, same] of groupBy(group, (o) => `${o.role}@${o.chain}`)) {
-      const o = same[0];
-      const name = o.chain === ANY_CHAIN ? undefined : explorerName(address, o.chain);
-      if (name && !EXPECTED_NAME[o.role].test(name)) {
-        out.push({ address, reason: "explorer-name", detail: `${where} but the explorer names it ${name}`, docs: distinct(same.map((s) => s.doc)) });
-      }
-    }
+    out.push(...explorerNameConflicts(address, group, explorerName));
   }
   return out;
 }

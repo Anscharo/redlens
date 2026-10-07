@@ -60,31 +60,53 @@ function loadInputs() {
   return { docs: docsFile.nodes, atlasCommit: docsFile.atlasCommit, primes, atlasAddrs, registry };
 }
 
-async function main() {
-  const args = new Set(process.argv.slice(2));
-  const { docs, atlasCommit, primes, atlasAddrs, registry } = loadInputs();
+type Inputs = ReturnType<typeof loadInputs>;
+
+/** The queue, the optional draft and, with --rpc, the wiring checks (against the draft when there is one). */
+async function buildResult(args: Set<string>, inputs: Inputs) {
+  const { docs, atlasCommit, primes, atlasAddrs, registry } = inputs;
   const observations = discoverPau({ docs, primes, atlasChain: (a) => atlasAddrs[a]?.chain });
-  const draft = args.has("--draft") ? draftRegistry(missingFromRegistry(observations, registry), primes, registry) : null;
+  const missing = missingFromRegistry(observations, registry);
+  const draft = args.has("--draft") ? draftRegistry(missing, primes, registry) : null;
   const result: CandidatesResult = {
     atlasCommit,
     registryErrors: validatePauRegistry(registry),
     observations: observations.length,
-    missing: missingFromRegistry(observations, registry),
+    missing,
     stale: staleMembers(registry, docs),
     conflicts: atlasConflicts(observations, explorerName),
     wiring: args.has("--rpc") ? await checkRegistryWiring(draft ?? registry, rpcReader(), explorerLogs) : null,
   };
+  return { result, draft };
+}
+
+function writeOutputs(result: CandidatesResult, draft: PauRegistry | null, inputs: Inputs): void {
   fs.mkdirSync(at(".cache"), { recursive: true });
   fs.writeFileSync(at(".cache/pau-candidates.json"), JSON.stringify(result, null, 2) + "\n");
-  fs.writeFileSync(at(".cache/pau-candidates.md"), renderCandidates(result, docs, primes) + "\n");
+  fs.writeFileSync(at(".cache/pau-candidates.md"), renderCandidates(result, inputs.docs, inputs.primes) + "\n");
   if (draft) fs.writeFileSync(at(".cache/pau-registry.draft.json"), JSON.stringify(draft, null, 2) + "\n");
-  const failed = result.wiring?.checks.filter((c) => !c.ok).length;
-  console.log(
-    `pau:candidates: ${result.observations} observed, ${result.missing.length} missing, ${result.stale.length} stale, ` +
-      `${result.conflicts.length} conflicts, ${result.registryErrors.length} registry errors` +
-      (result.wiring ? `, ${failed} failed wiring checks, ${result.wiring.proposals.length} on-chain proposals` : "") +
-      ` → .cache/pau-candidates.md${draft ? " + .cache/pau-registry.draft.json" : ""}`,
-  );
+}
+
+function summaryLine(result: CandidatesResult, draft: PauRegistry | null): string {
+  const counts = [
+    `${result.observations} observed`,
+    `${result.missing.length} missing`,
+    `${result.stale.length} stale`,
+    `${result.conflicts.length} conflicts`,
+    `${result.registryErrors.length} registry errors`,
+  ];
+  if (result.wiring) {
+    counts.push(`${result.wiring.checks.filter((c) => !c.ok).length} failed wiring checks`);
+    counts.push(`${result.wiring.proposals.length} on-chain proposals`);
+  }
+  return `pau:candidates: ${counts.join(", ")} → .cache/pau-candidates.md${draft ? " + .cache/pau-registry.draft.json" : ""}`;
+}
+
+async function main() {
+  const inputs = loadInputs();
+  const { result, draft } = await buildResult(new Set(process.argv.slice(2)), inputs);
+  writeOutputs(result, draft, inputs);
+  console.log(summaryLine(result, draft));
 }
 
 if (import.meta.main) await main();
