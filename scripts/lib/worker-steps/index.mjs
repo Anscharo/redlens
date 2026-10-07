@@ -13,7 +13,7 @@ import forum from "./forum.mjs";
 import pau from "./pau.mjs";
 import { TAIL_LANES } from "./tail.mjs";
 
-export const WORKER_STEPS = [prState, chainState, balances, forum, pau, ...TAIL_LANES];
+export const WORKER_STEPS = [prState, chainState, balances, pau, forum, ...TAIL_LANES];
 
 export function stepsIn(steps, phase) {
   return steps.filter((s) => s.phase === phase);
