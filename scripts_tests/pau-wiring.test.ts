@@ -4,10 +4,10 @@
 // a controller pointing at a proxy the registry lacks, a diamond's actors and
 // facets enumerated on-chain, and an explorer that refuses the history query.
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ExplorerLog, LogFetcher } from "../scripts/lib/explorer-logs.ts";
 import { checkRegistryWiring } from "../scripts/lib/pau-wiring-check.ts";
-import type { Reader } from "../scripts/lib/pau-wiring.ts";
+import { rpcReader, type Reader } from "../scripts/lib/pau-wiring.ts";
 import type { PauDeployment, PauRegistry } from "../src/lib/pauRegistry.ts";
 
 const P = "11111111-1111-4111-8111-111111111111";
@@ -84,5 +84,17 @@ describe("diamond wiring", () => {
     const r = await checkRegistryWiring(registry([diamond]), fakeReader(chain), null);
     expect(r.checks.filter((c) => !c.ok).map((c) => c.check).sort()).toEqual(["accessControls", `relayer ${a(99)}`]);
     expect(r.proposals.map((p) => `${p.role} ${p.address}`).sort()).toEqual([`facet ${FACET}`, `freezer ${FREEZER}`]);
+  });
+});
+
+describe("rpcReader", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  const calls = [{ address: CTRL, functionName: "proxy" }, { address: RL, functionName: "CONTROLLER" }];
+  it("answers null for every call on a chain with no RPC", async () => {
+    expect(await rpcReader()("not-a-chain", calls)).toEqual([null, null]);
+  });
+  it("fails an unreachable chain's calls instead of the whole run", async () => {
+    vi.stubEnv("RPC_URL_BASE", "http://127.0.0.1:1");
+    expect(await rpcReader()("base", calls)).toEqual([null, null]);
   });
 });
