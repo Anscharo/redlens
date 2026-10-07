@@ -36,7 +36,7 @@ function AssistantTurn({ msg, streaming, onAtlas, onAnswerReveal, collection }: 
     <div className="rlc-turn mb-[18px]">
       <div className="flex items-center gap-[7px] mb-[7px]">
         <SparkMark size={13} />
-        <span className="rlc-agent-label">atlas agent</span>
+        <span className="rlc-agent-label">Redline Portal Chat</span>
       </div>
       <TurnStages {...stages} entries={stageLog.filter((e) => !POST_ANSWER_STAGES.has(e.stage))} summary={traceHeadline(msg.trace)} />
       {/* Pre-first-stage window only — once a stage row exists the checklist

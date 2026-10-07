@@ -361,7 +361,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "The whole app can run in the original charcoal dark scheme, a high-contrast greyscale one, or a light one.",
         how: [
           "Click the sun, moon, or eclipse button in the top-right corner — it shows which scheme is on — and pick Dark, Giedi, or Light.",
-          "Every page follows the choice — the reader, Radar, reports, and the Atlas agent.",
+          "Every page follows the choice — the reader, Radar, reports, and Redline Portal Chat.",
         ],
         note: "No sign-in needed. Until you pick one, the app follows your device's light/dark setting and keeps following it; once you choose, that choice sticks. It is kept in this browser only, so another browser or device starts from your device setting again.",
       },

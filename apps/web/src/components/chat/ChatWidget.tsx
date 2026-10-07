@@ -11,7 +11,7 @@ import { useResumeConversation, useResumeStamp } from "./useResume";
 import { useAnchoredLayout, useChatHotkeys, useOpenState, usePlacement } from "./widgetHooks";
 import "./chat.css";
 
-// Top-level floating Atlas agent: launcher ↔ panel. Mounted once in the app
+// Top-level floating Redline Portal Chat: launcher ↔ panel. Mounted once in the app
 // shell so it's available on every route. Open via click or ⌘K / Ctrl-K; Esc
 // closes. Two placements (persisted): "float" (docked corner card) and
 // "anchored" (full-height right column that pushes the shell over).
