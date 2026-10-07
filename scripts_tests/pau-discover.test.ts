@@ -9,7 +9,8 @@
 // section title.
 
 import { describe, expect, it } from "vitest";
-import { ANY_CHAIN, chainInTitle, discoverPau, roleOf } from "../scripts/lib/pau-discover.ts";
+import { expandPrimeWide } from "../scripts/lib/pau-diff.ts";
+import { ANY_CHAIN, discoverPau, roleOf } from "../scripts/lib/pau-discover.ts";
 import { draftRegistry } from "../scripts/lib/pau-draft.ts";
 import type { AtlasNode } from "../src/types.ts";
 
@@ -45,6 +46,8 @@ const DOCS: AtlasNode[] = [
   doc(uuid(31), "A.6.1.2.1", "Multisigs"),
   doc(uuid(32), "A.6.1.2.1.1", "Prime Relayer Multisig"),
   doc(uuid(33), "A.6.1.2.1.1.1", "Address", [a(40)]),
+  doc(uuid(34), "A.6.1.2.1.2", "Freezer Multisig (Gnosis Safe)"),
+  doc(uuid(35), "A.6.1.2.1.2.1", "Address", [a(41)]),
   doc(uuid(40), "A.6.1.3", "Active Instances"),
   doc(uuid(41), "A.6.1.3.1", "Token Address", [a(50)]),
 ];
@@ -54,7 +57,7 @@ const atlasChain = (addr: string) => ({ [a(10)]: "optimism" })[addr] ?? "ethereu
 const obs = discoverPau({ docs, primes: new Map([[PRIME, "Foo"]]), atlasChain });
 const find = (addr: string) => obs.filter((o) => o.address === addr);
 
-describe("roleOf / chainInTitle", () => {
+describe("roleOf", () => {
   it("reads the role from the doc title, rate limits before controller", () => {
     expect(roleOf("ALM Rate Limits (Base) Contract")).toBe("rateLimits");
     expect(roleOf("ALM Controller (MainnetController) Contract")).toBe("controller");
@@ -62,11 +65,6 @@ describe("roleOf / chainInTitle", () => {
     expect(roleOf("ALM Proxy Freezable (Base) Contract")).toBe("almProxy");
     expect(roleOf("ALM Relayer Multisig Addresses")).toBe("relayer");
     expect(roleOf("Allocator Vault Contract")).toBeNull();
-  });
-  it("matches chain aliases on word boundaries", () => {
-    expect(chainInTitle("Ethereum Mainnet")).toBe("ethereum");
-    expect(chainInTitle("ALM Proxy (X Layer) Contract")).toBe("xlayer");
-    expect(chainInTitle("Database")).toBeNull();
   });
 });
 
@@ -86,20 +84,36 @@ describe("discoverPau", () => {
     expect(find(a(1))).toMatchObject([{ prime: null, role: "facet", chain: "ethereum", chainFrom: "address" }]);
     expect(find(a(2))).toMatchObject([{ prime: null, role: "beacon", chain: "ethereum" }]);
   });
+  it("reads chains with build-index's title matcher, so a Gnosis Safe is not the gnosis chain", () => {
+    expect(find(a(41))).toMatchObject([{ role: "freezer", kind: null, chain: ANY_CHAIN }]);
+  });
   it("ignores addresses outside the PAU sections", () => {
     expect(find(a(50))).toEqual([]);
   });
 });
 
-describe("draftRegistry", () => {
-  const draft = draftRegistry(obs, new Map([[PRIME, "Foo"]]), { shared: [], deployments: [], ignored: [] });
+const EMPTY = { shared: [], deployments: [], ignored: [] };
+
+describe("expandPrimeWide + draftRegistry", () => {
+  const draft = draftRegistry(expandPrimeWide(obs, EMPTY), new Map([[PRIME, "Foo"]]), EMPTY);
   const dep = (chain: string, kind: string) => draft.deployments.find((d) => d.chain === chain && d.kind === kind)!;
+  const holders = (chain: string, kind: string, role: string) => dep(chain, kind).members.filter((m) => m.role === role).map((m) => m.address);
   it("groups observations into one deployment per chain and generation", () => {
     expect(draft.deployments.map((d) => `${d.chain}:${d.kind}`).sort()).toEqual(["base:monolithic", "ethereum:diamond", "ethereum:monolithic"]);
   });
-  it("gives prime-wide multisigs only to deployments that list none of their own", () => {
-    expect(dep("base", "monolithic").members.filter((m) => m.role === "relayer").map((m) => m.address)).toEqual([a(12)]);
-    expect(dep("ethereum", "monolithic").members.filter((m) => m.role === "relayer").map((m) => m.address)).toEqual([a(40)]);
+  it("gives a prime-wide multisig to every deployment whose own section names no holder of that role", () => {
+    expect(holders("base", "monolithic", "relayer")).toEqual([a(12)]);
+    expect(holders("ethereum", "monolithic", "relayer")).toEqual([a(40)]);
+    expect(holders("ethereum", "diamond", "relayer")).toEqual([a(40)]);
+    expect(holders("base", "monolithic", "freezer")).toEqual([a(41)]);
+  });
+  it("adds a newly listed prime-wide multisig beside the older one, on registry-only deployments too", () => {
+    const existing = {
+      ...EMPTY,
+      deployments: [{ prime: PRIME, primeName: "Foo", chain: "optimism", kind: "monolithic" as const, members: [{ role: "relayer" as const, address: a(99), provenance: [{ source: "manual" as const }] }] }],
+    };
+    const pinned = expandPrimeWide(obs, existing).filter((o) => o.address === a(40)).map((o) => `${o.chain}:${o.kind}`);
+    expect(pinned.sort()).toEqual(["ethereum:diamond", "ethereum:monolithic", "optimism:monolithic"]);
   });
   it("records atlas provenance with the doc UUID", () => {
     expect(dep("base", "monolithic").members[0].provenance).toEqual([{ source: "atlas", doc: uuid(13) }]);

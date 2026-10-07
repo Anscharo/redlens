@@ -9,7 +9,7 @@
  *               or two primes) or with the explorer's verified contract name.
  */
 import type { AtlasNode } from "../../src/types.ts";
-import type { PauMember, PauRegistry, PauRole } from "../../src/lib/pauRegistry.ts";
+import { deploymentId, type PauKind, type PauMember, type PauRegistry, type PauRole } from "../../src/lib/pauRegistry.ts";
 import { ANY_CHAIN, type PauObservation } from "./pau-discover.ts";
 
 export interface StaleMember {
@@ -43,22 +43,43 @@ export const EXPECTED_NAME: Record<PauRole, RegExp> = {
 
 const has = (members: PauMember[], o: PauObservation) => members.some((m) => m.role === o.role && m.address === o.address);
 
+/**
+ * Every observation pinned to one deployment. A governance multisig listed
+ * outside any ALM section (kind null, chain "*" or one named chain) belongs to
+ * each deployment of its prime on a matching chain whose own ALM section names
+ * no holder of that role; an L2 that lists its own relayers keeps them. The
+ * deployments are the registry's plus any the observations themselves imply,
+ * so a newly listed chain inherits the prime's multisigs too.
+ */
+export function expandPrimeWide(obs: PauObservation[], reg: PauRegistry): PauObservation[] {
+  const pinned = obs.filter((o) => o.kind !== null);
+  const deployments = new Map<string, { prime: string; chain: string; kind: PauKind }>();
+  for (const d of reg.deployments) deployments.set(deploymentId(d), d);
+  for (const o of pinned) if (o.prime) deployments.set(deploymentId({ prime: o.prime, chain: o.chain, kind: o.kind! }), { prime: o.prime, chain: o.chain, kind: o.kind! });
+  const ownRoles = new Set(pinned.map((o) => `${o.prime}:${o.chain}:${o.kind}:${o.role}`));
+  const expanded = obs
+    .filter((o) => o.kind === null && o.prime)
+    .flatMap((o) =>
+      [...deployments.values()]
+        .filter((d) => d.prime === o.prime && (o.chain === ANY_CHAIN || o.chain === d.chain))
+        .filter((d) => !ownRoles.has(`${d.prime}:${d.chain}:${d.kind}:${o.role}`))
+        .map((d) => ({ ...o, chain: d.chain, kind: d.kind })),
+    );
+  return [...pinned, ...expanded];
+}
+
 function inRegistry(o: PauObservation, reg: PauRegistry): boolean {
   if (!o.prime) return reg.shared.some((s) => s.chain === o.chain && has(s.members, o));
-  return reg.deployments.some(
-    (d) =>
-      d.prime === o.prime &&
-      (o.chain === ANY_CHAIN || d.chain === o.chain) &&
-      (o.kind === null || d.kind === o.kind) &&
-      has(d.members, o),
-  );
+  return reg.deployments.some((d) => d.prime === o.prime && d.chain === o.chain && d.kind === o.kind && has(d.members, o));
 }
 
 function isIgnored(o: PauObservation, reg: PauRegistry): boolean {
-  return reg.ignored.some((g) => g.prime === o.prime && g.chain === o.chain && g.role === o.role && g.address === o.address);
+  return reg.ignored.some(
+    (g) => g.prime === o.prime && g.chain === o.chain && (g.kind === undefined || g.kind === o.kind) && g.role === o.role && g.address === o.address,
+  );
 }
 
-/** Atlas observations the registry neither holds nor has ignored. */
+/** Pinned observations (see expandPrimeWide) the registry neither holds nor has ignored. */
 export function missingFromRegistry(obs: PauObservation[], reg: PauRegistry): PauObservation[] {
   return obs.filter((o) => !inRegistry(o, reg) && !isIgnored(o, reg));
 }

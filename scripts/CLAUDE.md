@@ -99,7 +99,7 @@ They were four separate lists until every one of them was shown to fail silently
 
 ## PAU registry
 
-**`src/data/pau-registry.json` is the curated list of every Prime agent's PAU contracts** (controller, ALM proxy, rate limits, diamond AccessControls / AdministeredAgent / facets, relayers, freezers), per chain and controller generation. Nothing outside it is indexed. Types and validation live in `src/lib/pauRegistry.ts`; curation is the `pau-triage` skill.
+**`src/data/pau-registry.json` is the curated list of every Prime agent's PAU contracts** (controller, ALM proxy, rate limits, diamond AccessControls / AdministeredAgent / facets, relayers, freezers), per chain and controller generation. Anything that reads PAU state takes its contract list from here, never from the atlas directly. Types and validation live in `src/lib/pauRegistry.ts`; curation is the `pau-triage` skill.
 
 - `pnpm pau:candidates` compares the registry with the atlas and writes `.cache/pau-candidates.{json,md}`. It never edits the registry, and it always exits 0 unless an input is missing.
   - Discovery (`scripts/lib/pau-discover.ts`) reads the address docs under each prime's "ALM Contracts" / "Diamond PAU Contracts" / "Multisigs" sections and the primitive's "Shared Contracts". The prime is the ancestor whose UUID is a prime entity; ancestors come from doc_no arithmetic, never `parentId`; chain and generation are read only from the anchoring section down, because an unrelated ancestor ("Base Elements") would otherwise name a chain. The doc's own placement outranks `addresses.json`, which attributes some PAU addresses to the wrong chain when the same address exists on two.

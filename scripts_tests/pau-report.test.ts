@@ -52,6 +52,7 @@ describe("renderCandidates", () => {
           checks: [
             { deployment: "d", check: "proxy", ok: true, detail: "ok" },
             { deployment: "d", check: "live controller", ok: false, detail: "not granted" },
+            { deployment: "d", check: "proxy", ok: false, detail: "chain 0x1; registry has 0x2 | 0x3" },
           ],
           proposals: [{ deployment: "d", chain: "base", role: "controller", address: A, note: "holds CONTROLLER" }],
         },
@@ -61,8 +62,9 @@ describe("renderCandidates", () => {
     );
     expect(md).toContain("## Registry errors\n\n- deployments[0]: unknown kind");
     expect(md).toContain("## Missing from the registry\n\n_None._");
-    expect(md).toContain("1 of 2 checks pass.");
+    expect(md).toContain("1 of 3 checks pass.");
     expect(md).toContain("| d | live controller | not granted |");
+    expect(md).toContain("| d | proxy | chain 0x1; registry has 0x2 \\| 0x3 |");
     expect(md).toContain(`| d | controller | \`${A}\` | holds CONTROLLER |`);
   });
 });

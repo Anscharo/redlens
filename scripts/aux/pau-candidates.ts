@@ -14,14 +14,16 @@
  *            missing observation, for triage to edit down. With --rpc, the
  *            wiring checks run against the draft instead of the registry.
  *
- * Needs the built atlas (pnpm build:index && pnpm build:graph). Exits 0 with
- * findings, like the censuses; exits 1 only when an input is missing.
+ * Needs the built atlas (pnpm build:index && pnpm build:graph) and the
+ * registry. Exits 0 with findings, like the censuses; exits 1 only when an
+ * input is missing. A draft that fails validation (two controllers for one
+ * deployment, say) is reported under registry errors with a "draft:" prefix.
  */
 import fs from "node:fs";
 import path from "node:path";
 import { validatePauRegistry, type PauRegistry } from "../../src/lib/pauRegistry.ts";
 import { CHAIN_ID } from "../lib/chains.mjs";
-import { atlasConflicts, missingFromRegistry, staleMembers } from "../lib/pau-diff.ts";
+import { atlasConflicts, expandPrimeWide, missingFromRegistry, staleMembers } from "../lib/pau-diff.ts";
 import { discoverPau } from "../lib/pau-discover.ts";
 import { draftRegistry } from "../lib/pau-draft.ts";
 import { renderCandidates, type CandidatesResult } from "../lib/pau-report.ts";
@@ -33,10 +35,13 @@ const ROOT = path.resolve(import.meta.dir, "../..");
 const at = (p: string) => path.join(ROOT, p);
 export const REGISTRY_PATH = at("src/data/pau-registry.json");
 
-function readJson<T>(rel: string): T {
+const BUILD_HINT = "run pnpm build:index && pnpm build:graph first";
+
+/** A required input; a missing one ends the run (exit 1) rather than reading as empty. */
+function readJson<T>(rel: string, hint = BUILD_HINT): T {
   const file = at(rel);
   if (!fs.existsSync(file)) {
-    console.error(`pau:candidates: ${rel} is missing; run pnpm build:index && pnpm build:graph first`);
+    console.error(`pau:candidates: ${rel} is missing; ${hint}`);
     process.exit(1);
   }
   return JSON.parse(fs.readFileSync(file, "utf8")) as T;
@@ -54,9 +59,9 @@ function loadInputs() {
   const graph = readJson<{ entities: { id: string; name: string; entity_type: string; subtype: string | null }[] }>("public/graph.json");
   const atlasAddrs = readJson<{ addresses: Record<string, { chain?: string }> }>("public/addresses.atlas.json").addresses;
   const primes = new Map(graph.entities.filter((e) => e.entity_type === "agent" && e.subtype === "prime").map((e) => [e.id, e.name]));
-  const registry: PauRegistry = fs.existsSync(REGISTRY_PATH)
-    ? JSON.parse(fs.readFileSync(REGISTRY_PATH, "utf8"))
-    : { shared: [], deployments: [], ignored: [] };
+  // An absent registry would make every observation "missing" and draft a
+  // registry with every curated decision gone, so it is required like the rest.
+  const registry = readJson<PauRegistry>(path.relative(ROOT, REGISTRY_PATH), "it is the curated registry; restore it from git");
   return { docs: docsFile.nodes, atlasCommit: docsFile.atlasCommit, primes, atlasAddrs, registry };
 }
 
@@ -66,11 +71,12 @@ type Inputs = ReturnType<typeof loadInputs>;
 async function buildResult(args: Set<string>, inputs: Inputs) {
   const { docs, atlasCommit, primes, atlasAddrs, registry } = inputs;
   const observations = discoverPau({ docs, primes, atlasChain: (a) => atlasAddrs[a]?.chain });
-  const missing = missingFromRegistry(observations, registry);
+  const missing = missingFromRegistry(expandPrimeWide(observations, registry), registry);
   const draft = args.has("--draft") ? draftRegistry(missing, primes, registry) : null;
+  const draftErrors = draft ? validatePauRegistry(draft).map((e) => `draft: ${e}`) : [];
   const result: CandidatesResult = {
     atlasCommit,
-    registryErrors: validatePauRegistry(registry),
+    registryErrors: [...validatePauRegistry(registry), ...draftErrors],
     observations: observations.length,
     missing,
     stale: staleMembers(registry, docs),

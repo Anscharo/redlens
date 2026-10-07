@@ -1681,6 +1681,14 @@
       "role": "beacon",
       "address": "0x10e6593cdda8c58a1d0f14c5164b376352a55f2f",
       "reason": "Second address in the Beacon doc; verified on Arbitrum as L2GovernanceRelay, and the Controller's beacon() is 0x86036ce5…."
+    },
+    {
+      "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",
+      "chain": "arbitrum",
+      "kind": "diamond",
+      "role": "relayer",
+      "address": "0x8cc0cb0cfb6b7e548cfd395b833c05c346534795",
+      "reason": "Spark core-operator relayer, but not an actor of the Arbitrum diamond AdministeredAgent (on-chain enumeration lists only 0x8a25a24e…)."
     }
   ]
 }

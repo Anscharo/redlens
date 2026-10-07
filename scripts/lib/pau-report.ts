@@ -24,9 +24,13 @@ type Names = Map<string, string>;
 const cite = (docs: Docs, uuid: string) => (docs[uuid] ? `${docs[uuid].doc_no} (${uuid})` : `(removed ${uuid})`);
 const who = (names: Names, prime: string | null) => (prime ? names.get(prime) ?? prime : "shared");
 
+// A cell may carry a "a | b" alternatives list (wiring details do); unescaped,
+// the pipe would split the cell and garble the row.
+const cell = (v: string) => v.replace(/\|/g, "\\|");
+
 function table(head: string[], rows: string[][]): string[] {
   if (!rows.length) return ["_None._", ""];
-  return [`| ${head.join(" | ")} |`, `|${head.map(() => "---").join("|")}|`, ...rows.map((r) => `| ${r.join(" | ")} |`), ""];
+  return [`| ${head.join(" | ")} |`, `|${head.map(() => "---").join("|")}|`, ...rows.map((r) => `| ${r.map(cell).join(" | ")} |`), ""];
 }
 
 function missingSection(r: CandidatesResult, docs: Docs, names: Names): string[] {

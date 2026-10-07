@@ -74,6 +74,12 @@ describe("explorerLogs responses", () => {
     expect(logs[0]).toEqual({ address: RL, topics: ["0xaa", "0xbb"], data: "0x", blockNumber: 16, timeStamp: 1700000000, transactionHash: "0xtx16", logIndex: 2 });
     expect(logs[1]).toMatchObject({ blockNumber: 17, logIndex: 3 });
   });
+  it("reads Etherscan's bare \"0x\" as zero, so index-0 logs sort and dedupe correctly", async () => {
+    const zero = { ...log(20, 0), logIndex: "0x" };
+    stubFetch(respond({ status: "1", result: [log(20, 1), zero] }));
+    const logs = (await explorerLogs("ethereum", RL, []))!;
+    expect(logs.map((l) => l.logIndex)).toEqual([0, 1]);
+  });
   it("reads a 'No records found' answer as an empty history", async () => {
     stubFetch(respond({ status: "0", message: "No records found", result: [] }));
     expect(await explorerLogs("ethereum", RL, [])).toEqual([]);

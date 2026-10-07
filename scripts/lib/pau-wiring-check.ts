@@ -30,34 +30,53 @@ async function grantHistory(d: PauDeployment, logs: LogFetcher | null, rl: strin
   }
 }
 
-/** Accounts holding CONTROLLER on the deployment's RateLimits now, with the date each was granted. */
-async function liveControllers(d: PauDeployment, read: Reader, logs: LogFetcher | null) {
+type LiveControllers =
+  | { failed: string }
+  | { live: Map<string, string>; unread: string[]; note: string };
+
+/**
+ * Accounts holding CONTROLLER on the deployment's RateLimits now, with the date
+ * each was granted; null when the registry lists no RateLimits to ask. An
+ * unreadable role constant is a failure, never "nobody holds it".
+ */
+async function liveControllers(d: PauDeployment, read: Reader, logs: LogFetcher | null): Promise<LiveControllers | null> {
   const rl = membersOf(d, "rateLimits")[0]?.address;
   if (!rl) return null;
   const { role } = await readNamed(read, d.chain, { role: { address: rl, functionName: "CONTROLLER" } });
-  if (role === null) return null;
+  if (role === null) return { failed: "RateLimits.CONTROLLER() call failed; live controller not checked" };
   const granted = new Map<string, string>(addrs(d, "controller").map((a) => [a, "?"]));
   const { grants, note } = await grantHistory(d, logs, rl, String(role));
   for (const l of grants) granted.set(`0x${l.topics[2].slice(26)}`, day(l.timeStamp));
   const calls = Object.fromEntries([...granted.keys()].map((a) => [a, { address: rl, functionName: "hasRole", args: [role, a] }]));
   const held = await readNamed(read, d.chain, calls);
-  return { live: new Map([...granted].filter(([a]) => held[a] === true)), note };
+  const unread = [...granted.keys()].filter((a) => held[a] === null);
+  return { live: new Map([...granted].filter(([a]) => held[a] === true)), unread, note };
+}
+
+function liveControllerCheck(id: string, a: string, found: Exclude<LiveControllers, { failed: string }>): WiringCheck {
+  const { live, unread, note } = found;
+  const suffix = note ? `; ${note}` : "";
+  if (unread.includes(a)) return { deployment: id, check: "live controller", ok: false, detail: `RateLimits.hasRole(CONTROLLER) call failed for ${a}${suffix}` };
+  if (live.has(a)) return { deployment: id, check: "live controller", ok: true, detail: `RateLimits grants CONTROLLER to it${suffix}` };
+  const liveText = live.size ? [...live].map(([l, since]) => `${l} (granted ${since})`).join(", ") : "none found";
+  return { deployment: id, check: "live controller", ok: false, detail: `RateLimits does NOT grant CONTROLLER to ${a}; live: ${liveText}${suffix}` };
+}
+
+/** For a deployment with no listed controller: what the RateLimits grants say instead. */
+function unlistedControllerCheck(id: string, found: Exclude<LiveControllers, { failed: string }>): WiringCheck {
+  const suffix = found.note ? `; ${found.note}` : "";
+  const live = [...found.live].map(([a, since]) => `${a} (granted ${since})`).join(", ");
+  return { deployment: id, check: "live controller", ok: false, detail: live ? `RateLimits grants CONTROLLER to ${live}; see proposals` : `no holder found${suffix}` };
 }
 
 async function controllerChecks(d: PauDeployment, read: Reader, logs: LogFetcher | null): Promise<WiringReport> {
   const id = deploymentId(d);
   const found = await liveControllers(d, read, logs);
   if (!found) return { checks: [], proposals: [] };
-  const { live, note } = found;
+  if ("failed" in found) return { checks: [{ deployment: id, check: "live controller", ok: false, detail: found.failed }], proposals: [] };
   const listed = addrs(d, "controller");
-  const liveText = (live.size ? [...live].map(([a, since]) => `${a} (granted ${since})`).join(", ") : "none found") + (note ? `; ${note}` : "");
-  const checks: WiringCheck[] = listed.map((a) => ({
-    deployment: id,
-    check: "live controller",
-    ok: live.has(a),
-    detail: live.has(a) ? "RateLimits grants CONTROLLER to it" : `RateLimits does NOT grant CONTROLLER to ${a}; live: ${liveText}`,
-  }));
-  const proposals: OnchainProposal[] = [...live]
+  const checks = listed.length ? listed.map((a) => liveControllerCheck(id, a, found)) : [unlistedControllerCheck(id, found)];
+  const proposals: OnchainProposal[] = [...found.live]
     .filter(([a]) => !listed.includes(a))
     .map(([address, since]) => ({ deployment: id, chain: d.chain, role: "controller", address, note: `holds CONTROLLER on RateLimits (granted ${since})` }));
   return { checks, proposals };
@@ -76,8 +95,7 @@ async function roleHolders(
   return [{ deployment: deploymentId(d), check: role, ok: false, detail: `${role.toUpperCase()}() call failed; holders not checked` }];
 }
 
-export async function checkMonolith(d: PauDeployment, read: Reader): Promise<WiringReport> {
-  const controller = membersOf(d, "controller")[0].address;
+export async function checkMonolith(d: PauDeployment, read: Reader, controller: string): Promise<WiringReport> {
   const r = await readNamed(read, d.chain, {
     proxy: { address: controller, functionName: "proxy" },
     rateLimits: { address: controller, functionName: "rateLimits" },
@@ -95,13 +113,22 @@ export async function checkMonolith(d: PauDeployment, read: Reader): Promise<Wir
   return { checks, proposals };
 }
 
+function noControllerDetail(d: PauDeployment): string {
+  return membersOf(d, "rateLimits").length
+    ? "no controller in registry"
+    : "no controller and no RateLimits in registry; nothing to read";
+}
+
 /** Wiring checks for every deployment, plus on-chain proposals. */
 export async function checkRegistryWiring(reg: PauRegistry, read: Reader, logs: LogFetcher | null): Promise<WiringReport> {
   const report: WiringReport = { checks: [], proposals: [] };
   for (const d of reg.deployments) {
     const parts = [await controllerChecks(d, read, logs)];
-    if (membersOf(d, "controller").length) parts.push(d.kind === "diamond" ? await checkDiamond(d, reg, read) : await checkMonolith(d, read));
-    else report.checks.push({ deployment: deploymentId(d), check: "controller", ok: false, detail: "no controller in registry; the live-controller lookup proposes one when the chain has grant history" });
+    // Every listed controller is checked: a draft can hold the old and the newly listed one side by side.
+    for (const { address } of membersOf(d, "controller")) {
+      parts.push(d.kind === "diamond" ? await checkDiamond(d, reg, read, address) : await checkMonolith(d, read, address));
+    }
+    if (!membersOf(d, "controller").length) report.checks.push({ deployment: deploymentId(d), check: "controller", ok: false, detail: noControllerDetail(d) });
     for (const p of parts) {
       report.checks.push(...p.checks);
       report.proposals.push(...p.proposals);

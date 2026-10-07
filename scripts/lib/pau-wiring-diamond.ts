@@ -17,8 +17,18 @@ function sharedOnChain(reg: PauRegistry, chain: string, role: PauRole): string[]
   return reg.shared.filter((s) => s.chain === chain).flatMap((s) => s.members.filter((m) => m.role === role).map((m) => m.address));
 }
 
-/** Two-way comparison of an on-chain set with the registry's members of one role. */
-function compareSets(d: PauDeployment, role: PauRole, onchain: string[], registry: string[], note: string) {
+/**
+ * Two-way comparison of an on-chain set with the registry's members of one
+ * role. `onchain` is null when the chain could not be read: that fails the
+ * comparison rather than reading as "the chain lists none of them".
+ */
+function compareSets(d: PauDeployment, role: PauRole, onchain: string[] | null, registry: string[], note: string) {
+  if (onchain === null) {
+    const checks: WiringCheck[] = registry.length
+      ? [{ deployment: deploymentId(d), check: role, ok: false, detail: `${note} call failed; ${registry.length} registry ${role} address(es) not compared` }]
+      : [];
+    return { checks, proposals: [] as OnchainProposal[] };
+  }
   const checks: WiringCheck[] = registry.map((a) => ({
     deployment: deploymentId(d),
     check: `${role} ${a}`,
@@ -31,14 +41,14 @@ function compareSets(d: PauDeployment, role: PauRole, onchain: string[], registr
   return { checks, proposals };
 }
 
-/** Every address an AdministeredAgent enumerates under one list (actors or revokers). */
-async function enumerate(read: Reader, d: PauDeployment, agent: string, kind: "Actor" | "Revoker", count: unknown): Promise<string[]> {
-  const n = typeof count === "bigint" ? Number(count) : 0;
+/** Every address an AdministeredAgent enumerates under one list (actors or revokers); null when any read failed. */
+async function enumerate(read: Reader, d: PauDeployment, agent: string, kind: "Actor" | "Revoker", count: unknown): Promise<string[] | null> {
+  if (typeof count !== "bigint") return null;
   const calls = Object.fromEntries(
-    Array.from({ length: n }, (_, i) => [String(i), { address: agent, functionName: `get${kind}`, args: [BigInt(i)] }]),
+    Array.from({ length: Number(count) }, (_, i) => [String(i), { address: agent, functionName: `get${kind}`, args: [BigInt(i)] }]),
   );
-  const res = await readNamed(read, d.chain, calls);
-  return Object.values(res).flatMap((v) => (lower(v) ? [lower(v)!] : []));
+  const values = Object.values(await readNamed(read, d.chain, calls)).map(lower);
+  return values.includes(null) ? null : (values as string[]);
 }
 
 /** The Controller's pointers, its integrations, and the agent's list sizes, in one batch. */
@@ -62,9 +72,10 @@ function readDiamond(d: PauDeployment, read: Reader, controller: string, agent: 
  * compared with the registry both ways.
  */
 async function compareEnumerated(d: PauDeployment, reg: PauRegistry, read: Reader, r: Record<string, unknown>, agent: string | undefined) {
-  const facets = ((r.integrations as Integration[] | null) ?? []).map((i) => i.config.facet.toLowerCase());
+  const integrations = r.integrations as Integration[] | null;
+  const facets = integrations === null ? null : [...new Set(integrations.map((i) => i.config.facet.toLowerCase()))];
   const shared = sharedOnChain(reg, d.chain, "facet");
-  const parts = [compareSets(d, "facet", [...new Set(facets)], [...addrs(d, "facet"), ...shared], "Controller.integrations()")];
+  const parts = [compareSets(d, "facet", facets, [...addrs(d, "facet"), ...shared], "Controller.integrations()")];
   if (agent) {
     const actors = await enumerate(read, d, agent, "Actor", r.actorCount);
     const revokers = await enumerate(read, d, agent, "Revoker", r.revokerCount);
@@ -80,8 +91,7 @@ async function compareEnumerated(d: PauDeployment, reg: PauRegistry, read: Reade
   };
 }
 
-export async function checkDiamond(d: PauDeployment, reg: PauRegistry, read: Reader): Promise<WiringReport> {
-  const controller = membersOf(d, "controller")[0].address;
+export async function checkDiamond(d: PauDeployment, reg: PauRegistry, read: Reader, controller: string): Promise<WiringReport> {
   const agent = membersOf(d, "administeredAgent")[0]?.address;
   const r = await readDiamond(d, read, controller, agent);
   const checks: WiringCheck[] = [

@@ -63,6 +63,41 @@ describe("monolithic wiring", () => {
   });
 });
 
+describe("unreadable controller state", () => {
+  it("fails the live-controller check when RateLimits.CONTROLLER() cannot be read", async () => {
+    const r = await checkRegistryWiring(registry([monolith]), fakeReader({ ...monolithChain, [`${RL}.CONTROLLER()`]: null }), null);
+    expect(r.checks.find((c) => c.check === "live controller")).toMatchObject({ ok: false, detail: expect.stringMatching(/CONTROLLER\(\) call failed/) });
+    expect(r.proposals.some((p) => p.role === "controller")).toBe(false);
+  });
+  it("reports an unreadable hasRole as a failed call, not as a revoked grant", async () => {
+    const r = await checkRegistryWiring(registry([monolith]), fakeReader({ ...monolithChain, [`${RL}.hasRole(${ROLE.CONTROLLER},${CTRL})`]: null }), null);
+    expect(r.checks.find((c) => c.check === "live controller")!.detail).toMatch(/hasRole\(CONTROLLER\) call failed/);
+  });
+  it("keeps the grant-history note on a passing check", async () => {
+    const logs: LogFetcher = async () => {
+      throw new Error("explorer logs: NOTOK rate limit");
+    };
+    const chain = { ...monolithChain, [`${RL}.hasRole(${ROLE.CONTROLLER},${CTRL})`]: true };
+    const live = (await checkRegistryWiring(registry([monolith]), fakeReader(chain), logs)).checks.find((c) => c.check === "live controller")!;
+    expect(live).toMatchObject({ ok: true, detail: expect.stringMatching(/no grant history \(explorer logs: NOTOK rate limit\)/) });
+  });
+  it("says what RateLimits grants when the registry lists no controller", async () => {
+    const tbc = { ...monolith, members: monolith.members.filter((x) => x.role !== "controller") };
+    const logs: LogFetcher = async () => [granted(LIVE, 1_760_000_000)];
+    const r = await checkRegistryWiring(registry([tbc]), fakeReader(monolithChain), logs);
+    expect(r.checks.find((c) => c.check === "live controller")!.detail).toMatch(new RegExp(`grants CONTROLLER to ${LIVE}`));
+    expect(r.proposals.map((p) => `${p.role} ${p.address}`)).toEqual([`controller ${LIVE}`]);
+    const blind = await checkRegistryWiring(registry([tbc]), fakeReader(monolithChain), null);
+    expect(blind.checks.find((c) => c.check === "live controller")!.detail).toMatch(/no holder found; no grant history \(explorer lookup off\)/);
+  });
+  it("checks every listed controller, so a draft holding two is not judged by the first alone", async () => {
+    const two = { ...monolith, members: [...monolith.members, m("controller", LIVE)] };
+    const chain = { ...monolithChain, [`${LIVE}.proxy()`]: PROXY, [`${LIVE}.rateLimits()`]: RL };
+    const proxyChecks = (await checkRegistryWiring(registry([two]), fakeReader(chain), null)).checks.filter((c) => c.check === "proxy");
+    expect(proxyChecks.map((c) => c.ok).sort()).toEqual([false, true]);
+  });
+});
+
 describe("monolithic role constants", () => {
   it("fails a role whose constant cannot be read instead of skipping its holders", async () => {
     const chain = { ...monolithChain, [`${CTRL}.RELAYER()`]: null };
@@ -88,6 +123,14 @@ describe("diamond wiring", () => {
     [`${RL}.CONTROLLER()`]: ROLE.CONTROLLER,
     [`${RL}.hasRole(${ROLE.CONTROLLER},${CTRL})`]: true,
   };
+  it("fails, rather than empties, the enumerations it cannot read", async () => {
+    const r = await checkRegistryWiring(registry([diamond]), fakeReader({ ...chain, [`${AGENT}.actorCount()`]: null, [`${CTRL}.integrations()`]: null }), null);
+    const byCheck = Object.fromEntries(r.checks.map((c) => [c.check, c]));
+    expect(byCheck.relayer).toMatchObject({ ok: false, detail: expect.stringMatching(/AdministeredAgent actors call failed; 2 registry relayer/) });
+    expect(byCheck.facet).toMatchObject({ ok: false, detail: expect.stringMatching(/integrations\(\) call failed/) });
+    expect(r.checks.some((c) => c.check.startsWith("relayer 0x"))).toBe(false);
+    expect(r.proposals.map((p) => p.role)).toEqual(["freezer"]);
+  });
   it("compares enumerated facets, actors and revokers with the registry both ways", async () => {
     const r = await checkRegistryWiring(registry([diamond]), fakeReader(chain), null);
     expect(r.checks.filter((c) => !c.ok).map((c) => c.check).sort()).toEqual(["accessControls", `relayer ${a(99)}`]);

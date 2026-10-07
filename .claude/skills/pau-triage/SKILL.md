@@ -16,7 +16,7 @@ metadata:
 
 # pau-triage
 
-The PAU registry is the only input the PAU indexer reads: an address that is not in it is never indexed. It is curated by hand from three signals that `pnpm pau:candidates` gathers. You are the judgement step, the "LLM suggestion" lane of the design: read the evidence, decide, and record why.
+The PAU registry is the single source for which contracts count as a prime's PAU: anything that reads PAU state takes its contract list from it, never from the atlas directly. It is curated by hand from three signals that `pnpm pau:candidates` gathers. You are the judgement step, the "LLM suggestion" lane of the design: read the evidence, decide, and record why.
 
 ## Model
 

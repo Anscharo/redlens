@@ -1,6 +1,7 @@
 /**
- * Atlas-side PAU discovery: turns the address docs in each Prime agent's
- * "Liquidity Layer Addresses" and "Multisigs" sections into observations of
+ * Atlas-side PAU discovery: turns the address docs under each Prime agent's
+ * "ALM Contracts" / "Diamond PAU Contracts" / "Multisigs" sections, and the
+ * Allocation System primitive's "Shared Contracts", into observations of
  * (prime, chain, controller generation, role, address). It only proposes;
  * src/data/pau-registry.json stays the curated source of truth.
  *
@@ -10,15 +11,16 @@
  *   - ancestors come from doc_no arithmetic (buildAncestors), because parentId
  *     skips levels past heading depth 6;
  *   - the generation is "diamond" under any section titled "...Diamond...";
- *   - the chain is the nearest title naming a known chain, falling back to
- *     the address's atlas chain. The doc's own placement outranks
+ *   - the chain is the nearest title naming a known chain (chainFromLabel,
+ *     the same title matcher build-index uses, so "Gnosis Safe" is not the
+ *     gnosis chain), falling back to the address's atlas chain. The doc's own placement outranks
  *     addresses.json, which attributes some PAU addresses to the wrong chain
  *     when the same address exists on two chains.
  */
 import { buildAncestors } from "../../src/lib/atlasHelpers.ts";
 import type { AtlasNode } from "../../src/types.ts";
 import type { PauKind, PauRole } from "../../src/lib/pauRegistry.ts";
-import { CHAINS } from "./chains.mjs";
+import { chainFromLabel } from "./address-chains.mjs";
 
 export interface PauObservation {
   /** Prime entity UUID; null for contracts shared by every diamond PAU. */
@@ -70,22 +72,13 @@ const EVM_RE = /^0x[0-9a-f]{40}$/;
 // A leaf titled just "Address" names its role in its parent's title.
 const BARE_LEAF_RE = /^(?:State )?Address(?:es)?$/i;
 
-const CHAIN_MATCHERS = CHAINS.map((c) => ({
-  chain: c.chain,
-  re: new RegExp(`\\b(?:${c.aliases.map((a) => a.replace(/\s+/g, "\\s*")).join("|")})\\b`, "i"),
-}));
-
-export function chainInTitle(title: string): string | null {
-  return CHAIN_MATCHERS.find((m) => m.re.test(title))?.chain ?? null;
-}
-
 export function roleOf(title: string): PauRole | null {
   return ROLE_RULES.find(([re]) => re.test(title))?.[1] ?? null;
 }
 
 function chainOf(titles: string[], address: string, input: DiscoverInput) {
   for (const t of [...titles].reverse()) {
-    const chain = chainInTitle(t);
+    const chain = chainFromLabel(t);
     if (chain) return { chain, chainFrom: "title" as const };
   }
   const chain = input.atlasChain(address);

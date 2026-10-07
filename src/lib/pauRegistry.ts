@@ -1,10 +1,14 @@
 // The curated PAU registry (src/data/pau-registry.json): which on-chain
 // contracts make up each Prime agent's PAU, per chain and controller
-// generation. It is the one input the indexer reads; nothing outside it is
-// indexed. `pnpm pau:candidates` proposes additions and conflicts from the
-// atlas and from on-chain wiring, and the pau-triage skill decides them.
+// generation. It is the single source for which contracts count as a prime's
+// PAU: anything that reads PAU state takes its contract list from here, never
+// from the atlas directly. `pnpm pau:candidates` proposes additions and
+// conflicts from the atlas and from on-chain wiring, and the pau-triage skill
+// decides them.
 //
 // Primes are keyed by graph entity UUID, never by doc_no (see CLAUDE.md).
+
+import chainRegistry from "../data/chain-registry.json";
 
 /** Monolithic = MainnetController / ForeignController; diamond = Controller + Facets. */
 export type PauKind = "monolithic" | "diamond";
@@ -56,6 +60,8 @@ export interface PauIgnored {
   /** Prime entity UUID, or null for a shared-contract claim. */
   prime: string | null;
   chain: string;
+  /** Limits the entry to one controller generation; absent covers both. */
+  kind?: PauKind;
   role: PauRole;
   address: string;
   reason: string;
@@ -70,6 +76,11 @@ export interface PauRegistry {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+// A chain name the registry does not know has no RPC and never matches an
+// atlas observation, so it would fail every check and re-propose every claim.
+const KNOWN_CHAINS = new Set<string>(chainRegistry.chains.map((c) => c.chain));
+const KINDS = new Set<string>(["monolithic", "diamond"]);
+const chainError = (where: string, chain: string) => (KNOWN_CHAINS.has(chain) ? [] : [`${where}: unknown chain "${chain}"`]);
 const ADDR_RE = /^0x[0-9a-f]{40}$/;
 const SOURCES = new Set<PauSource>(["atlas", "onchain", "llm", "manual"]);
 const ROLES = new Set<string>(PAU_ROLES);
@@ -90,7 +101,8 @@ function deploymentErrors(d: PauDeployment, i: number): string[] {
   const where = `deployments[${i}] (${d.primeName} ${d.chain} ${d.kind})`;
   const errs: string[] = [];
   if (!UUID_RE.test(d.prime)) errs.push(`${where}: prime must be an entity UUID`);
-  if (d.kind !== "monolithic" && d.kind !== "diamond") errs.push(`${where}: unknown kind "${d.kind}"`);
+  if (!KINDS.has(d.kind)) errs.push(`${where}: unknown kind "${d.kind}"`);
+  errs.push(...chainError(where, d.chain));
   const seen = new Set<string>();
   d.members.forEach((m, j) => {
     errs.push(...memberErrors(m, `${where}.members[${j}]`));
@@ -100,6 +112,16 @@ function deploymentErrors(d: PauDeployment, i: number): string[] {
   });
   const controllers = d.members.filter((m) => m.role === "controller").length;
   if (controllers > 1) errs.push(`${where}: more than one controller`);
+  return errs;
+}
+
+function ignoredErrors(g: PauIgnored, where: string): string[] {
+  const errs = chainError(where, g.chain);
+  if (g.prime !== null && !UUID_RE.test(g.prime)) errs.push(`${where}: prime must be an entity UUID or null`);
+  if (g.kind !== undefined && !KINDS.has(g.kind)) errs.push(`${where}: unknown kind "${g.kind}"`);
+  if (!ADDR_RE.test(g.address)) errs.push(`${where}: address must be lowercase 0x hex`);
+  if (!ROLES.has(g.role)) errs.push(`${where}: unknown role "${g.role}"`);
+  if (!g.reason?.trim()) errs.push(`${where}: needs a reason`);
   return errs;
 }
 
@@ -113,12 +135,11 @@ export function validatePauRegistry(reg: PauRegistry): string[] {
     if (ids.has(id)) errs.push(`deployments[${i}]: duplicate deployment ${id}`);
     ids.add(id);
   });
-  reg.shared.forEach((s, i) => s.members.forEach((m, j) => errs.push(...memberErrors(m, `shared[${i}].members[${j}]`))));
-  reg.ignored.forEach((g, i) => {
-    if (!ADDR_RE.test(g.address)) errs.push(`ignored[${i}]: address must be lowercase 0x hex`);
-    if (!ROLES.has(g.role)) errs.push(`ignored[${i}]: unknown role "${g.role}"`);
-    if (!g.reason?.trim()) errs.push(`ignored[${i}]: needs a reason`);
+  reg.shared.forEach((s, i) => {
+    errs.push(...chainError(`shared[${i}]`, s.chain));
+    s.members.forEach((m, j) => errs.push(...memberErrors(m, `shared[${i}].members[${j}]`)));
   });
+  reg.ignored.forEach((g, i) => errs.push(...ignoredErrors(g, `ignored[${i}]`)));
   return errs;
 }
 
