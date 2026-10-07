@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAtlasSubset } from "./atlasSubset";
 import { useActiveCollection } from "./activeCollection";
+import { addedAll, removed, toggled } from "./setOps";
 import { loadSelection, saveSelection, STORAGE_KEY } from "./selectionStore";
 
 // "Document Selection" state: the set of doc ids a user has picked (for a
@@ -120,29 +121,18 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
   const toggleDoc = useCallback((id: string) => {
     openedFromReplaceRef.current = false;
     dropUnownedName();
-    setIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setIds((prev) => toggled(prev, id));
   }, [dropUnownedName]);
 
   const selectSubtree = useCallback((subtreeIds: string[]) => {
     if (subtreeIds.length === 0) return;
     openedFromReplaceRef.current = false;
     dropUnownedName();
-    setIds((prev) => {
-      const next = new Set(prev);
-      // Root-keyed toggle: an already-selected root deselects the whole subtree,
-      // otherwise the whole subtree is added.
-      if (next.has(subtreeIds[0])) {
-        for (const sid of subtreeIds) next.delete(sid);
-      } else {
-        for (const sid of subtreeIds) next.add(sid);
-      }
-      return next;
-    });
+    // Root-keyed toggle: an already-selected root deselects the whole subtree,
+    // otherwise the whole subtree is added.
+    setIds((prev) =>
+      prev.has(subtreeIds[0]) ? subtreeIds.reduce((set, sid) => removed(set, sid), prev) : addedAll(prev, subtreeIds),
+    );
   }, [dropUnownedName]);
 
   const clear = useCallback(() => {

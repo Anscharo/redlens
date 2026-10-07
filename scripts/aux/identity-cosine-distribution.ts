@@ -17,7 +17,8 @@
 import fs from "node:fs";
 import { createHash } from "node:crypto";
 import { bodyWhollyReplaced, JUDGEABLE_MIN_WORDS, SHORT_BODY_MAX_LINES } from "../../src/server/preview/identity.ts";
-import { EMBED_MODEL_ID, loadCorpus, lineCount, wordCount, prng, quantile, qwenVectors, dot, type LiveDoc } from "./identity-corpus.ts";
+import { EMBED_MODEL_ID, loadCorpus, lineCount, wordCount, prng, quantile, qwenVectors, dot } from "./identity-corpus.ts";
+import { groupBy } from "../../src/lib/collections.ts";
 
 const args = process.argv.slice(2);
 const ORIGIN = args.includes("--origin") ? args[args.indexOf("--origin") + 1] : "https://atlas.redline.support";
@@ -54,8 +55,7 @@ const main = async () => {
 
   const { pick } = prng(7);
   const live = Object.values(docs).filter((d) => wordCount(d.content) >= JUDGEABLE_MIN_WORDS);
-  const byParent = new Map<string, LiveDoc[]>();
-  for (const d of live) if (d.parentId) (byParent.get(d.parentId) ?? byParent.set(d.parentId, []).get(d.parentId)!).push(d);
+  const byParent = groupBy(live, (d) => d.parentId || null);
   const families = [...byParent.values()].filter((g) => g.length >= 2);
   for (let i = 0; i < 1500; i++) {
     const a = pick(live), b = pick(live);

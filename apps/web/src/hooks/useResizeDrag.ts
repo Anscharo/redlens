@@ -1,4 +1,5 @@
 import { useRef, useCallback } from "react";
+import { readInt, writeString } from "../lib/safeStorage";
 
 interface ResizeDragOptions {
   min: number;
@@ -12,6 +13,12 @@ interface ResizeDragOptions {
    *  (bottom-anchored panels). Not derivable from the axis — the tree sidebar
    *  grows right, the annotations panel grows left, the split pane grows up. */
   growsLeft?: boolean;
+}
+
+/** The persisted size under `key`, or `null` when absent, unreadable or outside `[min, max]`. */
+export function readStoredSize(key: string, min: number, max = Infinity): number | null {
+  const n = readInt(key);
+  return n != null && n >= min && n <= max ? n : null;
 }
 
 export function useResizeDrag(
@@ -52,9 +59,7 @@ export function useResizeDrag(
         // shrink-to-fit) — writing it back on a no-op press-release would
         // silently overwrite that preference with the cap.
         if (storageKey && latest !== startWidth) {
-          try {
-            localStorage.setItem(storageKey, String(latest));
-          } catch {}
+          writeString(storageKey, String(latest));
         }
       };
       window.addEventListener("mousemove", onMove);

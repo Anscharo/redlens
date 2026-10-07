@@ -5,6 +5,8 @@
 // the server honors the param. HNSW caps indexed vectors at 2000 dims — 1024 is
 // safe and load-bearing.
 import { config } from "../config.ts";
+import { sleep } from "../retry.ts";
+import { createCache } from "../ttl-cache.ts";
 import { captureAiCall } from "../ai-telemetry.ts";
 import { openrouterAttributionHeaders } from "../openrouter-attribution.ts";
 
@@ -97,7 +99,7 @@ export async function embedBatch(
     if (signal?.aborted || attempt >= 4) throw err;
     const wait = 1000 * 2 ** attempt;
     console.warn(`  embed retry ${attempt + 1} in ${wait}ms: ${(err as Error).message}`);
-    await Bun.sleep(wait);
+    await sleep(wait);
     if (signal?.aborted) throw err;
     return embedBatch(texts, signal, attempt + 1, diag, surface);
   }
@@ -105,11 +107,11 @@ export async function embedBatch(
 
 // In-process LRU of query-string → embedding. Only the single-query path uses
 // it (embedQuery); doc batches are already cached in Postgres by content_hash.
-// A Map preserves insertion order, so the oldest key is always first — we delete
-// on hit and re-insert to bump recency, and evict the head when over capacity.
-// Keyed on model+dim+text so a config swap (different model or an EMBED_DIM
-// change) can't return a stale vector for the new regime.
-const queryEmbedCache = new Map<string, number[]>();
+// A hit bumps recency and the least recently used entry goes first when over
+// capacity (config.queryEmbedCacheSize, read at each insert). Keyed on
+// model+dim+text so a config swap (different model or an EMBED_DIM change)
+// can't return a stale vector for the new regime.
+const queryEmbedCache = createCache<number[]>({ max: () => config.queryEmbedCacheSize, lru: true });
 
 function cacheKey(text: string): string {
   return `${config.embedModel}:${EMBED_DIM}:${text}`;
@@ -151,11 +153,8 @@ export async function embedQueries(texts: string[], signal?: AbortSignal, diag?:
   texts.forEach((t, i) => {
     const key = cacheKey(config.embedQueryPrefix + t);
     const hit = cap > 0 ? queryEmbedCache.get(key) : undefined;
-    if (hit) {
-      queryEmbedCache.delete(key);
-      queryEmbedCache.set(key, hit); // bump recency, like embedQuery
-      out[i] = hit;
-    } else missIndexes.push(i);
+    if (hit) out[i] = hit;
+    else missIndexes.push(i);
   });
   if (missIndexes.length > 0) {
     const vecs = await embedBatch(
@@ -168,14 +167,7 @@ export async function embedQueries(texts: string[], signal?: AbortSignal, diag?:
     missIndexes.forEach((i, j) => {
       const v = vecs[j]!;
       out[i] = v;
-      if (cap > 0) {
-        queryEmbedCache.set(cacheKey(config.embedQueryPrefix + texts[i]!), v);
-        while (queryEmbedCache.size > cap) {
-          const oldest = queryEmbedCache.keys().next().value;
-          if (oldest === undefined) break;
-          queryEmbedCache.delete(oldest);
-        }
-      }
+      if (cap > 0) queryEmbedCache.set(cacheKey(config.embedQueryPrefix + texts[i]!), v);
     });
   }
   return out as number[][];
@@ -188,20 +180,9 @@ export async function embedQuery(text: string, signal?: AbortSignal, diag?: Embe
 
   const key = cacheKey(prefixed);
   const hit = queryEmbedCache.get(key);
-  if (hit) {
-    // Bump recency: delete + re-insert moves it to the tail.
-    queryEmbedCache.delete(key);
-    queryEmbedCache.set(key, hit);
-    return hit;
-  }
+  if (hit) return hit;
 
   const vec = (await embedBatch([prefixed], signal, 0, diag, "embed-query"))[0];
   queryEmbedCache.set(key, vec);
-  // Evict least-recently-used entries (Map iteration is insertion order).
-  while (queryEmbedCache.size > cap) {
-    const oldest = queryEmbedCache.keys().next().value;
-    if (oldest === undefined) break;
-    queryEmbedCache.delete(oldest);
-  }
   return vec;
 }

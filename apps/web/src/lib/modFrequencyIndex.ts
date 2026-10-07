@@ -6,6 +6,7 @@
 import type { AtlasNode } from "@/types";
 import type { ModCount } from "@/lib/history";
 import { toCSV } from "@/lib/csv";
+import { cmpDocNo } from "@/lib/docNo";
 import { atlasUrl } from "@/lib/routes";
 import type { SearchField } from "@/lib/reportFilter";
 
@@ -84,7 +85,7 @@ export function buildModFrequencyRows(
     (a, b) =>
       a.count - b.count ||
       cmpLastModified(a.lastModified, b.lastModified) ||
-      a.docNo.localeCompare(b.docNo, undefined, { numeric: true }),
+      cmpDocNo(a.docNo, b.docNo),
   );
 }
 

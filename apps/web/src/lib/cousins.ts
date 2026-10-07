@@ -4,6 +4,8 @@ import type { GraphData } from "./graph";
 import { buildAncestorsWithSelf } from "@/lib/atlasHelpers";
 import { abbreviateAgentName } from "./owningAgent";
 import { parseMeta } from "@/lib/meta";
+import { byDocNo } from "@/lib/docNo";
+import { pushTo } from "@/lib/collections";
 
 export interface CousinDoc {
   node: AtlasNode;
@@ -30,9 +32,7 @@ function titleIndex(docs: Record<string, AtlasNode>): Map<string, AtlasNode[]> {
   for (const d of Object.values(docs)) {
     const t = (d.title ?? "").trim().toLowerCase();
     if (!t) continue;
-    const arr = idx.get(t);
-    if (arr) arr.push(d);
-    else idx.set(t, [d]);
+    pushTo(idx, t, d);
   }
   titleIndexCache.set(docs, idx);
   return idx;
@@ -87,7 +87,7 @@ function findOmniCousins(
     const name = (rootId && agentName.get(rootId)) || (rootId && atlas.docs[rootId]?.title) || "Unknown";
     cousins.push({ node: doc, agent: name });
   }
-  return cousins.sort((a, b) => a.node.doc_no.localeCompare(b.node.doc_no, undefined, { numeric: true }));
+  return cousins.sort((a, b) => byDocNo(a.node, b.node));
 }
 
 // "Cousins" of a doc: the equivalent docs under other prime agents. The graph
@@ -151,7 +151,5 @@ export function findCousinDocs(
     const doc = (equivId && atlas.docs[equivId]) || root;
     cousins.push({ node: doc, agent: agentName.get(otherAgent) ?? atlas.docs[otherAgent]?.title ?? "Unknown" });
   }
-  return cousins.sort((a, b) =>
-    a.node.doc_no.localeCompare(b.node.doc_no, undefined, { numeric: true }),
-  );
+  return cousins.sort((a, b) => byDocNo(a.node, b.node));
 }

@@ -8,6 +8,8 @@
 import type { AtlasBundle } from "./docsTypes";
 import type { AtlasNode } from "../types";
 import { normalizeAssessedText } from "./oeaTasks";
+import { pushTo } from "./collections";
+import { cmpDocNo } from "./docNo";
 import riskNonRuleDocs from "./data/risk-non-rule-docs.json";
 
 export type RiskDomain = "peg" | "alloc" | "sc";
@@ -141,9 +143,7 @@ export function enumerateRiskCandidates(bundle: AtlasBundle): RiskEnumeration {
   const kids = new Map<string, string[]>();
   for (const d of all) {
     if (!d.parentId) continue;
-    const list = kids.get(d.parentId) ?? [];
-    list.push(d.id);
-    kids.set(d.parentId, list);
+    pushTo(kids, d.parentId, d.id);
   }
   const anchorDomains = new Map<string, Set<RiskDomain>>();
   for (const [root, domains] of ANCHORS) {
@@ -214,14 +214,14 @@ export function enumerateRiskCandidates(bundle: AtlasBundle): RiskEnumeration {
   for (const r of rows) {
     if (!AGENT_ARTIFACT_RE.test(r.docNo)) continue;
     const key = r.title.trim().toLowerCase();
-    byTitle.set(key, [...(byTitle.get(key) ?? []), r]);
+    pushTo(byTitle, key, r);
   }
   const dropKeys = new Set<string>();
   for (const [titleKey, group] of byTitle) {
     if (group.length < 2) continue;
     const contents = new Set(group.map((r) => collapseKey(r.quote)));
     if (contents.size !== 1) continue;
-    group.sort((a, b) => a.docNo.localeCompare(b.docNo, undefined, { numeric: true }));
+    group.sort((a, b) => cmpDocNo(a.docNo, b.docNo));
     const [rep, ...copies] = group;
     rep.taskKey = `t:${titleKey}|risk`;
     rep.agents = [...new Set(group.flatMap((r) => r.agents ?? []))];
@@ -237,6 +237,6 @@ export function enumerateRiskCandidates(bundle: AtlasBundle): RiskEnumeration {
 
   const candidates = rows
     .filter((r) => !dropKeys.has(r.taskKey))
-    .sort((a, b) => a.docNo.localeCompare(b.docNo, undefined, { numeric: true }));
+    .sort((a, b) => cmpDocNo(a.docNo, b.docNo));
   return { candidates, excluded };
 }

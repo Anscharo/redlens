@@ -12,6 +12,8 @@
 
 import type { AtlasNode, AddressInfo } from "../types";
 import { toCSV } from "./csv";
+import { pushTo } from "./collections";
+import { cmpDocNo } from "./docNo";
 import { atlasUrl } from "./routes";
 import type { SearchField } from "./reportFilter";
 import type { AddressBalances, BalanceMap } from "./balances";
@@ -208,7 +210,7 @@ function mergeChainBalances(rows: (AddressBalances | undefined)[]): BalanceMap {
 }
 
 const meta = (d: AtlasNode): DocMeta => ({ id: d.id, docNo: d.doc_no, title: d.title, type: d.type });
-const byDocNo = (a: DocMeta, b: DocMeta) => a.docNo.localeCompare(b.docNo, undefined, { numeric: true });
+const byDocNo = (a: DocMeta, b: DocMeta) => cmpDocNo(a.docNo, b.docNo);
 
 // address (lowercased) → the docs whose addressRefs include it.
 function buildAddrToDocs(docs: Record<string, AtlasNode>): Map<string, DocMeta[]> {
@@ -248,9 +250,7 @@ function buildNameToDocs(
     let m: RegExpExecArray | null;
     while ((m = re.exec(content))) hits.add(m[1]);
     for (const name of hits) {
-      const list = map.get(name) ?? [];
-      list.push(meta(d));
-      map.set(name, list);
+      pushTo(map, name, meta(d));
     }
   }
   return map;

@@ -5,6 +5,7 @@ import { type ToolResult, livenessOf, withLivenessHint } from "./tools.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { matchEntities, resolveEntity } from "../../retrieval/entity-resolve.ts";
 import { entityAddresses } from "./tools-entity-addresses.ts";
+import { parseDocNos } from "../../../lib/meta.ts";
 
 // Slim node row for tool responses.
 function docRow(n: AtlasNode) {
@@ -27,16 +28,6 @@ function parseJsonObject(raw: string | null): Record<string, unknown> | null {
   } catch {
     return { raw };
   }
-}
-function sourceDocNos(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
-  } catch {
-    // Fall through to the legacy/string fallback.
-  }
-  return raw.split(",").map((s) => s.trim()).filter(Boolean);
 }
 function endpointRow(ix: Indexes, id: string, nodeType: string) {
   if (nodeType === "doc") {
@@ -314,7 +305,7 @@ export function atlasEdges(
   const total = filtered.length;
   const page = filtered.slice(offset, offset + limit);
   const rows = page.map((e) => {
-    const docNos = sourceDocNos(e.source_doc_nos);
+    const docNos = parseDocNos(e.source_doc_nos);
     const row: Record<string, unknown> = {
       id: e.id,
       edge_type: e.edge_type,

@@ -1,5 +1,6 @@
 import type { AtlasNode } from "@/types";
 import { fetchJson } from "@/lib/verify";
+import { pushTo } from "@/lib/collections";
 
 // loadAtlas(base) passes a preview's data-source base via the worker `name`
 // option (e.g. /api/preview/<sha>/); default is the live atlas under the sha-keyed
@@ -51,13 +52,7 @@ function buildMaps(docs: Record<string, AtlasNode>) {
 
   const byParent = new Map<string | null, AtlasNode[]>();
   for (const node of Object.values(docs)) {
-    const key = resolveParentId(node);
-    let bucket = byParent.get(key);
-    if (!bucket) {
-      bucket = [];
-      byParent.set(key, bucket);
-    }
-    bucket.push(node);
+    pushTo(byParent, resolveParentId(node), node);
   }
   for (const bucket of byParent.values()) bucket.sort((a, b) => a.order - b.order);
 

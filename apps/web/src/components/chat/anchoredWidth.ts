@@ -1,3 +1,6 @@
+import { readStoredSize } from "../../hooks/useResizeDrag";
+import { writeString } from "../../lib/safeStorage";
+
 /** localStorage key for a dragged docked-chat width. The CSS variable of the
  *  same name is the live width (and the shell's matching right gutter). */
 export const ANCHORED_WIDTH_KEY = "rlc-anchored-w";
@@ -22,18 +25,10 @@ export function clampAnchoredWidth(px: number, viewportWidth: number): number {
 }
 
 export function readStoredAnchoredWidth(): number | null {
-  try {
-    const n = parseInt(localStorage.getItem(ANCHORED_WIDTH_KEY) ?? "", 10);
-    return Number.isFinite(n) && n >= ANCHORED_MIN_PX ? n : null;
-  } catch {
-    return null;
-  }
+  return readStoredSize(ANCHORED_WIDTH_KEY, ANCHORED_MIN_PX);
 }
 
 export function writeStoredAnchoredWidth(px: number): void {
-  try {
-    localStorage.setItem(ANCHORED_WIDTH_KEY, String(px));
-  } catch {
-    // Private mode / quota — the in-memory width still applies this session.
-  }
+  // A failed write leaves the in-memory width in effect for this session.
+  writeString(ANCHORED_WIDTH_KEY, String(px));
 }

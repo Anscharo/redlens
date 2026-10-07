@@ -2,6 +2,7 @@
 import { TOOLS_BY_NAME } from "./tools/tool-registry.ts";
 import { REPORT_TITLES, REPORT_DESCRIPTIONS } from "../../lib/routes.ts";
 import { decodeId } from "../preview/resolve.ts";
+import { SHA_RE } from "../../lib/patterns.ts";
 
 // reportName on the wire is the display title (REPORT_TITLES[id]), not the id.
 const TITLE_TO_REPORT_ID: Record<string, string> = Object.fromEntries(
@@ -35,7 +36,6 @@ export function validReportTool(ctx?: PageContext): string | null {
 // prompt, so a hostile value cannot carry instructions. Display-only: the
 // preview tools re-authorize on every call.
 const PREVIEW_ID_RE = /^[\w.~:-]{1,200}$/;
-const SHA_RE = /^[0-9a-f]{40}$/i;
 
 export function validPreviewContext(ctx?: PageContext): { id: string; sha?: string } | null {
   const id = ctx?.previewId;

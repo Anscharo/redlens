@@ -9,6 +9,7 @@
 // route then serves a static fallback) instead of crashing the server.
 
 import { readFileSync } from "node:fs";
+import { createCache } from "./ttl-cache.ts";
 
 const WIDTH = 1200;
 const HEIGHT = 630;
@@ -254,23 +255,14 @@ export async function renderCard(spec: CardSpec): Promise<Buffer | null> {
 
 // LRU memo cache (~40 KB each → ~40 MB at cap), shared across all card kinds.
 // Sized above a typical atlas doc count so a crawler walking every card URL
-// doesn't thrash it; on a hit the entry is re-inserted so eviction is true LRU
-// (Map iteration order = insertion order), not FIFO.
-const cache = new Map<string, Buffer>();
-const CACHE_MAX = 2048;
+// doesn't thrash it; a hit refreshes recency, so eviction is true LRU, not FIFO.
+const cache = createCache<Buffer>({ max: 2048, lru: true });
 
 async function cached(key: string, render: () => Promise<Buffer | null>): Promise<Buffer | null> {
   const hit = cache.get(key);
-  if (hit) {
-    cache.delete(key); // move to most-recently-used (end of iteration order)
-    cache.set(key, hit);
-    return hit;
-  }
+  if (hit) return hit;
   const png = await render();
-  if (png) {
-    if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value as string);
-    cache.set(key, png);
-  }
+  if (png) cache.set(key, png);
   return png;
 }
 

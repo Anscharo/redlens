@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { HEADER_OFFSET } from "../lib/layout";
-import { useResizeDrag } from "../hooks/useResizeDrag";
+import { readStoredSize, useResizeDrag } from "../hooks/useResizeDrag";
 import { useIsNarrow } from "../hooks/useAvailableWidth";
 
 interface DrawerProps {
@@ -35,14 +35,7 @@ export function Drawer({
 
   const [currentWidth, setCurrentWidth] = useState(() => {
     if (!resizable || !storageKey) return defaultWidth;
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        const n = parseInt(raw, 10);
-        if (Number.isFinite(n) && n >= minWidth && n <= maxWidth) return n;
-      }
-    } catch {}
-    return defaultWidth;
+    return readStoredSize(storageKey, minWidth, maxWidth) ?? defaultWidth;
   });
 
   const effectiveWidth = isDrawer || !resizable ? defaultWidth : currentWidth;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useResizeDrag } from "../../hooks/useResizeDrag";
+import { readStoredSize, useResizeDrag } from "../../hooks/useResizeDrag";
 
 export const SPLIT_MIN_PX = 120;
 /** The undragged pane never defaults taller than this fraction of the column,
@@ -10,14 +10,7 @@ export const SPLIT_DEFAULT_MAX_FRACTION = 0.5;
 export const SPLIT_MAX_FRACTION = 0.6;
 const STORAGE_KEY = "redline-sky-atlas:split-pane-height";
 
-function readStored(): number | null {
-  try {
-    const n = parseInt(localStorage.getItem(STORAGE_KEY) ?? "", 10);
-    return Number.isFinite(n) && n >= SPLIT_MIN_PX ? n : null;
-  } catch {
-    return null;
-  }
-}
+const readStored = (): number | null => readStoredSize(STORAGE_KEY, SPLIT_MIN_PX);
 
 /**
  * Height + drag-to-resize for the comparison pane, mirroring the tree sidebar's

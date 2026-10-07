@@ -7,8 +7,7 @@ import { AtlasReaderRow } from "./AtlasReaderRow";
 import { DrawerToggle } from "../Drawer";
 import { useAtlasView } from "../../hooks/useAtlasView";
 import { useDataSource } from "../../lib/dataSource";
-
-type AtlasTab = "notes" | "glossary" | "history";
+import type { AtlasTab } from "../../lib/atlasTab";
 
 interface AtlasViewProps {
   id: string;

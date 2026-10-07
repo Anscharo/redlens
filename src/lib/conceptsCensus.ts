@@ -12,6 +12,7 @@
 // CrossViewMarkdown.tsx / ConceptCensus.tsx.
 
 import type { AtlasNode } from "../types";
+import { groupBy } from "./collections";
 
 export interface CensusMember {
   uuid: string;
@@ -83,6 +84,21 @@ export function buildHasDescendant(all: AtlasNode[]): (doc_no: string) => boolea
   };
 }
 
+// One member per (bucket, matching doc); a doc matching two buckets appears in both.
+function bucketByTitle(
+  all: AtlasNode[],
+  buckets: [string, (title: string) => boolean][],
+): { members: CensusMember[]; counts: Record<string, number> } {
+  const members: CensusMember[] = [];
+  const counts: Record<string, number> = {};
+  for (const [bucket, test] of buckets) {
+    const matches = all.filter((n) => test(n.title));
+    counts[bucket] = matches.length;
+    for (const n of matches) members.push(ref(n, bucket));
+  }
+  return { members, counts };
+}
+
 // ---------------------------------------------------------------------------
 // H1. registry-liveness — title prefix "List Of" + emptiness.
 // ---------------------------------------------------------------------------
@@ -108,6 +124,7 @@ export function censusRegistryLiveness(all: AtlasNode[], hasDescendant = buildHa
 // ---------------------------------------------------------------------------
 // B3. empty-scaffolding — status-bucket directory titles × zero children.
 // ---------------------------------------------------------------------------
+// Also excludes lifecycle status buckets from the normative-title suspension family.
 const STATUS_DIR_RE = /^(Active|Completed|In[- ]Progress|Suspended|Failed|Archived) (Instances?|Invocations?)( Directory)?$/i;
 
 // Exported for liveness.ts alongside censusRegistryLiveness — see the note there.
@@ -280,13 +297,7 @@ const TITLE_TEMPLATES: [string, string][] = [
 ];
 
 function censusTitleTemplates(all: AtlasNode[]): CensusResult {
-  const members: CensusMember[] = [];
-  const counts: Record<string, number> = {};
-  for (const [bucket, exact] of TITLE_TEMPLATES) {
-    const matches = all.filter((n) => n.title === exact);
-    counts[bucket] = matches.length;
-    for (const n of matches) members.push(ref(n, bucket));
-  }
+  const { members, counts } = bucketByTitle(all, TITLE_TEMPLATES.map(([bucket, exact]) => [bucket, (t) => t === exact]));
   return {
     slug: "title-templates",
     title: "Exact-title document families",
@@ -307,12 +318,10 @@ function censusTitleTemplates(all: AtlasNode[]): CensusResult {
 // for the primitive machine (B group / empty-scaffolding census), not norms —
 // excluded from the suspension bucket, which is what the pre-rewrite Dn3
 // signature accidentally counted.
-const STATUS_BUCKET_RE = /^(Suspended|Active|Completed|In[- ]Progress|Failed|Archived) (Instances?|Invocations?)( Directory)?$/i;
-
 const NORMATIVE_TITLE_FAMILIES: [string, (title: string) => boolean][] = [
   ["prohibition", (t) => /Prohibit/i.test(t)],
   ["derecognition", (t) => /Derecogni/i.test(t) || /^Swift Action/i.test(t)],
-  ["suspension-rule", (t) => /Suspen/i.test(t) && !STATUS_BUCKET_RE.test(t)],
+  ["suspension-rule", (t) => /Suspen/i.test(t) && !STATUS_DIR_RE.test(t)],
   ["operational-conduct", (t) => /Operational Security/i.test(t) || /Err On (The )?Side Of Caution/i.test(t)],
   ["adjudication", (t) => /Adjudicat/i.test(t) || /Standard of Proof/i.test(t)],
   ["alignment", (t) => /Universal Alignment/i.test(t) || /Misalign/i.test(t)],
@@ -320,13 +329,7 @@ const NORMATIVE_TITLE_FAMILIES: [string, (title: string) => boolean][] = [
 ];
 
 function censusNormativeTitleFamilies(all: AtlasNode[]): CensusResult {
-  const members: CensusMember[] = [];
-  const counts: Record<string, number> = {};
-  for (const [bucket, test] of NORMATIVE_TITLE_FAMILIES) {
-    const matches = all.filter((n) => test(n.title));
-    counts[bucket] = matches.length;
-    for (const n of matches) members.push(ref(n, bucket));
-  }
+  const { members, counts } = bucketByTitle(all, NORMATIVE_TITLE_FAMILIES);
   const distinct = new Set(members.map((m) => m.uuid)).size;
   return {
     slug: "normative-title-families",
@@ -353,13 +356,7 @@ function scopeOf(doc_no: string): string {
 }
 
 function censusCrossScopeDuplication(all: AtlasNode[]): CensusResult {
-  const byTitle = new Map<string, AtlasNode[]>();
-  for (const n of all) {
-    const key = n.title.trim().toLowerCase();
-    const arr = byTitle.get(key) ?? [];
-    arr.push(n);
-    byTitle.set(key, arr);
-  }
+  const byTitle = groupBy(all, (n) => n.title.trim().toLowerCase());
   const members: CensusMember[] = [];
   let pairCount = 0;
   for (const [key, arr] of byTitle) {

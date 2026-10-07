@@ -1,14 +1,7 @@
 // 2q. comprises: composite party → each member (Pattern 12). The "Sky" party maps
 // to the Sky Core bootstrap entity, so it gets no composite and no comprises edge.
 // Members resolve against entities Phase 1 already created; nothing new is made here.
-import { slugify } from "../graph-patterns.mjs";
-
-const parseNameList = (str) =>
-  str
-    .split(/,\s*/)
-    .flatMap((p) => p.split(/\s+and\s+/i))
-    .map((s) => s.trim().replace(/^(?:the|and)\s+/i, "").trim())
-    .filter(Boolean);
+import { parseNameList, slugify } from "../graph-patterns.mjs";
 
 function resolveMember(ctx, rawName) {
   const cleaned = rawName.replace(/^the\s+/i, "").trim();

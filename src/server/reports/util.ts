@@ -6,6 +6,7 @@ import path from "node:path";
 import { config } from "../config.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import type { ToolResult } from "../chat/tools/tools.ts";
+import { parseMetaObject } from "../../lib/meta.ts";
 
 // Reads a committed artifact (processes.json, oea-report.json, risk-assessment.json,
 // …) out of public/ — the same flat directory the frontend fetches from, so the
@@ -22,26 +23,10 @@ export function readPublicJson<T>(file: string, publicDir: string = config.publi
 }
 
 export function parseMeta(raw: string | null): Record<string, unknown> {
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
+  return parseMetaObject(raw) ?? {};
 }
 
-// source_doc_nos is a JSON array string (current build) or a legacy comma list.
-export function parseDocNos(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
-  } catch {
-    // fall through to legacy comma-split
-  }
-  return raw.split(",").map((s) => s.trim()).filter(Boolean);
-}
+export { parseDocNos } from "../../lib/meta.ts";
 
 // `total` counts every matching row; [payloadKey] holds those that fit the budget.
 export function rowsEnvelope(

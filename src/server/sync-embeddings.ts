@@ -7,6 +7,7 @@
 //
 //   bun src/server/sync-embeddings.ts   # embed all new/changed docs
 import { config } from "./config.ts";
+import { sleep as defaultSleep } from "./retry.ts";
 import { sql, toVectorLiteral, toUuidArrayLiteral } from "./db.ts";
 import { fromUuidArray } from "./pg-array.ts";
 import { runMigrations } from "./migrate.ts";
@@ -106,7 +107,7 @@ export function embedTimeoutFromEnv(env: NodeJS.ProcessEnv = process.env): numbe
 export async function withRetry<T>(
   fn: () => Promise<T>,
   attempts: number,
-  sleep: (ms: number) => Promise<unknown> = (ms) => new Promise((r) => setTimeout(r, ms)),
+  sleep: (ms: number) => Promise<unknown> = defaultSleep,
 ): Promise<T> {
   let lastErr: unknown;
   for (let a = 1; a <= attempts; a++) {
@@ -141,7 +142,7 @@ const realEmbedDeps: EmbedDeps = {
   // rather than sharing one deadline across all three.
   embedBatch: (texts) => embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv()), 0, undefined, "embed-sync"),
   batch: batchSizeFromEnv(),
-  sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+  sleep: defaultSleep,
 };
 
 // One reconcile at a time, across every caller — arbitrary fixed key, like

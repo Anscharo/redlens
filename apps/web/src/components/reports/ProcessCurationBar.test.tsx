@@ -45,7 +45,7 @@ describe("ProcessCurationBar", () => {
     expect(screen.getByText(/marked locally as NonProcess/)).toBeInTheDocument();
   });
 
-  it("downloads a decisions JSON blob when Download JSON is clicked", () => {
+  it("downloads a decisions JSON blob when Download JSON is clicked", async () => {
     render(
       <ProcessCurationBar
         marks={[mark("uuid-1", "schema template")]}
@@ -58,7 +58,8 @@ describe("ProcessCurationBar", () => {
     expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
     const blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls[0][0] as Blob;
     expect(blob.type).toBe("application/json");
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:x");
+    // downloadFile revokes the object URL on the next tick.
+    await waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:x"));
   });
 
   it("copies the decisions JSON to the clipboard and flashes Copied!", async () => {

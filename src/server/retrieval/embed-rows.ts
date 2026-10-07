@@ -25,7 +25,7 @@ export interface EmbedRow {
 }
 
 /** Atlas order. It decides which rows a capped run embeds first. */
-export const byDocNo = (a: { doc_no: string }, b: { doc_no: string }) => a.doc_no.localeCompare(b.doc_no, "en", { numeric: true });
+export { byDocNo } from "../../lib/docNo.ts";
 
 /** The shipping grouping policy, or one_to_one when the configured name is unknown. */
 export function shippedPolicy(): GroupPolicy {

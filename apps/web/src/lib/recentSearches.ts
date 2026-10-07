@@ -1,5 +1,6 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { SearchState } from "../hooks/useSearch";
+import { readJson, writeJson } from "./safeStorage";
 
 // Recent search history — deliberately ephemeral. Stored in sessionStorage (not
 // localStorage), so it lives only for the tab/session and never leaks across
@@ -33,25 +34,19 @@ const TTL_MS = 60 * 60 * 1000; // forget anything older than an hour
 const DEBOUNCE_MS = 500; // match analytics: record only once typing settles
 
 function read(): RecentEntry[] {
-  try {
-    const raw = sessionStorage.getItem(KEY);
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    const cutoff = Date.now() - TTL_MS;
-    return parsed
-      .filter(
-        (e): e is RecentEntry =>
-          !!e &&
-          typeof (e as RecentEntry).q === "string" &&
-          typeof (e as RecentEntry).t === "number" &&
-          (e as RecentEntry).t >= cutoff,
-      )
-      .map((e) => (typeof e.n === "number" ? { q: e.q, t: e.t, n: e.n } : { q: e.q, t: e.t }))
-      .slice(0, MAX);
-  } catch {
-    return [];
-  }
+  const parsed = readJson(KEY, "session");
+  if (!Array.isArray(parsed)) return [];
+  const cutoff = Date.now() - TTL_MS;
+  return parsed
+    .filter(
+      (e): e is RecentEntry =>
+        !!e &&
+        typeof (e as RecentEntry).q === "string" &&
+        typeof (e as RecentEntry).t === "number" &&
+        (e as RecentEntry).t >= cutoff,
+    )
+    .map((e) => (typeof e.n === "number" ? { q: e.q, t: e.t, n: e.n } : { q: e.q, t: e.t }))
+    .slice(0, MAX);
 }
 
 // Cache the parsed value so getSnapshot returns a stable reference (avoids the
@@ -74,11 +69,7 @@ function sameQueries(a: RecentEntry[], b: RecentEntry[]): boolean {
 }
 
 function commit(next: RecentEntry[]): void {
-  try {
-    sessionStorage.setItem(KEY, JSON.stringify(next));
-  } catch {
-    return;
-  }
+  if (!writeJson(KEY, next, "session")) return;
   snapshot = next;
   window.dispatchEvent(new Event(EVENT));
 }

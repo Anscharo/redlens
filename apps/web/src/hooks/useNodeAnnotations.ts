@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { byDocNo } from "@/lib/docNo";
 import { buildLookup, type GlossaryEntry } from "../lib/glossary";
 import { extractLinkedIds, type LoadedData } from "@/lib/atlasHelpers";
 import { type AtlasNode, type AddressInfo } from "@/types";
@@ -30,7 +31,7 @@ export function useNodeAnnotations(id: string, data: LoadedData | null, graph: G
     const linkedNodes = extractLinkedIds(target)
       .map((lid) => docs[lid])
       .filter((n): n is AtlasNode => !!n)
-      .sort((a, b) => a.doc_no.localeCompare(b.doc_no, undefined, { numeric: true }));
+      .sort(byDocNo);
     const cousinDocs = graph ? findCousinDocs(id, data.atlas, graph) : [];
     // Element Annotations attached to this doc. Read off byParent, which the
     // atlas worker keys by parent UUID after resolving `.0.3.N` via doc_no
@@ -42,7 +43,7 @@ export function useNodeAnnotations(id: string, data: LoadedData | null, graph: G
     // section of their own.
     const annotationDocs = (data.atlas.byParent.get(id) ?? [])
       .filter((n) => n.type === "Annotation")
-      .sort((a, b) => a.doc_no.localeCompare(b.doc_no, undefined, { numeric: true }));
+      .sort(byDocNo);
     const targetAddresses: Record<string, AddressInfo> = {};
     const cv: Record<string, Record<string, ChainValue>> = {};
     // Addresses named only by their CHAIN_LOG key (MCD_VAT), not a 0x literal, so

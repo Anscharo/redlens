@@ -29,6 +29,7 @@
 
 import { bodyWhollyReplaced, bodyWordsKept, lineOverlap, sameTitle, JUDGEABLE_MIN_WORDS, REPLACE_MAX_OVERLAP, SHORT_BODY_MAX_LINES } from "../../src/server/preview/identity.ts";
 import { auc, loadCorpus, lineCount, wordCount, prng, quantile, qwenVectors, dot, type LiveDoc } from "./identity-corpus.ts";
+import { groupBy } from "../../src/lib/collections.ts";
 
 const args = process.argv.slice(2);
 const opt = (n: string, d: string) => (args.includes(n) ? args[args.indexOf(n) + 1] : d);
@@ -46,8 +47,7 @@ const add = (group: string, a: string, b: string) => {
 const { docs, edits } = await loadCorpus(ORIGIN);
 const { pick, rnd } = prng(7);
 const live = Object.values(docs).filter((d) => wordCount(d.content) >= JUDGEABLE_MIN_WORDS);
-const byParent = new Map<string, LiveDoc[]>();
-for (const d of live) if (d.parentId) (byParent.get(d.parentId) ?? byParent.set(d.parentId, []).get(d.parentId)!).push(d);
+const byParent = groupBy(live, (d) => d.parentId || null);
 const inMid = (t: string | undefined) => { const n = lineCount(t); return n >= MID[0] && n <= MID[1]; };
 // Same title never reaches the body test, and an identical body is not a swap.
 const swappable = (o: LiveDoc, c: LiveDoc) => o.id !== c.id && !sameTitle(o.title, c.title) && o.content !== c.content;

@@ -1,6 +1,7 @@
 // Search: lexical (minisearch, in-memory) + semantic (pgvector) + RRF merge.
 // Both legs return id+rank+score; callers resolve full nodes from the doc map.
 import { type Indexes } from "./indexes.ts";
+import { withTimeout } from "../retry.ts";
 import { sql, toVectorLiteral } from "../db.ts";
 import { embedQueries, type EmbedDiag } from "./embed.ts";
 import { config } from "../config.ts";
@@ -12,16 +13,7 @@ import { rrfFuse } from "../../lib/searchSemantic.ts";
 import { fuseBriefings, runBriefings, SCOPED_SCAN_SETTING, semanticScopeSql, unitHits } from "./briefings.ts";
 export { fuseBriefings, SCOPED_SCAN_SETTING, semanticScopeSql } from "./briefings.ts";
 export type { Via };
-
-// Race a promise against a timeout, clearing the timer either way. Used to bound
-// the query-time embed so a slow provider can't hang the retrieve path.
-export function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
-  let tid: ReturnType<typeof setTimeout>;
-  const timeout = new Promise<never>((_, reject) => {
-    tid = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
-  });
-  return Promise.race([p, timeout]).finally(() => clearTimeout(tid));
-}
+export { withTimeout };
 
 export interface Hit {
   id: string;

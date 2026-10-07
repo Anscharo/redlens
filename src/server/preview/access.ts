@@ -11,6 +11,7 @@
 // removed collaborator's access bounded to the cache TTL instead of 7 days.
 
 import { getSessionUser } from "../session.ts";
+import { createCache } from "../ttl-cache.ts";
 import { sql } from "../db.ts";
 import { userRepoPermission } from "./github-app.ts";
 
@@ -31,32 +32,15 @@ interface UserRow {
 // former is transient (let it recover), the latter has no stable user key.
 // ---------------------------------------------------------------------------
 
-const CACHE_TTL_MS = 60_000;
-const CACHE_MAX = 1000; // FIFO cap — matches handler.ts's RESOLVE_CACHE_MAX pattern
-
 type CacheableDecision = "ok" | "forbidden";
-const accessCache = new Map<string, { at: number; decision: CacheableDecision }>();
+const accessCache = createCache<CacheableDecision>({ max: 1000, ttlMs: 60_000 }); // FIFO cap
 
 function cacheKey(providerId: string, repo: string): string {
   return `${providerId} ${repo}`;
 }
 
-function cacheGet(key: string): CacheableDecision | null {
-  const hit = accessCache.get(key);
-  if (!hit) return null;
-  if (Date.now() - hit.at > CACHE_TTL_MS) {
-    accessCache.delete(key);
-    return null;
-  }
-  return hit.decision;
-}
-
-function cacheSet(key: string, decision: CacheableDecision): void {
-  accessCache.set(key, { at: Date.now(), decision });
-  if (accessCache.size > CACHE_MAX) {
-    accessCache.delete(accessCache.keys().next().value!);
-  }
-}
+const cacheGet = (key: string): CacheableDecision | null => accessCache.get(key) ?? null;
+const cacheSet = (key: string, decision: CacheableDecision): void => accessCache.set(key, decision);
 
 /** Test-only: clears the in-process decision cache. Production code never needs this. */
 export function __resetAccessCacheForTest(): void {

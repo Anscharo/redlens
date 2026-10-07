@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useLocation } from "wouter";
 import { ROUTES } from "@/lib/routes";
 import { track } from "../lib/analytics";
+import type { AtlasTab } from "../lib/atlasTab";
 
 // Copy params from the live URL at click time so they ride along on every
 // atlas-internal navigation (split stays open, active tab stays active).
@@ -16,7 +17,6 @@ function carryParams(params: URLSearchParams, keys: string[]): URLSearchParams {
 }
 
 type Navigate = (to: string) => void;
-type RightTab = "notes" | "glossary" | "history";
 
 /** Opens a node in the reader. Subset filters stay active across doc clicks:
  *  opening a doc from a filtered list stays filtered rather than jumping to All. */
@@ -28,9 +28,9 @@ function useNodeNavigator(navigate: Navigate): (id: string) => void {
 }
 
 /** Switches the reader's right panel. Notes is the default panel, so it rides the URL with no ?view= param. */
-function useViewChange(navigate: Navigate, nodeId: string | null): (v: RightTab) => void {
+function useViewChange(navigate: Navigate, nodeId: string | null): (v: AtlasTab) => void {
   return useCallback(
-    (v: RightTab) => {
+    (v: AtlasTab) => {
       track("atlas_view_tab", { node_id: nodeId, view: v });
       const params = new URLSearchParams();
       if (nodeId) params.set("id", nodeId);

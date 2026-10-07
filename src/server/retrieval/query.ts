@@ -11,7 +11,7 @@ import { resolveTargetType } from "./doc-types.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import { sql } from "../db.ts";
 import { livenessOf, withLivenessHint, type ToolResult } from "../chat/tools/tools.ts";
-import { pgType } from "../chat/tools/tools-history.ts";
+import { pgType } from "../history/change-type.ts";
 
 export interface QueryArgs {
   query?: string;
@@ -60,7 +60,7 @@ async function historySet(
   // removed | moved — while Postgres and this tool's own enum store
   // content/structural. A model that learned one wording got 0 rows from the
   // other with no way to tell why (found 2026-09-23). Accept BOTH here and
-  // normalize through tools-history.ts's `pgType`, which owns this mapping —
+  // normalize through history/change-type.ts's `pgType`, which owns this mapping —
   // a local copy is how the two sides come to disagree about one name.
   if (changeType) {
     params.push(pgType(changeType));

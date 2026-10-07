@@ -10,6 +10,7 @@ import { join } from "node:path";
 import MiniSearch from "minisearch";
 import { MultiDirectedGraph } from "graphology";
 import { config } from "../config.ts";
+import type { SqlWithTx as TxCapableSql } from "../sql-types.ts";
 import { MINISEARCH_OPTIONS } from "../../lib/searchOptions.ts";
 import { buildLookup, type Glossary, type GlossaryEntry } from "../../lib/glossaryLookup.ts";
 import { buildParamIndex, type ParamIndex } from "../../lib/paramIndex.ts";
@@ -63,10 +64,7 @@ export function docRowToNode(r: DocMetaRow): AtlasNode {
 // which is the failure class DocMetaRow exists to prevent. Sha + rows come
 // from one transaction so a concurrent worker commit cannot pair a new
 // sync_state pointer with the previous atlas_doc_meta snapshot.
-type SqlTag = (strings: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>;
-interface SqlWithTx {
-  begin<T>(fn: (tx: SqlTag) => Promise<T>): Promise<T>;
-}
+type SqlWithTx = Pick<TxCapableSql, "begin">; // the transaction primitive alone: fakes need not be callable
 
 export async function loadDocMetaSnapshot(db: SqlWithTx): Promise<{ atlasSha: string | null; rows: DocMetaRow[] }> {
   return db.begin(async (tx) => {

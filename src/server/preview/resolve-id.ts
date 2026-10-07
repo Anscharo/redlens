@@ -3,6 +3,7 @@
 // only; authorization is never cached here and is re-run by every caller.
 
 import { config } from "../config.ts";
+import { createCache } from "../ttl-cache.ts";
 import { decodeId, gateError, makeGhClient, resolveRef, type Resolved, type PendingPrivate, type ResolveError } from "./resolve.ts";
 import { getPreviewRow } from "./db.ts";
 
@@ -13,9 +14,10 @@ export const gh = makeGhClient(config.githubToken);
 // Exported (with the cap) for the eviction regression test only — not otherwise
 // consumed outside this module. Mirrors handler.ts's diffCache/DIFF_CACHE_MAX pattern.
 export type ResolveResult = Resolved | { error: ResolveError } | PendingPrivate;
-export const resolveCache = new Map<string, { at: number; v: ResolveResult }>();
-const RESOLVE_TTL_MS = 60_000;
+// The `{ at, v }` entry shape and the TTL check live here because the eviction test seeds entries in that shape.
 export const RESOLVE_CACHE_MAX = 1000; // FIFO cap — prevents indefinite growth under scanner traffic
+export const resolveCache = createCache<{ at: number; v: ResolveResult }>({ max: RESOLVE_CACHE_MAX });
+const RESOLVE_TTL_MS = 60_000;
 
 // Called through open-gate.ts's resolveAuthorized by the SSE stream and the
 // preview tools; tested directly for the sha-rebuild branch (kind/prBase
@@ -76,7 +78,6 @@ export async function resolveId(rawId: string): Promise<ResolveResult> {
   // installed". Every other outcome is stable enough for the short TTL.
   if (!("error" in v) || v.error !== "app-not-installed") {
     resolveCache.set(rawId, { at: now, v });
-    if (resolveCache.size > RESOLVE_CACHE_MAX) resolveCache.delete(resolveCache.keys().next().value!);
   }
   return v;
 }

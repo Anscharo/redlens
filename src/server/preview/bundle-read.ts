@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { AtlasNode } from "../../types.ts";
+import { createCache } from "../ttl-cache.ts";
 import type { DiffLine, WordSegment } from "../../lib/history";
 import { previewPaths } from "./cache.ts";
 import type { PreviewDiffJson } from "./diff-artifacts.ts";
@@ -18,7 +19,7 @@ export interface PreviewDocs {
 // docs.json is the whole atlas (~7 MB), so keep only the last couple parsed:
 // a review conversation asks about one preview several times in a row.
 const DOCS_CACHE_MAX = 2;
-const docsCache = new Map<string, PreviewDocs>();
+const docsCache = createCache<PreviewDocs>({ max: DOCS_CACHE_MAX, lru: true });
 
 function readJson<T>(sha: string, name: string): T | null {
   try {
@@ -30,11 +31,7 @@ function readJson<T>(sha: string, name: string): T | null {
 
 export function loadPreviewDocs(sha: string): PreviewDocs {
   const hit = docsCache.get(sha);
-  if (hit) {
-    docsCache.delete(sha);
-    docsCache.set(sha, hit);
-    return hit;
-  }
+  if (hit) return hit;
   const nodes = Object.values(readJson<{ nodes: Record<string, AtlasNode> }>(sha, "docs.json")?.nodes ?? {});
   const docs: PreviewDocs = { byId: new Map(), byDocNo: new Map(), children: new Map() };
   for (const n of nodes) {
@@ -47,7 +44,6 @@ export function loadPreviewDocs(sha: string): PreviewDocs {
   }
   for (const kids of docs.children.values()) kids.sort((a, b) => a.order - b.order);
   docsCache.set(sha, docs);
-  if (docsCache.size > DOCS_CACHE_MAX) docsCache.delete(docsCache.keys().next().value!);
   return docs;
 }
 
