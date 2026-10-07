@@ -164,6 +164,34 @@ run gives no reason to pursue it.
 
 **Decision:** Jev is the decision model for both tasks.
 
+## Fourth run: Jev against `cloudflare/clef`, 2026-10-07
+
+| Task | jev-1.13 | clef |
+|---|---|---|
+| Subject, real (39) at τ 0.5 | 95%, 2 false alarms | **97%, 1 false alarm** (Osero and the Gnosis payment right) |
+| Subject, swapped (34) at τ 0.5 | **33/34** | 29/34 |
+| Subject, best threshold (both slices) | **97% at τ 0.3–0.4** | 93% at τ 0.6 |
+| Poll at τ 0.5 | 5/14 found, 0/4 false | **8/14 found**, 0/4 false |
+| Poll, best threshold | **78% at τ 0.1–0.15** | 72% at τ ≤ 0.4 |
+
+**Clef's swapped misses.**
+- **Two are real errors:** it credited the Keel and Osero genesis transfers to the January 29
+  executive, which funds Skybase.
+- **Two are the debatable monthly-grant kind:** a Spark grant and a Grove grant paid in another
+  month.
+- **One is shared with Jev:** the Grove grant swap.
+
+**Calibration.** Clef's probabilities sit higher, so it is the better model at an untuned 0.5. Jev
+needs its thresholds tuned (about 0.35 for subject, 0.15 for polls) and is better once they are.
+
+**Combining them does not help.** Requiring both to say yes, or accepting either, does not beat
+Jev alone on these rows.
+
+**At this sample size the gaps are noise.** Differences of one to three cases between the two are
+within it. Clef is the credible runner-up, and the fallback if Jev's price or availability changes.
+
+**Decision unchanged:** Jev, with tuned thresholds.
+
 ## Osero was enacted: the research's headline case is a false alarm
 
 The gold labelling found that the March 26, 2026 executive does carry the Osero genesis transfer.
