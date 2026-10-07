@@ -66,3 +66,43 @@ test("chatToolContext: reading private text records it, then flips the turn's ob
   expect(order).toEqual(["record a/b"]);
   expect(obs.privacyMode).toBe(true);
 });
+
+const SHA = "d".repeat(40);
+const page = (previewId: string) => ({ previewId, previewSha: SHA });
+
+test("a turn inside a private preview records that repo before any tool runs, and is gated by it", async () => {
+  const recorded: string[] = [];
+  const record = async (_c: string, repo: string) => void recorded.push(repo);
+  const lookup = async () => ({ repo: "Acme/Secret", private: true });
+  const ok = await conversationScope("u", { id: "c1", privateRepos: [] }, page("acme:secret:main"), {
+    authorize: decide({ "acme/secret": "ok" }),
+    record,
+    lookup,
+  });
+  if ("denied" in ok) throw new Error("unexpected");
+  expect(recorded).toEqual(["acme/secret"]); // lowercased, one spelling per repo
+  expect(ok.privacyMode).toBe(true);
+  await ok.onPrivateAccess("ACME/secret");
+  expect(recorded).toEqual(["acme/secret"]);
+
+  const denied = await conversationScope("u", { id: "c1", privateRepos: [] }, page("acme:secret:main"), {
+    authorize: decide({}),
+    record,
+    lookup,
+  });
+  expect(denied).toMatchObject({ denied: "preview_access_revoked" });
+});
+
+test("a public fork preview or a canonical PR records nothing; a failed lookup denies with 503", async () => {
+  const recorded: string[] = [];
+  const record = async (_c: string, repo: string) => void recorded.push(repo);
+  const publicFork = async () => ({ repo: "acme/fork", private: false });
+  expect("denied" in (await conversationScope("u", { id: "c", privateRepos: [] }, page("acme:main"), { record, lookup: publicFork }))).toBe(false);
+  const never = async () => {
+    throw new Error("canonical PRs are never looked up");
+  };
+  expect("denied" in (await conversationScope("u", { id: "c", privateRepos: [] }, page("pull-3"), { record, lookup: never }))).toBe(false);
+  expect(recorded).toEqual([]);
+  const broken = async () => Promise.reject(new Error("db down"));
+  expect(await conversationScope("u", { id: "c", privateRepos: [] }, page("acme:main"), { lookup: broken })).toMatchObject({ status: 503 });
+});

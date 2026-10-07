@@ -177,6 +177,8 @@ test("chat: a private bundle behind a resolution that did not say private is sti
   const { d, calls } = deps({ meta: privateMeta });
   expect((await openPreviewForTool(7, { surface: "chat", userId: "u" }, {}, d)).status).toBe("ready");
   expect(calls.authorize).toEqual(["acme/secret"]);
+  const outage = deps({ meta: privateMeta, authorize: async () => "unavailable" }).d;
+  expect((await openPreviewForTool(7, { surface: "chat", userId: "u" }, {}, outage)).status).toBe("unavailable");
 });
 
 test("chat: a taken-down sha is not-found", async () => {

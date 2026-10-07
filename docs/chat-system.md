@@ -1388,9 +1388,11 @@ idle and a migration to remove it isn't worth the churn. Retrieval tables are
 "what's loaded" pointer.
 
 `conversations.private_repos` (migration 040) lists the private repos whose PR
-preview text a conversation's tools have read. A preview tool records the repo
+preview text a conversation holds. A preview tool records the repo
 (`conversation-access.ts`) before returning the text, and withholds the text if
-it cannot. Every later turn and every reopen (`GET /api/chat/conversations/:id`)
+it cannot; a turn asked from inside a private preview records it before the turn
+runs, since the page context already carries that preview's titles (a failed
+lookup or record answers 503). Every later turn and every reopen (`GET /api/chat/conversations/:id`)
 re-checks the user's live access to each listed repo (`conversations/detail.ts` for the reopen) and answers 403
 `preview_access_revoked` once any is gone (503 `access_check_unavailable` when
 GitHub cannot answer). A conversation with a non-empty list, or a turn asked

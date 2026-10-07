@@ -6,7 +6,9 @@
 // conversation never sends prompt or response text to PostHog.
 
 import { sql } from "../db.ts";
-import type { PageContext } from "./system-prompt.ts";
+import { validPreviewContext, type PageContext } from "./system-prompt-page.ts";
+import { readMeta } from "../preview/cache.ts";
+import { getPreviewRow } from "../preview/db.ts";
 import { authorizeUserRepoAccess, type AccessDecision } from "../preview/access.ts";
 import { CANONICAL_REPO, decodeId } from "../preview/resolve.ts";
 import type { ToolCallContext } from "./tools/tool-context.ts";
@@ -50,6 +52,31 @@ export interface ConversationScope {
   onPrivateAccess: (repo: string) => Promise<void>;
 }
 
+// GitHub repo names are case-insensitive: one spelling per repo keeps the list
+// to one entry, and the live check accepts any spelling.
+const repoKey = (repo: string) => repo.toLowerCase();
+
+/** The private repo whose preview the page is inside, or null for a public or
+ *  canonical one. The page's titles come from that preview's docs, so a turn
+ *  asked there holds its text before any tool runs. Read from the bundle on
+ *  disk, then the previews row; a lookup that throws is left to the caller. */
+async function lookupPagePreview(sha: string): Promise<{ repo: string; private: boolean } | null> {
+  const meta = readMeta(sha);
+  if (meta) return { repo: meta.repo, private: !!meta.private };
+  const row = await getPreviewRow(sha);
+  return row ? { repo: row.repo, private: row.private } : null;
+}
+
+export async function pagePrivateRepo(
+  page: PageContext | undefined,
+  lookup: typeof lookupPagePreview = lookupPagePreview,
+): Promise<string | null> {
+  const sha = pageNamesNonCanonicalPreview(page) ? validPreviewContext(page)?.sha : undefined;
+  if (!sha) return null;
+  const found = await lookup(sha);
+  return found?.private ? repoKey(found.repo) : null;
+}
+
 async function recordRepo(convId: string, repo: string): Promise<void> {
   await sql`
     UPDATE conversations SET private_repos = array_append(private_repos, ${repo})
@@ -57,23 +84,50 @@ async function recordRepo(convId: string, repo: string): Promise<void> {
   `;
 }
 
+interface ScopeDeps {
+  authorize?: (userId: string, repo: string) => Promise<AccessDecision>;
+  record?: typeof recordRepo;
+  lookup?: typeof lookupPagePreview;
+}
+
+const UNAVAILABLE: ScopeDenied = { denied: "access_check_unavailable", status: 503 };
+
+/** The repos this turn must be allowed to read: those the conversation already
+ *  holds, plus a private preview the page is inside. A failed lookup denies. */
+async function reposInScope(conv: ResolvedConversation, page: PageContext | undefined, lookup?: typeof lookupPagePreview) {
+  let pageRepo: string | null;
+  try {
+    pageRepo = await pagePrivateRepo(page, lookup);
+  } catch {
+    return UNAVAILABLE;
+  }
+  const held = new Set(conv.privateRepos.map(repoKey));
+  return { held, pageRepo: pageRepo && !held.has(pageRepo) ? pageRepo : null };
+}
+
 export async function conversationScope(
   userId: string,
   conv: ResolvedConversation,
   page: PageContext | undefined,
-  deps: { authorize?: (userId: string, repo: string) => Promise<AccessDecision>; record?: typeof recordRepo } = {},
+  deps: ScopeDeps = {},
 ): Promise<ConversationScope | ScopeDenied> {
-  const denied = await reauthorizeRepos(userId, conv.privateRepos, deps.authorize);
+  const scope = await reposInScope(conv, page, deps.lookup);
+  if ("denied" in scope) return scope;
+  const { held, pageRepo } = scope;
+  const denied = await reauthorizeRepos(userId, pageRepo ? [...held, pageRepo] : [...held], deps.authorize);
   if (denied) return denied;
-  const record = deps.record ?? recordRepo;
-  const recorded = new Set(conv.privateRepos);
-  return {
-    privacyMode: recorded.size > 0 || pageNamesNonCanonicalPreview(page),
-    onPrivateAccess: async (repo) => {
-      if (recorded.has(repo)) return;
-      await record(conv.id, repo);
-      recorded.add(repo);
-    },
+  const onPrivateAccess = recorder(conv.id, held, deps.record ?? recordRepo);
+  if (pageRepo && !(await onPrivateAccess(pageRepo).then(() => true, () => false))) return UNAVAILABLE;
+  return { privacyMode: held.size > 0 || pageNamesNonCanonicalPreview(page), onPrivateAccess };
+}
+
+/** Records a repo on the conversation once per spelling-insensitive name. */
+function recorder(convId: string, held: Set<string>, record: typeof recordRepo) {
+  return async (repo: string): Promise<void> => {
+    const key = repoKey(repo);
+    if (held.has(key)) return;
+    await record(convId, key);
+    held.add(key);
   };
 }
 

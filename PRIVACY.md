@@ -49,8 +49,8 @@ If you sign in, the following is stored against your account.
 - **Your chats** — the full conversation: your questions, the AI's answers, and
   the atlas page you were viewing when you asked. We keep these so the app
   functions (your history, follow-up questions) and to improve the chatbot.
-  If the chatbot read a preview of a private repository for you, we also keep
-  which repository, so the conversation can only be reopened while you still
+  If the chatbot read a preview of a private repository for you, or you asked
+  it something from inside one, we also keep which repository, so the conversation can only be reopened while you still
   have access to it on GitHub.
 - **Usage and costs** — token counts and the AI cost of your chats, used for
   fair-use limits and to understand running costs.
