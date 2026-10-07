@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { config } from "../config.ts";
-import { chargeLargeRead, largeReadFor, resultBudget } from "./large-read.ts";
+import { chargeLargeRead, largeReadFor, previewCaps, resultBudget } from "./large-read.ts";
 
 const [LARGE] = config.chatLargeContextModels;
 
@@ -24,4 +24,14 @@ test("the per-turn total shrinks and falls back to the ordinary budget once spen
   chargeLargeRead(false, read, 40_000); // an ordinary tool costs nothing here
   chargeLargeRead(true, read, 40_000);
   expect(resultBudget(true, read)).toBe(config.chatToolResultMaxChars);
+});
+
+test("preview page sizes stay small for MCP, small-window turns and a spent large read", () => {
+  const small = { limit: 100, patchLines: 40, ids: 5 };
+  expect(previewCaps(undefined)).toEqual(small);
+  expect(previewCaps(null)).toEqual(small);
+  const read = largeReadFor([LARGE])!;
+  expect(previewCaps(read).ids).toBe(50);
+  chargeLargeRead(true, read, config.chatLargeReadMaxChars);
+  expect(previewCaps(read)).toEqual(small);
 });

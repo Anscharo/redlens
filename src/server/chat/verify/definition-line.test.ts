@@ -2,7 +2,7 @@
 // matcher, then end to end through expandReferenceLinks and the streaming gate
 // on the two shapes gpt-6-luna produced in the chat bakeoff.
 import { test, expect } from "bun:test";
-import { canonicalDefLine, couldBeTitledDef, matchLabelBySlug } from "./definition-line.ts";
+import { canonicalDefLine, citedLabels, couldBeTitledDef, matchLabelBySlug } from "./definition-line.ts";
 import { expandReferenceLinks } from "./citation-normalize.ts";
 import { createCitationGate } from "./definition-block-gate.ts";
 
@@ -14,9 +14,17 @@ test("titled definition becomes [label]: dest", () => {
     .toBe(`[council-buffer]: /atlas/${A}`);
 });
 
-test("bare definition becomes [Name]: dest", () => {
-  expect(canonicalDefLine(`Liquidity Layer Freezer Multisig: /atlas/${A}`))
+test("bare definition becomes [Name]: dest only when the answer cites it", () => {
+  const line = `Liquidity Layer Freezer Multisig: /atlas/${A}`;
+  expect(canonicalDefLine(line, citedLabels("Freezers act fast. [Freezer][liquidity-layer-freezer-multisig]")))
     .toBe(`[Liquidity Layer Freezer Multisig]: /atlas/${A}`);
+  expect(canonicalDefLine(line, citedLabels("No reference uses here."))).toBeNull();
+  expect(canonicalDefLine(line)).toBeNull();
+});
+
+test("an unused bare line stays in the answer as prose", () => {
+  const answer = `Source: /atlas/${A}\n\nThe freezer acts in emergencies.`;
+  expect(expandReferenceLinks(answer).content).toBe(answer);
 });
 
 test("prose, list items, quotes, non-atlas paths and canonical lines are left alone", () => {
@@ -43,6 +51,8 @@ test("slug match: exact slug, then a unique word-boundary prefix, never an ambig
   expect(matchLabelBySlug("Spell Execution Process", labels)).toBe(labels[1]);
   expect(matchLabelBySlug("cast", labels)).toBeNull(); // not a whole-word prefix
   expect(matchLabelBySlug("spell", ["spell one", "spell two"])).toBeNull();
+  expect(matchLabelBySlug("casting", labels)).toBeNull(); // one word never prefix-matches
+  expect(matchLabelBySlug("casting and execution", labels)).toBe(labels[0]);
 });
 
 test("titled definition block expands its uses", () => {

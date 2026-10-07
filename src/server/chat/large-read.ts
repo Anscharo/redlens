@@ -30,6 +30,21 @@ export function chargeLargeRead(largeResult: boolean | undefined, read: LargeRea
   if (largeResult && read) read.left = Math.max(0, read.left - chars);
 }
 
+/** Preview-tool page sizes. The large ones apply only to a large-read chat
+ *  turn. Every other caller, MCP included, keeps the small ones, because the
+ *  preview tools have no other bound on their output. */
+export interface PreviewCaps {
+  limit: number;
+  patchLines: number;
+  ids: number;
+}
+const SMALL_CAPS: PreviewCaps = { limit: 100, patchLines: 40, ids: 5 };
+const LARGE_CAPS: PreviewCaps = { limit: 1000, patchLines: 400, ids: 50 };
+
+export function previewCaps(read: LargeRead | null | undefined): PreviewCaps {
+  return read && read.left > config.chatToolResultMaxChars ? LARGE_CAPS : SMALL_CAPS;
+}
+
 /** The system-prompt line that tells the model it may ask for large pages. */
 export const LARGE_READ_PROMPT =
   "This turn can read large PR previews. To review a PR, call atlas_preview_diff with a high `limit` (up to 1000) and " +

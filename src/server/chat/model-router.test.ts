@@ -214,9 +214,14 @@ describe("routeTier: PR review", () => {
   });
 
   test("questions naming an unmerged change route strong", () => {
-    for (const q of ["review PR 470", "what does #470 change?", "any open PRs?", "summarize the upcoming changes", "check this pull request"]) {
+    for (const q of ["review PR 470", "what does #470 change?", "any open PRs?", "summarize the upcoming changes", "check this pull request", "list open pull requests"]) {
       expect(routeTier(q)).toEqual({ tier: "strong", reason: "pr-review" });
     }
+  });
+
+  test("general pull-request questions and short numbers are not PR reviews", () => {
+    expect(routeTier("how do pull requests work in the atlas?").reason).not.toBe("pr-review");
+    expect(routeTier("why is #10 priority?").reason).not.toBe("pr-review");
   });
 
   test("a doc_no or a markdown heading is not a PR reference", () => {

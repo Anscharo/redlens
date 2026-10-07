@@ -68,9 +68,11 @@ const STRONG_SIGNALS: [RegExp, string][] = [
   // Superlative over a class: the extreme is often not in BM25 top-k.
   [EXTREMUM_Q_RE, "extremum"],
   // An unmerged PR: reviewing one reads its whole diff, which only the strong
-  // tier's large window holds. A bare issue number also matches merged PRs,
-  // which the strong tier answers as well as the default one.
-  [/\b(pull requests?|open PRs?|PR\s*#?\d+|upcoming changes?|proposed changes?)\b|(?:^|\s)#\d{2,5}\b/i, "pr-review"],
+  // tier's large window holds. "pull request" alone is a general question, so
+  // only a specific or open one counts. A bare issue number needs three digits
+  // ("#10 priority" is not a PR); it also matches merged PRs, which the strong
+  // tier answers as well as the default one.
+  [/\b(this pull request|open pull requests?|pull request #?\d+|open PRs?|PR\s*#?\d+|upcoming changes?|proposed changes?)\b|(?:^|\s)#\d{3,5}\b/i, "pr-review"],
 ];
 
 export function routeTier(

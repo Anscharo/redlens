@@ -12,7 +12,7 @@
 // Inline-only answers — everything today's prompt produces — come back
 // BYTE-IDENTICAL, and the pass is idempotent: expanding twice changes nothing.
 
-import { canonicalDefLine, matchLabelBySlug } from "./definition-line.ts";
+import { canonicalDefLine, citedLabels, matchLabelBySlug } from "./definition-line.ts";
 
 export interface ReferenceExpansion {
   content: string;
@@ -125,10 +125,11 @@ export function expandReferenceLinks(answer: string, resolve?: (label: string) =
   // CommonMark allows them anywhere and a bottom block is an accepted
   // degradation, so the whole answer is scanned. Fenced code is skipped: this
   // bot answers questions about markdown syntax.
+  const cited = citedLabels(answer);
   let fence = false;
   for (const line of lines) {
     if (FENCE_RE.test(line)) fence = !fence;
-    const m = fence ? null : DEF_RE.exec(canonicalDefLine(line) ?? line);
+    const m = fence ? null : DEF_RE.exec(canonicalDefLine(line, cited) ?? line);
     isDef.push(m !== null);
     if (!m) continue;
     const key = normLabel(m[1]);

@@ -20,11 +20,21 @@ const BARE_RE = new RegExp(String.raw`^( {0,3})(?![-*+] |\d+[.)] |>)([^[\]\n:]{1
 
 // The canonical form of an off-spec definition line, or null when the line is
 // not one (a canonical line also returns null: there is nothing to rewrite).
-export function canonicalDefLine(line: string): string | null {
+// A bare line is read as a definition only when `cited` says some
+// `[text][label]` use in the answer points at its name: otherwise it is a prose
+// line that holds a path, and dropping it as an unused definition would delete
+// it from the answer.
+export function canonicalDefLine(line: string, cited?: (label: string) => boolean): string | null {
   const t = TITLED_RE.exec(line);
   if (t) return `${t[1]}[${t[3].trim()}]: ${t[4]}`;
   const b = BARE_RE.exec(line);
-  return b ? `${b[1]}[${b[2].trim()}]: ${b[3]}` : null;
+  return b && cited?.(b[2].trim()) ? `${b[1]}[${b[2].trim()}]: ${b[3]}` : null;
+}
+
+// The labels an answer cites with `[text][label]`, as a test for canonicalDefLine.
+export function citedLabels(answer: string): (label: string) => boolean {
+  const used = [...answer.matchAll(/\]\[([^[\]\n]{1,200})\]/g)].map((m) => m[1]);
+  return (label) => used.some((u) => slug(u) === slug(label) || matchLabelBySlug(u, [label]) !== null);
 }
 
 // Could a partial first line, still without its newline, become a titled
@@ -43,14 +53,16 @@ const slug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").
 // A used label with no exact definition, matched to a definition by slug: the
 // model defines `[Casting And Execution Of Approved Spell]` and cites
 // `[…][casting-and-execution]`. An equal slug wins. Otherwise the use's slug
-// must be a word-boundary prefix of exactly one definition's slug. Ambiguity
-// returns null, so the caller's undefined-label path decides.
+// must be a word-boundary prefix of exactly one definition's slug, and be at
+// least two words long, so a one-word label cannot bind to a long title.
+// Ambiguity returns null, so the caller's undefined-label path decides.
 export function matchLabelBySlug(key: string, labels: Iterable<string>): string | null {
   const k = slug(key);
   if (!k) return null;
   const all = [...labels];
   const exact = all.filter((l) => slug(l) === k);
   if (exact.length) return exact.length === 1 ? exact[0] : null;
+  if (!k.includes("-")) return null;
   const prefix = all.filter((l) => slug(l).startsWith(`${k}-`));
   return prefix.length === 1 ? prefix[0] : null;
 }
