@@ -174,7 +174,7 @@ export default defineConfig(() => {
       registerType: "prompt",
       manifest: {
         name: "Redline Portal",
-        short_name: "Redline Portal",
+        short_name: "redline-atlas",
         description: "Search-first interface for the Sky ecosystem Atlas",
         start_url: base,
         scope: base,
