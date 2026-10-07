@@ -106,6 +106,7 @@ They were four separate lists until every one of them was shown to fail silently
   - `scripts/lib/pau-diff.ts` reports what the registry lacks, provenance that went stale, and atlas self-contradictions (an address under two roles, or a verified explorer name that contradicts the role).
   - `--rpc` runs the wiring checks (`pau-wiring*.ts`): controller pointers, `hasRole` for monolith relayers and freezers, a diamond's enumerated facets, actors and revokers, and the live controller, read from the RateLimits CONTROLLER grant history (`scripts/lib/explorer-logs.ts`: Etherscan v2 with `ETHERSCAN_API_KEY`, else the chain's Blockscout). Findings the chain makes come back as proposals.
   - `--draft` writes `.cache/pau-registry.draft.json`: the registry plus every missing observation, for triage to edit down.
+- The atlas worker's `pau` tick step reads the registry contracts' admin-event history and live state into Postgres; see `src/server/pau/CLAUDE.md`.
 
 ## Atlas merge gate and censuses
 

@@ -10,7 +10,7 @@
 // this file; the best-effort side steps are entries in
 // scripts/lib/worker-steps/ (add a step there, not here):
 //
-//   tick steps (pr-state, chain-state, balances, forum — every tick)
+//   tick steps (pr-state, chain-state, balances, forum, pau — every tick)
 //   → drift check (scripts/lib/worker-drift.mjs)
 //   → fast-exit:  heartbeat → tail
 //   → rebuild:    build-index → … (stepsFor("worker")) → sync.ts →
