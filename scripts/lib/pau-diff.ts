@@ -3,8 +3,8 @@
  * and the observations with each other. Pure; the CLI owns all I/O.
  *
  *   - missing:  the atlas names a PAU address the registry does not hold;
- *   - stale:    a registry member's atlas provenance no longer names it
- *               (the doc is gone, or no longer carries the address);
+ *   - stale:    a registry member's atlas provenance doc is missing, or
+ *               does not carry the member's address;
  *   - conflict: the atlas disagrees with itself (one address under two roles
  *               or two primes) or with the explorer's verified contract name.
  */
@@ -63,7 +63,7 @@ export function missingFromRegistry(obs: PauObservation[], reg: PauRegistry): Pa
   return obs.filter((o) => !inRegistry(o, reg) && !isIgnored(o, reg));
 }
 
-/** Registry members whose atlas provenance no longer names them. */
+/** Registry members whose atlas provenance doc is missing or does not carry their address. */
 export function staleMembers(reg: PauRegistry, docs: Record<string, AtlasNode>): StaleMember[] {
   const groups = [
     ...reg.deployments.map((d) => ({ prime: d.prime as string | null, chain: d.chain, members: d.members })),
