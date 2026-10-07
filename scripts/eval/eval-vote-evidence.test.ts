@@ -20,10 +20,10 @@ function exec(date: string, text: string): Executive {
 
 const claim = { context: "", contextBefore: "", raw: "March 26, 2026", voteEvidence: undefined, vote: null };
 const subjectCase = (over: Partial<SubjectCase> = {}): SubjectCase =>
-  ({ key: "d@2026-03-26", docId: "d", docNo: "A.1", title: "Osero Transfer", date: "2026-03-26", sentence: "S.", claim, vote: exec("2026-03-26", "Transfer 10 million USDS."), gold: null, ...over }) as unknown as SubjectCase;
+  ({ key: "d@2026-03-26", docId: "d", docNo: "A.1", title: "Osero Transfer", date: "2026-03-26", sentence: "S.", documentText: "", claim, vote: exec("2026-03-26", "Transfer 10 million USDS."), gold: null, ...over }) as unknown as SubjectCase;
 const pollCase = (files: string[], authorising: string[] = []): PollCase =>
   ({
-    key: "d@2026-01-01", docId: "d", docNo: "A.1", title: "T", date: "2026-01-01", sentence: "S.", claim,
+    key: "d@2026-01-01", docId: "d", docNo: "A.1", title: "T", date: "2026-01-01", sentence: "S.", documentText: "", claim,
     candidates: files.map((file, i) => ({ id: `p${i}`, file, date: "2025-11-24", title: file, body: "b" })),
     windowFiles: files, gold: { docId: "d", date: "2026-01-01", label: authorising.length ? "authorised" : "none-expected", authorising, enacting: [], evidence: "" },
   }) as unknown as PollCase;

@@ -50,6 +50,8 @@ export interface ClaimText {
   title: string;
   date: string;
   sentence: string;
+  /** The claim's whole document, links reduced to text, whitespace collapsed. */
+  documentText: string;
   claim: DateClaim;
 }
 
@@ -95,7 +97,8 @@ const keyOf = (docId: string, date: string) => `${docId}@${date}`;
 
 function claimText(c: DateClaim, docs: Record<string, AtlasNode>): ClaimText {
   const doc = docs[c.docId];
-  return { key: keyOf(c.docId, c.dateISO), docId: c.docId, docNo: c.docNo, title: c.title, date: c.dateISO, sentence: claimSentence(doc.content, c), claim: c };
+  const documentText = stripMarkdownLinks(doc.content).replace(/\s+/g, " ").trim();
+  return { key: keyOf(c.docId, c.dateISO), docId: c.docId, docNo: c.docNo, title: c.title, date: c.dateISO, sentence: claimSentence(doc.content, c), documentText, claim: c };
 }
 
 function passed(p: Poll): boolean {

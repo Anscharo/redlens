@@ -70,6 +70,39 @@ poll (18 labeled; prefilter kept a gold poll in 12/14 top-K, 13/14 in window)
 (The real slice has 39 rows from 38 gold labels: one document states the same date in two
 sentences.)
 
+## First run: Jev (`typesafe/jev-1.13`), 2026-10-07
+
+| Task | Jev at τ 0.5 | Best threshold |
+|---|---|---|
+| Subject, real (39) | 20 right. 5/5 anchors; 19 confirmed claims answered "no" | — |
+| Subject, swapped (34) | **34/34 caught**, against the heuristic's 17/34 | every swapped `carried` is ≤ 0.33 |
+| Poll (18) | 5/14 found, 0/4 false | Its top-ranked candidate is the gold poll in 11 of the 12 cases where gold is among the candidates. Every no-vote claim scores ≤ 0.08, so τ 0.15 gives 10/14 found, 0/4 false |
+
+**Reading the subject result.** Jev's "yes" is precise: no swapped executive scored above 0.33.
+Its "no" is not reliable, but most of its 19 false "no"s were caused by the harness, not by Jev:
+- **9 grant payments were cut off.** They sit deep inside Prime proxy-spell sections, which the
+  first harness truncated at 3,000 characters per section. Jev never saw those lines.
+- **2 are renamed agents.** Osero scored 0.04 and Obex 0.31. The plain-text step dropped link
+  URLs, so the address that ties old name to new never reached Jev.
+- **The rest are borderline**, between 0.35 and 0.49.
+
+**Fixed for the second run:**
+- **No more per-section cut.** Whole executives are under 20 KB, so sections go in whole.
+- **Addresses kept.** `plainText` (`scripts/lib/votes/markdown.ts`) keeps any on-chain address a
+  link URL carries, e.g. "Launch Agent 6 SubProxy (0x24fd…)".
+- **More context.** Both judges also get the claim's own atlas document text, and the question
+  allows a party under an earlier name when an address or alias ties them.
+- **Wider sweeps.** The threshold sweeps now start at 0.1.
+
+To rerun, re-sync first, because the section text changed:
+
+```bash
+pnpm votes:sync && pnpm eval:vote-evidence      # subject requests are new (re-paid); poll answers come from the cache
+```
+
+What to look for: whether the 9 truncated grants and Osero now read "yes", and whether the swapped
+slice stays at 34/34.
+
 ## Osero was enacted: the research's headline case is a false alarm
 
 The gold labelling found that the March 26, 2026 executive does carry the Osero genesis transfer.

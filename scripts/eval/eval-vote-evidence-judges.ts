@@ -20,14 +20,17 @@ export interface Msg {
   content: string;
 }
 
-// Each executive section is cut here: the action a claim names opens its
-// section, and the cap keeps the largest executives inside one request.
-const SECTION_CHARS = 3000;
+// Executive sections go whole: a Prime proxy-spell section runs to 12 KB and
+// itemises grant payments deep inside it, and whole executives stay under
+// 20 KB. The cap only guards a pathological file.
+const SECTION_CHARS = 40_000;
 const POLL_CHARS = 6000;
+// The claim's own document, for the address or alias that ties a renamed agent to the vote.
+const DOCUMENT_CHARS = 3000;
 
 export function subjectState(c: SubjectCase) {
   return {
-    claim: { sentence: c.sentence, atlas_document_title: c.title, vote_date_named: c.date },
+    claim: { sentence: c.sentence, atlas_document_title: c.title, atlas_document_text: c.documentText.slice(0, DOCUMENT_CHARS), vote_date_named: c.date },
     executive_vote: {
       title: c.vote.title,
       summary: c.vote.summary,
@@ -45,7 +48,7 @@ export const SUBJECT_QUESTIONS: Record<string, Question> = {
   carried: {
     type: "noul",
     instructions:
-      "Does the executive vote in `executive_vote` carry out the specific action that `claim.sentence` says this vote carried out? Count an action inside a Prime Agent proxy spell section the executive itemises. Answer no when the executive performs similar actions only for other parties, amounts or assets than the sentence names.",
+      "Does the executive vote in `executive_vote` carry out the specific action that `claim.sentence` says this vote carried out? Count an action inside a Prime Agent proxy spell section the executive itemises. A party may appear under an earlier name; treat it as the same party when an address or alias in `claim.atlas_document_text` ties them. Answer no when the executive performs similar actions only for other parties, amounts or assets than the sentence names.",
   },
 };
 
@@ -72,10 +75,10 @@ export function pollQuestions(c: PollCase): Record<string, Question> {
 }
 
 const SUBJECT_SYSTEM = [
-  "You check claims in the Sky Atlas against Sky executive votes. You get one atlas sentence that names a dated Executive Vote, and that executive's title, summary and action sections.",
+  "You check claims in the Sky Atlas against Sky executive votes. You get one atlas sentence that names a dated Executive Vote, the text of the atlas document it comes from, and that executive's title, summary and action sections.",
   'Answer with one JSON object: {"anchor": boolean, "carried": "yes" | "no" | "unclear", "section": string, "quote": string}.',
   "anchor: true when the sentence uses the vote only as a point in time (a start date or deadline for some other requirement) rather than saying the vote did something.",
-  "carried: whether the executive carries out the specific action the sentence says it did, counting actions inside Prime Agent proxy spell sections; similar actions for other parties do not count.",
+  "carried: whether the executive carries out the specific action the sentence says it did, counting actions inside Prime Agent proxy spell sections; similar actions for other parties do not count. A party may appear under an earlier name: treat it as the same party when an address or alias in the atlas document ties them.",
   'section: the heading of the section that carries it, or "none". quote: a short verbatim line from that section, or "".',
 ].join("\n");
 

@@ -54,15 +54,24 @@ export function extractLinks(text: string): VoteLink[] {
   return out;
 }
 
+const ADDRESS_IN_URL_RE = /0x[0-9a-fA-F]{40}/;
+
 /**
  * The words of a markdown block as a reader sees them: a link becomes its
- * text, bare URLs, emphasis and code ticks drop out, and whitespace collapses.
+ * text (plus any address its URL carries), bare URLs, emphasis and code ticks
+ * drop out, and whitespace collapses.
  * This is what the subject check searches, so a word that only appears inside
  * a URL slug never counts as the executive naming it.
  */
 export function plainText(md: string): string {
   return md
-    .replace(MD_LINK_RE, "$1")
+    .replace(MD_LINK_RE, (_, text: string, url: string) => {
+      // An on-chain address in the URL is kept beside the text: executives
+      // link a SubProxy by an agent name that later changes, and the address
+      // is what ties the old name to the new one.
+      const address = ADDRESS_IN_URL_RE.exec(url)?.[0];
+      return address && !text.includes(address) ? `${text} (${address})` : text;
+    })
     .replace(BARE_URL_RE, " ")
     .replace(/[*_`]+/g, "")
     .replace(/\s+/g, " ")

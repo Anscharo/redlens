@@ -106,6 +106,13 @@ describe("parseSections", () => {
     expect(sections[2].text).not.toContain("sky-atlas.io");
   });
 
+  it("keeps an address a link points at, since agent names change and addresses do not", () => {
+    const body = "## Proposal Details\n### Genesis\n- Transfer **10 million USDS** to the [Launch Agent 6 SubProxy](https://etherscan.io/address/0x24fdcd3bFA5C2553e05B2f9AD0365EBC296278D3).\n- Paid to [0x24fdcd3bFA5C2553e05B2f9AD0365EBC296278D3](https://etherscan.io/address/0x24fdcd3bFA5C2553e05B2f9AD0365EBC296278D3).";
+    expect(parseSections(body)[0].text).toBe(
+      "- Transfer 10 million USDS to the Launch Agent 6 SubProxy (0x24fdcd3bFA5C2553e05B2f9AD0365EBC296278D3). - Paid to 0x24fdcd3bFA5C2553e05B2f9AD0365EBC296278D3.",
+    );
+  });
+
   it("returns no sections when there is no Proposal Details heading", () => {
     expect(parseSections("## Executive Summary\nNothing here.")).toEqual([]);
   });

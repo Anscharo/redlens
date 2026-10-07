@@ -61,7 +61,7 @@ function subjectTable(rows: SubjectRow[], slice: "real" | "swapped"): void {
 function jevSweep(rows: SubjectRow[]): void {
   const scoped = rows.filter((r) => r.jev && (r.gold === "yes" || r.gold === "no"));
   if (!scoped.length) return;
-  const line = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8].map((tau) => {
+  const line = [0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7].map((tau) => {
     const s = scoreSubject(scoped.map((r) => ({ gold: r.gold, pred: jevSubject(r.jev!.anchor, r.jev!.carried, tau) })));
     return `${tau}:${pct(s.accuracy).trim()}`;
   });
@@ -87,7 +87,7 @@ function pollTable(rows: PollRow[], r: Report): void {
   }
   if (!scoped.some((x) => x.jev)) return;
   // Re-picks from the stored Nouls, so the sweep costs no calls.
-  const sweep = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8].map((tau) => {
+  const sweep = [0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7].map((tau) => {
     const rows = scoped.map((x) => ({ acceptable: x.acceptable, pred: jevPoll(candidatesOf(x), x.jev!.nouls, tau) }));
     return `${tau}:${pct(scorePoll(rows).accuracy).trim()}`;
   });
