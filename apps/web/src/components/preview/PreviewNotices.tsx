@@ -7,6 +7,7 @@ import {
   type BannerNotice,
   type PreviewMeta,
 } from "../../lib/previewMetaCopy";
+import { added } from "../../lib/setOps";
 
 // Install-owner nudges under the banner, one row each: a missing permission, an
 // over-broad grant. A dismissed ACCESS row stays hidden on this machine
@@ -22,7 +23,7 @@ export function usePreviewNotices(meta: PreviewMeta | null) {
   );
   const dismiss = (repo: string) => {
     dismissAccessRepo(repo);
-    setHidden((prev) => new Set(prev).add(repo));
+    setHidden((prev) => added(prev, repo));
   };
   return { notices, dismiss };
 }

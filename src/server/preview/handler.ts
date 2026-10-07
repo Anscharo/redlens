@@ -13,6 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Server } from "bun";
 import { json as httpJson, PREVIEW_CORS } from "../http.ts";
+import { createCache } from "../ttl-cache.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { diffDocs } from "../atlas-refresh.ts";
 import type { AtlasNode } from "../retrieval/indexes.ts";
@@ -49,8 +50,8 @@ const PRIVATE_HEADERS = { "cache-control": "private, no-store", "x-robots-tag": 
 // Diff cache keyed by (preview sha, current main atlas sha).
 // Exported for the eviction regression test only — not otherwise consumed
 // outside this module.
-export const diffCache = new Map<string, { added: string[]; changed: string[] }>();
 export const DIFF_CACHE_MAX = 1000; // FIFO cap — matches the resolveCache pattern above
+export const diffCache = createCache<{ added: string[]; changed: string[] }>({ max: DIFF_CACHE_MAX });
 
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream",
@@ -284,10 +285,7 @@ async function diffResponse(req: Request, sha: string): Promise<Response> {
     diff = { added: delta.added.map((n) => n.id), changed: delta.changed.map((n) => n.id) };
     // Skip caching when atlasCommit is unknown (main not yet loaded) — the key
     // would be "<sha>:unknown" and would serve a stale diff once main loads.
-    if (mainSha !== "unknown") {
-      diffCache.set(key, diff);
-      if (diffCache.size > DIFF_CACHE_MAX) diffCache.delete(diffCache.keys().next().value!);
-    }
+    if (mainSha !== "unknown") diffCache.set(key, diff);
   }
   return json(diff, 200, headers);
 }

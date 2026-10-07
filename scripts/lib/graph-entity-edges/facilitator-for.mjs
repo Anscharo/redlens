@@ -2,10 +2,14 @@
 // facilitator-assignment doc → the executor agent that doc sits under.
 import { isFacilitatorDoc, extractAssignment } from "../graph-patterns.mjs";
 
+// Regex source handed to extractAssignment; graph-entities.mjs reads the same assignment sentence.
+export const FACILITATOR_FOR_PREFIX =
+  "(?:The )?(?:(?:Operational|Core) (?:Executor )?)?Facilitator for [^.]+";
+
 function run(ctx) {
   for (const d of ctx.allDocs.filter(isFacilitatorDoc)) {
     const isCore = /core executor facilitator/i.test(d.title);
-    const name = extractAssignment(d.content, "(?:The )?(?:(?:Operational|Core) (?:Executor )?)?Facilitator for [^.]+");
+    const name = extractAssignment(d.content, FACILITATOR_FOR_PREFIX);
     if (!name) continue;
     const facEntity = ctx.entityByName(name);
     const executorDoc = d.parentId ? ctx.docById.get(d.parentId) : null;

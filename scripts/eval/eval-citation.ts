@@ -33,6 +33,7 @@ import { judgeCitation, buildCiteRequest, CITE_QUESTION, CITE_QUESTION_3, type C
 import { buildCases, type CaseKind, type CiteCase } from "./eval-citation-cases.ts";
 import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
 import { config } from "../../src/server/config.ts";
+import { mapPool } from "../../src/server/pool.ts";
 
 const KINDS: CaseKind[] = ["positive", "random", "parent", "sibling", "same_title", "cited_elsewhere"];
 const CONCURRENCY = 6;
@@ -56,21 +57,6 @@ function cached<T>(key: string): T | null {
 function putCache(key: string, v: unknown): void {
   fs.mkdirSync(CACHE, { recursive: true });
   fs.writeFileSync(path.join(CACHE, `${key}.json`), JSON.stringify(v));
-}
-
-async function pool<T, R>(items: T[], limit: number, fn: (t: T, i: number) => Promise<R>): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let i = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, async () => {
-      for (;;) {
-        const idx = i++;
-        if (idx >= items.length) return;
-        out[idx] = await fn(items[idx], idx);
-      }
-    }),
-  );
-  return out;
 }
 
 const ix = loadIndexes();
@@ -99,7 +85,7 @@ interface Row { c: CiteCase; q3: CiteVerdict | null; q4: CiteVerdict | null }
 
 let spend = 0;
 let calls = 0;
-const rows: Row[] = await pool(cases, CONCURRENCY, async (c) => {
+const rows: Row[] = await mapPool(cases, CONCURRENCY, async (c) => {
   const [a, b] = [await jevVerdict(c, CITE_QUESTION_3), await jevVerdict(c, CITE_QUESTION)];
   spend += a.cost + b.cost;
   calls += (a.cacheHit ? 0 : 1) + (b.cacheHit ? 0 : 1);

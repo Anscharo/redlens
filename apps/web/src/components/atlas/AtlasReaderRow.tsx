@@ -3,8 +3,7 @@ import { AtlasReader } from "./AtlasReader";
 import { AtlasAnnotations } from "./AtlasAnnotations";
 import type { LoadedData } from "@/lib/atlasHelpers";
 import type { useNodeAnnotations } from "../../hooks/useNodeAnnotations";
-
-type AtlasTab = "notes" | "glossary" | "history";
+import type { AtlasTab } from "../../lib/atlasTab";
 
 interface AtlasReaderRowProps {
   id: string;

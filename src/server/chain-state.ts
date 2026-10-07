@@ -12,11 +12,11 @@
 import { sql } from "./db.ts";
 import { json } from "./http.ts";
 import { config } from "./config.ts";
+import type { SqlTag } from "./sql-types.ts";
 
-// Minimal structural type so the atlas worker can pass its own Bun.sql client
-// without importing the web service's config-bound `sql` — same seam as
+// `db` is a parameter (SqlTag) so the atlas worker can pass its own Bun.sql
+// client without importing the web service's config-bound `sql` — same seam as
 // preview/pr-state.ts's sweepPrStates.
-type SqlTag = (strings: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>;
 
 export interface ChainStateSnapshot {
   /** Decimal block number as a string — a bigint past JSON's safe integer range. */

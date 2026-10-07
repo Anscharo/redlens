@@ -15,6 +15,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { sql } from "./db.ts";
 import { config } from "./config.ts";
+import { sleep } from "./retry.ts";
 import { runMigrations } from "./migrate.ts";
 import { embedBatch } from "./retrieval/embed.ts";
 import { getClient } from "./chat/llm.ts";
@@ -113,7 +114,7 @@ export function realDeps(): BriefingDeps {
     noFetch: process.env.ATLAS_WORKER_NO_FETCH === "1",
     deadlineAt: deadlineAt(),
     now: () => Date.now(),
-    sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+    sleep,
     embedBatchSize: 50,
   };
 }

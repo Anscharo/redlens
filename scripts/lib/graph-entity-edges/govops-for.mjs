@@ -2,10 +2,13 @@
 // GovOps-assignment doc → the executor agent that doc sits under.
 import { isGovOpsDoc, extractAssignment } from "../graph-patterns.mjs";
 
+// Regex source handed to extractAssignment; graph-entities.mjs reads the same assignment sentence.
+export const GOVOPS_FOR_PREFIX = "(?:(?:Operational|Core) )?GovOps for [^.]+";
+
 function run(ctx) {
   for (const d of ctx.allDocs.filter(isGovOpsDoc)) {
     const isCore = /core govops/i.test(d.title);
-    const name = extractAssignment(d.content, "(?:(?:Operational|Core) )?GovOps for [^.]+");
+    const name = extractAssignment(d.content, GOVOPS_FOR_PREFIX);
     if (!name) continue;
     const govEntity = ctx.entityByName(name);
     const executorDoc = d.parentId ? ctx.docById.get(d.parentId) : null;

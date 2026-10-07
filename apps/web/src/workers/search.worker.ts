@@ -74,6 +74,13 @@ function post(msg: WorkerOutMessage) {
   self.postMessage(msg);
 }
 
+// The SearchHit fields every lane derives the same way from a doc.
+function hitFor(doc: AtlasNode, score: number, titleHtml: string, matchReason: string, snippet: string): SearchHit {
+  const { id, doc_no, title, type, depth, parentId } = doc;
+  const labels = computeLabels(doc, byDocNo);
+  return { id, score, doc_no, title, titleHtml, matchReason, type, depth, parentId, labels, snippet };
+}
+
 function docToHit(
   doc: AtlasNode,
   score = 1,
@@ -81,25 +88,13 @@ function docToHit(
   terms: string[] = [],
   matchReason = "",
 ): SearchHit {
-  return {
-    id: doc.id,
+  return hitFor(
+    doc,
     score,
-    doc_no: doc.doc_no,
-    title: doc.title,
-    titleHtml:
-      terms.length > 0
-        ? highlightTerms(doc.title, terms)
-        : doc.title.replace(
-            /[&<>"]/g,
-            (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!,
-          ),
+    highlightTerms(doc.title, terms),
     matchReason,
-    type: doc.type,
-    depth: doc.depth,
-    parentId: doc.parentId,
-    labels: computeLabels(doc, byDocNo),
-    snippet: snippet ?? doc.content.slice(0, 160) + (doc.content.length > 160 ? "…" : ""),
-  };
+    snippet ?? doc.content.slice(0, 160) + (doc.content.length > 160 ? "…" : ""),
+  );
 }
 
 function search(q: string): SearchHit[] {
@@ -373,19 +368,13 @@ function search(q: string): SearchHit[] {
       if (phrases.length > 0 || casePhrases.length > 0) parts.push("exact phrase");
       const matchReason = parts.join(" + ");
 
-      return {
-        id: doc.id,
-        score: r.score,
-        doc_no: doc.doc_no,
-        title: doc.title,
-        titleHtml: highlightTerms(doc.title, titleHighlightTerms, phrases, casePhrases),
+      return hitFor(
+        doc,
+        r.score,
+        highlightTerms(doc.title, titleHighlightTerms, phrases, casePhrases),
         matchReason,
-        type: doc.type,
-        depth: doc.depth,
-        parentId: doc.parentId,
-        labels: computeLabels(doc, byDocNo),
-        snippet: buildSnippet(doc.content, contentHighlightTerms, phrases, casePhrases),
-      };
+        buildSnippet(doc.content, contentHighlightTerms, phrases, casePhrases),
+      );
     })
     .filter((h): h is SearchHit => h !== null);
 

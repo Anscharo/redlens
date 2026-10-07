@@ -61,7 +61,7 @@ describe("§5: eventToRow maps HTML-era additive fields", () => {
     expect(r.move_kind).toBe("doc_no");
     expect(r.moved_from).toBe("A.2.8");
     expect(r.moved_to).toBe("A.2.10");
-    expect(r.change_type).toBe("structural"); // CHANGE_TYPE_MAP unchanged
+    expect(r.change_type).toBe("structural"); // pgType unchanged
   });
 
   it("markdown-era events are UNAFFECTED — every new column is null (additive)", () => {

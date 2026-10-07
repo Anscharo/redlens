@@ -122,4 +122,4 @@ export function withPrDescription(r: ToolResult, pr: PrContext | null): ToolResu
   return { source_class, preview, pr_description: pr.pr_description, pr_description_is: pr.pr_description_is, ...r };
 }
 
-export const byDocNo = (a: { doc_no: string }, b: { doc_no: string }) => a.doc_no.localeCompare(b.doc_no, "en", { numeric: true });
+export { byDocNo } from "../../../lib/docNo.ts";

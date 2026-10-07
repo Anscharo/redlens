@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import {
   Alpha,
   ShadeSlider,
@@ -10,6 +9,9 @@ import {
   rgbaStringToHsva,
   type HsvaColor,
 } from "@uiw/react-color";
+import { Modal } from "../components/Modal";
+import { ghostBtn, primaryBtn } from "../components/modalStyles";
+import { checkerBg } from "./checkerBg";
 import type { PaletteToken } from "./palette-tokens";
 
 interface ColorPickerModalProps {
@@ -43,13 +45,7 @@ function serialize(hsva: HsvaColor, alphaEnabled: boolean): string {
   return hsvaToHex(hsva);
 }
 
-const CHECKER_BG: React.CSSProperties = {
-  backgroundImage:
-    "linear-gradient(45deg, var(--bg-deep) 25%, transparent 25%), linear-gradient(-45deg, var(--bg-deep) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--bg-deep) 75%), linear-gradient(-45deg, transparent 75%, var(--bg-deep) 75%)",
-  backgroundSize: "12px 12px",
-  backgroundPosition: "0 0, 0 6px, 6px -6px, -6px 0",
-  backgroundColor: "var(--surface)",
-};
+const CHECKER_BG = checkerBg("var(--bg-deep)", "var(--surface)");
 
 export function ColorPickerModal({ token, initialValue, onCancel, onConfirm }: ColorPickerModalProps) {
   const [hsva, setHsva] = useState<HsvaColor>(() => parseToHsva(initialValue));
@@ -74,15 +70,7 @@ export function ColorPickerModal({ token, initialValue, onCancel, onConfirm }: C
   useEffect(() => {
     inputRef.current?.focus();
     inputRef.current?.select();
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onCancel();
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
+  }, []);
 
   function setLive(value: string) {
     document.documentElement.style.setProperty(`--${token.name}`, value);
@@ -119,140 +107,84 @@ export function ColorPickerModal({ token, initialValue, onCancel, onConfirm }: C
 
   const previewValue = serialize(hsva, token.alpha);
 
-  const modal = (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Edit ${token.label}`}
-      onClick={onCancel}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "var(--shadow-strong)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          borderRadius: 8,
-          padding: 20,
-          width: 320,
-          maxWidth: "calc(100vw - 32px)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <div>
-          <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--tan)", margin: 0 }}>
-            {token.label}
-          </h2>
-          <p className="mono" style={{ fontSize: 10, color: "var(--tan-3)", margin: "2px 0 0" }}>
-            --{token.name}
-          </p>
-        </div>
+  return (
+    <Modal label={`Edit ${token.label}`} onClose={onCancel}>
+      <div>
+        <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--tan)", margin: 0 }}>
+          {token.label}
+        </h2>
+        <p className="mono" style={{ fontSize: 10, color: "var(--tan-3)", margin: "2px 0 0" }}>
+          --{token.name}
+        </p>
+      </div>
 
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <Wheel
-            color={hsva}
-            onChange={(c) => updateHsva({ ...hsva, ...c.hsva })}
-            width={220}
-            height={220}
-          />
-        </div>
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <Wheel
+          color={hsva}
+          onChange={(c) => updateHsva({ ...hsva, ...c.hsva })}
+          width={220}
+          height={220}
+        />
+      </div>
 
-        <ShadeSlider
+      <ShadeSlider
+        hsva={hsva}
+        onChange={(s) => updateHsva({ ...hsva, ...s })}
+        style={{ width: "100%" }}
+      />
+
+      {token.alpha && (
+        <Alpha
           hsva={hsva}
-          onChange={(s) => updateHsva({ ...hsva, ...s })}
+          onChange={(a) => updateHsva({ ...hsva, ...a })}
           style={{ width: "100%" }}
         />
+      )}
 
-        {token.alpha && (
-          <Alpha
-            hsva={hsva}
-            onChange={(a) => updateHsva({ ...hsva, ...a })}
-            style={{ width: "100%" }}
-          />
-        )}
-
-        <div
-          style={{
-            ...(token.alpha ? CHECKER_BG : {}),
-            height: 32,
-            borderRadius: 4,
-            border: "1px solid var(--border)",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          <div style={{ position: "absolute", inset: 0, background: previewValue }} />
-        </div>
-
-        <input
-          ref={inputRef}
-          className="mono"
-          type="text"
-          value={textValue}
-          onChange={(e) => commitText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleConfirm();
-            }
-          }}
-          style={{
-            background: "var(--bg)",
-            color: "var(--tan)",
-            border: "1px solid var(--border)",
-            borderRadius: 4,
-            padding: "6px 8px",
-            fontSize: 12,
-            outline: "none",
-          }}
-        />
-
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <button
-            onClick={onCancel}
-            className="mono"
-            style={{
-              fontSize: 11,
-              padding: "6px 12px",
-              background: "transparent",
-              color: "var(--tan-3)",
-              border: "1px solid var(--border)",
-              borderRadius: 4,
-              cursor: "pointer",
-            }}
-          >
-            cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            className="mono"
-            style={{
-              fontSize: 11,
-              padding: "6px 12px",
-              background: "var(--accent)",
-              color: "var(--bg)",
-              border: "1px solid var(--accent)",
-              borderRadius: 4,
-              cursor: "pointer",
-              fontWeight: 600,
-            }}
-          >
-            done
-          </button>
-        </div>
+      <div
+        style={{
+          ...(token.alpha ? CHECKER_BG : {}),
+          height: 32,
+          borderRadius: 4,
+          border: "1px solid var(--border)",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ position: "absolute", inset: 0, background: previewValue }} />
       </div>
-    </div>
-  );
 
-  return createPortal(modal, document.body);
+      <input
+        ref={inputRef}
+        className="mono"
+        type="text"
+        value={textValue}
+        onChange={(e) => commitText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            handleConfirm();
+          }
+        }}
+        style={{
+          background: "var(--bg)",
+          color: "var(--tan)",
+          border: "1px solid var(--border)",
+          borderRadius: 4,
+          padding: "6px 8px",
+          fontSize: 12,
+          outline: "none",
+        }}
+      />
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <button onClick={onCancel} className="mono" style={ghostBtn}>
+          cancel
+        </button>
+        <button onClick={handleConfirm} className="mono" style={primaryBtn}>
+          done
+        </button>
+      </div>
+    </Modal>
+  );
 }

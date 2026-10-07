@@ -1,83 +1,25 @@
 // Pure copy helpers for the preview banner + history panel's diff-base
-// descriptions. No React here — see previewMetaCopy.test.ts. `PreviewMeta`
-// mirrors the fields the preview UI needs from the server's meta.json shape
-// (src/server/preview/cache.ts's PreviewMeta) — the single local type every
-// preview component should import instead of hand-rolling its own subset.
+// descriptions. No React here — see previewMetaCopy.test.ts. The types live in
+// previewMetaTypes.ts, the install-owner notices in previewNoticeCopy.ts and the
+// dismissed-repo storage in previewAccessDismissed.ts; this module re-exports
+// all three so importers keep one path.
+import type { ActiveBase, CompareParts, PreviewBaseKey, PreviewMeta } from "./previewMetaTypes";
 
-export type PreviewBaseKey = "sky" | "repo";
+export type {
+  ActiveBase,
+  BaseCandidateMeta,
+  BaseDrift,
+  CompareParts,
+  PreviewBaseKey,
+  PreviewBases,
+  PreviewMeta,
+} from "./previewMetaTypes";
+export { broadGrantCopy, pullsPermissionCopy, type BannerNotice } from "./previewNoticeCopy";
+export { dismissAccessRepo, readDismissedAccessRepos } from "./previewAccessDismissed";
 
-export interface BaseCandidateMeta {
-  repo: string;
-  ref: string;
-  mergeBase: string;
-  aheadBy?: number;
-  behindBy?: number;
-}
-
-export interface BaseDrift {
-  sha: string;
-  forkPoint?: string;
-  commitsAhead?: number;
-  commitsBehind?: number;
-  docsDiffer?: number;
-  vsAtlasCommit: string;
-}
-
-export interface PreviewBases {
-  auto: PreviewBaseKey | "live-main";
-  reason?: string;
-  sky?: BaseCandidateMeta;
-  repo?: BaseCandidateMeta & { drift?: BaseDrift };
-}
-
-export interface PreviewMeta {
-  sha?: string;
-  repo?: string;
-  ref?: string;
-  kind?: string;
-  prNumber?: number;
-  prTitle?: string;
-  prAuthor?: string;
-  prState?: string;
-  headCommitAt?: string;
-  forkOwner?: string;
-  private?: boolean;
-  trustTier?: string;
-  // Legacy top-level fork drift (old bundles, sky-only).
-  aheadBy?: number;
-  behindBy?: number;
-  newAddresses?: number;
-  addressCheckFailed?: boolean;
-  bases?: PreviewBases;
-  needsPullsPermission?: boolean;
-  permissionsUrl?: string;
-  grantTooBroad?: boolean;
-  installSettingsUrl?: string;
-}
-
-/** The diff-base actually resolved for this render — see previewDiff.tsx's
- *  `PreviewDiff.activeBase`. `auto` = no `?base=` override, or the override
- *  happens to equal the server's automatic pick. */
-export interface ActiveBase {
-  key: PreviewBaseKey | "live-main" | null;
-  repo?: string;
-  ref?: string;
-  auto: boolean;
-}
-
-/** Pieces of the banner sentence "Comparing HEAD — TITLE to BASE".
- *  Empty strings are omitted by `compareLine`. The author is not part of the
- *  sentence. Drift ("N docs differ", commits behind main) is intentionally
- *  absent: `docsDiffer` counts the base tip against the live atlas, not the
- *  redlines this preview renders. */
-export interface CompareParts {
-  /** The head ref — a branch name, or `pull-N` for a Contents-only private PR. */
-  head: string;
-  /** The PR title, when the bundle carries one. */
-  title: string;
-  /** "HEAD — TITLE", for the consumers that need one plain string. */
-  subject: string;
-  base: string;
+/** The PR number digits in a `pull-N` ref (a Contents-only private PR), else null. */
+function pullRefDigits(ref: string | undefined): string | null {
+  return ref?.match(/^pull-(\d+)$/)?.[1] ?? null;
 }
 
 function compareBase(meta: PreviewMeta, active: ActiveBase | null): string {
@@ -119,10 +61,10 @@ export function previewKind(meta: PreviewMeta | null): PreviewKind {
  *  Null only before meta arrives, so the open document keeps the tab until then. */
 export function previewTabTitle(meta: PreviewMeta | null): string | null {
   if (!meta) return null;
-  const pull = meta.ref?.match(/^pull-(\d+)$/);
-  const n = meta.prNumber ?? (pull ? Number(pull[1]) : undefined);
+  const pull = pullRefDigits(meta.ref);
+  const n = meta.prNumber ?? (pull !== null ? Number(pull) : undefined);
   if (n != null) {
-    const branch = meta.ref && !pull ? meta.ref : "";
+    const branch = meta.ref && pull === null ? meta.ref : "";
     const info = [branch, meta.prTitle?.trim() || ""].filter(Boolean).join(" — ");
     return info ? `PR ${n} preview on Redline Portal -- ${info}` : `PR ${n} preview on Redline Portal`;
   }
@@ -139,7 +81,7 @@ export function compareLine(meta: PreviewMeta, active: ActiveBase | null): strin
   return line;
 }
 
-const CANONICAL_REPO = "sky-ecosystem/next-gen-atlas";
+export const CANONICAL_REPO = "sky-ecosystem/next-gen-atlas";
 
 /** Link back to the original source on GitHub (PR / branch / commit). */
 export function sourceUrl(m: PreviewMeta): string {
@@ -149,44 +91,18 @@ export function sourceUrl(m: PreviewMeta): string {
   // PR numbers) but still link back to the private repo's PR.
   if (m.kind === "pr" && m.prNumber) return `https://github.com/${CANONICAL_REPO}/pull/${m.prNumber}`;
   if (m.prNumber) return `https://github.com/${m.repo}/pull/${m.prNumber}`;
-  const pull = m.ref?.match(/^pull-(\d+)$/);
-  if (pull) return `https://github.com/${m.repo}/pull/${pull[1]}`;
+  const pull = pullRefDigits(m.ref);
+  if (pull !== null) return `https://github.com/${m.repo}/pull/${pull}`;
   if (m.kind === "branch") return `https://github.com/${m.repo}/tree/${m.ref}`;
   return `https://github.com/${m.repo}/commit/${m.sha}`;
 }
 
 export function sourceLabel(m: PreviewMeta): string {
-  const pull = m.ref?.match(/^pull-(\d+)$/);
-  const n = m.prNumber ?? (pull ? Number(pull[1]) : undefined);
-  if (n != null && (m.kind === "pr" || m.prNumber != null || pull)) return `view PR ${n}`;
+  const pull = pullRefDigits(m.ref);
+  const n = m.prNumber ?? (pull !== null ? Number(pull) : undefined);
+  if (n != null && (m.kind === "pr" || m.prNumber != null || pull !== null)) return `view PR ${n}`;
   if (m.kind === "branch") return "view branch";
   return "view commit";
-}
-
-const ACCESS_DISMISS_KEY = "sabr-preview-access-dismissed";
-
-/** Repos whose ACCESS notice this browser has dismissed. localStorage, so it
- *  survives reloads on this machine. */
-export function readDismissedAccessRepos(): Set<string> {
-  try {
-    const raw = localStorage.getItem(ACCESS_DISMISS_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw) as { repos?: unknown };
-    if (!Array.isArray(parsed?.repos)) return new Set();
-    return new Set(parsed.repos.filter((r): r is string => typeof r === "string"));
-  } catch {
-    return new Set();
-  }
-}
-
-export function dismissAccessRepo(repo: string): void {
-  try {
-    const repos = readDismissedAccessRepos();
-    repos.add(repo);
-    localStorage.setItem(ACCESS_DISMISS_KEY, JSON.stringify({ v: 1, repos: [...repos] }));
-  } catch {
-    // private mode / quota — the in-memory hide still lasts this view
-  }
 }
 
 /** Link target + label for the switch, or null when there is only one candidate. */
@@ -226,48 +142,4 @@ export function diffBaseLabel(meta: PreviewMeta, active: ActiveBase | null): str
     return `${repo}:${ref}`;
   }
   return "the live atlas";
-}
-
-/** Banner copy + optional GitHub review-permissions link when a private PR
- *  preview was built without Pull requests: Read. Null when the flag is off. */
-export interface BannerNotice {
-  /** Short uppercase tag rendered before the body (e.g. "PERMISSION"). */
-  label: string;
-  body: string;
-  href: string | null;
-  linkLabel: string;
-}
-
-export function pullsPermissionCopy(
-  meta: Pick<PreviewMeta, "needsPullsPermission" | "permissionsUrl">,
-): BannerNotice | null {
-  if (!meta.needsPullsPermission) return null;
-  return {
-    label: "PERMISSION",
-    body: meta.permissionsUrl
-      ? "Needs Pull requests: Read to redline this PR against its own base. If you own or administer the install, review the new permission on GitHub, then reload this page. Otherwise ask the person who installed the App."
-      : "Needs Pull requests: Read to redline this PR against its own base. Ask the person who installed the App to review the new permission on GitHub, then reload this page.",
-    href: meta.permissionsUrl ?? null,
-    linkLabel: "Review permissions on GitHub ↗",
-  };
-}
-
-/** Banner copy + optional GitHub install-settings link when the install this
- *  private preview rode was granted "All repositories" instead of just this
- *  repo. The App can't pre-select a private repo on the install screen, so an
- *  over-broad grant is caught here and handed to the person who can narrow it.
- *  Null when the flag is off. */
-export function broadGrantCopy(
-  meta: Pick<PreviewMeta, "repo" | "grantTooBroad" | "installSettingsUrl">,
-): BannerNotice | null {
-  if (!meta.grantTooBroad) return null;
-  const lead = `The Sky Atlas by Redline GitHub App was granted every repository on this account; it only needs ${meta.repo}.`;
-  return {
-    label: "ACCESS",
-    body: meta.installSettingsUrl
-      ? `${lead} If you own or administer the install, change its repository access to that one repo on GitHub. Otherwise ask the person who installed the App.`
-      : `${lead} Ask the person who installed the App to change its repository access to that one repo on GitHub.`,
-    href: meta.installSettingsUrl ?? null,
-    linkLabel: "Narrow repository access on GitHub ↗",
-  };
 }
