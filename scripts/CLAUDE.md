@@ -97,6 +97,16 @@ They were four separate lists until every one of them was shown to fail silently
 
   All strings are bucketed known / deferred (`FUTURE_TO_ETHEREUM`) / unknown. It warns (`[drift]`) on unknown chain strings not in `.github/chains-census-baseline.json`, i.e. the atlas named a chain the registry would silently collapse to ethereum. It also warns on an incomplete registry entry (missing explorer / proseHints / nativeToken / chainId / rpcUrl, each its own silent failure: wrong explorer, never-attributed prose, no balances) or a broken derivation. It also reports per-chain attributed address counts from `addresses.atlas.json`, so "seen in this atlas build" reflects what the pipeline concluded rather than only what the label scan could parse. `--update` rewrites the baseline (`atlas-update.yml` does this per bump). `--rpc` additionally round-trips `eth_chainId` against every `rpcUrl`. It always exits 0.
 
+## PAU registry
+
+**`src/data/pau-registry.json` is the curated list of every Prime agent's PAU contracts** (controller, ALM proxy, rate limits, diamond AccessControls / AdministeredAgent / facets, relayers, freezers), per chain and controller generation. Anything that reads PAU state takes its contract list from here, never from the atlas directly. Types and validation live in `src/lib/pauRegistry.ts`; curation is the `pau-triage` skill.
+
+- `pnpm pau:candidates` compares the registry with the atlas and writes `.cache/pau-candidates.{json,md}`. It never edits the registry, and it always exits 0 unless an input is missing.
+  - Discovery (`scripts/lib/pau-discover.ts`) reads the address docs under each prime's "ALM Contracts" / "Diamond PAU Contracts" / "Multisigs" sections and the primitive's "Shared Contracts". The prime is the ancestor whose UUID is a prime entity; ancestors come from doc_no arithmetic, never `parentId`; chain and generation are read only from the anchoring section down, because an unrelated ancestor ("Base Elements") would otherwise name a chain. The doc's own placement outranks `addresses.json`, which attributes some PAU addresses to the wrong chain when the same address exists on two.
+  - `scripts/lib/pau-diff.ts` reports what the registry lacks, provenance that went stale, and atlas self-contradictions (an address under two roles, or a verified explorer name that contradicts the role).
+  - `--rpc` runs the wiring checks (`pau-wiring*.ts`): controller pointers, `hasRole` for monolith relayers and freezers, a diamond's enumerated facets, actors and revokers, and the live controller, read from the RateLimits CONTROLLER grant history (`scripts/lib/explorer-logs.ts`: Etherscan v2 with `ETHERSCAN_API_KEY`, else the chain's Blockscout). Findings the chain makes come back as proposals.
+  - `--draft` writes `.cache/pau-registry.draft.json`: the registry plus every missing observation, for triage to edit down.
+
 ## Atlas merge gate and censuses
 
 - `pnpm check:atlas` is the MERGE GATE for atlas bumps. It refuses a build that did not read the whole atlas.

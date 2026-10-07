@@ -6,46 +6,18 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { CHAIN_ID, CHAIN_BLOCKSCOUT, CHAIN_SUPPORTS_ETHERSCAN } from "./chains.mjs";
+import { CHAIN_ID } from "./chains.mjs";
+import { explorerBases, throttleExplorer } from "./explorer-api.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
 const CACHE_DIR = path.join(ROOT, ".cache/etherscan");
 
 const CHAINLOG_URL = "https://chainlog.skyeco.com/api/mainnet/active.json";
-const ETHERSCAN_BASE = "https://api.etherscan.io/v2/api";
 
-// Client-side ceiling for the explorer endpoints (Etherscan v2 + Blockscout).
-// All live calls go through throttleEtherscan() so enrich + impl-ABI passes
-// cannot stampede either provider.
-const ETHERSCAN_MAX_RPS = 1;
-const ETHERSCAN_MIN_INTERVAL_MS = Math.ceil(1000 / ETHERSCAN_MAX_RPS); // 1000ms
-// Effective throttle interval. ETHERSCAN_THROTTLE_MS overrides it (tests set 0
-// so they don't wait in real time); unset → the 1 req/s default above.
-const throttleIntervalMs = () =>
-  process.env.ETHERSCAN_THROTTLE_MS != null ? Number(process.env.ETHERSCAN_THROTTLE_MS) : ETHERSCAN_MIN_INTERVAL_MS;
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-let lastEtherscanAt = 0;
-/** Serialize waiters so concurrent callers still respect the interval. */
-let etherscanGate = Promise.resolve();
-
-async function throttleEtherscan() {
-  const prev = etherscanGate;
-  let release;
-  etherscanGate = new Promise((r) => {
-    release = r;
-  });
-  await prev;
-  try {
-    const wait = lastEtherscanAt + throttleIntervalMs() - Date.now();
-    if (wait > 0) await sleep(wait);
-    lastEtherscanAt = Date.now();
-  } finally {
-    release();
-  }
-}
+// Every live explorer call goes through throttleExplorer() (explorer-api.ts),
+// the clock shared with the PAU grant-history lookups, so enrich, impl-ABI and
+// log passes cannot stampede either provider between them.
 
 /**
  * Substantive proxy metadata fields — deliberately ignores fetchedAt so a
@@ -120,29 +92,15 @@ export async function fetchChainlog() {
 // ---------------------------------------------------------------------------
 const EMPTY_SOURCE = { ContractName: "", ABI: "", Proxy: "0", Implementation: "", SourceCode: "" };
 
-function explorerProviders(chain, chainid, addr, apiKey) {
-  const providers = [];
-  if (CHAIN_SUPPORTS_ETHERSCAN.has(chain)) {
-    providers.push({
-      name: "etherscan",
-      url: `${ETHERSCAN_BASE}?chainid=${chainid}&module=contract&action=getsourcecode&address=${addr}&apikey=${apiKey}`,
-    });
-  }
-  const blockscout = CHAIN_BLOCKSCOUT[chain];
-  if (blockscout) {
-    const bsKey = process.env.BLOCKSCOUT_API_KEY;
-    providers.push({
-      name: "blockscout",
-      url:
-        `${blockscout}?module=contract&action=getsourcecode&address=${addr}` +
-        (bsKey ? `&apikey=${bsKey}` : ""),
-    });
-  }
-  return providers;
+function explorerProviders(chain, addr, apiKey) {
+  return explorerBases(chain, apiKey).map(({ name, base }) => ({
+    name,
+    url: `${base}module=contract&action=getsourcecode&address=${addr}`,
+  }));
 }
 
 async function fetchExplorer(url, providerName, chainid, addr) {
-  await throttleEtherscan();
+  await throttleExplorer();
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${chainid}/${addr} (${providerName})`);
   const data = await res.json();
@@ -169,7 +127,7 @@ async function fetchExplorer(url, providerName, chainid, addr) {
  * unverified answer is returned; only if every explorer errored does it throw.
  */
 async function fetchSourceCode(chain, chainid, addr, apiKey) {
-  const providers = explorerProviders(chain, chainid, addr, apiKey);
+  const providers = explorerProviders(chain, addr, apiKey);
   if (!providers.length) return makeEntry(chainid, addr, EMPTY_SOURCE);
   let lastErr;
   let unverified; // first successful-but-unverified answer, used as a fallback
