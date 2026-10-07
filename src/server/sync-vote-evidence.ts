@@ -16,6 +16,7 @@ import { sql } from "./db.ts";
 import { config } from "./config.ts";
 import { runMigrations } from "./migrate.ts";
 import { askJev, noulOf, type JevQuestion } from "./jev.ts";
+import { JEV } from "./env/chat.ts";
 import { shutdownPosthog } from "./posthog-node.ts";
 import { docRowToNode, loadDocMetaSnapshot } from "./retrieval/indexes.ts";
 import type { SqlTag } from "./sql-types.ts";
@@ -31,16 +32,36 @@ const LOCK_KEY = 4711_2057;
 const DEADLINE_MS = 6 * 60_000;
 const ATLAS_DIR = resolve(import.meta.dir, "../..", process.env.ATLAS_SRC_DIR ?? "vendor/next-gen-atlas");
 
+/**
+ * The lane's settings (declared in env/atlas.ts), parsed here rather than in
+ * config.ts because only this process reads them, as sync-embeddings parses
+ * EMBED_BATCH.
+ *
+ * Jev 1.13 by default: on the hand-checked gold
+ * (docs/research/vote-matching/second-voice-eval.md) it caught 33 of 34 wrong
+ * executives where the rules caught 17, at 97% accuracy. Every answer is cached
+ * by request, so a run only asks about new or changed claims; perCycle caps the
+ * requests one run makes (a fresh database needs about 40). An empty model or a
+ * perCycle of 0 turns judging off; history still runs.
+ */
+export function laneSettings(env: NodeJS.ProcessEnv = process.env) {
+  return {
+    model: env.VOTE_EVIDENCE_MODEL ?? JEV,
+    perCycle: Number(env.VOTE_EVIDENCE_PER_CYCLE ?? 80),
+    refreshSeconds: Number(env.VOTE_EVIDENCE_REFRESH_SECONDS ?? 3600),
+  };
+}
+
 const sha256 = (v: unknown) => crypto.createHash("sha256").update(JSON.stringify(v)).digest("hex");
 
 /** Why a run is due, or null while the stored evidence is fresh. */
-export async function dueReason(db: SqlTag, atlasSha: string, now = Date.now()): Promise<string | null> {
+export async function dueReason(db: SqlTag, atlasSha: string, refreshSeconds: number, now = Date.now()): Promise<string | null> {
   const row = await readVoteEvidence(db);
   if (!row) return "no row";
   if (!row.complete) return "unfinished";
   if (row.atlasSha !== atlasSha) return "atlas moved";
   const ageSeconds = (now - Date.parse(row.computedAt)) / 1000;
-  return ageSeconds >= config.voteEvidenceRefreshSeconds ? "stale" : null;
+  return ageSeconds >= refreshSeconds ? "stale" : null;
 }
 
 /** The decision model behind the cache, the per-run cap and the deadline. Null when judging is off. */
@@ -90,13 +111,14 @@ async function run(db: SqlTag): Promise<void> {
   await runMigrations();
   const { atlasSha, rows } = await loadDocMetaSnapshot(sql);
   if (!rows.length) return console.warn("sync:vote-evidence — atlas_doc_meta is empty; nothing to judge");
-  const reason = await dueReason(db, atlasSha ?? "");
+  const lane = laneSettings();
+  const reason = await dueReason(db, atlasSha ?? "", lane.refreshSeconds);
   if (!reason) return console.log("sync:vote-evidence — fresh; nothing to do");
   const { artifact, pollBodies } = await readVoteRecord({ portal: true });
   const input: ComputeInput = { docs: Object.fromEntries(rows.map((r) => [r.id, docRowToNode(r)])), artifact, pollBodies };
-  const model = config.openrouterApiKey && config.voteEvidencePerCycle > 0 ? config.voteEvidenceModel || null : null;
+  const model = config.openrouterApiKey && lane.perCycle > 0 ? lane.model || null : null;
   const startedAt = Date.now() - process.uptime() * 1000;
-  const judge = cachedJudge(db, model ?? "", config.voteEvidencePerCycle, startedAt + DEADLINE_MS);
+  const judge = cachedJudge(db, model ?? "", lane.perCycle, startedAt + DEADLINE_MS);
   const r = await computeOverlay(input, { model, judge, firstPr: cachedFirstPr(db, ATLAS_DIR), today: new Date() });
   await writeVoteEvidence(db, { atlasSha: atlasSha ?? "", computedAt: new Date().toISOString(), claims: r.claims, complete: r.unjudged === 0 });
   console.log(

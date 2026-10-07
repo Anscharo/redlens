@@ -34,8 +34,7 @@ mock.module("../db.ts", () => ({
 }));
 
 const { cacheGet, cachePut, currentVoteEvidence, handleVoteEvidence, readVoteEvidence, writeVoteEvidence } = await import("./store.ts");
-const { cachedFirstPr, cachedJudge, dueReason } = await import("../sync-vote-evidence.ts");
-const { config } = await import("../config.ts");
+const { cachedFirstPr, cachedJudge, dueReason, laneSettings } = await import("../sync-vote-evidence.ts");
 
 const NOW = Date.UTC(2026, 9, 7, 12);
 const claims = { "d@2026-03-26#00000000": { status: "enacted", via: "date", vote: null, subject: null } };
@@ -87,13 +86,18 @@ describe("the worker lane's gate", () => {
   const stored = (over: Record<string, unknown>) => (row = { atlas_sha: "abc", claims: {}, complete: true, computed_at: new Date(NOW - 60_000), ...over });
 
   it("runs on no row, an unfinished row, a new atlas commit or an old row, and otherwise waits", async () => {
-    expect(await dueReason(fakeSql, "abc", NOW)).toBe("no row");
+    expect(await dueReason(fakeSql, "abc", 3600, NOW)).toBe("no row");
     stored({ complete: false });
-    expect(await dueReason(fakeSql, "abc", NOW)).toBe("unfinished");
+    expect(await dueReason(fakeSql, "abc", 3600, NOW)).toBe("unfinished");
     stored({});
-    expect(await dueReason(fakeSql, "def", NOW)).toBe("atlas moved");
-    expect(await dueReason(fakeSql, "abc", NOW)).toBeNull();
-    expect(await dueReason(fakeSql, "abc", NOW + config.voteEvidenceRefreshSeconds * 1000)).toBe("stale");
+    expect(await dueReason(fakeSql, "def", 3600, NOW)).toBe("atlas moved");
+    expect(await dueReason(fakeSql, "abc", 3600, NOW)).toBeNull();
+    expect(await dueReason(fakeSql, "abc", 3600, NOW + 3600 * 1000)).toBe("stale");
+  });
+
+  it("reads its settings from the environment, judging with Jev by default", () => {
+    expect(laneSettings({})).toEqual({ model: "typesafe/jev-1.13", perCycle: 80, refreshSeconds: 3600 });
+    expect(laneSettings({ VOTE_EVIDENCE_MODEL: "", VOTE_EVIDENCE_PER_CYCLE: "0", VOTE_EVIDENCE_REFRESH_SECONDS: "60" })).toEqual({ model: "", perCycle: 0, refreshSeconds: 60 });
   });
 });
 

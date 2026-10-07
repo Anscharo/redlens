@@ -1,4 +1,4 @@
-// Storage for Stale Dates vote evidence (migration 041), and the public read.
+// Storage for Stale Dates vote evidence (migration 042), and the public read.
 //
 //   GET /api/vote-evidence → { atlasSha, computedAt, claims }
 //

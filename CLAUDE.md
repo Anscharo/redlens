@@ -17,6 +17,7 @@ Rules that matter only inside one subsystem live in a CLAUDE.md in that director
 - `src/server/chat/CLAUDE.md` and `apps/web/src/components/chat/CLAUDE.md`: the chat loop and its reliability harness.
 - `src/server/facts/CLAUDE.md`: chat facts and the on-device similarity lanes.
 - `src/server/preview/CLAUDE.md`: PR previews.
+- `src/server/pau/CLAUDE.md`: PAU admin-event history and live snapshots (`GET /api/pau`), the worker's `pau` step, and when to move it to an indexer.
 - `apps/web/src/components/reports/CLAUDE.md`: building a report page.
 - `scripts/eval/CLAUDE.md`: the `eval:*` bakeoffs.
 

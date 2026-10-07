@@ -18,8 +18,19 @@ export interface ExplorerLog {
   logIndex: number;
 }
 
+/** Inclusive block window; an absent bound is the chain's genesis or head. */
+export interface BlockRange {
+  fromBlock?: number;
+  toBlock?: number;
+}
+
 /** Logs of one contract matching `topics` (null = any), oldest first; null when no explorer serves the chain. */
-export type LogFetcher = (chain: string, address: string, topics: (string | null)[]) => Promise<ExplorerLog[] | null>;
+export type LogFetcher = (
+  chain: string,
+  address: string,
+  topics: (string | null)[],
+  range?: BlockRange,
+) => Promise<ExplorerLog[] | null>;
 
 const PAGE = 1000;
 
@@ -55,12 +66,13 @@ async function page(url: string): Promise<ExplorerLog[]> {
   throw new Error(`explorer logs: ${body.message ?? "error"} ${String(body.result).slice(0, 120)}`);
 }
 
-export const explorerLogs: LogFetcher = async (chain, address, topics) => {
+export const explorerLogs: LogFetcher = async (chain, address, topics, range = {}) => {
   const base = explorerBases(chain, process.env.ETHERSCAN_API_KEY?.trim())[0]?.base;
   if (!base) return null;
+  const to = range.toBlock ?? "latest";
   const byKey = new Map<string, ExplorerLog>();
-  for (let from = 0; ; ) {
-    const logs = await page(`${base}module=logs&action=getLogs&address=${address}&fromBlock=${from}&toBlock=latest${topicParams(topics)}`);
+  for (let from = range.fromBlock ?? 0; ; ) {
+    const logs = await page(`${base}module=logs&action=getLogs&address=${address}&fromBlock=${from}&toBlock=${to}${topicParams(topics)}`);
     const before = byKey.size;
     for (const l of logs) byKey.set(`${l.transactionHash}:${l.logIndex}`, l);
     // A full page may end mid-block, so the next page restarts at that block

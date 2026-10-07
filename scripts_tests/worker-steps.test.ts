@@ -31,14 +31,14 @@ describe("worker step registry", () => {
   });
 
   it("runs the tick steps and tail lanes in their declared order", () => {
-    expect(stepsIn(WORKER_STEPS, "tick").map((s) => s.id)).toEqual(["pr-state", "chain-state", "balances", "forum"]);
+    expect(stepsIn(WORKER_STEPS, "tick").map((s) => s.id)).toEqual(["pr-state", "chain-state", "balances", "pau", "forum"]);
     expect(stepsIn(WORKER_STEPS, "tail").map((s) => s.id)).toEqual(["embeddings", "history", "doc-versions", "briefings", "vote-evidence"]);
   });
 
   it("every tick step has a failure label; only network steps skip under --no-fetch", () => {
     for (const s of stepsIn(WORKER_STEPS, "tick")) expect(s.label, s.id).toBeTruthy();
     const skipping = stepsIn(WORKER_STEPS, "tick").filter((s) => s.skipWhenNoFetch).map((s) => s.id);
-    expect(skipping).toEqual(["chain-state", "balances", "forum"]);
+    expect(skipping).toEqual(["chain-state", "balances", "pau", "forum"]);
   });
 });
 

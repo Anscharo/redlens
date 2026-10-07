@@ -31,6 +31,16 @@ export const onchain: EnvGroup = {
       doc: "Most addresses one rolling balance refresh fetches. 50 stays inside one multicall.",
       default: "50",
     },
+    {
+      name: "PAU_EVENT_BUDGET_SECONDS",
+      doc: "Seconds each worker tick spends reading PAU admin events from the block explorer before handing the rest to the next tick.",
+      default: "60",
+    },
+    {
+      name: "PAU_REFRESH_SECONDS",
+      doc: "Age past which the worker rebuilds the PAU snapshots (role holders confirmed with hasRole, rate limits read live).",
+      default: "3600",
+    },
   ],
 };
 

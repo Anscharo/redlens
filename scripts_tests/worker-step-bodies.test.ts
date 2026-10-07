@@ -10,6 +10,13 @@ vi.mock("../src/server/chain-state.ts", () => ({ maybeRefreshChainState }));
 vi.mock("../scripts/required/fetch-chain-state.mjs", () => ({ fetchChainState }));
 vi.mock("../src/server/balances/refresh.ts", () => ({ maybeRefreshBalances }));
 vi.mock("../src/server/forum.ts", () => ({ maybeSyncForum }));
+const syncPauEvents = vi.fn();
+const maybeRefreshPauState = vi.fn();
+const rpcChainReader = vi.fn(() => "reader");
+vi.mock("../src/server/pau/sync-events.ts", () => ({ syncPauEvents }));
+vi.mock("../src/server/pau/store.ts", () => ({ maybeRefreshPauState }));
+vi.mock("../src/server/pau/rpc-reader.ts", () => ({ rpcChainReader, rpcHead: vi.fn() }));
+vi.mock("../src/server/config.ts", () => ({ config: { pauEventBudgetSeconds: 60, pauRefreshSeconds: 3600 } }));
 
 const { WORKER_STEPS } = await import("../scripts/lib/worker-steps/index.mjs");
 
@@ -55,5 +62,18 @@ describe("worker tick step bodies", () => {
     expect(await step("forum").run(ctx)).toBe("forum fresh (60s old) — no Discourse fetch");
     maybeSyncForum.mockResolvedValueOnce({ synced: false, reason: "disabled", ageSeconds: null });
     expect(await step("forum").run(ctx)).toBe("forum disabled — no Discourse fetch");
+  });
+
+  it("pau reports the event tick and whether the snapshots were rebuilt", async () => {
+    syncPauEvents.mockResolvedValueOnce({ visited: 40, pending: 12, events: 199, errors: 0, rateLimited: [] });
+    maybeRefreshPauState.mockResolvedValueOnce({ reason: "due", refreshed: 20, removed: 0 });
+    expect(await step("pau").run(ctx)).toBe("pau events 40 read, 12 pending, 199 new; state rebuilt 20");
+    expect(syncPauEvents.mock.calls[0][0]).toBe(db);
+    expect(syncPauEvents.mock.calls[0][2].budgetMs).toBe(60_000);
+    expect(maybeRefreshPauState.mock.calls[0][2]).toBe("reader");
+    expect(maybeRefreshPauState.mock.calls[0][3]).toEqual({ refreshSeconds: 3600 });
+    syncPauEvents.mockResolvedValueOnce({ visited: 3, pending: 0, events: 0, errors: 2, rateLimited: ["robinhood"] });
+    maybeRefreshPauState.mockResolvedValueOnce({ reason: "fresh", refreshed: 0, removed: 1 });
+    expect(await step("pau").run(ctx)).toBe("pau events 3 read, 0 pending, 0 new, 2 error(s) (explorer rate limit: robinhood); state fresh, dropped 1");
   });
 });
