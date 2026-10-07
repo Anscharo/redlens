@@ -8,6 +8,7 @@ import { RelatedNode } from "../RelatedNode";
 import { AddressCard } from "../AddressCard";
 import { NodeHistory } from "../history/NodeHistory";
 import { PreviewHistory } from "../history/PreviewHistory";
+import { DocVotes } from "./DocVotes";
 import { ErrorBoundary, InlineError } from "../ErrorBoundary";
 import { useDataSource } from "../../lib/dataSource";
 import { glide } from "../../lib/animatedScroll";
@@ -19,7 +20,7 @@ const HIDE = new Set(["parent_of", "mentions", "proxies_to", "cites"]);
 const SECTION_HEAD = "text-sm mono text-tan-2 font-semibold tracking-wide";
 
 // A section's title bar: a pill-styled label anchored by a rule across the rest
-// of the width, marking the start of a panel section (notes / history / glossary).
+// of the width, marking the start of a panel section (notes / history / votes / glossary).
 // The active section's bar stays highlighted so the selection is always clear.
 function SectionDivider({ label, active }: { label: string; active: boolean }) {
   return (
@@ -46,6 +47,7 @@ export function RightPanel({
   onTabChange,
   selectable,
   byParent,
+  docs,
 }: {
   id: string;
   /** Element Annotations attached to this doc (`<this doc_no>.0.3.N`). */
@@ -70,6 +72,8 @@ export function RightPanel({
    *  re-render this panel (or the sibling reader) — only the checkbox itself. */
   selectable?: boolean;
   byParent?: Map<string | null, AtlasNode[]>;
+  /** Every document, for the votes section's claim matching (a vote linking a near parent counts). */
+  docs: Record<string, AtlasNode>;
 }) {
   const { preview } = useDataSource();
 
@@ -112,7 +116,7 @@ export function RightPanel({
   };
   const shownRels = graphRels.filter(({ edge, isOut }) => !isSelfNav(edge, isOut));
 
-  // All three sections now live in one scroll area; the pill bar jumps to them.
+  // All the sections live in one scroll area; the pill bar jumps to them.
   // An empty annotations block collapses so the first thing on screen is whatever
   // section actually has content (history when a doc has no annotations).
   const hasAnnotations =
@@ -129,12 +133,16 @@ export function RightPanel({
   // exist down here, so add them so the badge can't disagree with the content.
   const noteCount = annotationCount + citedBy.length + graphRels.length;
 
+  // Pill-bar order, which is also the order the sections scroll in.
+  const pills: Array<{ view: AtlasTab; count?: number }> = [
+    { view: "notes", count: noteCount },
+    { view: "history" },
+    { view: "votes" },
+    { view: "glossary", count: glossaryTerms.length },
+  ];
+
   const scrollRef = useRef<HTMLDivElement>(null);
-  const sectionRefs = useRef<Record<AtlasTab, HTMLElement | null>>({
-    notes: null,
-    history: null,
-    glossary: null,
-  });
+  const sectionRefs = useRef<Record<AtlasTab, HTMLElement | null>>({ notes: null, history: null, votes: null, glossary: null });
   // Bring a section to the top of the scroll area. The active section's divider
   // stays highlighted (see SectionDivider), so no transient flash is needed.
   const scrollToSection = useCallback((view: AtlasTab, animate: boolean) => {
@@ -173,33 +181,19 @@ export function RightPanel({
         style={{ borderColor: "var(--border)", padding: "10px 16px" }}
         aria-label="Panel sections"
       >
-        <button
-          type="button"
-          aria-current={tab === "notes" ? "true" : undefined}
-          data-state={tab === "notes" ? "active" : "inactive"}
-          onClick={() => selectSection("notes")}
-          className="right-pill"
-        >
-          notes{noteCount > 0 && <span style={{ marginLeft: 4 }}>· {noteCount}</span>}
-        </button>
-        <button
-          type="button"
-          aria-current={tab === "history" ? "true" : undefined}
-          data-state={tab === "history" ? "active" : "inactive"}
-          onClick={() => selectSection("history")}
-          className="right-pill"
-        >
-          history
-        </button>
-        <button
-          type="button"
-          aria-current={tab === "glossary" ? "true" : undefined}
-          data-state={tab === "glossary" ? "active" : "inactive"}
-          onClick={() => selectSection("glossary")}
-          className="right-pill"
-        >
-          glossary{glossaryTerms.length > 0 && <span style={{ marginLeft: 4 }}>· {glossaryTerms.length}</span>}
-        </button>
+        {pills.map(({ view, count }) => (
+          <button
+            key={view}
+            type="button"
+            aria-current={tab === view ? "true" : undefined}
+            data-state={tab === view ? "active" : "inactive"}
+            onClick={() => selectSection(view)}
+            className="right-pill"
+          >
+            {view}
+            {count ? <span style={{ marginLeft: 4 }}>· {count}</span> : null}
+          </button>
+        ))}
       </nav>
 
       <div className="overflow-y-auto flex-1" ref={scrollRef}>
@@ -325,6 +319,13 @@ export function RightPanel({
             <SectionDivider label="history" active={tab === "history"} />
             <ErrorBoundary resetKey={id} fallback={(error) => <InlineError error={error} />}>
               {preview ? <PreviewHistory nodeId={id} /> : <NodeHistory nodeId={id} />}
+            </ErrorBoundary>
+          </section>
+
+          <section className="rl-section" ref={(el) => { sectionRefs.current.votes = el; }} data-testid="votes-panel">
+            <SectionDivider label="votes" active={tab === "votes"} />
+            <ErrorBoundary resetKey={id} fallback={(error) => <InlineError error={error} />}>
+              <DocVotes id={id} docs={docs} />
             </ErrorBoundary>
           </section>
 

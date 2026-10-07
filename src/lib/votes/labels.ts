@@ -47,6 +47,13 @@ export function evidenceSource(e: VoteEvidence): "rules" | "history" | "ai" {
   return e.judged ? "ai" : e.via === "history" ? "history" : "rules";
 }
 
+/** Who found the vote, when not the matching rules alone: "via atlas history", "AI-judged" (and what the rules said). */
+export function provenance(e: VoteEvidence): string[] {
+  if (e.via === "history") return ["via atlas history"];
+  if (!e.judged) return [];
+  return [ruleDisagrees(e) ? `AI-judged, rules said ${EVIDENCE_LABEL[e.judged.rule]}` : "AI-judged"];
+}
+
 /** Whether an AI judge overruled the matching rules on this claim. */
 export function ruleDisagrees(e: VoteEvidence): boolean {
   return !!e.judged && e.judged.rule !== e.status;
@@ -68,8 +75,7 @@ export function missingSubject(e: VoteEvidence): string[] {
 export function evidenceText(e: VoteEvidence): string {
   const parts = [EVIDENCE_LABEL[e.status]];
   if (e.vote) parts.push(`${e.vote.kind} ${e.vote.date} (${signedDays(e.vote.offsetDays)})`);
-  if (e.via === "history") parts.push("via atlas history");
-  if (e.judged) parts.push(ruleDisagrees(e) ? `AI-judged, rules said ${EVIDENCE_LABEL[e.judged.rule]}` : "AI-judged");
+  parts.push(...provenance(e));
   const missing = missingSubject(e);
   if (missing.length) parts.push(`missing: ${missing.join(", ")}`);
   return parts.join(" · ");

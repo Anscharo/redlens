@@ -74,7 +74,7 @@ let voteIndex: { first: string; last: string } | null = { first: "2025-05-29", l
 let overlay: VoteEvidenceOverlay | null = null;
 
 vi.mock("../../lib/docs", () => ({ loadDocs: () => Promise.resolve({}) }));
-vi.mock("../../lib/votes", () => ({ loadVoteIndex: () => Promise.resolve(voteIndex), loadVoteEvidence: () => Promise.resolve(overlay) }));
+vi.mock("../../lib/votes", () => ({ loadVoteRecord: () => Promise.resolve({ index: voteIndex, overlay }) }));
 vi.mock("@/lib/staleDates", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/staleDates")>();
   return {

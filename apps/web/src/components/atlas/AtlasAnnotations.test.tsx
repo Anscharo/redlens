@@ -14,12 +14,14 @@ vi.mock("../../hooks/useGraphEdges", () => ({
   useGraphEdges: () => ({ outbound: [], inbound: [] }),
 }));
 
+vi.mock("../../lib/votes", () => ({ loadVoteRecord: () => Promise.resolve({ index: null, overlay: null }) }));
+
 import { AtlasAnnotations } from "./AtlasAnnotations";
 
 const RIGHT_PANEL_KEY = "redline-sky-atlas:right-panel-width";
 const RIGHT_PANEL_DEFAULT = 520;
 
-type Tab = "notes" | "glossary" | "history";
+type Tab = "notes" | "glossary" | "history" | "votes";
 
 function setup(over: Partial<Parameters<typeof AtlasAnnotations>[0]> = {}) {
   const props = {
@@ -35,6 +37,7 @@ function setup(over: Partial<Parameters<typeof AtlasAnnotations>[0]> = {}) {
     onTabChange: vi.fn(),
     onNavigate: vi.fn(),
     onNavigateByDocNo: vi.fn(),
+    docs: {},
     ...over,
   };
   return render(<AtlasAnnotations {...props} />);

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// RightPanel is one scrolling column (notes / history / glossary) with jump
+// RightPanel is one scrolling column (notes / history / votes / glossary) with jump
 // pills. We assert the pill wiring (aria-current + onTabChange) and that each
-// section renders. The history children fetch from the server, so they're
+// section renders. The history and votes children fetch from the server, so they're
 // stubbed — the live-vs-preview history split is an L3 concern.
 
 import { describe, it, expect, afterEach, vi } from "vitest";
@@ -15,6 +15,9 @@ import { DataSourceContext } from "../../lib/dataSource";
 vi.mock("../history/NodeHistory", () => ({
   NodeHistory: () => <div data-testid="node-history" />,
 }));
+vi.mock("./DocVotes", () => ({
+  DocVotes: ({ id }: { id: string }) => <div data-testid="doc-votes">{id}</div>,
+}));
 vi.mock("../history/PreviewHistory", () => ({
   PreviewHistory: () => <div data-testid="preview-history" />,
 }));
@@ -26,7 +29,7 @@ vi.mock("@/lib/balances", async (importOriginal) => ({
 
 afterEach(cleanup);
 
-type Tab = "notes" | "glossary" | "history";
+type Tab = "notes" | "glossary" | "history" | "votes";
 
 function setup(overrides: Partial<Parameters<typeof RightPanel>[0]> = {}) {
   const onTabChange = vi.fn();
@@ -46,6 +49,7 @@ function setup(overrides: Partial<Parameters<typeof RightPanel>[0]> = {}) {
     onNavigateByDocNo,
     tab: "notes" as Tab,
     onTabChange,
+    docs: {},
     ...overrides,
   };
   render(<RightPanel {...props} />);
@@ -69,6 +73,14 @@ describe("RightPanel section pills", () => {
     expect(onTabChange).toHaveBeenCalledWith("glossary");
     fireEvent.click(screen.getByRole("button", { name: /history/ }));
     expect(onTabChange).toHaveBeenCalledWith("history");
+    fireEvent.click(screen.getByRole("button", { name: /votes/ }));
+    expect(onTabChange).toHaveBeenCalledWith("votes");
+  });
+
+  it("orders the pills notes, history, votes, glossary", () => {
+    setup();
+    const nav = screen.getByRole("navigation", { name: "Panel sections" });
+    expect([...nav.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["notes", "history", "votes", "glossary"]);
   });
 
   it("shows the annotation count badge when there are linked docs", () => {
@@ -147,6 +159,12 @@ describe("RightPanel tab content", () => {
     expect(screen.getByTestId("node-history")).toBeInTheDocument();
   });
 
+  it("renders the document's votes on the votes tab", () => {
+    setup({ tab: "votes" });
+    expect(screen.getByTestId("votes-panel")).toContainElement(screen.getByTestId("doc-votes"));
+    expect(screen.getByTestId("doc-votes")).toHaveTextContent("node-1");
+  });
+
   it("renders PreviewHistory on the history tab when in preview mode", () => {
     const onTabChange = vi.fn();
     render(
@@ -165,6 +183,7 @@ describe("RightPanel tab content", () => {
           onNavigateByDocNo={vi.fn()}
           tab="history"
           onTabChange={onTabChange}
+          docs={{}}
         />
       </DataSourceContext.Provider>,
     );

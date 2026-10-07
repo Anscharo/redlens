@@ -12,7 +12,7 @@
 //   request, and the passed poll linking that pull request authorised it. Only
 //   when history finds none does the model pick among nearby polls.
 
-import type { StaleDatesReport } from "../staleDates";
+import type { DateClaim, StaleDatesReport } from "../staleDates";
 import type { VoteEvidence, VoteEvidenceStatus, VoteMatch } from "./evidence";
 import { offset } from "./vote-index";
 
@@ -90,12 +90,15 @@ function pollMatch(dateISO: string, poll: PollRef): VoteMatch {
   return { kind: "poll", title: poll.title, date: poll.date, url: poll.url, offsetDays: offset(dateISO, poll.date) };
 }
 
+/** The claim with the worker's verdict when the overlay holds one. */
+export function overlayClaim<C extends DateClaim>(c: C, overlay: VoteEvidenceOverlay | null): C {
+  const e = overlay?.claims[claimKey(c)];
+  return e ? { ...c, voteEvidence: e } : c;
+}
+
 /** The report with the worker's verdict on every claim it judged; a null overlay leaves it as is. */
 export function applyOverlay(report: StaleDatesReport, overlay: VoteEvidenceOverlay | null): StaleDatesReport {
   if (!overlay) return report;
-  const lay = (claims: StaleDatesReport["stale"]) => claims.map((c) => {
-    const e = overlay.claims[claimKey(c)];
-    return e ? { ...c, voteEvidence: e } : c;
-  });
+  const lay = (claims: DateClaim[]) => claims.map((c) => overlayClaim(c, overlay));
   return { ...report, stale: lay(report.stale), dueSoon: lay(report.dueSoon), upcoming: lay(report.upcoming), recorded: lay(report.recorded) };
 }

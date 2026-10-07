@@ -1,7 +1,7 @@
 // Data loading + filtered buckets for the Stale Dates report.
 import { useMemo } from "react";
 import { loadDocs } from "../../lib/docs";
-import { loadVoteEvidence, loadVoteIndex } from "../../lib/votes";
+import { loadVoteRecord } from "../../lib/votes";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUTCDay } from "../../hooks/useUTCDay";
 import { buildStaleDatesReport, DUE_SOON_DAYS, type DateClaim, type StaleDatesReport } from "@/lib/staleDates";
@@ -62,16 +62,12 @@ function onScreenReport(report: StaleDatesReport, sections: Section[]): StaleDat
   };
 }
 
-// Wrapped so "still loading" (null) differs from "loaded, but there is no vote
-// record" ({ index: null }). The worker's overlay rides along; either may be null.
-const loadVotes = () => Promise.all([loadVoteIndex(), loadVoteEvidence()]).then(([index, overlay]) => ({ index, overlay }));
-
 export function useStaleDatesState(query: string, mode: ReportMode) {
   // A load failure re-throws out of useLoaded into the route's ErrorBoundary,
   // which owns the error + retry UI for every page. The vote record never
   // fails: without it the report renders with no vote evidence.
   const docs = useLoaded(loadDocs);
-  const votes = useLoaded(loadVotes);
+  const votes = useLoaded(loadVoteRecord);
   const day = useUTCDay();
   // Recomputed from the loaded atlas + the current UTC day — no build step
   // involved, and the day-keyed memo re-buckets a tab left open past midnight.

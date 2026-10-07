@@ -40,6 +40,14 @@ export function loadVoteEvidence(): Promise<VoteEvidenceOverlay | null> {
   return overlay;
 }
 
+/**
+ * Both, for a view that lays the overlay over the rules: either may be null.
+ * The wrapper object tells "still loading" (null) from "loaded, nothing there".
+ */
+export function loadVoteRecord(): Promise<{ index: VoteIndex | null; overlay: VoteEvidenceOverlay | null }> {
+  return Promise.all([loadVoteIndex(), loadVoteEvidence()]).then(([index, overlay]) => ({ index, overlay }));
+}
+
 /** Test-only: drop the memoised fetches so the next load hits the network again. */
 export function resetVoteIndexCache(): void {
   cached = null;

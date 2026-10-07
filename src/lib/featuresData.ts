@@ -64,10 +64,11 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "The right-hand panel",
-        what: "Context for whichever document is selected — notes, history, and glossary in one scrolling panel, with pills at the top to jump between them.",
+        what: "Context for whichever document is selected — notes, history, votes and glossary in one scrolling panel, with pills at the top to jump between them.",
         how: [
           "Notes — the Element Annotations attached to this document, linked documents, equivalent documents under the other Prime Agents, mentioned addresses, and which documents cite this one (where you land by default).",
           "History — this document's change timeline.",
+          "Votes — the Sky executive votes and governance polls behind this document: each one that links it, and each one matched to one of its dates (labelled as on Stale Dates, including “AI-judged” and “via atlas history”), linked to vote.sky.money.",
           "Glossary — the defined terms this document uses, with their Atlas definitions.",
         ],
       },

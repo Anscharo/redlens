@@ -46,6 +46,7 @@ export function AtlasReaderRow(props: AtlasReaderRowProps) {
           onNavigateByDocNo={navigateByDocNo}
           selectable={selectable}
           byParent={data.atlas.byParent}
+          docs={data.atlas.docs}
         />
       )}
     </div>
