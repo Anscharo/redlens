@@ -13,7 +13,7 @@ import { NATIVE_TOKEN, tokensForAddress } from "../../lib/tokens.ts";
 import { fetchSolanaBalances } from "./solana-balances.ts";
 
 // Same address on every supported chain (canonical multicall3 deployment).
-const MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11" as const;
+export const MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11" as const;
 const GET_ETH_BALANCE_ABI = [
   {
     name: "getEthBalance",
@@ -53,7 +53,7 @@ export interface BalanceResult {
 
 // Per-chain RPC override: RPC_URL_<CHAIN> (e.g. RPC_URL_BASE), ETH_RPC_URL for
 // ethereum, else the public endpoint from the canonical chains registry.
-function rpcFor(chain: string): string | undefined {
+export function rpcFor(chain: string): string | undefined {
   const override = process.env[`RPC_URL_${chain.toUpperCase()}`]?.trim();
   if (override) return override;
   if (chain === "ethereum" && process.env.ETH_RPC_URL?.trim()) return process.env.ETH_RPC_URL.trim();

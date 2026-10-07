@@ -1,0 +1,98 @@
+/**
+ * Runs the wiring checks for every registry deployment. A monolithic
+ * controller (MainnetController / ForeignController) is checked by pointer
+ * and by hasRole, since its AccessControl is not enumerable; a diamond goes
+ * through pau-wiring-diamond.ts.
+ *
+ * For both, the live controller is whoever the RateLimits contract grants
+ * CONTROLLER to. Spells rotate controllers without the atlas always
+ * following, so the grant history (explorer logs) names the candidates and
+ * hasRole confirms which still hold the role. A deployment whose controller
+ * the atlas marks TBC gets its controller proposed the same way.
+ */
+import { toEventSelector } from "viem";
+import { deploymentId, membersOf, type PauDeployment, type PauRegistry } from "../../src/lib/pauRegistry.ts";
+import type { LogFetcher } from "./explorer-logs.ts";
+import { checkDiamond } from "./pau-wiring-diamond.ts";
+import { addrs, expectAddress, expectHolders, pointerProposals, readNamed, type OnchainProposal, type Reader, type WiringCheck, type WiringReport } from "./pau-wiring.ts";
+
+const ROLE_GRANTED = toEventSelector("RoleGranted(bytes32,address,address)");
+const day = (ts: number) => new Date(ts * 1000).toISOString().slice(0, 10);
+
+/** Grant history of `role` on `rl`; an explorer failure leaves only the registry's own candidates. */
+async function grantHistory(d: PauDeployment, logs: LogFetcher | null, rl: string, role: string) {
+  if (!logs) return { grants: [], note: "no grant history (explorer lookup off)" };
+  try {
+    const grants = await logs(d.chain, rl, [ROLE_GRANTED, role]);
+    return grants ? { grants, note: "" } : { grants: [], note: `no grant history (no explorer for ${d.chain})` };
+  } catch (e) {
+    return { grants: [], note: `no grant history (${(e as Error).message})` };
+  }
+}
+
+/** Accounts holding CONTROLLER on the deployment's RateLimits now, with the date each was granted. */
+async function liveControllers(d: PauDeployment, read: Reader, logs: LogFetcher | null) {
+  const rl = membersOf(d, "rateLimits")[0]?.address;
+  if (!rl) return null;
+  const { role } = await readNamed(read, d.chain, { role: { address: rl, functionName: "CONTROLLER" } });
+  if (role === null) return null;
+  const granted = new Map<string, string>(addrs(d, "controller").map((a) => [a, "?"]));
+  const { grants, note } = await grantHistory(d, logs, rl, String(role));
+  for (const l of grants) granted.set(`0x${l.topics[2].slice(26)}`, day(l.timeStamp));
+  const calls = Object.fromEntries([...granted.keys()].map((a) => [a, { address: rl, functionName: "hasRole", args: [role, a] }]));
+  const held = await readNamed(read, d.chain, calls);
+  return { live: new Map([...granted].filter(([a]) => held[a] === true)), note };
+}
+
+async function controllerChecks(d: PauDeployment, read: Reader, logs: LogFetcher | null): Promise<WiringReport> {
+  const id = deploymentId(d);
+  const found = await liveControllers(d, read, logs);
+  if (!found) return { checks: [], proposals: [] };
+  const { live, note } = found;
+  const listed = addrs(d, "controller");
+  const liveText = (live.size ? [...live].map(([a, since]) => `${a} (granted ${since})`).join(", ") : "none found") + (note ? `; ${note}` : "");
+  const checks: WiringCheck[] = listed.map((a) => ({
+    deployment: id,
+    check: "live controller",
+    ok: live.has(a),
+    detail: live.has(a) ? "RateLimits grants CONTROLLER to it" : `RateLimits does NOT grant CONTROLLER to ${a}; live: ${liveText}`,
+  }));
+  const proposals: OnchainProposal[] = [...live]
+    .filter(([a]) => !listed.includes(a))
+    .map(([address, since]) => ({ deployment: id, chain: d.chain, role: "controller", address, note: `holds CONTROLLER on RateLimits (granted ${since})` }));
+  return { checks, proposals };
+}
+
+export async function checkMonolith(d: PauDeployment, read: Reader): Promise<WiringReport> {
+  const controller = membersOf(d, "controller")[0].address;
+  const r = await readNamed(read, d.chain, {
+    proxy: { address: controller, functionName: "proxy" },
+    rateLimits: { address: controller, functionName: "rateLimits" },
+    FREEZER: { address: controller, functionName: "FREEZER" },
+    RELAYER: { address: controller, functionName: "RELAYER" },
+  });
+  const holds = (role: unknown) => (a: string) => ({ address: controller, functionName: "hasRole", args: [role, a] });
+  const pointers = [expectAddress(d, "proxy", r.proxy, addrs(d, "almProxy")), expectAddress(d, "rateLimits", r.rateLimits, addrs(d, "rateLimits"))];
+  const proposals = pointerProposals(d, pointers, { proxy: "almProxy", rateLimits: "rateLimits" });
+  const checks = [
+    ...pointers,
+    ...(r.FREEZER === null ? [] : await expectHolders(read, d, "freezer", holds(r.FREEZER))),
+    ...(r.RELAYER === null ? [] : await expectHolders(read, d, "relayer", holds(r.RELAYER))),
+  ];
+  return { checks, proposals };
+}
+
+/** Wiring checks for every deployment, plus on-chain proposals. */
+export async function checkRegistryWiring(reg: PauRegistry, read: Reader, logs: LogFetcher | null): Promise<WiringReport> {
+  const report: WiringReport = { checks: [], proposals: [] };
+  for (const d of reg.deployments) {
+    const parts = [await controllerChecks(d, read, logs)];
+    if (membersOf(d, "controller").length) parts.push(d.kind === "diamond" ? await checkDiamond(d, reg, read) : await checkMonolith(d, read));
+    else report.checks.push({ deployment: deploymentId(d), check: "controller", ok: false, detail: "no controller in registry; the live-controller lookup proposes one when the chain has grant history" });
+    for (const p of parts) {
+      report.checks.push(...p.checks);
+      report.proposals.push(...p.proposals);
+    }
+  }
+  return report;
+}

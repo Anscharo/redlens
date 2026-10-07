@@ -40,6 +40,7 @@
     "env:prune": "bun scripts/aux/prune-pr-environments.mjs",
     "env:example": "bun scripts/aux/env-example.ts",
     "settlements:parse": "bun scripts/aux/parse-settlements.mjs",
+    "pau:candidates": "bun scripts/aux/pau-candidates.ts",
     "processes:check": "bun scripts/required/check-processes-dirty.mjs",
     "processes:triage": "bash scripts/aux/processes-triage.sh",
     "processes:apply-decisions": "bun scripts/aux/processes-apply-decisions.mjs",

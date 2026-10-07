@@ -103,6 +103,10 @@ playwright/.cache/
 .cache/audit-html-report.json
 .cache/forward-reverse-diff.json
 .cache/processes-audit.md
+# `pnpm pau:candidates` queue and registry draft: regenerated per run, read by the pau-triage skill.
+.cache/pau-candidates.json
+.cache/pau-candidates.md
+.cache/pau-registry.draft.json
 .cache/processes-heuristic.json
 .cache/risk-assessment.md
 

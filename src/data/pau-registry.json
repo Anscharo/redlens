@@ -1,0 +1,1686 @@
+{
+  "$comment": "Curated PAU registry: which contracts make up each Prime agent's PAU, per chain and controller generation. Types and validation: src/lib/pauRegistry.ts. Propose changes with `pnpm pau:candidates [--rpc] [--draft]` and decide them with the pau-triage skill; never index an address that is not here.",
+  "shared": [
+    {
+      "chain": "ethereum",
+      "members": [
+        {
+          "role": "beacon",
+          "address": "0x829dc2b7e94b1954f0764e573f2e0d45afa28199",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "5b0627e8-102b-42ea-8d9b-38463591faf9"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0x8ce890a96a193ff2dd4b2ea3c682326f655f6b62",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "c9ecd9c2-dd1b-426b-8e52-66a2b1892289"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0xc84825bcd13aeddc372400239499380376a44a39",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "d9cbf883-119e-403d-8efa-125997cd8897"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0xadf62692340e46ef90336f2e75ce3b37f1148873",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "ce25217f-c37d-4415-b0d6-adecab3c7855"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0xa0a10ba97be1412730d694b8de1afe7eff20ec31",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "0c7d3bb1-6013-4c1b-900e-5232c7c5d595"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0x139d81d7d6040faef7cf0ef5a2636ca8a97a30d8",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "0648b191-3f6c-4164-b26d-71666ca1a1cb"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0x3817f734cae6ad2bdb79f9ff23091f2ad478da5f",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "b6a37e83-d51e-4bd3-afe6-a6f95cd943fe"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0x1dca18608c89174181153e786778705b4a0e1a06",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "05f5d939-712b-4204-8f77-4ef5ea598dcc"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0x4f7e0e3612b0e1e156a2b6570a51d4bd709f1315",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "83d0bf58-6a92-4873-ba9e-e5a23c8dca1c"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0xec48d773ceef1c6b07cda1afa2716c478b55187b",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "b009545a-fd85-42f9-ad94-bc0acfe1f27a"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0xf24e91f5d8529436c9fb92dd94f80d4a6c25d0f0",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "22387224-d9be-4aee-b47f-07307eb17c90"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0xa0c323a0acb20f259ea4ff343319d450be6472e5",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "17b0a239-b0b0-476e-9a67-b8b6e3156507"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0x691b5c26ad2b74d2376f4ed87904e9d3e47bd630",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "2561da4c-6e42-4503-b763-4f121236b1e8"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0x321138db5e056e9d0080d4c278e10a1edc091eb0",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "8c492c88-d8f9-46c8-85f6-a42ee6f944d6"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0x46b24ba00b65cb4f603447590e539b08097fb7ac",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "35060c04-e4c8-4dd1-a4fe-09bc9288534d"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0xcc9dd4c9b2a9c08f2692e7060f43d29a03e87348",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "222342b5-aa4c-4be4-8411-c947e96e8fdd"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0xe4a5dac768a310cc2316f258901b32e499653064",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "afa3da61-c32a-4efd-900b-16e1c262c842"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0xff0d19920e207e3a17eb5a2e5ba3afa44836362b",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "ad11b1de-41d7-4529-920b-55583445648e"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0xee197475607e9a27ccaa4786e740d2f0d0e706a7",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "6f3e9682-7628-407b-adc3-9627bad3a419"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0x4da7608c331b8f135df5b985018933780ecd089d",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "e59b91c8-05c9-47b2-a115-8a41b12de659"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0x445d9dc752f269be48250f1a180cac4c61ce4bab",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "b808a829-2f31-42f1-ac9f-6801d3eb8437"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0x75d35ffb8e6b871e12eb549ccf6afd324c46e47d",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "c58ae1da-985d-4f85-80be-396de4f8191f"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0x1221cc4b85ab260660ad21c2829e0eb516dffbc7",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "917e1162-3c06-4508-b0e9-02c5eefc1346"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0x1d8d089eb7d558f5dc6aa0cf98dde13b77b3f641",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "abe32bbc-2ac3-4d3c-8133-14c233e6853d"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0x081506de21c695af5e61a81ad288c8a96b6b59b9",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "2dae0ea0-5fff-4806-8c30-27a92e5676dc"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0x3a82d11cd37fb0098363262dc69425d07fa05516",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "304c403a-ca08-4f49-a2f8-34c3c8a793db"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "deployments": [
+    {
+      "prime": "727b0de6-095b-485e-bf9c-02108a364480",
+      "primeName": "Grove",
+      "chain": "avalanche",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "controller",
+          "address": "0x4236b772beeeaff57550aa392a0f227c0b908ce7",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "6445bdc4-6208-407f-820e-9d1e73213694"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0xb0113804960345fd0a245788b3423319c86940e5",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "228514c4-9a74-4324-b93a-4c10025d4bc7"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x0eec86649e756a23cbc68d9efed756f16ad5f85f",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "79a7fa54-db2c-4850-b56b-55b1db8e7463"
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0x7107dd8f56642327945294a18a4280c78e153644",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "0704f4b5-ee5c-455c-932f-94591b8a6594"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0x6ba2e6bcce3d2a31f1e3e1d3e11cdffbaa002a21",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "fae298c2-f505-4d8f-904e-28220926b6d8"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "727b0de6-095b-485e-bf9c-02108a364480",
+      "primeName": "Grove",
+      "chain": "base",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "controller",
+          "address": "0x7f8408ebbbc3504f83eeda52910dd75eba92c955",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "c3c11dd2-3b15-4f6b-8771-ff1da05f1115"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0xb0113804960345fd0a245788b3423319c86940e5",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "45278dad-c140-4671-9e33-59ba395d8d11"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x0eec86649e756a23cbc68d9efed756f16ad5f85f",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "b8053bf5-44d3-49b7-9eeb-9653df45abd1"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x9187807e07112359c481870feb58f0c117a29179",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "b8053bf5-44d3-49b7-9eeb-9653df45abd1"
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0x9b746dbc5269e1df6e4193bcb441c0fbbf1cecee",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "5c382a94-ce36-4ffa-862b-4718382450fe"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0xac8bf0669223197ac8b94cbb53e725e40b3919e8",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "a92d0054-8cc7-429b-91bb-dea4f0896e20"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "727b0de6-095b-485e-bf9c-02108a364480",
+      "primeName": "Grove",
+      "chain": "ethereum",
+      "kind": "diamond",
+      "members": [
+        {
+          "role": "almProxy",
+          "address": "0x0dcd9298e163dfd3c0b5b00f0d9093c36e40a153",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "c10638fb-177c-4a90-8af5-3e3b4ee3faed"
+            }
+          ]
+        },
+        {
+          "role": "controller",
+          "address": "0xbf83f5974b932c7d842254042717d6a2706ce5ee",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "6c83e356-0ac3-47aa-8ae5-bad377564e7a"
+            }
+          ]
+        },
+        {
+          "role": "accessControls",
+          "address": "0x4f6d1704700cd494dd4cd9bf59c0c39da1bc9164",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "0b4d0fb8-01ed-42fc-92f6-b24e09cf0f48"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0xe016ae733a77ba77e7907aaa749394fc5e75c0e1",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "01a29f9f-ff48-4e40-9b6d-592af97e1204"
+            }
+          ]
+        },
+        {
+          "role": "administeredAgent",
+          "address": "0xdbd17832df0e57b1732ce1c84c652e820e549baa",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "d58e14aa-0901-4aa9-af44-6281161be162"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x0eec86649e756a23cbc68d9efed756f16ad5f85f",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "2ecf77f4-13d5-40dd-a50f-d85aabdbf71b"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x9187807e07112359c481870feb58f0c117a29179",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "49588342-eebf-41e2-89eb-eb4f94ba5f36"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x4364d17b578b0ed1c42be9075d774d1d6aeafe96",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "712e0f02-b787-4812-8d67-60a81449b238"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0xb0113804960345fd0a245788b3423319c86940e5",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "33cb22ad-7032-4eec-ab47-4c5f5d28e064"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "727b0de6-095b-485e-bf9c-02108a364480",
+      "primeName": "Grove",
+      "chain": "ethereum",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "controller",
+          "address": "0xfd9dea9a8d5b955649579af482db7198a392a9f5",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "53d016e8-dd83-42ca-a74b-7ed440d50bc5"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0xb0113804960345fd0a245788b3423319c86940e5",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "fb21540d-950c-4607-90a3-4736b1f0e517"
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0x491edfb0b8b608044e227225c715981a30f3a44e",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "fda13ac2-b3ed-4b2a-9be6-9247632dafe3"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0x5f5cfcb8a463868e37ab27b5eff3ba02112df19a",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "d647b167-e936-4521-805e-f7851e48fe94"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x0eec86649e756a23cbc68d9efed756f16ad5f85f",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "2ecf77f4-13d5-40dd-a50f-d85aabdbf71b"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x9187807e07112359c481870feb58f0c117a29179",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "49588342-eebf-41e2-89eb-eb4f94ba5f36"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x4364d17b578b0ed1c42be9075d774d1d6aeafe96",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "712e0f02-b787-4812-8d67-60a81449b238"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "727b0de6-095b-485e-bf9c-02108a364480",
+      "primeName": "Grove",
+      "chain": "plasma",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "controller",
+          "address": "0x85b0e7f3a7c1ab0e1adea7dfaad416d8a6e00f0e",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "04952825-fe04-4459-ba45-01b44d21f606"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0xb0113804960345fd0a245788b3423319c86940e5",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "c7c722e6-f0d7-4182-afe1-ac260ce2482b"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x0eec86649e756a23cbc68d9efed756f16ad5f85f",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "9a69f651-4e37-4c7e-8ecc-e93d0d36e358"
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0x0c462fff7cc975bc9f2b0aeb8270feba5fd71e1b",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "9d0bcc23-02d4-4389-9c85-707acf900dee"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0x1e993f992b90ee50115cd7ba2e7432a9c345d0c4",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "59485651-9961-4382-8aa0-71b140a9105e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "727b0de6-095b-485e-bf9c-02108a364480",
+      "primeName": "Grove",
+      "chain": "plume",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "freezer",
+          "address": "0xb0113804960345fd0a245788b3423319c86940e5",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "f655efd0-cbce-4c42-9c80-64f8358a339e"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x0eec86649e756a23cbc68d9efed756f16ad5f85f",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "9e0a7a51-7cc1-4dce-9465-8b3961d14f1d"
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0x1db91ad50446a671e2231f77e00948e68876f812",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "dcf0beac-b93e-41a7-b8b6-98c1d4cc819b"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "727b0de6-095b-485e-bf9c-02108a364480",
+      "primeName": "Grove",
+      "chain": "robinhood",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "controller",
+          "address": "0x2c10885ddec8d52ecf3ad2b3833765bf36ed80cf",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "645a2973-0c56-4675-852a-47c8b646621d"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0xb0113804960345fd0a245788b3423319c86940e5",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "fa3e13f2-6837-499b-82b6-b4b9f78a9d08"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x0eec86649e756a23cbc68d9efed756f16ad5f85f",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "4210841c-c76a-4d9b-bfdd-0c11f23c785a"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x9187807e07112359c481870feb58f0c117a29179",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "4210841c-c76a-4d9b-bfdd-0c11f23c785a"
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0x29626c2d8ca49a51e4deceec5499e52983c42bd5",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "7ca6e88c-018a-4735-9753-7702d28e292b"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0xc13e5ff7993c5df911ae562a7736b0eba12b2010",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "6f07e646-0a9b-422f-88ff-0f6f1ed04086"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "bc6aed17-2969-4d04-9af6-c7bf3e4497e6",
+      "primeName": "Keel",
+      "chain": "ethereum",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "controller",
+          "address": "0xef26bdc34f35669c235345aef24a251b1ee80ef3",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "8ea07623-dc66-4e6b-8478-6fc3fadf049b"
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0xa5139956ec99ae2e51ea39d0b57c42b6d8db0758",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "796968ee-aa7b-40f2-acc8-a784eb41b21a"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0x65e7b39e508944f7c4278d3e4580f84eb20b26a7",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "0a1eaef9-84e5-4ebe-a6b7-328349b5f310"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0xa4f39daae4dc86c27c46b9a0605ae2c911451f95",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "76265560-4bc8-42fd-b5d7-85be52e11648"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x0f72935f6de6c54ce8056fd040d4ddb012b7cd54",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "8028f164-6410-4f0a-bbba-dc175fc77f58"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0xbccb60cf518391d3315d63313f7bb764d02541fe",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "5a0b849f-fbfc-4a4d-88f2-d639924548bf"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "f558e673-cbab-4696-8ca1-3af9b90fe5d4",
+      "primeName": "Obex",
+      "chain": "ethereum",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "controller",
+          "address": "0xf2bb664f16e2df4b0c71f9d2cfc386504e795b7a",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "cdb42b2b-e506-4e5e-a088-651b10880cde"
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0xb6dd7ae22c9922afee0642f9ac13e58633f715a2",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "53aa9c70-f2c8-4c0b-a30c-9c541d7dbbd4"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0x81f8f5306cf80655edff78f89860a8d89118e150",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "837cd549-5b8f-4d00-974b-f53af0f53f82"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x5d36918c8f4726a62257aa79a50e53d553465663",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "5d2d1cef-96c5-4881-a7b7-d70e75541fac"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x2b1d60b11b7015fb83361a219be01b7564436054",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "17c29741-7ed5-4a6e-96ff-55514df2a8f5"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0x1924b6990b63c5f820b81a23cd40383808d416d8",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "6624912c-1cf6-443c-925f-ba1451a1644f"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "eba0dcc7-e135-496f-b866-342deeb91dc4",
+      "primeName": "Osero",
+      "chain": "ethereum",
+      "kind": "diamond",
+      "members": [
+        {
+          "role": "almProxy",
+          "address": "0x6d370e359e9cbd0fd35bb38faf705d84238cb884",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "6869558b-7215-4bec-a93e-475c0963262b"
+            }
+          ]
+        },
+        {
+          "role": "controller",
+          "address": "0x24169afb34fae4d4356bc54bd80319131e35ca38",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "8e1d584f-6368-493d-a6c5-c5068250b63a"
+            }
+          ]
+        },
+        {
+          "role": "accessControls",
+          "address": "0x791d2a017532cfad881c446e6bf93bbc3c0778b2",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "6694670e-d13c-4466-afde-2830820ac000"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0xe9a78f34fe497e2186f81b8c014cd93b308bc62a",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "a6111874-7c68-4476-b282-20631378174a"
+            }
+          ]
+        },
+        {
+          "role": "administeredAgent",
+          "address": "0x1837505d104f7a6d8b7e19452610b0a3d652ef12",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "0eed3609-62a2-4c5b-ae5b-4f78212252ee"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x29c5a20a49a0d522a3714af97c517a908946b6a8",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "d39e8188-807c-4cf1-8952-e02e455e255b"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x3de688267cf099307abdd85f64d8efe03d0b2b26",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "92ed192c-7019-4864-b06d-c56fec8d3414"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0xf61f90907551a8a23f0f8eee9658fa53326de603",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "3b22b5f4-3cc4-4c47-9b84-a64fb4f3b159"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "dc083d10-74bc-43b6-ab2f-c91efce76e84",
+      "primeName": "Pattern",
+      "chain": "ethereum",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "controller",
+          "address": "0x8739a869e41e828c83ea45575fbdf9ffcc0962b1",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "6d579a04-dc47-47a7-b504-8047782bb4e3"
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0xba43325e91c79e500486a23e953ab3d8c46f169f",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "65c5dd3b-9ef8-4ace-9dd8-491431b86242"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0xa77f69f90646a4c0e44cee1d44fab08beb4ea204",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "5afd1a4a-8803-479c-82e1-21a9b94c047f"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0xd00665df77e0b1294ae2bdc3662f870092f6737b",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "77969281-5739-4eba-a856-6b89259b26e1"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0xe728d67bca6cb18de249325792b6379eef4618bb",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "008e670d-d877-475a-96f2-950aa0d6c072"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",
+      "primeName": "Spark",
+      "chain": "arbitrum",
+      "kind": "diamond",
+      "members": [
+        {
+          "role": "almProxy",
+          "address": "0x92afd6f2385a90e44da3a8b60fe36f6cbe1d8709",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "ca9912e4-4cd2-492a-bb6d-ef48279748b9"
+            }
+          ]
+        },
+        {
+          "role": "controller",
+          "address": "0x04acb9e9bbd64a425677edc535d6b30cfd74e42f",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "7ac9c640-d491-4667-ab06-c97e126e94c8"
+            }
+          ]
+        },
+        {
+          "role": "accessControls",
+          "address": "0x8386f819860d54b1180539ff4852e4caecef8a1d",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "52bbb3e1-bcdd-49ca-a85b-53c42ea07780"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0x4824c4336a1a11979068a544958dce5d49b42752",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "868ee6f4-1796-4356-b5f2-c841d01348c9"
+            }
+          ]
+        },
+        {
+          "role": "administeredAgent",
+          "address": "0x0745aae633e8318a063d383791bcc0d8c82f46c6",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "3afc0502-e0ba-45a1-ae05-fe539053cf07"
+            }
+          ]
+        },
+        {
+          "role": "beacon",
+          "address": "0x86036ce5d2f792367c0aa43164e688d13c5a60a8",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "e7ef2fd6-d98a-454d-9dd5-1cb0dc739101"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0xecca0d296cb133081d41e9772b60d57f5fd2798e",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "29be03da-9d81-487a-8d3a-7ebd80bffd44"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x8a25a24ede9482c4fc0738f99611be58f1c839ab",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "67bf2799-8d57-44be-82e4-827912ff30df"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0x90d8c80c028b4c09c0d8dcaab9bbb057f0513431",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "51777bdd-df5f-4a6e-93f5-8163d981f595"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",
+      "primeName": "Spark",
+      "chain": "arbitrum",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "almProxy",
+          "address": "0x92afd6f2385a90e44da3a8b60fe36f6cbe1d8709",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "c671b407-fcb2-48eb-8217-2ec156b581ad"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0x19d08879851fb54c2dcc4bb32b5a1ea5e9ad6838",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "83f8da05-267e-4dd7-beaa-7561c9b8c5c1"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x8a25a24ede9482c4fc0738f99611be58f1c839ab",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "67bf2799-8d57-44be-82e4-827912ff30df"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x8cc0cb0cfb6b7e548cfd395b833c05c346534795",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "567e4905-2b05-493e-95ac-8a4d20afed2b"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0x90d8c80c028b4c09c0d8dcaab9bbb057f0513431",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "51777bdd-df5f-4a6e-93f5-8163d981f595"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",
+      "primeName": "Spark",
+      "chain": "avalanche",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "controller",
+          "address": "0x4e64b576f72c237690f27727376186639447f096",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "2a9bf1bb-81f7-40d2-a26d-2cc7e729913f"
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0x45d91340b3b7b96985a72b5c678f7d9e8d664b62",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "4eb4959c-a91b-4a00-a605-138ac53b0786"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x8a25a24ede9482c4fc0738f99611be58f1c839ab",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "67bf2799-8d57-44be-82e4-827912ff30df"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x8cc0cb0cfb6b7e548cfd395b833c05c346534795",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "567e4905-2b05-493e-95ac-8a4d20afed2b"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0x90d8c80c028b4c09c0d8dcaab9bbb057f0513431",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "51777bdd-df5f-4a6e-93f5-8163d981f595"
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0xece6b0e8a54c2f44e066fbb9234e7157b15b7fec",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "ForeignController.proxy(); the atlas lists the ALM Proxy as TBD."
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0xb79972e8b21f0de911e65ac342ac85ad38c9a77a",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "ForeignController.rateLimits(); the atlas lists the Rate Limits as TBD."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",
+      "primeName": "Spark",
+      "chain": "base",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "controller",
+          "address": "0xc0bcbb2554d4694fe7b34bb68b9ddfbb55d896bc",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "eaa1d582-a814-49ef-a3ec-3fbffa414a3a"
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0x2917956eff0b5eaf030abdb4ef4296df775009ca",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "425339ce-8e44-430b-ab8c-6c69f0b757e9"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0x983ec82e45c61a42fdda7b3c43b8c767004c8a74",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "576b33fc-ee31-40a4-8a04-2b6c0e618a58"
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0xcba0c0a2a0b6bb11233ec4ea85c5bffea33e724d",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "ab85b80b-096b-438d-ad9a-c4ece54274a8"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x8a25a24ede9482c4fc0738f99611be58f1c839ab",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "67bf2799-8d57-44be-82e4-827912ff30df"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x8cc0cb0cfb6b7e548cfd395b833c05c346534795",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "567e4905-2b05-493e-95ac-8a4d20afed2b"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0x90d8c80c028b4c09c0d8dcaab9bbb057f0513431",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "51777bdd-df5f-4a6e-93f5-8163d981f595"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",
+      "primeName": "Spark",
+      "chain": "ethereum",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "controller",
+          "address": "0x5c46fc65855c0c7465a1ea85eea0b24b601502d3",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "Holds CONTROLLER on the RateLimits contract (granted 2026-03-14); the atlas still lists 0x577fa18a… (revoked 2025-12-01)."
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0x1601843c5e9bc251a3272907010afa41fa18347e",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "a29a6751-4809-446c-a659-0dd93ca40379"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0x7a5fd5cf045e010e62147f065ceae59e5344b188",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "3d7c06c5-18ab-4c30-82f1-4de153e2bc76"
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0x9ad87668d49ab69eea0af091de970ef52b0d5178",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "a937f2e1-5f17-4c60-b007-fef5a7f00f5b"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x8a25a24ede9482c4fc0738f99611be58f1c839ab",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "67bf2799-8d57-44be-82e4-827912ff30df"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x8cc0cb0cfb6b7e548cfd395b833c05c346534795",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "567e4905-2b05-493e-95ac-8a4d20afed2b"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0x90d8c80c028b4c09c0d8dcaab9bbb057f0513431",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "51777bdd-df5f-4a6e-93f5-8163d981f595"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",
+      "primeName": "Spark",
+      "chain": "optimism",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "almProxy",
+          "address": "0x876664f0c9ff24d1aa355ce9f1680ae1a5bf36fb",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "f1895dfc-a18c-4009-bfd3-1c16c9a62092"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0x6b34a6b84444dc3fc692821d5d077a1e4927342d",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "71eaf0a6-1d32-4b8c-b55f-c56c9af11634"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x8a25a24ede9482c4fc0738f99611be58f1c839ab",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "67bf2799-8d57-44be-82e4-827912ff30df"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x8cc0cb0cfb6b7e548cfd395b833c05c346534795",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "567e4905-2b05-493e-95ac-8a4d20afed2b"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0x90d8c80c028b4c09c0d8dcaab9bbb057f0513431",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "51777bdd-df5f-4a6e-93f5-8163d981f595"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",
+      "primeName": "Spark",
+      "chain": "robinhood",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "controller",
+          "address": "0xcf8d58a6eef2a1cae2ce69bc463b1178fb76ba1e",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "48b6b65d-6a28-4d33-a026-8dd6e646c610"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0x2d5aa449fb8c5646c81bc3c1d2034c2d37f17099",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "ad9553ca-eada-45d2-a968-aed9bb0e555e"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x0ca8f938aba2214ea11eb451e795a8ef7b720c18",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "88d4702c-da76-4fe8-a748-65f558953276"
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0xfd2fd4b046136b540a56c11c75ac679ae7d1db24",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "d19eab7d-e0b8-4be2-b672-40d7773c6119"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0x5c1fde9d4c7f1bf4bc5deaa2a7752e56232c68a0",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "6a90553a-6798-43da-aeb6-98e1fffc7fc6"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",
+      "primeName": "Spark",
+      "chain": "unichain",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "almProxy",
+          "address": "0x345e368fccd62266b3f5f37c9a131fd1c39f5869",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "6affe08d-0c1c-4cbf-a100-4a04c58220bb"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0x5a1a44d2192dd1e21efb9caa50e32d0716b35535",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "422a99bd-357f-4c48-882b-2608e0526282"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x8a25a24ede9482c4fc0738f99611be58f1c839ab",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "67bf2799-8d57-44be-82e4-827912ff30df"
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x8cc0cb0cfb6b7e548cfd395b833c05c346534795",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "567e4905-2b05-493e-95ac-8a4d20afed2b"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0x90d8c80c028b4c09c0d8dcaab9bbb057f0513431",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "51777bdd-df5f-4a6e-93f5-8163d981f595"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",
+      "primeName": "Spark",
+      "chain": "xlayer",
+      "kind": "monolithic",
+      "members": [
+        {
+          "role": "controller",
+          "address": "0xf9187c99ee842beabe8e2e346d958315bfc9331f",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "63430cf9-0f5d-4a22-9879-6b9ecb8b9ee9"
+            }
+          ]
+        },
+        {
+          "role": "almProxy",
+          "address": "0x83a914c361bb729eb6bebc8c7ba993667a0e6df8",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "eac738f2-1b92-4ea2-a3e7-79fd528ae587"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0x7f7e2286983994c4403cf2b86758ce0e7ba666a8",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "bd7ba684-2c40-4290-b263-0de4fd1f9aad"
+            }
+          ]
+        },
+        {
+          "role": "freezer",
+          "address": "0x90d8c80c028b4c09c0d8dcaab9bbb057f0513431",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "hasRole(FREEZER) on the X Layer ForeignController; the X Layer docs list it as the relayer."
+            }
+          ]
+        },
+        {
+          "role": "relayer",
+          "address": "0x8a25a24ede9482c4fc0738f99611be58f1c839ab",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "hasRole(RELAYER) on the X Layer ForeignController; the X Layer docs list it as the freezer."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "ignored": [
+    {
+      "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",
+      "chain": "ethereum",
+      "role": "controller",
+      "address": "0x577fa18a498e1775939b668b0224a5e5a1e56fc3",
+      "reason": "Superseded: RateLimits revoked its CONTROLLER role on 2025-12-01; the live controller is 0x5c46fc65…."
+    },
+    {
+      "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",
+      "chain": "xlayer",
+      "role": "freezer",
+      "address": "0x8a25a24ede9482c4fc0738f99611be58f1c839ab",
+      "reason": "The X Layer docs swap freezer and relayer; on-chain this address holds RELAYER, not FREEZER."
+    },
+    {
+      "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",
+      "chain": "xlayer",
+      "role": "relayer",
+      "address": "0x90d8c80c028b4c09c0d8dcaab9bbb057f0513431",
+      "reason": "The X Layer docs swap freezer and relayer; on-chain this address holds FREEZER, not RELAYER."
+    },
+    {
+      "prime": "727b0de6-095b-485e-bf9c-02108a364480",
+      "chain": "plume",
+      "role": "controller",
+      "address": "0x0c462fff7cc975bc9f2b0aeb8270feba5fd71e1b",
+      "reason": "Copy of Grove's Plasma ALM Proxy address (the Plasma controller's proxy() returns it)."
+    },
+    {
+      "prime": "727b0de6-095b-485e-bf9c-02108a364480",
+      "chain": "plume",
+      "role": "rateLimits",
+      "address": "0x7f8408ebbbc3504f83eeda52910dd75eba92c955",
+      "reason": "Copy of Grove's Base ForeignController address (verified on Base as ForeignController)."
+    },
+    {
+      "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",
+      "chain": "arbitrum",
+      "role": "beacon",
+      "address": "0x10e6593cdda8c58a1d0f14c5164b376352a55f2f",
+      "reason": "Second address in the Beacon doc; verified on Arbitrum as L2GovernanceRelay, and the Controller's beacon() is 0x86036ce5…."
+    }
+  ]
+}
