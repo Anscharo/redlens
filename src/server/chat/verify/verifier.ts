@@ -141,7 +141,7 @@ export function budgetEvidence(entries: EvidenceEntry[], maxChars: number): Evid
 
 // Pull the turn's tool calls + results out of the loop transcript, labeled
 // [E1..En] in chronological order, then budgeted (see budgetEvidence).
-export type SourceClass = "atlas" | "history" | "external" | "reference" | "user" | "unknown";
+export type SourceClass = "atlas" | "history" | "preview" | "external" | "reference" | "user" | "unknown";
 
 // The registry tools that return COMMIT METADATA rather than document text:
 // dates, pull-request titles, commit messages, change counts. A document's
@@ -154,7 +154,13 @@ const HISTORY_TOOLS = new Set([
   "atlas_pr",
   "atlas_changed_between",
   "atlas_first_seen",
+  "atlas_open_prs",
 ]);
+
+// The registry tools that return a PR preview's PROPOSED text: real document
+// text, but of an atlas that does not exist yet. Grounding may certify a quote
+// of it; refute.ts marks it so the judge never reads it as the live Atlas.
+const PREVIEW_TOOLS = new Set(["atlas_preview_diff", "atlas_preview_get"]);
 
 /**
  * What KIND of text a tool result is. Atlas provenance is an ALLOWLIST —
@@ -180,6 +186,7 @@ export function classifyToolSource(tool: string): SourceClass {
   if (tool === FACT_TOOL_NAME) return "reference";
   if (isUserTeachingTool(tool)) return "user";
   if (HISTORY_TOOLS.has(tool)) return "history";
+  if (PREVIEW_TOOLS.has(tool)) return "preview";
   return TOOLS_BY_NAME.has(tool) ? "atlas" : "unknown";
 }
 
@@ -199,7 +206,9 @@ export function classifyToolSource(tool: string): SourceClass {
  * message — costs only a missed flag. The provenance question that class exists
  * for is answered where it belongs: refute.ts marks the entries so the judge
  * never reads a change log as retrieved atlas text, and cite-pairs.ts drops
- * history CLAIMS before the citation judge ever sees them.
+ * history CLAIMS before the citation judge ever sees them. "preview" is admitted
+ * on the same reasoning: a correct quote of a PR's proposed text must ground,
+ * and refute.ts marks those entries as proposals.
  *
  * An ALLOWLIST on purpose, and every caller in chat-orchestrator.ts goes
  * through it. The three filters that used to spell this out inline were
@@ -207,7 +216,7 @@ export function classifyToolSource(tool: string): SourceClass {
  * silently admitted it to the grounding pool at all three sites at once.
  */
 export function isAtlasText(cls: SourceClass | undefined): boolean {
-  return cls === "atlas" || cls === "reference" || cls === "history";
+  return cls === "atlas" || cls === "reference" || cls === "history" || cls === "preview";
 }
 
 // The review round (review-round.ts) is NOT evidence and is dropped from

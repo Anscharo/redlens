@@ -3,12 +3,27 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import { atlasHref } from "@/lib/routes";
 import { extractCitedDocs, type CitedDoc } from "@/lib/citationScan";
 import { unwrapCodeCitations } from "./citations";
+import { useDataSource } from "../../lib/dataSource";
 import { useMathPlugins, closeOpenMathFence } from "./chatMath";
 
 // Agent citations are markdown links of the form [Title](/atlas/<uuid>)
 // (system-prompt.ts forces UUID hrefs). We intercept those, SPA-navigate via
 // onAtlas, and let any other href fall through to a normal new-tab link.
 const ATLAS_HREF_RE = /^\/atlas\/([0-9a-f-]{36})$/i;
+// A PR preview's copy of a document (the preview tools' `cite` form). Inside
+// that same preview it opens in place like an atlas citation; anywhere else it
+// is an ordinary link to the preview reader.
+const PREVIEW_HREF_RE = /^\/preview\/([0-9a-f]{40})\/atlas\?id=([0-9a-f-]{36})$/i;
+
+// The uuid an in-app citation opens: an atlas link, or a link to the preview
+// being viewed (`previewSha`). Null for anything that leaves the page.
+function inAppUuid(href: string | undefined, previewSha: string | undefined): string | null {
+  if (!href) return null;
+  const atlas = ATLAS_HREF_RE.exec(href);
+  if (atlas) return atlas[1].toLowerCase();
+  const pv = PREVIEW_HREF_RE.exec(href);
+  return pv && previewSha && pv[1].toLowerCase() === previewSha.toLowerCase() ? pv[2].toLowerCase() : null;
+}
 
 // The scan itself lives in src/lib/citationScan.ts so the server derives a
 // conversation's cited docs from the same code. It must keep tracking what
@@ -27,20 +42,19 @@ export function balanceFences(text: string): string {
   return closeOpenMathFence(closed);
 }
 
-// Atlas citation links SPA-navigate through `onAtlas`; every other href opens
-// in a new tab.
-function markdownComponents(onAtlas: (uuid: string) => void): Components {
+// Atlas citation links (and links into the preview being viewed) SPA-navigate
+// through `onAtlas`; every other href opens in a new tab.
+function markdownComponents(onAtlas: (uuid: string) => void, previewSha: string | undefined): Components {
   return {
     a({ href, children, ...props }) {
-      const m = href ? ATLAS_HREF_RE.exec(href) : null;
-      if (!m) {
+      const uuid = inAppUuid(href, previewSha);
+      if (!uuid) {
         return (
           <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
             {children}
           </a>
         );
       }
-      const uuid = m[1].toLowerCase();
       const open = (e: MouseEvent) => {
         e.preventDefault();
         onAtlas(uuid);
@@ -55,7 +69,8 @@ function markdownComponents(onAtlas: (uuid: string) => void): Components {
 }
 
 export function AtlasMarkdown({ content, onAtlas }: { content: string; onAtlas: (uuid: string) => void }) {
-  const components = useMemo(() => markdownComponents(onAtlas), [onAtlas]);
+  const previewSha = useDataSource().preview?.sha;
+  const components = useMemo(() => markdownComponents(onAtlas, previewSha), [onAtlas, previewSha]);
   const { remarkPlugins, rehypePlugins } = useMathPlugins(content);
   return (
     <div className="rlc-md">

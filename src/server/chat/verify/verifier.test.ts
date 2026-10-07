@@ -256,6 +256,10 @@ test("sourceClass is an allowlist: only registry tools are atlas, everything els
   expect(classifyToolSource("ask_external_msc")).toBe("external");
   expect(classifyToolSource("atlas_prefetch")).toBe("reference"); // facts round
   expect(classifyToolSource("user_teachings")).toBe("user");
+  expect(classifyToolSource("atlas_preview_diff")).toBe("preview"); // a PR's proposed text
+  expect(classifyToolSource("atlas_preview_get")).toBe("preview");
+  expect(classifyToolSource("atlas_open_prs")).toBe("history"); // PR metadata, no text
+  expect(isAtlasText("preview")).toBe(true);
 
   // Real leaks this closed, not hypotheticals: export_findings is appended to
   // CHAT_TOOLS outside ATLAS_TOOLS, and "unknown" is evidenceFromTranscript's

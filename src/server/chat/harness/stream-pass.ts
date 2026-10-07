@@ -34,6 +34,7 @@ function loopEvents(ctx: HarnessCtx): AsyncGenerator<ChatEvent> {
     runChat({
       ix: opts.ix, messages: opts.messages, stream: opts.stream, signal: opts.signal, maxIterations: ctx.max,
       onRoundEnd: onRoundEnd(ctx), obs: opts.obs, jsonCall: opts.jsonCall, userQuestion: opts.question,
+      toolCtx: opts.toolCtx,
     }),
     ctx.linkGate.makeGate,
   );

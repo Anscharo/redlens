@@ -10,6 +10,7 @@ import { findDocNoMismatches, findInvalidDocNos } from "./doc-no-checks.ts";
 import { findUngroundedQuotes } from "./quote-grounding.ts";
 import { findUngroundedAddresses, findUntracedNumbers } from "./value-grounding.ts";
 import { findMscCitedAsAtlas, findUngroundedCitationValues } from "./citation-values.ts";
+import type { PreviewEvidence } from "./preview-evidence.ts";
 
 export interface CheckReport {
   citations: Citation[];
@@ -61,6 +62,8 @@ interface CheckContext {
   ix: Indexes;
   citations: Citation[];
   completeness?: { question: string; evidence: CompletenessEvidence[] };
+  /** What a PR preview in the evidence proposes, exempt from the doc_no and param checks. */
+  proposal: PreviewEvidence;
 }
 
 type CheckFields = Omit<CheckReport, "citations" | "lengthCapped" | "failed">;
@@ -70,7 +73,7 @@ type CheckEntry = {
 
 const CHECKS = [
   { key: "invalidCitations", hard: true, run: (c) => findInvalidCitationUuids(c.citations, c.ix) },
-  { key: "invalidDocNos", hard: true, run: (c) => findInvalidDocNos(c.answer, c.ix) },
+  { key: "invalidDocNos", hard: true, run: (c) => findInvalidDocNos(c.answer, c.ix).filter(c.proposal.unknownDocNo) },
   { key: "docNoMismatches", hard: true, run: (c) => findDocNoMismatches(c.citations, c.ix) },
   { key: "bareAtlasLinks", hard: false, run: (c) => findBareAtlasLinks(c.answer) },
   { key: "uncitedParagraphs", hard: false, run: (c) => countUncitedParagraphs(c.answer) },
@@ -86,7 +89,7 @@ const CHECKS = [
     run: (c) => findUngroundedCitationValues(c.answer, c.atlasTexts, c.ix),
   },
   { key: "untracedNumbers", hard: false, run: (c) => findUntracedNumbers(c.answer, c.evidenceTexts) },
-  { key: "paramMismatches", hard: true, run: (c) => findParamMismatches(c.answer, c.ix) },
+  { key: "paramMismatches", hard: true, run: (c) => findParamMismatches(c.answer, c.ix).filter(c.proposal.unproposed) },
   {
     key: "completenessFailures",
     hard: true,

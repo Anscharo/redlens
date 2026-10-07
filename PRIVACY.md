@@ -26,6 +26,9 @@ anything else traceable back to you.
 - **Chatbot quality data** — the questions asked and the AI's answers are also
   fed into anonymous analytics to measure and improve answer quality. This copy
   is keyed to a random conversation id, **not** to your account or identity.
+  A conversation that reads a preview of a private repository, or that is held
+  inside a preview of a fork or private repository, sends no question or answer
+  text to analytics at all — only its size, speed and cost.
 - **Feedback you send** — if you use the feedback button you can write to us
   without signing in. We store what you write, plus details about the page you
   were on: its address, the atlas version you were viewing, **a copy of the
@@ -46,6 +49,9 @@ If you sign in, the following is stored against your account.
 - **Your chats** — the full conversation: your questions, the AI's answers, and
   the atlas page you were viewing when you asked. We keep these so the app
   functions (your history, follow-up questions) and to improve the chatbot.
+  If the chatbot read a preview of a private repository for you, or you asked
+  it something from inside one, we also keep which repository, so the conversation can only be reopened while you still
+  have access to it on GitHub.
 - **Usage and costs** — token counts and the AI cost of your chats, used for
   fair-use limits and to understand running costs.
 - **Saved Collections** — any lists of atlas documents you choose to save.

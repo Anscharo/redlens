@@ -47,10 +47,11 @@ export async function getConversationCollection(userId: string, id: string): Pro
 // The share-link read: no owner check, the conversation's own (unguessable) id
 // is the token, as a saved collection's id is for /c/<id>. Exposes only what
 // ConversationCollectionOut holds — the title, the cited doc ids and the id —
-// never a message.
+// never a message. A conversation that read a private repo's preview is never
+// shared: its title is written from that text (conversation-access.ts).
 export async function getSharedConversationCollection(id: string): Promise<ConversationCollectionOut | null> {
   const rows = (await sql`
-    SELECT c.id, c.title FROM conversations c WHERE c.id = ${id}
+    SELECT c.id, c.title FROM conversations c WHERE c.id = ${id} AND cardinality(c.private_repos) = 0
   `) as { id: string; title: string | null }[];
   return rows.length ? collectionOf(rows[0]) : null;
 }

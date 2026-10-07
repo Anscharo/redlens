@@ -34,6 +34,7 @@ export const CLIENTS: { name: string; note: string; code: string }[] = [
 export const USAGE_EXAMPLES: { ask: string; tools: string[] }[] = [
   { ask: "What are the Operational Facilitator's responsibilities?", tools: ["atlas_entity", "atlas_search"] },
   { ask: "What did PR #256 change in the atlas?", tools: ["atlas_pr"] },
+  { ask: "What Atlas changes are proposed but not merged yet?", tools: ["atlas_open_prs", "atlas_preview_diff"] },
   { ask: "Who controls address 0x…?", tools: ["atlas_get_address"] },
   { ask: "How does the facilitator → executor → prime chain work?", tools: ["atlas_describe", "atlas_traverse"] },
   { ask: "What Active Data is Spark responsible for, and has any of it changed recently?", tools: ["atlas_query"] },

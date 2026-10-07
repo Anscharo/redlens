@@ -27,6 +27,10 @@ mock.module("./access.ts", () => ({
     accessCalls.push({ repo });
     return Promise.resolve(accessDecision);
   },
+  authorizeUserRepoAccess: (_userId: string, repo: string) => {
+    accessCalls.push({ repo });
+    return Promise.resolve(accessDecision);
+  },
   // Keep the factory COMPLETE: mock.module persists process-globally, so if this
   // wins at access.test.ts's `await import("./access.ts")` (file-order dependent),
   // a missing export would leave __resetAccessCacheForTest undefined and crash

@@ -6,6 +6,7 @@ import { instrument } from "@posthog/mcp";
 import { getIndexes } from "./retrieval/indexes.ts";
 import type { ToolResult } from "./chat/tools/tools.ts";
 import { ATLAS_TOOLS, invokeTool, toolDescription } from "./chat/tools/tool-registry.ts";
+import { ANON_MCP_CTX } from "./chat/tools/tool-context.ts";
 import { EXTERNAL_TOOLS } from "./chat/tools/external-tools.ts";
 import { captureServerEvent } from "./posthog-capture.ts";
 import { getPosthog } from "./posthog-node.ts";
@@ -92,7 +93,7 @@ export function createMcpServer(reqCtx?: McpRequestContext): McpServer {
         let toolOk = true;
         let errorMessage: string | undefined;
         try {
-          const res = ok(ix.meta, await invokeTool(ix, t, args));
+          const res = ok(ix.meta, await invokeTool(ix, t, args, ANON_MCP_CTX));
           resultText = res.content[0].text;
           return res;
         } catch (e) {

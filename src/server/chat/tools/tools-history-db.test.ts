@@ -134,6 +134,8 @@ test("atlasPr shapes the PR summary from its first row, or nulls when no rows", 
   const empty = (await atlasPr(ix, 999)) as { pr: Record<string, unknown>; count: number };
   expect(empty.pr).toEqual({ number: 999, title: null, author: null, url: null });
   expect(empty.count).toBe(0);
+  // An unmerged PR has no history: the result points the model at the preview tools.
+  expect((empty as { note?: string }).note).toContain("atlas_open_prs");
 
   mockDb([
     { doc_id: "D1", commit_sha: "abc1234", commit_seq: 1, committed_at: "2025-01-01", change_type: "structural", pr_title: "My PR", pr_author: "alice", pr_url: "https://x", summary: null, description: null, moved_from: "A.1", moved_to: "A.2", era: null, method: null, source_url: null, doc_no: "A.1.1", title: "D1", doc_type: "Core" },

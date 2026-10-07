@@ -8,6 +8,7 @@ import type { RecallToolCall } from "../tool-recall-card.ts";
 import { reviewNoteFromChecks, type ReviewNote } from "../verify/review-note.ts";
 import { REVIEW_LOOKBACK } from "../review-round.ts";
 import type { ChatBody } from "./gates.ts";
+import type { ResolvedConversation } from "../conversation-access.ts";
 
 /** One message_checks row, carrying the message it belongs to. */
 interface CheckRowWithMessage {
@@ -21,12 +22,12 @@ export type HistoryRow = { id: string; role: string; content: string; tool_calls
 
 // Resolve the target conversation: verify ownership of an existing one, or open
 // a new row. Returns null if the id was supplied but isn't the caller's.
-export async function resolveConversation(userId: string, body: ChatBody): Promise<string | null> {
+export async function resolveConversation(userId: string, body: ChatBody): Promise<ResolvedConversation | null> {
   if (body.conversationId) {
     const owned = (await sql`
-      SELECT id FROM conversations WHERE id = ${body.conversationId} AND user_id = ${userId}
-    `) as { id: string }[];
-    return owned[0]?.id ?? null;
+      SELECT id, private_repos FROM conversations WHERE id = ${body.conversationId} AND user_id = ${userId}
+    `) as { id: string; private_repos?: string[] | null }[];
+    return owned[0] ? { id: owned[0].id, privateRepos: owned[0].private_repos ?? [] } : null;
   }
   // Pass the RAW object (not JSON.stringify'd) + ::jsonb cast — Bun JSON-encodes
   // the value once for the cast; pre-stringifying double-encodes it into a jsonb
@@ -37,7 +38,7 @@ export async function resolveConversation(userId: string, body: ChatBody): Promi
     VALUES (${userId}, ${getModel()}, ${pc}::jsonb, ${body.message.slice(0, 60)})
     RETURNING id
   `) as { id: string }[];
-  return created[0].id;
+  return { id: created[0].id, privateRepos: [] };
 }
 
 const historySelect = (convId: string) =>

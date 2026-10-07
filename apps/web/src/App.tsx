@@ -317,10 +317,8 @@ export default function App() {
                 `!preview` is also load-bearing: ConversationsPage calls the
                 non-optional useChatOpen(), and the preview shell
                 (PreviewGate.tsx) mounts <App/> without a ChatOpenProvider —
-                same reasoning as the ChatWidget/ProfileButton `!preview`
-                guards below, just needed one route earlier since this one is
-                reachable by direct URL even though nothing links to it in
-                preview. */}
+                same reasoning as the ProfileButton `!preview` guard. The chat
+                widget's links to it leave the preview (ConversationsLink). */}
             {__CHAT_ENABLED__ && chatEnabled() && !preview && (
               <Route path={ROUTES.CONVERSATIONS}>
                 <Suspense fallback={<Loading />}>
@@ -340,8 +338,10 @@ export default function App() {
       <Footer />
       {/* __CHAT_ENABLED__ (bare, build-time define) MUST stay the outer guard
           — see the comment on the /conversations route above; same reasoning
-          applies to the widget mount. */}
-      {__CHAT_ENABLED__ && chatEnabled() && !preview && <ChatWidget />}
+          applies to the widget mount. The widget also runs inside a preview:
+          it needs no ChatOpenProvider (useChatOpenOptional), and its page
+          context names the preview so "this PR" resolves. */}
+      {__CHAT_ENABLED__ && chatEnabled() && <ChatWidget />}
     </div>
   );
 }

@@ -29,6 +29,11 @@ export const previews: EnvGroup = {
     { name: "PREVIEW_MAX_CONCURRENT_BUILDS", doc: "Builds running at once across all previews.", default: "2" },
     { name: "PREVIEW_BUILD_TIMEOUT_MS", doc: "Per-build timeout.", default: "300000" },
     {
+      name: "CHAT_PREVIEW_BUILD_WAIT_MS",
+      doc: "How long a chat preview tool waits for a build it started before answering \"still building\". The build carries on either way.",
+      default: "45000",
+    },
+    {
       name: "PREVIEW_MAX_DECOMPRESSED_BYTES",
       doc: "Cap on the whole decompressed tarball, so a fork cannot ship a decompression bomb. The live atlas archive is about 34 MB.",
       default: "67108864",

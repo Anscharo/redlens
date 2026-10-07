@@ -39,6 +39,7 @@
 
 ## 2026-10-06
 
+- Added chat questions about open Atlas pull requests, including reviewing a PR from inside its preview.
 - Added conversation collections: click "view all docs from this conversation" under an answer's citations, "View Doc Collection" on a conversation, or the new "Collections from conversations" tab on the Collections page to read only the documents that chat cited, and share them with a link
 - Added a preview of the documents when saving a collection, with options to update, save as new, or save as new without the opened collection's documents
 - Added a short generated name and one-line summary to each saved collection on the Collections page, describing what its documents are about

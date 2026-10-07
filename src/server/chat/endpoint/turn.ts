@@ -17,6 +17,7 @@ import { matchTeachings, type RankedTeaching } from "../teach/match.ts";
 import { routeCensuses } from "../../concepts-prefetch.ts";
 import { loadHistory } from "./history.ts";
 import type { ChatBody } from "./gates.ts";
+import type { ConversationScope } from "../conversation-access.ts";
 
 // /teach is its own path (review + persist, no atlas harness), so it never
 // runs prepareTurn and records reason "teach".
@@ -24,13 +25,15 @@ const TEACH_ROUTE: Route = { tier: "default", reason: "teach" };
 
 type TeachCmd = NonNullable<ReturnType<typeof parseTeachCommand>>;
 type PreparedTurn = Awaited<ReturnType<typeof prepareTurn>>;
-type TurnObs = { distinctId: string; traceId: string; properties: Record<string, unknown> };
+// privacyMode: the conversation holds private preview text (conversation-access.ts).
+type TurnObs = { distinctId: string; traceId: string; properties: Record<string, unknown>; privacyMode: boolean };
 
 export interface ChatTurn {
   req: Request;
   userId: string;
   convId: string;
   body: ChatBody;
+  scope: ConversationScope;
   obs: TurnObs;
   teachCmd: TeachCmd | null;
   turn: PreparedTurn | null;
@@ -83,13 +86,18 @@ function capturePrefetchJudge(turn: PreparedTurn | null, obs: TurnObs, message: 
 
 // One PostHog trace per turn, shared by every generation and error. distinctId
 // is the CONVERSATION, never the user: userId stays DB-only.
-const newTurnObs = (convId: string): TurnObs => ({ distinctId: convId, traceId: crypto.randomUUID(), properties: {} });
+const newTurnObs = (convId: string, privacyMode: boolean): TurnObs => ({
+  distinctId: convId,
+  traceId: crypto.randomUUID(),
+  properties: {},
+  privacyMode,
+});
 
-async function loadReplay(userId: string, convId: string, body: ChatBody) {
+async function loadReplay(userId: string, convId: string, body: ChatBody, privacyMode: boolean) {
   const teachCmd = config.chatTeach ? parseTeachCommand(body.message) : null;
   const teachingsPromise = startTeachingMatch(userId, body.message, convId, teachCmd);
   const { historyRows, history, summary } = await loadHistory(convId, body.message);
-  const obs = newTurnObs(convId);
+  const obs = newTurnObs(convId, privacyMode);
   const compacted = await compactIfRejected(convId, teachCmd, obs, history, summary);
   // Counted over STORED rows: `history` drops compacted rows, which would re-title.
   const priorAssistants = historyRows.filter((m) => m.role === "assistant").length;
@@ -98,8 +106,8 @@ async function loadReplay(userId: string, convId: string, body: ChatBody) {
 
 // The model's input is assembled by prepareTurn, the function the tool-choice
 // eval also runs. /teach skips it entirely.
-export async function prepareChatTurn(req: Request, userId: string, convId: string, body: ChatBody): Promise<ChatTurn> {
-  const { teachingsPromise, ...replay } = await loadReplay(userId, convId, body);
+export async function prepareChatTurn(req: Request, userId: string, convId: string, body: ChatBody, scope: ConversationScope): Promise<ChatTurn> {
+  const { teachingsPromise, ...replay } = await loadReplay(userId, convId, body, scope.privacyMode);
   const ix = getIndexes();
   const teachHits = await teachingsPromise; // already overlapped the history queries
   const turn = replay.teachCmd
@@ -110,7 +118,7 @@ export async function prepareChatTurn(req: Request, userId: string, convId: stri
   replay.obs.properties.chat_tier = route.tier;
   replay.obs.properties.chat_route_reason = route.reason;
   capturePrefetchJudge(turn, replay.obs, body.message, teachHits);
-  return { req, userId, convId, body, turn, route, startedAt, ix, ...replay };
+  return { req, userId, convId, body, scope, turn, route, startedAt, ix, ...replay };
 }
 
 // What the NEXT turn will read. Shared by the meter and post-answer compaction

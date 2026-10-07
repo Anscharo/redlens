@@ -9,6 +9,7 @@ import type { Indexes } from "../../retrieval/indexes.ts";
 import type { CompletenessEvidence } from "./completeness.ts";
 import { extractCitations } from "./citation-links.ts";
 import { HARD_CHECK_KEYS, runChecks, type CheckReport, type HardCheckKey } from "./check-registry.ts";
+import { previewEvidence } from "./preview-evidence.ts";
 
 export {
   CITATION_SRC,
@@ -37,14 +38,16 @@ export function runDeterministicChecks(
   split?: { atlasTexts?: string[]; externalTexts?: string[] },
 ): CheckReport {
   const citations = extractCitations(answer);
+  const atlasTexts = split?.atlasTexts ?? evidenceTexts;
   const fields = runChecks({
     answer,
     evidenceTexts,
-    atlasTexts: split?.atlasTexts ?? evidenceTexts,
+    atlasTexts,
     externalTexts: split?.externalTexts ?? [],
     ix,
     citations,
     completeness,
+    proposal: previewEvidence(atlasTexts),
   });
   return { citations, ...fields, lengthCapped: false, failed: isFailed({ ...fields, lengthCapped: false }) };
 }

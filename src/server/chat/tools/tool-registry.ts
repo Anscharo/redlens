@@ -7,7 +7,9 @@
 import type { z } from "zod";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import type { ToolResult } from "./tools.ts";
-import type { AtlasTool, DescribedTool } from "./tool-types.ts";
+import type { AtlasHandler, AtlasTool, DescribedTool } from "./tool-types.ts";
+import { ANON_MCP_CTX, type ToolCallContext } from "./tool-context.ts";
+import { PREVIEW_TOOLS } from "./tools-preview.ts";
 import { CORE_TOOLS } from "./registry-core.ts";
 import { GRAPH_TOOLS } from "./registry-graph.ts";
 import { LOOKUP_TOOLS } from "./registry-lookup.ts";
@@ -15,7 +17,7 @@ import { HISTORY_TOOLS } from "./registry-history.ts";
 import { QUERY_TOOLS } from "./registry-query.ts";
 import { REPORT_TOOLS } from "../../reports/index.ts";
 
-export type { AtlasTool, DescribedTool } from "./tool-types.ts";
+export type { AtlasHandler, AtlasTool, DescribedTool } from "./tool-types.ts";
 
 // A model that fills every declared property writes "" / [] / [""] for the ones
 // it means to leave out. None of those is a meaningful filter value: `ids: [""]`
@@ -56,19 +58,23 @@ export function omitEmptyArgs(args: Record<string, unknown>): Record<string, unk
  *
  * Typed structurally rather than as AtlasTool so ExternalTool passes too; it
  * declares no `emptyArgsAbsent`, so its args are handed over untouched.
+ *
+ * `ctx` says who is calling (tool-context.ts). Omitted, it is the anonymous MCP
+ * caller, so a call site that forgets it gets the least privilege.
  */
-export function invokeTool<T extends { emptyArgsAbsent?: boolean; shape: z.ZodRawShape; handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult> }>(
+export function invokeTool<T extends { emptyArgsAbsent?: boolean; shape: z.ZodRawShape; handler: AtlasHandler }>(
   ix: Indexes,
   tool: T,
   args: Record<string, unknown>,
+  ctx: ToolCallContext = ANON_MCP_CTX,
 ): ToolResult | Promise<ToolResult> {
-  if (!tool.emptyArgsAbsent) return tool.handler(ix, args);
+  if (!tool.emptyArgsAbsent) return tool.handler(ix, args, ctx);
   const stripped = omitEmptyArgs(args);
   for (const k of Object.keys(args)) {
     if (k in stripped) continue;
     if (tool.shape[k]?.isOptional() === false) stripped[k] = args[k];
   }
-  return tool.handler(ix, stripped);
+  return tool.handler(ix, stripped, ctx);
 }
 
 // Combines `description` + `whenToUse` for the two AGENT consumers (chat's JSON
@@ -89,6 +95,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   ...LOOKUP_TOOLS,
   ...HISTORY_TOOLS,
   ...QUERY_TOOLS,
+  ...PREVIEW_TOOLS,
   ...REPORT_TOOLS,
 ];
 

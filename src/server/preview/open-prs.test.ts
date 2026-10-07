@@ -44,15 +44,35 @@ test("open-prs: empty cache + GitHub error → []", async () => {
 test("open-prs: maps GitHub's pulls payload, defaulting missing fields", async () => {
   nextResponse = () =>
     ghJson([
-      { number: 256, title: "Atomize docs", user: { login: "bob" }, draft: false, updated_at: "2026-06-30T00:00:00Z" },
+      {
+        number: 256,
+        title: "Atomize docs",
+        user: { login: "bob" },
+        draft: false,
+        updated_at: "2026-06-30T00:00:00Z",
+        head: { sha: "c".repeat(40) },
+        base: { ref: "main" },
+        html_url: "https://github.com/sky-ecosystem/next-gen-atlas/pull/256",
+        body: "Atomizes the docs.",
+      },
       { number: 257 }, // no title/user/draft/updated_at → safe defaults
     ]);
   const before = fetchCalls;
   const prs = (await (await call("/api/preview/open-prs")).json()) as any[];
   expect(fetchCalls).toBe(before + 1); // cache was empty → one GitHub call
   expect(prs).toEqual([
-    { number: 256, title: "Atomize docs", author: "bob", draft: false, updatedAt: "2026-06-30T00:00:00Z" },
-    { number: 257, title: "", author: "", draft: false, updatedAt: "" },
+    {
+      number: 256,
+      title: "Atomize docs",
+      author: "bob",
+      draft: false,
+      updatedAt: "2026-06-30T00:00:00Z",
+      headSha: "c".repeat(40),
+      baseRef: "main",
+      url: "https://github.com/sky-ecosystem/next-gen-atlas/pull/256",
+      body: "Atomizes the docs.",
+    },
+    { number: 257, title: "", author: "", draft: false, updatedAt: "", headSha: "", baseRef: "", url: "", body: "" },
   ]);
 });
 

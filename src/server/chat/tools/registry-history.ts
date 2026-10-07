@@ -82,7 +82,7 @@ export const HISTORY_TOOLS: AtlasTool[] = [
   {
     name: "atlas_pr",
     whenToUse:
-      "The question names a specific GitHub PR number and asks what it touched.",
+      "The question names a specific MERGED GitHub PR and asks what it touched. An open, unmerged PR has no history yet: use atlas_preview_diff.",
     annotations: readOnlyAtlasTool("Atlas PR"),
     description: "What did PR #N touch? Returns every doc affected by a single GitHub PR against next-gen-atlas, with per-doc summary/description from the PR body.",
     shape: {

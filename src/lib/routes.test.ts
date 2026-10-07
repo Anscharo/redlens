@@ -21,6 +21,10 @@ describe("atlasUrl", () => {
 });
 
 describe("absolutizeAtlasLinks", () => {
+  it("origin-qualifies a PR preview citation and leaves its path alone", () => {
+    const href = `/preview/${"c".repeat(40)}/atlas?id=11111111-2222-3333-4444-555555555555`;
+    expect(absolutizeAtlasLinks(`[New](${href})`)).toBe(`[New](${window.location.origin}${href})`);
+  });
   it("rewrites in-app /atlas/<id> citation links to absolute /atlas?id=<id> URLs", () => {
     const md = "See [Scope A](/atlas/11111111-2222-3333-4444-555555555555) and [B](/atlas/abc).";
     const out = absolutizeAtlasLinks(md);

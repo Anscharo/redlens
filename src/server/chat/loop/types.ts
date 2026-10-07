@@ -4,6 +4,7 @@ import type OpenAI from "openai";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import type { ErrorContext } from "../../posthog-node.ts";
 import type { JsonCall } from "../llm.ts";
+import type { ToolCallContext } from "../tools/tool-context.ts";
 
 export type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 export type Chunk = OpenAI.Chat.Completions.ChatCompletionChunk;
@@ -92,6 +93,7 @@ export interface RunChatOpts {
   obs?: ErrorContext;
   jsonCall?: JsonCall;
   userQuestion?: string;
+  toolCtx?: ToolCallContext;
 }
 
 /** Usage and generation id, accumulated across every request of one turn. */

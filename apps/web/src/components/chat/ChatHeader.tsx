@@ -1,4 +1,5 @@
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
+import { ConversationsLink } from "./ConversationsLink";
 import { ROUTES } from "@/lib/routes";
 import { SparkMark, DockRightIcon, FloatIcon, ConversationsIcon } from "./glyphs";
 import type { Placement } from "./types";
@@ -13,7 +14,7 @@ interface ChatHeaderProps {
 
 // A link to the page you are already on does nothing when clicked, so on
 // /conversations it becomes a disabled button — same footprint, no dead click.
-function ConversationsLink() {
+function HeaderConversationsLink() {
   const [path] = useLocation();
   if (path === ROUTES.CONVERSATIONS) {
     return (
@@ -23,9 +24,9 @@ function ConversationsLink() {
     );
   }
   return (
-    <Link className="rlc-iconbtn" to={ROUTES.CONVERSATIONS} title="Conversations" aria-label="Conversations">
+    <ConversationsLink className="rlc-iconbtn" title="Conversations" aria-label="Conversations">
       <ConversationsIcon />
-    </Link>
+    </ConversationsLink>
   );
 }
 
@@ -37,7 +38,7 @@ export function ChatHeader({ title, onNewChat, onClose, placement, onTogglePlace
   const placementLabel = placement === "anchored" ? "Pop out to a floating window" : "Dock to the side";
   return (
     <header className="rlc-header">
-      <ConversationsLink />
+      <HeaderConversationsLink />
       <SparkMark size={15} />
       <div>
         <div className="rlc-header-title">{title ?? "Redline Portal Chat"}</div>

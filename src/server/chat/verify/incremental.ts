@@ -22,6 +22,7 @@ import {
   type CheckReport,
 } from "./verify-checks.ts";
 import { findParamMismatches, formatParamMismatch } from "./param-checks.ts";
+import { previewEvidence } from "./preview-evidence.ts";
 import { createParagraphSegmenter } from "./paragraphs.ts";
 
 export interface ParagraphCheck {
@@ -87,14 +88,15 @@ export function checkParagraph(
   // shape, and gives us the exact `text` this paragraph is checked against.
   const { content } = repairCitations(expanded.content, ctx.evidence.allTexts, ctx.ix);
   const citations = extractCitations(content);
+  const proposal = previewEvidence(ctx.evidence.atlasTexts);
   const report: PartialReport = {
     invalidCitations: findInvalidCitationUuids(citations, ctx.ix),
-    invalidDocNos: findInvalidDocNos(content, ctx.ix),
+    invalidDocNos: findInvalidDocNos(content, ctx.ix).filter(proposal.unknownDocNo),
     docNoMismatches: findDocNoMismatches(citations, ctx.ix),
     ungroundedQuotes: findUngroundedQuotes(content, ctx.evidence.atlasTexts, ctx.ix, ctx.question, ctx.leadIn),
     ungroundedAddresses: findUngroundedAddresses(content, ctx.evidence.allTexts),
     ungroundedCitationValues: findUngroundedCitationValues(content, ctx.evidence.atlasTexts, ctx.ix),
-    paramMismatches: findParamMismatches(content, ctx.ix),
+    paramMismatches: findParamMismatches(content, ctx.ix).filter(proposal.unproposed),
     mscCitedAsAtlas: findMscCitedAsAtlas(content, ctx.evidence.externalTexts, ctx.ix),
   };
   return { text: content, findings: describeFindings(report) };

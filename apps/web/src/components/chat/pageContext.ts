@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useLocation, useSearchParams } from "wouter";
 import { ROUTES, REPORT_CHAT_TOOLS, REPORT_TITLES } from "@/lib/routes";
 import { loadAtlas } from "../../lib/docs";
+import { useDataSource, type PreviewInfo } from "../../lib/dataSource";
+import { previewLabel } from "../../lib/previewLocal";
 
-// Mirrors the server's PageContext (src/server/chat/system-prompt.ts) plus the
+// Mirrors the server's PageContext (src/server/chat/system-prompt-page.ts) plus the
 // UI-only fields the launcher/composer render (short, placeholder, chip).
 export interface PageContext {
   path?: string;
@@ -15,6 +17,8 @@ export interface PageContext {
   reportName?: string;
   reportTool?: string; // atlas_report_* tool backing this report page, if any
   reportFilter?: string; // the report page's active text filter (search box), if any
+  previewId?: string; // the PR preview this page is inside (its /preview/<id> segment)
+  previewSha?: string; // that preview's built commit
 }
 
 export interface PageContextView extends PageContext {
@@ -62,8 +66,10 @@ interface NodeMeta {
 }
 
 // The open atlas node's title and doc_no, resolved asynchronously from the
-// cached docs.json (loadAtlas is memoised). Null while loading or unknown.
-function useNodeMeta(nodeId: string | null): NodeMeta | null {
+// cached docs.json (loadAtlas is memoised per base) — the preview's own inside
+// a preview, so a document only the PR adds still gets its title. Null while
+// loading or unknown.
+function useNodeMeta(nodeId: string | null, base: string): NodeMeta | null {
   const [node, setNode] = useState<NodeMeta | null>(null);
   useEffect(() => {
     let alive = true;
@@ -72,13 +78,13 @@ function useNodeMeta(nodeId: string | null): NodeMeta | null {
     };
     if (!nodeId) setNode(null);
     else
-      loadAtlas()
+      loadAtlas(base)
         .then(({ docs }) => settle(docs[nodeId] ? { title: docs[nodeId].title, doc_no: docs[nodeId].doc_no } : null))
         .catch(() => settle(null));
     return () => {
       alive = false;
     };
-  }, [nodeId]);
+  }, [nodeId, base]);
   return node;
 }
 
@@ -107,13 +113,34 @@ function reportContext(location: string, reportName: string, searchParams: URLSe
   return { ...baseContext, path: location, reportName, reportTool, reportFilter, chip: `${reportName}` };
 }
 
-// Derives page context from the wouter route: an atlas node, a radar actor,
-// a report, or anywhere else.
+// Inside a preview every page is about the PR: the chip and composer say so,
+// and the preview id rides along so "review this PR" needs no PR number.
+function inPreview(view: PageContextView, p: PreviewInfo): PageContextView {
+  const doc = view.nodeDocNo ? ` · ${view.nodeDocNo}` : "";
+  return {
+    ...view,
+    previewId: p.id,
+    previewSha: p.sha,
+    short: "Ask about this PR",
+    placeholder: "Ask about this PR…",
+    chip: `preview · ${previewLabel(p.id)}${doc}`,
+  };
+}
+
+// Derives page context from the wouter route and the data source. Inside a
+// preview the router base is the preview's, so the same routes apply.
 export function usePageContext(): PageContextView {
+  const ds = useDataSource();
+  const view = useRouteContext(ds.base);
+  return ds.preview ? inPreview(view, ds.preview) : view;
+}
+
+// The route's context: an atlas node, a radar actor, a report, or anywhere else.
+function useRouteContext(base: string): PageContextView {
   const [location] = useLocation();
   const [searchParams] = useSearchParams();
   const nodeId = location === ROUTES.ATLAS ? searchParams.get("id") : null;
-  const node = useNodeMeta(nodeId);
+  const node = useNodeMeta(nodeId, base);
   if (nodeId) return nodeContext(location, nodeId, node);
   if (location.startsWith(ROUTES.RADAR + "/")) return radarContext(location, searchParams);
   const reportName = reportTitleForPath(location);

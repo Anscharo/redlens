@@ -14,6 +14,7 @@ import { summarizeTeachings } from "../teach/inject.ts";
 import { persistAssistant, titleIfDue } from "./persist.ts";
 import { runTeachTurn } from "./teach-turn.ts";
 import { replayAfter, usedAfter, type ChatTurn } from "./turn.ts";
+import { chatToolContext } from "../conversation-access.ts";
 
 export type Send = (e: { type: string } & Record<string, unknown>) => void;
 type PreparedTurn = NonNullable<ChatTurn["turn"]>;
@@ -50,6 +51,7 @@ async function forwardHarness(t: ChatTurn, turn: PreparedTurn, send: Send) {
   for await (const ev of runVerifiedChat({
     ix: t.ix, messages: turn.messages, stream: chatStream, jsonCall: makeOpenrouterJson(t.obs),
     question: t.body.message, signal: t.req.signal, obs: t.obs, maxIterations: turn.maxIterations,
+    toolCtx: chatToolContext(t.userId, t.req.signal, t.scope, t.obs),
   })) {
     if (ev.type !== "done") {
       send(ev);

@@ -2,6 +2,10 @@ import type { z } from "zod";
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import type { ToolResult } from "./tools.ts";
+import type { ToolCallContext } from "./tool-context.ts";
+
+/** Most handlers ignore `ctx`. One that reads it treats an absent ctx as ANON_MCP_CTX. */
+export type AtlasHandler = (ix: Indexes, args: Record<string, unknown>, ctx?: ToolCallContext) => ToolResult | Promise<ToolResult>;
 
 // The two fields toolDescription() assembles — shared with ExternalTool.
 export interface DescribedTool {
@@ -22,7 +26,7 @@ export interface AtlasTool extends DescribedTool {
   // Read "" / [] / [""] / null as absent, in invokeTool() for every consumer and
   // in the chat transport before zod (an optional field rejects null).
   emptyArgsAbsent?: boolean;
-  handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult>;
+  handler: AtlasHandler;
 }
 
 const READ_ONLY_ATLAS_TOOL: ToolAnnotations = {

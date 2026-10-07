@@ -6,6 +6,7 @@ import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type OpenAI from "openai";
 import { ATLAS_TOOLS, TOOLS_BY_NAME, invokeTool, omitEmptyArgs, toolDescription } from "./tool-registry.ts";
+import type { ToolCallContext } from "./tool-context.ts";
 import { EXPORT_TOOL_NAME, EXPORT_TOOL_SHAPE, EXPORT_TOOL_DESCRIPTION } from "./export-tool.ts";
 import {
   ASK_EXTERNAL_MSC,
@@ -135,7 +136,13 @@ export function applyChatToolBudget(rawJson: string, budget = config.chatToolRes
 // (applies defaults the model omits, e.g. k/mode/enrich), then runs the handler.
 // Returns a JSON string fed back to the model as the tool message, plus chat
 // transport truncation metadata for telemetry.
-export async function execToolDetailed(ix: Indexes, name: string, rawArgs: string, obs?: ErrorContext): Promise<ChatToolResult> {
+export async function execToolDetailed(
+  ix: Indexes,
+  name: string,
+  rawArgs: string,
+  obs?: ErrorContext,
+  ctx?: ToolCallContext,
+): Promise<ChatToolResult> {
   const tool = TOOLS_BY_NAME.get(name);
   if (!tool) return applyChatToolBudget(JSON.stringify({ error: `unknown tool: ${name}` }));
   // Before zod, not only in the handler: an optional field rejects null, so a
@@ -152,7 +159,7 @@ export async function execToolDetailed(ix: Indexes, name: string, rawArgs: strin
   const strippedKeys = Object.keys(raw).filter((k) => !(k in tool.shape));
   if (strippedKeys.length) captureEvent("chat_tool_arg_stripped", obs, { tool: name, keys: strippedKeys });
   try {
-    return applyChatToolBudget(JSON.stringify(await invokeTool(ix, tool, parsed.data as Record<string, unknown>)));
+    return applyChatToolBudget(JSON.stringify(await invokeTool(ix, tool, parsed.data as Record<string, unknown>, ctx)));
   } catch (e) {
     // The model still gets a usable {error} tool result (never breaks the turn),
     // but a tool handler throwing is a real bug worth alerting on, not silent.

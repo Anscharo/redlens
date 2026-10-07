@@ -11,6 +11,7 @@ import { withoutDisputedMarks } from "../verify/disputes.ts";
 import type { VerifyOut, AnswerCoverageOut } from "../verify/persisted-verdict.ts";
 import { reviewNoteFrom, type ReviewNote } from "../verify/review-note.ts";
 import { checksByMessage, type MessageChecks } from "./checks.ts";
+import { reauthorizeRepos, type ScopeDenied } from "../conversation-access.ts";
 
 interface MessageOut {
   role: string;
@@ -114,11 +115,11 @@ function messageOut(r: MessageRow, checks: MessageChecks): MessageOut {
 
 async function ownedConversation(userId: string, id: string) {
   const owned = (await sql`
-    SELECT c.id, c.title, c.updated_at, c.summary, c.summary_upto_id
+    SELECT c.id, c.title, c.updated_at, c.summary, c.summary_upto_id, c.private_repos
     FROM conversations c WHERE c.id = ${id} AND c.user_id = ${userId}
   `) as {
     id: string; title: string | null; updated_at: string | Date;
-    summary: string | null; summary_upto_id: string | null;
+    summary: string | null; summary_upto_id: string | null; private_repos?: string[] | null;
   }[];
   return owned[0] ?? null;
 }
@@ -136,9 +137,12 @@ async function recentMessages(id: string): Promise<MessageRow[]> {
   `) as MessageRow[];
 }
 
-export async function getConversation(userId: string, id: string): Promise<ConversationDetailOut | null> {
+export async function getConversation(userId: string, id: string): Promise<ConversationDetailOut | ScopeDenied | null> {
   const conv = await ownedConversation(userId, id);
   if (!conv) return null;
+  // Its rows may hold private preview text: reopen only while access holds.
+  const denied = await reauthorizeRepos(userId, conv.private_repos ?? []);
+  if (denied) return denied;
   const rows = await recentMessages(id);
   // Assistant rows only: a citation_check/verify/round_checks/answer_coverage
   // row is always recorded against the answer it checked, so user ids would

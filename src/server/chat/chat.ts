@@ -20,6 +20,7 @@ import { config } from "../config.ts";
 import { tryAcquireChatSlot, releaseChatSlot } from "./concurrency.ts";
 import { concurrencyRefusal, parseChatRequest, quotaRefusal } from "./endpoint/gates.ts";
 import { resolveConversation } from "./endpoint/history.ts";
+import { conversationScope } from "./conversation-access.ts";
 import { prepareChatTurn } from "./endpoint/turn.ts";
 import { chatEventStream, sseResponse } from "./endpoint/stream.ts";
 
@@ -49,9 +50,11 @@ export async function handleChat(req: Request): Promise<Response> {
   try {
     const refusal = await quotaRefusal(userId);
     if (refusal) return refusal;
-    const convId = await resolveConversation(userId, body);
-    if (!convId) return json({ error: "conversation_not_found" }, 404);
-    const turn = await prepareChatTurn(req, userId, convId, body);
+    const conv = await resolveConversation(userId, body);
+    if (!conv) return json({ error: "conversation_not_found" }, 404);
+    const scope = await conversationScope(userId, conv, body.pageContext);
+    if ("denied" in scope) return json({ error: scope.denied }, scope.status);
+    const turn = await prepareChatTurn(req, userId, conv.id, body, scope);
     const response = sseResponse(chatEventStream(turn), session.refresh);
     streamOwnsSlot = true;
     return response;

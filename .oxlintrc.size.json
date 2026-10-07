@@ -157,7 +157,7 @@
     { "files": ["src/lib/crossviewShape.ts"], "rules": { "max-lines-per-function": ["error", { "max": 125, "skipBlankLines": true, "skipComments": true }] } },
     // One catalog of Features-guide entries (search lanes, Radar search, …). Adding an
     // entry is how the guide is meant to grow; a split would scatter one catalog.
-    { "files": ["src/lib/featuresData.ts"], "rules": { "max-lines": ["error", { "max": 385, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["src/lib/featuresData.ts"], "rules": { "max-lines": ["error", { "max": 388, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/oeaTasks.ts"], "rules": { "max-lines-per-function": ["error", { "max": 97, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/onchainAddressesIndex.ts"], "rules": { "max-lines": ["error", { "max": 345, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 57, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/rewardsIndex.ts"], "rules": { "max-lines": ["error", { "max": 299, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }] } },
@@ -201,7 +201,7 @@
     { "files": ["src/server/preview/diff-base-backfill.ts"], "rules": { "max-lines": ["error", { "max": 253, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/preview/diff-base-write.ts"], "rules": { "max-lines-per-function": ["error", { "max": 72, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/preview/github-app.ts"], "rules": { "max-lines": ["error", { "max": 217, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["src/server/preview/handler.ts"], "rules": { "max-lines": ["error", { "max": 374, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 63, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["src/server/preview/handler.ts"], "rules": { "max-lines": ["error", { "max": 262, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/preview/resolve.ts"], "rules": { "max-lines": ["error", { "max": 313, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/retrieval/embed-units.ts"], "rules": { "max-lines": ["error", { "max": 515, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 52, "skipBlankLines": true, "skipComments": true }] } },
     // Raised by 3: `_clearIndexes` resets this module's own `state`, so it cannot live

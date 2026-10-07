@@ -59,6 +59,7 @@ interface RouteCtx {
 async function readRoute({ userId, id, refresh }: RouteCtx): Promise<Response> {
   const conv = await getConversation(userId, id);
   if (!conv) return json({ error: "not_found" }, 404);
+  if ("denied" in conv) return json({ error: conv.denied }, conv.status);
   return json(conv, 200, refresh);
 }
 

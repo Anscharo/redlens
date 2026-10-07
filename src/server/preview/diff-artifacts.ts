@@ -26,6 +26,8 @@ import { detectIdentitySwaps, type IdentitySwap, type FormerUuid } from "./ident
 export interface PreviewDiffJson {
   added: string[];
   changed: string[];
+  /** In the base, gone from the head. Absent on bundles built before it was recorded. */
+  removed?: string[];
   renumbered: Record<string, [string, string]>;
   retitled: Record<string, [string, string]>;
   reusedSlot: Record<string, { title: string; movedTo?: string }>;
@@ -43,7 +45,7 @@ export function computeDiffArtifacts(
   // consolidated ~11k document.md files into ~16 composed files (upstream
   // #294) — one changed file now spans a whole Scope. Comparing uuid-keyed
   // snapshots is layout-blind, so it survives that regrouping and the next one.
-  const { added, changed } = diffSnapshots(base, head);
+  const { added, changed, removed } = diffSnapshots(base, head);
 
   // An ADDED doc has no prior content anywhere — render its body as pure
   // additions. CHANGED docs get their patch from the vs-live identity diff
@@ -110,7 +112,7 @@ export function computeDiffArtifacts(
   // loads after the page is up.
   const { identitySwap, formerUuid } = detectIdentitySwaps({ changed, added, mainById: reference, previewById: head });
 
-  return { diff: { added, changed, renumbered, retitled, reusedSlot, identitySwap, formerUuid }, patches };
+  return { diff: { added, changed, removed, renumbered, retitled, reusedSlot, identitySwap, formerUuid }, patches };
 }
 
 export function writeDiffArtifacts(

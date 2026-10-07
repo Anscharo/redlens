@@ -7,10 +7,11 @@ A preview builds the atlas from another ref (an nga PR, a fork branch, a private
 `/api/preview/*` → `handler.ts` `drive()`: rate limit → resolve the id to a sha (`resolve.ts`) → private-access check → blocked-sha check → serve the ready bundle or `getOrStartBuild`. `build.ts` `runBuild`: takedown → trust/quota (`trust.ts`) → tarball fetch (`tarball.ts`) → `build-index`, then graph and glossary concurrently → diff bases → `meta.json` → DB upsert → LRU eviction → detached identity refine. Phases: fetching → building → ready | failed.
 
 - **Diff base**: `pr-diff.ts` (candidates `sky` and `repo`), `pr-diff-auto.ts` (`pickAuto`), `diff-base*.ts`, `base-drift.ts`.
-- **Diff artifacts**: `snapshot.ts`, `diff-artifacts.ts`, `patch-diff.ts`.
+- **Diff artifacts**: `snapshot.ts`, `diff-artifacts.ts` (`diff.json` lists added, changed and removed docs), `patch-diff.ts`.
 - **Identity gate** (does a kept UUID still point at the same document?): `identity.ts` re-exports `identity-*.ts`; `embeddings*.ts` and `vector-cache.ts` back the refine step.
 - **Private access**: `access.ts`, `github-app.ts`. **Persistence**: `db.ts`. **Eviction**: `sweeper.ts`, `cache.ts`.
 - **Frontend**: `apps/web/src/components/preview/`, `apps/web/src/lib/preview*.ts`, and `dataSource.tsx`, which points artifact fetches at `/api/preview/<sha>/`.
+- **Chat and MCP tools**: `tool-access.ts` opens a preview for `atlas_preview_diff` / `atlas_preview_get` (`src/server/chat/tools/tools-preview*.ts`), `bundle-read.ts` reads the bundle. It shares `open-gate.ts` (resolve → authorize → takedown) with `drive()`, and `open-prs.ts` with the /preview index.
 
 ## Invariants
 
@@ -24,6 +25,7 @@ A preview builds the atlas from another ref (an nga PR, a fork branch, a private
 - **The durable diff-base record** (`diff-base-record.ts`) uses `pr-base` / `fork-default` / `nga-main`, not the internal `sky` / `repo` keys.
 - **A build never waits on the embedding provider.** Identity refine runs detached and writes the whole verdict to `identity.json`; `stopRefine` runs before a rebuild. The identity bars are measured values: re-measure against `docs/research/identity-swap-detection.md` before moving one.
 - **Quota counts new shas only**; rebuilding a known sha is free.
+- **MCP never builds and sees only public canonical PRs** (`tool-access.ts`): it is anonymous, so a preview it could build or a private bundle it could read would hand the build quota and private content to anyone. Every denial a tool can hit reads as `not-found`, so neither surface can probe whether a private repo, branch or PR exists.
 - **The `preview` profile in `scripts/lib/build-steps.mjs` is documentation, not wiring.** Change the steps `build.ts` runs and that profile together.
 
 ## Tests and config

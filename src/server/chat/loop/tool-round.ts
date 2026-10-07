@@ -138,7 +138,7 @@ export async function* runToolRound(ctx: LoopCtx, iter: number, content: string,
   const parsedCalls = calls.map((c) => ({ id: c.id, name: c.name, raw: c.args, args: safeParseArgs(c.args) }));
   for (const c of parsedCalls) yield { type: "tool_call", name: c.name, args: c.args };
   const results = await Promise.all(
-    parsedCalls.map((c) => (skipExec(c.name) ? Promise.resolve(null) : execToolDetailed(ctx.opts.ix, c.name, c.raw, ctx.opts.obs))),
+    parsedCalls.map((c) => (skipExec(c.name) ? Promise.resolve(null) : execToolDetailed(ctx.opts.ix, c.name, c.raw, ctx.opts.obs, ctx.opts.toolCtx))),
   );
   const roundResults: RoundResult[] = [];
   for (let i = 0; i < parsedCalls.length; i++) roundResults.push(yield* resolveCall(ctx, parsedCalls[i], results[i]));

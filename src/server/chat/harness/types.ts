@@ -5,6 +5,7 @@ import type { ChatEvent, ChatStream } from "../chat-loop.ts";
 import type { JsonCall } from "../llm.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import type { ErrorContext } from "../../posthog-node.ts";
+import type { ToolCallContext } from "../tools/tool-context.ts";
 import type { VerifyOverall } from "../verify/verifier.ts";
 import type { ParamMismatch } from "../verify/param-checks.ts";
 import type { CitationMark } from "../verify/citation-marks.ts";
@@ -22,6 +23,7 @@ export interface VerifiedChatOpts {
   signal?: AbortSignal;
   maxIterations?: number;
   obs?: ErrorContext;
+  toolCtx?: ToolCallContext;
 }
 
 export interface CheckRowMeta {

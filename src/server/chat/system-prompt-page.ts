@@ -1,6 +1,7 @@
 // The "Current page" section of the chat system prompt.
 import { TOOLS_BY_NAME } from "./tools/tool-registry.ts";
 import { REPORT_TITLES, REPORT_DESCRIPTIONS } from "../../lib/routes.ts";
+import { decodeId } from "../preview/resolve.ts";
 
 // reportName on the wire is the display title (REPORT_TITLES[id]), not the id.
 const TITLE_TO_REPORT_ID: Record<string, string> = Object.fromEntries(
@@ -17,6 +18,8 @@ export interface PageContext {
   reportName?: string;
   reportTool?: string; // client hint: the atlas_report_* tool backing this report page
   reportFilter?: string; // the report page's active text filter, if any
+  previewId?: string; // the PR preview the page is inside (its /preview/<id> segment)
+  previewSha?: string; // that preview's built commit
 }
 
 // reportTool is a client hint: accept it only if it names a registered
@@ -27,8 +30,31 @@ export function validReportTool(ctx?: PageContext): string | null {
   return TOOLS_BY_NAME.has(t) ? t : null;
 }
 
+// A preview id as /preview/<id> spells it: a sha, pull-N, owner:branch or
+// owner:repo:branch with `~` for `/`. Checked before it is quoted into the
+// prompt, so a hostile value cannot carry instructions. Display-only: the
+// preview tools re-authorize on every call.
+const PREVIEW_ID_RE = /^[\w.~:-]{1,200}$/;
+const SHA_RE = /^[0-9a-f]{40}$/i;
+
+export function validPreviewContext(ctx?: PageContext): { id: string; sha?: string } | null {
+  const id = ctx?.previewId;
+  if (!id || !PREVIEW_ID_RE.test(id) || !decodeId(id)) return null;
+  return { id, ...(ctx?.previewSha && SHA_RE.test(ctx.previewSha) ? { sha: ctx.previewSha.toLowerCase() } : {}) };
+}
+
+function previewLine(p: { id: string; sha?: string }, ctx: PageContext): string {
+  const commit = p.sha ? ` (commit ${p.sha.slice(0, 7)})` : "";
+  const node = ctx.nodeId
+    ? ` The open document is the preview's copy of "${ctx.nodeTitle ?? ctx.nodeId}"${ctx.nodeDocNo ? ` (${ctx.nodeDocNo})` : ""}, UUID ${ctx.nodeId}: read it with atlas_preview_get, not atlas_get.`
+    : "";
+  return `PR preview "${p.id}"${commit}: a PROPOSED Atlas, not the live one. "This PR" or "this change" means this preview: call atlas_preview_diff with preview_id "${p.id}".${node}`;
+}
+
 export function pageContextLine(ctx?: PageContext): string | null {
   if (!ctx) return null;
+  const preview = validPreviewContext(ctx);
+  if (preview) return previewLine(preview, ctx);
   if (ctx.nodeId) return `Atlas node "${ctx.nodeTitle ?? ctx.nodeId}"${ctx.nodeDocNo ? ` (${ctx.nodeDocNo})` : ""}, UUID ${ctx.nodeId}`;
   if (ctx.actorSlug) {
     const settlements = ctx.path?.includes("/settlements");
@@ -61,6 +87,6 @@ export function currentPageSection(ctx?: PageContext): string {
   if (!page) return "";
   const reportTool = validReportTool(ctx);
   const guidance = reportTool ? reportToolGuidance(reportTool, ctx) : "";
-  const subject = reportTool || ctx?.reportName ? "report" : "node";
+  const subject = validPreviewContext(ctx) ? "PR" : reportTool || ctx?.reportName ? "report" : "node";
   return `\n## Current page\nThe user is viewing: ${page}.${guidance} Treat references like "this", "here", or "this primitive" as that ${subject} unless they say otherwise.`;
 }

@@ -1011,3 +1011,12 @@ test("the self-authorship phrase must introduce the quote, not merely appear ear
   ].join("\n");
   expect(findUngroundedQuoteSpans(buried, evidence, ix)).toHaveLength(1);
 });
+
+test("runDeterministicChecks: a doc number a PR preview adds is not a fabrication when the preview is in evidence", () => {
+  const answer = "The PR adds Q.99.42.7, a new rule.";
+  const preview = JSON.stringify({ source_class: "preview", documents: [{ change: "added", doc_no: "Q.99.42.7" }] });
+  const live = JSON.stringify({ documents: [{ doc_no: "Q.99.42.7" }] });
+  expect(runDeterministicChecks(answer, [preview], ix).invalidDocNos).toEqual([]);
+  // Only preview evidence exempts it: the same text from any other tool does not.
+  expect(runDeterministicChecks(answer, [live], ix).invalidDocNos).toEqual(["Q.99.42.7"]);
+});
