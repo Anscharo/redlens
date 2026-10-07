@@ -30,7 +30,7 @@ afterEach(() => {
 describe("ChatHeader", () => {
   it("falls back to 'Atlas' when there is no conversation title", () => {
     renderHeader({ title: null });
-    expect(screen.getByText("Atlas")).toBeInTheDocument();
+    expect(screen.getByText("Redline Portal Chat")).toBeInTheDocument();
   });
 
   it("shows the conversation title when set", () => {
@@ -48,7 +48,7 @@ describe("ChatHeader", () => {
     renderHeader();
     const link = screen.getByLabelText("Conversations");
     expect(link).toHaveAttribute("href", "/conversations");
-    expect(link.compareDocumentPosition(screen.getByText("Atlas")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(link.compareDocumentPosition(screen.getByText("Redline Portal Chat")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("disables the Conversations button while already on that page", () => {

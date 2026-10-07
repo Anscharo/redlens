@@ -422,7 +422,7 @@ test("atlas_describe keeps entity_type_graph + type_specifications opt-in", () =
 test("buildSystemPrompt does not throw (entity_type_graph must be requested)", () => {
   const ix = makeIx();
   expect(() => buildSystemPrompt(ix)).not.toThrow();
-  expect(buildSystemPrompt(ix)).toContain("Sky Atlas by Redline");
+  expect(buildSystemPrompt(ix)).toContain("Redline Portal Chat");
   expect(buildSystemPrompt(ix)).toContain("complete class listing");
   expect(buildSystemPrompt(ix)).not.toContain("answer immediately once you have the evidence");
 });

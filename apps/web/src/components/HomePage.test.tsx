@@ -18,7 +18,7 @@ function wrap(path = "/") {
 describe("HomePage", () => {
   it("renders the hero heading and intro copy", () => {
     render(<HomePage />, { wrapper: wrap() });
-    expect(screen.getByRole("heading", { level: 1, name: "Sky Atlas by Redline" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Redline Portal" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Sky Atlas" })).toHaveAttribute(
       "href",
       "https://github.com/sky-ecosystem/next-gen-atlas",

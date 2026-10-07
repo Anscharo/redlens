@@ -122,13 +122,13 @@ afterEach(() => {
 describe("ChatWidget open/close", () => {
   it("renders the collapsed launcher initially", () => {
     renderWidget();
-    expect(screen.getByLabelText("Open the Atlas agent")).toBeInTheDocument();
+    expect(screen.getByLabelText("Open Redline Portal Chat")).toBeInTheDocument();
     expect(screen.queryByTestId("chat-panel")).toBeNull();
   });
 
   it("opens the panel on launcher click and tracks chat_open once", () => {
     renderWidget();
-    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    fireEvent.click(screen.getByLabelText("Open Redline Portal Chat"));
     expect(screen.getByTestId("chat-panel")).toBeInTheDocument();
     expect(track).toHaveBeenCalledWith("chat_open", { product: "chat" });
     expect(track).toHaveBeenCalledTimes(1);
@@ -150,14 +150,14 @@ describe("ChatWidget open/close", () => {
 
   it("closes on Escape", () => {
     renderWidget();
-    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    fireEvent.click(screen.getByLabelText("Open Redline Portal Chat"));
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByTestId("chat-panel")).toBeNull();
   });
 
   it("closes via the panel's onClose", () => {
     renderWidget();
-    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    fireEvent.click(screen.getByLabelText("Open Redline Portal Chat"));
     fireEvent.click(screen.getByText("close-panel"));
     expect(screen.queryByTestId("chat-panel")).toBeNull();
   });
@@ -166,7 +166,7 @@ describe("ChatWidget open/close", () => {
 describe("ChatWidget placement", () => {
   it("defaults to float placement when nothing is persisted", () => {
     renderWidget();
-    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    fireEvent.click(screen.getByLabelText("Open Redline Portal Chat"));
     expect(screen.getByTestId("placement")).toHaveTextContent("float");
     expect(document.body.classList.contains("rlc-anchored")).toBe(false);
   });
@@ -174,14 +174,14 @@ describe("ChatWidget placement", () => {
   it("restores a persisted anchored placement and applies the body class while open", () => {
     localStorage.setItem("rlc-placement", "anchored");
     renderWidget();
-    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    fireEvent.click(screen.getByLabelText("Open Redline Portal Chat"));
     expect(screen.getByTestId("placement")).toHaveTextContent("anchored");
     expect(document.body.classList.contains("rlc-anchored")).toBe(true);
   });
 
   it("toggling placement persists the new value and updates the body class", () => {
     renderWidget();
-    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    fireEvent.click(screen.getByLabelText("Open Redline Portal Chat"));
     fireEvent.click(screen.getByText("toggle-placement"));
     expect(screen.getByTestId("placement")).toHaveTextContent("anchored");
     expect(localStorage.getItem("rlc-placement")).toBe("anchored");
@@ -200,7 +200,7 @@ describe("ChatWidget placement", () => {
   it("clears the anchored body class when the panel closes", () => {
     localStorage.setItem("rlc-placement", "anchored");
     renderWidget();
-    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    fireEvent.click(screen.getByLabelText("Open Redline Portal Chat"));
     expect(document.body.classList.contains("rlc-anchored")).toBe(true);
     fireEvent.click(screen.getByText("close-panel"));
     expect(document.body.classList.contains("rlc-anchored")).toBe(false);
@@ -210,7 +210,7 @@ describe("ChatWidget placement", () => {
 describe("ChatWidget citation navigation", () => {
   it("navigates the SPA route on an onAtlas citation click, keeping the panel open", () => {
     renderWidget();
-    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    fireEvent.click(screen.getByLabelText("Open Redline Portal Chat"));
     fireEvent.click(screen.getByText("cite"));
     expect(screen.getByTestId("loc")).toHaveTextContent("/atlas");
     expect(screen.getByTestId("chat-panel")).toBeInTheDocument();
@@ -236,7 +236,7 @@ describe("ChatWidget conversation memory", () => {
     );
 
     renderWidget();
-    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    fireEvent.click(screen.getByLabelText("Open Redline Portal Chat"));
     fireEvent.click(screen.getByText("send"));
     await waitFor(() => expect(screen.getByTestId("messages")).toHaveTextContent("Hello reply"));
 
@@ -245,13 +245,13 @@ describe("ChatWidget conversation memory", () => {
     expect(screen.queryByTestId("chat-panel")).toBeNull();
 
     // Reopen: a fresh ChatPanel mounts, but it's handed the SAME session.
-    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    fireEvent.click(screen.getByLabelText("Open Redline Portal Chat"));
     expect(screen.getByTestId("messages")).toHaveTextContent("Hello reply");
   });
 
   it("tolerates rendering without a mounted <ChatOpenProvider>", () => {
     expect(() => renderWidget()).not.toThrow();
-    expect(screen.getByLabelText("Open the Atlas agent")).toBeInTheDocument();
+    expect(screen.getByLabelText("Open Redline Portal Chat")).toBeInTheDocument();
   });
 
   it("a useChatOpen request opens the panel and hydrates the requested conversation", async () => {
@@ -364,7 +364,7 @@ describe("ChatWidget reload-resume", () => {
     freshSnapshot();
     renderWidget();
     expect(screen.getByTestId("chat-panel")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Open the Atlas agent")).toBeNull();
+    expect(screen.queryByLabelText("Open Redline Portal Chat")).toBeNull();
     expect(track).toHaveBeenCalledWith("chat_open", { product: "chat", resumed: true });
   });
 
@@ -390,13 +390,13 @@ describe("ChatWidget reload-resume", () => {
     );
     renderWidget();
     expect(screen.queryByTestId("chat-panel")).toBeNull();
-    expect(screen.getByLabelText("Open the Atlas agent")).toBeInTheDocument();
+    expect(screen.getByLabelText("Open Redline Portal Chat")).toBeInTheDocument();
     expect(getConversation).not.toHaveBeenCalled();
   });
 
   it("writes a snapshot while open and re-stamps it on pagehide", () => {
     renderWidget();
-    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    fireEvent.click(screen.getByLabelText("Open Redline Portal Chat"));
     const first = JSON.parse(sessionStorage.getItem("rlc-resume")!) as { at: number };
     expect(first.at).toBeGreaterThan(0);
     vi.useFakeTimers();
@@ -409,7 +409,7 @@ describe("ChatWidget reload-resume", () => {
 
   it("clears the snapshot on an explicit close, so a reload right after stays collapsed", () => {
     renderWidget();
-    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    fireEvent.click(screen.getByLabelText("Open Redline Portal Chat"));
     expect(sessionStorage.getItem("rlc-resume")).not.toBeNull();
     fireEvent.click(screen.getByText("close-panel"));
     expect(sessionStorage.getItem("rlc-resume")).toBeNull();
@@ -417,7 +417,7 @@ describe("ChatWidget reload-resume", () => {
 
   it("clears the snapshot on Escape-close too", () => {
     renderWidget();
-    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    fireEvent.click(screen.getByLabelText("Open Redline Portal Chat"));
     fireEvent.keyDown(window, { key: "Escape" });
     expect(sessionStorage.getItem("rlc-resume")).toBeNull();
   });
@@ -429,7 +429,7 @@ describe("ChatWidget reload-resume", () => {
     );
     renderWidget();
     expect(screen.queryByTestId("chat-panel")).toBeNull();
-    expect(screen.getByLabelText("Open the Atlas agent")).toBeInTheDocument();
+    expect(screen.getByLabelText("Open Redline Portal Chat")).toBeInTheDocument();
     expect(getConversation).not.toHaveBeenCalled();
   });
 });

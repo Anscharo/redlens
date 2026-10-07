@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-07
+
+- Renamed the app to Redline Portal on the home page, and renamed the chat to Redline Portal Chat
+
 ## 2026-10-06
 
 - Added conversation collections: click "view all docs from this conversation" under an answer's citations, "View Doc Collection" on a conversation, or the new "Collections from conversations" tab on the Collections page to read only the documents that chat cited, and share them with a link

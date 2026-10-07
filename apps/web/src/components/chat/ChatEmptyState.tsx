@@ -58,7 +58,7 @@ export function emptyStateCopy(context: PageContextView): { title: string; body:
   }
   return {
     title: "Ask the Atlas",
-    body: "A research agent over the Sky Atlas. It already knows the page you're on — answers cite Atlas docs you can open inline. Type `/teach` followed by a short note — one fact, a sentence or two — to remember something it missed.",
+    body: "Redline Portal Chat is a research agent over the Sky Atlas. It already knows the page you're on — answers cite Atlas docs you can open inline. Type `/teach` followed by a short note — one fact, a sentence or two — to remember something it missed.",
     starters: STARTERS,
   };
 }

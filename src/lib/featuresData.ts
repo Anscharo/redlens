@@ -300,7 +300,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "Asking the Atlas",
         what: "A page-aware agent that reads the Sky Atlas and cites the documents it used.",
         how: [
-          "Click the Atlas agent launcher in the bottom-right (it shows ⌘K), or press ⌘K / Ctrl-K — it already knows the document or report you're viewing.",
+          "Click the Redline Portal Chat launcher in the bottom-right (it shows ⌘K), or press ⌘K / Ctrl-K — it already knows the document or report you're viewing.",
           "Ask it what the app can do, or what it can do itself — it answers from this guide, and keeps the two apart.",
           "Ask about a Prime Agent's monthly settlement dollars — Chat uses an isolated helper on Soter Labs workbooks / Sky Forum and says those figures are not from the Atlas.",
           "Ask across every Prime at once — top venues by revenue, ecosystem totals, a range of months, or which month was the largest — not just one Prime at a time.",

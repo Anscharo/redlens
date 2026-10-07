@@ -134,7 +134,7 @@ describe("ChatPanel signed in, empty thread", () => {
   it("shows the generic empty state and starters on a non-report page", () => {
     renderPanel();
     expect(screen.getByText("Ask the Atlas")).toBeInTheDocument();
-    expect(screen.getByText(/A research agent over the Sky Atlas/)).toBeInTheDocument();
+    expect(screen.getByText(/Redline Portal Chat is a research agent over the Sky Atlas/)).toBeInTheDocument();
   });
 
   it("shows report-flavored copy and starters when the context is a report page", () => {
@@ -374,14 +374,14 @@ describe("ChatPanel citations collection link", () => {
 });
 
 describe("ChatPanel header", () => {
-  it("shows the conversation title, falling back to 'Atlas' when null", () => {
+  it("shows the conversation title, falling back to 'Redline Portal Chat' when null", () => {
     renderPanel({ session: { title: "My earlier chat" } });
     expect(screen.getByText("My earlier chat")).toBeInTheDocument();
   });
 
-  it("falls back to 'Atlas' for a fresh/untitled thread", () => {
+  it("falls back to 'Redline Portal Chat' for a fresh/untitled thread", () => {
     renderPanel({ session: { title: null } });
-    expect(screen.getByText("Atlas")).toBeInTheDocument();
+    expect(screen.getByText("Redline Portal Chat")).toBeInTheDocument();
   });
 
   it("calls onClose when the close button is clicked", () => {

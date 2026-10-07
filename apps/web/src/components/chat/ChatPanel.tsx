@@ -51,7 +51,7 @@ export function ChatPanel({ session, onClose, context, onAtlas, placement, onTog
   const panel = useChatPanelValue(session, context, clear, scroll.stick);
   return (
     <ChatPanelProvider value={panel}>
-      <section className="rlc-panel" data-place={placement} role="dialog" aria-label="Atlas agent">
+      <section className="rlc-panel" data-place={placement} role="dialog" aria-label="Redline Portal Chat">
         <ChatHeader
           title={session.title}
           onNewChat={newChat}
