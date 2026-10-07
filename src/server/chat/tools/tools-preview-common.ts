@@ -3,7 +3,9 @@ import type { ToolResult } from "./tools.ts";
 import type { ToolCallContext } from "./tool-context.ts";
 import type { PreviewMeta } from "../../preview/cache.ts";
 import { diffBaseLabel } from "../../preview/diff-base-record.ts";
-import { admitPrivate, openPreviewForTool, type ToolOpen } from "../../preview/tool-access.ts";
+import { admitPrivate, openPreviewForTool, normalizePreviewId, type ToolOpen } from "../../preview/tool-access.ts";
+import { fetchOpenPrs } from "../../preview/open-prs.ts";
+import { decodeId } from "../../preview/resolve.ts";
 
 // Leads every result so it survives budget truncation: the verifier reads it to
 // treat the text as a proposal rather than the live Atlas (verify/preview-evidence.ts).
@@ -33,10 +35,12 @@ export function previewHeader(meta: PreviewMeta, id: string) {
 }
 
 const NOT_READY: Record<Exclude<ToolOpen["status"], "ready">, (o: ToolOpen, surface: string) => string> = {
-  building: () => "The preview is still building. Tell the user it is on its way and to ask again in a minute.",
+  building: () =>
+    "The preview is still building. Explain the PR from its description (pr) meanwhile, and tell the user the document-level changes follow if they ask again in a minute.",
   "not-built": (o) =>
-    `No preview of ${o.id} has been built yet. Opening /preview/${o.id} on the SAbR site builds it; the chat on that site can build it too.`,
-  failed: (o) => `The preview build failed (${"code" in o ? o.code : "build-failed"}).`,
+    `No preview of ${o.id} has been built yet, and this caller cannot build one. Explain the PR from its description (pr); opening /preview/${o.id} on the SAbR site builds the preview.`,
+  failed: (o) =>
+    `The preview build failed (${"code" in o ? o.code : "build-failed"}${"detail" in o && o.detail ? `: ${o.detail}` : ""}). Explain the PR from its description (pr), and say its document-level changes could not be read.`,
   "not-found": (_o, surface) =>
     surface === "mcp"
       ? "No open PR on sky-ecosystem/next-gen-atlas with a public preview matches that id. Pass an open PR's number (see atlas_open_prs)."
@@ -52,11 +56,26 @@ export async function openForTool(
 ): Promise<{ open: Extract<ToolOpen, { status: "ready" }> } | { result: ToolResult }> {
   const c = ctx ?? { surface: "mcp" as const };
   const open = await openPreviewForTool(rawId, c);
-  if (open.status !== "ready") return { result: { source_class: PREVIEW_SOURCE_CLASS, status: open.status, preview_id: open.id, message: NOT_READY[open.status](open, c.surface) } };
+  if (open.status !== "ready") {
+    const pr = open.status === "not-found" ? null : await prContext(open.id);
+    const message = NOT_READY[open.status](open, c.surface);
+    return { result: { source_class: PREVIEW_SOURCE_CLASS, status: open.status, preview_id: open.id, message, ...(pr ? { pr } : {}) } };
+  }
   if (!(await admitPrivate(c, open.meta))) {
     return { result: { source_class: PREVIEW_SOURCE_CLASS, status: "not-found", preview_id: open.id, message: NOT_READY["not-found"](open, c.surface) } };
   }
   return { open };
+}
+
+/** An open canonical PR's GitHub title, author and description, so a question
+ *  about it has an answer even when its preview cannot be read. The description
+ *  is the author's account of the change, not Atlas text. Null for anything else. */
+export async function prContext(rawId: unknown) {
+  const parsed = decodeId(normalizePreviewId(rawId) ?? "");
+  if (parsed?.kind !== "pr") return null;
+  const pr = (await fetchOpenPrs().catch(() => null))?.find((p) => p.number === parsed.prNumber);
+  if (!pr) return null;
+  return { number: pr.number, title: pr.title, author: pr.author, draft: pr.draft, url: pr.url, description: pr.body, description_is: "the PR author's own words, not Atlas text" };
 }
 
 export const byDocNo = (a: { doc_no: string }, b: { doc_no: string }) => a.doc_no.localeCompare(b.doc_no, "en", { numeric: true });

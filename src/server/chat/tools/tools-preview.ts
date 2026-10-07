@@ -10,7 +10,8 @@ import type { ToolResult } from "./tools.ts";
 import { fetchOpenPrs } from "../../preview/open-prs.ts";
 import { bundleReady, readMeta } from "../../preview/cache.ts";
 import { diffBaseLabel } from "../../preview/diff-base-record.ts";
-import { openForTool } from "./tools-preview-common.ts";
+import { openForTool, prContext } from "./tools-preview-common.ts";
+import { ANON_MCP_CTX, type ToolCallContext } from "./tool-context.ts";
 import { buildPreviewDiff, type PreviewDiffArgs } from "./tools-preview-diff.ts";
 import { buildPreviewGet, type PreviewGetArgs } from "./tools-preview-get.ts";
 
@@ -38,7 +39,18 @@ function builtPreview(headSha: string) {
   return { built: true, ...(meta.diffCounts ?? {}), base: diffBaseLabel(meta) ?? "live atlas" };
 }
 
-async function openPrs(a: Record<string, unknown>): Promise<ToolResult> {
+// What the model is told about an unbuilt preview depends on who is asking:
+// chat's atlas_preview_diff builds one, MCP's never does (tool-access.ts).
+const OPEN_PRS_NOTE: Record<ToolCallContext["surface"], string> = {
+  chat:
+    "Open PRs are proposals, not Atlas content. To explain or review one, call atlas_preview_diff with its preview_id: " +
+    "it builds the preview if nobody has yet (preview.built=false), which can take up to a minute.",
+  mcp:
+    "Open PRs are proposals, not Atlas content. atlas_preview_diff reads a PR whose preview.built is true; an unbuilt one " +
+    "is built by opening /preview/pull-N on the SAbR site.",
+};
+
+async function openPrs(a: Record<string, unknown>, ctx: ToolCallContext = ANON_MCP_CTX): Promise<ToolResult> {
   const all = await fetchOpenPrs();
   if (!all) return { source_class: "history", status: "unavailable", message: "GitHub did not answer the open-PR list. Try again shortly." };
   const prs = all.filter((p) => a.include_drafts !== false || !p.draft);
@@ -57,9 +69,7 @@ async function openPrs(a: Record<string, unknown>): Promise<ToolResult> {
       preview_id: `pull-${p.number}`,
       preview: builtPreview(p.headSha),
     })),
-    note:
-      "Open PRs are proposals, not Atlas content. preview.built=false means nobody has opened its preview yet; " +
-      "atlas_preview_diff on a built one says which documents it adds, changes and removes.",
+    note: OPEN_PRS_NOTE[ctx.surface],
   };
 }
 
@@ -76,7 +86,7 @@ export const PREVIEW_TOOLS: AtlasTool[] = [
       include_drafts: z.boolean().optional().default(true).describe("Include draft PRs (default true)."),
       limit: z.number().int().min(1).max(100).optional().default(30),
     },
-    handler: (_ix, a) => openPrs(a),
+    handler: (_ix, a, ctx) => openPrs(a, ctx),
   },
   {
     name: "atlas_preview_diff",
@@ -85,8 +95,9 @@ export const PREVIEW_TOOLS: AtlasTool[] = [
     annotations: annotations("Atlas Preview Diff"),
     description:
       "What a PR preview adds, changes and removes in the Atlas, against the base its redline uses (the PR's own base " +
-      "branch, or the live Atlas). Returns the preview's PR and base, counts, and a page of documents sorted by doc_no, " +
-      "each with its doc_no, title, type, parent, renumber/retitle flags, a short patch, and a `cite` link.",
+      "branch, or the live Atlas). Returns the PR (with its GitHub description) and base, counts, and a page of documents " +
+      "sorted by doc_no, each with its doc_no, title, type, parent, renumber/retitle flags, a short patch, and a `cite` " +
+      "link. In chat it builds a preview nobody has built yet; if the build fails it still returns the PR's description.",
     shape: {
       preview_id: PREVIEW_ID,
       change: z.enum(["added", "changed", "removed"]).optional().describe("Only this kind of change."),
@@ -97,7 +108,9 @@ export const PREVIEW_TOOLS: AtlasTool[] = [
     emptyArgsAbsent: true,
     handler: async (ix, a, ctx) => {
       const o = await openForTool(a.preview_id, ctx);
-      return "result" in o ? o.result : buildPreviewDiff(ix, o.open, a as unknown as PreviewDiffArgs);
+      if ("result" in o) return o.result;
+      const pr = await prContext(o.open.id);
+      return { ...buildPreviewDiff(ix, o.open, a as unknown as PreviewDiffArgs), ...(pr ? { pr_description: pr.description } : {}) };
     },
   },
   {

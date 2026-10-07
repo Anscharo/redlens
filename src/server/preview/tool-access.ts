@@ -27,7 +27,7 @@ export type ToolOpen =
   | { status: "ready"; id: string; sha: string; meta: PreviewMeta }
   | { status: "building"; id: string; sha: string }
   | { status: "not-built"; id: string }
-  | { status: "failed"; id: string; code: PreviewErrorCode }
+  | { status: "failed"; id: string; code: PreviewErrorCode; detail?: string }
   | { status: "not-found" | "unavailable" | "rate-limited"; id: string };
 
 export interface ToolAccessDeps {
@@ -143,7 +143,7 @@ async function openForChat(id: string, ctx: ToolCallContext, waitMs: number, d: 
   if (d.limited(`user:${userId ?? "anon"}`)) return { status: "rate-limited", id };
   d.build(r);
   const ev = await waitForBuild(r.sha, waitMs, ctx.signal, d.subscribe);
-  if (ev?.phase === "failed") return { status: "failed", id, code: ev.code ?? "build-failed" };
+  if (ev?.phase === "failed") return { status: "failed", id, code: ev.code ?? "build-failed", ...(ev.message ? { detail: ev.message.slice(0, 600) } : {}) };
   // A build that finished between start and subscribe emits nothing; the disk says.
   const meta = d.ready(r.sha) ? d.meta(r.sha) : null;
   const access = meta ? await bundleAccess(meta, r, userId, d) : "ok";

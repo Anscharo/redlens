@@ -13,7 +13,7 @@ const meta = (over: Partial<PreviewMeta> = {}): PreviewMeta =>
   ({ sha: SHA, repo: "sky-ecosystem/next-gen-atlas", ref: "pull-7", kind: "pr", resolvedAt: "", docCount: 1, buildMs: 1, ...over }) as PreviewMeta;
 const resolved = (over: Partial<Resolved> = {}): Resolved =>
   ({ repo: "sky-ecosystem/next-gen-atlas", sha: SHA, kind: "pr", ref: "pull-7", ...over }) as Resolved;
-const PR = { number: 7, title: "t", author: "a", draft: false, updatedAt: "", headSha: SHA, baseRef: "main", url: "" };
+const PR = { number: 7, title: "t", author: "a", draft: false, updatedAt: "", headSha: SHA, baseRef: "main", url: "", body: "" };
 
 function deps(over: Partial<ToolAccessDeps> = {}) {
   const calls = { build: 0, open: 0, authorize: [] as string[] };
@@ -149,11 +149,11 @@ test("chat: a build still running when the wait ends is building; a failed one i
   const failing = deps({
     ready: () => false,
     subscribe: (_s, send) => {
-      send({ phase: "failed", code: "cap-exceeded" });
+      send({ phase: "failed", code: "cap-exceeded", message: "too many docs" });
       return () => {};
     },
   }).d;
-  expect(await openPreviewForTool(7, { surface: "chat", userId: "u" }, { waitMs: 1000 }, failing)).toMatchObject({ status: "failed", code: "cap-exceeded" });
+  expect(await openPreviewForTool(7, { surface: "chat", userId: "u" }, { waitMs: 1000 }, failing)).toMatchObject({ status: "failed", code: "cap-exceeded", detail: "too many docs" });
 });
 
 test("chat: the build path is rate limited per user; a ready bundle is not", async () => {

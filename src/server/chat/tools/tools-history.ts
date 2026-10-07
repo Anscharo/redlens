@@ -452,10 +452,12 @@ export async function atlasPr(_ix: Indexes, pr_number: number): Promise<ToolResu
     ORDER BY n.doc_no NULLS LAST, h.change_type
   `;
 
-  const first = rows[0];
-  const pr = { number: pr_number, title: first?.pr_title ?? null, author: first?.pr_author ?? null, url: first?.pr_url ?? null };
-  return { pr, count: rows.length, events: rows.map((r) => ({ ...r, change_type: userType(r.change_type) })) };
+  const pr = { number: pr_number, title: rows[0]?.pr_title ?? null, author: rows[0]?.pr_author ?? null, url: rows[0]?.pr_url ?? null };
+  // History holds merged PRs only, so no rows most often means the PR is still open.
+  return { pr, count: rows.length, events: rows.map((r) => ({ ...r, change_type: userType(r.change_type) })), ...(rows.length ? {} : { note: NOT_MERGED_NOTE }) };
 }
+
+const NOT_MERGED_NOTE = "No merged history for this PR. If it is still open, atlas_preview_diff with preview_id pull-N reads what it proposes.";
 
 // ── atlas_changed_between ──────────────────────────────────────────────────
 export async function atlasChangedBetween(

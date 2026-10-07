@@ -14,7 +14,11 @@ export interface OpenPr {
   headSha: string;
   baseRef: string;
   url: string;
+  /** The PR's GitHub description, capped: the author's own account of the change. */
+  body: string;
 }
+
+const BODY_MAX = 2000;
 let openPrsCache: { at: number; v: OpenPr[] } | null = null;
 const OPEN_PRS_TTL_MS = 5 * 60_000;
 
@@ -34,6 +38,7 @@ export async function fetchOpenPrs(): Promise<OpenPr[] | null> {
     headSha: p.head?.sha ?? "",
     baseRef: p.base?.ref ?? "",
     url: p.html_url ?? "",
+    body: String(p.body ?? "").slice(0, BODY_MAX),
   }));
   openPrsCache = { at: now, v: prs };
   return prs;

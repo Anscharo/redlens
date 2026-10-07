@@ -96,3 +96,18 @@ test("get: children on request", () => {
   const r = buildPreviewGet(ix, open, { ids: ["A.1"], include_base: false, include_children: true }) as any;
   expect(r.documents[0].children.map((c: any) => c.doc_no)).toEqual(["A.1.2", "A.1.10", "A.1.11"]);
 });
+
+test("open_prs tells chat that atlas_preview_diff builds an unbuilt preview, and MCP that it cannot", async () => {
+  const { PREVIEW_TOOLS } = await import("./tools-preview.ts");
+  const tool = PREVIEW_TOOLS.find((t) => t.name === "atlas_open_prs")!;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () => Response.json([])) as unknown as typeof fetch;
+  try {
+    const chat = (await tool.handler(ix, {}, { surface: "chat", userId: "u" })) as { note?: string };
+    const mcp = (await tool.handler(ix, {}, { surface: "mcp" })) as { note?: string };
+    expect(chat.note).toContain("builds the preview");
+    expect(mcp.note).toContain("/preview/pull-N");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

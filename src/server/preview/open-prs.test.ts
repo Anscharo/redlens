@@ -53,6 +53,7 @@ test("open-prs: maps GitHub's pulls payload, defaulting missing fields", async (
         head: { sha: "c".repeat(40) },
         base: { ref: "main" },
         html_url: "https://github.com/sky-ecosystem/next-gen-atlas/pull/256",
+        body: "Atomizes the docs.",
       },
       { number: 257 }, // no title/user/draft/updated_at → safe defaults
     ]);
@@ -69,8 +70,9 @@ test("open-prs: maps GitHub's pulls payload, defaulting missing fields", async (
       headSha: "c".repeat(40),
       baseRef: "main",
       url: "https://github.com/sky-ecosystem/next-gen-atlas/pull/256",
+      body: "Atomizes the docs.",
     },
-    { number: 257, title: "", author: "", draft: false, updatedAt: "", headSha: "", baseRef: "", url: "" },
+    { number: 257, title: "", author: "", draft: false, updatedAt: "", headSha: "", baseRef: "", url: "", body: "" },
   ]);
 });
 
