@@ -1,13 +1,14 @@
 // The explorer getLogs client behind the PAU live-controller lookup, against a
 // stubbed fetch. Pinned: which explorer a chain routes to (Etherscan v2 only
-// with a key, Blockscout keyless, none at all → null rather than an empty
-// history), the topic query shape, the "no records" answer reading as empty,
+// with a key, Routescan and Blockscout keyless, none at all → null rather than
+// an empty history), the move to the next provider when Etherscan's plan
+// refuses a chain, the topic query shape, the "no records" answer reading as empty,
 // and the pagination contract — a full page restarts at its last block and the
 // overlap is deduped; a full page that adds nothing fails instead of
 // returning a truncated history.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { explorerLogs } from "../scripts/lib/explorer-logs.ts";
+import { explorerLogFetcher, explorerLogs } from "../scripts/lib/explorer-logs.ts";
 
 const RL = "0x7a5fd5cf045e010e62147f065ceae59e5344b188";
 
@@ -65,10 +66,45 @@ describe("explorerLogs routing", () => {
     expect(calls[0]).toContain("&topic1=0xbb");
     expect(calls[0]).not.toContain("_opr=");
   });
+  it("asks every provider for a 1000-log page, since Routescan's default page is 100", async () => {
+    stubFetch(respond({ status: "1", message: "OK", result: [] }));
+    await explorerLogs("avalanche", RL, ["0xaa"]);
+    expect(calls[0]).toMatch(/^https:\/\/api\.routescan\.io\/v2\/network\/mainnet\/evm\/43114\/etherscan\/api\?module=logs/);
+    expect(calls[0]).toContain("&page=1&offset=1000");
+  });
   it("returns null, not an empty history, for a chain no explorer serves", async () => {
     stubFetch();
     expect(await explorerLogs("base", RL, [])).toBeNull();
     expect(calls).toEqual([]);
+  });
+});
+
+const REFUSAL = { status: "0", message: "NOTOK", result: "Free API access is not supported for this chain. Please upgrade your api plan" };
+
+describe("explorerLogs provider refusals", () => {
+  it("moves on to the next provider when Etherscan's plan refuses the chain, and skips Etherscan after that", async () => {
+    vi.stubEnv("ETHERSCAN_API_KEY", "k");
+    const fetchLogs = explorerLogFetcher();
+    stubFetch(respond(REFUSAL), respond({ status: "1", message: "OK", result: [log(10, 1)] }));
+    expect(await fetchLogs("optimism", RL, ["0xaa"])).toHaveLength(1);
+    expect(calls.map((u) => new URL(u).host)).toEqual(["api.etherscan.io", "optimism.blockscout.com"]);
+    stubFetch(respond({ status: "1", message: "OK", result: [] }));
+    await fetchLogs("optimism", RL, ["0xbb"]);
+    expect(calls.map((u) => new URL(u).host)).toEqual(["optimism.blockscout.com"]);
+  });
+  it("throws with every refusal when no provider is left, asking Etherscan only once", async () => {
+    vi.stubEnv("ETHERSCAN_API_KEY", "k");
+    const fetchLogs = explorerLogFetcher();
+    stubFetch(respond(REFUSAL));
+    await expect(fetchLogs("base", RL, [])).rejects.toThrow(/every explorer refused base \(etherscan: NOTOK Free API access/);
+    await expect(fetchLogs("base", RL, [])).rejects.toThrow("every explorer refused base");
+    expect(calls).toHaveLength(1);
+  });
+  it("does not move on for any other error, so a rate limit still reaches the caller", async () => {
+    vi.stubEnv("ETHERSCAN_API_KEY", "k");
+    stubFetch(respond({ status: "0", message: "NOTOK", result: "Max calls per sec rate limit reached (3/sec)" }));
+    await expect(explorerLogFetcher()("optimism", RL, [])).rejects.toThrow("rate limit");
+    expect(calls).toHaveLength(1);
   });
 });
 

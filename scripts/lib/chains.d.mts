@@ -8,6 +8,7 @@ export interface ChainEntry {
   solanaRpcUrl?: string;
   blockscoutApi?: string;
   etherscan?: boolean;
+  routescan?: boolean;
 }
 export const CHAINS: ChainEntry[];
 export const FUTURE_TO_ETHEREUM: string[];
@@ -19,6 +20,7 @@ export const CHAIN_ID: Record<string, number>;
 export const CHAIN_RPC: Record<string, string>;
 export const SOLANA_RPC: string | undefined;
 export const CHAIN_BLOCKSCOUT: Record<string, string>;
+export const CHAIN_ROUTESCAN: Record<string, string>;
 export const CHAIN_SUPPORTS_ETHERSCAN: Set<string>;
 /** Prose hint specs, ethereum FIRST — address-chains.mjs compiles them to regexes. */
 export interface ChainHintSpec {

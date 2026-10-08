@@ -29,10 +29,13 @@ const REGISTRY = JSON.parse(
 // rpcUrl: free public HTTPS endpoints — no API key. PublicNode where available;
 // Robinhood uses the official public RPC (not on PublicNode yet).
 //
-// blockscoutApi: Etherscan-compatible Blockscout `/api` base (no key). Used by
-// address-enrich as the *primary* contract-metadata source for chains Etherscan
-// v2 doesn't cover (robinhood, flagged `etherscan: false`), and as a *fallback*
-// for chains that do (ethereum) when the Etherscan call hard-fails.
+// blockscoutApi: Etherscan-compatible Blockscout `/api` base (no key). The
+// *primary* source for chains Etherscan v2 doesn't cover (plume, flagged
+// `etherscan: false`), and a *fallback* for chains that do (ethereum,
+// optimism) when the Etherscan call fails or its plan refuses the chain.
+//
+// routescan: true when Routescan's Etherscan-compatible API serves the chain
+// (avalanche); its URL derives from the chainId (CHAIN_ROUTESCAN).
 //
 // Shaped to the historical object so every existing consumer is unchanged:
 // optional keys stay absent rather than becoming explicit undefined.
@@ -44,6 +47,7 @@ export const CHAINS = REGISTRY.chains.map((c) => ({
   ...(c.solanaRpcUrl && { solanaRpcUrl: c.solanaRpcUrl }),
   ...(c.blockscoutApi && { blockscoutApi: c.blockscoutApi }),
   ...(c.etherscan === false && { etherscan: false }),
+  ...(c.routescan && { routescan: true }),
 }));
 
 // Future / testnet chains with no explorer or full support yet — collapse to
@@ -115,19 +119,31 @@ export const CHAIN_RPC = Object.fromEntries(
 export const SOLANA_RPC = CHAINS.find((c) => c.chain === "solana")?.solanaRpcUrl;
 
 /**
- * Blockscout Etherscan-compatible `/api` base per chain. Used by address-enrich
- * as the primary contract-metadata source for chains Etherscan v2 doesn't cover
- * (robinhood) and as a fallback for chains that do (ethereum) when Etherscan
- * hard-fails. An optional BLOCKSCOUT_API_KEY raises Blockscout's rate limit.
+ * Blockscout Etherscan-compatible `/api` base per chain. The primary source for
+ * chains Etherscan v2 doesn't cover (plume) and a fallback for chains that do
+ * (ethereum, optimism) when Etherscan fails or its plan refuses the chain. An
+ * optional BLOCKSCOUT_API_KEY raises Blockscout's rate limit.
  */
 export const CHAIN_BLOCKSCOUT = Object.fromEntries(
   CHAINS.filter((c) => c.blockscoutApi).map((c) => [c.chain, c.blockscoutApi]),
 );
 
 /**
+ * Routescan's keyless Etherscan-compatible API base per chain flagged
+ * `routescan: true`. It pages getLogs at 100 unless the request asks for more.
+ */
+export const CHAIN_ROUTESCAN = Object.fromEntries(
+  CHAINS.filter((c) => c.routescan && c.chainId != null).map((c) => [
+    c.chain,
+    `https://api.routescan.io/v2/network/mainnet/evm/${c.chainId}/etherscan/api`,
+  ]),
+);
+
+/**
  * Chains whose contract metadata is fetched from Etherscan v2 (has a chainId and
- * is not flagged `etherscan: false`). robinhood is excluded — Etherscan v2 has
- * no endpoint for chain 4663, so Blockscout is its only source.
+ * is not flagged `etherscan: false`). plume is excluded: Etherscan v2 has no
+ * endpoint for chain 98866, so Blockscout is its only source. A covered chain
+ * may still be refused on the free plan (base, optimism, avalanche).
  */
 export const CHAIN_SUPPORTS_ETHERSCAN = new Set(
   CHAINS.filter((c) => c.chainId != null && c.etherscan !== false).map((c) => c.chain),

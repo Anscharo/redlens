@@ -3,7 +3,7 @@
 // CHAIN_ID). Guards the specific→generic ordering and the future-chain collapse.
 
 import { describe, it, expect, vi } from "vitest";
-import { normalizeChainLabel, classifyChainLabel, CHAIN_ID, CHAIN_RPC, CHAIN_BLOCKSCOUT, CHAIN_SUPPORTS_ETHERSCAN } from "../scripts/lib/chains.mjs";
+import { normalizeChainLabel, classifyChainLabel, CHAIN_ID, CHAIN_RPC, CHAIN_BLOCKSCOUT, CHAIN_ROUTESCAN, CHAIN_SUPPORTS_ETHERSCAN } from "../scripts/lib/chains.mjs";
 
 describe("normalizeChainLabel", () => {
   it("defaults empty / unknown labels to ethereum", () => {
@@ -82,7 +82,8 @@ describe("CHAIN_RPC", () => {
 });
 
 describe("CHAIN_BLOCKSCOUT", () => {
-  it("configures a Blockscout API for robinhood (primary) and ethereum (backup)", () => {
+  it("configures a Blockscout API for plume (primary) and ethereum and robinhood (backup)", () => {
+    expect(CHAIN_BLOCKSCOUT.plume).toMatch(/^https:\/\/.*plume/);
     expect(CHAIN_BLOCKSCOUT.robinhood).toMatch(/^https:\/\/.*blockscout/);
     expect(CHAIN_BLOCKSCOUT.ethereum).toMatch(/^https:\/\/.*blockscout/);
     // chains without a Blockscout instance are simply absent
@@ -90,11 +91,19 @@ describe("CHAIN_BLOCKSCOUT", () => {
   });
 });
 
+describe("CHAIN_ROUTESCAN", () => {
+  it("derives Routescan's URL from the chainId for flagged chains only", () => {
+    expect(CHAIN_ROUTESCAN.avalanche).toBe("https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan/api");
+    expect(CHAIN_ROUTESCAN.base).toBeUndefined();
+  });
+});
+
 describe("CHAIN_SUPPORTS_ETHERSCAN", () => {
-  it("includes Etherscan-v2 chains but not robinhood (chain 4663 is unsupported) or solana", () => {
+  it("includes Etherscan-v2 chains but not plume (chain 98866 is unsupported) or solana", () => {
     expect(CHAIN_SUPPORTS_ETHERSCAN.has("ethereum")).toBe(true);
     expect(CHAIN_SUPPORTS_ETHERSCAN.has("base")).toBe(true);
-    expect(CHAIN_SUPPORTS_ETHERSCAN.has("robinhood")).toBe(false);
+    expect(CHAIN_SUPPORTS_ETHERSCAN.has("robinhood")).toBe(true);
+    expect(CHAIN_SUPPORTS_ETHERSCAN.has("plume")).toBe(false);
     expect(CHAIN_SUPPORTS_ETHERSCAN.has("solana")).toBe(false);
   });
 });

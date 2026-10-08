@@ -1,6 +1,6 @@
 /**
- * Block-explorer plumbing shared by every script that calls Etherscan v2 or
- * Blockscout (address enrichment, PAU grant history): one request clock and
+ * Block-explorer plumbing shared by every script that calls Etherscan v2,
+ * Routescan or Blockscout (address enrichment, PAU grant history): one request clock and
  * one provider list, so two callers in the same process cannot each spend the
  * full rate budget.
  *
@@ -8,7 +8,7 @@
  * 1 req/s; tests set 0), and waiters are serialized so concurrent callers
  * still queue rather than computing the same wait and firing together.
  */
-import { CHAIN_BLOCKSCOUT, CHAIN_ID, CHAIN_SUPPORTS_ETHERSCAN } from "./chains.mjs";
+import { CHAIN_BLOCKSCOUT, CHAIN_ID, CHAIN_ROUTESCAN, CHAIN_SUPPORTS_ETHERSCAN } from "./chains.mjs";
 
 export const ETHERSCAN_V2 = "https://api.etherscan.io/v2/api";
 const DEFAULT_INTERVAL_MS = 1000;
@@ -37,21 +37,24 @@ export async function throttleExplorer(): Promise<void> {
 }
 
 export interface ExplorerBase {
-  name: "etherscan" | "blockscout";
+  name: "etherscan" | "routescan" | "blockscout";
   /** API URL up to and including the "?…&" that the module/action params follow. */
   base: string;
 }
 
 /**
  * The explorers that serve `chain`, in preference order: Etherscan v2 when it
- * covers the chain and a key is given, then the chain's registered Blockscout
- * (keyless; BLOCKSCOUT_API_KEY raises its rate limit).
+ * covers the chain and a key is given, then Routescan where the registry flags
+ * it (keyless), then the chain's registered Blockscout (keyless;
+ * BLOCKSCOUT_API_KEY raises its rate limit).
  */
 export function explorerBases(chain: string, etherscanKey: string | undefined): ExplorerBase[] {
   const out: ExplorerBase[] = [];
   if (etherscanKey && CHAIN_SUPPORTS_ETHERSCAN.has(chain)) {
     out.push({ name: "etherscan", base: `${ETHERSCAN_V2}?chainid=${CHAIN_ID[chain]}&apikey=${etherscanKey}&` });
   }
+  const routescan = CHAIN_ROUTESCAN[chain];
+  if (routescan) out.push({ name: "routescan", base: `${routescan}?` });
   const blockscout = CHAIN_BLOCKSCOUT[chain];
   if (blockscout) {
     const bsKey = process.env.BLOCKSCOUT_API_KEY?.trim();

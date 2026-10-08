@@ -1,7 +1,7 @@
 // The explorer plumbing shared by address enrichment and the PAU grant
 // history: one provider list (Etherscan v2 only with a key and only where it
-// covers the chain, then the chain's Blockscout) and one request clock whose
-// waiters queue instead of firing together.
+// covers the chain, then Routescan, then the chain's Blockscout) and one
+// request clock whose waiters queue instead of firing together.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { explorerBases, throttleExplorer } from "../scripts/lib/explorer-api.ts";
@@ -13,7 +13,15 @@ describe("explorerBases", () => {
     expect(explorerBases("ethereum", "k").map((b) => b.name)).toEqual(["etherscan", "blockscout"]);
     expect(explorerBases("ethereum", undefined).map((b) => b.name)).toEqual(["blockscout"]);
     expect(explorerBases("base", undefined)).toEqual([]);
-    expect(explorerBases("robinhood", "k").map((b) => b.name)).toEqual(["blockscout"]);
+    expect(explorerBases("robinhood", "k").map((b) => b.name)).toEqual(["etherscan", "blockscout"]);
+    expect(explorerBases("plume", "k").map((b) => b.name)).toEqual(["blockscout"]);
+  });
+  it("puts Routescan after Etherscan and gives it no key", () => {
+    vi.stubEnv("BLOCKSCOUT_API_KEY", "bs");
+    expect(explorerBases("avalanche", "k")).toEqual([
+      { name: "etherscan", base: "https://api.etherscan.io/v2/api?chainid=43114&apikey=k&" },
+      { name: "routescan", base: "https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan/api?" },
+    ]);
   });
   it("ends every base where the module/action params follow", () => {
     vi.stubEnv("BLOCKSCOUT_API_KEY", "bs");

@@ -1,12 +1,12 @@
 /**
  * Event logs from a block explorer's `module=logs&action=getLogs` API, for
  * history public RPCs refuse to serve (their getLogs caps the block range far
- * below a contract's lifetime). The provider is the first of explorerBases
- * (explorer-api.ts): Etherscan v2 when ETHERSCAN_API_KEY is set and covers the
- * chain, else the chain's Blockscout; requests share that module's clock with
- * the address enrichment.
+ * below a contract's lifetime). Providers come from explorerBases
+ * (explorer-api.ts) in order: Etherscan v2 when ETHERSCAN_API_KEY is set and
+ * covers the chain, then Routescan, then the chain's Blockscout. Requests share
+ * that module's clock with the address enrichment.
  */
-import { explorerBases, throttleExplorer } from "./explorer-api.ts";
+import { explorerBases, throttleExplorer, type ExplorerBase } from "./explorer-api.ts";
 
 export interface ExplorerLog {
   address: string;
@@ -32,7 +32,14 @@ export type LogFetcher = (
   range?: BlockRange,
 ) => Promise<ExplorerLog[] | null>;
 
+// Asked for explicitly: Routescan pages at 100 unless told otherwise, and a
+// short page reads as the end of the history.
 const PAGE = 1000;
+
+// Etherscan v2's answer for a chain the key's plan does not cover, or a chainId
+// it does not serve. Only this moves on to the next provider; any other error
+// (a rate limit included) is the caller's to handle.
+const REFUSED = /not supported for this chain|unsupported chainid/i;
 
 // Etherscan writes zero as a bare "0x" (logIndex / transactionIndex 0).
 const hexNum = (v: string) => (v?.startsWith("0x") ? parseInt(v.slice(2) || "0", 16) : Number(v));
@@ -66,13 +73,12 @@ async function page(url: string): Promise<ExplorerLog[]> {
   throw new Error(`explorer logs: ${body.message ?? "error"} ${String(body.result).slice(0, 120)}`);
 }
 
-export const explorerLogs: LogFetcher = async (chain, address, topics, range = {}) => {
-  const base = explorerBases(chain, process.env.ETHERSCAN_API_KEY?.trim())[0]?.base;
-  if (!base) return null;
+/** Every log of one provider from `range.fromBlock`, page by page. */
+async function readAll(base: string, address: string, topics: (string | null)[], range: BlockRange): Promise<ExplorerLog[]> {
   const to = range.toBlock ?? "latest";
   const byKey = new Map<string, ExplorerLog>();
   for (let from = range.fromBlock ?? 0; ; ) {
-    const logs = await page(`${base}module=logs&action=getLogs&address=${address}&fromBlock=${from}&toBlock=${to}${topicParams(topics)}`);
+    const logs = await page(`${base}module=logs&action=getLogs&address=${address}&fromBlock=${from}&toBlock=${to}${topicParams(topics)}&page=1&offset=${PAGE}`);
     const before = byKey.size;
     for (const l of logs) byKey.set(`${l.transactionHash}:${l.logIndex}`, l);
     // A full page may end mid-block, so the next page restarts at that block
@@ -83,4 +89,31 @@ export const explorerLogs: LogFetcher = async (chain, address, topics, range = {
     from = Math.max(...logs.map((l) => l.blockNumber));
   }
   return [...byKey.values()].sort((a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex);
-};
+}
+
+/**
+ * A LogFetcher that tries each provider in order. A provider that refuses the
+ * chain is remembered for the fetcher's lifetime, so the refusal costs one
+ * request per chain, not one per cursor. When every provider refused, the
+ * error names each refusal.
+ */
+export function explorerLogFetcher(): LogFetcher {
+  const refused = new Map<string, string>();
+  return async (chain, address, topics, range = {}) => {
+    const bases: ExplorerBase[] = explorerBases(chain, process.env.ETHERSCAN_API_KEY?.trim());
+    if (!bases.length) return null;
+    for (const { name, base } of bases) {
+      if (refused.has(`${chain}:${name}`)) continue;
+      try {
+        return await readAll(base, address, topics, range);
+      } catch (e) {
+        if (!REFUSED.test((e as Error).message)) throw e;
+        refused.set(`${chain}:${name}`, `${name}: ${(e as Error).message.replace(/^explorer logs: /, "")}`);
+      }
+    }
+    const why = bases.map((b) => refused.get(`${chain}:${b.name}`)).join("; ");
+    throw new Error(`explorer logs: every explorer refused ${chain} (${why})`);
+  };
+}
+
+export const explorerLogs: LogFetcher = explorerLogFetcher();

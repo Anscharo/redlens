@@ -19,11 +19,29 @@ Reads what the chain says about every contract in `src/data/pau-registry.json` (
 - `rpc-reader.ts` is the live reader (viem multicall per chain through `rpcFor`).
 - `key-derive.ts` names rate-limit keys the atlas never writes out as a hash. A controller derives each key from a `LIMIT_*` constant (keccak256 of its name), alone or abi-encoded with an address, a CCTP domain or LayerZero endpoint id, or an (asset, destination) pair. The deriver hashes every zero-argument `LIMIT_*` view in the cached ABIs (`.cache/etherscan`, which `.dockerignore` keeps for the worker) against every address in the address artifacts and the registry, and the refresh stores the match as the key's `derived`. Shapes are hashed lazily, cheapest first; once any key is unnamed the full table costs about 15 seconds, paid only when snapshots rebuild. Names the atlas states (the prime's and its instances' RateLimitID params) still come first wherever a key is shown.
 
-The worker step is `scripts/lib/worker-steps/pau.mjs`. It injects `explorerLogs` (`scripts/lib/explorer-logs.ts`: Etherscan v2 with `ETHERSCAN_API_KEY`, else the chain's Blockscout), `rpcHead` and `rpcChainReader`, so everything above is tested with fakes.
+The worker step is `scripts/lib/worker-steps/pau.mjs`. It injects `explorerLogs` (`scripts/lib/explorer-logs.ts`), `rpcHead` and `rpcChainReader`, so everything above is tested with fakes.
 
 ## Why logs come from an explorer
 
-Public RPCs cap `eth_getLogs` at about 10,000 blocks (Arbitrum's refuses even 1,000), far below a contract's lifetime. The explorer pages by result count instead. Without `ETHERSCAN_API_KEY` only chains with a registered Blockscout are served; the rest record `no explorer serves <chain>` on their cursors and their snapshots show `events: 0`.
+Public RPCs cap `eth_getLogs` at about 10,000 blocks (Arbitrum's refuses even 1,000), far below a contract's lifetime. The explorer pages by result count instead.
+
+`explorerLogs` tries the providers `explorerBases` lists, in order: Etherscan v2 (with `ETHERSCAN_API_KEY`), Routescan (registry `routescan: true`), then the chain's Blockscout (registry `blockscoutApi`). Every request asks for a 1,000-log page, because Routescan's default page is 100 and a short page reads as the end of the history. When Etherscan answers that the key's plan does not cover the chain, the fetcher moves to the next provider and skips Etherscan for that chain until the process ends. Any other error, a rate limit included, goes to `sync-events.ts` unchanged. A chain with no provider records `no explorer serves <chain>`; a chain whose every provider refused records `every explorer refused <chain> (…)` with each refusal.
+
+Where each chain's history comes from, on Etherscan's free plan:
+
+| Chain | Source | Why not another |
+|---|---|---|
+| ethereum, arbitrum, unichain, plasma | Etherscan v2 | |
+| robinhood | Etherscan v2 | Its Blockscout answers scripted requests with a Cloudflare challenge page (HTTP 403), with or without a User-Agent, an API key or `/api/v2`. |
+| optimism | optimism.blockscout.com | Etherscan's free plan refuses chain 10. |
+| avalanche | Routescan | Etherscan's free plan refuses chain 43114. |
+| plume | its Blockscout | Etherscan v2 has no endpoint for chain 98866. |
+| base | none | See below. |
+| xlayer | none | See below. |
+
+**Base cannot be read without a paid or keyed source.** Etherscan v2: `Free API access is not supported for this chain. Please upgrade your api plan`. base.blockscout.com: a Cloudflare challenge page (HTTP 403). api.blockscout.com: `Featured chain 8453 requires one of the following plans: Builder, Business, Pro` (HTTP 402). Routescan: `chain not supported`. MultiBaas's free plan indexes only 100 blocks behind the head. Public RPCs: mainnet.base.org caps `eth_getLogs` at 500 blocks, drpc at 10,000, thirdweb at 1,000, nodies at 50, blastapi at 10, and publicnode refuses anything older than recent blocks (`Archive requests require a personal token`). The contracts are about 30 million blocks old, so a 10,000-block crawl is about 3,000 requests per cursor across 38 cursors. Any of a paid Etherscan plan, a Blockscout PRO plan or a keyed archive RPC would fix it.
+
+**X Layer cannot be read without a keyed source.** Etherscan v2: `Missing or unsupported chainid parameter`. Routescan: `chain not supported`. api.blockscout.com: `Network not supported`. OKLink, the chain's explorer, has an Etherscan-compatible endpoint that needs an `OK-ACCESS-KEY` header. Public RPCs: rpc.xlayer.tech and xlayerrpc.okx.com cap `eth_getLogs` at 100 blocks, thirdweb at 1,000 and drpc at 10,000. The contracts were deployed at block 64,646,682, about 8 million blocks back, so a 10,000-block crawl is about 805 requests per cursor across 18 cursors. An OKLink key is the narrowest fix.
 
 ## When to move off the worker step
 

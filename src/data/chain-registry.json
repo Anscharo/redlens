@@ -9,7 +9,8 @@
     "explorer": "Block-explorer base including the trailing path segment, so `explorer + address` is a complete URL.",
     "nativeToken": "Gas token. Its presence is what enables the EVM balances path; omitting it makes fetch-balances treat the chain as unsupported.",
     "blockscoutApi": "Etherscan-compatible Blockscout /api base. Primary contract-metadata source when `etherscan` is false, fallback otherwise.",
-    "etherscan": "False when Etherscan v2 has no endpoint for this chainId, so Blockscout is the only source."
+    "etherscan": "False when Etherscan v2 has no endpoint for this chainId, so Blockscout is the only source.",
+    "routescan": "True when Routescan serves the chain's Etherscan-compatible API at its chainId (keyless). Tried after Etherscan v2 and before Blockscout."
   },
   "deferred": [],
   "$deferred": "Chains the atlas names that are not registered yet. They collapse to ethereum deliberately and are bucketed `deferred` (not `unknown`) by census:chains. Promote with `pnpm chains:add <name>`.",
@@ -62,7 +63,8 @@
       "nativeToken": {
         "symbol": "ETH",
         "decimals": 18
-      }
+      },
+      "blockscoutApi": "https://optimism.blockscout.com/api"
     },
     {
       "chain": "unichain",
@@ -123,7 +125,8 @@
       "nativeToken": {
         "symbol": "AVAX",
         "decimals": 18
-      }
+      },
+      "routescan": true
     },
     {
       "chain": "gnosis",
@@ -150,7 +153,7 @@
     },
     {
       "chain": "robinhood",
-      "note": "Arbitrum Orbit L2, chain id 4663 (0x1237). Not on Etherscan v2, so contract metadata comes from its Blockscout instance.",
+      "note": "Arbitrum Orbit L2, chain id 4663 (0x1237). Etherscan v2 serves it on the free plan. Its Blockscout answers scripted requests with a Cloudflare challenge page (HTTP 403), so Blockscout is only the fallback.",
       "chainId": 4663,
       "aliases": [
         "robinhood"
@@ -164,8 +167,7 @@
         "symbol": "ETH",
         "decimals": 18
       },
-      "blockscoutApi": "https://robinhoodchain.blockscout.com/api",
-      "etherscan": false
+      "blockscoutApi": "https://robinhoodchain.blockscout.com/api"
     },
     {
       "chain": "plasma",
@@ -213,7 +215,9 @@
       "nativeToken": {
         "symbol": "PLUME",
         "decimals": 18
-      }
+      },
+      "blockscoutApi": "https://explorer.plume.org/api",
+      "etherscan": false
     },
     {
       "chain": "xlayer",
