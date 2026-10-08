@@ -160,4 +160,14 @@ describe("matchByName", () => {
     const hits = matchByName("subsidy", named);
     expect(hits.map((h) => h.item.name)).toEqual(["Subsidy", "Stability Subsidies"]);
   });
+
+  it("links a Prime Agent's instances and their params to its instances subpage", () => {
+    const g = fixture();
+    g.participants[0] = { ...g.participants[0], st: "prime" };
+    const inst = run(g, "Spark Distribution Reward").find((x) => x.kind === "instance")!;
+    expect(inst.hits[0].href).toBe(`/radar/spark/instances#${instanceAnchor("i1")}`);
+    const addr = run(g, EVM).find((x) => x.kind === "address")!;
+    expect(addr.hits.find((h) => h.slug === "spark")!.href).toBe(`/radar/spark/instances#${instanceAnchor("i1")}`);
+    expect(run(g, "Soter").find((x) => x.kind === "relationship")!.hits[0].href).toBe("/radar/spark#relationships");
+  });
 });

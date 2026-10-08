@@ -78,8 +78,18 @@ vi.mock("@/lib/radarSearch", () => ({
 
 // Leaf surfaces — render just enough to identify which one mounted and echo props.
 vi.mock("./ActorList", () => ({
-  ActorList: ({ groups, selectedSlug }: { groups: SidebarGroup[]; selectedSlug: string | null }) => (
-    <nav data-testid="actor-list" data-selected={selectedSlug ?? ""}>
+  ActorList: ({ groups, selectedSlug, page, subpages }: {
+    groups: SidebarGroup[];
+    selectedSlug: string | null;
+    page?: string;
+    subpages?: ReadonlyMap<string, readonly string[]>;
+  }) => (
+    <nav
+      data-testid="actor-list"
+      data-selected={selectedSlug ?? ""}
+      data-page={page ?? ""}
+      data-subpages={[...(subpages ?? [])].map(([k, v]) => `${k}:${v.join(",")}`).join(";")}
+    >
       {groups.map((g) => (
         <div key={g.label}>
           <span>{g.label}</span>
@@ -97,6 +107,14 @@ vi.mock("./PrimitiveDashboard", () => ({
 vi.mock("./ActorDashboard", () => ({
   ActorDashboard: ({ profile }: { profile: { entity: { name: string } } }) => (
     <div data-testid="actor-dashboard">{profile.entity.name}</div>
+  ),
+}));
+vi.mock("./useActorSubpages", () => ({
+  useActorSubpages: () => new Map([["spark", ["history", "instances"]]]),
+}));
+vi.mock("./ActorHistoryPage", () => ({
+  ActorHistoryPage: ({ profile }: { profile: { entity: { name: string } } }) => (
+    <div data-testid="history-page">{profile.entity.name} history</div>
   ),
 }));
 vi.mock("./ActorSettlementsPage", () => ({
@@ -160,9 +178,22 @@ describe("RadarPage actor page", () => {
     expect(recordVisit).toHaveBeenCalledWith(
       expect.objectContaining({
         path: "/radar/spark/settlements",
-        label: "Spark Radar Entity · Monthly settlement",
+        label: "Spark Radar Entity · Monthly settlements",
       }),
     );
+  });
+
+  it("renders a subpage, tells the nav which page is open, and names it in the visit", async () => {
+    render(<RadarPage query="" actorSlug="spark" page="history" />);
+    expect(await screen.findByTestId("history-page")).toHaveTextContent("Spark Radar Entity history");
+    const nav = screen.getByTestId("actor-list");
+    expect(nav).toHaveAttribute("data-page", "history");
+    expect(nav).toHaveAttribute("data-subpages", "spark:history,instances");
+    await waitFor(() => expect(recordVisit).toHaveBeenCalledTimes(1));
+    expect(recordVisit).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "/radar/spark/history", label: "Spark Radar Entity · History of doc changes" }),
+    );
+    expect(document.title).toBe("Spark Radar Entity · History of doc changes · Radar: Redline Portal");
   });
 
   it("shows an actor-not-found state for an unknown slug", async () => {

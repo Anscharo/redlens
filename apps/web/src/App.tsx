@@ -11,7 +11,8 @@ import { track } from "./lib/analytics";
 import { useUrlState, urlString, urlEnum } from "./hooks/useUrlState";
 import { ATLAS_TABS } from "./lib/atlasTab";
 import { ROUTES, REPORT_SCOPE_CONFIG, activeNavPageFor, homeSearchHref, usesWindowScroll, type SearchScope } from "@/lib/routes";
-import { SIMPLE_ROUTES, RadarPage, SharedCollectionOpener, AdminEntry, lazyRetry } from "./lib/lazyRoutes";
+import { SIMPLE_ROUTES, SharedCollectionOpener, AdminEntry, lazyRetry } from "./lib/lazyRoutes";
+import { RadarActorRoute } from "./lib/radarRoute";
 import { LEGACY_REDIRECTS, LEGACY_REDIRECT_PREFIXES } from "./lib/legacyRedirects";
 import { SearchBar } from "./components/SearchBar";
 import { SearchResults } from "./components/SearchResults";
@@ -256,19 +257,11 @@ export default function App() {
                 </Suspense>
               </Route>
             ))}
-            <Route path={ROUTES.RADAR_ACTOR_SETTLEMENTS}>
-              {(params: { slug: string }) => (
-                <Suspense fallback={<Loading />}>
-                  <RadarPage actorSlug={params.slug} query={query} page="settlements" />
-                </Suspense>
-              )}
+            <Route path={ROUTES.RADAR_ACTOR_PAGE}>
+              {(params: { slug: string; page: string }) => <RadarActorRoute {...params} query={query} />}
             </Route>
             <Route path={ROUTES.RADAR_ACTOR}>
-              {(params: { slug: string }) => (
-                <Suspense fallback={<Loading />}>
-                  <RadarPage actorSlug={params.slug} query={query} />
-                </Suspense>
-              )}
+              {(params: { slug: string }) => <RadarActorRoute {...params} query={query} />}
             </Route>
             <Route path={ROUTES.SEARCH_HINTS}>
               <SearchHintsPage

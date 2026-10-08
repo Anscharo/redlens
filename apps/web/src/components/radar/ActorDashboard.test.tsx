@@ -7,7 +7,7 @@
 // their own tests and stubbed here so we isolate ActorDashboard's branching.
 
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { ActorProfile } from "../../lib/actorIndex";
 import type { GraphEntity, AtlasNode } from "@/types";
@@ -29,6 +29,9 @@ afterEach(cleanup);
 function entity(overrides: Partial<GraphEntity> = {}): GraphEntity {
   return { id: "e1", slug: "spark", name: "Spark", et: "agent", st: "prime", did: null, ...overrides };
 }
+
+// An actor without subpages: its one page carries primitives and history too.
+const executor = () => entity({ slug: "exec", name: "Exec", st: "core_executor" });
 
 function profile(overrides: Partial<ActorProfile> = {}): ActorProfile {
   return {
@@ -109,13 +112,13 @@ describe("ActorDashboard sections", () => {
   });
 
   it("renders responsibilities and primitives sections only when populated", () => {
-    const { rerender } = render(<ActorDashboard profile={profile()} />);
+    const { rerender } = render(<ActorDashboard profile={profile({ entity: executor() })} />);
     expect(screen.queryByText("Responsibilities")).not.toBeInTheDocument();
     expect(screen.queryByText("Primitives")).not.toBeInTheDocument();
 
     rerender(
       <ActorDashboard
-        profile={profile({ adRows: [{} as never], primitives: [{} as never] })}
+        profile={profile({ entity: executor(), adRows: [{} as never], primitives: [{} as never] })}
       />,
     );
     expect(screen.getByText("Responsibilities")).toBeInTheDocument();
@@ -178,7 +181,7 @@ describe("ActorDashboard sections", () => {
     const el = document.createElement("div");
     el.id = "instances";
     document.body.appendChild(el);
-    render(<ActorDashboard profile={profile({ primitives: [{} as never] })} />);
+    render(<ActorDashboard profile={profile({ entity: executor(), primitives: [{} as never] })} />);
     expect(el.scrollIntoView).toHaveBeenCalled();
     document.body.removeChild(el);
     window.location.hash = "";
@@ -204,6 +207,7 @@ describe("ActorDashboard link targets", () => {
     const { container } = render(
       <ActorDashboard
         profile={profile({
+          entity: executor(),
           adRows: [{} as never],
           primitives: [{} as never],
           relations: [rel as never],
@@ -219,13 +223,13 @@ describe("ActorDashboard link targets", () => {
 
   it("marks the hash target as arrived and clears the previous one", () => {
     window.location.hash = "#primitives";
-    const { container, rerender } = render(<ActorDashboard profile={profile({ primitives: [{} as never] })} />);
+    const { container, rerender } = render(<ActorDashboard profile={profile({ entity: executor(), primitives: [{} as never] })} />);
     const el = container.querySelector("#primitives")!;
     expect(el).toHaveAttribute("data-arrived");
     el.removeAttribute("id");
     el.setAttribute("id", "old");
     window.location.hash = "#history";
-    rerender(<ActorDashboard profile={profile({ primitives: [{} as never] })} />);
+    rerender(<ActorDashboard profile={profile({ entity: executor(), primitives: [{} as never] })} />);
     expect(container.querySelector("#history")).toHaveAttribute("data-arrived");
     expect(el).not.toHaveAttribute("data-arrived");
     window.location.hash = "";
@@ -235,12 +239,50 @@ describe("ActorDashboard link targets", () => {
     window.location.hash = "#primitives";
     const scroll = vi.mocked(Element.prototype.scrollIntoView);
     scroll.mockClear();
-    const { rerender } = render(<ActorDashboard profile={profile({ primitives: [{} as never] })} />);
+    const { rerender } = render(<ActorDashboard profile={profile({ entity: executor(), primitives: [{} as never] })} />);
     expect(scroll).toHaveBeenCalledTimes(1);
-    rerender(<ActorDashboard profile={profile({ primitives: [{} as never] })} />);
+    rerender(<ActorDashboard profile={profile({ entity: executor(), primitives: [{} as never] })} />);
     expect(scroll).toHaveBeenCalledTimes(1);
-    rerender(<ActorDashboard profile={profile({ entity: entity({ id: "e2" }), primitives: [{} as never] })} />);
+    rerender(<ActorDashboard profile={profile({ entity: { ...executor(), id: "e2" }, primitives: [{} as never] })} />);
     expect(scroll).toHaveBeenCalledTimes(2);
     window.location.hash = "";
+  });
+});
+
+describe("ActorDashboard for a Prime Agent (Info page)", () => {
+  it("leaves primitives and history to their subpages and keeps relationships", () => {
+    const rel = {
+      edge: { f: "e1", ft: "entity", t: "e2", tt: "entity", e: "delegates_to" } as never,
+      direction: "outbound" as const,
+      otherLabel: "Grove",
+      otherId: "e2",
+      otherSlug: "grove",
+      otherEt: "agent",
+    };
+    const { container } = render(
+      <ActorDashboard profile={profile({ primitives: [{} as never], relations: [rel as never] })} />,
+    );
+    expect(screen.queryByTestId("instances")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("history")).not.toBeInTheDocument();
+    expect(container.querySelector("aside section#relationships")).not.toBeNull();
+  });
+
+  it("forwards a fragment that lives on a subpage to that subpage", async () => {
+    window.history.replaceState(null, "", "/radar/spark#instance-i1");
+    render(<ActorDashboard profile={profile()} />);
+    await waitFor(() => expect(window.location.pathname).toBe("/radar/spark/instances"));
+    expect(window.location.hash).toBe("#instance-i1");
+    window.history.replaceState(null, "", "/radar/spark#history");
+    await waitFor(() => expect(window.location.pathname).toBe("/radar/spark/history"));
+    expect(window.location.hash).toBe("");
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("keeps a fragment the Info page renders", async () => {
+    window.history.replaceState(null, "", "/radar/spark#msc");
+    render(<ActorDashboard profile={profile()} />);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(window.location.pathname).toBe("/radar/spark");
+    window.history.replaceState(null, "", "/");
   });
 });

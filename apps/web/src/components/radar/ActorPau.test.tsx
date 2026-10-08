@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-// The Radar PAU section: shown only for a prime with stored snapshots, rate
-// limits named by the instance that states their ID (an unnamed key says so),
+// The Radar PAUs subpage body: a prime's stored snapshots only (or a note that
+// there are none), rate limits named by the instance that states their ID (an
+// unnamed key says so),
 // role holders marked as the chain confirms them, and a deployment whose
 // history is still being read says that instead of looking complete.
 import { describe, it, expect, afterEach, vi } from "vitest";
@@ -46,7 +47,7 @@ afterEach(cleanup);
 describe("ActorPau", () => {
   it("lists the prime's deployments only, Ethereum first and open", async () => {
     render(<ActorPau primeId={PRIME} instances={instances} />);
-    await waitFor(() => expect(screen.getByText("PAU on-chain")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("region", { name: "PAU on-chain" })).toBeInTheDocument());
     const cards = document.querySelectorAll("details.pau-deployment");
     expect([...cards].map((c) => c.getAttribute("data-deployment"))).toEqual([ETH.deployment, BASE.deployment]);
     expect(cards[0]).toHaveAttribute("open");
@@ -76,10 +77,10 @@ describe("ActorPau", () => {
     expect(screen.getByText("MaxSlippageSet")).toBeInTheDocument();
   });
 
-  it("renders nothing for a prime with no snapshot", async () => {
+  it("says so for a prime with no snapshot", async () => {
     served = { deployments: [] };
-    const { container } = render(<ActorPau primeId={PRIME} instances={instances} />);
-    await new Promise((r) => setTimeout(r, 0));
-    expect(container).toBeEmptyDOMElement();
+    render(<ActorPau primeId={PRIME} instances={instances} />);
+    expect(await screen.findByText("no PAU contracts have been read for this Prime yet")).toBeInTheDocument();
+    expect(document.querySelector("details.pau-deployment")).toBeNull();
   });
 });
