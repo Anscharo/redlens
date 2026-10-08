@@ -42,6 +42,21 @@ export interface DerivedKey {
   args: string[];
 }
 
+/**
+ * The token a key's amounts are counted in. "token": read from the token the
+ * key's derivation names (a vault's asset(), an OFT's token(), else the address
+ * itself); "constant": fixed by the controller constant (USDC for a CCTP
+ * transfer, 18-decimal normalized value for a Curve pool). Absent, the
+ * decimals are inferred from the limit's size (pauView.ts).
+ */
+export interface AmountUnit {
+  decimals: number;
+  symbol: string | null;
+  /** The token read, for source "token". */
+  token?: string;
+  source: "token" | "constant";
+}
+
 export interface LiveRateLimit extends RateLimitKey {
   /** On-chain RateLimitData, null when the read failed. */
   data: { maxAmount: string; slope: string; lastAmount: string; lastUpdated: string } | null;
@@ -49,6 +64,33 @@ export interface LiveRateLimit extends RateLimitKey {
   available: string | null;
   /** How the key is derived, when a controller constant reproduces it. */
   derived?: DerivedKey;
+  unit?: AmountUnit;
+}
+
+/** A BeamState default ("init") rate limit: the most the Configurator may set the key to without a spell. */
+export interface BeamDefault {
+  key: string;
+  maxAmount: string;
+  slope: string;
+  /** "contract": set for this RateLimits; "general": BeamState's fallback for every registered RateLimits. */
+  scope: "contract" | "general";
+  /** The AddInitRateLimits that set it; null when its history is not read. */
+  setAt: SetAt | null;
+  derived?: DerivedKey;
+  unit?: AmountUnit;
+}
+
+/** What BeamState lets the Configurator (cBEAM) do to one registered RateLimits without a spell. */
+export interface BeamLimits {
+  beamState: string;
+  /** Seconds one key must wait between two increases; null when unread. */
+  hop: string | null;
+  /** The factor one increase may multiply a limit by, in WAD (1e18 = 1×); null when unread. */
+  maxChange: string | null;
+  /** Non-zero defaults, read live for every key known from either contract. */
+  defaults: BeamDefault[];
+  /** BeamState's own admin history is read through; until then a default for a key the RateLimits never held can be missing. */
+  historyComplete: boolean;
 }
 
 export interface PauParam {
@@ -73,6 +115,8 @@ export interface ContractState {
   /** AdministeredAgent membership by kind: actors, admins, grantors, revokers. */
   agent?: Record<string, AgentMember[]>;
   rateLimits?: LiveRateLimit[];
+  /** On a RateLimits that BeamState manages: the defaults and step limits the Configurator works within. */
+  beam?: BeamLimits;
   params?: PauParam[];
   integrations?: PauIntegration[];
   /** Admin events stored for this contract. */

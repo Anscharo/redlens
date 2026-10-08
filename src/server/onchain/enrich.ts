@@ -14,7 +14,8 @@ const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
 
 export const ONCHAIN_NOTE =
   "Read from the chain by the atlas worker, not atlas text; cite set_tx_url, not an atlas document, for these values. " +
-  "Amounts assume decimals inferred from the limit's size. Where history_complete is false the contract is still being read, " +
+  "Amounts are scaled by the token's decimals (decimals_source token or constant) or, where neither is known, by decimals inferred from the limit's size. " +
+  "Where history_complete is false the contract is still being read, " +
   "so a missing fact is not proof of absence. atlas_onchain lists the complete set.";
 
 const found = (text: string, re: RegExp, map: Map<string, OnchainFact[]>) =>

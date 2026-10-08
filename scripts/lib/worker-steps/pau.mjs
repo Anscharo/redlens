@@ -3,7 +3,9 @@
 // snapshots rebuild only past PAU_REFRESH_SECONDS. Both read only the
 // contracts listed in src/data/pau-registry.json. A rebuild names each
 // rate-limit key by the controller constant that derives it (key-derive.ts),
-// hashed from the cached ABIs and the address artifacts the cycle just built.
+// hashed from the cached ABIs and the address artifacts the cycle just built,
+// reads the token each key is counted in (units.ts), and reads what the chain's
+// BeamState lets the Configurator set without a spell (beam.ts).
 function summary(ev, st) {
   const errors = ev.errors ? `, ${ev.errors} error(s)` : "";
   const limited = ev.rateLimited.length ? ` (explorer rate limit: ${ev.rateLimited.join(", ")})` : "";

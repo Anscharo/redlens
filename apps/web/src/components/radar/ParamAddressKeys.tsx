@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
-import { formatAmount, inferDecimals, keysFromAddress, listedAddress, loadPau, snapshotsForPrime } from "../../lib/pau";
+import { formatAmount, keysFromAddress, limitDecimals, listedAddress, loadPau, snapshotsForPrime } from "../../lib/pau";
 import { RADAR_SECTION } from "@/lib/radarAnchors";
 
 interface Props {
@@ -27,7 +27,7 @@ export function ParamAddressKeys({ primeId, paramKey, value }: Props) {
           <a href={`#${RADAR_SECTION.pau}`} className="hover:underline" style={{ color: "var(--accent)" }}>
             {m.key.slice(0, 10)}…{m.key.slice(-4)}
           </a>
-          {` · ${m.derived.constant} · ${m.chain} · ${m.maxAmount === "0" ? "off" : formatAmount(m.maxAmount, inferDecimals(m.maxAmount))}`}
+          {` · ${m.derived.constant} · ${m.chain} · ${m.maxAmount === "0" ? "off" : `${formatAmount(m.maxAmount, limitDecimals(m.unit, m.maxAmount))}${m.unit?.symbol ? ` ${m.unit.symbol}` : ""}`}`}
         </li>
       ))}
     </ul>

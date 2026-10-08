@@ -19,6 +19,7 @@ const DERIVED = "0x" + "34".repeat(32);
 const VAULT = "0x" + "7".repeat(40);
 const LISTED = "0x" + "8".repeat(40);
 const BY_ADDRESS = "0x" + "56".repeat(32);
+const BEAM = "0x" + "6".repeat(40);
 const at = { block: 1, time: "2026-09-01T00:00:00.000Z", tx: "0x" + "9".repeat(64) };
 const limit = (key: string, maxAmount: string, slope: string, available: string | null) => ({
   key, configured: { maxAmount, slope }, setAt: at, changes: 1,
@@ -31,7 +32,8 @@ const ETH: StoredPauSnapshot = {
   contracts: [
     { role: "controller", address: CTRL, events: 3, historyComplete: true, roles: [holder("0x" + "a".repeat(40), true), holder("0x" + "b".repeat(40), false), holder("0x" + "d".repeat(40), null)],
       params: [{ event: "MaxSlippageSet", subject: "0x" + "5".repeat(40), args: { pool: "0x" + "5".repeat(40), maxSlippage: "999" }, setAt: at }] },
-    { role: "rateLimits", address: RL, events: 3, historyComplete: true, rateLimits: [limit(OFF, "0", "0", "0"), limit(MINT, "50000000000000000000000000", "0", null), { ...limit(DERIVED, "5000000000000", "0", null), derived: { constant: "LIMIT_4626_DEPOSIT", args: [VAULT] } }, { ...limit(BY_ADDRESS, "7000000000000", "0", null), derived: { constant: "LIMIT_ASSET_TRANSFER", args: [VAULT, LISTED] } }, limit(UNNAMED, "1000000000000000000000000000", "0", null), limit(NAMED, "25000000000000", "289351851", "12000000000000")] },
+    { role: "rateLimits", address: RL, events: 3, historyComplete: true, rateLimits: [limit(OFF, "0", "0", "0"), limit(MINT, "50000000000000000000000000", "0", null), { ...limit(DERIVED, "5000000000000", "0", null), derived: { constant: "LIMIT_4626_DEPOSIT", args: [VAULT] } }, { ...limit(BY_ADDRESS, "7000000000000", "0", null), derived: { constant: "LIMIT_ASSET_TRANSFER", args: [VAULT, LISTED] }, unit: { decimals: 6, symbol: "PYUSD", token: VAULT, source: "token" as const } }, limit(UNNAMED, "1000000000000000000000000000", "0", null), limit(NAMED, "25000000000000", "289351851", "12000000000000")],
+      beam: { beamState: BEAM, hop: "57600", maxChange: "1200000000000000000", historyComplete: true, defaults: [{ key: MINT, maxAmount: "10000000000000000000000000", slope: "0", scope: "general" as const, setAt: null }] } },
   ],
 };
 const BASE: StoredPauSnapshot = { ...ETH, deployment: `${PRIME}:base:monolithic`, chain: "base", contracts: [{ role: "rateLimits", address: RL, events: 0, historyComplete: false }] };
@@ -66,9 +68,11 @@ describe("ActorPau", () => {
 
   it("names a rate limit by its instance or the prime, else by its derivation, flags an unnamed key, and sorts switched-off keys last", async () => {
     render(<ActorPau prime={prime} instances={instances} />);
-    const table = await screen.findByRole("table");
+    const [table] = await screen.findAllByRole("table");
     const rows = within(table).getAllByRole("row").slice(1);
     expect(within(rows[0]).getByRole("link", { name: "Blackrock USDC · BUIDLI_DEPOSIT (matched by address)" })).toHaveAttribute("title", expect.stringContaining(`the atlas lists ${LISTED} here`));
+    expect(rows[0]).toHaveTextContent("7M PYUSD");
+    expect(within(rows[0]).getAllByTitle(`6 decimals, read from PYUSD ${VAULT}`)).toHaveLength(3);
     expect(rows[1]).toHaveTextContent("SparkLend USDC · Inflow");
     expect(rows[1]).toHaveTextContent(/25M.*25M.*12M/);
     expect(within(rows[1]).getByRole("link", { name: "SparkLend USDC · Inflow" })).toBeInTheDocument();
@@ -79,6 +83,16 @@ describe("ActorPau", () => {
     expect(rows[4]).toHaveTextContent(/1B.*0.*\?/);
     expect(rows[5]).toHaveAttribute("data-off", "true");
     expect(rows[5]).toHaveTextContent("off");
+  });
+
+  it("says what the Configurator may do without a spell, and lists the default limits by name", async () => {
+    render(<ActorPau prime={prime} instances={instances} />);
+    const beam = await screen.findByText("Configurator limits");
+    const block = beam.closest(".pau-beam") as HTMLElement;
+    expect(block).toHaveTextContent("by up to 1.2×, once every 16 h per key");
+    const rows = within(within(block).getByRole("table")).getAllByRole("row").slice(1);
+    expect(within(rows[0]).getByRole("link", { name: "USDS Mint" })).toBeInTheDocument();
+    expect(rows[0]).toHaveTextContent(/10M.*0.*all/);
   });
 
   it("marks each role holder as the chain confirms it, and lists the parameters", async () => {
@@ -93,7 +107,7 @@ describe("ActorPau", () => {
   it("shows under an instance's address-valued RateLimitID the on-chain key derived from it", async () => {
     render(<ParamAddressKeys primeId={PRIME} paramKey="Rate Limit IDs / BUIDLI_DEPOSIT" value={LISTED} />);
     const item = await screen.findByRole("listitem");
-    expect(item).toHaveTextContent(`on-chain key ${BY_ADDRESS.slice(0, 10)}…${BY_ADDRESS.slice(-4)} · LIMIT_ASSET_TRANSFER · ethereum · 7M`);
+    expect(item).toHaveTextContent(`on-chain key ${BY_ADDRESS.slice(0, 10)}…${BY_ADDRESS.slice(-4)} · LIMIT_ASSET_TRANSFER · ethereum · 7M PYUSD`);
     expect(within(item).getByRole("link")).toHaveAttribute("href", "#pau");
   });
 
