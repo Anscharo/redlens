@@ -4,7 +4,7 @@ import { LimitName } from "./ActorPauRateLimits";
 import { PauAmount } from "./PauAmount";
 
 const dim = { color: "var(--tan-3)" };
-const hours = (seconds: string | null) => (seconds === null ? "?" : `${Number(seconds) / 3600} h`);
+const hours = (seconds: string | null) => (seconds === null ? "?" : `${Math.round((Number(seconds) / 3600) * 100) / 100} h`);
 const factor = (wad: string | null) => (wad === null ? "?" : `${exactAmount(wad, 18)}×`);
 
 function DefaultRow({ d, chain, keyIndex }: { d: BeamDefault; chain: string; keyIndex: Map<string, AtlasKeyRef[]> }) {

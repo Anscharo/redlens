@@ -26,7 +26,7 @@ export interface ReplayedBeam {
   defaults: Map<string, Pair & { setAt: SetAt }>;
 }
 
-/** BeamState's history as it bears on one RateLimits (lowercase address). */
+/** BeamState's history as it bears on one RateLimits (lowercase address); events oldest first, as eventsOf returns them, so the last write wins. */
 export function replayBeam(events: PauEventRow[], rateLimits: string): ReplayedBeam {
   const out: ReplayedBeam = { registered: null, defaults: new Map() };
   for (const e of events) {
@@ -63,7 +63,11 @@ async function liveDefaults(read: ChainReader, chain: string, beam: string, rl: 
   });
 }
 
-/** BeamState's hold on one RateLimits, or null when it does not manage that contract. */
+/**
+ * BeamState's hold on one RateLimits, or null when it does not manage that
+ * contract, or when registration can be read neither live nor from the replay
+ * (the block is then absent until the next refresh reads it).
+ */
 export async function beamLimits(read: ChainReader, chain: string, beam: BeamSource, rateLimits: string, heldKeys: string[]): Promise<BeamLimits | null> {
   const rl = rateLimits.toLowerCase();
   const replayed = replayBeam(beam.history.events, rl);
