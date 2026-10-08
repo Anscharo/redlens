@@ -36,11 +36,19 @@ export interface RateLimitKey {
   changes: number;
 }
 
+/** The controller constant a key is derived from, and what it is encoded with (an address, or a domain or endpoint id). */
+export interface DerivedKey {
+  constant: string;
+  args: string[];
+}
+
 export interface LiveRateLimit extends RateLimitKey {
   /** On-chain RateLimitData, null when the read failed. */
   data: { maxAmount: string; slope: string; lastAmount: string; lastUpdated: string } | null;
   /** Amount available now, null when the read failed. */
   available: string | null;
+  /** How the key is derived, when a controller constant reproduces it. */
+  derived?: DerivedKey;
 }
 
 export interface PauParam {

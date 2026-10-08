@@ -10,7 +10,8 @@ import { sql } from "../db.ts";
 import { json } from "../http.ts";
 import type { SqlTag } from "../sql-types.ts";
 import type { PauEventRow } from "./replay.ts";
-import { buildSnapshot, type ChainReader, type PauSnapshot } from "./snapshot.ts";
+import { buildSnapshot, withDerivedKeys, type ChainReader, type PauSnapshot } from "./snapshot.ts";
+import type { DerivedKey } from "../../lib/pau.ts";
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v));
 
@@ -70,7 +71,7 @@ export async function maybeRefreshPauState(
   db: SqlTag,
   reg: PauRegistry,
   read: ChainReader,
-  opts: { refreshSeconds: number; now?: number },
+  opts: { refreshSeconds: number; now?: number; deriveKey?: (key: string) => DerivedKey | null },
 ): Promise<StateRefresh> {
   const now = opts.now ?? Date.now();
   const rows = (await db`SELECT deployment, fetched_at FROM pau_state`) as { deployment: string; fetched_at: Date | string }[];
@@ -81,7 +82,8 @@ export async function maybeRefreshPauState(
   if (![...ids].some(stale)) return { refreshed: 0, removed, reason: "fresh" };
   for (const d of reg.deployments) {
     const historyOf = async (c: string, a: string) => ({ events: await eventsOf(db, c, a), complete: await historyComplete(db, c, a) });
-    await upsertSnapshot(db, await buildSnapshot(d, read, historyOf), new Date(now));
+    const snap = await buildSnapshot(d, read, historyOf);
+    await upsertSnapshot(db, opts.deriveKey ? withDerivedKeys(snap, opts.deriveKey) : snap, new Date(now));
   }
   return { refreshed: reg.deployments.length, removed, reason: "due" };
 }

@@ -127,7 +127,7 @@ export function ActorDashboard({ profile }: Props) {
           </Section>
         </aside>
 
-        <ActorPau primeId={entity.id} instances={profile.instances} />
+        <ActorPau prime={entity} instances={profile.instances} />
 
         {rewardsAgent && (
           <div className="lg:col-span-2 min-w-0">
