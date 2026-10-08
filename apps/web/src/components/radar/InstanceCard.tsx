@@ -1,8 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, type ComponentProps } from "react";
 import { AtlasLink } from "../AtlasLink";
 import { prepareWithSegments, measureNaturalWidth } from "@chenglou/pretext";
 import type { RadarInstance } from "../../lib/actorIndex";
 import { ParamLine } from "./ParamLine";
+import { ParamAddressKeys, type PauPrime } from "./ParamAddressKeys";
+import { listedAddress } from "../../lib/pau";
 import { atlasHref } from "@/lib/routes";
 import { instanceAnchor } from "@/lib/radarAnchors";
 import { useAddressMap } from "../../hooks/useAddressMap";
@@ -18,8 +20,21 @@ function measureKeyPx(key: string): number {
   catch { return key.length * 6; }
 }
 
-/** One instance's card. `headingLevel` ranks its name in the page outline. */
-export function InstanceCard({ inst, headingLevel = 4 }: { inst: RadarInstance; headingLevel?: number }) {
+/** A param line, with the on-chain keys derived from it when it lists an address where a RateLimitID belongs. */
+function ParamRow({ prime, ...line }: ComponentProps<typeof ParamLine> & { prime?: PauPrime }) {
+  const { p } = line;
+  return (
+    <div>
+      <ParamLine {...line} />
+      {prime && listedAddress(p.key, p.value) && <ParamAddressKeys prime={prime} paramKey={p.key} value={p.value} />}
+    </div>
+  );
+}
+
+/** One instance's card. `headingLevel` ranks its name in the page outline;
+ *  `prime` (the prime whose page this is) lets a RateLimitID param that lists
+ *  an address show the on-chain keys derived from it. */
+export function InstanceCard({ inst, prime, headingLevel = 4 }: { inst: RadarInstance; prime?: PauPrime; headingLevel?: number }) {
   // Loaded here rather than drilled from ActorInstances: loadAddresses() is
   // module-cached, so every card resolves from the one in-flight request.
   const addrMap = useAddressMap();
@@ -48,7 +63,7 @@ export function InstanceCard({ inst, headingLevel = 4 }: { inst: RadarInstance; 
       </div>
       {inst.signalParams.length > 0 && (
         <div>
-          {inst.signalParams.map((p) => <ParamLine key={p.key} p={p} colWidth={colWidth} instanceHint={inst.displayName} addrMap={addrMap} />)}
+          {inst.signalParams.map((p) => <ParamRow key={p.key} p={p} prime={prime} colWidth={colWidth} instanceHint={inst.displayName} addrMap={addrMap} />)}
         </div>
       )}
     </div>

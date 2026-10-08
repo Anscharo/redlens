@@ -1,7 +1,8 @@
 import { AtlasLink } from "../AtlasLink";
+import { Address } from "../Address";
 import { atlasHref } from "@/lib/routes";
 import { explorerTxUrl } from "@/lib/explorer";
-import { formatAmount, formatPerDay, inferDecimals, labelOnChain, type AtlasKeyRef, type LiveRateLimit } from "../../lib/pau";
+import { formatAmount, formatPerDay, inferDecimals, labelOnChain, type AtlasKeyRef, type DerivedKey, type LiveRateLimit } from "../../lib/pau";
 
 interface Props {
   chain: string;
@@ -12,24 +13,45 @@ interface Props {
 const dim = { color: "var(--tan-3)" };
 const isOff = (r: LiveRateLimit) => (r.data?.maxAmount ?? r.configured.maxAmount) === "0";
 
-/** Limits the atlas names first, by name; unnamed keys after; switched-off keys last. */
+/** Limits the atlas names first, by name; then keys named by their derivation; unnamed keys after; switched-off keys last. */
 function ordered(limits: LiveRateLimit[], keyIndex: Map<string, AtlasKeyRef[]>) {
-  const label = (r: LiveRateLimit) => keyIndex.get(r.key.toLowerCase())?.[0]?.label ?? "￿";
-  return [...limits].sort((a, b) => Number(isOff(a)) - Number(isOff(b)) || label(a).localeCompare(label(b)));
+  const atlas = (r: LiveRateLimit) => keyIndex.get(r.key.toLowerCase())?.[0]?.label;
+  const tier = (r: LiveRateLimit) => (isOff(r) ? 3 : atlas(r) ? 0 : r.derived ? 1 : 2);
+  const name = (r: LiveRateLimit) => atlas(r) ?? r.derived?.constant ?? r.key;
+  return [...limits].sort((a, b) => tier(a) - tier(b) || name(a).localeCompare(name(b)));
+}
+
+const derivation = (d: DerivedKey) => [d.constant, ...d.args].join(" · ");
+
+/** A key no atlas doc states, named by the controller constant and arguments that derive it. */
+function DerivedName({ k, d, chain }: { k: string; d: DerivedKey; chain: string }) {
+  return (
+    <span title={`${k}\nderived from ${derivation(d)}; no atlas document states this key`}>
+      {d.constant}
+      {d.args.map((a) => (
+        <span key={a}>
+          {" · "}
+          {a.startsWith("0x") ? <Address address={a} chain={chain} noBalance /> : a}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 function LimitName({ r, chain, keyIndex }: { r: LiveRateLimit; chain: string; keyIndex: Map<string, AtlasKeyRef[]> }) {
   const refs = keyIndex.get(r.key.toLowerCase()) ?? [];
   const ref = refs[0];
+  if (!ref && r.derived) return <DerivedName k={r.key} d={r.derived} chain={chain} />;
   if (!ref) {
     return (
       <span title={r.key} style={dim}>
-        {r.key.slice(0, 10)}… <span style={{ color: "var(--accent)" }}>no document found referencing this limit</span>
+        {r.key.slice(0, 10)}… <span style={{ color: "var(--accent)" }}>no document or controller constant found referencing this limit</span>
       </span>
     );
   }
-  const label = labelOnChain(ref.label, chain);
-  const title = [r.key, ...refs.slice(1).map((x) => `also ${x.label}`)].join("\n");
+  const label = labelOnChain(ref.label, chain) + (ref.via ? " (matched by address)" : "");
+  const viaNote = ref.via ? [`the atlas lists ${ref.via} here instead of the key; this key is derived from that address`] : [];
+  const title = [r.key, ...viaNote, ...(r.derived ? [`derived from ${derivation(r.derived)}`] : []), ...refs.slice(1).map((x) => `also ${x.label}`)].join("\n");
   if (!ref.docId) return <span title={title}>{label}</span>;
   return (
     <AtlasLink to={atlasHref(ref.docId)} className="text-accent hover:underline" title={title}>

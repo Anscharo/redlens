@@ -3,6 +3,7 @@ import { EMPTY_PAU, type PauResponse } from "@/lib/pau";
 
 export * from "@/lib/pau";
 export * from "@/lib/pauView";
+export * from "@/lib/pauAddressKeys";
 
 let cached: Promise<PauResponse> | null = null;
 

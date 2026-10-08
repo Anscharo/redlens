@@ -47,6 +47,7 @@ import {
   buildChildrenIndex,
   extractInstanceParams,
 } from "./graph-instances.mjs";
+import { attachPrimeRateLimitParams } from "./graph-prime-rate-limits.ts";
 
 export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
   const entityMap = new Map(); // slug → entity record
@@ -455,6 +456,7 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
   // --- 1n. Primitive Instance entities (Pattern: per-agent ICD → entity) ---
   const childrenByDocNo = buildChildrenIndex(allDocs);
   const knownPrimitives = buildKnownPrimitives(docById);
+  attachPrimeRateLimitParams(entityMap, docById, childrenByDocNo);
 
   // fragile: doc_no prefix — the Prime Agent artifacts root (A.6.1.1)
   for (const icd of allDocs.filter((d) => isICD(d) && d.doc_no.startsWith("A.6.1.1."))) {
@@ -481,8 +483,7 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
       while (entityMap.has(candidate)) candidate = `${candidate}-x`;
       slug = candidate;
     }
-    const categoryDocNo = primRoot.doc_no.slice(0, primRoot.doc_no.lastIndexOf("."));
-    const categoryDoc = docByDocNo.get(categoryDocNo) ?? null;
+    const categoryDoc = docByDocNo.get(primRoot.doc_no.slice(0, primRoot.doc_no.lastIndexOf("."))) ?? null;
     const isUnknown = !knownPrimitives.has(primRoot.title);
     // kind === null falls back to "instance" so out-of-scope ICDs still get a
     // graph entity (their status will be null). Per-atlas, the only valid kinds
@@ -516,8 +517,7 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
     const slug = `${agentSlug}-${primitiveSlug}`;
     const status = primitiveStatusFor(primRoot, docByDocNo);
 
-    const categoryDocNo = primRoot.doc_no.slice(0, primRoot.doc_no.lastIndexOf("."));
-    const categoryDoc = docByDocNo.get(categoryDocNo) ?? null;
+    const categoryDoc = docByDocNo.get(primRoot.doc_no.slice(0, primRoot.doc_no.lastIndexOf("."))) ?? null;
     const isUnknown = !knownPrimitives.has(primRoot.title);
 
     addEntity(slug, primRoot.title, "primitive", primitiveSlug, primRoot.id, {

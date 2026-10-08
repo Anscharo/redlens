@@ -4,7 +4,7 @@
 // is read live, because usage moves the available amount between settings.
 import { parseAbi } from "viem";
 import { deploymentId, type PauDeployment, type PauMember, type PauRole } from "../../lib/pauRegistry.ts";
-import type { ContractState, LiveRateLimit, PauSnapshot, RateLimitKey, RoleHolder } from "../../lib/pau.ts";
+import type { ContractState, DerivedKey, LiveRateLimit, PauSnapshot, RateLimitKey, RoleHolder } from "../../lib/pau.ts";
 import { replayAgent, replayIntegrations, replayParams, replayRateLimitKeys, replayRoles, roleName, type PauEventRow } from "./replay.ts";
 
 export const PAU_STATE_ABI = parseAbi([
@@ -80,4 +80,17 @@ export async function buildSnapshot(
     contracts.push(await contractState(read, d.chain, m, await historyOf(d.chain, m.address)));
   }
   return { deployment: deploymentId(d), prime: d.prime, primeName: d.primeName, chain: d.chain, kind: d.kind, contracts };
+}
+
+/** The snapshot with each rate-limit key's derivation attached where one is found. */
+export function withDerivedKeys(snap: PauSnapshot, derive: (key: string) => DerivedKey | null): PauSnapshot {
+  const contracts = snap.contracts.map((c) => {
+    if (!c.rateLimits) return c;
+    const rateLimits = c.rateLimits.map((r) => {
+      const derived = derive(r.key);
+      return derived ? { ...r, derived } : r;
+    });
+    return { ...c, rateLimits };
+  });
+  return { ...snap, contracts };
 }

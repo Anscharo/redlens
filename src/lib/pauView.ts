@@ -1,6 +1,7 @@
 // Pure helpers for the Radar PAU section: which snapshots belong to a prime,
 // how on-chain amounts read, and which instance names each rate-limit key.
 import type { ContractState, PauResponse, PauSnapshot, SetAt, StoredPauSnapshot } from "./pau.ts";
+import { RATE_LIMIT_ID_RE } from "./atlasHashes.ts";
 
 const CHAIN_FIRST = "ethereum";
 
@@ -32,16 +33,38 @@ export function formatAmount(raw: string, decimals: number): string {
   return COMPACT.format(Number(v / scale) + Number(v % scale) / Number(scale));
 }
 
+/** A raw amount as an exact decimal string ("25000000", "1.5"), or "unlimited" for the max uint256 sentinel. */
+export function exactAmount(raw: string, decimals: number): string {
+  const v = BigInt(raw);
+  if (v === UNLIMITED) return "unlimited";
+  const scale = 10n ** BigInt(decimals);
+  const frac = (v % scale).toString().padStart(decimals, "0").replace(/0+$/, "");
+  return frac ? `${v / scale}.${frac}` : `${v / scale}`;
+}
+
+/**
+ * A raw amount rounded to whole units ("25000000"), or exact below one unit.
+ * A refill per day is stored per second and truncated, so its exact value
+ * ("24999999.9264") is noise against the atlas's round figure.
+ */
+export function wholeAmount(raw: string, decimals: number): string {
+  const v = BigInt(raw);
+  const scale = 10n ** BigInt(decimals);
+  return v === UNLIMITED || v < scale ? exactAmount(raw, decimals) : ((v + scale / 2n) / scale).toString();
+}
+
 /** A per-second slope as an amount per day. */
 export const formatPerDay = (slope: string, decimals: number): string =>
   BigInt(slope) === 0n ? "0" : formatAmount((BigInt(slope) * 86_400n).toString(), decimals);
 
 const KEY_RE = /^0x[0-9a-fA-F]{64}$/;
-const KEY_WORDS = /\s*Rate\s*Limit\s*ID\b/i;
+const KEY_WORDS = /\s*Rate\s*Limit\s*IDs?\b\s*(?:\/\s*)?/i;
 
 export interface AtlasKeyRef {
   docId: string | null;
   label: string;
+  /** Set when the atlas lists an address where the RateLimitID belongs and the key was found by its derivation from it. */
+  via?: string;
 }
 
 /** The slice of a Radar instance the key index reads: its name and its extracted parameters. */
@@ -50,20 +73,29 @@ export interface KeyedInstance {
   signalParams: { key: string; value: string; srcDocId: string | null }[];
 }
 
+/** The prime's own controller-wide keys (build-graph's prime meta.params) as a nameless instance. */
+export function primeKeyedInstance(meta: string | null | undefined): KeyedInstance {
+  const params = (JSON.parse(meta ?? "{}") as { params?: Record<string, [string, string | null]> }).params ?? {};
+  return { displayName: "", signalParams: Object.entries(params).map(([key, [value, srcDocId]]) => ({ key, value, srcDocId: srcDocId || null })) };
+}
+
 /**
- * Rate-limit keys the prime's instances state as parameters (build-graph's
- * instance params, the same rows the instance cards show), each labelled
- * "<instance> · <param>" ("SparkLend ETH · Inflow"). A key several instances
- * state lists every one, sorted by label.
+ * Rate-limit keys the prime and its instances state as RateLimitID parameters
+ * (build-graph's params, the same rows the instance cards show), each labelled
+ * "<instance> · <param>" ("SparkLend ETH · Inflow"), or the param alone for the
+ * prime's own ("USDS Mint"). A key several instances state lists every one,
+ * sorted by label. Other hashes (pool IDs) are not keys and are skipped.
  */
 export function instanceKeyIndex(instances: KeyedInstance[]): Map<string, AtlasKeyRef[]> {
   const index = new Map<string, AtlasKeyRef[]>();
   for (const inst of instances) {
     for (const p of inst.signalParams) {
-      if (!KEY_RE.test(p.value.trim())) continue;
-      const what = p.key.replace(KEY_WORDS, "").trim() || p.key;
+      if (!RATE_LIMIT_ID_RE.test(p.key) || !KEY_RE.test(p.value.trim())) continue;
+      // A param that is only "Rate Limit IDs" (a conduit's one key) is named by its instance.
+      const what = p.key.replace(KEY_WORDS, " ").replace(/\s+/g, " ").trim();
       const key = p.value.trim().toLowerCase();
-      index.set(key, [...(index.get(key) ?? []), { docId: p.srcDocId, label: `${inst.displayName} · ${what}` }]);
+      const label = [inst.displayName, what].filter(Boolean).join(" · ") || p.key;
+      index.set(key, [...(index.get(key) ?? []), { docId: p.srcDocId, label }]);
     }
   }
   // Sorted, so the name a key shows does not depend on instance order.

@@ -14,7 +14,7 @@ export function ActorInstancesPage({ profile }: ActorInstancesPageProps) {
   return (
     <ActorPageShell profile={profile} page="instances">
       {profile.primitives.length > 0 ? (
-        <ActorInstances primitives={profile.primitives} />
+        <ActorInstances primitives={profile.primitives} prime={profile.entity} />
       ) : (
         <p className="mono text-[10px]" style={{ color: "var(--tan-3)" }}>no primitive instances</p>
       )}

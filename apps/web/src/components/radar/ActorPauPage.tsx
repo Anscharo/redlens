@@ -10,7 +10,7 @@ export interface ActorPauPageProps {
 export function ActorPauPage({ profile }: ActorPauPageProps) {
   return (
     <ActorPageShell profile={profile} page="pau">
-      <ActorPau primeId={profile.entity.id} instances={profile.instances} />
+      <ActorPau prime={profile.entity} instances={profile.instances} />
     </ActorPageShell>
   );
 }

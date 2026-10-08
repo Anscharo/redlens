@@ -5,11 +5,14 @@ import { atlasHref } from "@/lib/routes";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { StatusPill } from "../reports/RewardsCells";
 import { InstanceCard } from "./InstanceCard";
+import type { PauPrime } from "./ParamAddressKeys";
 import { RadarHeading } from "./RadarHeading";
 
 
 interface Props {
   primitives: RadarPrimitive[];
+  /** The prime whose page this is, for the on-chain keys an instance lists by address. */
+  prime?: PauPrime;
 }
 
 interface CategoryGroup {
@@ -75,9 +78,10 @@ interface SectionProps {
   anchorPrefix: string;
   /** Rank of each category heading; primitives sit one below, instances two. */
   level: number;
+  prime?: PauPrime;
 }
 
-function ActorItemsSection({ groups, pick, anchorPrefix, level }: SectionProps) {
+function ActorItemsSection({ groups, pick, anchorPrefix, level, prime }: SectionProps) {
   const visibleGroups = groups
     .map((cat) => ({ ...cat, primitives: cat.primitives.filter((p) => pick(p).length > 0) }))
     .filter((cat) => cat.primitives.length > 0);
@@ -136,7 +140,7 @@ function ActorItemsSection({ groups, pick, anchorPrefix, level }: SectionProps) 
                         className="mb-2"
                         style={anchorId ? { scrollMarginTop: HEADER_OFFSET } : undefined}
                       >
-                        <InstanceCard inst={inst} headingLevel={level + 2} />
+                        <InstanceCard inst={inst} prime={prime} headingLevel={level + 2} />
                       </div>
                     ))}
                   </div>
@@ -162,7 +166,7 @@ function SectionHeading({ label, count, level }: { label: string; count: number;
 /** A Prime's primitives by category, under the page's h1. With no invocations
  *  the categories are the h2s; with some, an Invocations and an Instances h2
  *  split the list and everything under them sits one rank lower. */
-export function ActorInstances({ primitives }: Props) {
+export function ActorInstances({ primitives, prime }: Props) {
   const level = 2;
   const groups = buildCategoryGroups(primitives);
   const instanceCount = primitives.reduce((n, p) => n + p.instances.length, 0);
@@ -175,12 +179,12 @@ export function ActorInstances({ primitives }: Props) {
       {split && (
         <section id="invocations" style={{ scrollMarginTop: HEADER_OFFSET }}>
           <SectionHeading label="Invocations" count={invocationCount} level={level} />
-          <ActorItemsSection groups={groups} pick={(p) => p.invocations} anchorPrefix="invocations" level={catLevel} />
+          <ActorItemsSection groups={groups} pick={(p) => p.invocations} anchorPrefix="invocations" level={catLevel} prime={prime} />
         </section>
       )}
       <section id="instances" aria-label={split ? undefined : "Instances"} style={{ scrollMarginTop: HEADER_OFFSET }}>
         {split && <SectionHeading label="Instances" count={instanceCount} level={level} />}
-        <ActorItemsSection groups={groups} pick={(p) => p.instances} anchorPrefix="" level={catLevel} />
+        <ActorItemsSection groups={groups} pick={(p) => p.instances} anchorPrefix="" level={catLevel} prime={prime} />
       </section>
     </div>
   );
