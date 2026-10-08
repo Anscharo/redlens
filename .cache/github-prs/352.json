@@ -1,0 +1,10 @@
+{
+  "number": 352,
+  "title": "Atlas Edit Proposal — 2026-10-05",
+  "body": "## Summary\n\nThis proposal includes the following edits:\n\n- **Define The Circulating USDS Supply For The Target Aggregate Backstop Capital** - Defines the Circulating USDS Supply used to calculate the Target Aggregate Backstop Capital.\n- **Update stUSDS Documents For The stUSDS Keeper Launch** - Replaces the stUSDS Rate and SKY Borrow Rate formulas with automatic updates by the stUSDS Keeper.\n- **Enable Spark's cBEAM On Arbitrum And Restructure The Parallelized Allocation System By Network** - Enables the Configurator on the Spark Diamond PAU on Arbitrum with the Spark Operator Multisig as its cBEAM, and splits the Parallelized Allocation System documents into Ethereum Mainnet and Arbitrum deployments.\n- **Grant Grove A 3-Day Morpho Vault Curation Framework Compliance Exception** - Extends Grove's deadline to bring its Morpho vault exposure into compliance with the Morpho Vault Curation Framework to three days after the execution of the October 8, 2026 Executive Vote.\n- **Add A Highest Production Rate Limit For Each Diamond PAU Facet** - Adds a highest production rate limit for each Diamond PAU Facet, with figures for the Facets currently in production use.\n- **Document The ERC-4626 Facet Maximum Exchange Rate Setter** - Documents the Controller function for setting an ERC-4626 vault's maximum exchange rate, and corrects Osero's Maximum Exchange Rate document to cite it.\n- **Housekeeping Updates** - Uses US spelling in nine Sky Core documents and corrects plural agreement in the Distortion Penalty document.\n",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/352",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

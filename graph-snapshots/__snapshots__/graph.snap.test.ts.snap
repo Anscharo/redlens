@@ -6035,9 +6035,10 @@ exports[`allocation-system sub-doc content > Osero > Ethereum Mainnet - Gauntlet
     "title": "Sentinel Role Address",
   },
   {
-    "content": "Controllers now have protections that require a \`maxExchangeRate\` to be set for deposits. The following ensures 1 share can represent at most 2 USDC.
-- \`setMaxExchangeRate(OGUSDCP_VAULT, 1e18, 2e6)\`",
-    "title": "Max Exchange Rate",
+    "content": "The maximum exchange rate for this Instance is two (2) USDC per whole vault share, set by calling the \`erc4626_setMaxExchangeRate\` function on the Diamond PAU Controller, as specified in [A.2.2.10.1.1.1.2.5.2.6.4 - Set Maximum Exchange Rate For ERC-4626 Vault](3cbc5171-858d-4e36-bc81-da1b323052de).
+
+- \`erc4626_setMaxExchangeRate(OGUSDCP_VAULT, 1e18, 2e6)\`",
+    "title": "Maximum Exchange Rate",
   },
 ]
 `;
@@ -12275,21 +12276,21 @@ exports[`allocation-system sub-doc content > Spark > X Layer - Spark Savings v2 
 
 exports[`edge type counts > all edge types and their counts 1`] = `
 {
-  "active_data_for": 84,
+  "active_data_for": 85,
   "aligned_delegate_for": 9,
   "annotates": 101,
-  "can_modify_signers_of": 33,
-  "cites": 2283,
+  "can_modify_signers_of": 35,
+  "cites": 2343,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
-  "defines_entity": 427,
-  "duty_for": 867,
+  "defines_entity": 429,
+  "duty_for": 871,
   "ecosystem_accord": 20,
   "emergency_response": 16,
   "erg_member_for": 9,
   "governance_channel": 10,
-  "has_address": 301,
+  "has_address": 303,
   "has_status": 136,
   "holds_role_for": 5,
   "implements": 188,
@@ -12299,7 +12300,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "invoked_by": 217,
   "listed_in": 49,
   "located_at": 210,
-  "mentions": 753,
+  "mentions": 766,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
@@ -12307,10 +12308,10 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "prime_foundation_of": 5,
   "process_step_responsible_party_for": 32,
   "provides_services_to": 6,
-  "proxies_to": 92,
+  "proxies_to": 93,
   "ranked_delegate_for": 3,
-  "responsible_party_for": 69,
-  "signer_of": 69,
+  "responsible_party_for": 70,
+  "signer_of": 71,
   "validator_of": 27,
 }
 `;
@@ -12512,6 +12513,7 @@ exports[`governance edges > active_data_for — AD doc → ADC doc 1`] = `
   "A.2.8.1.2.0.6.1 → A.2.8.1.2",
   "A.2.9.1.1.1.2.3.0.6.1 → A.2.9.1.1.1.2.3",
   "A.2.9.1.1.2.6.0.6.1 → A.2.9.1.1.2.6",
+  "A.3.5.3.2.1.1.1.0.6.1 → A.3.5.3.2.1.1.1",
   "A.3.7.1.5.3.0.6.1 → A.3.7.1.5.3",
   "A.3.7.1.6.6.2.3.0.6.1 → A.3.7.1.6.6.2.3",
   "A.6.1.1.1.2.5.1.2.1.3.4.0.6.1 → A.6.1.1.1.2.5.1.2.1.3.4",
@@ -12722,6 +12724,11 @@ exports[`governance edges > responsible_party_for — entity → ADC doc 1`] = `
     "adc": "A.2.9.1.1.2.6",
     "declared": "Core Facilitator",
     "party": "JanSky",
+  },
+  {
+    "adc": "A.3.5.3.2.1.1.1",
+    "declared": "Core Council Risk Advisor",
+    "party": "BA Labs",
   },
   {
     "adc": "A.3.7.1.5.3",
