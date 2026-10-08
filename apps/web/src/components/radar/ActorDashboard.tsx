@@ -11,6 +11,7 @@ import { ActorRewards } from "./ActorRewards";
 import { ActorInstances } from "./ActorInstances";
 import { ActorHistory } from "./ActorHistory";
 import { ActorSettlementTeaser } from "./ActorSettlementTeaser";
+import { ActorPau } from "./ActorPau";
 import { Section } from "./RadarSection";
 import { RelationRow } from "./RelationRow";
 import { RecRow } from "./RecRow";
@@ -37,12 +38,8 @@ export function ActorDashboard({ profile }: Props) {
     partOfComposite,
   } = profile;
   const color = ENTITY_TYPE_COLOR[entity.et] ?? "var(--entity-fallback)";
-  const typeLabel =
-    entity.et === "agent"
-      ? entity.st === "prime"
-        ? "Prime Agent"
-        : "Executor Agent"
-      : (ENTITY_TYPE_LABEL[entity.et] ?? entity.et);
+  const agentLabel = entity.st === "prime" ? "Prime Agent" : "Executor Agent";
+  const typeLabel = entity.et === "agent" ? agentLabel : (ENTITY_TYPE_LABEL[entity.et] ?? entity.et);
 
   return (
     <div className="flex-1 px-6 py-6 min-w-0">
@@ -129,6 +126,8 @@ export function ActorDashboard({ profile }: Props) {
             <ActorHistory profile={profile} />
           </Section>
         </aside>
+
+        <ActorPau primeId={entity.id} instances={profile.instances} />
 
         {rewardsAgent && (
           <div className="lg:col-span-2 min-w-0">

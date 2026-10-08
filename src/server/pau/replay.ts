@@ -3,6 +3,7 @@
 // RoleRevoked is how the holders are listed at all; the snapshot still asks
 // hasRole of each, so a missed event shows up as a holder the chain denies.
 import { keccak256, toHex } from "viem";
+import type { AgentMember, PauIntegration, PauParam, RateLimitKey, RoleHolder, SetAt } from "../../lib/pau.ts";
 import { subjectKey } from "./admin-events.ts";
 
 export interface PauEventRow {
@@ -14,13 +15,6 @@ export interface PauEventRow {
   tx_hash: string;
 }
 
-/** Where a value was last set: the block, its time and the transaction. */
-export interface SetAt {
-  block: number;
-  time: string;
-  tx: string;
-}
-
 const setAt = (e: PauEventRow): SetAt => ({ block: e.block, time: e.block_time, tx: e.tx_hash });
 
 const ROLE_NAMES = new Map<string, string>([
@@ -30,12 +24,6 @@ const ROLE_NAMES = new Map<string, string>([
 
 /** The name of a well-known role hash, else null. */
 export const roleName = (hash: string): string | null => ROLE_NAMES.get(hash.toLowerCase()) ?? null;
-
-export interface RoleHolder {
-  role: string;
-  account: string;
-  since: SetAt;
-}
 
 /** Accounts holding each role after replaying grants and revokes. */
 export function replayRoles(events: PauEventRow[]): RoleHolder[] {
@@ -52,7 +40,7 @@ export function replayRoles(events: PauEventRow[]): RoleHolder[] {
 const AGENT_EVENT = /^(Actor|Admin|Grantor|Revoker)(Added|Removed)$/;
 
 /** AdministeredAgent membership by kind (actors, admins, grantors, revokers). */
-export function replayAgent(events: PauEventRow[]): Record<string, { account: string; since: SetAt }[]> {
+export function replayAgent(events: PauEventRow[]): Record<string, AgentMember[]> {
   const sets = new Map<string, Map<string, SetAt>>();
   for (const e of events) {
     const m = AGENT_EVENT.exec(e.event);
@@ -67,15 +55,6 @@ export function replayAgent(events: PauEventRow[]): Record<string, { account: st
   return Object.fromEntries([...sets].map(([k, set]) => [k, [...set].map(([account, since]) => ({ account, since }))]));
 }
 
-export interface RateLimitKey {
-  key: string;
-  /** The last RateLimitDataSet, as configured (the live read can differ only by usage). */
-  configured: { maxAmount: string; slope: string };
-  setAt: SetAt;
-  /** How many times the key has been set. */
-  changes: number;
-}
-
 /** Every key a RateLimits contract has ever been given, with its latest setting. */
 export function replayRateLimitKeys(events: PauEventRow[]): RateLimitKey[] {
   const keys = new Map<string, RateLimitKey>();
@@ -88,8 +67,8 @@ export function replayRateLimitKeys(events: PauEventRow[]): RateLimitKey[] {
 }
 
 /** Diamond integrations by id: IntegrationSet replaces, IntegrationRemoved deletes. */
-export function replayIntegrations(events: PauEventRow[]): { id: string; config: unknown; setAt: SetAt }[] {
-  const live = new Map<string, { id: string; config: unknown; setAt: SetAt }>();
+export function replayIntegrations(events: PauEventRow[]): PauIntegration[] {
+  const live = new Map<string, PauIntegration>();
   for (const e of events) {
     const id = String(e.args.id);
     if (e.event === "IntegrationSet") live.set(id, { id, config: e.args.config, setAt: setAt(e) });
@@ -101,14 +80,6 @@ export function replayIntegrations(events: PauEventRow[]): { id: string; config:
 // Events that are not a parameter: role, membership and integration changes
 // have their own replays, and RelayerRemoved is the freezer acting.
 const NOT_PARAMS = /^(Role|Integration|RelayerRemoved$|RateLimitDataSet$)|(Added|Removed)$/;
-
-export interface PauParam {
-  event: string;
-  /** The first argument: the pool, token, domain or vault the value is for. */
-  subject: string;
-  args: Record<string, unknown>;
-  setAt: SetAt;
-}
 
 /** The latest value of each (parameter event, subject), e.g. MaxSlippageSet per pool. */
 export function replayParams(events: PauEventRow[]): PauParam[] {

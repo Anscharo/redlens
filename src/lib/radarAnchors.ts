@@ -12,4 +12,5 @@ export const RADAR_SECTION = {
   notable: "notable",
   history: "history",
   rewards: "rewards",
+  pau: "pau",
 } as const;

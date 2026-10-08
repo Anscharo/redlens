@@ -60,3 +60,8 @@ export function explorerUrl(
   const chain = resolveChain(opts.chain, addr);
   return (EXPLORER[chain] ?? EXPLORER.ethereum) + addr;
 }
+
+/** A transaction on an EVM chain's explorer: each registered EVM explorer serves `/tx/<hash>` beside `/address/`. */
+export function explorerTxUrl(chain: string, tx: string): string {
+  return (EXPLORER[chain] ?? EXPLORER.ethereum).replace(/address\/$/, "tx/") + tx;
+}
