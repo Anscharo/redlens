@@ -2,7 +2,7 @@ import { Link } from "../Link";
 import { Tooltip } from "../Tooltip";
 import type { CategoryStat, PrimitiveStat } from "../../lib/primitiveStats";
 import { toAnchorId } from "../../lib/anchorId";
-import { actorHref } from "@/lib/routes";
+import { actorPageHref } from "@/lib/routes";
 import {
   BORDER,
   CELL_PADDING,
@@ -23,7 +23,7 @@ function PrimitiveRow({ p, rowIndex, agentSlug }: { p: PrimitiveStat; rowIndex: 
     <tr style={{ background: ROW_COLORS[rowIndex % 2] }}>
       <td className="py-0.5 pl-3" style={{ maxWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         <Tooltip content={`${p.title} Primitive`}>
-          <Link to={actorHref(agentSlug, p.st)} className="mono text-[11px] hover:underline w-full text-left truncate block" style={{ color: "var(--tan-2)" }}>
+          <Link to={actorPageHref(agentSlug, "instances", p.st)} className="mono text-[11px] hover:underline w-full text-left truncate block" style={{ color: "var(--tan-2)" }}>
             {p.title}
           </Link>
         </Tooltip>
@@ -42,7 +42,7 @@ function PrimitiveRow({ p, rowIndex, agentSlug }: { p: PrimitiveStat; rowIndex: 
         return (
           <Tooltip key={i} content={tip}>
             <td className="mono text-[10px] py-0.5" style={style}>
-              <Link to={actorHref(agentSlug, anchorFor(h, p.st))} className="hover:underline" style={{ color: "inherit" }}>
+              <Link to={actorPageHref(agentSlug, "instances", anchorFor(h, p.st))} className="hover:underline" style={{ color: "inherit" }}>
                 {n}
               </Link>
             </td>
@@ -70,7 +70,7 @@ export function CategoryRows({ cat, startIndex, agentSlug }: { cat: CategoryStat
       <tr style={{ fontWeight: "bold" }}>
         <td className="pt-3 pb-0.5 pl-3" style={{ borderBottom: BORDER }}>
           <Tooltip content={cat.title}>
-            <Link to={actorHref(agentSlug, toAnchorId(cat.title))} className="mono text-[10px] uppercase tracking-wider hover:underline" style={{ color: "var(--lily-green)" }}>
+            <Link to={actorPageHref(agentSlug, "instances", toAnchorId(cat.title))} className="mono text-[10px] uppercase tracking-wider hover:underline" style={{ color: "var(--lily-green)" }}>
               {title}
             </Link>
           </Tooltip>
@@ -98,7 +98,7 @@ export function CategoryRows({ cat, startIndex, agentSlug }: { cat: CategoryStat
                 {sum === 0 ? (
                   sum
                 ) : (
-                  <Link to={actorHref(agentSlug, toAnchorId(cat.title))} className="hover:underline" style={{ color: "inherit" }}>
+                  <Link to={actorPageHref(agentSlug, "instances", toAnchorId(cat.title))} className="hover:underline" style={{ color: "inherit" }}>
                     {sum}
                   </Link>
                 )}

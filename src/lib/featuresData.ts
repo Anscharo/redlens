@@ -172,7 +172,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       {
         name: "Radar search",
         what: "Find actors, primitive instances, parameter values, addresses and relationships from one box.",
-        how: ["Type in the search box on Radar. Each result opens the matching part of the actor page."],
+        how: ["Type in the search box on Radar. Each result opens the matching part of the actor page — for a Prime Agent's instance or parameter, its Primitive instances page."],
       },
       {
         name: "Actor dashboards",
@@ -180,7 +180,9 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: [
           "Open Radar and pick an actor from the list.",
           "Scan the dashboard sections; the composite party view ties an Agent's associated legal entities together as one party.",
+          "A Prime Agent's row in the list opens into its pages instead: Info (the profile), Settlements, History, Primitive instances and PAUs. Click a Prime's name to open or close its pages; the Prime you open a page of opens by itself and stays open until you close it, and no other Prime opens or closes on its own.",
         ],
+        note: "Settlements is listed only for Primes with a Monthly Settlement Cycle workbook, and PAUs only once the atlas worker has read that Prime's PAU contracts.",
       },
       {
         name: "Primitive dashboards & activation matrix",
@@ -192,7 +194,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "On primes that publish a Monthly Settlement Cycle workbook, the actor page shows last month's take; a full cycle page charts Sky's share, supply kept, and demand-side, plus the demand-side mix and venue AUM.",
         how: [
           "Open a Prime Agent on Radar (Spark, Grove, Obex, …).",
-          "The Monthly settlement card in the top right shows the latest cycle; the `full cycle` link under the figure opens the charts.",
+          "The Monthly settlement card in the top right shows the latest cycle; the `full cycle` link under the figure opens the charts, as does `Settlements` under the Prime's name in the actor list.",
           "On that page, Sky Forum opens the forum post for the month selected in the charts.",
           "Ask Chat or an MCP client about a month's To Sky / supply kept / demand-side — it will say those figures are not from the Atlas.",
           "On the cycle page, click a month in the Summary bars. Primes with several venues have a PnL / AUM toggle.",
@@ -205,8 +207,8 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "PAU on-chain",
         what: "On a Prime Agent's page, each PAU deployment (per chain, monolithic or diamond controller) as the chain reports it: who holds which role, every rate limit with its maximum, refill per day and amount available now in its token's units, the latest pool parameters, and on a diamond controller what its Configurator may change without a spell.",
         how: [
-          "Open a Prime Agent on Radar and scroll to `PAU on-chain`; click a chain's row to open or close it.",
-          "A rate limit is named after the Prime Agent or instance whose parameters state its ID; a key the Atlas never states is named by the controller constant that derives it (such as `LIMIT_4626_DEPOSIT` and the vault), and `no atlas document or controller constant names this key` marks one neither can name. Where an instance lists an address instead of a RateLimitID, the key derived from that address is named after the instance, marked `(matched by address)`, and the instance card shows it under the address as `on-chain key …`.",
+          "Open a Prime Agent on Radar and pick `PAUs` under its name in the actor list; click a chain's row to open or close it.",
+          "A rate limit is named after the Prime Agent or instance whose parameters state its ID; a key the Atlas never states is named by the controller constant that derives it (such as `LIMIT_4626_DEPOSIT` and the vault), and `no document or controller constant found referencing this limit` marks one neither can name. Where an instance lists an address instead of a RateLimitID, the key derived from that address is named after the instance, marked `(matched by address)`, and the instance card shows it under the address as `on-chain key …`.",
           "In Roles, ✓ means the chain confirms the role, ✗ means the grant history says granted but the chain says no, ? means the check could not be read.",
           "The date in the `Set` column opens the transaction that last set that limit. Hover an amount to see where its decimals came from: read from the token, fixed by the controller, or inferred from the limit's size. `Configurator limits` says how far the Configurator may raise a limit without a spell (a factor, once per waiting period per key) and lists any default limits it may raise a key to.",
         ],

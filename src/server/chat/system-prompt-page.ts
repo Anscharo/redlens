@@ -3,6 +3,7 @@ import { TOOLS_BY_NAME } from "./tools/tool-registry.ts";
 import { REPORT_TITLES, REPORT_DESCRIPTIONS } from "../../lib/routes.ts";
 import { decodeId } from "../preview/resolve.ts";
 import { SHA_RE } from "../../lib/patterns.ts";
+import { actorPageDef, isActorPageKey } from "../../lib/radarPages.ts";
 
 // reportName on the wire is the display title (REPORT_TITLES[id]), not the id.
 const TITLE_TO_REPORT_ID: Record<string, string> = Object.fromEntries(
@@ -62,6 +63,8 @@ export function pageContextLine(ctx?: PageContext): string | null {
       const month = ctx.mscMonth ? ` month ${ctx.mscMonth}` : "";
       return `Radar monthly settlement page for "${ctx.actorSlug}"${month}. Dollar figures are not Atlas — call ask_external_msc with view=month, actor_slug="${ctx.actorSlug}"${ctx.mscMonth ? `, month="${ctx.mscMonth}"` : ""}.`;
     }
+    const sub = ctx.path?.match(/\/radar\/[^/?#]+\/([^/?#]+)/)?.[1];
+    if (isActorPageKey(sub)) return `Radar actor page for "${ctx.actorSlug}", its ${actorPageDef(sub).title} subpage`;
     return `Radar actor page for "${ctx.actorSlug}"`;
   }
   if (ctx.reportName) {

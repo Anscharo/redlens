@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-// The Radar PAU section: shown only for a prime with stored snapshots, rate
-// limits named by the prime or instance that states their ID (an unnamed key says so),
+// The Radar PAUs subpage body: a prime's stored snapshots only (or a note that
+// there are none), rate limits named by the prime or instance that states their
+// ID (an unnamed key says so),
 // role holders marked as the chain confirms them, and a deployment whose
 // history is still being read says that instead of looking complete.
 import { describe, it, expect, afterEach, vi } from "vitest";
@@ -58,7 +59,7 @@ afterEach(cleanup);
 describe("ActorPau", () => {
   it("lists the prime's deployments only, Ethereum first and open", async () => {
     render(<ActorPau prime={prime} instances={instances} />);
-    await waitFor(() => expect(screen.getByText("PAU on-chain")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("region", { name: "PAU on-chain" })).toBeInTheDocument());
     const cards = document.querySelectorAll("details.pau-deployment");
     expect([...cards].map((c) => c.getAttribute("data-deployment"))).toEqual([ETH.deployment, BASE.deployment]);
     expect(cards[0]).toHaveAttribute("open");
@@ -79,7 +80,7 @@ describe("ActorPau", () => {
     expect(within(rows[2]).getByRole("link", { name: "USDS Mint" })).toBeInTheDocument();
     expect(rows[3]).toHaveTextContent("LIMIT_4626_DEPOSIT");
     expect(rows[3].querySelector("[title*='no atlas document states this key']")).not.toBeNull();
-    expect(rows[4]).toHaveTextContent("no atlas document or controller constant names this key");
+    expect(rows[4]).toHaveTextContent("no document or controller constant found referencing this limit");
     expect(rows[4]).toHaveTextContent(/1B.*0.*\?/);
     expect(rows[5]).toHaveAttribute("data-off", "true");
     expect(rows[5]).toHaveTextContent("off");
@@ -104,17 +105,17 @@ describe("ActorPau", () => {
     expect(screen.getByText("MaxSlippageSet")).toBeInTheDocument();
   });
 
-  it("shows under an instance's address-valued RateLimitID the on-chain key derived from it", async () => {
-    render(<ParamAddressKeys primeId={PRIME} paramKey="Rate Limit IDs / BUIDLI_DEPOSIT" value={LISTED} />);
+  it("shows under an instance's address-valued RateLimitID the on-chain key derived from it, linked to the PAUs page", async () => {
+    render(<ParamAddressKeys prime={{ id: PRIME, slug: "spark" }} paramKey="Rate Limit IDs / BUIDLI_DEPOSIT" value={LISTED} />);
     const item = await screen.findByRole("listitem");
     expect(item).toHaveTextContent(`on-chain key ${BY_ADDRESS.slice(0, 10)}…${BY_ADDRESS.slice(-4)} · LIMIT_ASSET_TRANSFER · ethereum · 7M PYUSD`);
-    expect(within(item).getByRole("link")).toHaveAttribute("href", "#pau");
+    expect(within(item).getByRole("link")).toHaveAttribute("href", "/radar/spark/pau");
   });
 
-  it("renders nothing for a prime with no snapshot", async () => {
+  it("says so for a prime with no snapshot", async () => {
     served = { deployments: [] };
-    const { container } = render(<ActorPau prime={prime} instances={instances} />);
-    await new Promise((r) => setTimeout(r, 0));
-    expect(container).toBeEmptyDOMElement();
+    render(<ActorPau prime={prime} instances={instances} />);
+    expect(await screen.findByText("no PAU contracts have been read for this Prime yet")).toBeInTheDocument();
+    expect(document.querySelector("details.pau-deployment")).toBeNull();
   });
 });

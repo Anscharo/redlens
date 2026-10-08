@@ -17,7 +17,7 @@ Three workers, all under `apps/web/src/workers/`:
 - `atlas.worker.ts`: the tree view.
 - `graph.worker.ts`: a graphology `MultiDirectedGraph` over `relations.json`.
 
-The atlas view is `apps/web/src/components/atlas/`, the entity view is `apps/web/src/components/radar/` (`/radar`, `/radar/:slug`), and reports are in `apps/web/src/components/reports/`.
+The atlas view is `apps/web/src/components/atlas/`, the entity view is `apps/web/src/components/radar/` (`/radar`, `/radar/:slug`, and a Prime Agent's subpages `/radar/:slug/:page`, declared once in `src/lib/radarPages.ts`), and reports are in `apps/web/src/components/reports/`.
 
 ## Non-obvious reader behaviours
 

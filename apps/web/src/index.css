@@ -1983,6 +1983,47 @@ a.atlas-annotates:focus-visible {
   border-left-color: var(--red);
   color: var(--tan) !important;
 }
+/* An actor with a sub nav: the row is a disclosure, the sub nav slides
+   open with a grid-rows transition (0fr → 1fr animates height without a
+   fixed max-height), and the chevron turns to match. */
+.actor-list-item[data-selected="true"] {
+  color: var(--tan) !important;
+}
+.actor-chevron {
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.25s ease;
+  opacity: 0.7;
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+.actor-group[data-state="open"] .actor-chevron {
+  transform: rotate(45deg);
+}
+.actor-sub {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+}
+.actor-sub[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+.actor-sub > div {
+  overflow: hidden;
+  min-height: 0;
+}
+.actor-sub-item {
+  border-left-width: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .actor-chevron,
+  .actor-sub {
+    transition: none;
+  }
+}
 
 /* ─── Keyboard shortcut key caps ─── */
 /* ─── Search hint rows ─── */
@@ -2828,6 +2869,24 @@ a.atlas-annotates:focus-visible {
 }
 .msc-venue-row {
   cursor: pointer;
+}
+
+/* A category's primitives on a Radar actor page, in columns at least 520px
+   wide that pack each primitive under the one above it (multi-column, not
+   grid, so a short primitive leaves no gap beside a tall one). Primitives
+   read down each column, then across. One with several instances spans
+   every column and splits its own cards across them; the primitives before
+   it balance into columns, and those after start again below it. */
+.radar-prim-grid {
+  columns: 520px;
+  column-gap: 0.75rem;
+}
+.radar-prim-grid > * {
+  break-inside: avoid;
+  margin-bottom: 1rem;
+}
+.radar-prim-grid > [data-span="row"] {
+  column-span: all;
 }
 
 /* Target of a Radar search link: a short accent outline that fades out. */

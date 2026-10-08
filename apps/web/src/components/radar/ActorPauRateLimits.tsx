@@ -47,7 +47,7 @@ export function LimitName({ r, chain, keyIndex }: { r: { key: string; derived?: 
   if (!ref) {
     return (
       <span title={r.key} style={dim}>
-        {r.key.slice(0, 10)}… <span style={{ color: "var(--accent)" }}>no atlas document or controller constant names this key</span>
+        {r.key.slice(0, 10)}… <span style={{ color: "var(--accent)" }}>no document or controller constant found referencing this limit</span>
       </span>
     );
   }

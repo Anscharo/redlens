@@ -93,7 +93,7 @@ function nodeContext(location: string, nodeId: string, node: NodeMeta | null): P
   return { ...baseContext, path: location, nodeId, nodeTitle: node?.title, nodeDocNo: doc, chip: doc ? `atlas · ${doc}` : "atlas" };
 }
 
-// Radar actor page (/radar/:slug) and its settlements sub-page.
+// Radar actor page (/radar/:slug) and its subpages (/radar/:slug/:page).
 function radarContext(location: string, searchParams: URLSearchParams): PageContextView {
   const [rawSlug, sub] = location.slice(ROUTES.RADAR.length + 1).split("/");
   const slug = decodeURIComponent(rawSlug ?? "");

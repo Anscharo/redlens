@@ -2,8 +2,6 @@ import { useMemo } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { addressKeyIndex, instanceKeyIndex, loadPau, primeKeyedInstance, snapshotsForPrime, withAddressKeys, type KeyedInstance } from "../../lib/pau";
 import type { GraphEntity } from "@/types";
-import { RADAR_SECTION } from "@/lib/radarAnchors";
-import { Section } from "./RadarSection";
 import { PauDeployment } from "./ActorPauDeployment";
 
 interface Props {
@@ -14,10 +12,9 @@ interface Props {
 }
 
 /**
- * The prime's PAU deployments as the chain reports them (GET /api/pau), as a
- * full-width row of the actor grid. Renders nothing until the worker has stored
- * a snapshot for this entity, so every actor the PAU registry does not list (any
- * non-prime) and a prime with no snapshot yet simply have no section.
+ * The prime's PAU deployments as the chain reports them (GET /api/pau), the
+ * body of its PAUs subpage. Until the worker has stored a snapshot for this
+ * entity it says so instead.
  */
 export function ActorPau({ prime, instances }: Props) {
   const res = useLoaded(loadPau, { soft: true });
@@ -26,19 +23,23 @@ export function ActorPau({ prime, instances }: Props) {
     () => withAddressKeys(instanceKeyIndex([primeKeyedInstance(prime.m), ...instances]), addressKeyIndex(instances, snaps)),
     [prime.m, instances, snaps],
   );
-  if (snaps.length === 0) return null;
+  if (snaps.length === 0) {
+    return (
+      <p className="mono text-[10px]" style={{ color: "var(--tan-3)" }}>
+        {res ? "no PAU contracts have been read for this Prime yet" : "loading PAU snapshots…"}
+      </p>
+    );
+  }
 
   return (
-    <div className="lg:col-span-2 min-w-0">
-      <Section title="PAU on-chain" id={RADAR_SECTION.pau}>
-        <p className="text-[11px] mb-3" style={{ color: "var(--tan-3)" }}>
-          Read from the chain for each contract in the PAU registry. Role holders come from the contracts&apos; grant history,
-          each confirmed live; a rate limit is named by the prime or instance whose parameters state its ID.
-        </p>
-        {snaps.map((s, i) => (
-          <PauDeployment key={s.deployment} snap={s} keyIndex={keyIndex} defaultOpen={i === 0} />
-        ))}
-      </Section>
-    </div>
+    <section aria-label="PAU on-chain">
+      <p className="text-[11px] mb-3" style={{ color: "var(--tan-3)" }}>
+        Read from the chain for each contract in the PAU registry. Role holders come from the contracts&apos; grant history,
+        each confirmed live; a rate limit is named by the prime or instance whose parameters state its ID.
+      </p>
+      {snaps.map((s, i) => (
+        <PauDeployment key={s.deployment} snap={s} keyIndex={keyIndex} defaultOpen={i === 0} />
+      ))}
+    </section>
   );
 }
