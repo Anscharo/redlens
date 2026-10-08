@@ -12,20 +12,19 @@ function scrollToSection(container: HTMLElement | null, section: HTMLElement | n
   else container.scrollTop = target;
 }
 
-// Keeps the right panel's active section at the top of its scroll area: a glide
-// when the reader picks another section, a silent instant reposition on doc
-// navigation, nothing extra on load.
-export function useSectionScroll(active: AtlasTab, id: string, onTabChange: (t: AtlasTab) => void) {
+// Keeps the right panel's active section at the top of its scroll area. `tab` is
+// the section the reader asked for, `active` the one shown (they differ while the
+// asked-for section is hidden). Only a new ask glides; anything else that moves
+// `active` (a section's data arriving, a doc change) repositions instantly.
+export function useSectionScroll(tab: AtlasTab, active: AtlasTab, id: string, onTabChange: (t: AtlasTab) => void) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<SectionRefs>({});
-  // A doc change that also moves the active section (the new doc lacks it) is
-  // still doc navigation, so it repositions without a glide.
-  const prev = useRef<{ active: AtlasTab; id: string } | null>(null);
+  const prev = useRef<{ tab: AtlasTab; id: string } | null>(null);
   useEffect(() => {
-    const animate = prev.current !== null && prev.current.active !== active && prev.current.id === id;
+    const animate = prev.current !== null && prev.current.tab !== tab && prev.current.id === id;
     scrollToSection(scrollRef.current, sectionRefs.current[active], animate);
-    prev.current = { active, id };
-  }, [active, id]);
+    prev.current = { tab, id };
+  }, [tab, active, id]);
   // Clicking a pill always brings its section to the top — even the already-active
   // one, which wouldn't change `active` and so wouldn't trigger the effect above.
   const selectSection = useCallback((view: AtlasTab) => {

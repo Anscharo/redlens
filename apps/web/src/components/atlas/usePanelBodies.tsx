@@ -14,9 +14,8 @@ import { splitPanelEdges, usePanelNav, type RightPanelProps } from "./panelSecti
 export function usePanelBodies(props: RightPanelProps) {
   const { id, annotationDocs, linkedNodes, cousinDocs, targetAddresses, graphEdges, glossaryTerms } = props;
   const { nav, navDoc } = usePanelNav(props.onNavigate, props.onNavigateByDocNo);
-  const { citedBy, relations } = useMemo(() => splitPanelEdges(graphEdges), [graphEdges]);
+  const { citedBy, relations } = useMemo(() => splitPanelEdges(graphEdges, id), [graphEdges, id]);
   const addressCount = Object.keys(targetAddresses).length;
-  // The relations header counts raw edges, even if every row self-nav-filters out.
   const noteCount = annotationDocs.length + linkedNodes.length + cousinDocs.length + citedBy.length + relations.length;
   const bodies: Record<AtlasTab, ReactNode> = {
     notes: noteCount > 0 ? <PanelNotes {...props} citedBy={citedBy} relations={relations} onNav={nav} onNavDoc={navDoc} /> : null,

@@ -59,19 +59,19 @@ export interface PanelRelation {
 // are shown by the tree and the reader, and cites has its own "cited by" list.
 const HIDE = new Set(["parent_of", "mentions", "proxies_to", "cites"]);
 
-// Splits a doc's graph edges into the notes section's cited-by list and its
-// relations (both directions, each tagged with its direction once).
-export function splitPanelEdges(graphEdges: EdgeResult): { citedBy: Edge[]; relations: PanelRelation[] } {
+// Splits doc `id`'s graph edges into the notes section's cited-by list and its
+// relations (both directions, each tagged with its direction once). A relation
+// whose far end is the doc itself is dropped, so counts match the rows shown.
+export function splitPanelEdges(graphEdges: EdgeResult, id: string): { citedBy: Edge[]; relations: PanelRelation[] } {
   const out = graphEdges.outbound.filter((e) => !HIDE.has(e.e)).map((edge) => ({ edge, isOut: true }));
   const inb = graphEdges.inbound.filter((e) => !HIDE.has(e.e)).map((edge) => ({ edge, isOut: false }));
   return {
     citedBy: graphEdges.inbound.filter((e) => e.e === "cites"),
-    relations: [...out, ...inb],
+    relations: [...out, ...inb].filter((rel) => !isSelfRelation(rel, id)),
   };
 }
 
-/** True when the relation's far end is the doc itself. */
-export function isSelfRelation({ edge, isOut }: PanelRelation, id: string): boolean {
+function isSelfRelation({ edge, isOut }: PanelRelation, id: string): boolean {
   const did = isOut ? edge.to_did : edge.from_did;
   return did === id || (isOut ? edge.t : edge.f) === id;
 }

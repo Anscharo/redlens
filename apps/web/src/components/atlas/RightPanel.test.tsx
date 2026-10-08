@@ -328,7 +328,23 @@ describe("RightPanel graph relations", () => {
     expect(screen.getByText("←")).toBeInTheDocument();
   });
 
-  it("hides relations pointing back at the current node (self-nav) from the rendered rows", () => {
+  it("drops relations pointing back at the current node (self-nav) from rows and counts", () => {
+    setup({
+      id: "node-1",
+      tab: "notes",
+      graphEdges: makeEdgeResult({
+        outbound: [
+          makeEdge({ e: "depends_on", f: "node-1", t: "node-1", tt: "doc" }),
+          makeEdge({ e: "depends_on", f: "node-1", t: "other", tt: "doc", to_label: "Other Doc" }),
+        ],
+      }),
+    });
+    expect(screen.getByText(/relations · 1/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /notes.*1/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Other Doc" })).toBeInTheDocument();
+  });
+
+  it("hides the notes section when its only relations are self-nav", () => {
     setup({
       id: "node-1",
       tab: "notes",
@@ -336,9 +352,8 @@ describe("RightPanel graph relations", () => {
         outbound: [makeEdge({ e: "depends_on", f: "node-1", t: "node-1", tt: "doc" })],
       }),
     });
-    // The section header still counts the raw edge, but no row is rendered for it.
-    expect(screen.getByText(/relations · 1/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /node-1|00000000/ })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("notes-panel")).not.toBeInTheDocument();
+    expect(screen.queryByText(/relations ·/)).not.toBeInTheDocument();
   });
 
   it("filters out HIDE-listed edge kinds from the relations section", () => {

@@ -1,20 +1,18 @@
-import { SECTION_HEAD, isSelfRelation, relationEnd, type Nav, type PanelRelation } from "./panelSections";
+import { SECTION_HEAD, relationEnd, type Nav, type PanelRelation } from "./panelSections";
 
 interface RelationsListProps {
-  id: string;
   relations: PanelRelation[];
   onNav: Nav;
   onNavDoc: Nav;
 }
 
-// The notes section's extracted relations, both directions. The header counts
-// every relation; rows pointing back at this doc are dropped.
-export function RelationsList({ id, relations, onNav, onNavDoc }: RelationsListProps) {
+// The notes section's extracted relations, both directions.
+export function RelationsList({ relations, onNav, onNavDoc }: RelationsListProps) {
   return (
     <div className="mt-8">
       <p className={`${SECTION_HEAD} mb-3`}>relations · {relations.length}</p>
       <div className="space-y-2">
-        {relations.filter((rel) => !isSelfRelation(rel, id)).map((rel, i) => (
+        {relations.map((rel, i) => (
           <RelationRow key={i} rel={rel} onNav={onNav} onNavDoc={onNavDoc} />
         ))}
       </div>

@@ -22,7 +22,7 @@ export function RightPanel(props: RightPanelProps) {
   const { bodies, counts } = usePanelBodies(props);
   const shown = ATLAS_TABS.filter((t) => bodies[t] != null);
   const active = shown.includes(tab) ? tab : shown[0];
-  const { scrollRef, sectionRefs, selectSection } = useSectionScroll(active, id, onTabChange);
+  const { scrollRef, sectionRefs, selectSection } = useSectionScroll(tab, active, id, onTabChange);
   return (
     <>
       <PanelPills shown={shown} active={active} counts={counts} onSelect={selectSection} />
