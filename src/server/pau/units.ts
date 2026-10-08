@@ -12,6 +12,7 @@ type Via = "asset" | "token" | "self";
 type Rule = { fixed: number; symbol: string | null } | { via: Via };
 
 const RULES: [RegExp, Rule][] = [
+  // depositToFarm / withdrawFromFarm limit the usdsAmount, whatever the farm.
   [/^LIMIT_(USDS_MINT|FARM_DEPOSIT|FARM_WITHDRAW)$/, { fixed: 18, symbol: "USDS" }],
   [/^LIMIT_(USDE_BURN|SUSDE_COOLDOWN)$/, { fixed: 18, symbol: "USDe" }],
   [/^LIMIT_(USDE_MINT|USDS_TO_USDC|USDC_TO_CCTP|USDC_TO_DOMAIN|BUIDL_REDEEM_CIRCLE|SUPERSTATE_SUBSCRIBE|SUPERSTATE_REDEEM)$/, { fixed: 6, symbol: "USDC" }],
