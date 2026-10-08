@@ -883,8 +883,8 @@ export const config = {
   forumRefreshSeconds: Number(process.env.FORUM_REFRESH_SECONDS ?? 3_600),
 
   // PAU state (pau/, atlas worker). Each tick reads admin events for at most
-  // pauEventBudgetSeconds (explorer requests run at ETHERSCAN_THROTTLE_MS, so
-  // 60s is about 60 cursors), and rebuilds every deployment's snapshot once the
+  // pauEventBudgetSeconds (each explorer host runs at ETHERSCAN_THROTTLE_MS,
+  // so 60s is about 60 cursors), and rebuilds every deployment's snapshot once the
   // oldest is older than pauRefreshSeconds (two multicalls per deployment).
   pauEventBudgetSeconds: Number(process.env.PAU_EVENT_BUDGET_SECONDS ?? 60),
   pauRefreshSeconds: Number(process.env.PAU_REFRESH_SECONDS ?? 3_600),

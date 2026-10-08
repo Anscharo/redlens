@@ -4,7 +4,7 @@
  * below a contract's lifetime). Providers come from explorerBases
  * (explorer-api.ts) in order: Etherscan v2 when ETHERSCAN_API_KEY is set and
  * covers the chain, then Routescan, then the chain's Blockscout. Requests share
- * that module's clock with the address enrichment.
+ * that module's per-host clocks with the address enrichment.
  */
 import { explorerBases, throttleExplorer, type ExplorerBase } from "./explorer-api.ts";
 
@@ -64,7 +64,7 @@ function topicParams(topics: (string | null)[]): string {
 
 /** One page of logs from `fromBlock`; an explorer's "no records" answer is an empty page. */
 async function page(url: string): Promise<ExplorerLog[]> {
-  await throttleExplorer();
+  await throttleExplorer(url);
   const res = await fetch(url);
   if (!res.ok) throw new Error(`explorer logs: HTTP ${res.status}`);
   const body = (await res.json()) as { status?: string; message?: string; result: unknown };

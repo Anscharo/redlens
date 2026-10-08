@@ -34,6 +34,9 @@ const REGISTRY = JSON.parse(
 // `etherscan: false`), and a *fallback* for chains that do (ethereum,
 // optimism) when the Etherscan call fails or its plan refuses the chain.
 //
+// blockscoutIntervalMs: the gap that blockscoutApi's host needs between
+// requests when it allows fewer than one a second (xlayer, 6000).
+//
 // routescan: true when Routescan's Etherscan-compatible API serves the chain
 // (avalanche); its URL derives from the chainId (CHAIN_ROUTESCAN).
 //
@@ -47,6 +50,7 @@ export const CHAINS = REGISTRY.chains.map((c) => ({
   ...(c.solanaRpcUrl && { solanaRpcUrl: c.solanaRpcUrl }),
   ...(c.blockscoutApi && { blockscoutApi: c.blockscoutApi }),
   ...(c.etherscan === false && { etherscan: false }),
+  ...(c.blockscoutIntervalMs && { blockscoutIntervalMs: c.blockscoutIntervalMs }),
   ...(c.routescan && { routescan: true }),
 }));
 
@@ -129,6 +133,15 @@ export const CHAIN_BLOCKSCOUT = Object.fromEntries(
 );
 
 /**
+ * Minimum request gap per explorer API host, for a chain whose blockscoutApi
+ * host allows fewer than one request a second (xlayer). explorer-api.ts reads
+ * it by host, so every caller of that host waits the same.
+ */
+export const EXPLORER_HOST_INTERVAL_MS = Object.fromEntries(
+  CHAINS.filter((c) => c.blockscoutApi && c.blockscoutIntervalMs).map((c) => [new URL(c.blockscoutApi).host, c.blockscoutIntervalMs]),
+);
+
+/**
  * Routescan's keyless Etherscan-compatible API base per chain flagged
  * `routescan: true`. It pages getLogs at 100 unless the request asks for more.
  */
@@ -141,8 +154,9 @@ export const CHAIN_ROUTESCAN = Object.fromEntries(
 
 /**
  * Chains whose contract metadata is fetched from Etherscan v2 (has a chainId and
- * is not flagged `etherscan: false`). plume is excluded: Etherscan v2 has no
- * endpoint for chain 98866, so Blockscout is its only source. A covered chain
+ * is not flagged `etherscan: false`). plume and xlayer are excluded: Etherscan
+ * v2 has no endpoint for chains 98866 and 196, so their Blockscout-style API is
+ * the only source. A covered chain
  * may still be refused on the free plan (base, optimism, avalanche).
  */
 export const CHAIN_SUPPORTS_ETHERSCAN = new Set(

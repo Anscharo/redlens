@@ -305,7 +305,7 @@ describe("explorer providers (Etherscan + Blockscout backup)", () => {
     expect([...store.keys()].some((k) => k.includes("/98866/") && k.endsWith(`${addr}.json`))).toBe(true);
   });
 
-  it("appends BLOCKSCOUT_API_KEY to the Blockscout request when set", async () => {
+  it("appends BLOCKSCOUT_API_KEY to a request to an instance Blockscout hosts", async () => {
     const addr = "0xdddd444444444444444444444444444444dddd4";
     process.env.BLOCKSCOUT_API_KEY = "bs-secret";
     const seen: string[] = [];
@@ -313,8 +313,8 @@ describe("explorer providers (Etherscan + Blockscout backup)", () => {
       seen.push(url);
       return verified();
     }));
-    await enrichAddresses({ [addr]: { chain: "plume" } }, {}, "KEY");
-    expect(seen[0]).toContain("apikey=bs-secret");
+    await enrichAddresses({ [addr]: { chain: "ethereum" } }, {}, undefined);
+    expect(seen[0]).toMatch(/^https:\/\/eth\.blockscout\.com\/api\?apikey=bs-secret&/);
   });
 
   it("falls back to Blockscout when the Etherscan call hard-fails for a backed chain", async () => {

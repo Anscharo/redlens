@@ -25,7 +25,7 @@ The worker step is `scripts/lib/worker-steps/pau.mjs`. It injects `explorerLogs`
 
 Public RPCs cap `eth_getLogs` at about 10,000 blocks (Arbitrum's refuses even 1,000), far below a contract's lifetime. The explorer pages by result count instead.
 
-`explorerLogs` tries the providers `explorerBases` lists, in order: Etherscan v2 (with `ETHERSCAN_API_KEY`), Routescan (registry `routescan: true`), then the chain's Blockscout (registry `blockscoutApi`). Every request asks for a 1,000-log page, because Routescan's default page is 100 and a short page reads as the end of the history. When Etherscan answers that the key's plan does not cover the chain, the fetcher moves to the next provider and skips Etherscan for that chain until the process ends. Any other error, a rate limit included, goes to `sync-events.ts` unchanged. A chain with no provider records `no explorer serves <chain>`; a chain whose every provider refused records `every explorer refused <chain> (…)` with each refusal.
+`explorerLogs` tries the providers `explorerBases` lists, in order: Etherscan v2 (with `ETHERSCAN_API_KEY`), Routescan (registry `routescan: true`), then the chain's Blockscout (registry `blockscoutApi`). Every request asks for a 1,000-log page, because Routescan's default page is 100 and a short page reads as the end of the history. When Etherscan answers that the key's plan does not cover the chain, the fetcher moves to the next provider and skips Etherscan for that chain until the process ends. Any other error, a rate limit included, goes to `sync-events.ts` unchanged. Each API host has its own request clock (`throttleExplorer` in `scripts/lib/explorer-api.ts`): 1 request a second by default, or the registry's longer `blockscoutIntervalMs`. `BLOCKSCOUT_API_KEY` goes only to instances under `blockscout.com`, because another host rejects a key it did not issue. A chain with no provider records `no explorer serves <chain>`; a chain whose every provider refused records `every explorer refused <chain> (…)` with each refusal.
 
 Where each chain's history comes from, on Etherscan's free plan:
 
@@ -36,12 +36,10 @@ Where each chain's history comes from, on Etherscan's free plan:
 | optimism | optimism.blockscout.com | Etherscan's free plan refuses chain 10. |
 | avalanche | Routescan | Etherscan's free plan refuses chain 43114. |
 | plume | its Blockscout | Etherscan v2 has no endpoint for chain 98866. |
+| xlayer | XLayerScan (`api.xlayerscan.com`) | Etherscan v2, Routescan and api.blockscout.com do not serve chain 196. OKLink needs a key. XLayerScan allows one request every 5 seconds per IP, so its host waits 6 seconds between requests (registry `blockscoutIntervalMs`). |
 | base | none | See below. |
-| xlayer | none | See below. |
 
 **Base cannot be read without a paid or keyed source.** Etherscan v2: `Free API access is not supported for this chain. Please upgrade your api plan`. base.blockscout.com: a Cloudflare challenge page (HTTP 403). api.blockscout.com: `Featured chain 8453 requires one of the following plans: Builder, Business, Pro` (HTTP 402). Routescan: `chain not supported`. MultiBaas's free plan indexes only 100 blocks behind the head. Public RPCs: mainnet.base.org caps `eth_getLogs` at 500 blocks, drpc at 10,000, thirdweb at 1,000, nodies at 50, blastapi at 10, and publicnode refuses anything older than recent blocks (`Archive requests require a personal token`). The contracts are about 30 million blocks old, so a 10,000-block crawl is about 3,000 requests per cursor across 38 cursors. Any of a paid Etherscan plan, a Blockscout PRO plan or a keyed archive RPC would fix it.
-
-**X Layer cannot be read without a keyed source.** Etherscan v2: `Missing or unsupported chainid parameter`. Routescan: `chain not supported`. api.blockscout.com: `Network not supported`. OKLink, the chain's explorer, has an Etherscan-compatible endpoint that needs an `OK-ACCESS-KEY` header. Public RPCs: rpc.xlayer.tech and xlayerrpc.okx.com cap `eth_getLogs` at 100 blocks, thirdweb at 1,000 and drpc at 10,000. The contracts were deployed at block 64,646,682, about 8 million blocks back, so a 10,000-block crawl is about 805 requests per cursor across 18 cursors. An OKLink key is the narrowest fix.
 
 ## When to move off the worker step
 

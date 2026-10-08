@@ -10,6 +10,7 @@
     "nativeToken": "Gas token. Its presence is what enables the EVM balances path; omitting it makes fetch-balances treat the chain as unsupported.",
     "blockscoutApi": "Etherscan-compatible Blockscout /api base. Primary contract-metadata source when `etherscan` is false, fallback otherwise.",
     "etherscan": "False when Etherscan v2 has no endpoint for this chainId, so Blockscout is the only source.",
+    "blockscoutIntervalMs": "Minimum gap between requests to this chain's blockscoutApi host, in ms, when the host allows fewer than one request a second.",
     "routescan": "True when Routescan serves the chain's Etherscan-compatible API at its chainId (keyless). Tried after Etherscan v2 and before Blockscout."
   },
   "deferred": [],
@@ -221,6 +222,7 @@
     },
     {
       "chain": "xlayer",
+      "note": "Etherscan v2 has no endpoint for chain 196. XLayerScan's keyless Etherscan-compatible API serves logs and contract metadata, at most one request every 5 seconds per IP; the 6-second gap leaves margin, because requests exactly 5 seconds apart are refused.",
       "chainId": 196,
       "aliases": [
         "xlayer",
@@ -235,7 +237,10 @@
       "nativeToken": {
         "symbol": "OKB",
         "decimals": 18
-      }
+      },
+      "blockscoutApi": "https://api.xlayerscan.com/api",
+      "blockscoutIntervalMs": 6000,
+      "etherscan": false
     },
     {
       "chain": "ethereum",

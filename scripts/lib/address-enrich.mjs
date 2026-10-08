@@ -16,8 +16,8 @@ const CACHE_DIR = path.join(ROOT, ".cache/etherscan");
 const CHAINLOG_URL = "https://chainlog.skyeco.com/api/mainnet/active.json";
 
 // Every live explorer call goes through throttleExplorer() (explorer-api.ts),
-// the clock shared with the PAU grant-history lookups, so enrich, impl-ABI and
-// log passes cannot stampede either provider between them.
+// the per-host clocks shared with the PAU grant-history lookups, so enrich,
+// impl-ABI and log passes cannot stampede any provider between them.
 
 /**
  * Substantive proxy metadata fields — deliberately ignores fetchedAt so a
@@ -101,7 +101,7 @@ function explorerProviders(chain, addr, apiKey) {
 }
 
 async function fetchExplorer(url, providerName, chainid, addr) {
-  await throttleExplorer();
+  await throttleExplorer(url);
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${chainid}/${addr} (${providerName})`);
   const data = await res.json();

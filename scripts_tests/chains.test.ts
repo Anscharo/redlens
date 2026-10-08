@@ -104,6 +104,7 @@ describe("CHAIN_SUPPORTS_ETHERSCAN", () => {
     expect(CHAIN_SUPPORTS_ETHERSCAN.has("base")).toBe(true);
     expect(CHAIN_SUPPORTS_ETHERSCAN.has("robinhood")).toBe(true);
     expect(CHAIN_SUPPORTS_ETHERSCAN.has("plume")).toBe(false);
+    expect(CHAIN_SUPPORTS_ETHERSCAN.has("xlayer")).toBe(false);
     expect(CHAIN_SUPPORTS_ETHERSCAN.has("solana")).toBe(false);
   });
 });
