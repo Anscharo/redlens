@@ -87,7 +87,7 @@ test("recorded claims and vote evidence ride along when the vote record is given
   expect(r.recorded[0].voteEvidence).toMatchObject({ status: "vote-on-date", vote: { url: "https://vote.sky.money/executive/genesis" } });
   expect(r.recorded[0].vote).toBeUndefined(); // the matcher's input stays internal
   expect(r.stale[0].voteEvidence.status).toBe("vote-on-date");
-  expect(r.vote_record).toBe("executives 2026-03-26 → 2026-03-26");
+  expect(r.vote_record).toBe("Executive Votes 2026-03-26 → 2026-03-26");
   expect(r.total).toBe(4);
 });
 

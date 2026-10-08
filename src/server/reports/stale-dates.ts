@@ -61,7 +61,7 @@ export function buildStaleDatesReportTool(
     returned: all.reduce((n, b) => n + b.kept.length, 0),
     truncated,
     total_date_mentions: report.totalDateMentions,
-    vote_record: votes ? `executives ${votes.first} → ${votes.last}` : "unavailable — no voteEvidence on rows",
+    vote_record: votes ? `Executive Votes ${votes.first} → ${votes.last}` : "unavailable — no voteEvidence on rows",
     judged_at: overlay?.computedAt ?? null,
     ...Object.fromEntries(Object.entries(buckets).map(([k, b]) => [k, b.kept])),
   };
@@ -76,10 +76,10 @@ export const staleDatesTool = defineReportTool({
     "Curated report (not raw graph calls) — the Redline Portal's OWN computed report, not atlas text: every future-tense dated claim " +
     "in atlas prose checked against today, bucketed stale (date passed) / due_soon (within a week) / upcoming, plus " +
     "recorded: past-tense sentences that say a dated Executive Vote did something. Each row: the doc, the matched date " +
-    "text, its ISO boundary date, days until/since stale, and voteEvidence — what the Sky vote record (executive votes and " +
-    "governance polls) shows: enacted, vote-on-date, pending, subject-missing (an executive on that date never mentions " +
+    "text, its ISO boundary date, days until/since stale, and voteEvidence — what the Sky vote record (Executive Votes and " +
+    "governance polls) shows: enacted, vote-on-date, pending, subject-missing (an Executive Vote on that date never mentions " +
     "what the atlas says it carried), no-vote, not-covered, authorised (a passed poll authorised it) or unlinked (no " +
-    "evidence either way). voteEvidence.via says how the vote was found: date, link, history (the poll linking the atlas " +
+    "evidence either way). voteEvidence.vote.spell is the cast spell's address, when the Executive Vote's spell has been cast. voteEvidence.via says how the vote was found: date, link, history (the poll linking the atlas " +
     "pull request that wrote the claim) or judge (an AI model's pick). voteEvidence.judged is set when an AI model decided " +
     "the status; judged.rule is what the heuristic alone said — say the verdict came via AI when you report such a row. " +
     "The Atlas itself never defines \"stale\" — this is the Redline Portal's own extraction; say so if asked what the " +

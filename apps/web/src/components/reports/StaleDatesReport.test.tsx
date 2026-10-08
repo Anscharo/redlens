@@ -56,7 +56,7 @@ const recordedClaim = claim({
   voteEvidence: {
     status: "subject-missing",
     via: "date",
-    vote: { kind: "executive", title: "Genesis Funding Transfers", date: "2026-03-26", url: "https://vote.sky.money/executive/x", offsetDays: 0 },
+    vote: { kind: "executive", title: "Genesis Funding Transfers", date: "2026-03-26", url: "https://vote.sky.money/executive/x", offsetDays: 0, spell: "0x8A3A7c5e2C8D3E1f0b9C4d7E6F5a4B3c2D1e0F9a" },
     subject: { found: ["genesis"], missing: ["osero"] },
   },
 });
@@ -126,10 +126,11 @@ describe("StaleDatesReport", () => {
     // Past tense: a passed date reads as "ago", never "overdue".
     expect(screen.getByText("(195d ago)")).toBeInTheDocument();
     expect(screen.getByText("subject missing")).toBeInTheDocument();
-    expect(screen.getByText(/not in that executive/)).toHaveTextContent("not in that executive: osero");
-    const link = screen.getByRole("link", { name: "executive 2026-03-26 (+0d)" });
+    expect(screen.getByText(/not in that Executive Vote/)).toHaveTextContent("not in that Executive Vote: osero");
+    const link = screen.getByRole("link", { name: "Executive Vote 2026-03-26 (+0d)" });
     expect(link).toHaveAttribute("href", "https://vote.sky.money/executive/x");
-    expect(screen.getByText(/Vote record: executives 2025-05-29 → 2026-10-08/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "spell 0x8A3A…0F9a" })).toHaveAttribute("title", "Cast spell 0x8A3A7c5e2C8D3E1f0b9C4d7E6F5a4B3c2D1e0F9a");
+    expect(screen.getByText(/Vote record: Executive Votes 2025-05-29 → 2026-10-08/)).toBeInTheDocument();
   });
 
   it("tags the worker's verdict via AI, with what the heuristic said in the hover", async () => {
@@ -139,7 +140,7 @@ describe("StaleDatesReport", () => {
     expect(await screen.findByText("enacted")).toBeInTheDocument();
     expect(screen.getByText("via AI")).toHaveAttribute("title", expect.stringContaining("The heuristic alone said: subject missing."));
     expect(screen.queryByText(/rules said/)).toBeNull();
-    expect(screen.queryByText(/not in that executive/)).toBeNull();
+    expect(screen.queryByText(/not in that Executive Vote/)).toBeNull();
     expect(screen.getByText(/AI judgments as of 2026-10-07/)).toBeInTheDocument();
   });
 

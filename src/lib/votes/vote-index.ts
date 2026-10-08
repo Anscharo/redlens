@@ -21,6 +21,8 @@ export interface IndexedExecutive {
   url: string;
   outOfSchedule: boolean;
   cast: boolean;
+  /** The deployed spell's address; null while the executive is drafted. Deployed is not cast: see `cast`. */
+  spell: string | null;
   /** Title, summary and every action section, lowercased. */
   text: string;
 }
@@ -116,6 +118,7 @@ function indexExecutive(e: Executive): IndexedExecutive {
     url: e.portal ? `https://vote.sky.money/executive/${e.portal.key}` : EXECUTIVES_REPO + e.file,
     outOfSchedule: e.outOfSchedule,
     cast: e.portal?.hasBeenCast === true,
+    spell: e.address,
     text: [e.title, e.summary, ...sections].join(" ").toLowerCase(),
   };
 }

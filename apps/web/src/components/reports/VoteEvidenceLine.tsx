@@ -3,9 +3,10 @@
 // claim's named things that vote never mentions, and how it was matched (its
 // date, a link, atlas history or an AI model; the hover says the rest).
 import type { VoteEvidence, VoteEvidenceStatus } from "@/lib/votes/evidence";
-import { EVIDENCE_LABEL, evidenceHint, matchedVia, missingSubject, signedDays } from "@/lib/votes/labels";
+import { EVIDENCE_LABEL, evidenceHint, matchedVia, missingSubject, signedDays, VOTE_KIND } from "@/lib/votes/labels";
 import type { ReportQuery } from "@/lib/reportFilter";
 import { Highlight } from "./Highlight";
+import { SpellLink } from "../SpellLink";
 
 // Warnings read as errors, open questions as cautions, confirmations as links.
 const TONE: Record<VoteEvidenceStatus, string> = {
@@ -33,9 +34,10 @@ export function VoteEvidenceLine({ evidence: e, rq }: { evidence: VoteEvidence; 
       </span>
       {e.vote && (
         <a href={e.vote.url} target="_blank" rel="noreferrer" title={e.vote.title} className="mono text-xs text-accent">
-          {e.vote.kind} {e.vote.date} ({signedDays(e.vote.offsetDays)})
+          {VOTE_KIND[e.vote.kind]} {e.vote.date} ({signedDays(e.vote.offsetDays)})
         </a>
       )}
+      {e.vote?.spell && <SpellLink address={e.vote.spell} />}
       {via && (
         <span className="mono text-xs" title={evidenceHint(e)}>
           via {via}
@@ -43,7 +45,7 @@ export function VoteEvidenceLine({ evidence: e, rq }: { evidence: VoteEvidence; 
       )}
       {missing.length > 0 && (
         <span className="text-xs">
-          not in that {e.vote?.kind ?? "vote"}: <Highlight text={missing.join(", ")} rq={rq} />
+          not in that {e.vote ? VOTE_KIND[e.vote.kind] : "vote"}: <Highlight text={missing.join(", ")} rq={rq} />
         </span>
       )}
     </p>

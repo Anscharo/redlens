@@ -37,13 +37,13 @@ export function StaleDatesReport({ query, mode }: { query: string; mode: ReportM
         <>
           Future-tense claims in atlas prose ("will be included in the … Executive Vote") checked against
           today's date. An overdue claim means the event happened and the text was never updated — or it
-          slipped. Each claim is also checked against the Sky vote record (executive votes and governance
+          slipped. Each claim is also checked against the Sky vote record (Executive Votes and governance
           polls), which tells those two apart: a date in the atlas is not evidence that a vote happened.
           {report && <span className="mono"> {report.totalDateMentions} dated mentions scanned.</span>}
           {report && (
             <span className="mono">
               {voteRecord
-                ? ` Vote record: executives ${voteRecord.first} → ${voteRecord.last}.`
+                ? ` Vote record: Executive Votes ${voteRecord.first} → ${voteRecord.last}.`
                 : " Vote record unavailable — no vote evidence shown."}
               {judgedAt && ` Atlas history and AI judgments as of ${judgedAt.slice(0, 10)}.`}
             </span>

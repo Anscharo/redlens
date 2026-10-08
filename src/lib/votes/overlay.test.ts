@@ -15,7 +15,7 @@ describe("judgeSubject", () => {
     const e = judgeSubject(rule(), true, { model: MODEL, anchor: 0.05, carried: 0.9 });
     expect(e).toMatchObject({ status: "enacted", via: "date", vote: executive, judged: { model: MODEL, p: 0.9, rule: "subject-missing" } });
     expect(ruleDisagrees(e)).toBe(true);
-    expect(evidenceText(e)).toBe("enacted · executive 2026-03-26 (+0d) · via AI");
+    expect(evidenceText(e)).toBe("enacted · Executive Vote 2026-03-26 (+0d) · via AI");
     expect(evidenceHint(e)).toContain("The heuristic alone said: subject missing.");
     expect(evidenceHint(e)).toContain("Checked by an AI model (typesafe/jev-1.13, p 0.90).");
   });
@@ -31,7 +31,7 @@ describe("judgeSubject", () => {
     expect(judgeSubject(rule({ status: "pending" }), false, { model: MODEL, anchor: 0.1, carried: 0.6 }).status).toBe("pending");
     const agreed = judgeSubject(rule({ status: "enacted" }), true, { model: MODEL, anchor: 0.1, carried: 0.6 });
     expect(ruleDisagrees(agreed)).toBe(false);
-    expect(evidenceText(agreed)).toBe("enacted · executive 2026-03-26 (+0d) · via AI");
+    expect(evidenceText(agreed)).toBe("enacted · Executive Vote 2026-03-26 (+0d) · via AI");
     expect(evidenceHint(agreed)).not.toContain("heuristic alone");
     expect(matchedVia(agreed)).toBe("AI");
     expect(matchedVia(rule())).toBe("date");

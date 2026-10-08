@@ -10,7 +10,7 @@ import { EVIDENCE_LABEL, matchedVia, missingSubject, ruleDisagrees } from "./vot
 
 const HEADER = [
   "Bucket", "Doc No", "Title", "UUID", "Atlas Link", "Date Text", "Boundary Date", "Precision", "Days Until Stale",
-  "Handoff", "Vote Evidence", "Matched Via", "Heuristic Said", "Vote", "Vote Date", "Vote Offset Days", "Vote Link", "Subject Not In Vote", "Context",
+  "Handoff", "Vote Evidence", "Matched Via", "Heuristic Said", "Vote", "Vote Date", "Vote Offset Days", "Vote Link", "Spell", "Subject Not In Vote", "Context",
 ];
 
 function row(bucket: string, c: DateClaim): Array<string | number> {
@@ -33,6 +33,7 @@ function row(bucket: string, c: DateClaim): Array<string | number> {
     e?.vote?.date ?? "",
     e?.vote ? e.vote.offsetDays : "",
     e?.vote?.url ?? "",
+    e?.vote?.spell ?? "",
     e ? missingSubject(e).join(", ") : "",
     `${c.contextBefore}${c.raw}${c.contextAfter}`,
   ];

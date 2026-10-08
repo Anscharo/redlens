@@ -576,7 +576,7 @@ The reader's history list uses it: `buildVoteIndex` maps each pull request to th
 poll linking it (`approvals`), and `ApprovedByPoll` adds an "approved by poll …" row under each
 history entry that has one. Of the 276 atlas pull requests in git history, 51 show their poll today.
 
-The same row names the executives whose authorization cites that poll ("· cited by executive …",
+The same row names the executives whose authorization cites that poll ("· cited by Executive Vote …",
 by portal slug or poll id). It claims only the citation: a weekly Atlas Edit poll bundles many
 edits, and the executive may carry out a different one, which is why the votes panel does not list
 executives through this route (§11). Of the 51 approved pull requests, 31 show at least one citing

@@ -8,6 +8,7 @@ import type { AtlasNode } from "@/types";
 import { executivesForDoc, type DocVote, type DocVoteReason } from "@/lib/votes/docVotes";
 import { EVIDENCE_LABEL, evidenceHint, matchedVia } from "@/lib/votes/labels";
 import { loadVoteRecord } from "../../lib/votes";
+import { SpellLink } from "../SpellLink";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUTCDay } from "../../hooks/useUTCDay";
 
@@ -37,8 +38,14 @@ function VoteRow({ vote: v }: { vote: DocVote }) {
   return (
     <li>
       <a href={v.url} target="_blank" rel="noreferrer" className="text-xs mono text-accent hover:underline">
-        executive {v.date}
+        Executive Vote {v.date}
       </a>
+      {v.spell && (
+        <>
+          {" · "}
+          <SpellLink address={v.spell} />
+        </>
+      )}
       <p className="text-xs leading-relaxed text-tan-2">{v.title}</p>
       {v.reasons.map((r, i) => (
         <p key={i} className="text-[11px] mono text-tan-3">

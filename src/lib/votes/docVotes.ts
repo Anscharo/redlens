@@ -20,6 +20,8 @@ export type DocVoteReason =
   | { kind: "claim"; raw: string; evidence: VoteEvidence }; // matched to a dated claim in it
 
 export interface DocVote {
+  /** The cast spell's address, when the executive's spell has been cast. */
+  spell?: string;
   title: string;
   date: string;
   url: string;
@@ -40,12 +42,16 @@ export function executivesForDoc(
     rows.set(v.url, row);
   };
   for (const l of index?.links.get(doc.id) ?? []) {
-    if (l.kind === "executive") add({ title: l.executive.title, date: l.date, url: l.executive.url }, { kind: "links" });
+    if (l.kind !== "executive") continue;
+    const spell = l.executive.cast && l.executive.spell ? { spell: l.executive.spell } : {};
+    add({ title: l.executive.title, date: l.date, url: l.executive.url, ...spell }, { kind: "links" });
   }
   const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
   for (const claim of extractDateClaims(doc, todayUTC).claims) {
     const e = overlayClaim({ ...claim, voteEvidence: index ? voteEvidence(claim, docs, index) : undefined }, overlay).voteEvidence;
-    if (e?.vote?.kind === "executive") add({ title: e.vote.title, date: e.vote.date, url: e.vote.url }, { kind: "claim", raw: claim.raw, evidence: e });
+    if (e?.vote?.kind !== "executive") continue;
+    const spell = e.vote.spell ? { spell: e.vote.spell } : {};
+    add({ title: e.vote.title, date: e.vote.date, url: e.vote.url, ...spell }, { kind: "claim", raw: claim.raw, evidence: e });
   }
   return [...rows.values()].sort((a, b) => b.date.localeCompare(a.date) || a.title.localeCompare(b.title));
 }

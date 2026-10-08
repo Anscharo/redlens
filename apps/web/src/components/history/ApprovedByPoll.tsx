@@ -26,7 +26,7 @@ export function ApprovedByPoll({ pr }: { pr?: number }) {
           <span key={e.url}>
             {i > 0 && ", "}
             <a href={e.url} target="_blank" rel="noreferrer" title={e.title} className="text-accent hover:underline">
-              executive {e.date}
+              Executive Vote {e.date}
             </a>
           </span>
         ))}

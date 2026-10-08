@@ -34,6 +34,8 @@ export interface VoteMatch {
   url: string;
   /** Vote date minus claim date, in days. */
   offsetDays: number;
+  /** For an executive whose spell has been cast, the spell contract's address. */
+  spell?: string;
 }
 
 export interface VoteEvidence {
@@ -89,5 +91,6 @@ function byLink(claim: ClaimKey, docs: Record<string, AtlasNode>, index: VoteInd
 }
 
 function executiveMatch(e: IndexedExecutive, dateISO: string): VoteMatch {
-  return { kind: "executive", title: e.title, date: e.date, url: e.url, offsetDays: offset(dateISO, e.date) };
+  const match: VoteMatch = { kind: "executive", title: e.title, date: e.date, url: e.url, offsetDays: offset(dateISO, e.date) };
+  return e.cast && e.spell ? { ...match, spell: e.spell } : match;
 }

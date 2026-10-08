@@ -25,7 +25,7 @@ const index = () =>
     polls: [],
     executives: [
       {
-        file: "2026/e.md", date: "2026-03-26", frontmatterDate: null, outOfSchedule: false, title: "Genesis Funding", summary: "", address: "0x1",
+        file: "2026/e.md", date: "2026-03-26", frontmatterDate: null, outOfSchedule: false, title: "Genesis Funding", summary: "", address: "0x24fdcd3bFA5C2553e05B2f9AD0365EBC296278D3",
         sections: [{ heading: "Transfers", text: "Transfer to the Launch Agent 6 SubProxy.", authorization: [], proposal: [], atlasRefs: [] }],
         portal: { key: "k", date: "2026-03-26", active: false, hasBeenCast: true, datePassed: null, dateExecuted: null },
       },
@@ -37,9 +37,10 @@ describe("DocVotes", () => {
     record = { index: index(), overlay: null };
     render(<DocVotes id="d" docs={{ d: doc }} />);
     expect(screen.getByText("loading votes…")).toBeInTheDocument();
-    const link = await screen.findByRole("link", { name: "executive 2026-03-26" });
+    const link = await screen.findByRole("link", { name: "Executive Vote 2026-03-26" });
     expect(link).toHaveAttribute("href", "https://vote.sky.money/executive/k");
     expect(screen.getByText("Genesis Funding")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "spell 0x24fd…78D3" })).toHaveAttribute("href", expect.stringContaining("/address/0x24fdcd3bFA5C2553e05B2f9AD0365EBC296278D3"));
     expect(screen.getByText("subject missing · via date")).toHaveAttribute("title", expect.stringContaining("never mentions"));
   });
 

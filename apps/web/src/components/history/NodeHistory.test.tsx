@@ -302,10 +302,10 @@ describe("NodeHistory executives citing the approving poll", () => {
   it("names each executive whose authorization cites the poll, and nothing when none does", async () => {
     mockLoad.mockResolvedValue([entry({ pr: 43 }), entry({ pr: 42, commitHash: "def5678" })]);
     render(<NodeHistory nodeId="n1" />);
-    expect(await screen.findByRole("link", { name: "executive 2025-12-11" })).toHaveAttribute("href", "https://vote.sky.money/executive/a");
-    expect(screen.getByRole("link", { name: "executive 2026-01-15" })).toHaveAttribute("title", "Exec B");
+    expect(await screen.findByRole("link", { name: "Executive Vote 2025-12-11" })).toHaveAttribute("href", "https://vote.sky.money/executive/a");
+    expect(screen.getByRole("link", { name: "Executive Vote 2026-01-15" })).toHaveAttribute("title", "Exec B");
     const lines = screen.getAllByTestId("approved-by-poll").map((p) => p.textContent);
-    expect(lines).toEqual(["approved by poll 2025-12-01 · cited by executive 2025-12-11, executive 2026-01-15", "approved by poll 2025-11-24"]);
+    expect(lines).toEqual(["approved by poll 2025-12-01 · cited by Executive Vote 2025-12-11, Executive Vote 2026-01-15", "approved by poll 2025-11-24"]);
   });
 });
 

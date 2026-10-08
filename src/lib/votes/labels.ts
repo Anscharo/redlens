@@ -1,7 +1,10 @@
 // Words for vote evidence, shared by the Stale Dates page, its CSV, its text
 // filter and the chat tool, so all four say the same thing.
 
-import type { VoteEvidence, VoteEvidenceStatus } from "./evidence";
+import type { VoteEvidence, VoteEvidenceStatus, VoteMatch } from "./evidence";
+
+/** How a vote's kind reads to a user: the atlas's own term, never shortened to "executive". */
+export const VOTE_KIND: Record<VoteMatch["kind"], string> = { executive: "Executive Vote", poll: "poll" };
 
 export const EVIDENCE_LABEL: Record<VoteEvidenceStatus, string> = {
   enacted: "enacted",
@@ -15,15 +18,15 @@ export const EVIDENCE_LABEL: Record<VoteEvidenceStatus, string> = {
 };
 
 export const EVIDENCE_HINT: Record<VoteEvidenceStatus, string> = {
-  enacted: "An executive vote carried this claim, and its spell has been cast on-chain.",
+  enacted: "An Executive Vote carried this claim, and its spell has been cast on-chain.",
   "vote-on-date":
-    "An executive vote on this date had its spell cast on-chain, but the sentence names nothing specific enough to check against it.",
-  pending: "The matching executive vote is drafted or still being voted on; its spell has not been cast.",
+    "An Executive Vote on this date had its spell cast on-chain, but the sentence names nothing specific enough to check against it.",
+  pending: "The matching Executive Vote is drafted or still being voted on; its spell has not been cast.",
   "subject-missing":
-    "An executive is filed for this date, but it never mentions what the atlas says it carried.",
-  "no-vote": "The vote record covers this date and holds no executive for it.",
+    "An Executive Vote is filed for this date, but it never mentions what the atlas says it carried.",
+  "no-vote": "The vote record covers this date and holds no Executive Vote for it.",
   "not-covered": "The date falls outside the span of the vote record, so it cannot confirm or refute the claim.",
-  authorised: "A passed governance poll links this document; no executive does.",
+  authorised: "A passed governance poll links this document; no Executive Vote does.",
   unlinked:
     "No vote names this date or links this document. Not evidence of absence: most effective dates are set by weekly polls that link nothing.",
 };
@@ -74,7 +77,7 @@ export function missingSubject(e: VoteEvidence): string[] {
 /** One line for a filter or the chat: the label, the vote and its offset, how it was matched, and any decisive missing terms. */
 export function evidenceText(e: VoteEvidence): string {
   const parts = [EVIDENCE_LABEL[e.status]];
-  if (e.vote) parts.push(`${e.vote.kind} ${e.vote.date} (${signedDays(e.vote.offsetDays)})`);
+  if (e.vote) parts.push(`${VOTE_KIND[e.vote.kind]} ${e.vote.date} (${signedDays(e.vote.offsetDays)})`);
   const via = matchedVia(e);
   if (via) parts.push(`via ${via}`);
   const missing = missingSubject(e);

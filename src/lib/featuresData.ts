@@ -67,8 +67,8 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "Context for whichever document is selected — notes, history, votes and glossary in one scrolling panel, with pills at the top to jump between them.",
         how: [
           "Notes — the Element Annotations attached to this document, linked documents, equivalent documents under the other Prime Agents, mentioned addresses, and which documents cite this one (where you land by default).",
-          "History — this document's change timeline, with the governance poll that approved each change where one links it (“approved by poll …”), and any executive vote that cites that poll (“cited by executive …”).",
-          "Votes — the Sky executive votes behind this document: each one that links it, and each one matched to one of its dates (labelled as on Stale Dates, with how each was matched), linked to vote.sky.money. Governance polls show in History, under the changes they approved.",
+          "History — this document's change timeline, with the governance poll that approved each change where one links it (“approved by poll …”), and any Executive Vote that cites that poll (“cited by Executive Vote …”).",
+          "Votes — the Sky Executive Votes behind this document: each one that links it, and each one matched to one of its dates (labelled as on Stale Dates, with how each was matched), linked to vote.sky.money. Governance polls show in History, under the changes they approved.",
           "Glossary — the defined terms this document uses, with their Atlas definitions.",
         ],
       },
@@ -262,7 +262,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "Vote evidence on Stale Dates",
-        what: "Each dated claim on Stale Dates is checked against the Sky vote record (executive votes and governance polls), so you can tell a vote that happened but was never written up from one that did not happen.",
+        what: "Each dated claim on Stale Dates is checked against the Sky vote record (Executive Votes and governance polls), so you can tell a vote that happened but was never written up from one that did not happen.",
         how: [
           "Open Stale Dates; under each claim, a tag says what the vote record shows — enacted, vote pending, subject missing, no vote found, or no linked vote — with the matched vote linked to vote.sky.money and its offset in days.",
           "The Recorded votes section lists sentences that say a dated Executive Vote already did something, and checks those too: subject missing means the executive on that date never mentions what the Atlas credits to it.",

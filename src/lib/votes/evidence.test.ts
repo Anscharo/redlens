@@ -82,17 +82,18 @@ describe("claims that name an Executive Vote", () => {
     const e = byDate("2026-03-26", ref(["keel", "genesis"]));
     expect(e).toMatchObject({ status: "enacted", via: "date", vote: { kind: "executive", date: "2026-03-26", offsetDays: 0 } });
     expect(e.vote?.url).toBe("https://vote.sky.money/executive/key-2026-03-26");
+    expect(e.vote?.spell).toBe("0x1"); // its spell has been cast
     // A minor term the executive lacks is kept in the data but not reported on an enacted claim.
     const partial = byDate("2026-03-26", ref(["keel", "amatsu", "prysm"]));
     expect(partial).toMatchObject({ status: "enacted", subject: { missing: ["prysm"] } });
-    expect(evidenceText(partial)).toBe("enacted · executive 2026-03-26 (+0d) · via date");
+    expect(evidenceText(partial)).toBe("enacted · Executive Vote 2026-03-26 (+0d) · via date");
   });
 
   it("flags an executive on the date that never names the subject, when the document gives no address", () => {
     const e = byDate("2026-03-26", ref(["osero", "genesis"]));
     expect(e.status).toBe("subject-missing");
     expect(e.subject?.missing).toContain("osero");
-    expect(evidenceText(e)).toBe("subject missing · executive 2026-03-26 (+0d) · via date · missing: osero");
+    expect(evidenceText(e)).toBe("subject missing · Executive Vote 2026-03-26 (+0d) · via date · missing: osero");
   });
 
   it("finds a renamed party through an address the claim's document gives", () => {
@@ -129,6 +130,15 @@ describe("claims that name an Executive Vote", () => {
     const e = byDate("2026-10-08", ref([]));
     expect(e.status).toBe("pending");
     expect(e.vote?.url).toBe("https://github.com/sky-ecosystem/executive-votes/blob/main/2026/executive-vote-2026-10-08.md");
+    expect(e.vote?.spell).toBeUndefined();
+  });
+
+  it("is pending, with no spell to link, while a deployed spell awaits votes", () => {
+    const deployed = exec("2026-09-24", "Awaiting votes.", { address: "0x2", portal: { key: "k-0924", date: "2026-09-24", active: true, hasBeenCast: false, datePassed: null, dateExecuted: null } });
+    const awaiting = buildVoteIndex({ ...artifact, executives: [...artifact.executives, deployed] });
+    const e = voteEvidence({ docId: "orphan", dateISO: "2026-09-24", vote: ref([]) }, docs, awaiting);
+    expect(e).toMatchObject({ status: "pending", vote: { date: "2026-09-24" } });
+    expect(e.vote?.spell).toBeUndefined();
   });
 
   it("reports no vote inside the record's span, and not-covered outside it", () => {
