@@ -129,6 +129,15 @@ describe("valueFacts", () => {
     expect(facts[0].match).toEqual({ hashes: [KIN], addresses: [RL], docs: ["d-in-lim", I] });
     expect(facts[0].set_at?.url).toBe(`https://etherscan.io/tx/${at.tx}`);
   });
+  it("finds the chain of a not-set value by the instance's Network param when its name names none", () => {
+    const KGONE = k("9");
+    const named = buildIndexes([doc(P, "A.6.1.1.2", "Grove")], [
+      ent(P, "grove", "Grove", "agent", "prime", {}),
+      ent("g", "gauntlet", "Gauntlet Vault", "instance", "allocation-system", { agent_doc_id: P, params: { Network: ["Ethereum Mainnet", "d-net", "x"], "Inflow RateLimitID": [KGONE, "d-gone", "x"], "Inflow Rate Limits / maxAmount": ["5,000,000 USDC", "d-gone-max", "x"] } }),
+    ], [], {});
+    const probed = { ...SNAP, contracts: SNAP.contracts.map((c) => (c.role === "rateLimits" ? { ...c, unsetKeys: [KGONE] } : c)) };
+    expect(valueFacts(named, P, [probed]).map((f) => [f.chain, f.contract, f.summary.contract])).toEqual([["ethereum", RL, "not set"]]);
+  });
 });
 
 describe("attachOnchain", () => {

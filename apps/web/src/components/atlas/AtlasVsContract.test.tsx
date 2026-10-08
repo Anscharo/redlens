@@ -45,7 +45,7 @@ describe("AtlasVsContract", () => {
     expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Value", "Atlas", "Contract", "Status", "Set"]);
     const rows = within(table).getAllByRole("row").slice(1);
     expect(rows.map((r) => r.getAttribute("data-status"))).toEqual(["mismatch", "match", "not-stated"]);
-    expect(rows[0]).toHaveTextContent(/Deposit maxAmount\s*0\s*20M USDC\s*✗\s*2025-12-15/);
+    expect(rows[0]).toHaveTextContent(/Deposit maxAmount\s*0\s*20M USDC\s*✗\s*differs from the atlas\s*2025-12-15/);
     expect(rows[1]).toHaveTextContent("20M USDC per day");
     expect(rows[2]).toHaveTextContent("the atlas sets no value yet");
     expect(within(rows[0]).getByRole("link")).toHaveAttribute("href", `https://etherscan.io/tx/${at.tx}`);

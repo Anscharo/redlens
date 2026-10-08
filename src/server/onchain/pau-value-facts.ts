@@ -13,9 +13,10 @@ import type { Entity, Indexes } from "../retrieval/indexes.ts";
 import type { OnchainFact } from "./facts.ts";
 import { setAt } from "./pau-fact-parts.ts";
 
-const paramsOf = (e: Entity | undefined): ValueSource["params"] => {
+/** An entity's meta; an unreadable one reads as empty, so one bad row cannot fail the source. */
+const metaOf = (e: Entity | undefined): { agent_doc_id?: string; params?: ValueSource["params"] } => {
   try {
-    return (JSON.parse(e?.meta ?? "{}") as { params?: ValueSource["params"] }).params ?? {};
+    return JSON.parse(e?.meta ?? "{}");
   } catch {
     return {};
   }
@@ -23,8 +24,9 @@ const paramsOf = (e: Entity | undefined): ValueSource["params"] => {
 
 /** The prime's own params and every instance's, as the check reads them. */
 export function primeValueSources(ix: Indexes, prime: string): ValueSource[] {
-  const own = ix.entities.filter((e) => (e.entity_type === "instance" || e.entity_type === "invocation") && e.meta?.includes(prime) && JSON.parse(e.meta).agent_doc_id === prime);
-  return [{ name: ix.entityById.get(prime)?.name ?? "", docId: null, params: paramsOf(ix.entityById.get(prime)) }, ...own.map((e) => ({ name: e.name, docId: e.defining_doc_id, params: paramsOf(e) }))];
+  const own = ix.entities.filter((e) => (e.entity_type === "instance" || e.entity_type === "invocation") && e.meta?.includes(prime) && metaOf(e).agent_doc_id === prime);
+  const prim = ix.entityById.get(prime);
+  return [{ name: prim?.name ?? "", docId: null, params: metaOf(prim).params ?? {} }, ...own.map((e) => ({ name: e.name, docId: e.defining_doc_id, params: metaOf(e).params ?? {} }))];
 }
 
 /** What the contract holds for the checked value, exact, in its token's units. */
@@ -52,14 +54,14 @@ function valueFact(c: ValueCheck, primeName: string, prime: string, snap: Stored
 }
 
 /** The deployment a check is about: the one holding the key, else the read one on the instance's chain. */
-const deploymentOf = (c: ValueCheck, snaps: StoredPauSnapshot[]) =>
-  c.kind ? snaps.find((s) => s.chain === c.chain && s.kind === c.kind) : snaps.find((s) => c.instance.toLowerCase().includes(s.chain) && s.contracts.some((x) => x.role === "rateLimits" && x.historyComplete));
+/** The deployments a check is about: the one holding the key, else, for "not set", every one on the instance's chain (each read and found without it). */
+const deploymentsOf = (c: ValueCheck, snaps: StoredPauSnapshot[]): StoredPauSnapshot[] => {
+  if (c.status === "match" || c.status === "mismatch") return snaps.filter((s) => s.chain === c.chain && s.kind === c.kind);
+  return c.status === "not-set" ? snaps.filter((s) => s.chain === c.chain) : [];
+};
 
 /** One fact per value the chain can be compared on, or lacks on a read chain, for one prime. */
 export function valueFacts(ix: Indexes, prime: string, snaps: StoredPauSnapshot[]): OnchainFact[] {
   const name = snaps[0]?.primeName ?? ix.entityById.get(prime)?.name ?? "";
-  return checkAtlasValues(primeValueSources(ix, prime), snaps).flatMap((c) => {
-    const snap = ["match", "mismatch", "not-set"].includes(c.status) ? deploymentOf(c, snaps) : undefined;
-    return snap ? [valueFact(c, name, prime, snap)] : [];
-  });
+  return checkAtlasValues(primeValueSources(ix, prime), snaps).flatMap((c) => deploymentsOf(c, snaps).map((s) => valueFact(c, name, prime, s)));
 }

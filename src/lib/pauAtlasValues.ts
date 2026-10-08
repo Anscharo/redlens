@@ -43,6 +43,7 @@ export interface ValueCheck {
   key: string | null;
   /** The listed address the key was derived from, when the instance states no hash. */
   via?: string;
+  /** The instance's chain (pauInstanceChain.ts), whether or not a contract there holds the key. */
   chain: string | null;
   /** The deployment holding the key: a prime can hold one key on its monolithic and its diamond PAU. */
   kind: StoredPauSnapshot["kind"] | null;
@@ -77,7 +78,7 @@ const holdings = (snaps: StoredPauSnapshot[], key: string, src: ValueSource) =>
 
 /** One check per deployment holding the key, or one saying why none can be made. */
 function check({ statedOff, src, ...base }: Base, stated: StatedValue | null, key: string | null, snaps: StoredPauSnapshot[]): ValueCheck[] {
-  const none = { ...base, key, chain: null, kind: null, contract: null, limit: null, readAt: null };
+  const none = { ...base, key, chain: instanceChain(src), kind: null, contract: null, limit: null, readAt: null };
   if (!stated) return [{ ...none, status: "unparsed" }];
   if (stated.kind === "none") return [{ ...none, status: "not-stated" }];
   const held = key ? holdings(snaps, key, src) : [];

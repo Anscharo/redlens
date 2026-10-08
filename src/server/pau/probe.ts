@@ -37,7 +37,10 @@ type Params = Record<string, [string, ...unknown[]]>;
 /** Every RateLimitID hash the atlas states, by the prime entity it belongs to (an instance's agent, or the prime itself). */
 export function atlasKeysByPrime(file = "public/graph.json"): Map<string, string[]> {
   const out = new Map<string, string[]>();
-  if (!fs.existsSync(file)) return out;
+  if (!fs.existsSync(file)) {
+    console.warn(`pau: ${file} missing; no atlas key is read live, so none can read as "not set"`);
+    return out;
+  }
   const graph = JSON.parse(fs.readFileSync(file, "utf8")) as { entities?: { id: string; entity_type: string; meta?: string | object | null }[] };
   for (const e of graph.entities ?? []) {
     const meta = (typeof e.meta === "string" ? JSON.parse(e.meta) : (e.meta ?? {})) as { agent_doc_id?: string; params?: Params };
