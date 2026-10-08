@@ -42,7 +42,10 @@ function contractValue(c: ValueCheck): string {
 
 function valueFact(c: ValueCheck, primeName: string, prime: string, snap: StoredPauSnapshot): OnchainFact {
   const contract = c.contract ?? snap.contracts.find((x) => x.role === "rateLimits")?.address ?? "";
-  const values = { instance: c.instance, value: c.label, atlas: c.stated, contract: contractValue(c), agrees: c.status === "match", key: c.key, deployment: snap.kind };
+  const values = {
+    instance: c.instance, value: c.label, atlas: c.stated, contract: contractValue(c), agrees: c.status === "match", key: c.key, deployment: snap.kind,
+    ...(c.limit ? { decimals_source: c.limit.unit?.source ?? ("inferred" as const) } : {}),
+  };
   return {
     source: "pau", kind: "atlas-vs-contract", chain: snap.chain, entity: primeName, entity_id: prime, contract,
     name: `${c.instance} · ${c.label}`, name_source: "atlas", atlas_doc_id: c.docId,

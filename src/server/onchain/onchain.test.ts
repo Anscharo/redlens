@@ -67,7 +67,8 @@ const { valueFacts } = await import("./pau-value-facts.ts");
 const fake: OnchainSource = { id: "pau", describe: "fake", read: async () => ({ facts: snapshotFacts(SNAP, primeAtlasRefs(ix, P, [SNAP])), coverage: [{ source: "pau", entity: "Grove", entity_id: P, chain: "ethereum", label: "diamond", contracts: 2, history_complete: false, read_at: SNAP.fetchedAt }] }) };
 // A second source that fails while `failing` is set, read only by indexes built for that purpose.
 let failing = false;
-const flaky: OnchainSource = { id: "flaky", describe: "fails on demand", read: async () => (failing ? Promise.reject(new Error("db down")) : { facts: [], coverage: [] }) };
+let extra: import("./facts.ts").OnchainFact[] = [];
+const flaky: OnchainSource = { id: "flaky", describe: "fails on demand", read: async () => (failing ? Promise.reject(new Error("db down")) : { facts: extra, coverage: [] }) };
 mock.module("./sources.ts", () => ({ ONCHAIN_SOURCES: [fake, flaky] }));
 const { attachOnchain } = await import("./enrich.ts");
 const { onchainState } = await import("./query.ts");
@@ -184,6 +185,19 @@ describe("atlas_onchain", () => {
   it("finds BeamState defaults by 'init', with the step limits that say what holds when there are none", async () => {
     const res = (await onchainState(ix, { entity: "grove", query: "init", limit: 50 })) as { facts: { kind: string }[] };
     expect(res.facts.map((f) => f.kind)).toEqual(["beam-state", "rate-limit-default"]);
+  });
+  it("finds the atlas-vs-contract facts that disagree by 'mismatch' or 'disagree'", async () => {
+    const off = { ...SNAP, contracts: SNAP.contracts.map((c) => (c.role === "rateLimits" ? { ...c, rateLimits: c.rateLimits!.map((r) => (r.key === KIN ? { ...r, data: { ...r.data!, maxAmount: "1" } } : r)) } : c)) };
+    extra = valueFacts(ix, P, [off]);
+    const fresh = buildIndexes([doc(P, "A.6.1.1.2", "Grove")], [], [], {});
+    for (const query of ["mismatch", "disagree"]) {
+      const res = (await onchainState(fresh, { kind: "atlas-vs-contract", query, limit: 50 })) as { facts: { name: string; values: { agrees: boolean; contract: string } }[] };
+      expect(res.facts.map((f) => [f.name, f.values.contract])).toEqual([
+        ["Ethereum Mainnet - Vault · Inflow maxAmount", "0.000001"],
+        ["Ethereum Mainnet - Vault · Outflow maxAmount", "not set"],
+      ]);
+    }
+    extra = [];
   });
   it("filters by an address a fact is about, and refuses an unknown entity", async () => {
     const res = (await onchainState(ix, { address: RELAYER.toUpperCase().replace("0X", "0x"), limit: 50 })) as { facts: { kind: string }[] };
