@@ -35,6 +35,7 @@
 
 ## 2026-10-08
 
+- Moved a document's addresses into a new Onchain section of the right-hand panel, and hid panel sections that have nothing to show
 - Added a PAU on-chain section to each Prime Agent's Radar page, showing its controller roles and rate limits as read from the chain
 
 ## 2026-10-07
