@@ -40,8 +40,9 @@ describe("explorerBases", () => {
 describe("explorerIntervalMs", () => {
   it("keeps a host's registry gap even when the default is shorter", () => {
     vi.stubEnv("ETHERSCAN_THROTTLE_MS", "0");
-    expect(explorerIntervalMs("https://api.xlayerscan.com/api?module=logs")).toBe(6000);
+    expect(explorerIntervalMs("https://api.xlayerscan.com/api?module=logs")).toBe(7000);
     expect(explorerIntervalMs("https://eth.blockscout.com/api?module=logs")).toBe(0);
+    expect(explorerIntervalMs("https://mainnet.base.org")).toBe(1334);
     vi.stubEnv("ETHERSCAN_THROTTLE_MS", "8000");
     expect(explorerIntervalMs("https://api.xlayerscan.com/api?module=logs")).toBe(8000);
   });

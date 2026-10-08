@@ -1,5 +1,11 @@
 // Type declarations for the canonical chain registry (chains.mjs), so server
 // TypeScript (tsconfig.server.json) can import it. Runtime stays chains.mjs.
+/** A JSON-RPC endpoint serving a chain's whole eth_getLogs history, and the most blocks one request may span. */
+export interface LogsRpc {
+  url: string;
+  blocks: number;
+  intervalMs?: number;
+}
 export interface ChainEntry {
   chain: string;
   chainId?: number;
@@ -10,6 +16,7 @@ export interface ChainEntry {
   blockscoutIntervalMs?: number;
   etherscan?: boolean;
   routescan?: boolean;
+  logsRpcs?: LogsRpc[];
 }
 export const CHAINS: ChainEntry[];
 export const FUTURE_TO_ETHEREUM: string[];
@@ -23,6 +30,7 @@ export const SOLANA_RPC: string | undefined;
 export const CHAIN_BLOCKSCOUT: Record<string, string>;
 export const CHAIN_ROUTESCAN: Record<string, string>;
 export const EXPLORER_HOST_INTERVAL_MS: Record<string, number>;
+export const CHAIN_LOGS_RPCS: Record<string, LogsRpc[]>;
 export const CHAIN_SUPPORTS_ETHERSCAN: Set<string>;
 /** Prose hint specs, ethereum FIRST — address-chains.mjs compiles them to regexes. */
 export interface ChainHintSpec {

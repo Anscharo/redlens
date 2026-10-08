@@ -37,6 +37,11 @@ export const onchain: EnvGroup = {
       default: "60",
     },
     {
+      name: "PAU_RPC_DEADLINE_MS",
+      doc: "Time from start after which the sync:pau-rpc worker tail starts no new JSON-RPC request. It reads PAU event history for chains no free explorer serves.",
+      default: "480000",
+    },
+    {
       name: "PAU_REFRESH_SECONDS",
       doc: "Age past which the worker rebuilds the PAU snapshots (role holders confirmed with hasRole, rate limits read live).",
       default: "3600",

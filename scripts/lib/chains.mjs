@@ -35,7 +35,14 @@ const REGISTRY = JSON.parse(
 // optimism) when the Etherscan call fails or its plan refuses the chain.
 //
 // blockscoutIntervalMs: the gap that blockscoutApi's host needs between
-// requests when it allows fewer than one a second (xlayer, 6000).
+// requests when it allows fewer than one a second (xlayer, 7000: 75% of its
+// one request per 5 seconds).
+//
+// logsRpcs: JSON-RPC endpoints that serve the chain's whole eth_getLogs
+// history, each with the block span one request may cover and the gap its host
+// needs between requests (base: mainnet.base.org, 500 blocks, 1334 ms). Read by
+// the PAU RPC reader for a chain no free explorer serves. Every gap uses 75% of
+// the host's stated or assumed limit.
 //
 // routescan: true when Routescan's Etherscan-compatible API serves the chain
 // (avalanche); its URL derives from the chainId (CHAIN_ROUTESCAN).
@@ -52,6 +59,7 @@ export const CHAINS = REGISTRY.chains.map((c) => ({
   ...(c.etherscan === false && { etherscan: false }),
   ...(c.blockscoutIntervalMs && { blockscoutIntervalMs: c.blockscoutIntervalMs }),
   ...(c.routescan && { routescan: true }),
+  ...(c.logsRpcs && { logsRpcs: c.logsRpcs }),
 }));
 
 // Future / testnet chains with no explorer or full support yet — collapse to
@@ -133,13 +141,15 @@ export const CHAIN_BLOCKSCOUT = Object.fromEntries(
 );
 
 /**
- * Minimum request gap per explorer API host, for a chain whose blockscoutApi
- * host allows fewer than one request a second (xlayer). explorer-api.ts reads
- * it by host, so every caller of that host waits the same.
+ * Minimum request gap per API host, for a blockscoutApi host that allows fewer
+ * than one request a second (xlayer) and for a logsRpcs endpoint with an
+ * intervalMs (base). explorer-api.ts reads it by host, so every caller of that
+ * host waits the same.
  */
-export const EXPLORER_HOST_INTERVAL_MS = Object.fromEntries(
-  CHAINS.filter((c) => c.blockscoutApi && c.blockscoutIntervalMs).map((c) => [new URL(c.blockscoutApi).host, c.blockscoutIntervalMs]),
-);
+export const EXPLORER_HOST_INTERVAL_MS = Object.fromEntries([
+  ...CHAINS.filter((c) => c.blockscoutApi && c.blockscoutIntervalMs).map((c) => [new URL(c.blockscoutApi).host, c.blockscoutIntervalMs]),
+  ...CHAINS.flatMap((c) => c.logsRpcs ?? []).filter((r) => r.intervalMs).map((r) => [new URL(r.url).host, r.intervalMs]),
+]);
 
 /**
  * Routescan's keyless Etherscan-compatible API base per chain flagged
@@ -150,6 +160,11 @@ export const CHAIN_ROUTESCAN = Object.fromEntries(
     c.chain,
     `https://api.routescan.io/v2/network/mainnet/evm/${c.chainId}/etherscan/api`,
   ]),
+);
+
+/** Each chain's logsRpcs, for a chain whose PAU history is read over JSON-RPC. */
+export const CHAIN_LOGS_RPCS = Object.fromEntries(
+  CHAINS.filter((c) => c.logsRpcs?.length).map((c) => [c.chain, c.logsRpcs]),
 );
 
 /**

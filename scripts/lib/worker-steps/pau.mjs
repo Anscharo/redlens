@@ -28,8 +28,12 @@ export default {
     const { maybeRefreshPauState } = await import("../../../src/server/pau/store.ts");
     const { rpcChainReader, rpcHead } = await import("../../../src/server/pau/rpc-reader.ts");
     const { explorerLogs } = await import("../explorer-logs.ts");
+    const { logsRpcsFor } = await import("../rpc-logs.ts");
+    const { rpcChains } = await import("../../../src/server/pau/rpc-sync.ts");
     const { keyDeriver, limitConstants, candidateAddresses } = await import("../../../src/server/pau/key-derive.ts");
-    const ev = await syncPauEvents(db, reg, { logs: explorerLogs, head: rpcHead, budgetMs: config.pauEventBudgetSeconds * 1000 });
+    // Chains read over JSON-RPC belong to the sync:pau-rpc tail; this step leaves their cursors alone.
+    const skipChains = rpcChains(reg, logsRpcsFor);
+    const ev = await syncPauEvents(db, reg, { logs: explorerLogs, head: rpcHead, budgetMs: config.pauEventBudgetSeconds * 1000, skipChains });
     let derive;
     const deriveKey = (key) => (derive ??= keyDeriver(limitConstants(), candidateAddresses(ADDRESS_ARTIFACTS, reg)))(key);
     const st = await maybeRefreshPauState(db, reg, rpcChainReader(), { refreshSeconds: config.pauRefreshSeconds, deriveKey });

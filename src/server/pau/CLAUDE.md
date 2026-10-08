@@ -16,6 +16,7 @@ Reads what the chain says about every contract in `src/data/pau-registry.json` (
   - the token itself for Aave, PSM and asset-transfer keys.
   A key no rule covers, or one whose token's `decimals()` fails, has no `unit`, and readers fall back to `inferDecimals`.
 - `store.ts` holds the refresh gate (every snapshot rebuilt once the oldest passes `PAU_REFRESH_SECONDS`, or when a deployment has none; snapshots of deployments the registry dropped are deleted) and `GET /api/pau`.
+- `rpc-sync.ts` and `rpc-cursor.ts` fill `pau_events` for chains no free explorer serves, over JSON-RPC (see "Reading over JSON-RPC").
 - `rpc-reader.ts` is the live reader (viem multicall per chain through `rpcFor`).
 - `key-derive.ts` names rate-limit keys the atlas never writes out as a hash. A controller derives each key from a `LIMIT_*` constant (keccak256 of its name), alone or abi-encoded with an address, a CCTP domain or LayerZero endpoint id, or an (asset, destination) pair. The deriver hashes every zero-argument `LIMIT_*` view in the cached ABIs (`.cache/etherscan`, which `.dockerignore` keeps for the worker) against every address in the address artifacts and the registry, and the refresh stores the match as the key's `derived`. Shapes are hashed lazily, cheapest first; once any key is unnamed the full table costs about 15 seconds, paid only when snapshots rebuild. Names the atlas states (the prime's and its instances' RateLimitID params) still come first wherever a key is shown.
 
@@ -36,10 +37,23 @@ Where each chain's history comes from, on Etherscan's free plan:
 | optimism | optimism.blockscout.com | Etherscan's free plan refuses chain 10. |
 | avalanche | Routescan | Etherscan's free plan refuses chain 43114. |
 | plume | its Blockscout | Etherscan v2 has no endpoint for chain 98866. |
-| xlayer | XLayerScan (`api.xlayerscan.com`) | Etherscan v2, Routescan and api.blockscout.com do not serve chain 196. OKLink needs a key. XLayerScan allows one request every 5 seconds per IP, so its host waits 6 seconds between requests (registry `blockscoutIntervalMs`). |
+| xlayer | XLayerScan (`api.xlayerscan.com`) | Etherscan v2, Routescan and api.blockscout.com do not serve chain 196. OKLink needs a key. XLayerScan allows one request every 5 seconds per IP, so its host waits 7 seconds between requests (registry `blockscoutIntervalMs`), 75% of the limit. |
 | base | none | See below. |
 
-**Base cannot be read without a paid or keyed source.** Etherscan v2: `Free API access is not supported for this chain. Please upgrade your api plan`. base.blockscout.com: a Cloudflare challenge page (HTTP 403). api.blockscout.com: `Featured chain 8453 requires one of the following plans: Builder, Business, Pro` (HTTP 402). Routescan: `chain not supported`. MultiBaas's free plan indexes only 100 blocks behind the head. Public RPCs: mainnet.base.org caps `eth_getLogs` at 500 blocks, drpc at 10,000, thirdweb at 1,000, nodies at 50, blastapi at 10, and publicnode refuses anything older than recent blocks (`Archive requests require a personal token`). The contracts are about 30 million blocks old, so a 10,000-block crawl is about 3,000 requests per cursor across 38 cursors. Any of a paid Etherscan plan, a Blockscout PRO plan or a keyed archive RPC would fix it.
+**Base is read over JSON-RPC, because no free explorer serves it.** Etherscan v2: `Free API access is not supported for this chain. Please upgrade your api plan`. base.blockscout.com: a Cloudflare challenge page (HTTP 403). api.blockscout.com: `Featured chain 8453 requires one of the following plans: Builder, Business, Pro` (HTTP 402). Routescan: `chain not supported`. MultiBaas's free plan indexes only 100 blocks behind the head. Among public RPCs, mainnet.base.org serves old blocks and caps `eth_getLogs` at 500 blocks. drpc's free plan refuses old blocks, thirdweb caps at 1,000, nodies at 50, blastapi at 10, and publicnode wants a token for old blocks. The registry's `logsRpcs` on base names mainnet.base.org, and `rpc-sync.ts` reads it (see "Reading over JSON-RPC" below).
+
+## Reading over JSON-RPC
+
+A chain with `logsRpcs` in the chain registry is read by `rpc-sync.ts`, run as the `sync:pau-rpc` worker tail (`src/server/sync-pau-rpc.ts`), not by `sync-events.ts`. The worker's `pau` step passes those chains as `skipChains`, so the explorer path never reads or marks their cursors.
+
+- One `eth_getLogs` names every contract and ORs every topic0, so one request reads a block window for all of them. The crawl keeps one `pau_rpc_cursor` row per contract instead of one per event.
+- A cold cursor finds its contract's deploy block by bisecting `eth_getCode`, about 26 requests. Contracts at the same position share each window. A contract behind the others reads alone only up to the next contract's position, then joins them.
+- `eth_getLogs` carries no timestamp, so each block that holds an event is read once with `eth_getBlockByNumber`.
+- The contract's `pau_cursor` rows stay at block 0 until its crawl reaches the confirmed head, so `historyComplete` reads false through the backfill. From then on each window that reaches the head marks them read.
+- When the registry's events for a contract change, its crawl restarts at the deploy block, because a new event has no history read yet.
+- Endpoints in `logsRpcs` rotate per window. One that fails is left out for the rest of the run, and its error is stored on the cursors it was reading.
+- Each run stops starting requests `PAU_RPC_DEADLINE_MS` after it starts (8 minutes by default, inside the worker's 11-minute tail budget). mainnet.base.org waits 1.334 seconds between requests (`intervalMs`), 75% of an assumed one request a second, because Base publishes no limit for it.
+- The first Base registry contract was deployed at block 21,453,730. At 500 blocks a window, a cold backfill from there is about 62,000 requests, roughly 23 hours of crawling, or about 34 hours of wall time at 8 minutes per 12-minute tick. Finding the 7 deploy blocks costs about 180 more requests, once. After that Base adds about 43,000 blocks a day, about 90 requests.
 
 ## When to move off the worker step
 

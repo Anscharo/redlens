@@ -90,6 +90,7 @@
     "sync:embeddings": "bun src/server/sync-embeddings.ts",
     "sync:briefings": "bun src/server/sync-briefings.ts",
     "sync:vote-evidence": "bun src/server/sync-vote-evidence.ts",
+    "sync:pau-rpc": "bun src/server/sync-pau-rpc.ts",
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down",
     "db:migrate": "bun src/server/migrate.ts",
