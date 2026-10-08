@@ -5,7 +5,7 @@
 import type { AtlasHandler } from "../chat/tools/tool-types.ts";
 import type { ToolResult } from "../chat/tools/tools.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
-import { factIndex, type FactIndex, type OnchainFact } from "./facts.ts";
+import { factIndex, SOURCES_FAILED_NOTE, type FactIndex, type OnchainFact } from "./facts.ts";
 
 const MAX_FACTS = 15;
 const HASH_RE = /0x[0-9a-fA-F]{64}(?![0-9a-fA-F])/g;
@@ -31,11 +31,12 @@ const brief = (f: OnchainFact) => ({
   set_tx_url: f.set_at?.url ?? null, history_complete: f.history_complete,
 });
 
-/** The result with an `onchain` block when it names any stored fact; an error, or a fact store that cannot be read, leaves it as it was. */
+/** The result with an `onchain` block when it names any stored fact, or says which sources could not be read; an error result is left as it was. */
 export async function attachOnchain(ix: Indexes, result: ToolResult): Promise<ToolResult> {
   if ("error" in result) return result;
   const idx = await factIndex(ix).catch(() => null);
   const facts = idx ? factsNamedIn(JSON.stringify(result), idx) : [];
+  if (idx?.failed.length) return { ...result, onchain: { sources_failed: idx.failed, note: SOURCES_FAILED_NOTE, facts: facts.slice(0, MAX_FACTS).map(brief) } };
   if (facts.length === 0) return result;
   const truncated = facts.length > MAX_FACTS ? { truncated: true } : {};
   const shown = facts.slice(0, MAX_FACTS);
