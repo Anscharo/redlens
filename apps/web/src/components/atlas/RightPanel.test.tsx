@@ -407,3 +407,25 @@ describe("RightPanel Executive Votes in the onchain section", () => {
   });
 });
 
+describe("RightPanel onchain order", () => {
+  it("puts the Executive Votes above the addresses", async () => {
+    voteRecord = {
+      overlay: null,
+      index: buildVoteIndex({
+        sources: { executives: "", polls: "", portal: null },
+        polls: [],
+        executives: [{
+          file: "2026/e.md", date: "2026-03-26", frontmatterDate: null, outOfSchedule: false, title: "Genesis Funding", summary: "", address: null,
+          sections: [{ heading: "T", text: "T.", authorization: [], proposal: [], atlasRefs: [{ family: "atlas", url: "", text: "", uuid: "node-1" }] }],
+          portal: null,
+        }],
+      }),
+    };
+    setup({ tab: "onchain", targetAddresses: { "0xabc": makeAddressInfo() } });
+    const panel = await screen.findByTestId("onchain-panel");
+    const votes = await within(panel).findByText("Executive Votes · 1");
+    const addresses = within(panel).getByText(/addresses · 1/);
+    expect(votes.compareDocumentPosition(addresses) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+

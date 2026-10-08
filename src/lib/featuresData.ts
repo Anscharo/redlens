@@ -67,7 +67,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "Context for whichever document is selected — notes, onchain, history, and glossary in one scrolling panel, with pills at the top to jump between them. A section with nothing for the document is left out; history always shows.",
         how: [
           "Notes — the Element Annotations attached to this document, linked documents, equivalent documents under the other Prime Agents, which documents cite this one, and extracted relations (where you land by default when the document has any).",
-          "Onchain — the on-chain addresses the document names, each with its chain, labels, balances and live contract values; and the Sky Executive Votes behind the document (each one that links it, and each one matched to one of its dates, labelled as on Stale Dates), linked to vote.sky.money and, once cast, to the spell contract.",
+          "Onchain — the Sky Executive Votes behind the document (each one that links it, and each one matched to one of its dates, labelled as on Stale Dates), linked to vote.sky.money and, once cast, to the spell contract; then the on-chain addresses the document names, each with its chain, labels, balances and live contract values.",
           "History — this document's change timeline, with the governance poll that approved each change where one links it (“approved by poll …”), and any Executive Vote that cites that poll (“cited by Executive Vote …”).",
           "Glossary — the defined terms this document uses, with their Atlas definitions.",
         ],

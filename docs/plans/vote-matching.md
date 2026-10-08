@@ -529,7 +529,7 @@ The questions are shared with the eval (`src/server/vote-evidence/requests.ts`),
 measures the requests production sends.
 
 **In the reader.** The right-hand panel's onchain section lists the Executive Votes behind the open
-document, below its addresses (`DocVotes.tsx`, `executivesForDoc` in `src/lib/votes/docVotes.ts`):
+document, above its addresses (`DocVotes.tsx`, `executivesForDoc` in `src/lib/votes/docVotes.ts`):
 every Executive Vote that links it by uuid, and every one this matching ties to one of its dated
 claims, with the same labels as Stale Dates and, once cast, a link to the spell contract. The
 section shows when the document has addresses or Executive Votes. Polls show in the history list instead, under the edits they

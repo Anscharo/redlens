@@ -6,8 +6,8 @@ import type { DocVote } from "@/lib/votes/docVotes";
 import { ExecutiveVoteList } from "./DocVotes";
 import { SECTION_HEAD } from "./panelSections";
 
-// The right panel's onchain section: one card per address the document names,
-// then the Executive Votes behind it (a cast spell is an on-chain execution).
+// The right panel's onchain section: the Executive Votes behind the document
+// (a cast spell is an on-chain execution), then one card per address it names.
 // Each block shows only when it has rows.
 export function PanelOnchain({
   targetAddresses,
@@ -24,6 +24,11 @@ export function PanelOnchain({
   const entries = Object.entries(targetAddresses);
   return (
     <div className="space-y-8">
+      {executives.length > 0 && (
+        <ErrorBoundary fallback={(error) => <InlineError error={error} />}>
+          <ExecutiveVoteList votes={executives} />
+        </ErrorBoundary>
+      )}
       {entries.length > 0 && (
         <div>
           <p className={`${SECTION_HEAD} mb-4`}>addresses · {entries.length}</p>
@@ -33,11 +38,6 @@ export function PanelOnchain({
             </ErrorBoundary>
           ))}
         </div>
-      )}
-      {executives.length > 0 && (
-        <ErrorBoundary fallback={(error) => <InlineError error={error} />}>
-          <ExecutiveVoteList votes={executives} />
-        </ErrorBoundary>
       )}
     </div>
   );
