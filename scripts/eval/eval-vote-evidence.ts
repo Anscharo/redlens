@@ -13,16 +13,13 @@
 // --k <n> poll candidates per claim (8) · --tau <p> decision yes threshold (0.5) · --no-swap · --poll-dir <dir> · --atlas-dir <dir> (the
 // submodule; the history arm needs its full history) · --concurrency <n> (4).
 //
-// Every model answer is cached under .cache/eval-vote-evidence/, keyed on the
-// model and the exact request, so a rerun makes no calls and prints the same
-// numbers. Failed calls are not cached.
+// Every model answer is cached under .cache/eval-vote-evidence/
+// (./eval-vote-evidence-models.ts), so a rerun makes no calls and prints the
+// same numbers.
 import fs from "node:fs";
 import path from "node:path";
-import crypto from "node:crypto";
 import { parseArgs } from "node:util";
-import { askJev, noulOf } from "../../src/server/jev.ts";
 import { config } from "../../src/server/config.ts";
-import { openrouterJson } from "../../src/server/chat/llm.ts";
 import { mapPool } from "../../src/server/pool.ts";
 import { checkSubject, documentAddresses } from "../../src/lib/votes/subject.ts";
 import { buildVoteIndex } from "../../src/lib/votes/vote-index.ts";
@@ -34,7 +31,7 @@ import * as Q from "./eval-vote-evidence-judges.ts";
 import * as S from "./eval-vote-evidence-score.ts";
 import { firstPr, hasHistory, pickaxeNeedle, pollForPr } from "../../src/server/vote-evidence/history.ts";
 import * as R from "../../src/server/vote-evidence/requests.ts";
-import type { JevQuestion } from "../../src/server/jev.ts";
+import { modelArms } from "./eval-vote-evidence-models.ts";
 import { printReport, type PollRow, type SubjectRow } from "./eval-vote-evidence-report.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
@@ -60,46 +57,7 @@ const TAU = Number(flags.tau);
 const CONC = Number(flags.concurrency);
 const ATLAS_DIR = path.resolve(flags["atlas-dir"] ?? path.join(ROOT, "vendor/next-gen-atlas"));
 const HISTORY = hasHistory(ATLAS_DIR);
-
-async function cached<T>(arm: string, keyObj: unknown, fn: () => Promise<T>): Promise<T | null> {
-  const file = path.join(CACHE, arm, `${crypto.createHash("sha256").update(JSON.stringify(keyObj)).digest("hex")}.json`);
-  if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, "utf8")) as T;
-  try {
-    const v = await fn();
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify(v));
-    return v;
-  } catch (err) {
-    const msg = (err as Error).message;
-    // A key, credit or permission refusal fails every call the same way: stop instead of scoring it as model errors.
-    if (/\b(401|402|403)\b/.test(msg)) throw new Error(`${arm}: ${msg.slice(0, 200)}`);
-    console.warn(`  ${arm} failed: ${msg.slice(0, 160)}`);
-    return null;
-  }
-}
-
-// The cache folder keeps its name for every decision model: the key carries the model.
-async function decide(model: string, state: unknown, questions: Record<string, JevQuestion>, lane: string) {
-  return cached("jev", { model, state, questions }, async () => {
-    const run = await askJev({ state, questions, model, lane, timeoutMs: 60_000 });
-    return { nouls: Object.fromEntries(Object.keys(questions).map((id) => [id, noulOf(run, id)])), cost: run.cost };
-  });
-}
-
-/** Each decision model's Nouls over the same request, keyed by its arm name. */
-async function decideAll(state: unknown, questions: Record<string, JevQuestion>, lane: string) {
-  const out: Record<string, Record<string, number | null> | null> = {};
-  for (const model of DECISION_MODELS) out[S.armName(model)] = (await decide(model, state, questions, lane))?.nouls ?? null;
-  return out;
-}
-
-async function llm(messages: Q.Msg[]) {
-  if (!LLM_MODEL) return null;
-  return cached("llm", { model: LLM_MODEL, messages }, async () => {
-    const r = await openrouterJson({ model: LLM_MODEL, messages: messages as never, maxTokens: 400 });
-    return { text: r.text };
-  });
-}
+const { decideAll, llm } = modelArms(CACHE, DECISION_MODELS, LLM_MODEL);
 
 async function subjectRow(c: SubjectCase, slice: "real" | "swapped", heuristic: S.SubjectLabel): Promise<SubjectRow> {
   const d = await decideAll(R.subjectState(c), R.SUBJECT_QUESTIONS, "vote-evidence-subject");
@@ -132,15 +90,7 @@ async function pollRow(c: PollCase, fileByTitle: Map<string, string>, bodies: Ma
 }
 
 async function main(): Promise<void> {
-  const docs = JSON.parse(fs.readFileSync(path.join(ROOT, "public/docs.json"), "utf8")).nodes;
-  const artifact = JSON.parse(fs.readFileSync(path.join(ROOT, "public/votes.json"), "utf8")) as VotesArtifact;
-  if (artifact.executives.some((e) => e.sections.some((s) => typeof s.text !== "string"))) {
-    throw new Error("public/votes.json predates section text; run `pnpm votes:sync` first");
-  }
-  const gold = JSON.parse(fs.readFileSync(path.join(import.meta.dir, "eval-corpora/vote-evidence-gold.json"), "utf8")) as Gold;
-  const tree = flags.task === "subject" ? null : await repoTree("polls", flags["poll-dir"]);
-  const bodies = tree ? readPollBodies(tree.root) : new Map<string, string>();
-  tree?.cleanup();
+  const { docs, artifact, gold, bodies } = await loadInputs();
   const cases = buildCases(docs, artifact, bodies, gold, { today: new Date(), k: Number(flags.k) });
   const index = buildVoteIndex(artifact);
   if (!HISTORY) console.log(`history arm off: ${ATLAS_DIR} has no full git history (run \`pnpm pull-atlas\`, or pass --atlas-dir)`);
@@ -153,6 +103,20 @@ async function main(): Promise<void> {
   fs.mkdirSync(path.join(ROOT, ".cache"), { recursive: true });
   fs.writeFileSync(path.join(ROOT, ".cache/eval-vote-evidence.json"), JSON.stringify(out, null, 2));
   printReport(out);
+}
+
+/** The built atlas, the vote record, the gold labels and, unless only the subject task runs, every poll body. */
+async function loadInputs() {
+  const docs = JSON.parse(fs.readFileSync(path.join(ROOT, "public/docs.json"), "utf8")).nodes;
+  const artifact = JSON.parse(fs.readFileSync(path.join(ROOT, "public/votes.json"), "utf8")) as VotesArtifact;
+  if (artifact.executives.some((e) => e.sections.some((s) => typeof s.text !== "string"))) {
+    throw new Error("public/votes.json predates section text; run `pnpm votes:sync` first");
+  }
+  const gold = JSON.parse(fs.readFileSync(path.join(import.meta.dir, "eval-corpora/vote-evidence-gold.json"), "utf8")) as Gold;
+  const tree = flags.task === "subject" ? null : await repoTree("polls", flags["poll-dir"]);
+  const bodies = tree ? readPollBodies(tree.root) : new Map<string, string>();
+  tree?.cleanup();
+  return { docs, artifact, gold, bodies };
 }
 
 async function runSubject(cases: SubjectCase[], artifact: VotesArtifact, index: ReturnType<typeof buildVoteIndex>, docs: Record<string, { content: string }>): Promise<SubjectRow[]> {

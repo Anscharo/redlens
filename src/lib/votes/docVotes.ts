@@ -28,6 +28,8 @@ export interface DocVote {
   reasons: DocVoteReason[];
 }
 
+type Rows = Map<string, DocVote>;
+
 export function executivesForDoc(
   doc: AtlasNode,
   docs: Record<string, AtlasNode>,
@@ -35,23 +37,34 @@ export function executivesForDoc(
   overlay: VoteEvidenceOverlay | null,
   today: Date,
 ): DocVote[] {
-  const rows = new Map<string, DocVote>();
-  const add = (v: Omit<DocVote, "reasons">, reason: DocVoteReason) => {
-    const row = rows.get(v.url) ?? { ...v, reasons: [] };
-    row.reasons.push(reason);
-    rows.set(v.url, row);
-  };
+  const rows: Rows = new Map();
+  addLinking(rows, doc, index);
+  addClaimed(rows, doc, docs, index, overlay, today);
+  return [...rows.values()].sort((a, b) => b.date.localeCompare(a.date) || a.title.localeCompare(b.title));
+}
+
+function add(rows: Rows, v: Omit<DocVote, "reasons">, reason: DocVoteReason): void {
+  const row = rows.get(v.url) ?? { ...v, reasons: [] };
+  row.reasons.push(reason);
+  rows.set(v.url, row);
+}
+
+/** Every executive linking the document by uuid. */
+function addLinking(rows: Rows, doc: AtlasNode, index: VoteIndex | null): void {
   for (const l of index?.links.get(doc.id) ?? []) {
     if (l.kind !== "executive") continue;
     const spell = l.executive.cast && l.executive.spell ? { spell: l.executive.spell } : {};
-    add({ title: l.executive.title, date: l.date, url: l.executive.url, ...spell }, { kind: "links" });
+    add(rows, { title: l.executive.title, date: l.date, url: l.executive.url, ...spell }, { kind: "links" });
   }
+}
+
+/** Every executive the matching ties to a dated claim in the document. */
+function addClaimed(rows: Rows, doc: AtlasNode, docs: Record<string, AtlasNode>, index: VoteIndex | null, overlay: VoteEvidenceOverlay | null, today: Date): void {
   const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
   for (const claim of extractDateClaims(doc, todayUTC).claims) {
     const e = overlayClaim({ ...claim, voteEvidence: index ? voteEvidence(claim, docs, index) : undefined }, overlay).voteEvidence;
     if (e?.vote?.kind !== "executive") continue;
     const spell = e.vote.spell ? { spell: e.vote.spell } : {};
-    add({ title: e.vote.title, date: e.vote.date, url: e.vote.url, ...spell }, { kind: "claim", raw: claim.raw, evidence: e });
+    add(rows, { title: e.vote.title, date: e.vote.date, url: e.vote.url, ...spell }, { kind: "claim", raw: claim.raw, evidence: e });
   }
-  return [...rows.values()].sort((a, b) => b.date.localeCompare(a.date) || a.title.localeCompare(b.title));
 }

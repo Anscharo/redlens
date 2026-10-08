@@ -2,7 +2,7 @@
 // shows for it, the vote it matched (linked to vote.sky.money), any of the
 // claim's named things that vote never mentions, and how it was matched (its
 // date, a link, atlas history or an AI model; the hover says the rest).
-import type { VoteEvidence, VoteEvidenceStatus } from "@/lib/votes/evidence";
+import type { VoteEvidence, VoteEvidenceStatus, VoteMatch } from "@/lib/votes/evidence";
 import { EVIDENCE_LABEL, evidenceHint, matchedViaText, missingSubject, signedDays, VOTE_KIND } from "@/lib/votes/labels";
 import type { ReportQuery } from "@/lib/reportFilter";
 import { Highlight } from "./Highlight";
@@ -32,12 +32,7 @@ export function VoteEvidenceLine({ evidence: e, rq }: { evidence: VoteEvidence; 
       >
         <Highlight text={EVIDENCE_LABEL[e.status]} rq={rq} />
       </span>
-      {e.vote && (
-        <a href={e.vote.url} target="_blank" rel="noreferrer" title={e.vote.title} className="mono text-xs text-accent">
-          {VOTE_KIND[e.vote.kind]} {e.vote.date} ({signedDays(e.vote.offsetDays)})
-        </a>
-      )}
-      {e.vote?.spell && <SpellLink address={e.vote.spell} />}
+      {e.vote && <MatchedVote vote={e.vote} />}
       {via && (
         <span className="mono text-xs" title={evidenceHint(e)}>
           {via}
@@ -49,5 +44,17 @@ export function VoteEvidenceLine({ evidence: e, rq }: { evidence: VoteEvidence; 
         </span>
       )}
     </p>
+  );
+}
+
+/** The matched vote, linked to vote.sky.money, and its cast spell when there is one. */
+function MatchedVote({ vote }: { vote: VoteMatch }) {
+  return (
+    <>
+      <a href={vote.url} target="_blank" rel="noreferrer" title={vote.title} className="mono text-xs text-accent">
+        {VOTE_KIND[vote.kind]} {vote.date} ({signedDays(vote.offsetDays)})
+      </a>
+      {vote.spell && <SpellLink address={vote.spell} />}
+    </>
   );
 }

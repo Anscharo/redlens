@@ -94,10 +94,8 @@ export function buildCases(
 ): { subject: SubjectCase[]; poll: PollCase[]; staleGold: string[] } {
   const report = buildStaleDatesReport(docs, opts.today, buildVoteIndex(artifact));
   const claims = [...report.stale, ...report.dueSoon, ...report.upcoming, ...report.recorded];
-  const goldA = new Map(gold.subject.map((g) => [keyOf(g.docId, g.date), g]));
-  const goldB = new Map(gold.poll.map((g) => [keyOf(g.docId, g.date), g]));
-  const subject: SubjectCase[] = [];
-  const poll: PollCase[] = [];
+  const [goldA, goldB] = [byClaim(gold.subject), byClaim(gold.poll)];
+  const [subject, poll]: [SubjectCase[], PollCase[]] = [[], []];
   for (const c of claims) {
     const base = claimText(c, docs);
     const m = c.voteEvidence?.vote;
@@ -105,7 +103,15 @@ export function buildCases(
     if (c.vote && vote) subject.push({ ...base, vote, gold: goldA.get(base.key) ?? null });
     else if (!c.vote) poll.push(pollCase(base, artifact.polls, pollBodies, opts.k, goldB.get(base.key) ?? null));
   }
+  return { subject, poll, staleGold: staleGold(claims, [goldA, goldB]) };
+}
+
+function byClaim<G extends { docId: string; date: string }>(labels: G[]): Map<string, G> {
+  return new Map(labels.map((g) => [keyOf(g.docId, g.date), g]));
+}
+
+/** Gold labels matching no claim in the current atlas: relabel or drop them. */
+function staleGold(claims: Array<{ docId: string; dateISO: string }>, golds: Array<Map<string, unknown>>): string[] {
   const seen = new Set(claims.map((c) => keyOf(c.docId, c.dateISO)));
-  const staleGold = [...goldA.keys(), ...goldB.keys()].filter((k) => !seen.has(k));
-  return { subject, poll, staleGold };
+  return golds.flatMap((g) => [...g.keys()]).filter((k) => !seen.has(k));
 }

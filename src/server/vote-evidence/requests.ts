@@ -13,7 +13,8 @@
 import { stripMarkdownLinks } from "../../lib/atlasHelpers.ts";
 import type { DateClaim } from "../../lib/staleDates.ts";
 import type { Executive, Poll } from "../../lib/votes/types.ts";
-import { offset, pollPassed } from "../../lib/votes/vote-index.ts";
+import { pollPassed } from "../../lib/votes/polls.ts";
+import { offset } from "../../lib/votes/vote-index.ts";
 import type { JevQuestion } from "../jev.ts";
 import { rankLexically } from "./lexical.ts";
 

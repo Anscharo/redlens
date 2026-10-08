@@ -1,6 +1,8 @@
 // Printing for the vote-evidence eval: one score table per task, a threshold
-// sweep per decision model, and every case where an arm disagrees with gold.
+// sweep per decision model, and every case where an arm disagrees with gold
+// (./eval-vote-evidence-disagreements.ts).
 
+import { disagreements } from "./eval-vote-evidence-disagreements.ts";
 import { jevPoll, scorePoll, scoreSubject, jevSubject, type SubjectLabel } from "./eval-vote-evidence-score.ts";
 
 export interface SubjectRow {
@@ -32,7 +34,7 @@ export interface PollRow {
   llm?: string | null;
 }
 
-interface Report {
+export interface Report {
   decisionModels: string[];
   llmModel: string;
   tau: number;
@@ -96,7 +98,11 @@ function pollTable(rows: PollRow[], r: Report): void {
     const s = scorePoll(scoped.map((x) => ({ acceptable: x.acceptable, pred: get(x) ?? null })));
     console.log(`  ${name.padEnd(10)} ${pct(s.accuracy)}      ${s.found.padEnd(7)}  ${s.falseMatches.padEnd(13)}  ${s.errors}`);
   }
-  // Re-picks from the stored Nouls, so the sweeps cost no calls.
+  pollSweeps(scoped);
+}
+
+/** Each decision arm's accuracy across TAUS, re-picked from the stored Nouls so the sweeps cost no calls. */
+function pollSweeps(scoped: PollRow[]): void {
   for (const arm of decisionArms(scoped)) {
     const sweep = TAUS.map((tau) => {
       const rows = scoped.map((x) => ({ acceptable: x.acceptable, pred: jevPoll(candidatesOf(x), x.decisions[arm].nouls, tau) }));
@@ -110,25 +116,6 @@ function pollTable(rows: PollRow[], r: Report): void {
 // and the candidate files it was judged over.
 function candidatesOf(x: PollRow) {
   return { candidates: (x.candidates ?? []).map((file, i) => ({ id: `p${i}`, file })) } as Parameters<typeof jevPoll>[0];
-}
-
-function disagreements(r: Report): void {
-  console.log("\ndisagreements with gold");
-  for (const x of r.subject.filter((x) => x.gold !== "unlabeled")) {
-    const preds = { heuristic: x.heuristic, ...labelsOf(x.decisions, (d) => d.label), llm: x.llm?.label };
-    const off = Object.entries(preds).filter(([, p]) => p !== undefined && p !== x.gold && p !== "abstain");
-    if (off.length) console.log(`  subject ${x.slice} ${x.docNo} ${x.key.slice(0, 8)}… gold=${x.gold} ${off.map(([a, p]) => `${a}=${p}`).join(" ")} (${x.vote})`);
-  }
-  for (const x of r.poll.filter((x) => x.gold !== "unlabeled")) {
-    const want = x.acceptable.length ? x.acceptable : ["none"];
-    const arms = { heuristic: x.heuristic, lexical: x.lexical, history: x.history, ...labelsOf(x.decisions, (d) => d.pick), llm: x.llm };
-    const off = Object.entries(arms).filter(([, p]) => p !== undefined && !want.includes(String(p)));
-    if (off.length) console.log(`  poll ${x.docNo} ${x.key.slice(0, 8)}… want=${want.join("|")} ${off.map(([a, p]) => `${a}=${p}`).join(" ")}`);
-  }
-}
-
-function labelsOf<T, V>(decisions: Record<string, T> | undefined, get: (d: T) => V): Record<string, V> {
-  return Object.fromEntries(Object.entries(decisions ?? {}).map(([arm, d]) => [arm, get(d)]));
 }
 
 export function printReport(r: Report): void {

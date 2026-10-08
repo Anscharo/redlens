@@ -64,8 +64,10 @@ export async function dueReason(db: SqlTag, atlasSha: string, refreshSeconds: nu
   return ageSeconds >= refreshSeconds ? "stale" : null;
 }
 
+type Ask = typeof askJev;
+
 /** The decision model behind the cache, the per-run cap and the deadline. Null when judging is off. */
-export function cachedJudge(db: SqlTag, model: string, perCycle: number, deadlineAt: number, ask = askJev): Judge {
+export function cachedJudge(db: SqlTag, model: string, perCycle: number, deadlineAt: number, ask: Ask = askJev): Judge {
   let asked = 0;
   return async (state: unknown, questions: Record<string, JevQuestion>, lane: string) => {
     const key = `jev:${sha256({ model, state, questions })}`;
@@ -73,20 +75,26 @@ export function cachedJudge(db: SqlTag, model: string, perCycle: number, deadlin
     if (hit) return hit.nouls;
     if (asked >= perCycle || Date.now() > deadlineAt) return null;
     asked++;
-    try {
-      const run = await ask({ state, questions, model, lane, timeoutMs: 60_000 });
-      const nouls = Object.fromEntries(Object.keys(questions).map((id) => [id, noulOf(run, id)]));
-      if (Object.values(nouls).every((p) => p === null)) return null;
-      await cachePut(db, key, { nouls });
-      return nouls;
-    } catch (e) {
-      console.warn(`sync:vote-evidence — ${lane} failed: ${(e as Error).message.slice(0, 200)}`);
-      // A refused key, exhausted credits or a malformed question fails every
-      // request alike: stop asking for the rest of the run.
-      if ((e as { fatal?: boolean }).fatal) asked = perCycle;
-      return null;
-    }
+    const r = await askOnce(ask, { state, questions, model, lane });
+    // A refused key, exhausted credits or a malformed question fails every
+    // request alike: stop asking for the rest of the run.
+    if (r === "fatal") asked = perCycle;
+    if (!r || r === "fatal") return null;
+    await cachePut(db, key, { nouls: r });
+    return r;
   };
+}
+
+/** One model call's answers, null when it answered nothing, "fatal" when no later call can succeed. */
+async function askOnce(ask: Ask, q: { state: unknown; questions: Record<string, JevQuestion>; model: string; lane: string }) {
+  try {
+    const run = await ask({ ...q, timeoutMs: 60_000 });
+    const nouls = Object.fromEntries(Object.keys(q.questions).map((id) => [id, noulOf(run, id)]));
+    return Object.values(nouls).every((p) => p === null) ? null : nouls;
+  } catch (e) {
+    console.warn(`sync:vote-evidence — ${q.lane} failed: ${(e as Error).message.slice(0, 200)}`);
+    return (e as { fatal?: boolean }).fatal ? ("fatal" as const) : null;
+  }
 }
 
 /**

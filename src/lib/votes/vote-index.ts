@@ -1,11 +1,12 @@
 // The vote record (public/votes.json) indexed for matching: executives by
 // filename date with their searchable text, every vote by the atlas uuids it
-// links, and the poll that approved each atlas pull request. Built once per
-// load; pure.
+// links, and the poll that approved each atlas pull request (./polls.ts).
+// Built once per load; pure.
 
 import type { AtlasNode } from "../../types";
 import { SubjectCorpus } from "./subject";
-import type { Executive, Poll, VotesArtifact } from "./types";
+import { buildApprovals, pollPassed, pollUrl, type ApprovingPoll } from "./polls";
+import type { Executive, VotesArtifact } from "./types";
 
 /** A spell may slip this many days past the date the atlas names for it. */
 export const SLIP_DAYS = 7;
@@ -31,13 +32,6 @@ export type LinkedVote =
   | { kind: "executive"; date: string; executive: IndexedExecutive }
   | { kind: "poll"; date: string; title: string; url: string };
 
-/** A passed poll as a link target. */
-export interface PollRef {
-  title: string;
-  date: string;
-  url: string;
-}
-
 export interface VoteIndex {
   executives: IndexedExecutive[];
   /** First and last executive filename dates: the span the record can speak for. */
@@ -49,16 +43,23 @@ export interface VoteIndex {
   approvals: Map<number, ApprovingPoll>;
 }
 
-/** A poll that approved an atlas pull request, with the executives whose authorization cites it, oldest first. */
-export interface ApprovingPoll extends PollRef {
-  citedBy: Array<Pick<IndexedExecutive, "title" | "date" | "url">>;
-}
-
 const EXECUTIVES_REPO = "https://github.com/sky-ecosystem/executive-votes/blob/main/";
-const POLLS_REPO = "https://github.com/sky-ecosystem/polls/blob/main/";
 
 export function buildVoteIndex(a: VotesArtifact): VoteIndex {
   const indexed = a.executives.map(indexExecutive);
+  const executives = [...indexed].sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0));
+  return {
+    executives,
+    first: executives[0]?.date ?? "",
+    last: executives.at(-1)?.date ?? "",
+    corpus: new SubjectCorpus(executives.map((e) => e.text)),
+    links: linkIndex(a, indexed),
+    approvals: buildApprovals(a.polls, a.executives, indexed),
+  };
+}
+
+/** Every vote by the atlas uuids it links; `indexed[i]` is `a.executives[i]` indexed. */
+function linkIndex(a: VotesArtifact, indexed: readonly IndexedExecutive[]): Map<string, LinkedVote[]> {
   const links = new Map<string, LinkedVote[]>();
   const add = (uuids: Array<string | undefined>, v: LinkedVote) => {
     for (const uuid of new Set(uuids)) if (uuid) links.set(uuid, [...(links.get(uuid) ?? []), v]);
@@ -67,47 +68,8 @@ export function buildVoteIndex(a: VotesArtifact): VoteIndex {
     const uuids = e.sections.flatMap((s) => s.atlasRefs.map((l) => l.uuid));
     add(uuids, { kind: "executive", date: e.date, executive: indexed[i] });
   });
-  const approvals = new Map<number, ApprovingPoll>();
-  const citing = executivesCiting(a.executives, indexed);
-  for (const p of a.polls.filter(pollPassed)) {
-    add(p.atlasRefs.map((l) => l.uuid), { kind: "poll", date: p.date, title: p.title, url: pollUrl(p) });
-    // An artifact written before polls recorded their pull requests has no atlasPrs.
-    for (const pr of p.atlasPrs ?? []) {
-      const seen = approvals.get(pr);
-      if (!seen || p.date < seen.date) approvals.set(pr, { title: p.title, date: p.date, url: pollUrl(p), citedBy: citing(p) });
-    }
-  }
-  const executives = [...indexed].sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0));
-  return {
-    executives,
-    first: executives[0]?.date ?? "",
-    last: executives.at(-1)?.date ?? "",
-    corpus: new SubjectCorpus(executives.map((e) => e.text)),
-    links,
-    approvals,
-  };
-}
-
-/**
- * The executives whose sections link a poll (by portal slug or poll id), for
- * any poll, oldest first. An executive citing a poll says only that the poll
- * authorised one of its actions, not which edit of the poll it carried out.
- */
-function executivesCiting(executives: readonly Executive[], indexed: readonly IndexedExecutive[]): (p: Poll) => IndexedExecutive[] {
-  const byKey = new Map<string, Set<IndexedExecutive>>();
-  executives.forEach((e, i) => {
-    for (const l of e.sections.flatMap((s) => [...s.authorization, ...s.proposal])) {
-      if (l.family !== "poll") continue;
-      for (const key of [l.pollSlug && `slug:${l.pollSlug}`, l.pollId != null && `id:${l.pollId}`]) {
-        if (key) byKey.set(key, (byKey.get(key) ?? new Set()).add(indexed[i]));
-      }
-    }
-  });
-  return (p) => {
-    if (!p.portal) return [];
-    const found = new Set([...(byKey.get(`slug:${p.portal.slug}`) ?? []), ...(byKey.get(`id:${p.portal.pollId}`) ?? [])]);
-    return [...found].sort((x, y) => x.date.localeCompare(y.date));
-  };
+  for (const p of a.polls.filter(pollPassed)) add(p.atlasRefs.map((l) => l.uuid), { kind: "poll", date: p.date, title: p.title, url: pollUrl(p) });
+  return links;
 }
 
 function indexExecutive(e: Executive): IndexedExecutive {
@@ -121,16 +83,6 @@ function indexExecutive(e: Executive): IndexedExecutive {
     spell: e.address,
     text: [e.title, e.summary, ...sections].join(" ").toLowerCase(),
   };
-}
-
-/** Whether a poll's winning option carried it: a poll that rejected its proposal authorises nothing. */
-export function pollPassed(p: Poll): boolean {
-  const w = p.portal?.winner;
-  return !!w && !/^(no|against|reject)/i.test(w);
-}
-
-export function pollUrl(p: Poll): string {
-  return p.portal ? `https://vote.sky.money/polling/${p.portal.slug}` : POLLS_REPO + p.file;
 }
 
 /**

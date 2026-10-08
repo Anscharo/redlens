@@ -6,6 +6,7 @@
 import { toCSV } from "./csv";
 import { atlasUrl } from "./routes";
 import type { DateClaim, StaleDatesReport } from "./staleDates";
+import type { VoteEvidence } from "./votes/evidence";
 import { EVIDENCE_LABEL, matchedVia, missingSubject, ruleDisagrees } from "./votes/labels";
 
 const HEADER = [
@@ -14,18 +15,13 @@ const HEADER = [
 ];
 
 function row(bucket: string, c: DateClaim): Array<string | number> {
-  const e = c.voteEvidence;
+  const claim = [bucket, c.docNo, c.title, c.docId, atlasUrl(c.docId), c.raw, c.dateISO, c.precision, c.daysUntilStale, c.transition ? "yes" : ""];
+  return [...claim, ...evidenceCells(c.voteEvidence), `${c.contextBefore}${c.raw}${c.contextAfter}`];
+}
+
+/** The vote-evidence columns, blank when the claim has none. */
+function evidenceCells(e: VoteEvidence | undefined): Array<string | number> {
   return [
-    bucket,
-    c.docNo,
-    c.title,
-    c.docId,
-    atlasUrl(c.docId),
-    c.raw,
-    c.dateISO,
-    c.precision,
-    c.daysUntilStale,
-    c.transition ? "yes" : "",
     e ? EVIDENCE_LABEL[e.status] : "",
     e ? (matchedVia(e) ?? "") : "",
     e && ruleDisagrees(e) ? EVIDENCE_LABEL[e.judged!.rule] : "",
@@ -35,7 +31,6 @@ function row(bucket: string, c: DateClaim): Array<string | number> {
     e?.vote?.url ?? "",
     e?.vote?.spell ?? "",
     e ? missingSubject(e).join(", ") : "",
-    `${c.contextBefore}${c.raw}${c.contextAfter}`,
   ];
 }
 

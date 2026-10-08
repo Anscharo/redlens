@@ -14,7 +14,8 @@
 
 import type { DateClaim, StaleDatesReport } from "../staleDates";
 import type { VoteEvidence, VoteEvidenceStatus, VoteMatch } from "./evidence";
-import { offset, type PollRef } from "./vote-index";
+import type { PollRef } from "./polls";
+import { offset } from "./vote-index";
 
 /** A judged executive carried the claim at or above this probability (the eval's best band was 0.3–0.4). */
 export const CARRIED_THRESHOLD = 0.35;
