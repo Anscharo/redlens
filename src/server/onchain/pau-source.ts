@@ -1,12 +1,14 @@
 // PAU snapshots (src/server/pau/) as on-chain facts: one per rate-limit key, role
 // holder and AdministeredAgent member of every deployment the worker stored, and
-// what BeamState lets the Configurator do to each RateLimits it manages.
+// what BeamState lets the Configurator do to each RateLimits it manages, and
+// each atlas-stated rate limit against its contract (pau-value-facts.ts).
 import type { ContractState, LiveRateLimit, StoredPauSnapshot } from "../../lib/pau.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { readPauState } from "../pau/store.ts";
 import type { Coverage, OnchainFact, OnchainSource } from "./facts.ts";
 import { primeAtlasRefs, type PrimeAtlasRefs } from "./pau-atlas-refs.ts";
 import { beamFacts } from "./pau-beam-facts.ts";
+import { valueFacts } from "./pau-value-facts.ts";
 import { amount, keyMatch, keyName, perDay, scaleOf, setAt, type Base } from "./pau-fact-parts.ts";
 
 /** A key's on-chain values, scaled by its token's decimals (or the ones its maximum implies). */
@@ -75,11 +77,13 @@ const coverageOf = (s: StoredPauSnapshot): Coverage => ({
 export const pauSource: OnchainSource = {
   id: "pau",
   describe:
-    "Prime Agent PAU controllers (src/data/pau-registry.json): every rate limit's live maximum, refill per day and available amount in its token's units, every role holder and AdministeredAgent member, and what BeamState lets the Configurator set without a spell (its default rate limits and step limits), read from the chain by the atlas worker.",
+    "Prime Agent PAU controllers (src/data/pau-registry.json): every rate limit's live maximum, refill per day and available amount in its token's units, every role holder and AdministeredAgent member, what BeamState lets the Configurator set without a spell (its default rate limits and step limits), and each rate limit an instance states in the atlas against what its contract holds, read from the chain by the atlas worker.",
   async read(ix: Indexes) {
     const snaps = await readPauState();
     const refs = new Map<string, PrimeAtlasRefs>();
     const refsFor = (prime: string) => refs.get(prime) ?? refs.set(prime, primeAtlasRefs(ix, prime, snaps.filter((s) => s.prime === prime))).get(prime)!;
-    return { facts: snaps.flatMap((s) => snapshotFacts(s, refsFor(s.prime))), coverage: snaps.map(coverageOf) };
+    const primes = [...new Set(snaps.map((s) => s.prime))];
+    const compared = primes.flatMap((p) => valueFacts(ix, p, snaps.filter((s) => s.prime === p)));
+    return { facts: [...snaps.flatMap((s) => snapshotFacts(s, refsFor(s.prime))), ...compared], coverage: snaps.map(coverageOf) };
   },
 };

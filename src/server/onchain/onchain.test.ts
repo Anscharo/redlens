@@ -63,6 +63,7 @@ const SNAP: StoredPauSnapshot = {
 const { primeAtlasRefs } = await import("./pau-atlas-refs.ts");
 const { paramSide } = await import("../../lib/pauParams.ts");
 const { snapshotFacts } = await import("./pau-source.ts");
+const { valueFacts } = await import("./pau-value-facts.ts");
 const fake: OnchainSource = { id: "pau", describe: "fake", read: async () => ({ facts: snapshotFacts(SNAP, primeAtlasRefs(ix, P, [SNAP])), coverage: [{ source: "pau", entity: "Grove", entity_id: P, chain: "ethereum", label: "diamond", contracts: 2, history_complete: false, read_at: SNAP.fetchedAt }] }) };
 // A second source that fails while `failing` is set, read only by indexes built for that purpose.
 let failing = false;
@@ -114,6 +115,19 @@ describe("snapshotFacts", () => {
   });
   it("lists role holders and members with the history state of their contract", () => {
     expect(facts.filter((f) => f.kind === "role" || f.kind === "member").map((f) => [f.kind, f.name, f.history_complete])).toEqual([["role", "RELAYER", false], ["member", "actors", false]]);
+  });
+});
+
+describe("valueFacts", () => {
+  it("states each atlas value beside what the contract holds, or that the read contract lacks its key, found by the value's document and the instance", () => {
+    const facts = valueFacts(ix, P, [SNAP]);
+    expect(facts.map((f) => [f.kind, f.name, f.summary])).toEqual([
+      ["atlas-vs-contract", "Ethereum Mainnet - Vault · Inflow maxAmount", { value: "Inflow maxAmount", atlas: "5,000,000 USDC", contract: "5000000", agrees: true }],
+      ["atlas-vs-contract", "Ethereum Mainnet - Vault · Outflow maxAmount", { value: "Outflow maxAmount", atlas: "Unlimited", contract: "not set", agrees: false }],
+    ]);
+    expect(facts[1].set_at).toBeNull();
+    expect(facts[0].match).toEqual({ hashes: [KIN], addresses: [RL], docs: ["d-in-lim", I] });
+    expect(facts[0].set_at?.url).toBe(`https://etherscan.io/tx/${at.tx}`);
   });
 });
 

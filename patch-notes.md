@@ -35,6 +35,7 @@
 
 ## 2026-10-08
 
+- Compared the rate limits a document states with the PAU contract's live values in the right-hand panel's Onchain section
 - Listed the Executive Votes behind a document in the right-hand panel's Onchain section, each linked to its cast spell, and showed the poll that approved each change in its history
 - Stale Dates stops guessing: every dated claim in the Atlas is checked against the vote that should have enacted it
 - Moved a document's addresses into a new Onchain section of the right-hand panel, and hid panel sections that have nothing to show

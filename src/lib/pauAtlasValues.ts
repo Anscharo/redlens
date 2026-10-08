@@ -25,8 +25,13 @@ const DAY = 86_400n;
 export type ValueStatus = "match" | "mismatch" | "not-set" | "unread" | "no-deployment" | "no-key" | "not-stated" | "unparsed";
 
 export interface ValueCheck {
+  /** The document stating the value. */
   docId: string;
   instance: string;
+  /** The instance's defining document. */
+  instanceDocId: string | null;
+  /** What the value is, as the atlas names it ("Deposit maxAmount"). */
+  label: string;
   field: "maxAmount" | "slope";
   stated: string;
   status: ValueStatus;
@@ -36,6 +41,8 @@ export interface ValueCheck {
   chain: string | null;
   /** The deployment holding the key: a prime can hold one key on its monolithic and its diamond PAU. */
   kind: StoredPauSnapshot["kind"] | null;
+  /** The RateLimits contract holding it. */
+  contract: string | null;
   limit: LiveRateLimit | null;
 }
 
@@ -66,14 +73,14 @@ function absence(snaps: StoredPauSnapshot[], instance: string): ValueStatus {
 /** Every deployment on the instance's chain that holds the key. */
 const holdings = (snaps: StoredPauSnapshot[], key: string, instance: string) =>
   instanceSnaps(snaps, instance).flatMap((s) =>
-    s.contracts.flatMap((c) => (c.rateLimits ?? []).filter((r) => r.key.toLowerCase() === key).map((limit) => ({ chain: s.chain, kind: s.kind, limit }))),
+    s.contracts.flatMap((c) => (c.rateLimits ?? []).filter((r) => r.key.toLowerCase() === key).map((limit) => ({ chain: s.chain, kind: s.kind, contract: c.address, limit }))),
   );
 
-type Base = Omit<ValueCheck, "status" | "key" | "chain" | "kind" | "limit"> & { statedOff: boolean };
+type Base = Omit<ValueCheck, "status" | "key" | "chain" | "kind" | "contract" | "limit"> & { statedOff: boolean };
 
 /** One check per deployment holding the key, or one saying why none can be made. */
 function check({ statedOff, ...base }: Base, stated: StatedValue | null, key: string | null, snaps: StoredPauSnapshot[]): ValueCheck[] {
-  const none = { ...base, key, chain: null, kind: null, limit: null };
+  const none = { ...base, key, chain: null, kind: null, contract: null, limit: null };
   if (!stated) return [{ ...none, status: "unparsed" }];
   if (stated.kind === "none") return [{ ...none, status: "not-stated" }];
   const held = key ? holdings(snaps, key, base.instance) : [];
@@ -102,7 +109,9 @@ export function checkAtlasValues(sources: ValueSource[], snaps: StoredPauSnapsho
       const m = VALUE_PARAM_RE.exec(name);
       if (!m || !docId) return [];
       const side = valueSide(m[1]);
-      const base = { docId, instance: src.name, field: m[2] as ValueCheck["field"], stated: text, statedOff: statedOff(src, m[1]) };
+      const field = m[2] as ValueCheck["field"];
+      const label = `${m[1].trim() || "Rate limit"} ${field}`;
+      const base = { docId, instance: src.name, instanceDocId: src.docId ?? null, label, field, stated: text, statedOff: statedOff(src, m[1]) };
       const mine = keys.filter((k) => !k.side || k.side === side);
       const stated = parseStated(text);
       if (mine.length === 0) return check(base, stated, null, snaps);

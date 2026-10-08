@@ -5,6 +5,7 @@ import type { EdgeResult } from "../../lib/graph";
 import type { CousinDoc } from "../../lib/cousins";
 import type { GlossaryEntry } from "../../lib/glossary";
 import type { AtlasTab } from "../../lib/atlasTab";
+import type { DocValueSources } from "@/lib/pauDocSources";
 import { track } from "../../lib/analytics";
 
 export const SECTION_HEAD = "text-sm mono text-tan-2 font-semibold tracking-wide";
@@ -34,6 +35,8 @@ export interface RightPanelProps {
   byParent?: Map<string | null, AtlasNode[]>;
   /** Every document, for matching the onchain section's Executive Votes to this one's dated claims. */
   docs: Record<string, AtlasNode>;
+  /** The prime's rate-limit params when this document states one of its instances' values, for the onchain section's atlas-vs-contract table. */
+  rateLimitSources?: DocValueSources | null;
 }
 
 /** Navigation from the panel, tagged with what was clicked. */

@@ -17,6 +17,8 @@ const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 /** One instance (or the prime itself) and its params: name → [value, source doc id]. */
 export interface ValueSource {
   name: string;
+  /** The instance's defining document; null for the prime's own params. */
+  docId?: string | null;
   params: Record<string, [string, string | null, string?]>;
 }
 

@@ -8,6 +8,7 @@ import { PanelNotes } from "./PanelNotes";
 import { PanelOnchain } from "./PanelOnchain";
 import { PanelGlossary } from "./PanelGlossary";
 import { useDocExecutives } from "./DocVotes";
+import { useAtlasVsContract } from "./AtlasVsContract";
 import { splitPanelEdges, usePanelNav, type RightPanelProps } from "./panelSections";
 
 // Each right-panel section's body, or null when it has nothing to show (history
@@ -17,12 +18,13 @@ export function usePanelBodies(props: RightPanelProps) {
   const { nav, navDoc } = usePanelNav(props.onNavigate, props.onNavigateByDocNo);
   const { citedBy, relations } = useMemo(() => splitPanelEdges(graphEdges, id), [graphEdges, id]);
   const executives = useDocExecutives(id, props.docs);
+  const limits = useAtlasVsContract(id, props.rateLimitSources);
   const addressCount = Object.keys(targetAddresses).length;
-  const onchainCount = addressCount + executives.length;
+  const onchainCount = addressCount + executives.length + limits.length;
   const noteCount = annotationDocs.length + linkedNodes.length + cousinDocs.length + citedBy.length + relations.length;
   const bodies: Record<AtlasTab, ReactNode> = {
     notes: noteCount > 0 ? <PanelNotes {...props} citedBy={citedBy} relations={relations} onNav={nav} onNavDoc={navDoc} /> : null,
-    onchain: onchainCount > 0 ? <PanelOnchain {...props} executives={executives} /> : null,
+    onchain: onchainCount > 0 ? <PanelOnchain {...props} executives={executives} limits={limits} /> : null,
     history: <PanelHistory id={id} />,
     glossary: glossaryTerms.length > 0 ? <PanelGlossary glossaryTerms={glossaryTerms} onNav={nav} /> : null,
   };
