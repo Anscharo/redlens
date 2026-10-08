@@ -153,11 +153,11 @@ export const CHAIN_ROUTESCAN = Object.fromEntries(
 );
 
 /**
- * Chains whose contract metadata is fetched from Etherscan v2 (has a chainId and
- * is not flagged `etherscan: false`). plume and xlayer are excluded: Etherscan
- * v2 has no endpoint for chains 98866 and 196, so their Blockscout-style API is
- * the only source. A covered chain
- * may still be refused on the free plan (base, optimism, avalanche).
+ * Chains whose contract metadata is fetched from Etherscan v2 (has a chainId
+ * and is not flagged `etherscan: false`). plume and xlayer are excluded:
+ * Etherscan v2 has no endpoint for chains 98866 and 196, so their
+ * Blockscout-style API is the only source. A covered chain may still be refused
+ * on the free plan (base, optimism, avalanche).
  */
 export const CHAIN_SUPPORTS_ETHERSCAN = new Set(
   CHAINS.filter((c) => c.chainId != null && c.etherscan !== false).map((c) => c.chain),
