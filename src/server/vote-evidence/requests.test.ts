@@ -15,7 +15,7 @@ const vote = {
 
 function poll(file: string, date: string, title: string, winner: string | null = "Yes"): Poll {
   return {
-    file, date, start: null, end: null, title, summary: title, discussionLink: null, atlasRefs: [],
+    file, date, start: null, end: null, title, summary: title, discussionLink: null, atlasRefs: [], atlasPrs: [],
     portal: winner === null ? null : { pollId: 1, slug: file, multiHash: "", tags: [], winner, numVoters: 1 },
   };
 }

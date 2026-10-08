@@ -136,6 +136,17 @@ describe("parsePoll", () => {
     expect(p.atlasRefs).toMatchObject([{ family: "atlas", uuid: "14e99d92-71fc-44d9-9dbf-933bce2e1b32" }]);
   });
 
+  it("reads the atlas pull requests its body links, once each and in order", () => {
+    const body = [
+      "Merges [#294](https://github.com/sky-ecosystem/next-gen-atlas/pull/294) and",
+      "https://github.com/sky-ecosystem/next-gen-atlas/pull/121, again /pull/294 via",
+      "https://github.com/sky-ecosystem/next-gen-atlas/pull/294/files; not https://github.com/sky-ecosystem/other/pull/5.",
+    ].join("\n");
+    const md = ["---", "title: T", "start_date: 2025-06-02T16:00:00", "---", body].join("\n");
+    expect(parsePoll("2025/2025-06-02-x.md", md).atlasPrs).toEqual([121, 294]);
+    expect(parsePoll("2025/2025-06-02-x.md", ["---", "title: T", "---", "no links"].join("\n")).atlasPrs).toEqual([]);
+  });
+
   it("leaves a missing discussion link null", () => {
     const md = ["---", "title: T", "start_date: 2025-06-02T16:00:00", "---", "body"].join("\n");
     expect(parsePoll("2025/2025-06-02-x.md", md).discussionLink).toBeNull();

@@ -123,7 +123,7 @@ describe("summarize", () => {
       }),
       exec({ file: "2026/executive-vote-2026-10-08-y.md", date: "2026-10-08", address: null }),
     ],
-    polls: [{ file: "2026/p.md", date: "2026-09-14", start: null, end: null, title: "", summary: "", discussionLink: null, atlasRefs: [], portal: { pollId: 1, slug: "s", multiHash: "m", tags: [], winner: "Yes", numVoters: 3 } }],
+    polls: [{ file: "2026/p.md", date: "2026-09-14", start: null, end: null, title: "", summary: "", discussionLink: null, atlasRefs: [], atlasPrs: [], portal: { pollId: 1, slug: "s", multiHash: "m", tags: [], winner: "Yes", numVoters: 3 } }],
   };
 
   it("reports drafted executives, date drift, enactment, outcomes and links", () => {

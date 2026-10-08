@@ -12,7 +12,7 @@ function exec(file: string, address: string | null): Executive {
 }
 
 function poll(file: string): Poll {
-  return { file, date: "2025-06-02", start: null, end: null, title: "", summary: "", discussionLink: null, atlasRefs: [], portal: null };
+  return { file, date: "2025-06-02", start: null, end: null, title: "", summary: "", discussionLink: null, atlasRefs: [], atlasPrs: [], portal: null };
 }
 
 function artifact(executives: number, polls: number, withPortal = 0): VotesArtifact {

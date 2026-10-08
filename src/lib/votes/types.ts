@@ -85,6 +85,8 @@ export interface Poll {
   summary: string;
   discussionLink: string | null;
   atlasRefs: VoteLink[];
+  /** The next-gen-atlas pull requests the poll's body links, ascending: the atlas edits it approved. */
+  atlasPrs: number[];
   portal: PollPortal | null;
 }
 

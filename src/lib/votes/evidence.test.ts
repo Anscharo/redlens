@@ -30,7 +30,7 @@ function exec(date: string, text: string, over: Partial<Executive> = {}): Execut
 
 function poll(date: string, uuids: string[], winner: string | null = "Yes"): Poll {
   const atlasRefs = uuids.map((uuid) => ({ family: "atlas" as const, url: `https://sky-atlas.io/#${uuid}`, text: "", uuid }));
-  return { file: `2026/${date}-poll.md`, date, start: null, end: null, title: `Poll ${date}`, summary: "", discussionLink: null, atlasRefs, portal: { pollId: 1, slug: `Qm${date}`, multiHash: "", tags: [], winner, numVoters: 1 } };
+  return { file: `2026/${date}-poll.md`, date, start: null, end: null, title: `Poll ${date}`, summary: "", discussionLink: null, atlasRefs, atlasPrs: [], portal: { pollId: 1, slug: `Qm${date}`, multiHash: "", tags: [], winner, numVoters: 1 } };
 }
 
 const linkTo = (uuid: string) => [{ family: "atlas" as const, url: "", text: "", uuid }];

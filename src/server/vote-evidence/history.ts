@@ -6,6 +6,8 @@
 
 import { execFileSync } from "node:child_process";
 
+import { atlasPullRequests } from "../../../scripts/lib/votes/poll.ts";
+
 /**
  * The search string: up to 28 characters before the date plus the date, cut
  * after the last markdown delimiter so it matches the source text, not the
@@ -18,8 +20,7 @@ export function pickaxeNeedle(c: { contextBefore: string; raw: string }): string
 
 /** Polls whose body links next-gen-atlas pull request `pr`. */
 export function pollsLinkingPr(pr: number, bodies: ReadonlyMap<string, string>): string[] {
-  const re = new RegExp(`next-gen-atlas/pull/${pr}(?!\\d)`);
-  return [...bodies].filter(([, body]) => re.test(body)).map(([file]) => file);
+  return [...bodies].filter(([, body]) => atlasPullRequests(body).includes(pr)).map(([file]) => file);
 }
 
 export function prOfSubject(subject: string): number | null {

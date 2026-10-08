@@ -19,7 +19,7 @@ function executive(date: string, refs: VoteLink[] = []): Executive {
   };
 }
 const poll: Poll = {
-  file: "2026/poll-1.md", date: "2026-02-02", start: null, end: null, title: "Atlas Edit", summary: "", discussionLink: null, atlasRefs: [link(DOC_ID)],
+  file: "2026/poll-1.md", date: "2026-02-02", start: null, end: null, title: "Atlas Edit", summary: "", discussionLink: null, atlasRefs: [link(DOC_ID)], atlasPrs: [],
   portal: { pollId: 1, slug: "atlas-edit", multiHash: "", tags: [], winner: "Yes", numVoters: 1 },
 };
 const artifact: VotesArtifact = { sources: { executives: "", polls: "", portal: null }, executives: [executive("2026-03-26", [link(DOC_ID)]), executive("2026-05-01")], polls: [poll] };

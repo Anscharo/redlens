@@ -556,3 +556,11 @@ appears in 6 of 33 executives, including the later ones that name it Osero, so a
 this document with one of those executives would also pass. The swapped slice has no such pairing,
 and Jev's judgment still reads the action itself.
 
+## 13. Polls record their atlas pull requests
+
+Each poll in `votes.json` carries `atlasPrs`: the next-gen-atlas pull requests its body links (70 of
+147 polls link one each today). It is the poll ↔ PR join that lets a history entry say which poll
+approved it, without the browser reading poll bodies. Executives carry no PR of their own: they act
+on the atlas through the documents and polls their authorization lines link, and 31 of 33 link at
+least one poll, which reaches its PR.
+

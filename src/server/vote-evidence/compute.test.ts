@@ -29,7 +29,7 @@ const executive: Executive = {
 };
 function poll(file: string, date: string, title: string): Poll {
   return {
-    file, date, start: null, end: null, title, summary: title, discussionLink: null, atlasRefs: [],
+    file, date, start: null, end: null, title, summary: title, discussionLink: null, atlasRefs: [], atlasPrs: [],
     portal: { pollId: 1, slug: file, multiHash: "", tags: [], winner: "Yes", numVoters: 1 },
   };
 }

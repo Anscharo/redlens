@@ -38,6 +38,8 @@ function pollLines(polls: Poll[]): string[] {
   const lines = [`polls       ${polls.length}  ${range(polls)}`];
   const decided = polls.filter((p) => p.portal?.winner);
   if (decided.length) lines.push(`  outcomes    ${count(decided.map((p) => p.portal?.winner ?? ""))}`);
+  const linking = polls.filter((p) => p.atlasPrs.length);
+  lines.push(`  atlas PRs   ${linking.length} polls link ${new Set(linking.flatMap((p) => p.atlasPrs)).size} pull requests`);
   return lines;
 }
 
