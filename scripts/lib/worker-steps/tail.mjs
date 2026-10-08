@@ -41,6 +41,17 @@ export const TAIL_LANES = [
       }),
   },
   {
+    // PAU admin-event history over JSON-RPC (pau_rpc_cursor) for chains no free
+    // explorer serves. A cold chain backfills over many ticks; under --no-fetch
+    // the child skips, since it would crawl a public RPC.
+    id: "pau-rpc",
+    phase: "tail",
+    run: (ctx) =>
+      ctx.runAsync("bun", ["src/server/sync-pau-rpc.ts"], {
+        env: { ...ctx.env, ...(ctx.noFetch ? { ATLAS_WORKER_NO_FETCH: "1" } : {}) },
+      }),
+  },
+  {
     // Stale Dates vote evidence (vote_evidence): the vote record refetched, atlas
     // history and a decision model laid over the matching rules. Time-gated inside;
     // under --no-fetch the child skips, since it would fetch and spend.

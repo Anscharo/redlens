@@ -31,6 +31,8 @@ export interface SyncDeps {
   head: (chain: string) => Promise<number | null>;
   budgetMs: number;
   now?: () => number;
+  /** Chains another reader owns (rpc-sync.ts); their cursors are never read or marked here. */
+  skipChains?: ReadonlySet<string>;
 }
 
 export interface EventTarget {
@@ -61,26 +63,34 @@ interface CursorRow extends EventTarget {
   next_block: string | number;
 }
 
-async function dueCursors(db: SqlTag, targets: EventTarget[]): Promise<CursorRow[]> {
+/** One pau_cursor row per target, created at block 0 when missing. */
+export async function ensureCursors(db: SqlTag, targets: EventTarget[]): Promise<void> {
   for (const t of targets) {
     await db`INSERT INTO pau_cursor (chain, contract, topic0, event) VALUES (${t.chain}, ${t.contract}, ${t.topic0}, ${t.event}) ON CONFLICT DO NOTHING`;
   }
+}
+
+async function dueCursors(db: SqlTag, targets: EventTarget[]): Promise<CursorRow[]> {
+  await ensureCursors(db, targets);
   const wanted = new Set(targets.map(key));
   const rows = (await db`SELECT chain, contract, topic0, event, next_block FROM pau_cursor ORDER BY checked_at ASC NULLS FIRST, chain, contract, topic0`) as CursorRow[];
   return rows.filter((r) => wanted.has(key(r)));
 }
 
+/** Stores one log of `contract` if a catalogued event decodes it; false when none does. */
+export async function storeLog(db: SqlTag, chain: string, contract: string, l: PauLog): Promise<boolean> {
+  const decoded = decodeAdminLog(l.topics, l.data);
+  if (!decoded) return false;
+  await db`
+    INSERT INTO pau_events (chain, tx_hash, log_index, contract, event, args, block, block_time)
+    VALUES (${chain}, ${l.transactionHash.toLowerCase()}, ${l.logIndex}, ${contract}, ${decoded.event}, ${decoded.args}::jsonb, ${l.blockNumber}, ${new Date(l.timeStamp * 1000)})
+    ON CONFLICT DO NOTHING`;
+  return true;
+}
+
 async function storeLogs(db: SqlTag, c: CursorRow, logs: PauLog[]): Promise<{ stored: number; undecoded: number }> {
   let stored = 0;
-  for (const l of logs) {
-    const decoded = decodeAdminLog(l.topics, l.data);
-    if (!decoded) continue;
-    await db`
-      INSERT INTO pau_events (chain, tx_hash, log_index, contract, event, args, block, block_time)
-      VALUES (${c.chain}, ${l.transactionHash.toLowerCase()}, ${l.logIndex}, ${c.contract}, ${decoded.event}, ${decoded.args}::jsonb, ${l.blockNumber}, ${new Date(l.timeStamp * 1000)})
-      ON CONFLICT DO NOTHING`;
-    stored++;
-  }
+  for (const l of logs) if (await storeLog(db, c.chain, c.contract, l)) stored++;
   return { stored, undecoded: logs.length - stored };
 }
 
@@ -135,7 +145,7 @@ function headCache(deps: SyncDeps) {
 export async function syncPauEvents(db: SqlTag, reg: PauRegistry, deps: SyncDeps): Promise<SyncResult> {
   const clock = deps.now ?? Date.now;
   const deadline = clock() + deps.budgetMs;
-  const due = await dueCursors(db, eventTargets(reg));
+  const due = await dueCursors(db, eventTargets(reg).filter((t) => !deps.skipChains?.has(t.chain)));
   const headOf = headCache(deps);
   const res: SyncResult = { visited: 0, pending: due.length, events: 0, undecoded: 0, errors: 0, rateLimited: [] };
   for (const c of due) {
