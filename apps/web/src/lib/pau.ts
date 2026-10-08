@@ -18,8 +18,3 @@ export function loadPau(): Promise<PauResponse> {
   }
   return cached;
 }
-
-/** Test-only: drop the memoised fetch so the next loadPau() hits the network again. */
-export function resetPauCache(): void {
-  cached = null;
-}
