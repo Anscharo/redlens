@@ -22,9 +22,11 @@ export interface LiveRoleHolder extends RoleHolder {
   holds: boolean | null;
 }
 
+/** An AdministeredAgent member: `since` is null for one the chain lists that the stored history lacks; `holds` is the live check, null when it could not be read (absent on snapshots written before it was read). */
 export interface AgentMember {
   account: string;
-  since: SetAt;
+  since: SetAt | null;
+  holds?: boolean | null;
 }
 
 export interface RateLimitKey {

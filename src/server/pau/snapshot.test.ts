@@ -62,4 +62,11 @@ describe("buildSnapshot", () => {
     expect(snap.contracts.map((c) => [c.role, c.events, c.roles, c.rateLimits])).toEqual([["controller", 0, undefined, undefined], ["rateLimits", 0, undefined, undefined]]);
     expect(calls).toBe(0);
   });
+  it("lists an AdministeredAgent's members live even with no stored history, and marks the history incomplete", async () => {
+    const AA = "0x" + "e".repeat(40);
+    const agentOnly = { ...d, kind: "diamond", members: [m("administeredAgent", AA)] } as PauDeployment;
+    const read = async (_c: string, calls: ChainCall[]) => calls.map((c) => (c.functionName === "actorCount" ? 1n : c.functionName === "getActor" ? A : c.functionName.endsWith("Count") ? 0n : null));
+    const snap = await buildSnapshot(agentOnly, read, async () => ({ events: [], complete: true }));
+    expect(snap.contracts[0]).toMatchObject({ role: "administeredAgent", historyComplete: false, agent: { actors: [{ account: A, since: null, holds: true }] } });
+  });
 });

@@ -35,6 +35,8 @@ const ETH: StoredPauSnapshot = {
       params: [{ event: "MaxSlippageSet", subject: "0x" + "5".repeat(40), args: { pool: "0x" + "5".repeat(40), maxSlippage: "999" }, setAt: at }] },
     { role: "rateLimits", address: RL, events: 3, historyComplete: true, rateLimits: [limit(OFF, "0", "0", "0"), limit(MINT, "50000000000000000000000000", "0", null), { ...limit(DERIVED, "5000000000000", "0", null), derived: { constant: "LIMIT_4626_DEPOSIT", args: [VAULT] } }, { ...limit(BY_ADDRESS, "7000000000000", "0", null), derived: { constant: "LIMIT_ASSET_TRANSFER", args: [VAULT, LISTED] }, unit: { decimals: 6, symbol: "PYUSD", token: VAULT, source: "token" as const } }, limit(UNNAMED, "1000000000000000000000000000", "0", null), limit(NAMED, "25000000000000", "289351851", "12000000000000")],
       beam: { beamState: BEAM, hop: "57600", maxChange: "1200000000000000000", historyComplete: true, defaults: [{ key: MINT, maxAmount: "10000000000000000000000000", slope: "0", scope: "general" as const, setAt: null }] } },
+    { role: "administeredAgent", address: "0x" + "e".repeat(40), events: 2, historyComplete: false,
+      agent: { actors: [{ account: "0x" + "e1".repeat(20), since: at, holds: true }, { account: "0x" + "e2".repeat(20), since: null, holds: true }], revokers: [{ account: "0x" + "e3".repeat(20), since: at }] } },
   ],
 };
 const BASE: StoredPauSnapshot = { ...ETH, deployment: `${PRIME}:base:monolithic`, chain: "base", contracts: [{ role: "rateLimits", address: RL, events: 0, historyComplete: false }] };
@@ -96,12 +98,15 @@ describe("ActorPau", () => {
     expect(rows[0]).toHaveTextContent(/10M.*0.*all/);
   });
 
-  it("marks each role holder as the chain confirms it, and lists the parameters", async () => {
+  it("marks each role holder and AdministeredAgent member as the chain confirms it, and lists the parameters", async () => {
     render(<ActorPau prime={prime} instances={instances} />);
     await screen.findByText("Roles");
     const statuses = [...document.querySelectorAll("li[data-status]")].map((li) => li.getAttribute("data-status"));
-    expect(statuses).toEqual(["holds", "denied", "unread"]);
+    expect(statuses).toEqual(["holds", "holds", "holds", "denied", "unread", "unread"]);
     expect(screen.getByLabelText(/chain says it does not hold the role/)).toBeInTheDocument();
+    expect(screen.getAllByLabelText("the AdministeredAgent lists it")).toHaveLength(2);
+    expect(screen.getByLabelText("membership could not be read")).toBeInTheDocument();
+    expect(screen.getByText("not in the stored history")).toBeInTheDocument();
     expect(screen.getByText("MaxSlippageSet")).toBeInTheDocument();
   });
 

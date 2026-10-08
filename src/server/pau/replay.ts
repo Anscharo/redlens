@@ -1,7 +1,9 @@
 // Folds a contract's admin events, oldest first, into its current configuration.
-// AccessControl is not enumerable on-chain, so replaying RoleGranted /
-// RoleRevoked is how the holders are listed at all; the snapshot still asks
-// hasRole of each, so a missed event shows up as a holder the chain denies.
+// The monolithic contracts' AccessControl is not enumerable on-chain, so
+// replaying RoleGranted / RoleRevoked is how the holders are listed at all; the
+// snapshot still asks hasRole of each, so a missed event shows up as a holder
+// the chain denies. AdministeredAgent sets are enumerable and listed live
+// (agent-live.ts); their replay supplies when each member was added.
 import { keccak256, toHex } from "viem";
 import type { AgentMember, PauIntegration, PauParam, RateLimitKey, RoleHolder, SetAt } from "../../lib/pau.ts";
 import { subjectKey } from "./admin-events.ts";
@@ -19,7 +21,7 @@ export const setAt = (e: PauEventRow): SetAt => ({ block: e.block, time: e.block
 
 const ROLE_NAMES = new Map<string, string>([
   [`0x${"0".repeat(64)}`, "DEFAULT_ADMIN_ROLE"],
-  ...["RELAYER", "FREEZER", "CONTROLLER"].map((n) => [keccak256(toHex(n)), n] as [string, string]),
+  ...["RELAYER", "FREEZER", "CONTROLLER", "ALLOCATOR_ROLE"].map((n) => [keccak256(toHex(n)), n] as [string, string]),
 ]);
 
 /** The name of a well-known role hash, else null. */

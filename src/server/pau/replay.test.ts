@@ -17,6 +17,7 @@ describe("roleName", () => {
   it("names the well-known roles and nothing else", () => {
     expect(roleName(RELAYER)).toBe("RELAYER");
     expect(roleName(`0x${"0".repeat(64)}`)).toBe("DEFAULT_ADMIN_ROLE");
+    expect(roleName(keccak256(toHex("ALLOCATOR_ROLE")))).toBe("ALLOCATOR_ROLE");
     expect(roleName(`0x${"1".repeat(64)}`)).toBeNull();
   });
 });
