@@ -14,8 +14,9 @@ export const ONCHAIN_TOOLS: AtlasTool[] = [
       "Values read from the chain and stored by the atlas worker — today every Prime Agent PAU controller: each rate limit's " +
       "maximum, refill per day and available amount (raw and scaled), each role holder (with whether hasRole confirms it) and " +
       "AdministeredAgent member, and the transaction that last set each. Each fact names its entity, chain and contract, its " +
-      "name (`name_source`: `atlas` when an atlas RateLimitID param names the key, `derived` when the controller constant " +
-      "that hashes to it does, null when neither), and `set_at.url` to cite. `coverage` says per deployment when it was read " +
+      "name (`name_source`: `atlas` when an atlas RateLimitID param names the key, `atlas-address` when the atlas lists an " +
+      "address there instead and this key is derived from it — one address can feed several keys, so say so — `derived` when " +
+      "the controller constant that hashes to it does, null when none), and `set_at.url` to cite. `coverage` says per deployment when it was read " +
       "and whether its history is complete; where it is not, a missing fact is not proof of absence. Switched-off limits " +
       "(maximum 0) are left out unless `include_off`. Returns `{ sources, coverage, count, truncated?, facts }`.",
     shape: {

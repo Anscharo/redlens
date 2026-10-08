@@ -1,8 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, type ComponentProps } from "react";
 import { AtlasLink } from "../AtlasLink";
 import { prepareWithSegments, measureNaturalWidth } from "@chenglou/pretext";
 import type { RadarInstance } from "../../lib/actorIndex";
 import { ParamLine } from "./ParamLine";
+import { ParamAddressKeys } from "./ParamAddressKeys";
+import { listedAddress } from "../../lib/pau";
 import { atlasHref } from "@/lib/routes";
 import { instanceAnchor } from "@/lib/radarAnchors";
 import { useAddressMap } from "../../hooks/useAddressMap";
@@ -17,7 +19,19 @@ function measureKeyPx(key: string): number {
   catch { return key.length * 6; }
 }
 
-export function InstanceCard({ inst }: { inst: RadarInstance }) {
+/** A param line, with the on-chain keys derived from it when it lists an address where a RateLimitID belongs. */
+function ParamRow({ primeId, ...line }: ComponentProps<typeof ParamLine> & { primeId?: string }) {
+  const { p } = line;
+  return (
+    <div>
+      <ParamLine {...line} />
+      {primeId && listedAddress(p.key, p.value) && <ParamAddressKeys primeId={primeId} paramKey={p.key} value={p.value} />}
+    </div>
+  );
+}
+
+/** `primeId` (the prime whose page this is) lets a RateLimitID param that lists an address show the on-chain keys derived from it. */
+export function InstanceCard({ inst, primeId }: { inst: RadarInstance; primeId?: string }) {
   // Loaded here rather than drilled from ActorInstances: loadAddresses() is
   // module-cached, so every card resolves from the one in-flight request.
   const addrMap = useAddressMap();
@@ -44,7 +58,7 @@ export function InstanceCard({ inst }: { inst: RadarInstance }) {
       </div>
       {inst.signalParams.length > 0 && (
         <div>
-          {inst.signalParams.map((p) => <ParamLine key={p.key} p={p} colWidth={colWidth} instanceHint={inst.displayName} addrMap={addrMap} />)}
+          {inst.signalParams.map((p) => <ParamRow key={p.key} p={p} primeId={primeId} colWidth={colWidth} instanceHint={inst.displayName} addrMap={addrMap} />)}
         </div>
       )}
     </div>

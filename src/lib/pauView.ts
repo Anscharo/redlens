@@ -63,6 +63,8 @@ const KEY_WORDS = /\s*Rate\s*Limit\s*IDs?\b\s*(?:\/\s*)?/i;
 export interface AtlasKeyRef {
   docId: string | null;
   label: string;
+  /** Set when the atlas lists an address where the RateLimitID belongs and the key was found by its derivation from it. */
+  via?: string;
 }
 
 /** The slice of a Radar instance the key index reads: its name and its extracted parameters. */

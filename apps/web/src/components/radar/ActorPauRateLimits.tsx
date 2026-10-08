@@ -49,8 +49,9 @@ function LimitName({ r, chain, keyIndex }: { r: LiveRateLimit; chain: string; ke
       </span>
     );
   }
-  const label = labelOnChain(ref.label, chain);
-  const title = [r.key, ...(r.derived ? [`derived from ${derivation(r.derived)}`] : []), ...refs.slice(1).map((x) => `also ${x.label}`)].join("\n");
+  const label = labelOnChain(ref.label, chain) + (ref.via ? " (matched by address)" : "");
+  const viaNote = ref.via ? [`the atlas lists ${ref.via} here instead of the key; this key is derived from that address`] : [];
+  const title = [r.key, ...viaNote, ...(r.derived ? [`derived from ${derivation(r.derived)}`] : []), ...refs.slice(1).map((x) => `also ${x.label}`)].join("\n");
   if (!ref.docId) return <span title={title}>{label}</span>;
   return (
     <AtlasLink to={atlasHref(ref.docId)} className="text-accent hover:underline" title={title}>

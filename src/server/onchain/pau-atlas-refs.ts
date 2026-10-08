@@ -5,6 +5,8 @@
 import type { Entity, Indexes } from "../retrieval/indexes.ts";
 import { RATE_LIMIT_ID_RE } from "../../lib/atlasHashes.ts";
 import { instanceKeyIndex, primeKeyedInstance, type AtlasKeyRef, type KeyedInstance } from "../../lib/pauView.ts";
+import { addressKeyIndex, withAddressKeys } from "../../lib/pauAddressKeys.ts";
+import type { StoredPauSnapshot } from "../../lib/pau.ts";
 
 type Params = Record<string, [string, string | null, string?]>;
 
@@ -70,13 +72,20 @@ function constantDocs(ix: Indexes, primeDocNo: string | undefined): Map<string, 
   return out;
 }
 
-/** The atlas side of every key one prime states, from its own params and its instances'. */
-export function primeAtlasRefs(ix: Indexes, primeId: string): PrimeAtlasRefs {
+/**
+ * The atlas side of every key one prime states, from its own params and its
+ * instances', plus the keys its snapshots derive from an address an instance
+ * lists where a RateLimitID belongs (marked `via`).
+ */
+export function primeAtlasRefs(ix: Indexes, primeId: string, snaps: StoredPauSnapshot[] = []): PrimeAtlasRefs {
   const prime = ix.entityById.get(primeId);
   const instances = ix.entities.filter((e) => (e.entity_type === "instance" || e.entity_type === "invocation") && e.meta?.includes(primeId) && JSON.parse(e.meta).agent_doc_id === primeId);
   const docs = new Map<string, Set<string>>();
   if (prime) addParamSet(docs, paramsOf(prime), null);
   for (const e of instances) addParamSet(docs, paramsOf(e), e.defining_doc_id);
-  const labels = instanceKeyIndex([primeKeyedInstance(prime?.meta), ...instances.map(keyedInstance)]);
+  const keyed = instances.map(keyedInstance);
+  const byAddress = addressKeyIndex(keyed, snaps);
+  for (const [key, refs] of byAddress) if (!docs.has(key)) docs.set(key, new Set(refs.flatMap((r) => (r.docId ? [r.docId] : []))));
+  const labels = withAddressKeys(instanceKeyIndex([primeKeyedInstance(prime?.meta), ...keyed]), byAddress);
   return { labels, docs, constantDocs: constantDocs(ix, prime?.defining_doc_id ? ix.docMap.get(prime.defining_doc_id)?.doc_no : undefined) };
 }

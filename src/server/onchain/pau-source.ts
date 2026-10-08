@@ -37,14 +37,14 @@ function rateLimitValues(r: LiveRateLimit) {
 function rateLimitFact(base: Base, r: LiveRateLimit, refs: PrimeAtlasRefs): OnchainFact {
   const key = r.key.toLowerCase();
   const ref = refs.labels.get(key)?.[0];
-  const values = rateLimitValues(r);
+  const values = { ...rateLimitValues(r), ...(ref?.via ? { listed_address: ref.via } : {}) };
   const constantDocs = r.derived && r.derived.args.length === 0 ? (refs.constantDocs.get(r.derived.constant) ?? []) : [];
   const argAddresses = r.derived?.args.filter((a) => a.startsWith("0x")) ?? [];
   return {
     ...base,
     kind: "rate-limit",
     name: ref ? labelOnChain(ref.label, base.chain) : r.derived ? derivedName(r.derived) : null,
-    name_source: ref ? "atlas" : r.derived ? "derived" : null,
+    name_source: ref ? (ref.via ? "atlas-address" : "atlas") : r.derived ? "derived" : null,
     atlas_doc_id: ref?.docId ?? null,
     values,
     summary: { key: r.key, maximum: values.maximum.amount, refill_per_day: values.refill_per_day.amount, available: values.available?.amount ?? null },
@@ -92,7 +92,7 @@ export const pauSource: OnchainSource = {
   async read(ix: Indexes) {
     const snaps = await readPauState();
     const refs = new Map<string, PrimeAtlasRefs>();
-    const refsFor = (prime: string) => refs.get(prime) ?? refs.set(prime, primeAtlasRefs(ix, prime)).get(prime)!;
+    const refsFor = (prime: string) => refs.get(prime) ?? refs.set(prime, primeAtlasRefs(ix, prime, snaps.filter((s) => s.prime === prime))).get(prime)!;
     return { facts: snaps.flatMap((s) => snapshotFacts(s, refsFor(s.prime))), coverage: snaps.map(coverageOf) };
   },
 };
