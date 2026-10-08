@@ -1,7 +1,8 @@
 import type { GraphEntity } from "@/types";
 import type { GraphData } from "@/lib/graphData";
 import { parseMeta } from "@/lib/meta";
-import { actorHref } from "@/lib/routes";
+import { actorPageHref } from "@/lib/routes";
+import { hasActorPages, type ActorPageKey } from "@/lib/radarPages";
 import { EVM_ADDRESS_EXACT_RE, SOL_ADDRESS_EXACT_RE } from "@/lib/patterns";
 import { buildOwnerIndex, instanceOwner, instanceSignalParams, isRelationEdge, type InstanceParam } from "@/lib/radarRules";
 import { RADAR_SECTION, instanceAnchor } from "@/lib/radarAnchors";
@@ -54,12 +55,15 @@ function makeHit(
   context: string,
   slug: string,
   anchor?: string,
+  page?: ActorPageKey,
 ): RadarHit {
-  return { kind, label, context, slug, anchor, href: actorHref(slug, anchor) };
+  return { kind, label, context, slug, anchor, href: actorPageHref(slug, page, anchor) };
 }
 
-/** Where an instance's rows link to, and the breadcrumb its param rows show. */
-type InstancePlace = { slug: string; anchor: string; where: string };
+/** Where an instance's rows link to, and the breadcrumb its param rows show.
+ *  A Prime's instances are on its instances subpage; any other owner's are on
+ *  its one actor page. */
+type InstancePlace = { slug: string; anchor: string; where: string; page?: ActorPageKey };
 
 // One param row per (owner page, instance anchor, key); an address-valued param
 // also yields an address row.
@@ -69,9 +73,9 @@ function paramRows(params: InstanceParam[], at: InstancePlace, seen: Set<string>
     const dedupe = `${at.slug}#${at.anchor}|${p.key}`;
     if (seen.has(dedupe)) continue;
     seen.add(dedupe);
-    out.params.push({ key: p.key, value, hit: makeHit("param", p.key, at.where, at.slug, at.anchor) });
+    out.params.push({ key: p.key, value, hit: makeHit("param", p.key, at.where, at.slug, at.anchor, at.page) });
     if (isAddress(value.trim())) {
-      const hit = makeHit("address", value.trim(), `${at.where} › ${p.key}`, at.slug, at.anchor);
+      const hit = makeHit("address", value.trim(), `${at.where} › ${p.key}`, at.slug, at.anchor, at.page);
       out.addresses.push({ address: value.trim(), hit });
     }
   }
@@ -85,11 +89,12 @@ function instanceRows(graph: GraphData, out: RadarSearchIndex): void {
     if (!found || !found.owner.slug) continue;
     const { owner, meta } = found;
     const anchor = instanceAnchor(inst.id);
+    const page: ActorPageKey | undefined = hasActorPages(owner) ? "instances" : undefined;
     out.instances.push({
       name: inst.name,
-      hit: makeHit("instance", inst.name, `${owner.name} › ${words(inst.st ?? "")}`, owner.slug, anchor),
+      hit: makeHit("instance", inst.name, `${owner.name} › ${words(inst.st ?? "")}`, owner.slug, anchor, page),
     });
-    const at = { slug: owner.slug, anchor, where: `${owner.name} › ${inst.name}` };
+    const at = { slug: owner.slug, anchor, where: `${owner.name} › ${inst.name}`, page };
     paramRows(instanceSignalParams(meta), at, seenParam, out);
   }
 }

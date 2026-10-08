@@ -8,22 +8,23 @@ import { ActorChain } from "./ActorChain";
 import { ActorContact } from "./ActorContact";
 import { ActorResponsibilities } from "./ActorResponsibilities";
 import { ActorRewards } from "./ActorRewards";
-import { ActorInstances } from "./ActorInstances";
 import { ActorHistory } from "./ActorHistory";
 import { ActorSettlementTeaser } from "./ActorSettlementTeaser";
-import { ActorPau } from "./ActorPau";
+import { ActorConnections } from "./ActorConnections";
 import { Section } from "./RadarSection";
-import { RelationRow } from "./RelationRow";
-import { RecRow } from "./RecRow";
+import { useSubpageAnchorForward } from "./useSubpageAnchorForward";
 import { CompositePartySection } from "./CompositePartySection";
 import { RADAR_SECTION } from "@/lib/radarAnchors";
+import { hasActorPages } from "@/lib/radarPages";
 
 interface Props {
   profile: ActorProfile;
 }
 
 export function ActorDashboard({ profile }: Props) {
+  const split = hasActorPages(profile.entity);
   useArrivalTarget(profile.entity.id);
+  useSubpageAnchorForward(profile.entity.slug, profile.primitives, split);
 
   const {
     entity,
@@ -31,9 +32,6 @@ export function ActorDashboard({ profile }: Props) {
     chain,
     adRows,
     rewardsAgent,
-    relations,
-    primitives,
-    recommendations,
     comprisesMembers,
     partOfComposite,
   } = profile;
@@ -97,37 +95,23 @@ export function ActorDashboard({ profile }: Props) {
               <ActorResponsibilities rows={adRows} />
             </Section>
           )}
-          {primitives.length > 0 && (
-            <Section title="Primitives" id={RADAR_SECTION.primitives}>
-              <ActorInstances primitives={primitives} primeId={entity.st === "prime" ? entity.id : undefined} />
-            </Section>
-          )}
-          {relations.length > 0 && (
-            <Section title="Relationships" id={RADAR_SECTION.relationships}>
-              {relations.map((r, i) => (
-                <RelationRow key={i} r={r} />
-              ))}
-            </Section>
-          )}
-          {recommendations.length > 0 && (
-            <Section title="Notable" id={RADAR_SECTION.notable}>
-              {recommendations.map((rec, i) => (
-                <RecRow key={i} rec={rec} />
-              ))}
-            </Section>
-          )}
+          {/* Only Primes have primitives, and a Prime's instances, history and
+              PAUs are subpages (radarPages.ts). */}
+          {!split && <ActorConnections profile={profile} />}
         </div>
 
         <aside className="min-w-0">
-          <Section
-            title={"History of Doc Changes affecting " + profile.entity.name}
-            id={RADAR_SECTION.history}
-          >
-            <ActorHistory profile={profile} />
-          </Section>
+          {split ? (
+            <ActorConnections profile={profile} />
+          ) : (
+            <Section
+              title={"History of Doc Changes affecting " + profile.entity.name}
+              id={RADAR_SECTION.history}
+            >
+              <ActorHistory profile={profile} />
+            </Section>
+          )}
         </aside>
-
-        <ActorPau prime={entity} instances={profile.instances} />
 
         {rewardsAgent && (
           <div className="lg:col-span-2 min-w-0">

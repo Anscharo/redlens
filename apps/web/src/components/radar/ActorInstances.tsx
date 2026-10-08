@@ -5,12 +5,14 @@ import { atlasHref } from "@/lib/routes";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { StatusPill } from "../reports/RewardsCells";
 import { InstanceCard } from "./InstanceCard";
+import type { PauPrime } from "./ParamAddressKeys";
+import { RadarHeading } from "./RadarHeading";
 
 
 interface Props {
   primitives: RadarPrimitive[];
   /** The prime whose page this is, for the on-chain keys an instance lists by address. */
-  primeId?: string;
+  prime?: PauPrime;
 }
 
 interface CategoryGroup {
@@ -74,10 +76,12 @@ interface SectionProps {
    * for sibling sections so the primitive anchor becomes
    * `#Invocations-distribution-reward`. */
   anchorPrefix: string;
-  primeId?: string;
+  /** Rank of each category heading; primitives sit one below, instances two. */
+  level: number;
+  prime?: PauPrime;
 }
 
-function ActorItemsSection({ groups, pick, anchorPrefix, primeId }: SectionProps) {
+function ActorItemsSection({ groups, pick, anchorPrefix, level, prime }: SectionProps) {
   const visibleGroups = groups
     .map((cat) => ({ ...cat, primitives: cat.primitives.filter((p) => pick(p).length > 0) }))
     .filter((cat) => cat.primitives.length > 0);
@@ -92,7 +96,7 @@ function ActorItemsSection({ groups, pick, anchorPrefix, primeId }: SectionProps
     <div className="space-y-6">
       {visibleGroups.map((cat) => (
         <div key={cat.category} id={catId(cat)} style={{ scrollMarginTop: HEADER_OFFSET }}>
-          <div className="flex items-center gap-2 mb-3">
+          <RadarHeading level={level} className="flex items-center gap-2 mb-3">
             {cat.categoryDocId ? (
               <AtlasLink to={atlasHref(cat.categoryDocId)} className="mono text-[11px] uppercase tracking-wider hover:underline" style={{ color: "var(--tan-3)" }}>
                 {cat.category}
@@ -100,20 +104,28 @@ function ActorItemsSection({ groups, pick, anchorPrefix, primeId }: SectionProps
             ) : (
               <span className="mono text-[11px] uppercase tracking-wider" style={{ color: "var(--tan-3)" }}>{cat.category}</span>
             )}
-          </div>
-          <div className="space-y-4 pl-3" style={{ borderLeft: "1px solid var(--border)" }}>
+          </RadarHeading>
+          <div className="radar-prim-grid pl-3" style={{ borderLeft: "1px solid var(--border)" }}>
             {cat.primitives.map((prim) => {
               const items = pick(prim);
               return (
-                <div key={prim.st} id={primId(prim)} style={{ scrollMarginTop: HEADER_OFFSET }}>
+                <div
+                  key={prim.st}
+                  id={primId(prim)}
+                  data-span={items.length > 1 ? "row" : undefined}
+                  className="min-w-0"
+                  style={{ scrollMarginTop: HEADER_OFFSET }}
+                >
                   <div className="flex items-baseline gap-2 mb-2 flex-wrap">
-                    {prim.docId ? (
-                      <AtlasLink to={atlasHref(prim.docId)} className="mono text-[11px] hover:underline" style={{ color: "var(--accent)" }}>
-                        {prim.title}
-                      </AtlasLink>
-                    ) : (
-                      <span className="mono text-[11px]" style={{ color: "var(--accent)" }}>{prim.title}</span>
-                    )}
+                    <RadarHeading level={level + 1}>
+                      {prim.docId ? (
+                        <AtlasLink to={atlasHref(prim.docId)} className="mono text-[11px] hover:underline" style={{ color: "var(--accent)" }}>
+                          {prim.title}
+                        </AtlasLink>
+                      ) : (
+                        <span className="mono text-[11px]" style={{ color: "var(--accent)" }}>{prim.title}</span>
+                      )}
+                    </RadarHeading>
                     {prim.status && <StatusPill s={prim.status} />}
                     <span className="mono text-[10px]" style={{ color: "var(--tan-3)", opacity: 0.6 }}>({items.length})</span>
                     {prim.isUnknown && (
@@ -128,7 +140,7 @@ function ActorItemsSection({ groups, pick, anchorPrefix, primeId }: SectionProps
                         className="mb-2"
                         style={anchorId ? { scrollMarginTop: HEADER_OFFSET } : undefined}
                       >
-                        <InstanceCard inst={inst} primeId={primeId} />
+                        <InstanceCard inst={inst} prime={prime} headingLevel={level + 2} />
                       </div>
                     ))}
                   </div>
@@ -142,31 +154,37 @@ function ActorItemsSection({ groups, pick, anchorPrefix, primeId }: SectionProps
   );
 }
 
-function SectionHeading({ label, count }: { label: string; count: number }) {
+function SectionHeading({ label, count, level }: { label: string; count: number; level: number }) {
   return (
     <div className="flex items-baseline gap-2 mb-4">
-      <h2 className="text-sm font-medium" style={{ color: "var(--tan)" }}>{label}</h2>
+      <RadarHeading level={level} className="text-sm font-medium" style={{ color: "var(--tan)" }}>{label}</RadarHeading>
       <span className="mono text-[11px]" style={{ color: "var(--tan-3)" }}>({count})</span>
     </div>
   );
 }
 
-export function ActorInstances({ primitives, primeId }: Props) {
+/** A Prime's primitives by category, under the page's h1. With no invocations
+ *  the categories are the h2s; with some, an Invocations and an Instances h2
+ *  split the list and everything under them sits one rank lower. */
+export function ActorInstances({ primitives, prime }: Props) {
+  const level = 2;
   const groups = buildCategoryGroups(primitives);
   const instanceCount = primitives.reduce((n, p) => n + p.instances.length, 0);
   const invocationCount = primitives.reduce((n, p) => n + p.invocations.length, 0);
+  const split = invocationCount > 0;
+  const catLevel = split ? level + 1 : level;
 
   return (
     <div className="space-y-8">
-      {invocationCount > 0 && (
+      {split && (
         <section id="invocations" style={{ scrollMarginTop: HEADER_OFFSET }}>
-          <SectionHeading label="Invocations" count={invocationCount} />
-          <ActorItemsSection groups={groups} pick={(p) => p.invocations} anchorPrefix="invocations" primeId={primeId} />
+          <SectionHeading label="Invocations" count={invocationCount} level={level} />
+          <ActorItemsSection groups={groups} pick={(p) => p.invocations} anchorPrefix="invocations" level={catLevel} prime={prime} />
         </section>
       )}
-      <section id="instances" style={{ scrollMarginTop: HEADER_OFFSET }}>
-        <SectionHeading label="Instances" count={instanceCount} />
-        <ActorItemsSection groups={groups} pick={(p) => p.instances} anchorPrefix="" primeId={primeId} />
+      <section id="instances" aria-label={split ? undefined : "Instances"} style={{ scrollMarginTop: HEADER_OFFSET }}>
+        {split && <SectionHeading label="Instances" count={instanceCount} level={level} />}
+        <ActorItemsSection groups={groups} pick={(p) => p.instances} anchorPrefix="" level={catLevel} prime={prime} />
       </section>
     </div>
   );

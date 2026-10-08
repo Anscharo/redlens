@@ -27,6 +27,9 @@ describe("pageContextLine", () => {
 
   it("falls back through actorSlug, reportName, path in priority order", () => {
     expect(pageContextLine({ actorSlug: "op-facilitator" })).toBe('Radar actor page for "op-facilitator"');
+    expect(pageContextLine({ actorSlug: "spark", path: "/radar/spark/pau" })).toBe(
+      'Radar actor page for "spark", its Parallelized Allocation Units subpage',
+    );
     expect(
       pageContextLine({ actorSlug: "spark", path: "/radar/spark/settlements", mscMonth: "2026-07" }),
     ).toContain("ask_external_msc");

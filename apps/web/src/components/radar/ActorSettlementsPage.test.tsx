@@ -35,7 +35,7 @@ function profile(): ActorProfile {
 describe("ActorSettlementsPage", () => {
   it("titles the page and links back to the actor dashboard", () => {
     render(<ActorSettlementsPage profile={profile()} />);
-    expect(screen.getByRole("heading", { level: 1, name: "Monthly settlement" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Monthly settlements" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "radar · Spark" })).toHaveAttribute("href", "/radar/spark");
     expect(screen.getByTestId("settlements-body")).toBeInTheDocument();
   });

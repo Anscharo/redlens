@@ -1,5 +1,6 @@
 import { REPORTS, reportPath } from "./reports/registry";
 import type { ScopeConfig } from "./reports/types";
+import type { ActorPageKey } from "./radarPages";
 
 export type { ScopeConfig };
 
@@ -8,7 +9,7 @@ export const ROUTES = {
   ATLAS: "/atlas",
   RADAR: "/radar",
   RADAR_ACTOR: "/radar/:slug",
-  RADAR_ACTOR_SETTLEMENTS: "/radar/:slug/settlements",
+  RADAR_ACTOR_PAGE: "/radar/:slug/:page",
   SEARCH_HINTS: "/search-hints",
   PROVENANCE: "/provenance",
   PRIVACY: "/privacy",
@@ -154,7 +155,10 @@ export const absolutizeAtlasLinks = (markdown: string): string =>
     .replace(/\]\((\/preview\/[^)\s]+)\)/g, (_m, path: string) => `](${typeof window !== "undefined" ? window.location.origin : ""}${path})`);
 export const actorHref = (slug: string, fragment?: string) =>
   `${ROUTES.RADAR}/${slug}${fragment ? `#${fragment}` : ""}`;
-export const settlementsHref = (slug: string) => `${ROUTES.RADAR}/${slug}/settlements`;
+/** An actor subpage (src/lib/radarPages.ts); no page is the actor's Info page. */
+export const actorPageHref = (slug: string, page?: ActorPageKey, fragment?: string) =>
+  page ? `${ROUTES.RADAR}/${slug}/${page}${fragment ? `#${fragment}` : ""}` : actorHref(slug, fragment);
+export const settlementsHref = (slug: string) => actorPageHref(slug, "settlements");
 export const reportHref = (id: string) => `${ROUTES.REPORTS}/${id}`;
 /** Home URL carrying a search `q` and the open split pane, each only when set. */
 export const homeSearchHref = (q: string | null | undefined, split?: string | null): string => {

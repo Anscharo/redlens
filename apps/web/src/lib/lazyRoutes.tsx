@@ -88,7 +88,7 @@ const REPORT_PAGES: Record<ReportId, Omit<SimpleRoute, "path">> = {
 // Report/page routes that are just <Suspense><Component .../></Suspense> with
 // no route params and no custom children — rendered by App.tsx's Switch with
 // one .map() instead of repeating that wrapper by hand. Routes needing
-// :param-derived props (RADAR_ACTOR, RADAR_ACTOR_SETTLEMENTS,
+// :param-derived props (RADAR_ACTOR, RADAR_ACTOR_PAGE,
 // SHARED_COLLECTION), a custom child (SEARCH_HINTS), a redirect, the
 // __CHAT_ENABLED__-guarded CONVERSATIONS route, or the admin catch-all stay
 // explicit in App.tsx.
