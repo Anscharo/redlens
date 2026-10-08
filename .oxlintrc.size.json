@@ -40,7 +40,6 @@
     { "files": ["apps/web/src/components/atlas/CollapsibleNode.tsx"], "rules": { "max-lines": ["error", { "max": 370, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 328, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/atlas/JuniorPane.tsx"], "rules": { "max-lines": ["error", { "max": 197, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 164, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/atlas/NodeMeta.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 93, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/components/atlas/RightPanel.tsx"], "rules": { "max-lines": ["error", { "max": 321, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 296, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/collections/CollectionCard.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 92, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/conversations/ConversationCard.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 90, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/crossview/CrossViewPage.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 79, "skipBlankLines": true, "skipComments": true }] } },

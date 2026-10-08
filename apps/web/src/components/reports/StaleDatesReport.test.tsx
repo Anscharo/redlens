@@ -138,7 +138,7 @@ describe("StaleDatesReport", () => {
     overlay = { atlasSha: "abc", computedAt: "2026-10-07T12:00:00.000Z", claims: { [claimKey(recordedClaim)]: judged } };
     render(<StaleDatesReport query="" mode="broad" />);
     expect(await screen.findByText("executed")).toBeInTheDocument();
-    expect(screen.getByText("via AI")).toHaveAttribute("title", expect.stringContaining("The heuristic alone said: not included."));
+    expect(screen.getByText("Executive Vote matched to doc via AI")).toHaveAttribute("title", expect.stringContaining("The heuristic alone said: not included."));
     expect(screen.queryByText(/rules said/)).toBeNull();
     expect(screen.queryByText(/not in that Executive Vote/)).toBeNull();
     expect(screen.getByText(/AI judgments as of 2026-10-07/)).toBeInTheDocument();

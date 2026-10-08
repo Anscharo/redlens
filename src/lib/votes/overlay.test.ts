@@ -15,7 +15,7 @@ describe("judgeSubject", () => {
     const e = judgeSubject(rule(), true, { model: MODEL, anchor: 0.05, carried: 0.9 });
     expect(e).toMatchObject({ status: "enacted", via: "date", vote: executive, judged: { model: MODEL, p: 0.9, rule: "subject-missing" } });
     expect(ruleDisagrees(e)).toBe(true);
-    expect(evidenceText(e)).toBe("executed · Executive Vote 2026-03-26 (+0d) · via AI");
+    expect(evidenceText(e)).toBe("executed · Executive Vote 2026-03-26 (+0d) · Executive Vote matched to doc via AI");
     expect(evidenceHint(e)).toContain("The heuristic alone said: not included.");
     expect(evidenceHint(e)).toContain("Checked by an AI model (typesafe/jev-1.13, p 0.90).");
   });
@@ -31,7 +31,7 @@ describe("judgeSubject", () => {
     expect(judgeSubject(rule({ status: "pending" }), false, { model: MODEL, anchor: 0.1, carried: 0.6 }).status).toBe("pending");
     const agreed = judgeSubject(rule({ status: "enacted" }), true, { model: MODEL, anchor: 0.1, carried: 0.6 });
     expect(ruleDisagrees(agreed)).toBe(false);
-    expect(evidenceText(agreed)).toBe("executed · Executive Vote 2026-03-26 (+0d) · via AI");
+    expect(evidenceText(agreed)).toBe("executed · Executive Vote 2026-03-26 (+0d) · Executive Vote matched to doc via AI");
     expect(evidenceHint(agreed)).not.toContain("heuristic alone");
     expect(matchedVia(agreed)).toBe("AI");
     expect(matchedVia(rule())).toBe("date");
@@ -47,7 +47,7 @@ describe("poll evidence for claims naming no executive", () => {
     const e = historyEvidence("2026-01-01", poll("2025-11-24"));
     expect(e).toMatchObject({ status: "authorised", via: "history", vote: { kind: "poll", offsetDays: -38 } });
     expect(matchedVia(e)).toBe("history");
-    expect(evidenceText(e)).toBe("approved by poll · poll 2025-11-24 (−38d) · via history");
+    expect(evidenceText(e)).toBe("approved by poll · poll 2025-11-24 (−38d) · poll matched to doc via history");
     expect(evidenceHint(e)).toContain("pull request");
   });
 

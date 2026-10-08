@@ -21,10 +21,6 @@ interface AtlasReaderRowProps {
 
 const ATLAS_GRID_STYLE: CSSProperties = { minHeight: 0, overflow: "hidden" };
 
-function countAnnotations(a: AtlasReaderRowProps["annotations"]): number {
-  return a.annotationDocs.length + a.linkedNodes.length + a.cousinDocs.length + Object.keys(a.targetAddresses).length;
-}
-
 // The reader column beside the annotations panel for the selected doc.
 export function AtlasReaderRow(props: AtlasReaderRowProps) {
   const { id, data, annotations, view, onViewChange, onNavigate, selectable, ...reader } = props;
@@ -39,7 +35,6 @@ export function AtlasReaderRow(props: AtlasReaderRowProps) {
         <AtlasAnnotations
           id={id}
           {...annotations}
-          annotationCount={countAnnotations(annotations)}
           tab={view}
           onTabChange={onViewChange}
           onNavigate={onNavigate}

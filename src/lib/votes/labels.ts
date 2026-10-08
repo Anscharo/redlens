@@ -63,6 +63,12 @@ export function matchedVia(e: VoteEvidence): MatchedVia | null {
   return e.via === "date" || e.via === "link" || e.via === "history" ? e.via : null;
 }
 
+/** How the vote was matched, as a reader sees it: "Executive Vote matched to doc via date". Null when no vote matched. */
+export function matchedViaText(e: VoteEvidence): string | null {
+  const via = matchedVia(e);
+  return via && e.vote ? `${VOTE_KIND[e.vote.kind]} matched to doc via ${via}` : null;
+}
+
 /** Whether the AI overruled the heuristic's verdict on this claim. */
 export function ruleDisagrees(e: VoteEvidence): boolean {
   return !!e.judged && e.judged.rule !== e.status;
@@ -81,8 +87,8 @@ export function missingSubject(e: VoteEvidence): string[] {
 export function evidenceText(e: VoteEvidence): string {
   const parts = [EVIDENCE_LABEL[e.status]];
   if (e.vote) parts.push(`${VOTE_KIND[e.vote.kind]} ${e.vote.date} (${signedDays(e.vote.offsetDays)})`);
-  const via = matchedVia(e);
-  if (via) parts.push(`via ${via}`);
+  const via = matchedViaText(e);
+  if (via) parts.push(via);
   const missing = missingSubject(e);
   if (missing.length) parts.push(`missing: ${missing.join(", ")}`);
   return parts.join(" · ");

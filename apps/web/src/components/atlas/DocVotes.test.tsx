@@ -10,7 +10,7 @@ import type { VoteEvidenceOverlay } from "@/lib/votes/overlay";
 let record: { index: VoteIndex | null; overlay: VoteEvidenceOverlay | null } = { index: null, overlay: null };
 vi.mock("../../lib/votes", () => ({ loadVoteRecord: () => Promise.resolve(record) }));
 
-import { DocVotes } from "./DocVotes";
+import { ExecutiveVoteList, useDocExecutives } from "./DocVotes";
 import { buildVoteIndex } from "@/lib/votes/vote-index";
 
 afterEach(cleanup);
@@ -32,25 +32,31 @@ const index = () =>
     ],
   });
 
-describe("DocVotes", () => {
-  it("lists the votes behind the document with why each is listed", async () => {
+// The onchain section renders the list only when the hook returns rows.
+function Harness({ id, docs }: { id: string; docs: Record<string, AtlasNode> }) {
+  const votes = useDocExecutives(id, docs);
+  return votes.length ? <ExecutiveVoteList votes={votes} /> : <p>none</p>;
+}
+
+describe("useDocExecutives + ExecutiveVoteList", () => {
+  it("lists the Executive Votes behind the document with why each is listed", async () => {
     record = { index: index(), overlay: null };
-    render(<DocVotes id="d" docs={{ d: doc }} />);
-    expect(screen.getByText("loading votes…")).toBeInTheDocument();
+    render(<Harness id="d" docs={{ d: doc }} />);
     const link = await screen.findByRole("link", { name: "Executive Vote 2026-03-26" });
     expect(link).toHaveAttribute("href", "https://vote.sky.money/executive/k");
+    expect(screen.getByText("Executive Votes · 1")).toBeInTheDocument();
     expect(screen.getByText("Genesis Funding")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "spell 0x24fd…78D3" })).toHaveAttribute("href", expect.stringContaining("/address/0x24fdcd3bFA5C2553e05B2f9AD0365EBC296278D3"));
-    expect(screen.getByText("not included · via date")).toHaveAttribute("title", expect.stringContaining("never mentions"));
+    expect(screen.getByText("not included · Executive Vote matched to doc via date")).toHaveAttribute("title", expect.stringContaining("never mentions"));
   });
 
-  it("says when nothing links or dates the document, and when the record is missing", async () => {
+  it("returns nothing when no Executive Vote links or dates the document, or the record is missing", async () => {
     record = { index: index(), overlay: null };
-    render(<DocVotes id="d" docs={{ d: { ...doc, content: "Nothing dated." } }} />);
-    expect(await screen.findByText(/No executive vote links this section/)).toBeInTheDocument();
+    render(<Harness id="d" docs={{ d: { ...doc, content: "Nothing dated." } }} />);
+    expect(await screen.findByText("none")).toBeInTheDocument();
     cleanup();
     record = { index: null, overlay: null };
-    render(<DocVotes id="d" docs={{ d: doc }} />);
-    expect(await screen.findByText("Vote record unavailable.")).toBeInTheDocument();
+    render(<Harness id="d" docs={{ d: doc }} />);
+    expect(await screen.findByText("none")).toBeInTheDocument();
   });
 });

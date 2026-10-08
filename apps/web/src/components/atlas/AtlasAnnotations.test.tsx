@@ -17,11 +17,11 @@ vi.mock("../../hooks/useGraphEdges", () => ({
 vi.mock("../../lib/votes", () => ({ loadVoteRecord: () => Promise.resolve({ index: null, overlay: null }) }));
 
 import { AtlasAnnotations } from "./AtlasAnnotations";
+import type { AtlasTab } from "../../lib/atlasTab";
 
 const RIGHT_PANEL_KEY = "redline-sky-atlas:right-panel-width";
 const RIGHT_PANEL_DEFAULT = 520;
 
-type Tab = "notes" | "glossary" | "history" | "votes";
 
 function setup(over: Partial<Parameters<typeof AtlasAnnotations>[0]> = {}) {
   const props = {
@@ -32,12 +32,11 @@ function setup(over: Partial<Parameters<typeof AtlasAnnotations>[0]> = {}) {
     targetAddresses: {},
     chainValues: {},
     glossaryTerms: [],
-    annotationCount: 0,
-    tab: "notes" as Tab,
+    docs: {},
+    tab: "notes" as AtlasTab,
     onTabChange: vi.fn(),
     onNavigate: vi.fn(),
     onNavigateByDocNo: vi.fn(),
-    docs: {},
     ...over,
   };
   return render(<AtlasAnnotations {...props} />);
@@ -77,7 +76,8 @@ describe("AtlasAnnotations width persistence", () => {
   it("mounts the RightPanel jump pills inside the wrapper", () => {
     setup();
     expect(screen.getByRole("navigation", { name: "Panel sections" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /notes/ })).toBeInTheDocument();
+    // An empty doc still shows history, the one section that always shows.
+    expect(screen.getByRole("button", { name: /history/ })).toBeInTheDocument();
   });
 });
 

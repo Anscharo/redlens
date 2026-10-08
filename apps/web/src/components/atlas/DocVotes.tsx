@@ -1,36 +1,40 @@
-// The reader panel's votes section: the executive votes behind the open
-// document (executivesForDoc), each linked to vote.sky.money with why it is
-// listed — it links the document, or it carried or failed to mention one of the
-// document's dated claims, as Stale Dates' vote evidence reads it. Polls show in
-// the history list instead, under the edits they approved.
+// The Executive Votes behind the open document, for the right panel's onchain
+// section (executivesForDoc): each linked to vote.sky.money and, once its spell
+// has been cast, to the spell contract, with why it is listed — it links the
+// document, or it carried or failed to include one of the document's dated
+// claims, as Stale Dates' vote evidence reads it. Polls show in the history list
+// instead, under the edits they approved.
 import { useMemo } from "react";
 import type { AtlasNode } from "@/types";
 import { executivesForDoc, type DocVote, type DocVoteReason } from "@/lib/votes/docVotes";
-import { EVIDENCE_LABEL, evidenceHint, matchedVia } from "@/lib/votes/labels";
+import { EVIDENCE_LABEL, evidenceHint, matchedViaText } from "@/lib/votes/labels";
 import { loadVoteRecord } from "../../lib/votes";
 import { SpellLink } from "../SpellLink";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUTCDay } from "../../hooks/useUTCDay";
+import { SECTION_HEAD } from "./panelSections";
 
-const STATUS_LINE = "text-xs mono text-tan-3";
-
-export function DocVotes({ id, docs }: { id: string; docs: Record<string, AtlasNode> }) {
-  const record = useLoaded(loadVoteRecord);
+/** The document's Executive Votes; empty until the vote record loads, and when there is none. */
+export function useDocExecutives(id: string, docs: Record<string, AtlasNode>): DocVote[] {
+  const record = useLoaded(loadVoteRecord, { soft: true });
   const day = useUTCDay();
   const doc = docs[id];
-  const votes = useMemo(
+  return useMemo(
     () => (record && doc ? executivesForDoc(doc, docs, record.index, record.overlay, new Date(`${day}T12:00:00Z`)) : []),
     [record, doc, docs, day],
   );
-  if (!record) return <p className={STATUS_LINE}>loading votes…</p>;
-  if (!record.index && !record.overlay) return <p className={STATUS_LINE}>Vote record unavailable.</p>;
-  if (!votes.length) return <p className={STATUS_LINE}>No executive vote links this section or matches its dates.</p>;
+}
+
+export function ExecutiveVoteList({ votes }: { votes: DocVote[] }) {
   return (
-    <ul className="space-y-4">
-      {votes.map((v) => (
-        <VoteRow key={v.url} vote={v} />
-      ))}
-    </ul>
+    <div>
+      <p className={`${SECTION_HEAD} mb-4`}>Executive Votes · {votes.length}</p>
+      <ul className="space-y-4">
+        {votes.map((v) => (
+          <VoteRow key={v.url} vote={v} />
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -59,10 +63,10 @@ function VoteRow({ vote: v }: { vote: DocVote }) {
 function reasonText(r: DocVoteReason) {
   if (r.kind === "links") return "links this section";
   const e = r.evidence;
-  const via = matchedVia(e);
+  const via = matchedViaText(e);
   return (
     <>
-      {r.raw}: <span title={evidenceHint(e)}>{via ? `${EVIDENCE_LABEL[e.status]} · via ${via}` : EVIDENCE_LABEL[e.status]}</span>
+      {r.raw}: <span title={evidenceHint(e)}>{via ? `${EVIDENCE_LABEL[e.status]} · ${via}` : EVIDENCE_LABEL[e.status]}</span>
     </>
   );
 }

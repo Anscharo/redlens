@@ -502,7 +502,8 @@ stands.
 The thresholds are the eval's best: 0.3–0.4 scored 97% on the executive sentences, and 0.15 matched
 the most polls with no false match among the claims that need none. A Jev verdict carries
 `judged: { model, p, rule }`, where `rule` is what the heuristic alone said. Every matched vote
-carries one tag naming how it was matched: "via date", "via link", "via history" or "via AI" (the
+carries one tag naming how it was matched, written out as "Executive Vote matched to doc via date"
+(or "poll matched to doc via …"): via date, via link, via history or via AI (the
 model decided the status, whether it confirmed or overruled the heuristic). The hover gives the
 model, its p and, where it overruled, what the heuristic said. Osero reads "executed": the heuristic
 finds it through its address (§12), and Jev's judgment, where it runs, tags it "via AI".
@@ -527,10 +528,11 @@ database and none after that until something changes.
 The questions are shared with the eval (`src/server/vote-evidence/requests.ts`), so the eval
 measures the requests production sends.
 
-**In the reader.** The right-hand panel has a "votes" section (`DocVotes.tsx`, `executivesForDoc`
-in `src/lib/votes/docVotes.ts`). It lists the executive votes behind the open document: every
-executive that links it by uuid, and every executive this matching ties to one of its dated claims,
-with the same labels as Stale Dates. Polls show in the history list instead, under the edits they
+**In the reader.** The right-hand panel's onchain section lists the Executive Votes behind the open
+document, below its addresses (`DocVotes.tsx`, `executivesForDoc` in `src/lib/votes/docVotes.ts`):
+every Executive Vote that links it by uuid, and every one this matching ties to one of its dated
+claims, with the same labels as Stale Dates and, once cast, a link to the spell contract. The
+section shows when the document has addresses or Executive Votes. Polls show in the history list instead, under the edits they
 approved (§13).
 
 An executive also reaches atlas pull requests through the poll its authorization cites (62
@@ -578,7 +580,7 @@ history entry that has one. Of the 276 atlas pull requests in git history, 51 sh
 
 The same row names the executives whose authorization cites that poll ("· cited by Executive Vote …",
 by portal slug or poll id). It claims only the citation: a weekly Atlas Edit poll bundles many
-edits, and the executive may carry out a different one, which is why the votes panel does not list
+edits, and the executive may carry out a different one, which is why the onchain section does not list
 executives through this route (§11). Of the 51 approved pull requests, 31 show at least one citing
 executive today, and no poll has more than two.
 

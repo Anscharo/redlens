@@ -35,8 +35,9 @@
 
 ## 2026-10-08
 
-- Added a votes section to the document sidebar, listing the Executive Votes that link the open document or match its dates, and showed the poll that approved each change in its history
+- Listed the Executive Votes behind a document in the right-hand panel's Onchain section, each linked to its cast spell, and showed the poll that approved each change in its history
 - Stale Dates stops guessing: every dated claim in the Atlas is checked against the vote that should have enacted it
+- Moved a document's addresses into a new Onchain section of the right-hand panel, and hid panel sections that have nothing to show
 - Added a PAU on-chain section to each Prime Agent's Radar page, showing its controller roles and rate limits as read from the chain
 
 ## 2026-10-07

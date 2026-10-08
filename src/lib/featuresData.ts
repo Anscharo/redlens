@@ -64,11 +64,11 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "The right-hand panel",
-        what: "Context for whichever document is selected — notes, history, votes and glossary in one scrolling panel, with pills at the top to jump between them.",
+        what: "Context for whichever document is selected — notes, onchain, history, and glossary in one scrolling panel, with pills at the top to jump between them. A section with nothing for the document is left out; history always shows.",
         how: [
-          "Notes — the Element Annotations attached to this document, linked documents, equivalent documents under the other Prime Agents, mentioned addresses, and which documents cite this one (where you land by default).",
+          "Notes — the Element Annotations attached to this document, linked documents, equivalent documents under the other Prime Agents, which documents cite this one, and extracted relations (where you land by default when the document has any).",
+          "Onchain — the on-chain addresses the document names, each with its chain, labels, balances and live contract values; and the Sky Executive Votes behind the document (each one that links it, and each one matched to one of its dates, labelled as on Stale Dates), linked to vote.sky.money and, once cast, to the spell contract.",
           "History — this document's change timeline, with the governance poll that approved each change where one links it (“approved by poll …”), and any Executive Vote that cites that poll (“cited by Executive Vote …”).",
-          "Votes — the Sky Executive Votes behind this document: each one that links it, and each one matched to one of its dates (labelled as on Stale Dates, with how each was matched), linked to vote.sky.money. Governance polls show in History, under the changes they approved.",
           "Glossary — the defined terms this document uses, with their Atlas definitions.",
         ],
       },
@@ -108,7 +108,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "Every address the Atlas mentions is resolved, labelled, and linked to the right explorer for its chain — the same way everywhere it appears.",
         how: [
           "Hover any address — in a document, a report, or a dashboard — to see its name and the token balances it holds.",
-          "Open a document's Notes panel: each address it mentions, whether by hex or by its chainlog name, shows as a card with its name, owner, roles, balances, and a chain-correct explorer link.",
+          "Open a document's Onchain section in the right-hand panel: each address it mentions, whether by hex or by its chainlog name, shows as a card with its name, owner, roles, balances, and a chain-correct explorer link.",
         ],
       },
       {
@@ -267,8 +267,8 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Open Stale Dates; under each claim, a tag says what the vote record shows, in the Atlas's own terms — executed, not yet executed, not included, no Executive Vote on date, approved by poll, or no linked vote — with the matched vote linked to vote.sky.money and its offset in days.",
           "The Recorded votes section lists sentences that say a dated Executive Vote already did something, and checks those too: not included means the Executive Vote on that date never mentions what the Atlas credits to it.",
           "A claim that names no vote shows the governance poll that authorised it when the Atlas edit that wrote it can be traced to one.",
-          "A “via” tag says how the vote was matched: “via date” (the sentence names the vote’s date), “via link” (the vote links the document), “via history” (traced through the Atlas edit that wrote the claim) or “via AI” (an AI model decided). Hover it for the details, including what the heuristic said where the AI overruled it.",
-          "Hover a tag for what it means, type a tag (“not included”, “via AI”) in the search pill to filter by it, or download the CSV for the vote columns.",
+          "A tag such as “Executive Vote matched to doc via date” says how the vote was matched: via date (the sentence names the vote’s date), via link (the vote links the document), via history (traced through the Atlas edit that wrote the claim) or via AI (an AI model decided). Hover it for the details, including what the heuristic said where the AI overruled it.",
+          "Hover a tag for what it means, type a tag (“not included”, “matched to doc via AI”) in the search pill to filter by it, or download the CSV for the vote columns.",
         ],
         note: "“No linked vote” is not evidence that none happened. “Via AI” and “via history” verdicts come from a background job and can lag a fresh Atlas edit by about an hour; until then a claim shows the rules' verdict. Hidden when the vote record has not been built (`pnpm votes:sync`).",
       },

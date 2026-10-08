@@ -3,7 +3,7 @@
 // claim's named things that vote never mentions, and how it was matched (its
 // date, a link, atlas history or an AI model; the hover says the rest).
 import type { VoteEvidence, VoteEvidenceStatus } from "@/lib/votes/evidence";
-import { EVIDENCE_LABEL, evidenceHint, matchedVia, missingSubject, signedDays, VOTE_KIND } from "@/lib/votes/labels";
+import { EVIDENCE_LABEL, evidenceHint, matchedViaText, missingSubject, signedDays, VOTE_KIND } from "@/lib/votes/labels";
 import type { ReportQuery } from "@/lib/reportFilter";
 import { Highlight } from "./Highlight";
 import { SpellLink } from "../SpellLink";
@@ -22,7 +22,7 @@ const TONE: Record<VoteEvidenceStatus, string> = {
 
 export function VoteEvidenceLine({ evidence: e, rq }: { evidence: VoteEvidence; rq: ReportQuery }) {
   const missing = missingSubject(e);
-  const via = matchedVia(e);
+  const via = matchedViaText(e);
   return (
     <p className="text-sm ml-4 px-3 pb-3 flex items-baseline gap-3 flex-wrap text-tan-3">
       <span
@@ -40,7 +40,7 @@ export function VoteEvidenceLine({ evidence: e, rq }: { evidence: VoteEvidence; 
       {e.vote?.spell && <SpellLink address={e.vote.spell} />}
       {via && (
         <span className="mono text-xs" title={evidenceHint(e)}>
-          via {via}
+          {via}
         </span>
       )}
       {missing.length > 0 && (
