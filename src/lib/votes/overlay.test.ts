@@ -26,7 +26,7 @@ describe("judgeSubject", () => {
     expect(e.judged?.rule).toBe("enacted");
   });
 
-  it("reads an anchor as a vote on the date, and an uncast executive as pending", () => {
+  it("reads an anchor as a vote on the date, and an executive whose spell is not yet cast as pending", () => {
     expect(judgeSubject(rule({ status: "vote-on-date" }), true, { model: MODEL, anchor: 0.8, carried: 0.1 })).toMatchObject({ status: "vote-on-date", judged: { p: 0.8 } });
     expect(judgeSubject(rule({ status: "pending" }), false, { model: MODEL, anchor: 0.1, carried: 0.6 }).status).toBe("pending");
     const agreed = judgeSubject(rule({ status: "enacted" }), true, { model: MODEL, anchor: 0.1, carried: 0.6 });

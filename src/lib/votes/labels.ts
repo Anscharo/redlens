@@ -15,10 +15,10 @@ export const EVIDENCE_LABEL: Record<VoteEvidenceStatus, string> = {
 };
 
 export const EVIDENCE_HINT: Record<VoteEvidenceStatus, string> = {
-  enacted: "The vote record shows a cast executive carrying this claim.",
+  enacted: "An executive vote carried this claim, and its spell has been cast on-chain.",
   "vote-on-date":
-    "A cast executive is filed for this date, but the sentence names nothing specific enough to check against it.",
-  pending: "The matching executive is drafted or still being voted on.",
+    "An executive vote on this date had its spell cast on-chain, but the sentence names nothing specific enough to check against it.",
+  pending: "The matching executive vote is drafted or still being voted on; its spell has not been cast.",
   "subject-missing":
     "An executive is filed for this date, but it never mentions what the atlas says it carried.",
   "no-vote": "The vote record covers this date and holds no executive for it.",

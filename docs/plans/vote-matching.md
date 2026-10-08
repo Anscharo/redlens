@@ -393,7 +393,7 @@ dated Executive Vote are kept as `recorded` claims and checked too. (The matcher
 | K4 subject | K1 hits, unless the sentence only dates something by the vote ("Beginning with the …", "Following the execution of the …") | capitalised terms of the clause before the date (after it, if the clause has none); only rare terms count (in ≤ 25% of executives), or uncommon ones (≤ 75%) when there are no rare ones; found when the rarest is present and at least half are |
 | K2 link | every other claim | a vote whose atlas links include the claim's uuid or a parent up to two levels, never a Scope or Article, within −45…+70 d; a failed poll never counts |
 
-**Statuses.** `enacted` · `vote-on-date` (cast executive, nothing checkable in the sentence) ·
+**Statuses.** `enacted` · `vote-on-date` (an executive whose spell was cast, nothing checkable in the sentence) ·
 `pending` (drafted or not yet cast) · `subject-missing` · `no-vote` · `not-covered` (the date falls outside
 the record's first and last executive) · `authorised` (only a passed poll links the doc) ·
 `unlinked`.

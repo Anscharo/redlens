@@ -58,7 +58,7 @@ export interface SubjectJudgment {
   carried: number;
 }
 
-/** A date-matched claim's verdict once the model has judged it; `cast` says whether the matched executive was cast. */
+/** A date-matched claim's verdict once the model has judged it; `cast` says whether the matched executive's spell has been cast. */
 export function judgeSubject(rule: VoteEvidence, cast: boolean, j: SubjectJudgment): VoteEvidence {
   const anchor = j.anchor >= ANCHOR_THRESHOLD;
   let status: VoteEvidenceStatus = anchor ? "vote-on-date" : "enacted";

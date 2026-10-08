@@ -18,9 +18,9 @@ import { checkSubject, documentAddresses, type SubjectCheck } from "./subject";
 import { addDays, executiveFor, linkedVotes, offset, SLIP_DAYS, type IndexedExecutive, type VoteIndex } from "./vote-index";
 
 export type VoteEvidenceStatus =
-  | "enacted" // the vote carried the claim and has been cast
-  | "vote-on-date" // a cast executive on the date; the sentence names nothing checkable
-  | "pending" // the matching executive is drafted or not yet cast
+  | "enacted" // the vote carried the claim and its spell has been cast
+  | "vote-on-date" // an executive on the date whose spell was cast; the sentence names nothing checkable
+  | "pending" // the matching executive is drafted, or its spell not yet cast
   | "subject-missing" // an executive on the date that never mentions the claim's subject
   | "no-vote" // the record covers the date and holds no executive for it
   | "not-covered" // the date falls outside the vote record
