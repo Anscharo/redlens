@@ -210,7 +210,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "In Roles, ✓ means the chain confirms the role, ✗ means the grant history says granted but the chain says no, ? means the check could not be read.",
           "The date in the `Set` column opens the transaction that last set that limit.",
         ],
-        note: "Appears once the atlas worker has read the PAU contracts; a deployment whose history is still being read says `history still being read`.",
+        note: "Appears once the atlas worker has read the PAU contracts; a deployment whose history is still being read says `history still being read`. Chat and MCP clients can ask for the same values (`atlas_onchain`), across every Prime Agent at once.",
       },
     ],
   },

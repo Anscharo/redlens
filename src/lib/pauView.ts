@@ -33,6 +33,26 @@ export function formatAmount(raw: string, decimals: number): string {
   return COMPACT.format(Number(v / scale) + Number(v % scale) / Number(scale));
 }
 
+/** A raw amount as an exact decimal string ("25000000", "1.5"), or "unlimited" for the max uint256 sentinel. */
+export function exactAmount(raw: string, decimals: number): string {
+  const v = BigInt(raw);
+  if (v === UNLIMITED) return "unlimited";
+  const scale = 10n ** BigInt(decimals);
+  const frac = (v % scale).toString().padStart(decimals, "0").replace(/0+$/, "");
+  return frac ? `${v / scale}.${frac}` : `${v / scale}`;
+}
+
+/**
+ * A raw amount rounded to whole units ("25000000"), or exact below one unit.
+ * A refill per day is stored per second and truncated, so its exact value
+ * ("24999999.9264") is noise against the atlas's round figure.
+ */
+export function wholeAmount(raw: string, decimals: number): string {
+  const v = BigInt(raw);
+  const scale = 10n ** BigInt(decimals);
+  return v === UNLIMITED || v < scale ? exactAmount(raw, decimals) : ((v + scale / 2n) / scale).toString();
+}
+
 /** A per-second slope as an amount per day. */
 export const formatPerDay = (slope: string, decimals: number): string =>
   BigInt(slope) === 0n ? "0" : formatAmount((BigInt(slope) * 86_400n).toString(), decimals);

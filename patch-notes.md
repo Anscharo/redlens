@@ -39,6 +39,7 @@
 - Stale Dates stops guessing: every dated claim in the Atlas is checked against the vote that should have enacted it
 - Moved a document's addresses into a new Onchain section of the right-hand panel, and hid panel sections that have nothing to show
 - Added a PAU on-chain section to each Prime Agent's Radar page, showing its controller roles and rate limits as read from the chain
+- Let the chat and MCP clients look up every Prime Agent's on-chain rate limits and controller roles
 
 ## 2026-10-07
 
