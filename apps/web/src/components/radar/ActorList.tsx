@@ -33,16 +33,17 @@ function Badge({ st }: { st: string | null }) {
 
 /** The radar's left nav: Overview, then every actor by group. An actor with
  *  subpages is a disclosure whose sub nav goes to its Info page and each
- *  subpage. The selected actor's opens on its own, and on a subpage every
- *  actor offering that subpage is open, so the reader can step straight from
- *  one Prime's page to the same page of another. */
+ *  subpage. Only selecting an actor opens one on its own, and an open one
+ *  stays open until the reader shuts it, so moving between pages never
+ *  shifts the list. */
 export function ActorList({ groups, selectedSlug, page, subpages }: ActorListProps) {
-  // Manual toggles on top of the page-derived default; cleared whenever the
-  // page changes so the default reasserts itself.
+  // Each actor's open state. Selecting an actor opens it and it stays open
+  // until the reader shuts it; nothing else opens or shuts on its own.
   const [manual, setManual] = useState<Record<string, boolean>>({});
-  useEffect(() => setManual({}), [selectedSlug, page]);
-  const isOpen = (slug: string) =>
-    manual[slug] ?? (slug === selectedSlug || (page !== undefined && !!subpages?.get(slug)?.includes(page)));
+  useEffect(() => {
+    if (selectedSlug) setManual((m) => ({ ...m, [selectedSlug]: true }));
+  }, [selectedSlug]);
+  const isOpen = (slug: string) => manual[slug] ?? slug === selectedSlug;
 
   return (
     <nav

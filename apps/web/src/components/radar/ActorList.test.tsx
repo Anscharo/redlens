@@ -100,14 +100,25 @@ describe("ActorList", () => {
       expect(screen.getByRole("link", { name: /Keel/ })).toHaveAttribute("href", "/radar/keel");
     });
 
-    it("on a subpage, opens every actor offering it and marks the open page", () => {
+    it("on a subpage, opens only the selected actor and marks the open page", () => {
       render(<ActorList groups={groups} selectedSlug="spark" page="history" subpages={subpages} />);
-      expect(screen.getByRole("button", { name: /Grove/ })).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("button", { name: /Spark/ })).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("button", { name: /Grove/ })).toHaveAttribute("aria-expanded", "false");
       const active = document.querySelectorAll('[data-active="true"]');
       expect([...active].map((a) => a.getAttribute("href"))).toEqual(["/radar/spark/history"]);
-      cleanup();
-      render(<ActorList groups={groups} selectedSlug="spark" page="settlements" subpages={subpages} />);
-      expect(screen.getByRole("button", { name: /Grove/ })).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("keeps the other actors as the reader left them when the selection or page changes", () => {
+      const { rerender } = render(<ActorList groups={groups} selectedSlug="spark" subpages={subpages} />);
+      fireEvent.click(screen.getByRole("button", { name: /Spark/ }));
+      expect(screen.getByRole("button", { name: /Spark/ })).toHaveAttribute("aria-expanded", "false");
+      rerender(<ActorList groups={groups} selectedSlug="grove" page="history" subpages={subpages} />);
+      expect(screen.getByRole("button", { name: /Grove/ })).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("button", { name: /Spark/ })).toHaveAttribute("aria-expanded", "false");
+      // Grove stays open once left; re-selecting the Spark the reader shut opens it again.
+      rerender(<ActorList groups={groups} selectedSlug="spark" subpages={subpages} />);
+      expect(screen.getByRole("button", { name: /Spark/ })).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("button", { name: /Grove/ })).toHaveAttribute("aria-expanded", "true");
     });
 
     it("toggles a closed actor open without navigating, and takes its links out of the tab order while shut", () => {

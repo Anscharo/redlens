@@ -180,7 +180,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: [
           "Open Radar and pick an actor from the list.",
           "Scan the dashboard sections; the composite party view ties an Agent's associated legal entities together as one party.",
-          "A Prime Agent's row in the list opens into its pages instead: Info (the profile), Settlements, History, Primitive instances and PAUs. Click the Prime's name to open or close its pages; while you are on one of them, every Prime with that page is open, so you can step straight to the same page of another Prime.",
+          "A Prime Agent's row in the list opens into its pages instead: Info (the profile), Settlements, History, Primitive instances and PAUs. Click a Prime's name to open or close its pages; the Prime you open a page of opens by itself and stays open until you close it, and no other Prime opens or closes on its own.",
         ],
         note: "Settlements is listed only for Primes with a Monthly Settlement Cycle workbook, and PAUs only once the atlas worker has read that Prime's PAU contracts.",
       },
