@@ -78,11 +78,17 @@ vi.mock("./AtlasReader", () => ({
 }));
 vi.mock("./AtlasAnnotations", () => ({
   AtlasAnnotations: (props: {
-    annotationCount: number;
+    linkedNodes: unknown[];
+    targetAddresses: Record<string, unknown>;
     tab: string;
     onNavigateByDocNo: (docNo: string) => void;
   }) => (
-    <div data-testid="atlas-annotations" data-count={props.annotationCount} data-tab={props.tab}>
+    <div
+      data-testid="atlas-annotations"
+      data-linked={props.linkedNodes.length}
+      data-addresses={Object.keys(props.targetAddresses).length}
+      data-tab={props.tab}
+    >
       <button onClick={() => props.onNavigateByDocNo("A.1")}>navigate-by-doc-no</button>
     </div>
   ),
@@ -227,7 +233,7 @@ describe("AtlasView normal render", () => {
     expect(screen.getByTestId("atlas-annotations")).toBeInTheDocument();
   });
 
-  it("computes annotationCount from annotationDocs + linkedNodes + cousinDocs + addresses", () => {
+  it("passes the doc's annotations through to the panel", () => {
     const node = makeNode({ id: "node-1", doc_no: "A.1" });
     const atlas = makeAtlasBundle([node]);
     const data = makeLoadedData({ atlas, complete: true });
@@ -243,8 +249,9 @@ describe("AtlasView normal render", () => {
       },
     });
     render(<AtlasView {...baseProps()} />);
-    // 1 annotation + 2 linked + 1 cousin + 1 address = 5
-    expect(screen.getByTestId("atlas-annotations")).toHaveAttribute("data-count", "5");
+    const panel = screen.getByTestId("atlas-annotations");
+    expect(panel).toHaveAttribute("data-linked", "2");
+    expect(panel).toHaveAttribute("data-addresses", "1");
   });
 
   it("does not render breadcrumbs or annotations when id is empty", () => {

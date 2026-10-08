@@ -64,9 +64,10 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "The right-hand panel",
-        what: "Context for whichever document is selected — notes, history, and glossary in one scrolling panel, with pills at the top to jump between them.",
+        what: "Context for whichever document is selected — notes, onchain, history, and glossary in one scrolling panel, with pills at the top to jump between them. A section with nothing for the document is left out; history always shows.",
         how: [
-          "Notes — the Element Annotations attached to this document, linked documents, equivalent documents under the other Prime Agents, mentioned addresses, and which documents cite this one (where you land by default).",
+          "Notes — the Element Annotations attached to this document, linked documents, equivalent documents under the other Prime Agents, which documents cite this one, and extracted relations (where you land by default when the document has any).",
+          "Onchain — the on-chain addresses the document names, each with its chain, labels, balances and live contract values.",
           "History — this document's change timeline.",
           "Glossary — the defined terms this document uses, with their Atlas definitions.",
         ],
@@ -107,7 +108,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "Every address the Atlas mentions is resolved, labelled, and linked to the right explorer for its chain — the same way everywhere it appears.",
         how: [
           "Hover any address — in a document, a report, or a dashboard — to see its name and the token balances it holds.",
-          "Open a document's Notes panel: each address it mentions, whether by hex or by its chainlog name, shows as a card with its name, owner, roles, balances, and a chain-correct explorer link.",
+          "Open a document's Onchain section in the right-hand panel: each address it mentions, whether by hex or by its chainlog name, shows as a card with its name, owner, roles, balances, and a chain-correct explorer link.",
         ],
       },
       {
