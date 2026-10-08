@@ -60,7 +60,10 @@ const SNAP: StoredPauSnapshot = {
 const { paramSide, primeAtlasRefs } = await import("./pau-atlas-refs.ts");
 const { snapshotFacts } = await import("./pau-source.ts");
 const fake: OnchainSource = { id: "pau", describe: "fake", read: async () => ({ facts: snapshotFacts(SNAP, primeAtlasRefs(ix, P, [SNAP])), coverage: [{ source: "pau", entity: "Grove", entity_id: P, chain: "ethereum", label: "diamond", contracts: 2, history_complete: false, read_at: SNAP.fetchedAt }] }) };
-mock.module("./sources.ts", () => ({ ONCHAIN_SOURCES: [fake] }));
+// A second source that fails while `failing` is set, read only by indexes built for that purpose.
+let failing = false;
+const flaky: OnchainSource = { id: "flaky", describe: "fails on demand", read: async () => (failing ? Promise.reject(new Error("db down")) : { facts: [], coverage: [] }) };
+mock.module("./sources.ts", () => ({ ONCHAIN_SOURCES: [fake, flaky] }));
 const { attachOnchain } = await import("./enrich.ts");
 const { onchainState } = await import("./query.ts");
 
@@ -114,7 +117,26 @@ describe("attachOnchain", () => {
   });
 });
 
+describe("a source that cannot be read", () => {
+  it("is named in the result instead of reading as nothing set, and is read again on the next call", async () => {
+    const fresh = buildIndexes([doc(P, "A.6.1.1.2", "Grove")], [], [], {});
+    failing = true;
+    expect(await onchainState(fresh, { kind: "role", limit: 5 })).toMatchObject({ sources_failed: ["flaky"], sources_failed_note: expect.stringContaining("missing, not absent") });
+    expect(await attachOnchain(fresh, { rows: [] })).toMatchObject({ onchain: { sources_failed: ["flaky"], facts: [] } });
+    failing = false;
+    expect(await onchainState(fresh, { kind: "role", limit: 5 })).not.toHaveProperty("sources_failed");
+  });
+});
+
 describe("atlas_onchain", () => {
+  it("takes a chain by full, abbreviated or qualified name", async () => {
+    for (const chain of ["ethereum", "eth", "Ethereum Mainnet"]) {
+      const res = (await onchainState(ix, { chain, kind: "role", limit: 5 })) as { count: number; coverage: unknown[] };
+      expect([chain, res.count, res.coverage.length]).toEqual([chain, 1, 1]);
+    }
+    expect(((await onchainState(ix, { chain: "base", limit: 5 })) as { count: number }).count).toBe(0);
+  });
+
   it("filters by entity, matches 'deposit' to an Inflow limit, and leaves switched-off limits out unless asked", async () => {
     const res = (await onchainState(ix, { entity: "grove", kind: "rate-limit", query: "deposit", limit: 50 })) as { facts: { name: string }[]; coverage: unknown[] };
     expect(res.facts.map((f) => f.name)).toEqual([`LIMIT_4626_DEPOSIT · ${VAULT}`, "Vault · BUIDLI_DEPOSIT", "Vault · Inflow"]);

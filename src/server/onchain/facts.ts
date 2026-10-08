@@ -55,6 +55,8 @@ export interface OnchainSource {
 export interface FactIndex {
   facts: OnchainFact[];
   coverage: Coverage[];
+  /** Sources whose read failed: their facts are missing, not absent. */
+  failed: string[];
   byHash: Map<string, OnchainFact[]>;
   byAddress: Map<string, OnchainFact[]>;
   byDoc: Map<string, OnchainFact[]>;
@@ -65,8 +67,8 @@ function push(map: Map<string, OnchainFact[]>, key: string, f: OnchainFact) {
   map.set(k, [...(map.get(k) ?? []), f]);
 }
 
-export function indexFacts(facts: OnchainFact[], coverage: Coverage[] = []): FactIndex {
-  const ix: FactIndex = { facts, coverage, byHash: new Map(), byAddress: new Map(), byDoc: new Map() };
+export function indexFacts(facts: OnchainFact[], coverage: Coverage[] = [], failed: string[] = []): FactIndex {
+  const ix: FactIndex = { facts, coverage, failed, byHash: new Map(), byAddress: new Map(), byDoc: new Map() };
   for (const f of facts) {
     for (const h of f.match.hashes) push(ix.byHash, h, f);
     for (const a of f.match.addresses) push(ix.byAddress, a, f);
@@ -83,13 +85,28 @@ export function factOutput({ match: _m, summary: _s, ...rest }: OnchainFact): Om
 const TTL_MS = 60_000;
 const cache = new WeakMap<Indexes, { at: number; index: Promise<FactIndex> }>();
 
-/** Every source's facts, indexed; rebuilt a minute after the last build or when the atlas indexes change. A source that fails contributes none. */
+/**
+ * Every source's facts, indexed; rebuilt a minute after the last build or when
+ * the atlas indexes change. A source that fails contributes no facts and is
+ * named in `failed`, so its silence never reads as "nothing set"; an index with
+ * a failure is not kept, so the next call reads again.
+ */
 export function factIndex(ix: Indexes, now = Date.now()): Promise<FactIndex> {
   const hit = cache.get(ix);
   if (hit && now - hit.at < TTL_MS) return hit.index;
-  const empty = { facts: [] as OnchainFact[], coverage: [] as Coverage[] };
-  const reads = ONCHAIN_SOURCES.map((s) => s.read(ix).catch(() => empty));
-  const index = Promise.all(reads).then((all) => indexFacts(all.flatMap((r) => r.facts), all.flatMap((r) => r.coverage)));
+  const reads = ONCHAIN_SOURCES.map((s) =>
+    s.read(ix).then(
+      (r) => ({ ...r, failed: [] as string[] }),
+      () => ({ facts: [] as OnchainFact[], coverage: [] as Coverage[], failed: [s.id] }),
+    ),
+  );
+  const index = Promise.all(reads).then((all) => {
+    const built = indexFacts(all.flatMap((r) => r.facts), all.flatMap((r) => r.coverage), all.flatMap((r) => r.failed));
+    if (built.failed.length && cache.get(ix)?.index === index) cache.delete(ix);
+    return built;
+  });
   cache.set(ix, { at: now, index });
   return index;
 }
+
+export const SOURCES_FAILED_NOTE = "These on-chain sources could not be read just now; their facts are missing, not absent.";

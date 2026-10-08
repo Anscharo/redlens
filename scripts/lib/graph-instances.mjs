@@ -2,6 +2,7 @@
  * ICD / primitive instance parameter extraction.
  */
 
+import { RATE_LIMIT_ID_RE } from "../../src/lib/atlasHashes.ts";
 import {
   ETH_ADDR_EXACT_RE,
   ETH_ADDR_FIRST_RE,
@@ -149,9 +150,9 @@ const stripSentence =
     return v.replace(/\.$/, "").trim();
   };
 // Extracts the 64-char hex hash from backticks, or preserves N/A variants. Any
-// title naming a RateLimitID qualifies ("Inflow RateLimitID", "Aggregate Deposit
-// RateLimitID", "Rate Limit IDs"), since the hash sits in a sentence after it.
-const RATE_LIMIT_ID_RE = /Rate ?Limit ?IDs?\b/i;
+// title naming a RateLimitID qualifies, unanchored on purpose ("Inflow
+// RateLimitID", "Aggregate Deposit RateLimitID", "Rate Limit IDs"), since the
+// hash sits in a sentence after it; RATE_LIMIT_ID_RE is atlasHashes.ts's rule.
 const extractRateLimitId = (s) => {
   const hash = s.match(/`(0x[0-9a-fA-F]{64})`/)?.[1];
   if (hash) return hash;
