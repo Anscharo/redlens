@@ -27,14 +27,18 @@ const reg = { shared: [], ignored: [], deployments: [{ prime: "p", primeName: "S
 
 function fakeDb(stored: { deployment: string; fetched_at: Date }[]) {
   const writes: string[] = [];
+  const states: unknown[] = [];
   const db = async (strings: TemplateStringsArray, ...v: unknown[]) => {
     const text = strings.join("?");
     if (text.includes("SELECT deployment, fetched_at")) return stored;
     if (text.includes("DELETE FROM pau_state")) writes.push(`delete ${v[0]}`);
-    if (text.includes("INSERT INTO pau_state")) writes.push(`upsert ${v[0]}`);
+    if (text.includes("INSERT INTO pau_state")) {
+      writes.push(`upsert ${v[0]}`);
+      states.push(v[4]);
+    }
     return [];
   };
-  return { db, writes };
+  return { db, writes, states };
 }
 
 const read = async () => [];
@@ -51,6 +55,23 @@ describe("maybeRefreshPauState", () => {
     expect(writes).toEqual(["delete gone:base:diamond", "upsert p:ethereum:monolithic"]);
     const old = fakeDb([{ deployment: "p:ethereum:monolithic", fetched_at: new Date(NOW - 3_600_000) }]);
     expect((await maybeRefreshPauState(old.db, reg, read, { refreshSeconds: 3600, now: NOW })).reason).toBe("due");
+  });
+});
+
+describe("a chain with a BeamState", () => {
+  it("gives each RateLimits it manages its defaults and step limits, and units to the keys a rule covers", async () => {
+    const BEAM = "0x" + "b".repeat(40);
+    const RL = "0x" + "1".repeat(40);
+    const withBeam = {
+      ...reg,
+      shared: [{ chain: "ethereum", members: [{ role: "beamState", address: BEAM, provenance: [] }] }],
+      deployments: [{ ...reg.deployments[0], members: [{ role: "rateLimits", address: RL, provenance: [] }] }],
+    } as unknown as PauRegistry;
+    const chain = async (_c: string, calls: { functionName: string; args: readonly unknown[] }[]) =>
+      calls.map((c) => (c.functionName === "rateLimits" ? 1n : c.functionName === "getHop" ? 57600n : c.functionName === "getMaxChange" ? 10n ** 18n : null));
+    const { db, states } = fakeDb([]);
+    await maybeRefreshPauState(db, withBeam, chain, { refreshSeconds: 3600, now: NOW });
+    expect((states[0] as { contracts: { beam?: object }[] }).contracts[0].beam).toEqual({ beamState: BEAM, hop: "57600", maxChange: "1000000000000000000", defaults: [], historyComplete: false });
   });
 });
 

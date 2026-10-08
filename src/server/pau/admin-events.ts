@@ -69,9 +69,20 @@ const RATE_LIMIT_EVENTS = [
   "event RateLimitDataSet(bytes32 indexed key, uint256 maxAmount, uint256 slope, uint256 lastAmount, uint256 lastUpdated)",
 ];
 
+// BeamState: the defaults and step limits the Configurator (cBEAM) raises rate
+// limits within, per registered RateLimits or for all (rateLimits_ = 0).
+const BEAM_STATE_EVENTS = [
+  "event AddRateLimits(address indexed rateLimits_)",
+  "event DelRateLimits(address indexed rateLimits_)",
+  "event AddInitRateLimits(bytes32 indexed key, address indexed rateLimits_, uint256 maxAmount, uint256 slope)",
+  "event DelInitRateLimits(bytes32 indexed key, address indexed rateLimits_)",
+  "event SetHop(address indexed rateLimits_, uint256 value)",
+  "event SetMaxChange(address indexed rateLimits_, uint256 value)",
+];
+
 const events = (sigs: string[]) => parseAbi(sigs).filter((x): x is AbiEvent => x.type === "event");
 
-/** Admin events per (generation, role). A role with none (relayer, freezer, facet) is not polled. */
+/** Admin events per (generation, role). A role with none (relayer, freezer, facet, configurator) is not polled. */
 const BY_ROLE: Record<PauKind, Partial<Record<PauRole, AbiEvent[]>>> = {
   monolithic: {
     controller: events(MONOLITH_CONTROLLER_EVENTS),
@@ -85,6 +96,7 @@ const BY_ROLE: Record<PauKind, Partial<Record<PauRole, AbiEvent[]>>> = {
     accessControls: events(ROLE_EVENTS),
     administeredAgent: events(ADMINISTERED_AGENT_EVENTS),
     beacon: events([...INTEGRATION_EVENTS, ...ROLE_EVENTS]),
+    beamState: events(BEAM_STATE_EVENTS),
   },
 };
 

@@ -18,6 +18,7 @@ const RL = "0x" + "b".repeat(40);
 const RELAYER = "0x" + "c".repeat(40);
 const LISTED = "0x" + "e".repeat(40);
 const KADDR = k("8");
+const BEAM = "0x" + "f".repeat(40);
 
 const ent = (id: string, slug: string, name: string, entity_type: string, subtype: string, meta: object): Entity => ({ id, slug, name, entity_type, subtype, defining_doc_id: id, is_active: 1, meta: JSON.stringify(meta) });
 const ix = buildIndexes(
@@ -51,8 +52,10 @@ const SNAP: StoredPauSnapshot = {
       limit(KIN, "5000000000000", "57870370"),
       limit(KDER, "1500000000000", "0", { derived: { constant: "LIMIT_4626_DEPOSIT", args: [VAULT] } }),
       limit(KOFF, "0", "0"),
-      limit(KADDR, "2000000000000", "0", { derived: { constant: "LIMIT_ASSET_TRANSFER", args: [VAULT, LISTED] } }),
-    ] },
+      limit(KADDR, "2000000000000", "0", { derived: { constant: "LIMIT_ASSET_TRANSFER", args: [VAULT, LISTED] }, unit: { decimals: 6, symbol: "PYUSD", token: VAULT, source: "token" } }),
+    ], beam: { beamState: BEAM, hop: "57600", maxChange: "1200000000000000000", historyComplete: true, defaults: [
+      { key: KDER, maxAmount: "3000000000000", slope: "0", scope: "general", setAt: null, derived: { constant: "LIMIT_4626_DEPOSIT", args: [VAULT] }, unit: { decimals: 6, symbol: "USDC", token: VAULT, source: "token" } },
+    ] } },
     { role: "controller", address: "0x" + "d".repeat(40), events: 2, historyComplete: false, roles: [{ role: "0xr", name: "RELAYER", account: RELAYER, since: at, holds: true }], agent: { actors: [{ account: RELAYER, since: at }] } },
   ],
 };
@@ -85,9 +88,19 @@ describe("primeAtlasRefs", () => {
 describe("snapshotFacts", () => {
   const facts = snapshotFacts(SNAP, primeAtlasRefs(ix, P, [SNAP]));
   const byKey = (key: string) => facts.find((f) => f.values.key === key)!;
-  it("scales amounts exactly, per day, with the decimals it inferred", () => {
-    expect(byKey(KMINT).values).toMatchObject({ maximum: { amount: "50000000" }, refill_per_day: { amount: "50000000" }, decimals: 18 });
+  it("scales amounts exactly, per day, by the token's decimals where read, else the ones it inferred", () => {
+    expect(byKey(KMINT).values).toMatchObject({ maximum: { amount: "50000000" }, refill_per_day: { amount: "50000000" }, decimals: 18, decimals_source: "inferred" });
     expect(byKey(KIN).summary).toEqual({ key: KIN, maximum: "5000000", refill_per_day: "5000000", available: "5000000" });
+    expect(byKey(KADDR).values).toMatchObject({ decimals: 6, decimals_source: "token", unit: "PYUSD", token: VAULT });
+    expect(byKey(KADDR).summary).toMatchObject({ maximum: "2000000", unit: "PYUSD" });
+  });
+  it("says how far the Configurator may move a managed RateLimits, and lists each default it may set a key up to", () => {
+    const step = facts.find((f) => f.kind === "beam-state")!;
+    expect(step.values).toMatchObject({ beam_state: BEAM, hop_hours: 16, max_change: "1.2", defaults: 1 });
+    expect(step.match.addresses).toEqual([RL, BEAM]);
+    const def = facts.find((f) => f.kind === "rate-limit-default")!;
+    expect(def).toMatchObject({ name: `LIMIT_4626_DEPOSIT · ${VAULT}`, name_source: "derived", set_at: null });
+    expect(def.summary).toEqual({ key: KDER, maximum: "3000000", refill_per_day: "0", unit: "USDC", applies_to: "every RateLimits this BeamState manages" });
   });
   it("names a key by the atlas first, else by its derivation, and finds it by the docs and addresses it is about", () => {
     expect(byKey(KMINT)).toMatchObject({ name: "USDS Mint", name_source: "atlas", atlas_doc_id: "d-mint-id" });
@@ -99,7 +112,7 @@ describe("snapshotFacts", () => {
     expect(byKey(KADDR).match.docs).toEqual(["d-listed"]);
   });
   it("lists role holders and members with the history state of their contract", () => {
-    expect(facts.filter((f) => f.kind !== "rate-limit").map((f) => [f.kind, f.name, f.history_complete])).toEqual([["role", "RELAYER", false], ["member", "actors", false]]);
+    expect(facts.filter((f) => f.kind === "role" || f.kind === "member").map((f) => [f.kind, f.name, f.history_complete])).toEqual([["role", "RELAYER", false], ["member", "actors", false]]);
   });
 });
 
@@ -143,6 +156,10 @@ describe("atlas_onchain", () => {
     expect(res.coverage).toHaveLength(1);
     const all = (await onchainState(ix, { kind: "rate-limit", include_off: true, limit: 2 })) as { count: number; truncated?: boolean; facts: object[] };
     expect([all.count, all.truncated, all.facts.length]).toEqual([5, true, 2]);
+  });
+  it("finds BeamState defaults by 'init', with the step limits that say what holds when there are none", async () => {
+    const res = (await onchainState(ix, { entity: "grove", query: "init", limit: 50 })) as { facts: { kind: string }[] };
+    expect(res.facts.map((f) => f.kind)).toEqual(["beam-state", "rate-limit-default"]);
   });
   it("filters by an address a fact is about, and refuses an unknown entity", async () => {
     const res = (await onchainState(ix, { address: RELAYER.toUpperCase().replace("0X", "0x"), limit: 50 })) as { facts: { kind: string }[] };

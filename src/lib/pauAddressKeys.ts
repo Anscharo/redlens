@@ -5,7 +5,7 @@
 // means. A match is marked `via`, never passed off as an atlas-stated key: the
 // same address can feed more than one key, and the atlas can list one address
 // for two operations.
-import type { DerivedKey, StoredPauSnapshot } from "./pau.ts";
+import type { AmountUnit, DerivedKey, StoredPauSnapshot } from "./pau.ts";
 import { RATE_LIMIT_ID_RE } from "./atlasHashes.ts";
 import type { AtlasKeyRef, KeyedInstance } from "./pauView.ts";
 
@@ -17,6 +17,7 @@ export interface AddressKeyMatch {
   key: string;
   derived: DerivedKey;
   maxAmount: string;
+  unit?: AmountUnit;
 }
 
 /** The address a RateLimitID param lists instead of a hash, or null. */
@@ -32,7 +33,7 @@ export function keysFromAddress(snaps: StoredPauSnapshot[], address: string): Ad
     s.contracts.flatMap((c) =>
       (c.rateLimits ?? [])
         .filter((r) => r.derived?.args.some((x) => x.toLowerCase() === a))
-        .map((r) => ({ chain: s.chain, key: r.key, derived: r.derived!, maxAmount: r.data?.maxAmount ?? r.configured.maxAmount })),
+        .map((r) => ({ chain: s.chain, key: r.key, derived: r.derived!, maxAmount: r.data?.maxAmount ?? r.configured.maxAmount, ...(r.unit ? { unit: r.unit } : {}) })),
     ),
   );
 }

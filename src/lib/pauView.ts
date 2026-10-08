@@ -1,6 +1,6 @@
 // Pure helpers for the Radar PAU section: which snapshots belong to a prime,
 // how on-chain amounts read, and which instance names each rate-limit key.
-import type { ContractState, PauResponse, PauSnapshot, SetAt, StoredPauSnapshot } from "./pau.ts";
+import type { AmountUnit, ContractState, PauResponse, PauSnapshot, SetAt, StoredPauSnapshot } from "./pau.ts";
 import { RATE_LIMIT_ID_RE } from "./atlasHashes.ts";
 
 const CHAIN_FIRST = "ethereum";
@@ -22,6 +22,16 @@ const WAD = 10n ** 18n;
  * read as 18 decimals because 6-decimal it would exceed a trillion dollars.
  */
 export const inferDecimals = (maxAmount: string): 6 | 18 => (BigInt(maxAmount) >= WAD ? 18 : 6);
+
+/** The decimals a limit's amounts are scaled by: its unit's when the worker found one, else inferred from its size. */
+export const limitDecimals = (unit: AmountUnit | undefined, maxAmount: string): number => unit?.decimals ?? inferDecimals(maxAmount);
+
+/** Where a limit's decimals came from, in a few words ("6 decimals, read from USDC"). */
+export function unitNote(unit: AmountUnit | undefined, maxAmount: string): string {
+  if (!unit) return `${inferDecimals(maxAmount)} decimals, inferred from the limit's size`;
+  if (unit.source === "token") return `${unit.decimals} decimals, read from ${unit.symbol ?? "the token"} ${unit.token}`;
+  return `${unit.decimals} decimals: the controller counts this limit in ${unit.symbol ?? "the pool's normalized value"}`;
+}
 
 const COMPACT = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 });
 

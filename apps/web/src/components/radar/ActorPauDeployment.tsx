@@ -1,5 +1,6 @@
 import { Address } from "../Address";
 import type { AtlasKeyRef, PauParam, StoredPauSnapshot } from "../../lib/pau";
+import { PauBeam } from "./ActorPauBeam";
 import { PauHolders } from "./ActorPauHolders";
 import { PauRateLimits } from "./ActorPauRateLimits";
 
@@ -36,6 +37,7 @@ export function PauDeployment({ snap, keyIndex, defaultOpen }: { snap: StoredPau
       </ul>
       <PauHolders snap={snap} />
       <PauRateLimits chain={snap.chain} limits={limits} keyIndex={keyIndex} />
+      {snap.contracts.map((c) => c.beam && <PauBeam key={c.address} beam={c.beam} chain={snap.chain} keyIndex={keyIndex} />)}
       <PauParams params={params} />
       <p className="mono text-[10px] mt-2" style={dim}>read {snap.fetchedAt.slice(0, 16).replace("T", " ")} UTC</p>
     </details>

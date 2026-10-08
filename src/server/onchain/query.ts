@@ -18,10 +18,12 @@ export interface OnchainQuery {
   limit: number;
 }
 
-// A reader asking for "deposit" limits means the atlas's "Inflow" ones too.
+// A reader asking for "deposit" limits means the atlas's "Inflow" ones too, and
+// "init" limits means BeamState's defaults.
 const ALIASES: [RegExp, string][] = [
   [/\binflow\b/i, "deposit supply"],
   [/\boutflow\b/i, "withdraw withdrawal redeem"],
+  [/\brate-limit-default\b/, "init initial"],
 ];
 
 function haystack(f: OnchainFact): string {

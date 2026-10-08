@@ -23,6 +23,10 @@ describe("adminTopics", () => {
     expect(adminTopics("monolithic", "relayer")).toEqual([]);
     expect(adminTopics("monolithic", "accessControls")).toEqual([]);
   });
+  it("polls BeamState for its registrations, defaults and step limits only", () => {
+    expect(adminTopics("diamond", "beamState").map((t) => t.name)).toEqual(["AddRateLimits", "DelRateLimits", "AddInitRateLimits", "DelInitRateLimits", "SetHop", "SetMaxChange"]);
+    expect(adminTopics("diamond", "configurator")).toEqual([]);
+  });
   it("keeps operational events out of the rate-limits list", () => {
     const names = adminTopics("monolithic", "rateLimits").map((t) => t.name);
     expect(names).toEqual(["RoleGranted", "RoleRevoked", "RateLimitDataSet"]);
