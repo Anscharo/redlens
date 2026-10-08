@@ -64,9 +64,25 @@ describe("buildVoteIndex approvals", () => {
       ...artifact,
       polls: [p("b", "2025-12-01", [121]), p("a", "2025-11-24", [121, 130]), p("c", "2025-11-01", [121], "No"), p("old", "2025-10-01", undefined)],
     });
-    expect(index.approvals.get(121)).toEqual({ title: "Atlas Edit", date: "2025-11-24", url: "https://vote.sky.money/polling/a" });
+    expect(index.approvals.get(121)).toEqual({ title: "Atlas Edit", date: "2025-11-24", url: "https://vote.sky.money/polling/a", citedBy: [] });
     expect(index.approvals.get(130)?.date).toBe("2025-11-24");
     expect(index.approvals.has(999)).toBe(false);
+  });
+});
+
+describe("buildVoteIndex citing executives", () => {
+  const cite = (date: string, l: Partial<VoteLink>): Executive => {
+    const e = executive(date);
+    return { ...e, sections: [{ ...e.sections[0], authorization: [{ family: "poll", url: "", text: "", ...l }] }] };
+  };
+
+  it("lists the executives whose authorization cites the approving poll, by slug or poll id, oldest first and once each", () => {
+    const approving: Poll = { ...poll, atlasPrs: [121], portal: { ...poll.portal!, slug: "QmAbc", pollId: 1245 } };
+    const late = cite("2026-05-01", { pollId: 1245 });
+    const early = { ...cite("2026-04-01", { pollSlug: "QmAbc" }), sections: [...cite("2026-04-01", { pollSlug: "QmAbc" }).sections, ...cite("2026-04-01", { pollId: 1245 }).sections] };
+    const index = buildVoteIndex({ ...artifact, executives: [late, early, cite("2026-06-01", { pollSlug: "QmOther" })], polls: [approving] });
+    expect(index.approvals.get(121)?.citedBy.map((e) => e.date)).toEqual(["2026-04-01", "2026-05-01"]);
+    expect(index.approvals.get(121)?.citedBy[0].url).toBe("https://vote.sky.money/executive/k-2026-04-01");
   });
 });
 

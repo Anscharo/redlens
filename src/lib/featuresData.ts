@@ -67,7 +67,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "Context for whichever document is selected — notes, history, votes and glossary in one scrolling panel, with pills at the top to jump between them.",
         how: [
           "Notes — the Element Annotations attached to this document, linked documents, equivalent documents under the other Prime Agents, mentioned addresses, and which documents cite this one (where you land by default).",
-          "History — this document's change timeline, with the governance poll that approved each change where one links it (“approved by poll …”).",
+          "History — this document's change timeline, with the governance poll that approved each change where one links it (“approved by poll …”), and any executive vote that cites that poll (“cited by executive …”).",
           "Votes — the Sky executive votes behind this document: each one that links it, and each one matched to one of its dates (labelled as on Stale Dates, with how each was matched), linked to vote.sky.money. Governance polls show in History, under the changes they approved.",
           "Glossary — the defined terms this document uses, with their Atlas definitions.",
         ],

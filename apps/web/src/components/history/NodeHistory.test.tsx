@@ -15,7 +15,15 @@ vi.mock("@/lib/history", async (importOriginal) => {
 // The vote record: PR 42 was approved by a poll, nothing else was.
 vi.mock("../../lib/votes", () => ({
   loadVoteIndex: () =>
-    Promise.resolve({ approvals: new Map([[42, { title: "Atlas Edit Weekly Cycle Proposal", date: "2025-11-24", url: "https://vote.sky.money/polling/x" }]]) }),
+    Promise.resolve({
+      approvals: new Map([
+        [42, { title: "Atlas Edit Weekly Cycle Proposal", date: "2025-11-24", url: "https://vote.sky.money/polling/x", citedBy: [] }],
+        [43, {
+          title: "Atlas Edit Weekly Cycle Proposal", date: "2025-12-01", url: "https://vote.sky.money/polling/y",
+          citedBy: [{ title: "Exec A", date: "2025-12-11", url: "https://vote.sky.money/executive/a" }, { title: "Exec B", date: "2026-01-15", url: "https://vote.sky.money/executive/b" }],
+        }],
+      ]),
+    }),
 }));
 
 import { NodeHistory } from "./NodeHistory";
@@ -287,6 +295,17 @@ describe("NodeHistory approving polls", () => {
     expect(link).toHaveAttribute("href", "https://vote.sky.money/polling/x");
     expect(link).toHaveAttribute("title", "Atlas Edit Weekly Cycle Proposal");
     expect(screen.getAllByTestId("approved-by-poll")).toHaveLength(1);
+  });
+});
+
+describe("NodeHistory executives citing the approving poll", () => {
+  it("names each executive whose authorization cites the poll, and nothing when none does", async () => {
+    mockLoad.mockResolvedValue([entry({ pr: 43 }), entry({ pr: 42, commitHash: "def5678" })]);
+    render(<NodeHistory nodeId="n1" />);
+    expect(await screen.findByRole("link", { name: "executive 2025-12-11" })).toHaveAttribute("href", "https://vote.sky.money/executive/a");
+    expect(screen.getByRole("link", { name: "executive 2026-01-15" })).toHaveAttribute("title", "Exec B");
+    const lines = screen.getAllByTestId("approved-by-poll").map((p) => p.textContent);
+    expect(lines).toEqual(["approved by poll 2025-12-01 · cited by executive 2025-12-11, executive 2026-01-15", "approved by poll 2025-11-24"]);
   });
 });
 

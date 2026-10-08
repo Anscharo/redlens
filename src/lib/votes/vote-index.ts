@@ -44,7 +44,12 @@ export interface VoteIndex {
   corpus: SubjectCorpus;
   links: Map<string, LinkedVote[]>;
   /** The earliest passed poll linking each next-gen-atlas pull request: the poll that approved that edit. */
-  approvals: Map<number, PollRef>;
+  approvals: Map<number, ApprovingPoll>;
+}
+
+/** A poll that approved an atlas pull request, with the executives whose authorization cites it, oldest first. */
+export interface ApprovingPoll extends PollRef {
+  citedBy: Array<Pick<IndexedExecutive, "title" | "date" | "url">>;
 }
 
 const EXECUTIVES_REPO = "https://github.com/sky-ecosystem/executive-votes/blob/main/";
@@ -60,13 +65,14 @@ export function buildVoteIndex(a: VotesArtifact): VoteIndex {
     const uuids = e.sections.flatMap((s) => s.atlasRefs.map((l) => l.uuid));
     add(uuids, { kind: "executive", date: e.date, executive: indexed[i] });
   });
-  const approvals = new Map<number, PollRef>();
+  const approvals = new Map<number, ApprovingPoll>();
+  const citing = executivesCiting(a.executives, indexed);
   for (const p of a.polls.filter(pollPassed)) {
     add(p.atlasRefs.map((l) => l.uuid), { kind: "poll", date: p.date, title: p.title, url: pollUrl(p) });
     // An artifact written before polls recorded their pull requests has no atlasPrs.
     for (const pr of p.atlasPrs ?? []) {
       const seen = approvals.get(pr);
-      if (!seen || p.date < seen.date) approvals.set(pr, { title: p.title, date: p.date, url: pollUrl(p) });
+      if (!seen || p.date < seen.date) approvals.set(pr, { title: p.title, date: p.date, url: pollUrl(p), citedBy: citing(p) });
     }
   }
   const executives = [...indexed].sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0));
@@ -77,6 +83,28 @@ export function buildVoteIndex(a: VotesArtifact): VoteIndex {
     corpus: new SubjectCorpus(executives.map((e) => e.text)),
     links,
     approvals,
+  };
+}
+
+/**
+ * The executives whose sections link a poll (by portal slug or poll id), for
+ * any poll, oldest first. An executive citing a poll says only that the poll
+ * authorised one of its actions, not which edit of the poll it carried out.
+ */
+function executivesCiting(executives: readonly Executive[], indexed: readonly IndexedExecutive[]): (p: Poll) => IndexedExecutive[] {
+  const byKey = new Map<string, Set<IndexedExecutive>>();
+  executives.forEach((e, i) => {
+    for (const l of e.sections.flatMap((s) => [...s.authorization, ...s.proposal])) {
+      if (l.family !== "poll") continue;
+      for (const key of [l.pollSlug && `slug:${l.pollSlug}`, l.pollId != null && `id:${l.pollId}`]) {
+        if (key) byKey.set(key, (byKey.get(key) ?? new Set()).add(indexed[i]));
+      }
+    }
+  });
+  return (p) => {
+    if (!p.portal) return [];
+    const found = new Set([...(byKey.get(`slug:${p.portal.slug}`) ?? []), ...(byKey.get(`id:${p.portal.pollId}`) ?? [])]);
+    return [...found].sort((x, y) => x.date.localeCompare(y.date));
   };
 }
 
