@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
-import { instanceKeyIndex, loadPau, primeKeyedInstance, snapshotsForPrime, type KeyedInstance } from "../../lib/pau";
+import { addressKeyIndex, instanceKeyIndex, loadPau, primeKeyedInstance, snapshotsForPrime, withAddressKeys, type KeyedInstance } from "../../lib/pau";
 import type { GraphEntity } from "@/types";
 import { RADAR_SECTION } from "@/lib/radarAnchors";
 import { Section } from "./RadarSection";
@@ -21,8 +21,11 @@ interface Props {
  */
 export function ActorPau({ prime, instances }: Props) {
   const res = useLoaded(loadPau, { soft: true });
-  const keyIndex = useMemo(() => instanceKeyIndex([primeKeyedInstance(prime.m), ...instances]), [prime.m, instances]);
   const snaps = useMemo(() => (res ? snapshotsForPrime(res, prime.id) : []), [res, prime.id]);
+  const keyIndex = useMemo(
+    () => withAddressKeys(instanceKeyIndex([primeKeyedInstance(prime.m), ...instances]), addressKeyIndex(instances, snaps)),
+    [prime.m, instances, snaps],
+  );
   if (snaps.length === 0) return null;
 
   return (

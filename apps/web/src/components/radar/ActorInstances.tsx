@@ -9,6 +9,8 @@ import { InstanceCard } from "./InstanceCard";
 
 interface Props {
   primitives: RadarPrimitive[];
+  /** The prime whose page this is, for the on-chain keys an instance lists by address. */
+  primeId?: string;
 }
 
 interface CategoryGroup {
@@ -72,9 +74,10 @@ interface SectionProps {
    * for sibling sections so the primitive anchor becomes
    * `#Invocations-distribution-reward`. */
   anchorPrefix: string;
+  primeId?: string;
 }
 
-function ActorItemsSection({ groups, pick, anchorPrefix }: SectionProps) {
+function ActorItemsSection({ groups, pick, anchorPrefix, primeId }: SectionProps) {
   const visibleGroups = groups
     .map((cat) => ({ ...cat, primitives: cat.primitives.filter((p) => pick(p).length > 0) }))
     .filter((cat) => cat.primitives.length > 0);
@@ -125,7 +128,7 @@ function ActorItemsSection({ groups, pick, anchorPrefix }: SectionProps) {
                         className="mb-2"
                         style={anchorId ? { scrollMarginTop: HEADER_OFFSET } : undefined}
                       >
-                        <InstanceCard inst={inst} />
+                        <InstanceCard inst={inst} primeId={primeId} />
                       </div>
                     ))}
                   </div>
@@ -148,7 +151,7 @@ function SectionHeading({ label, count }: { label: string; count: number }) {
   );
 }
 
-export function ActorInstances({ primitives }: Props) {
+export function ActorInstances({ primitives, primeId }: Props) {
   const groups = buildCategoryGroups(primitives);
   const instanceCount = primitives.reduce((n, p) => n + p.instances.length, 0);
   const invocationCount = primitives.reduce((n, p) => n + p.invocations.length, 0);
@@ -158,12 +161,12 @@ export function ActorInstances({ primitives }: Props) {
       {invocationCount > 0 && (
         <section id="invocations" style={{ scrollMarginTop: HEADER_OFFSET }}>
           <SectionHeading label="Invocations" count={invocationCount} />
-          <ActorItemsSection groups={groups} pick={(p) => p.invocations} anchorPrefix="invocations" />
+          <ActorItemsSection groups={groups} pick={(p) => p.invocations} anchorPrefix="invocations" primeId={primeId} />
         </section>
       )}
       <section id="instances" style={{ scrollMarginTop: HEADER_OFFSET }}>
         <SectionHeading label="Instances" count={instanceCount} />
-        <ActorItemsSection groups={groups} pick={(p) => p.instances} anchorPrefix="" />
+        <ActorItemsSection groups={groups} pick={(p) => p.instances} anchorPrefix="" primeId={primeId} />
       </section>
     </div>
   );

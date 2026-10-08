@@ -99,7 +99,7 @@ export function ActorDashboard({ profile }: Props) {
           )}
           {primitives.length > 0 && (
             <Section title="Primitives" id={RADAR_SECTION.primitives}>
-              <ActorInstances primitives={primitives} />
+              <ActorInstances primitives={primitives} primeId={entity.st === "prime" ? entity.id : undefined} />
             </Section>
           )}
           {relations.length > 0 && (

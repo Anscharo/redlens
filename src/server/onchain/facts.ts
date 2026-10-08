@@ -18,7 +18,8 @@ export interface OnchainFact {
   contract: string;
   /** What the atlas or a derivation calls it, or null when nothing names it. */
   name: string | null;
-  name_source: "atlas" | "derived" | null;
+  /** "atlas-address": the atlas lists an address where the key belongs, and this key is derived from it. */
+  name_source: "atlas" | "atlas-address" | "derived" | null;
   atlas_doc_id: string | null;
   values: Record<string, unknown>;
   /** The few values a tool shows when it carries the fact beside its own result. */

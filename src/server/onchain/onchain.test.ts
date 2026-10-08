@@ -16,6 +16,8 @@ const [KMINT, KIN, KOUT, KCON, KDER, KOFF, KPOOL] = ["1", "2", "3", "4", "5", "6
 const VAULT = "0x" + "a".repeat(40);
 const RL = "0x" + "b".repeat(40);
 const RELAYER = "0x" + "c".repeat(40);
+const LISTED = "0x" + "e".repeat(40);
+const KADDR = k("8");
 
 const ent = (id: string, slug: string, name: string, entity_type: string, subtype: string, meta: object): Entity => ({ id, slug, name, entity_type, subtype, defining_doc_id: id, is_active: 1, meta: JSON.stringify(meta) });
 const ix = buildIndexes(
@@ -29,7 +31,7 @@ const ix = buildIndexes(
     ent(I, "grove-vault", "Ethereum Mainnet - Vault", "instance", "allocation-system", { agent_doc_id: P, params: {
       "Inflow RateLimitID": [KIN, "d-in", "x"], "Outflow RateLimitID": [KOUT, "d-out", "x"],
       "Inflow Rate Limits / maxAmount": ["5,000,000 USDC", "d-in-lim", "x"], "Outflow Rate Limits / maxAmount": ["Unlimited", "d-out-lim", "x"],
-      "Pool ID": [KPOOL, "d-pool", "x"],
+      "Pool ID": [KPOOL, "d-pool", "x"], "Rate Limit IDs / BUIDLI_DEPOSIT": [LISTED, "d-listed", "x"],
     } }),
     ent(C, "grove-conduit", "USDC To USDG Via Paxos", "instance", "allocation-system", { agent_doc_id: P, params: {
       "Rate Limit IDs": [KCON, "d-con", "x"], "TransferAssets Rate Limits / maxAmount": ["50,000,000 USDC", "d-con-lim", "x"],
@@ -49,6 +51,7 @@ const SNAP: StoredPauSnapshot = {
       limit(KIN, "5000000000000", "57870370"),
       limit(KDER, "1500000000000", "0", { derived: { constant: "LIMIT_4626_DEPOSIT", args: [VAULT] } }),
       limit(KOFF, "0", "0"),
+      limit(KADDR, "2000000000000", "0", { derived: { constant: "LIMIT_ASSET_TRANSFER", args: [VAULT, LISTED] } }),
     ] },
     { role: "controller", address: "0x" + "d".repeat(40), events: 2, historyComplete: false, roles: [{ role: "0xr", name: "RELAYER", account: RELAYER, since: at, holds: true }], agent: { actors: [{ account: RELAYER, since: at }] } },
   ],
@@ -56,7 +59,7 @@ const SNAP: StoredPauSnapshot = {
 
 const { paramSide, primeAtlasRefs } = await import("./pau-atlas-refs.ts");
 const { snapshotFacts } = await import("./pau-source.ts");
-const fake: OnchainSource = { id: "pau", describe: "fake", read: async () => ({ facts: snapshotFacts(SNAP, primeAtlasRefs(ix, P)), coverage: [{ source: "pau", entity: "Grove", entity_id: P, chain: "ethereum", label: "diamond", contracts: 2, history_complete: false, read_at: SNAP.fetchedAt }] }) };
+const fake: OnchainSource = { id: "pau", describe: "fake", read: async () => ({ facts: snapshotFacts(SNAP, primeAtlasRefs(ix, P, [SNAP])), coverage: [{ source: "pau", entity: "Grove", entity_id: P, chain: "ethereum", label: "diamond", contracts: 2, history_complete: false, read_at: SNAP.fetchedAt }] }) };
 mock.module("./sources.ts", () => ({ ONCHAIN_SOURCES: [fake] }));
 const { attachOnchain } = await import("./enrich.ts");
 const { onchainState } = await import("./query.ts");
@@ -77,7 +80,7 @@ describe("primeAtlasRefs", () => {
 });
 
 describe("snapshotFacts", () => {
-  const facts = snapshotFacts(SNAP, primeAtlasRefs(ix, P));
+  const facts = snapshotFacts(SNAP, primeAtlasRefs(ix, P, [SNAP]));
   const byKey = (key: string) => facts.find((f) => f.values.key === key)!;
   it("scales amounts exactly, per day, with the decimals it inferred", () => {
     expect(byKey(KMINT).values).toMatchObject({ maximum: { amount: "50000000" }, refill_per_day: { amount: "50000000" }, decimals: 18 });
@@ -89,6 +92,8 @@ describe("snapshotFacts", () => {
     expect(byKey(KDER)).toMatchObject({ name: `LIMIT_4626_DEPOSIT · ${VAULT}`, name_source: "derived" });
     expect(byKey(KDER).match.addresses).toEqual([RL, VAULT]);
     expect(byKey(KOFF)).toMatchObject({ name: null, name_source: null });
+    expect(byKey(KADDR)).toMatchObject({ name: "Vault · BUIDLI_DEPOSIT", name_source: "atlas-address", atlas_doc_id: "d-listed", values: { listed_address: LISTED } });
+    expect(byKey(KADDR).match.docs).toEqual(["d-listed"]);
   });
   it("lists role holders and members with the history state of their contract", () => {
     expect(facts.filter((f) => f.kind !== "rate-limit").map((f) => [f.kind, f.name, f.history_complete])).toEqual([["role", "RELAYER", false], ["member", "actors", false]]);
@@ -112,10 +117,10 @@ describe("attachOnchain", () => {
 describe("atlas_onchain", () => {
   it("filters by entity, matches 'deposit' to an Inflow limit, and leaves switched-off limits out unless asked", async () => {
     const res = (await onchainState(ix, { entity: "grove", kind: "rate-limit", query: "deposit", limit: 50 })) as { facts: { name: string }[]; coverage: unknown[] };
-    expect(res.facts.map((f) => f.name)).toEqual([`LIMIT_4626_DEPOSIT · ${VAULT}`, "Vault · Inflow"]);
+    expect(res.facts.map((f) => f.name)).toEqual([`LIMIT_4626_DEPOSIT · ${VAULT}`, "Vault · BUIDLI_DEPOSIT", "Vault · Inflow"]);
     expect(res.coverage).toHaveLength(1);
     const all = (await onchainState(ix, { kind: "rate-limit", include_off: true, limit: 2 })) as { count: number; truncated?: boolean; facts: object[] };
-    expect([all.count, all.truncated, all.facts.length]).toEqual([4, true, 2]);
+    expect([all.count, all.truncated, all.facts.length]).toEqual([5, true, 2]);
   });
   it("filters by an address a fact is about, and refuses an unknown entity", async () => {
     const res = (await onchainState(ix, { address: RELAYER.toUpperCase().replace("0X", "0x"), limit: 50 })) as { facts: { kind: string }[] };

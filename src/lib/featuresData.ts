@@ -206,7 +206,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "On a Prime Agent's page, each PAU deployment (per chain, monolithic or diamond controller) as the chain reports it: who holds which role, every rate limit with its maximum, refill per day and amount available now, and the latest pool parameters.",
         how: [
           "Open a Prime Agent on Radar and scroll to `PAU on-chain`; click a chain's row to open or close it.",
-          "A rate limit is named after the Prime Agent or instance whose parameters state its ID; a key the Atlas never states is named by the controller constant that derives it (such as `LIMIT_4626_DEPOSIT` and the vault), and `no atlas document or controller constant names this key` marks one neither can name.",
+          "A rate limit is named after the Prime Agent or instance whose parameters state its ID; a key the Atlas never states is named by the controller constant that derives it (such as `LIMIT_4626_DEPOSIT` and the vault), and `no atlas document or controller constant names this key` marks one neither can name. Where an instance lists an address instead of a RateLimitID, the key derived from that address is named after the instance, marked `(matched by address)`, and the instance card shows it under the address as `on-chain key …`.",
           "In Roles, ✓ means the chain confirms the role, ✗ means the grant history says granted but the chain says no, ? means the check could not be read.",
           "The date in the `Set` column opens the transaction that last set that limit.",
         ],
