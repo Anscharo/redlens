@@ -14,7 +14,7 @@
 
 import type { DateClaim, StaleDatesReport } from "../staleDates";
 import type { VoteEvidence, VoteEvidenceStatus, VoteMatch } from "./evidence";
-import { offset } from "./vote-index";
+import { offset, type PollRef } from "./vote-index";
 
 /** A judged executive carried the claim at or above this probability (the eval's best band was 0.3–0.4). */
 export const CARRIED_THRESHOLD = 0.35;
@@ -65,12 +65,6 @@ export function judgeSubject(rule: VoteEvidence, cast: boolean, j: SubjectJudgme
   if (!anchor && j.carried < CARRIED_THRESHOLD) status = "subject-missing";
   else if (!cast) status = "pending";
   return { ...rule, status, judged: { model: j.model, p: anchor ? j.anchor : j.carried, rule: rule.status } };
-}
-
-export interface PollRef {
-  title: string;
-  date: string;
-  url: string;
 }
 
 /** Authorised by the poll that linked the pull request first writing the claim. */

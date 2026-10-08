@@ -1,6 +1,7 @@
 // The vote record (public/votes.json) indexed for matching: executives by
-// filename date with their searchable text, and every vote by the atlas uuids
-// it links. Built once per load; pure.
+// filename date with their searchable text, every vote by the atlas uuids it
+// links, and the poll that approved each atlas pull request. Built once per
+// load; pure.
 
 import type { AtlasNode } from "../../types";
 import { SubjectCorpus } from "./subject";
@@ -28,6 +29,13 @@ export type LinkedVote =
   | { kind: "executive"; date: string; executive: IndexedExecutive }
   | { kind: "poll"; date: string; title: string; url: string };
 
+/** A passed poll as a link target. */
+export interface PollRef {
+  title: string;
+  date: string;
+  url: string;
+}
+
 export interface VoteIndex {
   executives: IndexedExecutive[];
   /** First and last executive filename dates: the span the record can speak for. */
@@ -35,6 +43,8 @@ export interface VoteIndex {
   last: string;
   corpus: SubjectCorpus;
   links: Map<string, LinkedVote[]>;
+  /** The earliest passed poll linking each next-gen-atlas pull request: the poll that approved that edit. */
+  approvals: Map<number, PollRef>;
 }
 
 const EXECUTIVES_REPO = "https://github.com/sky-ecosystem/executive-votes/blob/main/";
@@ -50,8 +60,14 @@ export function buildVoteIndex(a: VotesArtifact): VoteIndex {
     const uuids = e.sections.flatMap((s) => s.atlasRefs.map((l) => l.uuid));
     add(uuids, { kind: "executive", date: e.date, executive: indexed[i] });
   });
+  const approvals = new Map<number, PollRef>();
   for (const p of a.polls.filter(pollPassed)) {
     add(p.atlasRefs.map((l) => l.uuid), { kind: "poll", date: p.date, title: p.title, url: pollUrl(p) });
+    // An artifact written before polls recorded their pull requests has no atlasPrs.
+    for (const pr of p.atlasPrs ?? []) {
+      const seen = approvals.get(pr);
+      if (!seen || p.date < seen.date) approvals.set(pr, { title: p.title, date: p.date, url: pollUrl(p) });
+    }
   }
   const executives = [...indexed].sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0));
   return {
@@ -60,6 +76,7 @@ export function buildVoteIndex(a: VotesArtifact): VoteIndex {
     last: executives.at(-1)?.date ?? "",
     corpus: new SubjectCorpus(executives.map((e) => e.text)),
     links,
+    approvals,
   };
 }
 

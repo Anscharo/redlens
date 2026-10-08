@@ -564,3 +564,7 @@ approved it, without the browser reading poll bodies. Executives carry no PR of 
 on the atlas through the documents and polls their authorization lines link, and 31 of 33 link at
 least one poll, which reaches its PR.
 
+The reader's history list uses it: `buildVoteIndex` maps each pull request to the earliest passed
+poll linking it (`approvals`), and `ApprovedByPoll` adds an "approved by poll …" row under each
+history entry that has one. Of the 276 atlas pull requests in git history, 51 show their poll today.
+

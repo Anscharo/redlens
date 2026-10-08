@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { loadHistory, PRE_MD_PR, RECONSTRUCTED_ERAS, type HistoryEntry } from "@/lib/history";
+import { ApprovedByPoll } from "./ApprovedByPoll";
 import { EntryRow } from "./EntryRow";
 import { SeamFooter } from "./SeamFooter";
 import { CONTENT_INDENT, TimelineRow } from "./Timeline";
@@ -99,6 +100,7 @@ export function NodeHistory({
               labelOverride={isRootSnapshot ? "committed" : undefined}
               isFirst={trimTop && i === 0}
             />
+            <ApprovedByPoll pr={entry.pr} />
             {!hasReconstructed && entry.pr === PRE_MD_PR && (
               <TimelineRow>
                 <SeamFooter seam={entry.seam} />

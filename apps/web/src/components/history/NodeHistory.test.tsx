@@ -12,6 +12,12 @@ vi.mock("@/lib/history", async (importOriginal) => {
   return { ...actual, loadHistory: vi.fn() };
 });
 
+// The vote record: PR 42 was approved by a poll, nothing else was.
+vi.mock("../../lib/votes", () => ({
+  loadVoteIndex: () =>
+    Promise.resolve({ approvals: new Map([[42, { title: "Atlas Edit Weekly Cycle Proposal", date: "2025-11-24", url: "https://vote.sky.money/polling/x" }]]) }),
+}));
+
 import { NodeHistory } from "./NodeHistory";
 import { loadHistory, type HistoryEntry } from "@/lib/history";
 
@@ -272,3 +278,15 @@ describe("NodeHistory states", () => {
     expect(migration.compareDocumentPosition(html) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
+
+describe("NodeHistory approving polls", () => {
+  it("shows the poll that approved an entry's pull request, and nothing for one no poll links", async () => {
+    mockLoad.mockResolvedValue([entry({ pr: 42, prTitle: "Tweak the thing" }), entry({ pr: 7, commitHash: "def5678" })]);
+    render(<NodeHistory nodeId="n1" />);
+    const link = await screen.findByRole("link", { name: "poll 2025-11-24" });
+    expect(link).toHaveAttribute("href", "https://vote.sky.money/polling/x");
+    expect(link).toHaveAttribute("title", "Atlas Edit Weekly Cycle Proposal");
+    expect(screen.getAllByTestId("approved-by-poll")).toHaveLength(1);
+  });
+});
+

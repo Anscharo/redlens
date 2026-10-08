@@ -56,3 +56,18 @@ describe("votesForDoc", () => {
     expect(votesForDoc({ ...doc, id: "other", content: "No dates." }, docs, buildVoteIndex(artifact), null, TODAY)).toEqual([]);
   });
 });
+
+describe("buildVoteIndex approvals", () => {
+  const p = (file: string, date: string, prs: number[] | undefined, winner = "Yes"): Poll => ({ ...poll, file, date, atlasPrs: prs as number[], portal: { ...poll.portal!, slug: file, winner } });
+
+  it("maps each pull request to the earliest passed poll linking it", () => {
+    const index = buildVoteIndex({
+      ...artifact,
+      polls: [p("b", "2025-12-01", [121]), p("a", "2025-11-24", [121, 130]), p("c", "2025-11-01", [121], "No"), p("old", "2025-10-01", undefined)],
+    });
+    expect(index.approvals.get(121)).toEqual({ title: "Atlas Edit", date: "2025-11-24", url: "https://vote.sky.money/polling/a" });
+    expect(index.approvals.get(130)?.date).toBe("2025-11-24");
+    expect(index.approvals.has(999)).toBe(false);
+  });
+});
+
