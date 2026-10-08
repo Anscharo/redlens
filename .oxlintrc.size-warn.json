@@ -1,6 +1,7 @@
 {
-  // Advisory size limits. `pnpm check:size` runs this config over changed files
-  // only and never fails on it; the hard limits are in .oxlintrc.size.json.
+  // Advisory size limits. `pnpm check:size` runs this config over changed files:
+  // it fails a file added since the base that exceeds them and only warns on a
+  // modified existing one. The hard limits are in .oxlintrc.size.json.
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "categories": { "correctness": "off" },
   "plugins": [],
