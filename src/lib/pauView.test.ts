@@ -42,10 +42,10 @@ describe("instanceKeyIndex", () => {
     inst("SparkLend ETH", [["Inflow Rate Limit ID", H1, "d1"], ["Token Address", "0x" + "1".repeat(40), "d2"]]),
     inst("Curve AUSD/USDC", [["Outflow RateLimitID (AUSD)", ` ${H2} `, null], ["Inflow RateLimitID", H1, "d3"]]),
   ]);
-  it("labels a key with its instance and what the parameter says it limits", () => {
+  it("labels a key with every instance that states it, sorted by label whatever the instance order", () => {
     expect(index.get(H1)).toEqual([
-      { docId: "d1", label: "SparkLend ETH · Inflow" },
       { docId: "d3", label: "Curve AUSD/USDC · Inflow" },
+      { docId: "d1", label: "SparkLend ETH · Inflow" },
     ]);
   });
   it("lowercases and trims the key, keeps a missing source doc as null, and skips non-key values", () => {

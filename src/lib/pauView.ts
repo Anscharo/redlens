@@ -53,7 +53,8 @@ export interface KeyedInstance {
 /**
  * Rate-limit keys the prime's instances state as parameters (build-graph's
  * instance params, the same rows the instance cards show), each labelled
- * "<instance> · <param>" ("SparkLend ETH · Inflow").
+ * "<instance> · <param>" ("SparkLend ETH · Inflow"). A key several instances
+ * state lists every one, sorted by label.
  */
 export function instanceKeyIndex(instances: KeyedInstance[]): Map<string, AtlasKeyRef[]> {
   const index = new Map<string, AtlasKeyRef[]>();
@@ -65,6 +66,8 @@ export function instanceKeyIndex(instances: KeyedInstance[]): Map<string, AtlasK
       index.set(key, [...(index.get(key) ?? []), { docId: p.srcDocId, label: `${inst.displayName} · ${what}` }]);
     }
   }
+  // Sorted, so the name a key shows does not depend on instance order.
+  for (const refs of index.values()) refs.sort((a, b) => a.label.localeCompare(b.label));
   return index;
 }
 

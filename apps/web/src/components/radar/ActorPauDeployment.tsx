@@ -17,7 +17,7 @@ const dim = { color: "var(--tan-3)" };
 /** One deployment: a collapsible card with its contracts, holders, rate limits and parameters. */
 export function PauDeployment({ snap, keyIndex, defaultOpen }: { snap: StoredPauSnapshot; keyIndex: Map<string, AtlasKeyRef[]>; defaultOpen: boolean }) {
   const limits = snap.contracts.flatMap((c) => c.rateLimits ?? []);
-  const params = snap.contracts.flatMap((c) => c.params ?? []);
+  const params = snap.contracts.flatMap((c) => (c.params ?? []).map((p) => ({ ...p, contract: c.address })));
   const loading = snap.contracts.some((c) => !c.historyComplete);
   return (
     <details open={defaultOpen} className="pau-deployment mb-3 border-t border-[var(--border)] pt-2" data-deployment={snap.deployment} data-kind={snap.kind}>
@@ -49,14 +49,14 @@ const paramValue = (p: PauParam) =>
     .join(" · ");
 
 /** The latest value of each per-pool or per-domain parameter (max slippage, recipients, tick bounds). */
-function PauParams({ params }: { params: PauParam[] }) {
+function PauParams({ params }: { params: (PauParam & { contract: string })[] }) {
   if (params.length === 0) return null;
   return (
     <div className="mt-3">
       <h4 className="mono text-[10px] uppercase tracking-wider mb-1" style={dim}>Parameters</h4>
       <ul className="space-y-0.5">
         {params.map((p) => (
-          <li key={`${p.event}:${p.subject}`} className="mono text-[10px] break-words" style={{ color: "var(--tan-2)" }}>
+          <li key={`${p.contract}:${p.event}:${p.subject}`} className="mono text-[10px] break-words" style={{ color: "var(--tan-2)" }}>
             {p.event} <span title={p.subject}>{p.subject.length > 20 ? `${p.subject.slice(0, 10)}…` : p.subject}</span>{" "}
             <span style={dim}>{paramValue(p)}</span>
           </li>

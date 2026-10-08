@@ -61,7 +61,7 @@ export function explorerUrl(
   return (EXPLORER[chain] ?? EXPLORER.ethereum) + addr;
 }
 
-/** A transaction on `chain`'s explorer: every registered explorer serves `/tx/<hash>` beside `/address/`. */
+/** A transaction on an EVM chain's explorer: each registered EVM explorer serves `/tx/<hash>` beside `/address/`. */
 export function explorerTxUrl(chain: string, tx: string): string {
   return (EXPLORER[chain] ?? EXPLORER.ethereum).replace(/address\/$/, "tx/") + tx;
 }

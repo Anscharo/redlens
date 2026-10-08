@@ -19,7 +19,8 @@ function ordered(limits: LiveRateLimit[], keyIndex: Map<string, AtlasKeyRef[]>) 
 }
 
 function LimitName({ r, chain, keyIndex }: { r: LiveRateLimit; chain: string; keyIndex: Map<string, AtlasKeyRef[]> }) {
-  const ref = keyIndex.get(r.key.toLowerCase())?.[0];
+  const refs = keyIndex.get(r.key.toLowerCase()) ?? [];
+  const ref = refs[0];
   if (!ref) {
     return (
       <span title={r.key} style={dim}>
@@ -28,9 +29,10 @@ function LimitName({ r, chain, keyIndex }: { r: LiveRateLimit; chain: string; ke
     );
   }
   const label = labelOnChain(ref.label, chain);
-  if (!ref.docId) return <span title={r.key}>{label}</span>;
+  const title = [r.key, ...refs.slice(1).map((x) => `also ${x.label}`)].join("\n");
+  if (!ref.docId) return <span title={title}>{label}</span>;
   return (
-    <AtlasLink to={atlasHref(ref.docId)} className="text-accent hover:underline" title={r.key}>
+    <AtlasLink to={atlasHref(ref.docId)} className="text-accent hover:underline" title={title}>
       {label}
     </AtlasLink>
   );
@@ -39,12 +41,13 @@ function LimitName({ r, chain, keyIndex }: { r: LiveRateLimit; chain: string; ke
 function LimitRow({ r, chain, keyIndex }: { r: LiveRateLimit; chain: string; keyIndex: Map<string, AtlasKeyRef[]> }) {
   const max = r.data?.maxAmount ?? r.configured.maxAmount;
   const dec = inferDecimals(max);
+  const scale = `${dec} decimals, inferred from the limit's size`;
   return (
     <tr className="border-t border-[var(--border)] mono" data-off={isOff(r) || undefined} style={{ color: isOff(r) ? "var(--tan-3)" : "var(--tan-2)" }}>
       <td className="py-0.5 pr-3"><LimitName r={r} chain={chain} keyIndex={keyIndex} /></td>
-      <td className="py-0.5 text-right">{isOff(r) ? "off" : formatAmount(max, dec)}</td>
-      <td className="py-0.5 text-right">{formatPerDay(r.data?.slope ?? r.configured.slope, dec)}</td>
-      <td className="py-0.5 text-right">{r.available === null ? "?" : formatAmount(r.available, dec)}</td>
+      <td className="py-0.5 text-right" title={scale}>{isOff(r) ? "off" : formatAmount(max, dec)}</td>
+      <td className="py-0.5 text-right" title={scale}>{formatPerDay(r.data?.slope ?? r.configured.slope, dec)}</td>
+      <td className="py-0.5 text-right" title={scale}>{r.available === null ? "?" : formatAmount(r.available, dec)}</td>
       <td className="py-0.5 text-right">
         <a href={explorerTxUrl(chain, r.setAt.tx)} target="_blank" rel="noopener" className="hover:underline" style={dim}>
           {r.setAt.time.slice(0, 10)}
