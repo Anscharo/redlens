@@ -4,7 +4,8 @@
 // is read live, because usage moves the available amount between settings.
 import { parseAbi } from "viem";
 import { deploymentId, type PauDeployment, type PauMember, type PauRole } from "../../lib/pauRegistry.ts";
-import type { ContractState, DerivedKey, LiveRateLimit, PauSnapshot, RateLimitKey, RoleHolder } from "../../lib/pau.ts";
+import type { BeamDefault, ContractState, DerivedKey, LiveRateLimit, PauSnapshot, RateLimitKey, RoleHolder } from "../../lib/pau.ts";
+import { beamLimits, type BeamSource } from "./beam.ts";
 import { replayAgent, replayIntegrations, replayParams, replayRateLimitKeys, replayRoles, roleName, type PauEventRow } from "./replay.ts";
 
 export const PAU_STATE_ABI = parseAbi([
@@ -12,11 +13,21 @@ export const PAU_STATE_ABI = parseAbi([
   "struct RateLimitData { uint256 maxAmount; uint256 slope; uint256 lastAmount; uint256 lastUpdated; }",
   "function getRateLimitData(bytes32) view returns (RateLimitData)",
   "function getCurrentRateLimit(bytes32) view returns (uint256)",
+  // BeamState (beam.ts)
+  "function rateLimits(address) view returns (uint256)",
+  "function getHop(address) view returns (uint256)",
+  "function getMaxChange(address) view returns (uint256)",
+  "function initRateLimits(bytes32, address) view returns (uint256 maxAmount, uint256 slope)",
+  // The token a limit is counted in (units.ts)
+  "function asset() view returns (address)",
+  "function token() view returns (address)",
+  "function decimals() view returns (uint8)",
+  "function symbol() view returns (string)",
 ]);
 
 export interface ChainCall {
   address: string;
-  functionName: "hasRole" | "getRateLimitData" | "getCurrentRateLimit";
+  functionName: Extract<(typeof PAU_STATE_ABI)[number], { type: "function" }>["name"];
   args: readonly unknown[];
 }
 /** Reads every call on one chain with PAU_STATE_ABI; a call that fails resolves to null. */
@@ -50,8 +61,8 @@ async function liveRateLimits(read: ChainReader, chain: string, address: string,
   });
 }
 
-/** What one contract's history and the chain say, by the parts that apply to it. */
-export async function contractState(read: ChainReader, chain: string, m: PauMember, history: ContractHistory): Promise<ContractState> {
+/** What one contract's history and the chain say, by the parts that apply to it; a RateLimits also gets what its chain's BeamState allows. */
+export async function contractState(read: ChainReader, chain: string, m: PauMember, history: ContractHistory, beam?: BeamSource): Promise<ContractState> {
   const { events, complete } = history;
   const out: ContractState = { role: m.role, address: m.address, ...(m.label ? { label: m.label } : {}), events: events.length, historyComplete: complete };
   const holders = replayRoles(events);
@@ -60,6 +71,8 @@ export async function contractState(read: ChainReader, chain: string, m: PauMemb
   if (Object.keys(agent).length) out.agent = agent;
   const keys = replayRateLimitKeys(events);
   if (keys.length) out.rateLimits = await liveRateLimits(read, chain, m.address, keys);
+  const managed = beam && m.role === "rateLimits" ? await beamLimits(read, chain, beam, m.address, keys.map((k) => k.key)) : null;
+  if (managed) out.beam = managed;
   const params = replayParams(events);
   if (params.length) out.params = params;
   const integrations = replayIntegrations(events);
@@ -74,23 +87,29 @@ export async function buildSnapshot(
   d: PauDeployment,
   read: ChainReader,
   historyOf: (chain: string, contract: string) => Promise<ContractHistory>,
+  beam?: BeamSource,
 ): Promise<PauSnapshot> {
   const contracts: ContractState[] = [];
   for (const m of d.members.filter((x) => READ_ROLES.has(x.role))) {
-    contracts.push(await contractState(read, d.chain, m, await historyOf(d.chain, m.address)));
+    contracts.push(await contractState(read, d.chain, m, await historyOf(d.chain, m.address), beam));
   }
   return { deployment: deploymentId(d), prime: d.prime, primeName: d.primeName, chain: d.chain, kind: d.kind, contracts };
 }
 
+/** The snapshot with every rate limit and BeamState default changed by `f`. */
+export function mapLimits(snap: PauSnapshot, f: <T extends LiveRateLimit | BeamDefault>(x: T) => T): PauSnapshot {
+  const contracts = snap.contracts.map((c) =>
+    c.rateLimits || c.beam
+      ? { ...c, ...(c.rateLimits ? { rateLimits: c.rateLimits.map(f) } : {}), ...(c.beam ? { beam: { ...c.beam, defaults: c.beam.defaults.map(f) } } : {}) }
+      : c,
+  );
+  return { ...snap, contracts };
+}
+
 /** The snapshot with each rate-limit key's derivation attached where one is found. */
 export function withDerivedKeys(snap: PauSnapshot, derive: (key: string) => DerivedKey | null): PauSnapshot {
-  const contracts = snap.contracts.map((c) => {
-    if (!c.rateLimits) return c;
-    const rateLimits = c.rateLimits.map((r) => {
-      const derived = derive(r.key);
-      return derived ? { ...r, derived } : r;
-    });
-    return { ...c, rateLimits };
+  return mapLimits(snap, (x) => {
+    const derived = derive(x.key);
+    return derived ? { ...x, derived } : x;
   });
-  return { ...snap, contracts };
 }

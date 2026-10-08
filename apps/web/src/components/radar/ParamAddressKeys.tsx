@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
-import { formatAmount, inferDecimals, keysFromAddress, listedAddress, loadPau, snapshotsForPrime } from "../../lib/pau";
+import { formatAmount, keysFromAddress, limitDecimals, listedAddress, loadPau, snapshotsForPrime } from "../../lib/pau";
 import { actorPageHref } from "@/lib/routes";
 import { Link } from "../Link";
 
@@ -32,7 +32,7 @@ export function ParamAddressKeys({ prime, paramKey, value }: Props) {
           <Link to={actorPageHref(prime.slug, "pau")} className="hover:underline" style={{ color: "var(--accent)" }}>
             {m.key.slice(0, 10)}…{m.key.slice(-4)}
           </Link>
-          {` · ${m.derived.constant} · ${m.chain} · ${m.maxAmount === "0" ? "off" : formatAmount(m.maxAmount, inferDecimals(m.maxAmount))}`}
+          {` · ${m.derived.constant} · ${m.chain} · ${m.maxAmount === "0" ? "off" : `${formatAmount(m.maxAmount, limitDecimals(m.unit, m.maxAmount))}${m.unit?.symbol ? ` ${m.unit.symbol}` : ""}`}`}
         </li>
       ))}
     </ul>

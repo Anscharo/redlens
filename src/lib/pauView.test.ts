@@ -2,7 +2,7 @@
 // and the unlimited sentinel), and the instance label each rate-limit key gets.
 import { describe, expect, it } from "vitest";
 import type { StoredPauSnapshot } from "./pau.ts";
-import { exactAmount, instanceKeyIndex, labelOnChain, formatAmount, formatPerDay, inferDecimals, primeKeyedInstance, snapshotsForPrime, wholeAmount } from "./pauView.ts";
+import { exactAmount, instanceKeyIndex, labelOnChain, formatAmount, formatPerDay, inferDecimals, limitDecimals, primeKeyedInstance, snapshotsForPrime, unitNote, wholeAmount } from "./pauView.ts";
 
 const snap = (prime: string, chain: string, kind: "monolithic" | "diamond") =>
   ({ deployment: `${prime}:${chain}:${kind}`, prime, primeName: "P", chain, kind, contracts: [], fetchedAt: "" }) as StoredPauSnapshot;
@@ -18,6 +18,14 @@ describe("amounts", () => {
   it("reads a limit of at least 1e18 raw units as 18 decimals, anything smaller as 6", () => {
     expect(inferDecimals("25000000000000")).toBe(6); // 25M USDC
     expect(inferDecimals("1000000000000000000000000000")).toBe(18); // 1B USDS
+  });
+  it("takes a unit's decimals over the inferred ones, and says where they came from", () => {
+    const usdc = { decimals: 6, symbol: "USDC", token: "0xa0b8", source: "token" as const };
+    expect(limitDecimals(usdc, "1000000000000000000000000000")).toBe(6);
+    expect(limitDecimals(undefined, "25000000000000")).toBe(6);
+    expect(unitNote(usdc, "1")).toBe("6 decimals, read from USDC 0xa0b8");
+    expect(unitNote({ decimals: 18, symbol: null, source: "constant" }, "1")).toBe("18 decimals: the controller counts this limit in the pool's normalized value");
+    expect(unitNote(undefined, "25000000000000")).toBe("6 decimals, inferred from the limit's size");
   });
   it("formats compactly, with the max uint256 sentinel as unlimited", () => {
     expect(formatAmount("25000000000000", 6)).toBe("25M");

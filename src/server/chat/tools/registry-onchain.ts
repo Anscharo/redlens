@@ -8,12 +8,15 @@ export const ONCHAIN_TOOLS: AtlasTool[] = [
   {
     name: "atlas_onchain",
     whenToUse:
-      "The question is about what is set ON-CHAIN now — live or current rate limits, deposit/withdrawal/mint limits, how much is available, who holds a controller role, what a spell changed — for one agent or across all of them. Use this instead of reading an RPC or inferring from atlas text; the atlas says what should be set, this says what is.",
+      "The question is about what is set ON-CHAIN now — live or current rate limits, default/init rate limits, deposit/withdrawal/mint limits, how much is available, who holds a controller role, what a spell changed — for one agent or across all of them. Use this instead of reading an RPC or inferring from atlas text; the atlas says what should be set, this says what is.",
     annotations: readOnlyAtlasTool("On-chain State"),
     description:
       "Values read from the chain and stored by the atlas worker — today every Prime Agent PAU controller: each rate limit's " +
-      "maximum, refill per day and available amount (raw and scaled), each role holder (with whether hasRole confirms it) and " +
-      "AdministeredAgent member, and the transaction that last set each. Each fact names its entity, chain and contract, its " +
+      "maximum, refill per day and available amount (raw, and scaled by the decimals `decimals_source` names: `token` read from the " +
+      "token, `constant` fixed by the controller constant, `inferred` from the limit's size), each role holder (with whether hasRole " +
+      "confirms it) and AdministeredAgent member, and the transaction that last set each. Where BeamState manages a RateLimits, a " +
+      "`beam-state` fact says how far the Configurator may move its limits without a spell (hop, max change, the rule), and each " +
+      "`rate-limit-default` fact is a default (\"init\") rate limit it may set a key up to; none listed means none is set for any key the RateLimits holds. Each fact names its entity, chain and contract, its " +
       "name (`name_source`: `atlas` when an atlas RateLimitID param names the key, `atlas-address` when the atlas lists an " +
       "address there instead and this key is derived from it — one address can feed several keys, so say so — `derived` when " +
       "the controller constant that hashes to it does, null when none), and `set_at.url` to cite. `coverage` says per deployment when it was read " +
@@ -22,7 +25,7 @@ export const ONCHAIN_TOOLS: AtlasTool[] = [
     shape: {
       entity: z.string().optional().describe("Entity slug or name (e.g. 'osero', 'Grove'). Omit to search every entity."),
       chain: z.string().optional().describe("Chain (e.g. 'ethereum', 'base', 'arbitrum')."),
-      kind: z.enum(["rate-limit", "role", "member"]).optional().describe("Fact kind."),
+      kind: z.enum(["rate-limit", "rate-limit-default", "beam-state", "role", "member"]).optional().describe("Fact kind."),
       address: z.string().optional().describe("Only facts about this address: a PAU contract, a role holder, or an asset a key is derived from."),
       query: z.string().optional().describe("Words every fact must contain, matched against its name, constant and values (e.g. 'deposit', 'USDS mint', 'RELAYER')."),
       include_off: z.boolean().optional().describe("Include switched-off rate limits (maximum 0)."),

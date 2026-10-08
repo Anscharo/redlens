@@ -15,7 +15,7 @@ export interface PauEventRow {
   tx_hash: string;
 }
 
-const setAt = (e: PauEventRow): SetAt => ({ block: e.block, time: e.block_time, tx: e.tx_hash });
+export const setAt = (e: PauEventRow): SetAt => ({ block: e.block, time: e.block_time, tx: e.tx_hash });
 
 const ROLE_NAMES = new Map<string, string>([
   [`0x${"0".repeat(64)}`, "DEFAULT_ADMIN_ROLE"],

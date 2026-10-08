@@ -21,8 +21,8 @@ The PAU registry is the single source for which contracts count as a prime's PAU
 ## Model
 
 - One **deployment** per (prime entity UUID, chain, `monolithic | diamond`). Spark on Arbitrum has two, because its diamond shares the ALM proxy with a ForeignController that stays in service.
-- **Members** carry a role (`controller`, `almProxy`, `rateLimits`, `accessControls`, `administeredAgent`, `beacon`, `facet`, `freezer`, `relayer`) and provenance: `atlas` (with the doc UUID), `onchain` (what the contract itself says), `llm`, or `manual`, each with a `note`.
-- **`shared`** holds the contracts every diamond on a chain uses (Beacon, the facet set from the Allocation System primitive's "Liquidity Layer Shared Contracts").
+- **Members** carry a role (`controller`, `almProxy`, `rateLimits`, `accessControls`, `administeredAgent`, `beacon`, `facet`, `beamState`, `configurator`, `freezer`, `relayer`) and provenance: `atlas` (with the doc UUID), `onchain` (what the contract itself says), `llm`, or `manual`, each with a `note`.
+- **`shared`** holds the contracts every diamond on a chain uses (Beacon, the facet set from the Allocation System primitive's "Liquidity Layer Shared Contracts", and the BeamState and Configurator that let cBEAM change rate limits without a spell). A chain's BeamState is the one its Configurator's `beamState()` returns.
 - **`ignored`** holds atlas claims you rejected, each with a reason, so the queue stops proposing them. A rejected atlas claim is still an atlas error, and the reason is what the UI will cite, so write it as a fact a reader can check ("RateLimits revoked its CONTROLLER role on 2025-12-01").
 - Types and the validator: `src/lib/pauRegistry.ts`. Primes are keyed by entity UUID; `primeName` is for humans only.
 

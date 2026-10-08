@@ -37,6 +37,8 @@ export const EXPECTED_NAME: Record<PauRole, RegExp> = {
   administeredAgent: /^AdministeredAgent$/,
   beacon: /Beacon$/,
   facet: /Facet$/,
+  beamState: /^BeamState$/,
+  configurator: /^Configurator$/,
   freezer: /Safe/,
   relayer: /Safe/,
 };

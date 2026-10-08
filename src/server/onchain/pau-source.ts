@@ -1,33 +1,24 @@
 // PAU snapshots (src/server/pau/) as on-chain facts: one per rate-limit key, role
-// holder and AdministeredAgent member of every deployment the worker stored.
-import { explorerTxUrl } from "../../lib/explorer.ts";
-import type { ContractState, DerivedKey, LiveRateLimit, StoredPauSnapshot } from "../../lib/pau.ts";
-import { exactAmount, inferDecimals, labelOnChain, wholeAmount } from "../../lib/pauView.ts";
+// holder and AdministeredAgent member of every deployment the worker stored, and
+// what BeamState lets the Configurator do to each RateLimits it manages.
+import type { ContractState, LiveRateLimit, StoredPauSnapshot } from "../../lib/pau.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { readPauState } from "../pau/store.ts";
 import type { Coverage, OnchainFact, OnchainSource } from "./facts.ts";
 import { primeAtlasRefs, type PrimeAtlasRefs } from "./pau-atlas-refs.ts";
+import { beamFacts } from "./pau-beam-facts.ts";
+import { amount, keyMatch, keyName, perDay, scaleOf, setAt, type Base } from "./pau-fact-parts.ts";
 
-type Base = Omit<OnchainFact, "kind" | "name" | "name_source" | "atlas_doc_id" | "values" | "summary" | "set_at" | "match">;
-const setAt = (chain: string, s: { time: string; tx: string }) => ({ time: s.time, tx: s.tx, url: explorerTxUrl(chain, s.tx) });
-const amount = (raw: string, dec: number) => ({ raw, amount: exactAmount(raw, dec) });
-const derivedName = (d: DerivedKey) => [d.constant, ...d.args].join(" · ");
-const perDay = (slope: string, dec: number) => {
-  const raw = (BigInt(slope) * 86_400n).toString();
-  return { raw, amount: wholeAmount(raw, dec) };
-};
-
-/** A key's on-chain values, scaled by the decimals its maximum implies. */
+/** A key's on-chain values, scaled by its token's decimals (or the ones its maximum implies). */
 function rateLimitValues(r: LiveRateLimit) {
   const max = r.data?.maxAmount ?? r.configured.maxAmount;
-  const dec = inferDecimals(max);
+  const scale = scaleOf(r.unit, max);
   return {
     key: r.key,
-    maximum: amount(max, dec),
-    refill_per_day: perDay(r.data?.slope ?? r.configured.slope, dec),
-    available: r.available === null ? null : amount(r.available, dec),
-    decimals: dec,
-    decimals_inferred: true,
+    maximum: amount(max, scale.decimals),
+    refill_per_day: perDay(r.data?.slope ?? r.configured.slope, scale.decimals),
+    available: r.available === null ? null : amount(r.available, scale.decimals),
+    ...scale,
     switched_off: max === "0",
     ...(r.derived ? { derivation: r.derived } : {}),
     times_set: r.changes,
@@ -36,20 +27,16 @@ function rateLimitValues(r: LiveRateLimit) {
 
 function rateLimitFact(base: Base, r: LiveRateLimit, refs: PrimeAtlasRefs): OnchainFact {
   const key = r.key.toLowerCase();
-  const ref = refs.labels.get(key)?.[0];
-  const values = { ...rateLimitValues(r), ...(ref?.via ? { listed_address: ref.via } : {}) };
-  const constantDocs = r.derived && r.derived.args.length === 0 ? (refs.constantDocs.get(r.derived.constant) ?? []) : [];
-  const argAddresses = r.derived?.args.filter((a) => a.startsWith("0x")) ?? [];
+  const { listed, ...named } = keyName(refs, base.chain, key, r.derived);
+  const values = { ...rateLimitValues(r), ...(listed ? { listed_address: listed } : {}) };
   return {
     ...base,
     kind: "rate-limit",
-    name: ref ? labelOnChain(ref.label, base.chain) : r.derived ? derivedName(r.derived) : null,
-    name_source: ref ? (ref.via ? "atlas-address" : "atlas") : r.derived ? "derived" : null,
-    atlas_doc_id: ref?.docId ?? null,
+    ...named,
     values,
-    summary: { key: r.key, maximum: values.maximum.amount, refill_per_day: values.refill_per_day.amount, available: values.available?.amount ?? null },
+    summary: { key: r.key, maximum: values.maximum.amount, refill_per_day: values.refill_per_day.amount, available: values.available?.amount ?? null, ...(values.unit ? { unit: values.unit } : {}) },
     set_at: setAt(base.chain, r.setAt),
-    match: { hashes: [key], addresses: [base.contract, ...argAddresses], docs: [...(refs.docs.get(key) ?? []), ...constantDocs] },
+    match: keyMatch(refs, key, [base.contract], r.derived),
   };
 }
 
@@ -76,7 +63,7 @@ export function snapshotFacts(s: StoredPauSnapshot, refs: PrimeAtlasRefs): Oncha
       source: "pau", chain: s.chain, entity: s.primeName, entity_id: s.prime,
       contract: c.address, read_at: s.fetchedAt, history_complete: c.historyComplete,
     };
-    return [...(c.rateLimits ?? []).map((r) => rateLimitFact(base, r, refs)), ...holderFacts(base, c)];
+    return [...(c.rateLimits ?? []).map((r) => rateLimitFact(base, r, refs)), ...(c.beam ? beamFacts(base, c.beam, refs) : []), ...holderFacts(base, c)];
   });
 }
 
@@ -88,7 +75,7 @@ const coverageOf = (s: StoredPauSnapshot): Coverage => ({
 export const pauSource: OnchainSource = {
   id: "pau",
   describe:
-    "Prime Agent PAU controllers (src/data/pau-registry.json): every rate limit's live maximum, refill per day and available amount, and every role holder and AdministeredAgent member, read from the chain by the atlas worker.",
+    "Prime Agent PAU controllers (src/data/pau-registry.json): every rate limit's live maximum, refill per day and available amount in its token's units, every role holder and AdministeredAgent member, and what BeamState lets the Configurator set without a spell (its default rate limits and step limits), read from the chain by the atlas worker.",
   async read(ix: Indexes) {
     const snaps = await readPauState();
     const refs = new Map<string, PrimeAtlasRefs>();

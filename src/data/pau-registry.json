@@ -263,6 +263,64 @@
               "doc": "304c403a-ca08-4f49-a2f8-34c3c8a793db"
             }
           ]
+        },
+        {
+          "role": "beamState",
+          "address": "0x1a1879e66547f90bff87d45a5b0335950e019e02",
+          "label": "BeamState",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "2e36bb4f-91db-4dca-bdb1-e4aa385b1129"
+            },
+            {
+              "source": "onchain",
+              "note": "Configurator.beamState()"
+            }
+          ]
+        },
+        {
+          "role": "configurator",
+          "address": "0xb7e61df6cab0a51e9a5dab1a7dd3f942dde5b929",
+          "label": "Configurator",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "5e1f82c7-bcd6-46f8-aec0-3e767e55a93c"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "chain": "arbitrum",
+      "members": [
+        {
+          "role": "beamState",
+          "address": "0x11cfefea67b18de9046a6250555d438854ffeeda",
+          "label": "BeamState",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "Configurator.beamState() on Arbitrum; the atlas lists no Arbitrum BeamState"
+            }
+          ]
+        },
+        {
+          "role": "configurator",
+          "address": "0xd11dc57f3ef23bb7b3142588a461f68460a7c474",
+          "label": "Configurator",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "cf2088f4-c708-4b07-96f1-c040659a2ac7",
+              "note": "listed as Spark's Arbitrum DEFAULT_ADMIN_ROLE holder"
+            },
+            {
+              "source": "onchain",
+              "note": "verified Configurator; its beamState() is the Arbitrum BeamState"
+            }
+          ]
         }
       ]
     }

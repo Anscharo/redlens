@@ -21,6 +21,8 @@ export const PAU_ROLES = [
   "administeredAgent",
   "beacon",
   "facet",
+  "beamState",
+  "configurator",
   "freezer",
   "relayer",
 ] as const;
@@ -69,7 +71,7 @@ export interface PauIgnored {
 
 export interface PauRegistry {
   $comment?: string;
-  /** Contracts shared by every diamond PAU (Beacon, facets), one entry per chain. */
+  /** Contracts shared by every diamond PAU (Beacon, facets, BeamState, Configurator), one entry per chain. */
   shared: { chain: string; members: PauMember[] }[];
   deployments: PauDeployment[];
   ignored: PauIgnored[];

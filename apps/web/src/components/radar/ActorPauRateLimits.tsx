@@ -2,7 +2,8 @@ import { AtlasLink } from "../AtlasLink";
 import { Address } from "../Address";
 import { atlasHref } from "@/lib/routes";
 import { explorerTxUrl } from "@/lib/explorer";
-import { formatAmount, formatPerDay, inferDecimals, labelOnChain, type AtlasKeyRef, type DerivedKey, type LiveRateLimit } from "../../lib/pau";
+import { PauAmount } from "./PauAmount";
+import { formatAmount, formatPerDay, labelOnChain, limitDecimals, unitNote, type AtlasKeyRef, type DerivedKey, type LiveRateLimit } from "../../lib/pau";
 
 interface Props {
   chain: string;
@@ -38,7 +39,8 @@ function DerivedName({ k, d, chain }: { k: string; d: DerivedKey; chain: string 
   );
 }
 
-function LimitName({ r, chain, keyIndex }: { r: LiveRateLimit; chain: string; keyIndex: Map<string, AtlasKeyRef[]> }) {
+/** A key's name: the atlas param that states it, else its derivation, else a note that nothing names it. */
+export function LimitName({ r, chain, keyIndex }: { r: { key: string; derived?: DerivedKey }; chain: string; keyIndex: Map<string, AtlasKeyRef[]> }) {
   const refs = keyIndex.get(r.key.toLowerCase()) ?? [];
   const ref = refs[0];
   if (!ref && r.derived) return <DerivedName k={r.key} d={r.derived} chain={chain} />;
@@ -62,12 +64,12 @@ function LimitName({ r, chain, keyIndex }: { r: LiveRateLimit; chain: string; ke
 
 function LimitRow({ r, chain, keyIndex }: { r: LiveRateLimit; chain: string; keyIndex: Map<string, AtlasKeyRef[]> }) {
   const max = r.data?.maxAmount ?? r.configured.maxAmount;
-  const dec = inferDecimals(max);
-  const scale = `${dec} decimals, inferred from the limit's size`;
+  const dec = limitDecimals(r.unit, max);
+  const scale = unitNote(r.unit, max);
   return (
     <tr className="border-t border-[var(--border)] mono" data-off={isOff(r) || undefined} style={{ color: isOff(r) ? "var(--tan-3)" : "var(--tan-2)" }}>
       <td className="py-0.5 pr-3"><LimitName r={r} chain={chain} keyIndex={keyIndex} /></td>
-      <td className="py-0.5 text-right" title={scale}>{isOff(r) ? "off" : formatAmount(max, dec)}</td>
+      <td className="py-0.5 text-right" title={scale}>{isOff(r) ? "off" : <PauAmount raw={max} dec={dec} symbol={r.unit?.symbol} />}</td>
       <td className="py-0.5 text-right" title={scale}>{formatPerDay(r.data?.slope ?? r.configured.slope, dec)}</td>
       <td className="py-0.5 text-right" title={scale}>{r.available === null ? "?" : formatAmount(r.available, dec)}</td>
       <td className="py-0.5 text-right">

@@ -53,6 +53,8 @@ const ROLE_RULES: [RegExp, PauRole][] = [
   [/\bAccessControls\b/i, "accessControls"],
   [/\bAdministeredAgent\b/i, "administeredAgent"],
   [/\bBeacon\b/i, "beacon"],
+  [/\bBeamState\b/i, "beamState"],
+  [/^Configurator$/i, "configurator"],
   [/\bRate ?Limits\b/i, "rateLimits"],
   [/\bALM Proxy\b/i, "almProxy"],
   [/\bController\b(?!['’]s)/i, "controller"],
