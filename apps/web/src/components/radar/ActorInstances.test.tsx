@@ -232,3 +232,20 @@ describe("ActorInstances link targets", () => {
     expect(container.querySelectorAll("#dr-active")).toHaveLength(1);
   });
 });
+
+describe("ActorInstances layout", () => {
+  it("gives a one-instance primitive one grid cell and spans a many-instance one across the row", () => {
+    const { container } = render(
+      <ActorInstances
+        primitives={[
+          prim({ st: "fee", title: "Upkeep Fee", instances: [inst()] }),
+          prim({ st: "rebate", title: "Upkeep Rebate", instances: [inst()] }),
+          prim({ st: "dr", title: "Distribution Reward", instances: [inst(), inst()] }),
+        ]}
+      />,
+    );
+    const grid = container.querySelector("#instances .radar-prim-grid")!;
+    const cells = [...grid.children].map((c) => [c.id, c.getAttribute("data-span")]);
+    expect(cells).toEqual([["fee", null], ["rebate", null], ["dr", "row"]]);
+  });
+});

@@ -98,11 +98,17 @@ function ActorItemsSection({ groups, pick, anchorPrefix }: SectionProps) {
               <span className="mono text-[11px] uppercase tracking-wider" style={{ color: "var(--tan-3)" }}>{cat.category}</span>
             )}
           </div>
-          <div className="space-y-4 pl-3" style={{ borderLeft: "1px solid var(--border)" }}>
+          <div className="radar-prim-grid pl-3" style={{ borderLeft: "1px solid var(--border)" }}>
             {cat.primitives.map((prim) => {
               const items = pick(prim);
               return (
-                <div key={prim.st} id={primId(prim)} style={{ scrollMarginTop: HEADER_OFFSET }}>
+                <div
+                  key={prim.st}
+                  id={primId(prim)}
+                  data-span={items.length > 1 ? "row" : undefined}
+                  className="min-w-0"
+                  style={{ scrollMarginTop: HEADER_OFFSET }}
+                >
                   <div className="flex items-baseline gap-2 mb-2 flex-wrap">
                     {prim.docId ? (
                       <AtlasLink to={atlasHref(prim.docId)} className="mono text-[11px] hover:underline" style={{ color: "var(--accent)" }}>

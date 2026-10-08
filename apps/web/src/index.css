@@ -2871,6 +2871,21 @@ a.atlas-annotates:focus-visible {
   cursor: pointer;
 }
 
+/* A category's primitives on a Radar actor page: a grid of columns at least
+   520px wide. A primitive with one instance takes one cell, so neighbours sit
+   side by side; one with several spans the row and splits its cards across
+   the same columns (equal column-gap keeps the two aligned). Primitives keep
+   their canonical order, so a lone one after a spanning row may leave a gap. */
+.radar-prim-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(520px, 100%), 1fr));
+  gap: 1rem 0.75rem;
+  align-items: start;
+}
+.radar-prim-grid > [data-span="row"] {
+  grid-column: 1 / -1;
+}
+
 /* Target of a Radar search link: a short accent outline that fades out. */
 [data-arrived] {
   animation: radar-arrived 1.6s ease-out;
