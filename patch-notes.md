@@ -33,9 +33,12 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-10-07
+## 2026-10-08
 
 - Added a PAU on-chain section to each Prime Agent's Radar page, showing its controller roles and rate limits as read from the chain
+
+## 2026-10-07
+
 - Renamed the app to Redline Portal across the home page, browser tab titles, link previews and the installable app, and renamed the chat to Redline Portal Chat
 - Fixed chat answers whose source list was written in an unexpected format, which left their citations without links
 - Made chat read a whole pull request at once when reviewing it, instead of a page at a time
