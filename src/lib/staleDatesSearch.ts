@@ -18,7 +18,7 @@ export const monthLabel = (iso: string): string => {
 
 // Header-box text filter: date (ISO + the raw atlas text + a derived
 // month-name form), doc title/number, snippet prose, the "handoff" badge
-// word for transition rows, and the vote-evidence line ("subject missing").
+// word for transition rows, and the vote-evidence line ("not included").
 export const staleSearchFields = (c: DateClaim): SearchField[] => [
   { label: "date", value: c.dateISO },
   { label: "month", value: monthLabel(c.dateISO), hidden: true },

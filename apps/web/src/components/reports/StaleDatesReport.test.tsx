@@ -125,7 +125,7 @@ describe("StaleDatesReport", () => {
     expect(await screen.findByRole("heading", { name: "Recorded votes (1)" })).toBeInTheDocument();
     // Past tense: a passed date reads as "ago", never "overdue".
     expect(screen.getByText("(195d ago)")).toBeInTheDocument();
-    expect(screen.getByText("subject missing")).toBeInTheDocument();
+    expect(screen.getByText("not included")).toBeInTheDocument();
     expect(screen.getByText(/not in that Executive Vote/)).toHaveTextContent("not in that Executive Vote: osero");
     const link = screen.getByRole("link", { name: "Executive Vote 2026-03-26 (+0d)" });
     expect(link).toHaveAttribute("href", "https://vote.sky.money/executive/x");
@@ -137,8 +137,8 @@ describe("StaleDatesReport", () => {
     const judged = judgeSubject(recordedClaim.voteEvidence!, true, { model: "typesafe/jev-1.13", anchor: 0.05, carried: 0.9 });
     overlay = { atlasSha: "abc", computedAt: "2026-10-07T12:00:00.000Z", claims: { [claimKey(recordedClaim)]: judged } };
     render(<StaleDatesReport query="" mode="broad" />);
-    expect(await screen.findByText("enacted")).toBeInTheDocument();
-    expect(screen.getByText("via AI")).toHaveAttribute("title", expect.stringContaining("The heuristic alone said: subject missing."));
+    expect(await screen.findByText("executed")).toBeInTheDocument();
+    expect(screen.getByText("via AI")).toHaveAttribute("title", expect.stringContaining("The heuristic alone said: not included."));
     expect(screen.queryByText(/rules said/)).toBeNull();
     expect(screen.queryByText(/not in that Executive Vote/)).toBeNull();
     expect(screen.getByText(/AI judgments as of 2026-10-07/)).toBeInTheDocument();
@@ -151,7 +151,7 @@ describe("StaleDatesReport", () => {
   });
 
   it("filters by vote evidence", async () => {
-    render(<StaleDatesReport query="subject missing" mode="broad" />);
+    render(<StaleDatesReport query="not included" mode="broad" />);
     expect(await screen.findByTitle("Osero Transfer")).toBeInTheDocument();
     expect(screen.queryByTitle("Future Milestone")).not.toBeInTheDocument();
   });

@@ -29,7 +29,7 @@ describe("staleSearchFields vote evidence", () => {
     const vote = { kind: "executive" as const, title: "T", date: "2026-03-26", url: "u", offsetDays: 0 };
     const withEvidence = claim({ voteEvidence: { status: "subject-missing", via: "date", vote, subject: { found: [], missing: ["osero"] } } });
     const field = (c: DateClaim) => staleSearchFields(c).find((f) => f.label === "vote")?.value;
-    expect(field(withEvidence)).toBe("subject missing · Executive Vote 2026-03-26 (+0d) · via date · missing: osero");
+    expect(field(withEvidence)).toBe("not included · Executive Vote 2026-03-26 (+0d) · via date · missing: osero");
     expect(field(claim({}))).toBe("");
   });
 });

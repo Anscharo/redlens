@@ -6,14 +6,17 @@ import type { VoteEvidence, VoteEvidenceStatus, VoteMatch } from "./evidence";
 /** How a vote's kind reads to a user: the atlas's own term, never shortened to "executive". */
 export const VOTE_KIND: Record<VoteMatch["kind"], string> = { executive: "Executive Vote", poll: "poll" };
 
+// In the atlas's own terms: an Executive Vote "includes" changes and is
+// "executed" (A.1.11.1.3.0.3.3, A.1.10.2.1.4); its Spell executes them
+// (A.1.11.1.2.2); a Governance Poll pre-approves them.
 export const EVIDENCE_LABEL: Record<VoteEvidenceStatus, string> = {
-  enacted: "enacted",
-  "vote-on-date": "vote on date",
-  pending: "vote pending",
-  "subject-missing": "subject missing",
-  "no-vote": "no vote found",
+  enacted: "executed",
+  "vote-on-date": "Executive Vote on date",
+  pending: "not yet executed",
+  "subject-missing": "not included",
+  "no-vote": "no Executive Vote on date",
   "not-covered": "outside vote record",
-  authorised: "authorised by poll",
+  authorised: "approved by poll",
   unlinked: "no linked vote",
 };
 

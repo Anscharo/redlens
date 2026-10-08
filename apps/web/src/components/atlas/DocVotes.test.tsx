@@ -41,7 +41,7 @@ describe("DocVotes", () => {
     expect(link).toHaveAttribute("href", "https://vote.sky.money/executive/k");
     expect(screen.getByText("Genesis Funding")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "spell 0x24fd…78D3" })).toHaveAttribute("href", expect.stringContaining("/address/0x24fdcd3bFA5C2553e05B2f9AD0365EBC296278D3"));
-    expect(screen.getByText("subject missing · via date")).toHaveAttribute("title", expect.stringContaining("never mentions"));
+    expect(screen.getByText("not included · via date")).toHaveAttribute("title", expect.stringContaining("never mentions"));
   });
 
   it("says when nothing links or dates the document, and when the record is missing", async () => {

@@ -504,7 +504,7 @@ the most polls with no false match among the claims that need none. A Jev verdic
 `judged: { model, p, rule }`, where `rule` is what the heuristic alone said. Every matched vote
 carries one tag naming how it was matched: "via date", "via link", "via history" or "via AI" (the
 model decided the status, whether it confirmed or overruled the heuristic). The hover gives the
-model, its p and, where it overruled, what the heuristic said. Osero reads "enacted": the heuristic
+model, its p and, where it overruled, what the heuristic said. Osero reads "executed": the heuristic
 finds it through its address (§12), and Jev's judgment, where it runs, tags it "via AI".
 
 **The run.**
@@ -581,4 +581,22 @@ by portal slug or poll id). It claims only the citation: a weekly Atlas Edit pol
 edits, and the executive may carry out a different one, which is why the votes panel does not list
 executives through this route (§11). Of the 51 approved pull requests, 31 show at least one citing
 executive today, and no poll has more than two.
+
+## 14. Labels in the atlas's own terms
+
+Each status keeps its id; only its words changed, to the vocabulary the atlas uses for the Executive
+Vote lifecycle. An Executive Vote "includes" polled changes (A.1.11.1.3.0.3.3 · `830b65d8`) and is
+"executed" (A.1.10.2.1.4 · `c0aea3f8`); its Spell is the contract that executes them (A.1.11.1.2.2 ·
+`8bde129a`). The words live in `EVIDENCE_LABEL` (`src/lib/votes/labels.ts`).
+
+| Status id | Label |
+|---|---|
+| `enacted` | executed |
+| `vote-on-date` | Executive Vote on date |
+| `pending` | not yet executed |
+| `subject-missing` | not included |
+| `no-vote` | no Executive Vote on date |
+| `not-covered` | outside vote record |
+| `authorised` | approved by poll |
+| `unlinked` | no linked vote |
 
