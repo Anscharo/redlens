@@ -100,7 +100,7 @@ export function ActorDashboard({ profile }: Props) {
           {/* A Prime's instances, history and PAUs are subpages (radarPages.ts). */}
           {!split && primitives.length > 0 && (
             <Section title="Primitives" id={RADAR_SECTION.primitives}>
-              <ActorInstances primitives={primitives} />
+              <ActorInstances primitives={primitives} level={3} />
             </Section>
           )}
           {!split && <ActorConnections profile={profile} />}

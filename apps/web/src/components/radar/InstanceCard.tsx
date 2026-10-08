@@ -8,6 +8,7 @@ import { instanceAnchor } from "@/lib/radarAnchors";
 import { useAddressMap } from "../../hooks/useAddressMap";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { StatusPill } from "../reports/RewardsCells";
+import { RadarHeading } from "./RadarHeading";
 
 const PARAM_FONT = '10px "Source Code Pro", monospace';
 const MIN_DOTS_PX = 30;
@@ -17,7 +18,8 @@ function measureKeyPx(key: string): number {
   catch { return key.length * 6; }
 }
 
-export function InstanceCard({ inst }: { inst: RadarInstance }) {
+/** One instance's card. `headingLevel` ranks its name in the page outline. */
+export function InstanceCard({ inst, headingLevel = 4 }: { inst: RadarInstance; headingLevel?: number }) {
   // Loaded here rather than drilled from ActorInstances: loadAddresses() is
   // module-cached, so every card resolves from the one in-flight request.
   const addrMap = useAddressMap();
@@ -33,13 +35,15 @@ export function InstanceCard({ inst }: { inst: RadarInstance }) {
       style={{ background: "var(--bg-deep)", border: "1px solid var(--border)", maxWidth: "600px", scrollMarginTop: HEADER_OFFSET }}
     >
       <div className="flex items-center gap-2 flex-wrap mb-2">
-        {inst.docId ? (
-          <AtlasLink to={atlasHref(inst.docId)} className="text-sm hover:underline" style={{ color: "var(--tan)" }}>
-            {inst.displayName}
-          </AtlasLink>
-        ) : (
-          <span className="text-sm" style={{ color: "var(--tan)" }}>{inst.displayName}</span>
-        )}
+        <RadarHeading level={headingLevel}>
+          {inst.docId ? (
+            <AtlasLink to={atlasHref(inst.docId)} className="text-sm hover:underline" style={{ color: "var(--tan)" }}>
+              {inst.displayName}
+            </AtlasLink>
+          ) : (
+            <span className="text-sm" style={{ color: "var(--tan)" }}>{inst.displayName}</span>
+          )}
+        </RadarHeading>
         {inst.status && <StatusPill s={inst.status} />}
       </div>
       {inst.signalParams.length > 0 && (

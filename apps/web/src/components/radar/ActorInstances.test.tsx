@@ -72,10 +72,27 @@ describe("ActorInstances sections", () => {
     expect(screen.getByText("An Invocation")).toBeInTheDocument();
   });
 
-  it("omits the Invocations section when there are no invocations", () => {
-    render(<ActorInstances primitives={[prim({ instances: [inst()] })]} />);
+  it("with no invocations, drops both section headings and lets the categories head the list", () => {
+    render(<ActorInstances primitives={[prim({ instances: [inst({ displayName: "Solo" })] })]} />);
     expect(screen.queryByRole("heading", { name: "Invocations" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Instances" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /^Instances/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Genesis Primitives" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Distribution Reward" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 4, name: "Solo" })).toBeInTheDocument();
+  });
+
+  it("with invocations, heads each section at the list's rank and sits everything under it one lower", () => {
+    const primitives = [prim({ instances: [inst({ displayName: "Inst" })], invocations: [inst({ displayName: "Inv" })] })];
+    render(<ActorInstances primitives={primitives} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Instances" })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { level: 3, name: "Genesis Primitives" })).toHaveLength(2);
+    expect(screen.getByRole("heading", { level: 5, name: "Inst" })).toBeInTheDocument();
+  });
+
+  it("starts a rank lower when nested under a section heading", () => {
+    render(<ActorInstances primitives={[prim({ instances: [inst({ displayName: "Solo" })] })]} level={3} />);
+    expect(screen.getByRole("heading", { level: 3, name: "Genesis Primitives" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 5, name: "Solo" })).toBeInTheDocument();
   });
 
   it("shows an 'unknown' badge and renders a title without a doc link", () => {
@@ -217,7 +234,7 @@ describe("ActorInstances parameter value rendering", () => {
 
   it("renders instance status pills", () => {
     render(<ActorInstances primitives={[prim({ instances: [inst({ status: "Suspended" })] })]} />);
-    const section = screen.getByRole("heading", { name: "Instances" }).closest("section")!;
+    const section = screen.getByRole("region", { name: "Instances" });
     expect(within(section).getByText("Suspended")).toBeInTheDocument();
   });
 });
