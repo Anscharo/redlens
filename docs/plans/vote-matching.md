@@ -474,7 +474,10 @@ The history arm's 14 of 14 is partly circular: the labeller found its polls by t
 labeller then read each poll's bullet to confirm the match, and three were re-checked by hand. In
 production the key runs on the atlas worker's full clone (§11): `atlas_history` stores each commit's
 pull request number per document, but not the commit that first wrote a given sentence, which is
-what the pickaxe search finds.
+what the pickaxe search finds. The lane refuses a shallow clone however deep it is, because its
+boundary commit would read as the first writer of every older sentence. Each search runs as an
+async `git` call (argv, no shell) under a 30-second timeout. A find is cached for good, and a miss is
+cached against the checkout's HEAD.
 
 **Next fixes suggested by the gold** (both shipped: the address fallback in §12, K3 in the worker in §11):
 - **Recognise renamed agents.** Match a claim's agent through the addresses its document gives (§12).

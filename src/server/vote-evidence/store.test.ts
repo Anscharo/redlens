@@ -1,5 +1,5 @@
 // Vote-evidence storage, the public read, and the worker lane's gate and caches
-// (sync-vote-evidence.ts). The storage functions take their `sql` tag as a
+// (sync-vote-evidence.ts, caches.ts). The storage functions take their `sql` tag as a
 // parameter, so most tests pass an in-memory fake; handleVoteEvidence() reaches
 // for the shared `sql`, which is why db.ts gets the module mock.
 import { beforeEach, describe, expect, it, mock } from "bun:test";
@@ -34,7 +34,8 @@ mock.module("../db.ts", () => ({
 }));
 
 const { cacheGet, cachePut, currentVoteEvidence, handleVoteEvidence, readVoteEvidence, writeVoteEvidence } = await import("./store.ts");
-const { cachedFirstPr, cachedJudge, dueReason, laneSettings } = await import("../sync-vote-evidence.ts");
+const { cachedFirstPr, cachedJudge } = await import("./caches.ts");
+const { dueReason, laneSettings } = await import("../sync-vote-evidence.ts");
 
 const NOW = Date.UTC(2026, 9, 7, 12);
 const claims = { "d@2026-03-26#00000000": { status: "enacted", via: "date", vote: null, subject: null } };
@@ -99,6 +100,11 @@ describe("the worker lane's gate", () => {
     expect(laneSettings({})).toEqual({ model: "typesafe/jev-1.13", perCycle: 80, refreshSeconds: 3600 });
     expect(laneSettings({ VOTE_EVIDENCE_MODEL: "", VOTE_EVIDENCE_PER_CYCLE: "0", VOTE_EVIDENCE_REFRESH_SECONDS: "60" })).toEqual({ model: "", perCycle: 0, refreshSeconds: 60 });
   });
+
+  it("falls back to the default for a setting that is not a non-negative number", () => {
+    expect(laneSettings({ VOTE_EVIDENCE_PER_CYCLE: "abc", VOTE_EVIDENCE_REFRESH_SECONDS: "-5" })).toMatchObject({ perCycle: 80, refreshSeconds: 3600 });
+    expect(laneSettings({ VOTE_EVIDENCE_PER_CYCLE: " ", VOTE_EVIDENCE_REFRESH_SECONDS: "Infinity" })).toMatchObject({ perCycle: 80, refreshSeconds: 3600 });
+  });
 });
 
 describe("the worker lane's caches", () => {
@@ -126,15 +132,24 @@ describe("the worker lane's caches", () => {
     expect(cache.size).toBe(1);
   });
 
-  it("caches a found pull request but looks a miss up again", async () => {
-    const lookup = mock((needle: string) => (needle === "found" ? 12 : null));
-    const firstPr = cachedFirstPr(fakeSql, "/atlas", lookup, true);
+  it("caches a find for good and a miss per checkout head, and retries a failed search", async () => {
+    const lookup = mock(async (needle: string) => {
+      if (needle === "broken") throw new Error("git timed out");
+      return needle === "found" ? 12 : null;
+    });
+    const firstPr = cachedFirstPr(fakeSql, "/atlas", lookup, Promise.resolve("head-a"));
     expect(await firstPr("found")).toBe(12);
     expect(await firstPr("found")).toBe(12);
     expect(await firstPr("missing")).toBeNull();
     expect(await firstPr("missing")).toBeNull();
-    expect(lookup.mock.calls.map((c) => c[0])).toEqual(["found", "missing", "missing"]);
-    // A checkout with no history (here, no repository at all) matches nothing.
-    expect(await cachedFirstPr(fakeSql, "/nonexistent-dir", lookup)("found")).toBeNull();
+    expect(await firstPr("broken")).toBeNull();
+    expect(await firstPr("broken")).toBeNull();
+    expect(lookup.mock.calls.map((c) => c[0])).toEqual(["found", "missing", "broken", "broken"]);
+    // A newer checkout may hold the words, so it searches for the miss again.
+    expect(await cachedFirstPr(fakeSql, "/atlas", lookup, Promise.resolve("head-b"))("missing")).toBeNull();
+    expect(lookup.mock.calls.at(-1)?.[0]).toBe("missing");
+    // A checkout with no full history matches nothing and searches nothing.
+    expect(await cachedFirstPr(fakeSql, "/atlas", lookup, Promise.resolve(null))("found")).toBeNull();
+    expect(lookup).toHaveBeenCalledTimes(5);
   });
 });

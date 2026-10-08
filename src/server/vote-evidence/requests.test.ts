@@ -1,9 +1,13 @@
 // The pure parts of the vote-evidence lane: the questions a decision model is
 // asked, the poll prefilter, and the atlas-history key.
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "bun:test";
 
 import type { Executive, Poll } from "../../lib/votes/types.ts";
-import { firstPr, hasHistory, pickaxeNeedle, pollForPr, pollsLinkingPr, prOfSubject } from "./history.ts";
+import { firstPr, historyHead, pickaxeNeedle, pollForPr, pollsLinkingPr, prOfSubject } from "./history.ts";
 import { rankLexically } from "./lexical.ts";
 import { claimSentence, documentText, pollCandidates, pollQuestions, pollState, SUBJECT_QUESTIONS, subjectState } from "./requests.ts";
 
@@ -96,8 +100,30 @@ describe("atlas history key", () => {
     expect(pollForPr(7, bodies)).toBeNull();
   });
 
-  it("reports no history for a directory that is not a repository, and fails loud on a search there", () => {
-    expect(hasHistory("/nonexistent-dir")).toBe(false);
-    expect(() => firstPr("x", "/nonexistent-dir")).toThrow();
+  it("reports no history for a directory that is not a repository, and fails loud on a search there", async () => {
+    expect(await historyHead("/nonexistent-dir")).toBeNull();
+    await expect(firstPr("x", "/nonexistent-dir")).rejects.toThrow();
+  });
+
+  it("refuses a shallow clone however deep, and finds the first writer in a full one", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "vote-history-"));
+    const full = path.join(root, "full");
+    const sh = (args: string[], cwd = full) => execFileSync("git", ["-c", "commit.gpgsign=false", ...args], { cwd, stdio: "ignore" });
+    fs.mkdirSync(full);
+    sh(["init", "-q"]);
+    sh(["config", "user.email", "t@t"]);
+    sh(["config", "user.name", "t"]);
+    fs.writeFileSync(path.join(full, "a.md"), "-begins May 1, 2026\n");
+    sh(["add", "."]);
+    sh(["commit", "-qm", "Atlas edit (#7)"]);
+    fs.writeFileSync(path.join(full, "b.md"), "other\n");
+    sh(["add", "."]);
+    sh(["commit", "-qm", "Later edit (#8)"]);
+    sh(["clone", "-q", "--depth", "1", `file://${full}`, "shallow"], root);
+    expect(await historyHead(full, 2)).toMatch(/^[0-9a-f]{40}$/);
+    expect(await historyHead(full, 3)).toBeNull();
+    expect(await historyHead(path.join(root, "shallow"), 1)).toBeNull();
+    expect(await firstPr("-begins May 1, 2026", full)).toBe(7);
+    fs.rmSync(root, { recursive: true, force: true });
   });
 });

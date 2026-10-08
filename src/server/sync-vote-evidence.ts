@@ -10,19 +10,17 @@
 //   4. write    the vote_evidence row GET /api/vote-evidence serves
 //
 //   bun src/server/sync-vote-evidence.ts
-import crypto from "node:crypto";
 import { resolve } from "node:path";
 import { sql } from "./db.ts";
 import { config } from "./config.ts";
 import { runMigrations } from "./migrate.ts";
-import { askJev, noulOf, type JevQuestion } from "./jev.ts";
 import { JEV } from "./env/chat.ts";
 import { shutdownPosthog } from "./posthog-node.ts";
 import { docRowToNode, loadDocMetaSnapshot } from "./retrieval/indexes.ts";
 import type { SqlTag } from "./sql-types.ts";
-import { computeOverlay, type ComputeInput, type Judge } from "./vote-evidence/compute.ts";
-import { firstPr, hasHistory } from "./vote-evidence/history.ts";
-import { cacheGet, cachePut, readVoteEvidence, writeVoteEvidence } from "./vote-evidence/store.ts";
+import { cachedFirstPr, cachedJudge } from "./vote-evidence/caches.ts";
+import { computeOverlay, type ComputeInput } from "./vote-evidence/compute.ts";
+import { readVoteEvidence, writeVoteEvidence } from "./vote-evidence/store.ts";
 import { readVoteRecord } from "../../scripts/lib/votes/record.ts";
 
 // One run at a time across callers. Arbitrary fixed key; it only has to differ
@@ -47,12 +45,19 @@ const ATLAS_DIR = resolve(import.meta.dir, "../..", process.env.ATLAS_SRC_DIR ??
 export function laneSettings(env: NodeJS.ProcessEnv = process.env) {
   return {
     model: env.VOTE_EVIDENCE_MODEL ?? JEV,
-    perCycle: Number(env.VOTE_EVIDENCE_PER_CYCLE ?? 80),
-    refreshSeconds: Number(env.VOTE_EVIDENCE_REFRESH_SECONDS ?? 3600),
+    perCycle: count("VOTE_EVIDENCE_PER_CYCLE", env.VOTE_EVIDENCE_PER_CYCLE, 80),
+    refreshSeconds: count("VOTE_EVIDENCE_REFRESH_SECONDS", env.VOTE_EVIDENCE_REFRESH_SECONDS, 3600),
   };
 }
 
-const sha256 = (v: unknown) => crypto.createHash("sha256").update(JSON.stringify(v)).digest("hex");
+/** A non-negative number setting; anything else falls back to the default, loudly, so a typo neither turns judging off nor stops refreshes. */
+function count(name: string, raw: string | undefined, fallback: number): number {
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const n = Number(raw);
+  if (Number.isFinite(n) && n >= 0) return n;
+  console.warn(`sync:vote-evidence — ${name}=${JSON.stringify(raw)} is not a non-negative number; using ${fallback}`);
+  return fallback;
+}
 
 /** Why a run is due, or null while the stored evidence is fresh. */
 export async function dueReason(db: SqlTag, atlasSha: string, refreshSeconds: number, now = Date.now()): Promise<string | null> {
@@ -62,61 +67,6 @@ export async function dueReason(db: SqlTag, atlasSha: string, refreshSeconds: nu
   if (row.atlasSha !== atlasSha) return "atlas moved";
   const ageSeconds = (now - Date.parse(row.computedAt)) / 1000;
   return ageSeconds >= refreshSeconds ? "stale" : null;
-}
-
-type Ask = typeof askJev;
-
-/** The decision model behind the cache, the per-run cap and the deadline. Null when judging is off. */
-export function cachedJudge(db: SqlTag, model: string, perCycle: number, deadlineAt: number, ask: Ask = askJev): Judge {
-  let asked = 0;
-  return async (state: unknown, questions: Record<string, JevQuestion>, lane: string) => {
-    const key = `jev:${sha256({ model, state, questions })}`;
-    const hit = await cacheGet<{ nouls: Record<string, number | null> }>(db, key);
-    if (hit) return hit.nouls;
-    if (asked >= perCycle || Date.now() > deadlineAt) return null;
-    asked++;
-    const r = await askOnce(ask, { state, questions, model, lane });
-    // A refused key, exhausted credits or a malformed question fails every
-    // request alike: stop asking for the rest of the run.
-    if (r === "fatal") asked = perCycle;
-    if (!r || r === "fatal") return null;
-    await cachePut(db, key, { nouls: r });
-    return r;
-  };
-}
-
-/** One model call's answers, null when it answered nothing, "fatal" when no later call can succeed. */
-async function askOnce(ask: Ask, q: { state: unknown; questions: Record<string, JevQuestion>; model: string; lane: string }) {
-  try {
-    const run = await ask({ ...q, timeoutMs: 60_000 });
-    const nouls = Object.fromEntries(Object.keys(q.questions).map((id) => [id, noulOf(run, id)]));
-    return Object.values(nouls).every((p) => p === null) ? null : nouls;
-  } catch (e) {
-    console.warn(`sync:vote-evidence — ${q.lane} failed: ${(e as Error).message.slice(0, 200)}`);
-    return (e as { fatal?: boolean }).fatal ? ("fatal" as const) : null;
-  }
-}
-
-/**
- * The first pull request writing `needle`, cached once found. A miss is not
- * cached: a checkout behind the database finds the words on a later run.
- */
-export function cachedFirstPr(
-  db: SqlTag,
-  atlasDir: string,
-  lookup = firstPr,
-  on = hasHistory(atlasDir),
-): (needle: string) => Promise<number | null> {
-  if (!on) console.warn(`sync:vote-evidence — ${atlasDir} has no full git history; no poll is matched through history`);
-  return async (needle) => {
-    if (!on) return null;
-    const key = `history:${sha256(needle)}`;
-    const hit = await cacheGet<{ pr: number }>(db, key);
-    if (hit) return hit.pr;
-    const pr = lookup(needle, atlasDir);
-    if (pr !== null) await cachePut(db, key, { pr });
-    return pr;
-  };
 }
 
 async function run(db: SqlTag): Promise<void> {

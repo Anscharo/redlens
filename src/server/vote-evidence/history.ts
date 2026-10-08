@@ -3,8 +3,13 @@
 // number from the squash-merge subject (its trailing "(#N)"), and take the poll
 // whose body links that pull request. It needs the atlas checkout's full
 // history, which the worker image clones.
+//
+// git runs as an argv array (execFile, no shell), so atlas text in a needle is
+// never interpreted, and asynchronously under a timeout, so a slow search can
+// neither block the process nor outlive the lane's deadline.
 
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 import { atlasPullRequests } from "../../../scripts/lib/votes/poll.ts";
 
@@ -28,20 +33,34 @@ export function prOfSubject(subject: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
-/** Whether `dir` holds enough history for a pickaxe search to mean anything. */
-export function hasHistory(dir: string, min = 50): boolean {
+const run = promisify(execFile);
+/** One git search's limit; the lane's whole run has six minutes. */
+const GIT_TIMEOUT_MS = 30_000;
+
+async function git(dir: string, args: string[]): Promise<string> {
+  const { stdout } = await run("git", ["-C", dir, ...args], { timeout: GIT_TIMEOUT_MS, maxBuffer: 16 * 1024 * 1024 });
+  return stdout.trim();
+}
+
+/**
+ * The checkout's HEAD when it holds the full history a pickaxe search needs,
+ * else null. A shallow clone fails however deep it is: its boundary commit
+ * reads as the first writer of every sentence older than the boundary.
+ */
+export async function historyHead(dir: string, min = 50): Promise<string | null> {
   try {
-    return Number(execFileSync("git", ["-C", dir, "rev-list", "--count", "HEAD"], { stdio: ["ignore", "pipe", "ignore"] }).toString()) >= min;
+    if ((await git(dir, ["rev-parse", "--is-shallow-repository"])) !== "false") return null;
+    if (Number(await git(dir, ["rev-list", "--count", "HEAD"])) < min) return null;
+    return await git(dir, ["rev-parse", "HEAD"]);
   } catch {
-    return false;
+    return null;
   }
 }
 
 /** The pull request of the atlas commit that first wrote `needle`, or null when its subject names none. */
-export function firstPr(needle: string, atlasDir: string): number | null {
-  const out = execFileSync("git", ["-C", atlasDir, "log", "--no-renames", "-S", needle, "--reverse", "--format=%s", "--", "."], {
-    stdio: ["ignore", "pipe", "ignore"],
-  }).toString();
+export async function firstPr(needle: string, atlasDir: string): Promise<number | null> {
+  // One argument, `-S<needle>`, so a needle starting with "-" stays the search string.
+  const out = await git(atlasDir, ["log", "--no-renames", `-S${needle}`, "--reverse", "--format=%s", "--", "."]);
   return prOfSubject(out.split("\n")[0] ?? "");
 }
 

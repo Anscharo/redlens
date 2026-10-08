@@ -29,7 +29,7 @@ import { readPollBodies } from "../lib/votes/record.ts";
 import { buildCases, type Gold, type PollCase, type SubjectCase } from "./eval-vote-evidence-cases.ts";
 import * as Q from "./eval-vote-evidence-judges.ts";
 import * as S from "./eval-vote-evidence-score.ts";
-import { firstPr, hasHistory, pickaxeNeedle, pollForPr } from "../../src/server/vote-evidence/history.ts";
+import { firstPr, historyHead, pickaxeNeedle, pollForPr } from "../../src/server/vote-evidence/history.ts";
 import * as R from "../../src/server/vote-evidence/requests.ts";
 import { modelArms } from "./eval-vote-evidence-models.ts";
 import { printReport, type PollRow, type SubjectRow } from "./eval-vote-evidence-report.ts";
@@ -56,7 +56,7 @@ const LLM_MODEL = config.openrouterApiKey ? (flags["llm-model"] ?? "") : "";
 const TAU = Number(flags.tau);
 const CONC = Number(flags.concurrency);
 const ATLAS_DIR = path.resolve(flags["atlas-dir"] ?? path.join(ROOT, "vendor/next-gen-atlas"));
-const HISTORY = hasHistory(ATLAS_DIR);
+const HISTORY = (await historyHead(ATLAS_DIR)) !== null;
 const { decideAll, llm } = modelArms(CACHE, DECISION_MODELS, LLM_MODEL);
 
 async function subjectRow(c: SubjectCase, slice: "real" | "swapped", heuristic: S.SubjectLabel): Promise<SubjectRow> {
@@ -83,7 +83,7 @@ async function pollRow(c: PollCase, fileByTitle: Map<string, string>, bodies: Ma
   return {
     key: c.key, docNo: c.docNo, gold: c.gold?.label ?? "unlabeled", acceptable: c.gold?.authorising ?? [], candidates: c.candidates.map((p) => p.file),
     heuristic: S.heuristicPoll(c, fileByTitle), lexical: c.candidates[0]?.file ?? "none",
-    history: HISTORY ? (pollForPr(firstPr(pickaxeNeedle(c.claim), ATLAS_DIR), bodies) ?? "none") : undefined,
+    history: HISTORY ? (pollForPr(await firstPr(pickaxeNeedle(c.claim), ATLAS_DIR), bodies) ?? "none") : undefined,
     decisions: Object.fromEntries(Object.entries(d).map(([arm, n]) => [arm, { nouls: n, pick: S.jevPoll(c, n, TAU) }])),
     llm: LLM_MODEL ? pick(l ? Q.parseLlmPoll(l.text, ids) : null) : undefined,
   };
