@@ -4,26 +4,36 @@ import { AddressCard } from "../AddressCard";
 import { ErrorBoundary, InlineError } from "../ErrorBoundary";
 import type { DocVote } from "@/lib/votes/docVotes";
 import { ExecutiveVoteList } from "./DocVotes";
+import type { ValueCheck } from "@/lib/pauAtlasValues";
+import { AtlasVsContract } from "./AtlasVsContract";
 import { SECTION_HEAD } from "./panelSections";
 
-// The right panel's onchain section: the Executive Votes behind the document
-// (a cast spell is an on-chain execution), then one card per address it names.
-// Each block shows only when it has rows.
+// The right panel's onchain section: the rate limits the document states beside
+// what the PAU contract holds, the Executive Votes behind the document (a cast
+// spell is an on-chain execution), then one card per address it names. Each
+// block shows only when it has rows.
 export function PanelOnchain({
   targetAddresses,
   chainValues,
   byNameOnly,
   executives,
+  limits = [],
 }: {
   targetAddresses: Record<string, AddressInfo>;
   chainValues: Record<string, Record<string, ChainValue>>;
   /** Addresses this section named only by chainlog key, not a 0x literal. */
   byNameOnly?: Set<string>;
   executives: DocVote[];
+  limits?: ValueCheck[];
 }) {
   const entries = Object.entries(targetAddresses);
   return (
     <div className="space-y-8">
+      {limits.length > 0 && (
+        <ErrorBoundary fallback={(error) => <InlineError error={error} />}>
+          <AtlasVsContract rows={limits} />
+        </ErrorBoundary>
+      )}
       {executives.length > 0 && (
         <ErrorBoundary fallback={(error) => <InlineError error={error} />}>
           <ExecutiveVoteList votes={executives} />

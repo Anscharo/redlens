@@ -46,6 +46,16 @@ describe("buildSnapshot", () => {
     ]);
     expect(seen.every((c) => c.address === CTRL || c.address === RL)).toBe(true);
   });
+  it("reads the atlas keys its history lacks: never-set ones are recorded, a set one marks the history incomplete", async () => {
+    const zero = { maxAmount: 0n, slope: 0n, lastAmount: 0n, lastUpdated: 0n };
+    const read = async (_c: string, calls: ChainCall[]) => calls.map((c) => (c.functionName !== "getRateLimitData" ? null : c.args[0] === "0xunset" ? zero : c.args[0] === "0xset" ? { ...zero, maxAmount: 1n } : null));
+    const history = async (_c: string, a: string) => ({ events: events[a] ?? [], complete: true });
+    const clean = await buildSnapshot(d, read, history, { probe: ["0xunset", "0xk1"] });
+    expect(clean.contracts[1]).toMatchObject({ unsetKeys: ["0xunset"], historyComplete: true });
+    const missed = await buildSnapshot(d, read, history, { probe: ["0xset"] });
+    expect(missed.contracts[1]).toMatchObject({ historyComplete: false });
+    expect(missed.contracts[1].unsetKeys).toBeUndefined();
+  });
   it("lists a contract with no stored history and asks the chain nothing about it", async () => {
     let calls = 0;
     const snap = await buildSnapshot(d, async (_c, cs) => ((calls += cs.length), []), async () => ({ events: [], complete: false }));

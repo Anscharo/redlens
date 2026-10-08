@@ -6,6 +6,7 @@ import { parseAbi } from "viem";
 import { deploymentId, type PauDeployment, type PauMember, type PauRole } from "../../lib/pauRegistry.ts";
 import type { BeamDefault, ContractState, DerivedKey, LiveRateLimit, PauSnapshot, RateLimitKey, RoleHolder } from "../../lib/pau.ts";
 import { beamLimits, type BeamSource } from "./beam.ts";
+import { probeKeys } from "./probe.ts";
 import { replayAgent, replayIntegrations, replayParams, replayRateLimitKeys, replayRoles, roleName, type PauEventRow } from "./replay.ts";
 
 export const PAU_STATE_ABI = parseAbi([
@@ -61,8 +62,14 @@ async function liveRateLimits(read: ChainReader, chain: string, address: string,
   });
 }
 
-/** What one contract's history and the chain say, by the parts that apply to it; a RateLimits also gets what its chain's BeamState allows. */
-export async function contractState(read: ChainReader, chain: string, m: PauMember, history: ContractHistory, beam?: BeamSource): Promise<ContractState> {
+/** What a RateLimits snapshot reads beyond its own history: its chain's BeamState, and the atlas keys to read live. */
+export interface RateLimitsExtras {
+  beam?: BeamSource;
+  probe?: string[];
+}
+
+/** What one contract's history and the chain say, by the parts that apply to it; a RateLimits also gets what its chain's BeamState allows and which atlas keys it has never set. */
+export async function contractState(read: ChainReader, chain: string, m: PauMember, history: ContractHistory, extras: RateLimitsExtras = {}): Promise<ContractState> {
   const { events, complete } = history;
   const out: ContractState = { role: m.role, address: m.address, ...(m.label ? { label: m.label } : {}), events: events.length, historyComplete: complete };
   const holders = replayRoles(events);
@@ -71,13 +78,21 @@ export async function contractState(read: ChainReader, chain: string, m: PauMemb
   if (Object.keys(agent).length) out.agent = agent;
   const keys = replayRateLimitKeys(events);
   if (keys.length) out.rateLimits = await liveRateLimits(read, chain, m.address, keys);
-  const managed = beam && m.role === "rateLimits" ? await beamLimits(read, chain, beam, m.address, keys.map((k) => k.key)) : null;
-  if (managed) out.beam = managed;
+  if (m.role === "rateLimits") await rateLimitsExtras(out, read, chain, keys.map((k) => k.key), extras);
   const params = replayParams(events);
   if (params.length) out.params = params;
   const integrations = replayIntegrations(events);
   if (integrations.length) out.integrations = integrations;
   return out;
+}
+
+async function rateLimitsExtras(out: ContractState, read: ChainReader, chain: string, held: string[], { beam, probe }: RateLimitsExtras) {
+  const managed = beam ? await beamLimits(read, chain, beam, out.address, held) : null;
+  if (managed) out.beam = managed;
+  if (!probe?.length) return;
+  const { unset, missed } = await probeKeys(read, chain, out.address, probe, new Set(held.map((k) => k.toLowerCase())));
+  if (unset.length) out.unsetKeys = unset;
+  if (missed) out.historyComplete = false;
 }
 
 /** Relayers and freezers hold no admin events of their own; their roles show on the contracts. */
@@ -87,11 +102,11 @@ export async function buildSnapshot(
   d: PauDeployment,
   read: ChainReader,
   historyOf: (chain: string, contract: string) => Promise<ContractHistory>,
-  beam?: BeamSource,
+  extras: RateLimitsExtras = {},
 ): Promise<PauSnapshot> {
   const contracts: ContractState[] = [];
   for (const m of d.members.filter((x) => READ_ROLES.has(x.role))) {
-    contracts.push(await contractState(read, d.chain, m, await historyOf(d.chain, m.address), beam));
+    contracts.push(await contractState(read, d.chain, m, await historyOf(d.chain, m.address), extras));
   }
   return { deployment: deploymentId(d), prime: d.prime, primeName: d.primeName, chain: d.chain, kind: d.kind, contracts };
 }

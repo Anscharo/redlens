@@ -53,19 +53,22 @@ const SNAP: StoredPauSnapshot = {
       limit(KDER, "1500000000000", "0", { derived: { constant: "LIMIT_4626_DEPOSIT", args: [VAULT] } }),
       limit(KOFF, "0", "0"),
       limit(KADDR, "2000000000000", "0", { derived: { constant: "LIMIT_ASSET_TRANSFER", args: [VAULT, LISTED] }, unit: { decimals: 6, symbol: "PYUSD", token: VAULT, source: "token" } }),
-    ], beam: { beamState: BEAM, hop: "57600", maxChange: "1200000000000000000", historyComplete: true, defaults: [
+    ], unsetKeys: [KOUT], beam: { beamState: BEAM, hop: "57600", maxChange: "1200000000000000000", historyComplete: true, defaults: [
       { key: KDER, maxAmount: "3000000000000", slope: "0", scope: "general", setAt: null, derived: { constant: "LIMIT_4626_DEPOSIT", args: [VAULT] }, unit: { decimals: 6, symbol: "USDC", token: VAULT, source: "token" } },
     ] } },
     { role: "controller", address: "0x" + "d".repeat(40), events: 2, historyComplete: false, roles: [{ role: "0xr", name: "RELAYER", account: RELAYER, since: at, holds: true }], agent: { actors: [{ account: RELAYER, since: at }] } },
   ],
 };
 
-const { paramSide, primeAtlasRefs } = await import("./pau-atlas-refs.ts");
+const { primeAtlasRefs } = await import("./pau-atlas-refs.ts");
+const { paramSide } = await import("../../lib/pauParams.ts");
 const { snapshotFacts } = await import("./pau-source.ts");
+const { valueFacts } = await import("./pau-value-facts.ts");
 const fake: OnchainSource = { id: "pau", describe: "fake", read: async () => ({ facts: snapshotFacts(SNAP, primeAtlasRefs(ix, P, [SNAP])), coverage: [{ source: "pau", entity: "Grove", entity_id: P, chain: "ethereum", label: "diamond", contracts: 2, history_complete: false, read_at: SNAP.fetchedAt }] }) };
 // A second source that fails while `failing` is set, read only by indexes built for that purpose.
 let failing = false;
-const flaky: OnchainSource = { id: "flaky", describe: "fails on demand", read: async () => (failing ? Promise.reject(new Error("db down")) : { facts: [], coverage: [] }) };
+let extra: import("./facts.ts").OnchainFact[] = [];
+const flaky: OnchainSource = { id: "flaky", describe: "fails on demand", read: async () => (failing ? Promise.reject(new Error("db down")) : { facts: extra, coverage: [] }) };
 mock.module("./sources.ts", () => ({ ONCHAIN_SOURCES: [fake, flaky] }));
 const { attachOnchain } = await import("./enrich.ts");
 const { onchainState } = await import("./query.ts");
@@ -116,6 +119,28 @@ describe("snapshotFacts", () => {
   });
 });
 
+describe("valueFacts", () => {
+  it("states each atlas value beside what the contract holds, or that the read contract lacks its key, found by the value's document and the instance", () => {
+    const facts = valueFacts(ix, P, [SNAP]);
+    expect(facts.map((f) => [f.kind, f.name, f.summary])).toEqual([
+      ["atlas-vs-contract", "Ethereum Mainnet - Vault · Inflow maxAmount", { value: "Inflow maxAmount", atlas: "5,000,000 USDC", contract: "5000000", agrees: true }],
+      ["atlas-vs-contract", "Ethereum Mainnet - Vault · Outflow maxAmount", { value: "Outflow maxAmount", atlas: "Unlimited", contract: "not set", agrees: false }],
+    ]);
+    expect(facts[1].set_at).toBeNull();
+    expect(facts[0].match).toEqual({ hashes: [KIN], addresses: [RL], docs: ["d-in-lim", I] });
+    expect(facts[0].set_at?.url).toBe(`https://etherscan.io/tx/${at.tx}`);
+  });
+  it("finds the chain of a not-set value by the instance's Network param when its name names none", () => {
+    const KGONE = k("9");
+    const named = buildIndexes([doc(P, "A.6.1.1.2", "Grove")], [
+      ent(P, "grove", "Grove", "agent", "prime", {}),
+      ent("g", "gauntlet", "Gauntlet Vault", "instance", "allocation-system", { agent_doc_id: P, params: { Network: ["Ethereum Mainnet", "d-net", "x"], "Inflow RateLimitID": [KGONE, "d-gone", "x"], "Inflow Rate Limits / maxAmount": ["5,000,000 USDC", "d-gone-max", "x"] } }),
+    ], [], {});
+    const probed = { ...SNAP, contracts: SNAP.contracts.map((c) => (c.role === "rateLimits" ? { ...c, unsetKeys: [KGONE] } : c)) };
+    expect(valueFacts(named, P, [probed]).map((f) => [f.chain, f.contract, f.summary.contract])).toEqual([["ethereum", RL, "not set"]]);
+  });
+});
+
 describe("attachOnchain", () => {
   it("adds the facts a result names by key, document or address, compactly", async () => {
     const out = (await attachOnchain(ix, { rows: [{ uuid: I }], note: `see ${RELAYER}` })) as { onchain: { facts: Record<string, unknown>[]; note: string } };
@@ -160,6 +185,19 @@ describe("atlas_onchain", () => {
   it("finds BeamState defaults by 'init', with the step limits that say what holds when there are none", async () => {
     const res = (await onchainState(ix, { entity: "grove", query: "init", limit: 50 })) as { facts: { kind: string }[] };
     expect(res.facts.map((f) => f.kind)).toEqual(["beam-state", "rate-limit-default"]);
+  });
+  it("finds the atlas-vs-contract facts that disagree by 'mismatch' or 'disagree'", async () => {
+    const off = { ...SNAP, contracts: SNAP.contracts.map((c) => (c.role === "rateLimits" ? { ...c, rateLimits: c.rateLimits!.map((r) => (r.key === KIN ? { ...r, data: { ...r.data!, maxAmount: "1" } } : r)) } : c)) };
+    extra = valueFacts(ix, P, [off]);
+    const fresh = buildIndexes([doc(P, "A.6.1.1.2", "Grove")], [], [], {});
+    for (const query of ["mismatch", "disagree"]) {
+      const res = (await onchainState(fresh, { kind: "atlas-vs-contract", query, limit: 50 })) as { facts: { name: string; values: { agrees: boolean; contract: string } }[] };
+      expect(res.facts.map((f) => [f.name, f.values.contract])).toEqual([
+        ["Ethereum Mainnet - Vault · Inflow maxAmount", "0.000001"],
+        ["Ethereum Mainnet - Vault · Outflow maxAmount", "not set"],
+      ]);
+    }
+    extra = [];
   });
   it("filters by an address a fact is about, and refuses an unknown entity", async () => {
     const res = (await onchainState(ix, { address: RELAYER.toUpperCase().replace("0X", "0x"), limit: 50 })) as { facts: { kind: string }[] };

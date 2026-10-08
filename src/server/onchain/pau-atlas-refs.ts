@@ -4,6 +4,7 @@
 // slope). Read from build-graph's params, the same rows the Radar names keys by.
 import type { Entity, Indexes } from "../retrieval/indexes.ts";
 import { RATE_LIMIT_ID_RE } from "../../lib/atlasHashes.ts";
+import { paramSide, VALUE_PARAM_RE } from "../../lib/pauParams.ts";
 import { instanceKeyIndex, primeKeyedInstance, type AtlasKeyRef, type KeyedInstance } from "../../lib/pauView.ts";
 import { addressKeyIndex, withAddressKeys } from "../../lib/pauAddressKeys.ts";
 import type { StoredPauSnapshot } from "../../lib/pau.ts";
@@ -20,16 +21,7 @@ export interface PrimeAtlasRefs {
 }
 
 const HASH_RE = /^0x[0-9a-fA-F]{64}$/;
-const VALUE_PARAM_RE = /^(.*?)\s*Rate\s*Limits?\s*\/\s*(?:maxAmount|slope)\b/i;
 const CONSTANT_RE = /`(LIMIT_[A-Z0-9_]+)`/g;
-const SIDE: Record<string, string> = { inflow: "in", deposit: "in", supply: "in", outflow: "out", withdraw: "out", withdrawal: "out", redeem: "out" };
-
-/** The operation a param name is about ("Aggregate Deposit RateLimitID" and "Inflow Rate Limits" both "in"), or "" for none. */
-export function paramSide(name: string): string {
-  const words = name.replace(RATE_LIMIT_ID_RE, " ").replace(/Rate\s*Limits?\b|\(.*?\)|\//gi, " ").trim().split(/\s+/);
-  const last = (words.at(-1) ?? "").toLowerCase();
-  return SIDE[last] ?? last;
-}
 
 function paramsOf(e: Entity): Params {
   try {

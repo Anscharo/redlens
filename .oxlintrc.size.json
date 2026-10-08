@@ -67,7 +67,7 @@
     { "files": ["apps/web/src/components/visits/VisitsPage.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 82, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/hooks/useAtlasData.ts"], "rules": { "max-lines-per-function": ["error", { "max": 73, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/hooks/useConversations.ts"], "rules": { "max-lines-per-function": ["error", { "max": 54, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/hooks/useNodeAnnotations.ts"], "rules": { "max-lines-per-function": ["error", { "max": 55, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["apps/web/src/hooks/useNodeAnnotations.ts"], "rules": { "max-lines-per-function": ["error", { "max": 48, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/hooks/useRecentDropdown.ts"], "rules": { "max-lines-per-function": ["error", { "max": 71, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/hooks/useRevealFlash.ts"], "rules": { "max-lines-per-function": ["error", { "max": 69, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/hooks/useSWUpdate.ts"], "rules": { "max-lines-per-function": ["error", { "max": 59, "skipBlankLines": true, "skipComments": true }] } },

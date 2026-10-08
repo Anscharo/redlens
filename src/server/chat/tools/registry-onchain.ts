@@ -16,7 +16,9 @@ export const ONCHAIN_TOOLS: AtlasTool[] = [
       "token, `constant` fixed by the controller constant, `inferred` from the limit's size), each role holder (with whether hasRole " +
       "confirms it) and AdministeredAgent member, and the transaction that last set each. Where BeamState manages a RateLimits, a " +
       "`beam-state` fact says how far the Configurator may move its limits without a spell (hop, max change, the rule), and each " +
-      "`rate-limit-default` fact is a default (\"init\") rate limit it may set a key up to; none listed means none is set for any key the RateLimits holds. Each fact names its entity, chain and contract, its " +
+      "`rate-limit-default` fact is a default (\"init\") rate limit it may set a key up to; none listed means none is set for any key the RateLimits holds. Each " +
+      "`atlas-vs-contract` fact is one maxAmount or slope an instance states in the atlas beside what its contract holds " +
+      "(`values.agrees`); ask with `kind: \"atlas-vs-contract\"` for where the atlas and the chain disagree. Each fact names its entity, chain and contract, its " +
       "name (`name_source`: `atlas` when an atlas RateLimitID param names the key, `atlas-address` when the atlas lists an " +
       "address there instead and this key is derived from it — one address can feed several keys, so say so — `derived` when " +
       "the controller constant that hashes to it does, null when none), and `set_at.url` to cite. `coverage` says per deployment when it was read " +
@@ -25,7 +27,7 @@ export const ONCHAIN_TOOLS: AtlasTool[] = [
     shape: {
       entity: z.string().optional().describe("Entity slug or name (e.g. 'osero', 'Grove'). Omit to search every entity."),
       chain: z.string().optional().describe("Chain (e.g. 'ethereum', 'base', 'arbitrum')."),
-      kind: z.enum(["rate-limit", "rate-limit-default", "beam-state", "role", "member"]).optional().describe("Fact kind."),
+      kind: z.enum(["rate-limit", "rate-limit-default", "beam-state", "atlas-vs-contract", "role", "member"]).optional().describe("Fact kind."),
       address: z.string().optional().describe("Only facts about this address: a PAU contract, a role holder, or an asset a key is derived from."),
       query: z.string().optional().describe("Words every fact must contain, matched against its name, constant and values (e.g. 'deposit', 'USDS mint', 'RELAYER')."),
       include_off: z.boolean().optional().describe("Include switched-off rate limits (maximum 0)."),

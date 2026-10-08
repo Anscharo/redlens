@@ -18,12 +18,14 @@ export interface OnchainQuery {
   limit: number;
 }
 
-// A reader asking for "deposit" limits means the atlas's "Inflow" ones too, and
-// "init" limits means BeamState's defaults.
+// A reader asking for "deposit" limits means the atlas's "Inflow" ones too,
+// "init" limits means BeamState's defaults, and "mismatch" means an
+// atlas-vs-contract fact that disagrees.
 const ALIASES: [RegExp, string][] = [
   [/\binflow\b/i, "deposit supply"],
   [/\boutflow\b/i, "withdraw withdrawal redeem"],
   [/\brate-limit-default\b/, "init initial"],
+  [/"agrees":false/, "mismatch mismatches disagree disagrees differs"],
 ];
 
 function haystack(f: OnchainFact): string {

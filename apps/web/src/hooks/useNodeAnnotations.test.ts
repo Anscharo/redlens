@@ -85,6 +85,7 @@ describe("useNodeAnnotations", () => {
       cousinDocs: [],
       byNameOnly: new Set(),
       annotationDocs: [],
+      rateLimitSources: null,
     });
   });
 
@@ -199,7 +200,7 @@ describe("useNodeAnnotations", () => {
     const data = makeData();
     const cousins = [{ id: "cousin-1" }];
     findCousinDocs.mockReturnValue(cousins);
-    const graph = { instances: [], invocations: [], primitives: [] } as never;
+    const graph = { participants: [], instances: [], invocations: [], primitives: [] } as never;
     const { useNodeAnnotations } = await import("./useNodeAnnotations");
     const { result } = renderHook(() => useNodeAnnotations(UUID_A, data, graph));
     expect(findCousinDocs).toHaveBeenCalledWith(UUID_A, data.atlas, graph);

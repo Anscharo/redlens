@@ -7,6 +7,21 @@ import { type ChainValue } from "../lib/chainstate";
 import { findCousinDocs, type CousinDoc } from "../lib/cousins";
 import { chainlogNamedAddresses } from "@/lib/onchainAddressesIndex";
 import type { GraphData } from "../lib/graph";
+import { docValueSources, type DocValueSources } from "@/lib/pauDocSources";
+
+/** The glossary entries whose term the content uses, each entry set once, sorted by term. */
+function glossaryTermsIn(content: string, lookup: Record<string, GlossaryEntry[]>): GlossaryEntry[][] {
+  const contentLower = content.toLowerCase();
+  const seen = new Set<GlossaryEntry[]>();
+  const terms: GlossaryEntry[][] = [];
+  for (const entries of Object.values(lookup)) {
+    if (!seen.has(entries) && entries.some((e) => contentLower.includes(e.term.toLowerCase()))) {
+      seen.add(entries);
+      terms.push(entries);
+    }
+  }
+  return terms.sort((a, b) => a[0].term.localeCompare(b[0].term));
+}
 
 export function useNodeAnnotations(id: string, data: LoadedData | null, graph: GraphData | null) {
   const glossaryLookup = useMemo(
@@ -23,6 +38,7 @@ export function useNodeAnnotations(id: string, data: LoadedData | null, graph: G
       cousinDocs: [] as CousinDoc[],
       byNameOnly: new Set<string>(),
       annotationDocs: [] as AtlasNode[],
+      rateLimitSources: null as DocValueSources | null,
     };
     if (!data || !id) return empty;
     const { docs } = data.atlas;
@@ -63,16 +79,8 @@ export function useNodeAnnotations(id: string, data: LoadedData | null, graph: G
       if (targetAddresses[addr]) continue; // already referenced by 0x literal
       if (addAddress(addr)) byNameOnly.add(addr);
     }
-    const contentLower = target.content.toLowerCase();
-    const seen = new Set<GlossaryEntry[]>();
-    const glossaryTerms: GlossaryEntry[][] = [];
-    for (const entries of Object.values(glossaryLookup)) {
-      if (!seen.has(entries) && entries.some((e) => contentLower.includes(e.term.toLowerCase()))) {
-        seen.add(entries);
-        glossaryTerms.push(entries);
-      }
-    }
-    glossaryTerms.sort((a, b) => a[0].term.localeCompare(b[0].term));
-    return { linkedNodes, targetAddresses, chainValues: cv, glossaryTerms, cousinDocs, byNameOnly, annotationDocs };
+    const glossaryTerms = glossaryTermsIn(target.content, glossaryLookup);
+    const rateLimitSources = docValueSources(id, graph);
+    return { linkedNodes, targetAddresses, chainValues: cv, glossaryTerms, cousinDocs, byNameOnly, annotationDocs, rateLimitSources };
   }, [data, id, glossaryLookup, graph]);
 }

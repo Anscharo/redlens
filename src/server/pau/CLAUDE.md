@@ -1,6 +1,8 @@
 # PAU state: admin-event history and live snapshots
 
-Reads what the chain says about every contract in `src/data/pau-registry.json` (curation: the `pau-triage` skill, discovery: `pnpm pau:candidates`). Nothing here reads the atlas; an address the registry does not list is never read.
+Reads what the chain says about every contract in `src/data/pau-registry.json` (curation: the `pau-triage` skill, discovery: `pnpm pau:candidates`). An address the registry does not list is never read. The atlas is read for one thing only: the RateLimitID hashes it states, which `probe.ts` reads live (below).
+
+**Behind is acceptable; wrong is not.** Every value stored is either read live or marked as what it is (the last value the history set, a unit inferred from size). Where a read fails or a fact depends on a guess, the reader says so rather than presenting it.
 
 ## Pieces
 
@@ -9,12 +11,11 @@ Reads what the chain says about every contract in `src/data/pau-registry.json` (
 - `replay.ts` folds stored events into configuration: role holders (AccessControl is not enumerable, so the replay is the only list), AdministeredAgent members, every rate-limit key ever set, diamond integrations, the latest value per parameter and subject.
 - `snapshot.ts` builds one deployment's `pau_state` row. It confirms each replayed holder with `hasRole` and reads every key with `getRateLimitData` / `getCurrentRateLimit`. A failed read is `null`, never `false`. Relayers and freezers have no events of their own; their roles show on the contracts that grant them.
 - `beam.ts` reads what BeamState lets the Configurator (cBEAM) do to each RateLimits it manages without a spell. BeamState is a shared contract, one per chain (registry `shared`, role `beamState`; the `configurator` role is listed for provenance and polled for nothing). A RateLimits gets a `beam` block only when BeamState registers it (`rateLimits(rl)`, else the replayed `AddRateLimits`/`DelRateLimits`): `getHop` and `getMaxChange`, and every default ("init") limit in force. Defaults are read live with `initRateLimits(key, rl)` and `initRateLimits(key, 0)` for every key the RateLimits holds or the replay names; this RateLimits' own default wins when non-zero, else the general one applies, as `getInitRateLimits` does. So a default shows even where BeamState's history is unread (no explorer serves Arbitrum without `ETHERSCAN_API_KEY`), except for a key the RateLimits has never held. A failed read falls back to the replay.
-- `units.ts` attaches the token each limit is counted in (`unit`), after derivation names the key. The rule per `LIMIT_*` constant comes from the controllers' source:
-  - fixed units: USDS for a mint or farm, USDC for CCTP or a Superstate subscription, an 18-decimal normalized value for Curve and Uniswap;
-  - the vault's `asset()` for an ERC-4626, ERC-7540, Maple or Spark Vault key;
-  - the adapter's `token()` for LayerZero, else the token itself;
-  - the token itself for Aave, PSM and asset-transfer keys.
-  A key no rule covers, or one whose token's `decimals()` fails, has no `unit`, and readers fall back to `inferDecimals`.
+- `units.ts` attaches the token each limit is counted in (`unit`), after derivation names the key. A unit is asserted only where the source of the generation holding the key says so:
+  - monolithic (MainnetController, ForeignController and their libraries): fixed units (USDS for a mint or farm, USDC for CCTP or a Superstate subscription, an 18-decimal normalized value for Curve); the vault's `asset()` for an ERC-4626, ERC-7540, Maple or Spark Vault key; the adapter's `token()` for LayerZero, else the token itself; the token itself for Aave, PSM, asset-transfer and Uniswap V3 keys (UniswapV3Lib keys each token of a pool with its own amount);
+  - diamond: a facet runs its own code, so only the facets whose limits are read here count, USDSFacet (USDS) and PSMFacet (USDC).
+  A key no rule covers, or one whose token's `decimals()` fails, has no `unit`, and readers fall back to `inferDecimals` and say so.
+- `probe.ts` reads every RateLimitID hash the atlas states (`public/graph.json`, by prime) live on each of that prime's RateLimits, for the keys its history has no event for. A key whose RateLimitData is all zero is recorded in `unsetKeys`; that, not a complete history, is what lets a reader say a key is not set. A key the contract holds that the history lacks marks the contract's `historyComplete` false.
 - `store.ts` holds the refresh gate (every snapshot rebuilt once the oldest passes `PAU_REFRESH_SECONDS`, or when a deployment has none; snapshots of deployments the registry dropped are deleted) and `GET /api/pau`.
 - `rpc-sync.ts` and `rpc-cursor.ts` fill `pau_events` for chains no free explorer serves, over JSON-RPC (see "Reading over JSON-RPC").
 - `rpc-reader.ts` is the live reader (viem multicall per chain through `rpcFor`).

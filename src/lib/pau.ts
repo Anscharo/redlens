@@ -117,6 +117,8 @@ export interface ContractState {
   rateLimits?: LiveRateLimit[];
   /** On a RateLimits that BeamState manages: the defaults and step limits the Configurator works within. */
   beam?: BeamLimits;
+  /** On a RateLimits: keys the atlas states that a live read found never set on this contract. */
+  unsetKeys?: string[];
   params?: PauParam[];
   integrations?: PauIntegration[];
   /** Admin events stored for this contract. */

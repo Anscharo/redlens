@@ -4,8 +4,10 @@
 // contracts listed in src/data/pau-registry.json. A rebuild names each
 // rate-limit key by the controller constant that derives it (key-derive.ts),
 // hashed from the cached ABIs and the address artifacts the cycle just built,
-// reads the token each key is counted in (units.ts), and reads what the chain's
-// BeamState lets the Configurator set without a spell (beam.ts).
+// reads the token each key is counted in (units.ts), reads what the chain's
+// BeamState lets the Configurator set without a spell (beam.ts), and reads
+// every RateLimitID the atlas states live on its prime's RateLimits, so a key
+// is called unset only when the contract says so (probe.ts).
 function summary(ev, st) {
   const errors = ev.errors ? `, ${ev.errors} error(s)` : "";
   const limited = ev.rateLimited.length ? ` (explorer rate limit: ${ev.rateLimited.join(", ")})` : "";
@@ -31,12 +33,13 @@ export default {
     const { logsRpcsFor } = await import("../rpc-logs.ts");
     const { rpcChains } = await import("../../../src/server/pau/rpc-sync.ts");
     const { keyDeriver, limitConstants, candidateAddresses } = await import("../../../src/server/pau/key-derive.ts");
+    const { atlasKeysByPrime } = await import("../../../src/server/pau/probe.ts");
     // Chains read over JSON-RPC belong to the sync:pau-rpc tail; this step leaves their cursors alone.
     const skipChains = rpcChains(reg, logsRpcsFor);
     const ev = await syncPauEvents(db, reg, { logs: explorerLogs, head: rpcHead, budgetMs: config.pauEventBudgetSeconds * 1000, skipChains });
     let derive;
     const deriveKey = (key) => (derive ??= keyDeriver(limitConstants(), candidateAddresses(ADDRESS_ARTIFACTS, reg)))(key);
-    const st = await maybeRefreshPauState(db, reg, rpcChainReader(), { refreshSeconds: config.pauRefreshSeconds, deriveKey });
+    const st = await maybeRefreshPauState(db, reg, rpcChainReader(), { refreshSeconds: config.pauRefreshSeconds, deriveKey, atlasKeys: atlasKeysByPrime() });
     return summary(ev, st);
   },
 };
