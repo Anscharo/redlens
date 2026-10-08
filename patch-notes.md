@@ -36,6 +36,8 @@
 ## 2026-10-08
 
 - Split each Prime Agent's Radar page into Info, Settlements, History, Primitive instances and PAUs pages, opened from the actor list on the left
+- Listed the Executive Votes behind a document in the right-hand panel's Onchain section, each linked to its cast spell, and showed the poll that approved each change in its history
+- Stale Dates stops guessing: every dated claim in the Atlas is checked against the vote that should have enacted it
 - Moved a document's addresses into a new Onchain section of the right-hand panel, and hid panel sections that have nothing to show
 - Added a PAU on-chain section to each Prime Agent's Radar page, showing its controller roles and rate limits as read from the chain
 

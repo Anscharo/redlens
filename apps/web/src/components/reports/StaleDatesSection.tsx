@@ -6,60 +6,68 @@ import type { DateClaim } from "@/lib/staleDates";
 import { hiddenMatches, type ReportQuery } from "@/lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
 import { staleSearchFields } from "@/lib/staleDatesSearch";
+import { VoteEvidenceLine } from "./VoteEvidenceLine";
 
 function staleness(c: DateClaim): string {
   // The viewer's local day and the day the atlas text was written against can
   // differ by a day either way, so near the boundary hedge with "~1d" rather
   // than claiming "today".
   if (Math.abs(c.daysUntilStale) <= 1) return "(~1d)";
-  if (c.daysUntilStale < 0) return `(${-c.daysUntilStale}d overdue)`;
+  // A recorded claim is past tense by definition, so a passed date is not overdue.
+  if (c.daysUntilStale < 0) return c.recorded ? `(${-c.daysUntilStale}d ago)` : `(${-c.daysUntilStale}d overdue)`;
   return `(in ${c.daysUntilStale}d)`;
 }
 
 function ClaimRow({ c, tone, rq }: { c: DateClaim; tone: string; rq: ReportQuery }) {
   // The tone lives on a left bar (the selected-node idiom) — --red on the
   // dark background is unreadable as small text, so the date stays tan.
-  // The whole row is one link to the doc; the doc number renders as plain
-  // text on the right (nested anchors are invalid HTML).
+  // The claim is one link to the doc; the doc number renders as plain text on
+  // the right, and the vote evidence sits below the link, since it carries a
+  // link of its own (nested anchors are invalid HTML).
   return (
-    <AtlasLink
-      to={atlasHref(c.docId)}
-      title={c.title}
-      className="relative block py-4 px-3 border-b border-l-2 last:border-b-0 no-underline transition-colors hover:bg-[var(--hover)]"
+    <div
+      className="border-b border-l-2 last:border-b-0"
       style={{ borderColor: "var(--border)", borderLeftColor: tone }}
     >
-      <MatchAside matches={hiddenMatches(staleSearchFields(c), rq)} rq={rq} />
-      <div className="flex items-baseline gap-6 flex-wrap">
-        <span className="flex items-baseline gap-2">
-          <span className="mono text-base font-semibold text-tan">
-            <Highlight text={c.dateISO} rq={rq} />
+      <AtlasLink
+        to={atlasHref(c.docId)}
+        title={c.title}
+        className="relative block py-4 px-3 no-underline transition-colors hover:bg-[var(--hover)]"
+      >
+        <MatchAside matches={hiddenMatches(staleSearchFields(c), rq)} rq={rq} />
+        <div className="flex items-baseline gap-6 flex-wrap">
+          <span className="flex items-baseline gap-2">
+            <span className="mono text-base font-semibold text-tan">
+              <Highlight text={c.dateISO} rq={rq} />
+            </span>
+            <span className="mono text-base text-tan-2">{staleness(c)}</span>
           </span>
-          <span className="mono text-base text-tan-2">{staleness(c)}</span>
-        </span>
-        <span className="text-lg text-tan">
-          <Highlight text={c.title} rq={rq} />
-        </span>
-        {c.transition && (
-          <span
-            className="mono text-xs px-1.5 py-0.5 rounded"
-            style={{ background: "var(--hover)", color: "var(--accent)" }}
-            title="Operational control handoff — checked against the date the transition was estimated for"
-          >
-            handoff
+          <span className="text-lg text-tan">
+            <Highlight text={c.title} rq={rq} />
           </span>
-        )}
-        <span className="mono text-xs text-accent ml-auto">
-          <Highlight text={c.docNo} rq={rq} />
-        </span>
-      </div>
-      <p className="text-sm mt-1 ml-4 text-tan-2" style={{ maxWidth: "95ch" }}>
-        …<Highlight text={c.contextBefore} rq={rq} />
-        <em>
-          <Highlight text={c.raw} rq={rq} />
-        </em>
-        <Highlight text={c.contextAfter} rq={rq} />…
-      </p>
-    </AtlasLink>
+          {c.transition && (
+            <span
+              className="mono text-xs px-1.5 py-0.5 rounded"
+              style={{ background: "var(--hover)", color: "var(--accent)" }}
+              title="Operational control handoff — checked against the date the transition was estimated for"
+            >
+              handoff
+            </span>
+          )}
+          <span className="mono text-xs text-accent ml-auto">
+            <Highlight text={c.docNo} rq={rq} />
+          </span>
+        </div>
+        <p className="text-sm mt-1 ml-4 text-tan-2" style={{ maxWidth: "95ch" }}>
+          …<Highlight text={c.contextBefore} rq={rq} />
+          <em>
+            <Highlight text={c.raw} rq={rq} />
+          </em>
+          <Highlight text={c.contextAfter} rq={rq} />…
+        </p>
+      </AtlasLink>
+      {c.voteEvidence && <VoteEvidenceLine evidence={c.voteEvidence} rq={rq} />}
+    </div>
   );
 }
 

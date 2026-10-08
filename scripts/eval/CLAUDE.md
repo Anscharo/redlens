@@ -15,6 +15,7 @@ pnpm eval:complexity # tier router: does a whole-corpus question reach the STRON
 pnpm eval:announce   # promised-tool guard: should chat-loop.ts retry a round that announced a lookup and called no tool? Scores answers, not questions; 144 labeled cases → .cache/eval-announce.json
 pnpm eval:verifier   # grades the refutation-only verifier against saved turns; --models a,b,c compares verifier models
 pnpm eval:slices     # per-slice verifier model bakeoff
+pnpm eval:vote-evidence # Stale Dates vote evidence: shipped heuristic vs lexical vs atlas history vs decision models (--decision-models, Jev by default) vs an LLM (--llm-model) on hand-checked gold (eval-corpora/vote-evidence-gold.json) → .cache/eval-vote-evidence.json. Handoff: docs/research/vote-matching/second-voice-eval.md
 pnpm eval:summary    # compaction (summary) model bakeoff: real summarizePrefix on real + SYNTHETIC threads, graded by an outside judge on probe retention, fabrication, latency and cost → .cache/eval-summary.json. --models a,b, --only-real, --only-synthetic, --resume
 
 ```

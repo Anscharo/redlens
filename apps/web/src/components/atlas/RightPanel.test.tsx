@@ -12,6 +12,7 @@ import { RightPanel } from "./RightPanel";
 import { makeNode, makeEdgeResult, makeGlossaryEntry, makeAddressInfo, makeEdge } from "../../test/fixtures";
 import { DataSourceContext } from "../../lib/dataSource";
 import type { AtlasTab } from "../../lib/atlasTab";
+import { buildVoteIndex } from "@/lib/votes/vote-index";
 
 vi.mock("../history/NodeHistory", () => ({
   NodeHistory: () => <div data-testid="node-history" />,
@@ -19,13 +20,19 @@ vi.mock("../history/NodeHistory", () => ({
 vi.mock("../history/PreviewHistory", () => ({
   PreviewHistory: () => <div data-testid="preview-history" />,
 }));
+// The vote record: one cast Executive Vote links doc "node-1".
+let voteRecord: { index: unknown; overlay: null } = { index: null, overlay: null };
+vi.mock("../../lib/votes", () => ({ loadVoteRecord: () => Promise.resolve(voteRecord) }));
 vi.mock("@/lib/balances", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   loadBalancesCached: () => new Promise(() => {}),
   peekCachedBalances: () => null,
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  voteRecord = { index: null, overlay: null };
+});
 
 
 function setup(overrides: Partial<Parameters<typeof RightPanel>[0]> = {}) {
@@ -45,6 +52,7 @@ function setup(overrides: Partial<Parameters<typeof RightPanel>[0]> = {}) {
     onNavigateByDocNo,
     tab: "notes" as AtlasTab,
     onTabChange,
+    docs: { "node-1": makeNode({ id: "node-1", content: "No dates here." }) },
     ...overrides,
   };
   render(<RightPanel {...props} />);
@@ -191,6 +199,7 @@ describe("RightPanel tab content", () => {
           onNavigateByDocNo={vi.fn()}
           tab="history"
           onTabChange={onTabChange}
+          docs={{}}
         />
       </DataSourceContext.Provider>,
     );
@@ -366,3 +375,57 @@ describe("RightPanel graph relations", () => {
     expect(screen.queryByText(/relations ·/)).not.toBeInTheDocument();
   });
 });
+
+describe("RightPanel Executive Votes in the onchain section", () => {
+  it("lists the Executive Votes behind the document under onchain, shown even without addresses", async () => {
+    const link = [{ family: "atlas" as const, url: "", text: "", uuid: "node-1" }];
+    voteRecord = {
+      overlay: null,
+      index: buildVoteIndex({
+        sources: { executives: "", polls: "", portal: null },
+        polls: [],
+        executives: [{
+          file: "2026/e.md", date: "2026-03-26", frontmatterDate: null, outOfSchedule: false, title: "Genesis Funding", summary: "",
+          address: "0x24fdcd3bFA5C2553e05B2f9AD0365EBC296278D3",
+          sections: [{ heading: "Transfers", text: "Transfer.", authorization: [], proposal: [], atlasRefs: link }],
+          portal: { key: "k", date: "2026-03-26", active: false, hasBeenCast: true, datePassed: null, dateExecuted: null },
+        }],
+      }),
+    };
+    setup({ tab: "onchain" });
+    const panel = await screen.findByTestId("onchain-panel");
+    expect(within(panel).getByText("Executive Votes · 1")).toBeInTheDocument();
+    expect(within(panel).queryByText(/addresses ·/)).not.toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: "spell 0x24fd…78D3" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /onchain.*1/ })).toBeInTheDocument();
+  });
+
+  it("hides onchain when there are neither addresses nor Executive Votes", async () => {
+    setup();
+    await screen.findByTestId("history-panel");
+    expect(screen.queryByTestId("onchain-panel")).not.toBeInTheDocument();
+  });
+});
+
+describe("RightPanel onchain order", () => {
+  it("puts the Executive Votes above the addresses", async () => {
+    voteRecord = {
+      overlay: null,
+      index: buildVoteIndex({
+        sources: { executives: "", polls: "", portal: null },
+        polls: [],
+        executives: [{
+          file: "2026/e.md", date: "2026-03-26", frontmatterDate: null, outOfSchedule: false, title: "Genesis Funding", summary: "", address: null,
+          sections: [{ heading: "T", text: "T.", authorization: [], proposal: [], atlasRefs: [{ family: "atlas", url: "", text: "", uuid: "node-1" }] }],
+          portal: null,
+        }],
+      }),
+    };
+    setup({ tab: "onchain", targetAddresses: { "0xabc": makeAddressInfo() } });
+    const panel = await screen.findByTestId("onchain-panel");
+    const votes = await within(panel).findByText("Executive Votes · 1");
+    const addresses = within(panel).getByText(/addresses · 1/);
+    expect(votes.compareDocumentPosition(addresses) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
