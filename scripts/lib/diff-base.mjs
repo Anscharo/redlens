@@ -20,7 +20,16 @@ export function resolveDiffBase(argv = process.argv, env = process.env) {
  * Two-dot against the working tree, so CI's shallow PR merge commit works without history.
  */
 export function changedPaths(base) {
-  const tracked = git("diff", "--name-only", "--diff-filter=AMR", base);
+  return pathsSince(base, "AMR");
+}
+
+/** Paths that did not exist at `base`: committed or untracked. A rename keeps its history, so it is not new. */
+export function addedPaths(base) {
+  return pathsSince(base, "A");
+}
+
+function pathsSince(base, filter) {
+  const tracked = git("diff", "--name-only", `--diff-filter=${filter}`, base);
   const untracked = git("ls-files", "-o", "--exclude-standard");
   return new Set(`${tracked}\n${untracked}`.split("\n").filter(Boolean));
 }
