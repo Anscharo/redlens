@@ -60,7 +60,8 @@ const SNAP: StoredPauSnapshot = {
   ],
 };
 
-const { paramSide, primeAtlasRefs } = await import("./pau-atlas-refs.ts");
+const { primeAtlasRefs } = await import("./pau-atlas-refs.ts");
+const { paramSide } = await import("../../lib/pauParams.ts");
 const { snapshotFacts } = await import("./pau-source.ts");
 const fake: OnchainSource = { id: "pau", describe: "fake", read: async () => ({ facts: snapshotFacts(SNAP, primeAtlasRefs(ix, P, [SNAP])), coverage: [{ source: "pau", entity: "Grove", entity_id: P, chain: "ethereum", label: "diamond", contracts: 2, history_complete: false, read_at: SNAP.fetchedAt }] }) };
 // A second source that fails while `failing` is set, read only by indexes built for that purpose.
