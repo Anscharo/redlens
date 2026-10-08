@@ -248,7 +248,7 @@ describe("staleDatesToCSV", () => {
     const lines = csv.split("\r\n");
     expect(lines[0]).toBe(
       '"Bucket","Doc No","Title","UUID","Atlas Link","Date Text","Boundary Date","Precision","Days Until Stale",' +
-        '"Handoff","Vote Evidence","Evidence Source","Rules Said","Vote","Vote Date","Vote Offset Days","Vote Link","Subject Not In Vote","Context"',
+        '"Handoff","Vote Evidence","Matched Via","Heuristic Said","Vote","Vote Date","Vote Offset Days","Vote Link","Subject Not In Vote","Context"',
     );
     const total = report.stale.length + report.dueSoon.length + report.upcoming.length + report.recorded.length;
     expect(lines.length - 1).toBe(total); // one data row per claim

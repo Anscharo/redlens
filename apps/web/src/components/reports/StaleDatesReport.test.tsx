@@ -132,13 +132,13 @@ describe("StaleDatesReport", () => {
     expect(screen.getByText(/Vote record: executives 2025-05-29 → 2026-10-08/)).toBeInTheDocument();
   });
 
-  it("shows the worker's AI-judged verdict, and what the rules said where it overrules them", async () => {
+  it("tags the worker's verdict via AI, with what the heuristic said in the hover", async () => {
     const judged = judgeSubject(recordedClaim.voteEvidence!, true, { model: "typesafe/jev-1.13", anchor: 0.05, carried: 0.9 });
     overlay = { atlasSha: "abc", computedAt: "2026-10-07T12:00:00.000Z", claims: { [claimKey(recordedClaim)]: judged } };
     render(<StaleDatesReport query="" mode="broad" />);
     expect(await screen.findByText("enacted")).toBeInTheDocument();
-    expect(screen.getByText("AI-judged")).toHaveAttribute("title", expect.stringContaining("The matching rules alone said: subject missing."));
-    expect(screen.getByText(/rules said:/)).toHaveTextContent("rules said: subject missing");
+    expect(screen.getByText("via AI")).toHaveAttribute("title", expect.stringContaining("The heuristic alone said: subject missing."));
+    expect(screen.queryByText(/rules said/)).toBeNull();
     expect(screen.queryByText(/not in that executive/)).toBeNull();
     expect(screen.getByText(/AI judgments as of 2026-10-07/)).toBeInTheDocument();
   });

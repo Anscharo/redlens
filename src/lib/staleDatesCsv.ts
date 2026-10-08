@@ -1,16 +1,16 @@
 // The Stale Dates report as an RFC-4180 CSV string. All four buckets are
 // flattened with a leading Bucket column; the vote columns stay empty when the
-// report was built without the vote record. "Rules Said" is filled only where
-// an AI judge overruled the matching rules.
+// report was built without the vote record. "Heuristic Said" is filled only
+// where the AI overruled the heuristic.
 
 import { toCSV } from "./csv";
 import { atlasUrl } from "./routes";
 import type { DateClaim, StaleDatesReport } from "./staleDates";
-import { EVIDENCE_LABEL, evidenceSource, missingSubject, ruleDisagrees } from "./votes/labels";
+import { EVIDENCE_LABEL, matchedVia, missingSubject, ruleDisagrees } from "./votes/labels";
 
 const HEADER = [
   "Bucket", "Doc No", "Title", "UUID", "Atlas Link", "Date Text", "Boundary Date", "Precision", "Days Until Stale",
-  "Handoff", "Vote Evidence", "Evidence Source", "Rules Said", "Vote", "Vote Date", "Vote Offset Days", "Vote Link", "Subject Not In Vote", "Context",
+  "Handoff", "Vote Evidence", "Matched Via", "Heuristic Said", "Vote", "Vote Date", "Vote Offset Days", "Vote Link", "Subject Not In Vote", "Context",
 ];
 
 function row(bucket: string, c: DateClaim): Array<string | number> {
@@ -27,7 +27,7 @@ function row(bucket: string, c: DateClaim): Array<string | number> {
     c.daysUntilStale,
     c.transition ? "yes" : "",
     e ? EVIDENCE_LABEL[e.status] : "",
-    e ? evidenceSource(e) : "",
+    e ? (matchedVia(e) ?? "") : "",
     e && ruleDisagrees(e) ? EVIDENCE_LABEL[e.judged!.rule] : "",
     e?.vote?.title ?? "",
     e?.vote?.date ?? "",

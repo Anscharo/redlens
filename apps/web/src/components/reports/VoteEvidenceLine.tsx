@@ -1,10 +1,9 @@
 // The vote-evidence line under a Stale Dates claim: what the Sky vote record
 // shows for it, the vote it matched (linked to vote.sky.money), any of the
-// claim's named things that vote never mentions, and who decided when it was
-// not the matching rules alone: atlas history, or an AI judge (with what the
-// rules said where the judge overruled them).
+// claim's named things that vote never mentions, and how it was matched (its
+// date, a link, atlas history or an AI model; the hover says the rest).
 import type { VoteEvidence, VoteEvidenceStatus } from "@/lib/votes/evidence";
-import { EVIDENCE_LABEL, evidenceHint, missingSubject, ruleDisagrees, signedDays } from "@/lib/votes/labels";
+import { EVIDENCE_LABEL, evidenceHint, matchedVia, missingSubject, signedDays } from "@/lib/votes/labels";
 import type { ReportQuery } from "@/lib/reportFilter";
 import { Highlight } from "./Highlight";
 
@@ -22,6 +21,7 @@ const TONE: Record<VoteEvidenceStatus, string> = {
 
 export function VoteEvidenceLine({ evidence: e, rq }: { evidence: VoteEvidence; rq: ReportQuery }) {
   const missing = missingSubject(e);
+  const via = matchedVia(e);
   return (
     <p className="text-sm ml-4 px-3 pb-3 flex items-baseline gap-3 flex-wrap text-tan-3">
       <span
@@ -36,15 +36,9 @@ export function VoteEvidenceLine({ evidence: e, rq }: { evidence: VoteEvidence; 
           {e.vote.kind} {e.vote.date} ({signedDays(e.vote.offsetDays)})
         </a>
       )}
-      {e.via === "history" && <span className="text-xs">via atlas history</span>}
-      {e.judged && (
+      {via && (
         <span className="mono text-xs" title={evidenceHint(e)}>
-          AI-judged
-        </span>
-      )}
-      {ruleDisagrees(e) && (
-        <span className="text-xs">
-          rules said: <Highlight text={EVIDENCE_LABEL[e.judged!.rule]} rq={rq} />
+          via {via}
         </span>
       )}
       {missing.length > 0 && (

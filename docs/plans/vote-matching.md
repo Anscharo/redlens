@@ -503,9 +503,11 @@ stands.
 
 The thresholds are the eval's best: 0.3–0.4 scored 97% on the executive sentences, and 0.15 matched
 the most polls with no false match among the claims that need none. A Jev verdict carries
-`judged: { model, p, rule }`, where `rule` is what the matching rules alone said. The page tags
-it "AI-judged" and, where the two differ, shows "rules said: …". So Osero now reads "enacted ·
-AI-judged · rules said: subject missing" instead of a false flag.
+`judged: { model, p, rule }`, where `rule` is what the heuristic alone said. Every matched vote
+carries one tag naming how it was matched: "via date", "via link", "via history" or "via AI" (the
+model decided the status, whether it confirmed or overruled the heuristic). The hover gives the
+model, its p and, where it overruled, what the heuristic said. So Osero now reads "enacted · via AI"
+instead of a false flag.
 
 **The run.**
 - It is time-gated: it reruns when the stored row is older than `VOTE_EVIDENCE_REFRESH_SECONDS`

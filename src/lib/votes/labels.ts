@@ -31,30 +31,31 @@ export const EVIDENCE_HINT: Record<VoteEvidenceStatus, string> = {
 // What the vote was found through, where the status hint alone would mislead.
 const VIA_HINT: Partial<Record<NonNullable<VoteEvidence["via"]>, string>> = {
   history: "The atlas change that first wrote this claim came from a pull request this passed poll links.",
-  judge: "An AI judge picked this passed poll, among those near the date, as the one authorising the claim.",
+  judge: "An AI model picked this passed poll, among those near the date, as the one authorising the claim.",
 };
 
-/** The tooltip for an evidence badge: what the status means, how the vote was found, and who decided. */
+/** The tooltip for an evidence tag: what the status means, how the vote was found, and what the heuristic said where the AI overruled it. */
 export function evidenceHint(e: VoteEvidence): string {
   const parts = [VIA_HINT[e.via ?? "date"] ?? EVIDENCE_HINT[e.status]];
-  if (e.judged) parts.push(`AI-judged by ${e.judged.model} (p ${e.judged.p.toFixed(2)}).`);
-  if (ruleDisagrees(e)) parts.push(`The matching rules alone said: ${EVIDENCE_LABEL[e.judged!.rule]}.`);
+  if (e.judged) parts.push(`Checked by an AI model (${e.judged.model}, p ${e.judged.p.toFixed(2)}).`);
+  if (ruleDisagrees(e)) parts.push(`The heuristic alone said: ${EVIDENCE_LABEL[e.judged!.rule]}.`);
   return parts.join(" ");
 }
 
-/** Who found the vote: the matching rules, the atlas history, or an AI judge. */
-export function evidenceSource(e: VoteEvidence): "rules" | "history" | "ai" {
-  return e.judged ? "ai" : e.via === "history" ? "history" : "rules";
+export type MatchedVia = "date" | "link" | "history" | "AI";
+
+/**
+ * How the vote was matched, one word per method: the date the sentence names,
+ * a vote linking the document, atlas history, or an AI model. AI wins whenever
+ * the model decided the status, whether it confirmed or overruled a date match.
+ * Null when no vote matched.
+ */
+export function matchedVia(e: VoteEvidence): MatchedVia | null {
+  if (e.judged) return "AI";
+  return e.via === "date" || e.via === "link" || e.via === "history" ? e.via : null;
 }
 
-/** Who found the vote, when not the matching rules alone: "via atlas history", "AI-judged" (and what the rules said). */
-export function provenance(e: VoteEvidence): string[] {
-  if (e.via === "history") return ["via atlas history"];
-  if (!e.judged) return [];
-  return [ruleDisagrees(e) ? `AI-judged, rules said ${EVIDENCE_LABEL[e.judged.rule]}` : "AI-judged"];
-}
-
-/** Whether an AI judge overruled the matching rules on this claim. */
+/** Whether the AI overruled the heuristic's verdict on this claim. */
 export function ruleDisagrees(e: VoteEvidence): boolean {
   return !!e.judged && e.judged.rule !== e.status;
 }
@@ -68,14 +69,12 @@ export function missingSubject(e: VoteEvidence): string[] {
   return e.status === "subject-missing" ? (e.subject?.missing ?? []) : [];
 }
 
-/**
- * One line for a filter or the chat: the label, the vote and its offset, who
- * found it when not the rules, and any decisive missing terms.
- */
+/** One line for a filter or the chat: the label, the vote and its offset, how it was matched, and any decisive missing terms. */
 export function evidenceText(e: VoteEvidence): string {
   const parts = [EVIDENCE_LABEL[e.status]];
   if (e.vote) parts.push(`${e.vote.kind} ${e.vote.date} (${signedDays(e.vote.offsetDays)})`);
-  parts.push(...provenance(e));
+  const via = matchedVia(e);
+  if (via) parts.push(`via ${via}`);
   const missing = missingSubject(e);
   if (missing.length) parts.push(`missing: ${missing.join(", ")}`);
   return parts.join(" · ");

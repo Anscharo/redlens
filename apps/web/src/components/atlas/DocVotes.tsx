@@ -5,7 +5,7 @@
 import { useMemo } from "react";
 import type { AtlasNode } from "@/types";
 import { votesForDoc, type DocVote, type DocVoteReason } from "@/lib/votes/docVotes";
-import { EVIDENCE_LABEL, evidenceHint, provenance } from "@/lib/votes/labels";
+import { EVIDENCE_LABEL, evidenceHint, matchedVia } from "@/lib/votes/labels";
 import { loadVoteRecord } from "../../lib/votes";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUTCDay } from "../../hooks/useUTCDay";
@@ -51,9 +51,10 @@ function VoteRow({ vote: v }: { vote: DocVote }) {
 function reasonText(r: DocVoteReason) {
   if (r.kind === "links") return "links this section";
   const e = r.evidence;
+  const via = matchedVia(e);
   return (
     <>
-      {r.raw}: <span title={evidenceHint(e)}>{[EVIDENCE_LABEL[e.status], ...provenance(e)].join(" · ")}</span>
+      {r.raw}: <span title={evidenceHint(e)}>{via ? `${EVIDENCE_LABEL[e.status]} · via ${via}` : EVIDENCE_LABEL[e.status]}</span>
     </>
   );
 }

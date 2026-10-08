@@ -40,7 +40,7 @@ describe("DocVotes", () => {
     const link = await screen.findByRole("link", { name: "executive 2026-03-26" });
     expect(link).toHaveAttribute("href", "https://vote.sky.money/executive/k");
     expect(screen.getByText("Genesis Funding")).toBeInTheDocument();
-    expect(screen.getByText("subject missing")).toHaveAttribute("title", expect.stringContaining("never mentions"));
+    expect(screen.getByText("subject missing · via date")).toHaveAttribute("title", expect.stringContaining("never mentions"));
   });
 
   it("says when nothing links or dates the document, and when the record is missing", async () => {

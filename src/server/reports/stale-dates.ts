@@ -81,7 +81,7 @@ export const staleDatesTool = defineReportTool({
     "what the atlas says it carried), no-vote, not-covered, authorised (a passed poll authorised it) or unlinked (no " +
     "evidence either way). voteEvidence.via says how the vote was found: date, link, history (the poll linking the atlas " +
     "pull request that wrote the claim) or judge (an AI model's pick). voteEvidence.judged is set when an AI model decided " +
-    "the status; judged.rule is what the matching rules alone said — say \"AI-judged\" when you report such a row. " +
+    "the status; judged.rule is what the heuristic alone said — say the verdict came via AI when you report such a row. " +
     "The Atlas itself never defines \"stale\" — this is the Redline Portal's own extraction; say so if asked what the " +
     "concept means.",
   promptBlurb:

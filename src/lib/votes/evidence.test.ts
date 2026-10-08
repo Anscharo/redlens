@@ -85,14 +85,14 @@ describe("claims that name an Executive Vote", () => {
     // A minor term the executive lacks is kept in the data but not reported on an enacted claim.
     const partial = byDate("2026-03-26", ref(["keel", "amatsu", "prysm"]));
     expect(partial).toMatchObject({ status: "enacted", subject: { missing: ["prysm"] } });
-    expect(evidenceText(partial)).toBe("enacted · executive 2026-03-26 (+0d)");
+    expect(evidenceText(partial)).toBe("enacted · executive 2026-03-26 (+0d) · via date");
   });
 
   it("flags an executive on the date that never names the subject (the Osero case)", () => {
     const e = byDate("2026-03-26", ref(["osero", "genesis"]));
     expect(e.status).toBe("subject-missing");
     expect(e.subject?.missing).toContain("osero");
-    expect(evidenceText(e)).toBe("subject missing · executive 2026-03-26 (+0d) · missing: osero");
+    expect(evidenceText(e)).toBe("subject missing · executive 2026-03-26 (+0d) · via date · missing: osero");
   });
 
   it("follows a spell that slipped a few days, and reports the offset", () => {
