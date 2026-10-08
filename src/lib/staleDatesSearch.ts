@@ -1,5 +1,6 @@
 import type { DateClaim } from "./staleDates";
 import type { SearchField } from "./reportFilter";
+import { evidenceText } from "./votes/labels";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -16,8 +17,8 @@ export const monthLabel = (iso: string): string => {
 };
 
 // Header-box text filter: date (ISO + the raw atlas text + a derived
-// month-name form), doc title/number, snippet prose, and the "handoff"
-// badge word for transition rows.
+// month-name form), doc title/number, snippet prose, the "handoff" badge
+// word for transition rows, and the vote-evidence line ("not included").
 export const staleSearchFields = (c: DateClaim): SearchField[] => [
   { label: "date", value: c.dateISO },
   { label: "month", value: monthLabel(c.dateISO), hidden: true },
@@ -26,6 +27,7 @@ export const staleSearchFields = (c: DateClaim): SearchField[] => [
   { label: "doc no", value: c.docNo },
   { label: "context", value: c.context },
   { label: "handoff", value: c.transition ? "handoff" : "" },
+  { label: "vote", value: c.voteEvidence ? evidenceText(c.voteEvidence) : "" },
 ];
 
-export const STALE_SEARCHES = "date (ISO + month name) · date text · title · doc no · snippet text";
+export const STALE_SEARCHES = "date (ISO + month name) · date text · title · doc no · snippet text · vote evidence";

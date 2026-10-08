@@ -1,14 +1,16 @@
 // Data loading + filtered buckets for the Stale Dates report.
 import { useMemo } from "react";
 import { loadDocs } from "../../lib/docs";
+import { loadVoteRecord } from "../../lib/votes";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUTCDay } from "../../hooks/useUTCDay";
 import { buildStaleDatesReport, DUE_SOON_DAYS, type DateClaim, type StaleDatesReport } from "@/lib/staleDates";
 import { filterRows, type ReportMode } from "@/lib/reportFilter";
 import { staleSearchFields } from "@/lib/staleDatesSearch";
+import { applyOverlay } from "@/lib/votes/overlay";
 import { useReportQuery } from "./useReportQuery";
 
-type BucketKey = "upcoming" | "dueSoon" | "stale";
+type BucketKey = "upcoming" | "dueSoon" | "stale" | "recorded";
 
 const SECTIONS: {
   key: BucketKey;
@@ -36,6 +38,12 @@ const SECTIONS: {
     tone: "var(--red)", // left bar only — keeps the selected-node idiom
     textTone: "var(--error-text)", // --red is below 3:1 on --bg; use the accessible alias
   },
+  {
+    key: "recorded",
+    title: "Recorded votes",
+    hint: "Sentences that say a dated Executive Vote already did something — checked against the vote record, since past tense is not proof.",
+    tone: "var(--tan-3)",
+  },
 ];
 
 type Section = (typeof SECTIONS)[number] & { claims: readonly DateClaim[] };
@@ -45,19 +53,28 @@ type Section = (typeof SECTIONS)[number] & { claims: readonly DateClaim[] };
 // scan tally and stays informational).
 function onScreenReport(report: StaleDatesReport, sections: Section[]): StaleDatesReport {
   const claimsFor = (key: BucketKey) => [...(sections.find((s) => s.key === key)?.claims ?? [])];
-  return { ...report, upcoming: claimsFor("upcoming"), dueSoon: claimsFor("dueSoon"), stale: claimsFor("stale") };
+  return {
+    ...report,
+    upcoming: claimsFor("upcoming"),
+    dueSoon: claimsFor("dueSoon"),
+    stale: claimsFor("stale"),
+    recorded: claimsFor("recorded"),
+  };
 }
 
 export function useStaleDatesState(query: string, mode: ReportMode) {
   // A load failure re-throws out of useLoaded into the route's ErrorBoundary,
-  // which owns the error + retry UI for every page.
+  // which owns the error + retry UI for every page. The vote record never
+  // fails: without it the report renders with no vote evidence.
   const docs = useLoaded(loadDocs);
+  const votes = useLoaded(loadVoteRecord);
   const day = useUTCDay();
   // Recomputed from the loaded atlas + the current UTC day — no build step
   // involved, and the day-keyed memo re-buckets a tab left open past midnight.
+  // The worker's verdicts then replace the rules' on every claim it judged.
   const report = useMemo(
-    () => (docs ? buildStaleDatesReport(docs, new Date(`${day}T12:00:00Z`)) : null),
-    [docs, day],
+    () => (docs && votes ? applyOverlay(buildStaleDatesReport(docs, new Date(`${day}T12:00:00Z`), votes.index), votes.overlay) : null),
+    [docs, votes, day],
   );
   // Text filter applies within each bucket; buckets keep their order/heading.
   const rq = useReportQuery(query, mode);
@@ -67,5 +84,13 @@ export function useStaleDatesState(query: string, mode: ReportMode) {
     [report, rq],
   );
   const csvReport = useMemo(() => (report && sections ? onScreenReport(report, sections) : null), [report, sections]);
-  return { report, rq, sections, csvReport, anyShown: sections?.some((s) => s.claims.length > 0) ?? false };
+  return {
+    report,
+    voteRecord: votes?.index ?? null,
+    judgedAt: votes?.overlay?.computedAt ?? null,
+    rq,
+    sections,
+    csvReport,
+    anyShown: sections?.some((s) => s.claims.length > 0) ?? false,
+  };
 }

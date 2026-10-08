@@ -7,8 +7,9 @@
 
 import type { AtlasNode } from "../types";
 import { stripMarkdownLinks } from "./atlasHelpers";
-import { toCSV } from "./csv";
-import { atlasUrl } from "./routes";
+import { executiveVoteRef, type VoteRef } from "./votes/claim";
+import { voteEvidence, type VoteEvidence } from "./votes/evidence";
+import type { VoteIndex } from "./votes/vote-index";
 
 export type DatePrecision = "day" | "month" | "quarter";
 
@@ -28,12 +29,18 @@ export interface DateClaim {
   contextAfter: string; // snippet text following the date
   daysUntilStale: number; // negative = already stale
   transition: boolean; // the dated claim is an operational control handoff (Pattern 23 territory)
+  // Past or present tense, kept only because it names an Executive Vote: the
+  // atlas records the vote as done, which the vote record can confirm or not.
+  recorded: boolean;
+  vote: VoteRef | null; // set when the date names an Executive Vote
+  voteEvidence?: VoteEvidence; // set when the report was built with the vote record
 }
 
 export interface StaleDatesReport {
   stale: DateClaim[]; // future-tense, date passed
   dueSoon: DateClaim[]; // future-tense, passes within DUE_SOON_DAYS
   upcoming: DateClaim[]; // future-tense, further out
+  recorded: DateClaim[]; // past-tense mentions of a dated Executive Vote, any date
   totalDateMentions: number;
 }
 
@@ -104,7 +111,9 @@ export function extractDateClaims(doc: AtlasNode, todayUTC: number): { claims: D
   for (const t of matches) {
     const before = content.slice(Math.max(0, t.start - 160), t.start);
     const after = content.slice(t.end, t.end + 96);
-    if (!FUTURE_RE.test(before + " " + after) && !BY_DATE_RE.test(before)) continue;
+    const future = FUTURE_RE.test(before + " " + after) || BY_DATE_RE.test(before);
+    const vote = executiveVoteRef(content, t.start, t.end);
+    if (!future && !vote) continue;
     const utc = boundaryUTC(t.y, t.mo, t.day);
     const contextBefore = before.slice(-132).replace(/\s+/g, " ").trimStart();
     const contextAfter = after.replace(/\s+/g, " ").trimEnd();
@@ -120,22 +129,32 @@ export function extractDateClaims(doc: AtlasNode, todayUTC: number): { claims: D
       contextAfter,
       daysUntilStale: Math.round((utc - todayUTC) / 86_400_000),
       transition: TRANSITION_CTX_RE.test(before + " " + t.raw + " " + after),
+      recorded: !future,
+      vote,
     });
   }
   return { claims, mentions: matches.length };
 }
 
+/**
+ * Scans every doc against `today`. With `votes` (the indexed vote record),
+ * every claim also carries its vote evidence; without it the report is the
+ * same scan, so a missing votes.json costs only that column.
+ */
 export function buildStaleDatesReport(
   docs: Record<string, AtlasNode>,
   today: Date = new Date(),
+  votes: VoteIndex | null = null,
 ): StaleDatesReport {
   const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
-  const report: StaleDatesReport = { stale: [], dueSoon: [], upcoming: [], totalDateMentions: 0 };
+  const report: StaleDatesReport = { stale: [], dueSoon: [], upcoming: [], recorded: [], totalDateMentions: 0 };
   for (const doc of Object.values(docs)) {
     const { claims, mentions } = extractDateClaims(doc, todayUTC);
     report.totalDateMentions += mentions;
     for (const c of claims) {
-      if (c.daysUntilStale < 0) report.stale.push(c);
+      if (votes) c.voteEvidence = voteEvidence(c, docs, votes);
+      if (c.recorded) report.recorded.push(c);
+      else if (c.daysUntilStale < 0) report.stale.push(c);
       else if (c.daysUntilStale <= DUE_SOON_DAYS) report.dueSoon.push(c);
       else report.upcoming.push(c);
     }
@@ -145,31 +164,6 @@ export function buildStaleDatesReport(
   report.stale.sort(byDate);
   report.dueSoon.sort(byDate);
   report.upcoming.sort(byDate);
+  report.recorded.sort(byDate);
   return report;
-}
-
-// Exports the full report as an RFC-4180 CSV string. All three buckets are
-// flattened with a leading Bucket column (there are no filters on this report).
-export function staleDatesToCSV(report: StaleDatesReport): string {
-  const bucketed: Array<[string, DateClaim]> = [
-    ...report.stale.map((c): [string, DateClaim] => ["stale", c]),
-    ...report.dueSoon.map((c): [string, DateClaim] => ["due-soon", c]),
-    ...report.upcoming.map((c): [string, DateClaim] => ["upcoming", c]),
-  ];
-  return toCSV(
-    ["Bucket", "Doc No", "Title", "UUID", "Atlas Link", "Date Text", "Boundary Date", "Precision", "Days Until Stale", "Handoff", "Context"],
-    bucketed.map(([bucket, c]) => [
-      bucket,
-      c.docNo,
-      c.title,
-      c.docId,
-      atlasUrl(c.docId),
-      c.raw,
-      c.dateISO,
-      c.precision,
-      c.daysUntilStale,
-      c.transition ? "yes" : "",
-      `${c.contextBefore}${c.raw}${c.contextAfter}`,
-    ]),
-  );
 }

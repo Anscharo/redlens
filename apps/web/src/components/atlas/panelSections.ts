@@ -32,6 +32,8 @@ export interface RightPanelProps {
    *  re-render this panel (or the sibling reader) — only the checkbox itself. */
   selectable?: boolean;
   byParent?: Map<string | null, AtlasNode[]>;
+  /** Every document, for matching the onchain section's Executive Votes to this one's dated claims. */
+  docs: Record<string, AtlasNode>;
 }
 
 /** Navigation from the panel, tagged with what was clicked. */

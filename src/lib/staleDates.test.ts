@@ -6,7 +6,8 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import type { AtlasNode } from "../types";
-import { buildStaleDatesReport, extractDateClaims, staleDatesToCSV } from "./staleDates";
+import { buildStaleDatesReport, extractDateClaims } from "./staleDates";
+import { staleDatesToCSV } from "./staleDatesCsv";
 
 const ROOT = path.resolve(__dirname, "../..");
 const docs: Record<string, AtlasNode> = JSON.parse(
@@ -143,6 +144,19 @@ describe("extractDateClaims — date shapes", () => {
 });
 
 describe("extractDateClaims — tense gating", () => {
+  it("a past-tense date that names an Executive Vote is kept as a recorded claim", () => {
+    const { claims } = claimsOf("The transfer was included in the March 26, 2026 Executive Vote.");
+    expect(claims).toHaveLength(1);
+    expect(claims[0]).toMatchObject({ recorded: true, vote: { outOfSchedule: false, anchor: false } });
+    expect(claims[0].vote?.subject).toEqual([]);
+  });
+
+  it("a future-tense Executive Vote claim is not recorded, and carries its subject terms", () => {
+    const { claims } = claimsOf("The Osero Genesis Capital transfer will be included in the March 26, 2026 Executive Vote.");
+    expect(claims[0]).toMatchObject({ recorded: false });
+    expect(claims[0].vote?.subject).toEqual(["osero", "genesis", "capital"]);
+  });
+
   it("a date without future phrasing produces a mention but no claim", () => {
     const { claims, mentions } = claimsOf("The grant was disbursed on March 26, 2026.");
     expect(mentions).toBe(1);
@@ -223,16 +237,20 @@ describe("buildStaleDatesReport — bucketing (synthetic)", () => {
     expect(r.stale.map((c) => c.docId)).toEqual(["a"]);
     expect(r.dueSoon.map((c) => c.docId)).toEqual(["b"]);
     expect(r.upcoming.map((c) => c.docId)).toEqual(["c"]);
+    expect(r.recorded).toEqual([]);
     expect(r.totalDateMentions).toBe(3);
   });
 });
 
 describe("staleDatesToCSV", () => {
-  it("flattens the three buckets with a leading Bucket column", () => {
+  it("flattens the four buckets with a leading Bucket column", () => {
     const csv = staleDatesToCSV(report);
     const lines = csv.split("\r\n");
-    expect(lines[0]).toBe('"Bucket","Doc No","Title","UUID","Atlas Link","Date Text","Boundary Date","Precision","Days Until Stale","Handoff","Context"');
-    const total = report.stale.length + report.dueSoon.length + report.upcoming.length;
+    expect(lines[0]).toBe(
+      '"Bucket","Doc No","Title","UUID","Atlas Link","Date Text","Boundary Date","Precision","Days Until Stale",' +
+        '"Handoff","Vote Evidence","Matched Via","Heuristic Said","Vote","Vote Date","Vote Offset Days","Vote Link","Spell","Subject Not In Vote","Context"',
+    );
+    const total = report.stale.length + report.dueSoon.length + report.upcoming.length + report.recorded.length;
     expect(lines.length - 1).toBe(total); // one data row per claim
     // Buckets appear in stale → due-soon → upcoming order.
     const buckets = lines.slice(1).map((l) => l.slice(1, l.indexOf('","')));
