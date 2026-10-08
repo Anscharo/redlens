@@ -23,23 +23,26 @@ export function useAtlasVsContract(id: string, src: DocValueSources | null | und
 const STATUS: Record<ValueStatus, { mark: string; text: string }> = {
   match: { mark: "✓", text: "matches the atlas" },
   mismatch: { mark: "✗", text: "differs from the atlas" },
+  "units-unknown": { mark: "?", text: "token units not confirmed" },
+  ambiguous: { mark: "?", text: "more than one key could be this one" },
   "not-set": { mark: "!", text: "not set on the contract" },
   unread: { mark: "…", text: "contract not read yet" },
   "no-deployment": { mark: "–", text: "no PAU indexed on this chain" },
+  "unknown-chain": { mark: "–", text: "chain not recognised" },
   "no-key": { mark: "–", text: "no rate-limit key found" },
   "not-stated": { mark: "–", text: "the atlas sets no value yet" },
   unparsed: { mark: "?", text: "atlas value not read" },
 };
 
-/** What the contract holds for the value, in its token's units. */
+/** What the contract holds for the value, in its token's units (only shown for a certain verdict, so `data` is read). */
 function contractValue(c: ValueCheck): string {
   const r = c.limit!;
-  const max = r.data?.maxAmount ?? r.configured.maxAmount;
+  const max = r.data!.maxAmount;
   const dec = limitDecimals(r.unit, max);
   const symbol = r.unit?.symbol ? ` ${r.unit.symbol}` : "";
   const amount = formatAmount(max, dec);
   if (amount === "unlimited") return amount;
-  return c.field === "maxAmount" ? `${amount}${symbol}` : `${formatPerDay(r.data?.slope ?? r.configured.slope, dec)}${symbol} per day`;
+  return c.field === "maxAmount" ? `${amount}${symbol}` : `${formatPerDay(r.data!.slope, dec)}${symbol} per day`;
 }
 
 const dim = { color: "var(--tan-3)" };
@@ -47,7 +50,7 @@ const dim = { color: "var(--tan-3)" };
 function Row({ c, label }: { c: ValueCheck; label: string }) {
   const s = STATUS[c.status];
   const compared = c.status === "match" || c.status === "mismatch";
-  const max = c.limit ? (c.limit.data?.maxAmount ?? c.limit.configured.maxAmount) : "0";
+  const max = c.limit?.data?.maxAmount ?? "0";
   return (
     <tr className="border-t border-[var(--border)] align-top" data-status={c.status}>
       <td className="py-1 pr-2">{label}</td>
@@ -73,7 +76,12 @@ function Row({ c, label }: { c: ValueCheck; label: string }) {
 const rowLabel = (c: ValueCheck, all: ValueCheck[]) =>
   all.filter((x) => x.label === c.label && x.instance === c.instance).length > 1 && c.kind ? `${c.label} (${c.kind})` : c.label;
 
+/** The oldest contract read among the rows, as "YYYY-MM-DD HH:MM". */
+const readAt = (rows: ValueCheck[]) =>
+  rows.map((c) => c.readAt).filter((t): t is string => !!t).sort()[0]?.slice(0, 16).replace("T", " ") ?? null;
+
 export function AtlasVsContract({ rows }: { rows: ValueCheck[] }) {
+  const read = readAt(rows);
   return (
     <div>
       <p className={`${SECTION_HEAD} mb-2`}>Atlas vs contract · {rows.length}</p>
@@ -89,6 +97,7 @@ export function AtlasVsContract({ rows }: { rows: ValueCheck[] }) {
         </thead>
         <tbody>{rows.map((c, i) => <Row key={`${c.key ?? "none"}:${c.label}:${c.kind ?? ""}:${i}`} c={c} label={rowLabel(c, rows)} />)}</tbody>
       </table>
+      {read && <p className="mono text-[10px] mt-1" style={dim}>contract read {read} UTC</p>}
     </div>
   );
 }

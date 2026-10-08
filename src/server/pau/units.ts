@@ -1,34 +1,48 @@
 // The token each rate limit is counted in. A controller limits an amount in the
 // units of what it moves: a vault deposit in the vault's asset, a transfer in
-// the token sent, a CCTP transfer in USDC, a Curve or Uniswap action in the
-// pool's 18-decimal normalized value. The rules are read from the controllers'
-// source (MainnetController, ForeignController and their libraries); the key's
-// derivation (key-derive.ts) names the address a "via" rule reads. A key no
-// rule covers keeps decimals inferred from its size (pauView.ts).
+// the token sent, a CCTP transfer in USDC, a Curve action in the pool's
+// 18-decimal normalized value. A unit is asserted only where the source of the
+// generation holding the key says so: the monolithic rules are read from
+// MainnetController, ForeignController and their libraries, and a diamond's
+// facets run their own code, so a diamond key gets a unit only from the facet
+// rules. The key's derivation (key-derive.ts) names the address a "via" rule
+// reads. A key no rule covers keeps decimals inferred from its size (pauView.ts),
+// and says so.
 import type { AmountUnit, DerivedKey, PauSnapshot } from "../../lib/pau.ts";
+import type { PauKind } from "../../lib/pauRegistry.ts";
 import { mapLimits, type ChainReader } from "./snapshot.ts";
 
 type Via = "asset" | "token" | "self";
 type Rule = { fixed: number; symbol: string | null } | { via: Via };
 
-const RULES: [RegExp, Rule][] = [
+const MONOLITHIC: [RegExp, Rule][] = [
   // depositToFarm / withdrawFromFarm limit the usdsAmount, whatever the farm.
   [/^LIMIT_(USDS_MINT|FARM_DEPOSIT|FARM_WITHDRAW)$/, { fixed: 18, symbol: "USDS" }],
   [/^LIMIT_(USDE_BURN|SUSDE_COOLDOWN)$/, { fixed: 18, symbol: "USDe" }],
-  [/^LIMIT_(USDE_MINT|USDS_TO_USDC|USDC_TO_CCTP|USDC_TO_DOMAIN|BUIDL_REDEEM_CIRCLE|SUPERSTATE_SUBSCRIBE|SUPERSTATE_REDEEM)$/, { fixed: 6, symbol: "USDC" }],
-  [/^LIMIT_(CURVE|UNISWAP_V3)_/, { fixed: 18, symbol: null }],
+  [/^LIMIT_(USDE_MINT|USDS_TO_USDC|USDC_TO_CCTP|USDC_TO_DOMAIN|BUIDL_REDEEM_CIRCLE|SUPERSTATE_SUBSCRIBE)$/, { fixed: 6, symbol: "USDC" }],
+  // CurveLib limits the value moved, normalized by the pool's rates to 18 decimals.
+  [/^LIMIT_CURVE_/, { fixed: 18, symbol: null }],
   // Amounts in the vault's underlying asset, not its shares (redeems are converted to assets first).
   [/^LIMIT_(4626|7540)_|^LIMIT_(MAPLE_REDEEM|SPARK_VAULT_TAKE)$/, { via: "asset" }],
   // An OFT adapter moves its token(); a native OFT is the token itself.
   [/^LIMIT_LAYERZERO_TRANSFER$/, { via: "token" }],
-  // The token itself (an aToken has its underlying's decimals).
-  [/^LIMIT_(AAVE_DEPOSIT|AAVE_WITHDRAW|ASSET_TRANSFER|CENTRIFUGE_TRANSFER|PSM_DEPOSIT|PSM_WITHDRAW)$/, { via: "self" }],
+  // The token itself: an aToken has its underlying's decimals, and UniswapV3Lib keys each token of a pool with its own amount.
+  [/^LIMIT_(AAVE_DEPOSIT|AAVE_WITHDRAW|ASSET_TRANSFER|CENTRIFUGE_TRANSFER|PSM_DEPOSIT|PSM_WITHDRAW|UNISWAP_V3_\w+)$/, { via: "self" }],
 ];
 
-export const unitRule = (d: DerivedKey | undefined): Rule | null => (d ? (RULES.find(([re]) => re.test(d.constant))?.[1] ?? null) : null);
+// USDSFacet limits the usdsAmount and PSMFacet the usdcAmount; no other facet's key is derived from a LIMIT_* constant with a unit it states.
+const DIAMOND: [RegExp, Rule][] = [
+  [/^LIMIT_USDS_MINT$/, { fixed: 18, symbol: "USDS" }],
+  [/^LIMIT_USDS_TO_USDC$/, { fixed: 6, symbol: "USDC" }],
+];
+
+const RULES: Record<PauKind, [RegExp, Rule][]> = { monolithic: MONOLITHIC, diamond: DIAMOND };
+
+export const unitRule = (d: DerivedKey | undefined, kind: PauKind = "monolithic"): Rule | null =>
+  d ? (RULES[kind].find(([re]) => re.test(d.constant))?.[1] ?? null) : null;
 const firstAddress = (d: DerivedKey) => d.args.find((a) => a.startsWith("0x"))?.toLowerCase() ?? null;
-const viaKey = (d: DerivedKey | undefined): string | null => {
-  const r = unitRule(d);
+const viaKey = (d: DerivedKey | undefined, kind: PauKind): string | null => {
+  const r = unitRule(d, kind);
   const a = d ? firstAddress(d) : null;
   return r && "via" in r && a ? `${r.via}:${a}` : null;
 };
@@ -59,14 +73,14 @@ async function tokenUnits(read: ChainReader, chain: string, tokens: string[]): P
 /** The snapshot with each rate limit's and BeamState default's unit attached where a rule finds one. */
 export async function withUnits(snap: PauSnapshot, read: ChainReader): Promise<PauSnapshot> {
   const derived = snap.contracts.flatMap((c) => [...(c.rateLimits ?? []), ...(c.beam?.defaults ?? [])].map((x) => x.derived));
-  const wanted = [...new Set(derived.map(viaKey).filter((w): w is string => !!w))];
+  const wanted = [...new Set(derived.map((d) => viaKey(d, snap.kind)).filter((w): w is string => !!w))];
   const tokens = wanted.length ? await tokensOf(read, snap.chain, wanted) : new Map<string, string | null>();
   const tokenList = [...new Set([...tokens.values()].filter((t): t is string => !!t))];
   const units = tokenList.length ? await tokenUnits(read, snap.chain, tokenList) : new Map<string, AmountUnit>();
   const unitOf = (d: DerivedKey | undefined): AmountUnit | undefined => {
-    const r = unitRule(d);
+    const r = unitRule(d, snap.kind);
     if (r && "fixed" in r) return { decimals: r.fixed, symbol: r.symbol, source: "constant" };
-    const token = tokens.get(viaKey(d) ?? "");
+    const token = tokens.get(viaKey(d, snap.kind) ?? "");
     return token ? units.get(token) : undefined;
   };
   return mapLimits(snap, (x) => {

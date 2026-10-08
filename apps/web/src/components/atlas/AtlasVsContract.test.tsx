@@ -12,7 +12,7 @@ const KEY = "0x" + "1".repeat(64);
 const at = { block: 1, time: "2025-12-15T00:00:00.000Z", tx: "0x" + "9".repeat(64) };
 const limit = (maxAmount: string, slope: string) => ({ key: KEY, configured: { maxAmount, slope }, setAt: at, changes: 1, data: { maxAmount, slope, lastAmount: "0", lastUpdated: "0" }, available: "0", unit: { decimals: 6, symbol: "USDC", source: "token" as const } });
 const served: PauResponse = {
-  deployments: [{ deployment: "p:ethereum:monolithic", prime: "p", primeName: "Grove", chain: "ethereum", kind: "monolithic", fetchedAt: "t", contracts: [{ role: "rateLimits", address: "0x" + "f".repeat(40), events: 1, historyComplete: true, rateLimits: [limit("20000000000000", "231481481")] }] }],
+  deployments: [{ deployment: "p:ethereum:monolithic", prime: "p", primeName: "Grove", chain: "ethereum", kind: "monolithic", fetchedAt: "2026-10-08T12:00:00.000Z", contracts: [{ role: "rateLimits", address: "0x" + "f".repeat(40), events: 1, historyComplete: true, rateLimits: [limit("20000000000000", "231481481")] }] }],
 };
 vi.mock("../../lib/pau", async (importOriginal) => ({ ...(await importOriginal<typeof import("../../lib/pau")>()), loadPau: () => Promise.resolve(served) }));
 
@@ -49,5 +49,6 @@ describe("AtlasVsContract", () => {
     expect(rows[1]).toHaveTextContent("20M USDC per day");
     expect(rows[2]).toHaveTextContent("the atlas sets no value yet");
     expect(within(rows[0]).getByRole("link")).toHaveAttribute("href", `https://etherscan.io/tx/${at.tx}`);
+    expect(screen.getByText("contract read 2026-10-08 12:00 UTC")).toBeInTheDocument();
   });
 });

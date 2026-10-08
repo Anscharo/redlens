@@ -21,6 +21,8 @@ function rateLimitValues(r: LiveRateLimit) {
     refill_per_day: perDay(r.data?.slope ?? r.configured.slope, scale.decimals),
     available: r.available === null ? null : amount(r.available, scale.decimals),
     ...scale,
+    /** False when the live read failed and the values are the last ones its history set. */
+    read_live: r.data !== null,
     switched_off: max === "0",
     ...(r.derived ? { derivation: r.derived } : {}),
     times_set: r.changes,

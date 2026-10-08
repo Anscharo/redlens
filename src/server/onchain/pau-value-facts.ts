@@ -29,13 +29,13 @@ export function primeValueSources(ix: Indexes, prime: string): ValueSource[] {
 
 /** What the contract holds for the checked value, exact, in its token's units. */
 function contractValue(c: ValueCheck): string {
-  if (!c.limit) return "not set";
+  if (!c.limit?.data) return "not set";
   const r = c.limit;
-  const max = r.data?.maxAmount ?? r.configured.maxAmount;
+  const max = c.limit.data.maxAmount;
   const dec = limitDecimals(r.unit, max);
   const symbol = r.unit?.symbol ? ` ${r.unit.symbol}` : "";
   if (exactAmount(max, dec) === "unlimited") return "unlimited";
-  return c.field === "maxAmount" ? `${exactAmount(max, dec)}${symbol}` : `${wholeAmount((BigInt(r.data?.slope ?? r.configured.slope) * 86_400n).toString(), dec)}${symbol} per day`;
+  return c.field === "maxAmount" ? `${exactAmount(max, dec)}${symbol}` : `${wholeAmount((BigInt(c.limit.data.slope) * 86_400n).toString(), dec)}${symbol} per day`;
 }
 
 function valueFact(c: ValueCheck, primeName: string, prime: string, snap: StoredPauSnapshot): OnchainFact {

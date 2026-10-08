@@ -53,7 +53,7 @@ const SNAP: StoredPauSnapshot = {
       limit(KDER, "1500000000000", "0", { derived: { constant: "LIMIT_4626_DEPOSIT", args: [VAULT] } }),
       limit(KOFF, "0", "0"),
       limit(KADDR, "2000000000000", "0", { derived: { constant: "LIMIT_ASSET_TRANSFER", args: [VAULT, LISTED] }, unit: { decimals: 6, symbol: "PYUSD", token: VAULT, source: "token" } }),
-    ], beam: { beamState: BEAM, hop: "57600", maxChange: "1200000000000000000", historyComplete: true, defaults: [
+    ], unsetKeys: [KOUT], beam: { beamState: BEAM, hop: "57600", maxChange: "1200000000000000000", historyComplete: true, defaults: [
       { key: KDER, maxAmount: "3000000000000", slope: "0", scope: "general", setAt: null, derived: { constant: "LIMIT_4626_DEPOSIT", args: [VAULT] }, unit: { decimals: 6, symbol: "USDC", token: VAULT, source: "token" } },
     ] } },
     { role: "controller", address: "0x" + "d".repeat(40), events: 2, historyComplete: false, roles: [{ role: "0xr", name: "RELAYER", account: RELAYER, since: at, holds: true }], agent: { actors: [{ account: RELAYER, since: at }] } },

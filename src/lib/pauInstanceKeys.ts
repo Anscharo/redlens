@@ -10,6 +10,7 @@
 import type { LiveRateLimit, StoredPauSnapshot } from "./pau.ts";
 import { RATE_LIMIT_ID_RE } from "./atlasHashes.ts";
 import { paramSide } from "./pauParams.ts";
+import { chainSnaps } from "./pauInstanceChain.ts";
 
 const HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
@@ -41,12 +42,6 @@ export function constantSide(constant: string): string {
 /** A value param's side, with the transfer spellings ("TransferAssets", "transferAsset") folded together. */
 export const valueSide = (name: string) => (/^transfer/.test(paramSide(name)) ? "transfer" : paramSide(name));
 
-/** The deployments on the instance's own chain (its name names it), else every deployment. */
-export function instanceSnaps(snaps: StoredPauSnapshot[], instance: string): StoredPauSnapshot[] {
-  const named = snaps.filter((s) => instance.toLowerCase().includes(s.chain));
-  return named.length ? named : snaps;
-}
-
 const limitsOf = (snaps: StoredPauSnapshot[]): LiveRateLimit[] => snaps.flatMap((s) => s.contracts.flatMap((c) => c.rateLimits ?? []));
 
 /** The addresses an instance lists, its underlying assets aside. */
@@ -58,7 +53,7 @@ const identifyingArg = (constant: string, args: string[]) => (/^LIMIT_ASSET_TRAN
 
 function derivedKeys(src: ValueSource, snaps: StoredPauSnapshot[], shared: Set<string>): InstanceKey[] {
   const listed = new Set(listedAddresses(src).filter((a) => !shared.has(a)));
-  return limitsOf(instanceSnaps(snaps, src.name)).flatMap((r) => {
+  return limitsOf(chainSnaps(snaps, src)).flatMap((r) => {
     const via = r.derived ? identifyingArg(r.derived.constant, r.derived.args) : undefined;
     return r.derived && via && listed.has(via) ? [{ side: constantSide(r.derived.constant), key: r.key.toLowerCase(), via }] : [];
   });

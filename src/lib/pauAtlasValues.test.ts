@@ -16,9 +16,9 @@ const usdc = { decimals: 6, symbol: "USDC", source: "token" as const };
 const lim = (key: string, maxAmount: string, slope: string, extra: Partial<LiveRateLimit> = {}): LiveRateLimit => ({
   key, configured: { maxAmount, slope }, setAt: at, changes: 1, data: { maxAmount, slope, lastAmount: "0", lastUpdated: "0" }, available: maxAmount, unit: usdc, ...extra,
 });
-const snap = (chain: string, kind: "monolithic" | "diamond", rateLimits: LiveRateLimit[] | undefined, historyComplete = true): StoredPauSnapshot => ({
+const snap = (chain: string, kind: "monolithic" | "diamond", rateLimits: LiveRateLimit[] | undefined, historyComplete = true, unsetKeys: string[] = [K_GONE]): StoredPauSnapshot => ({
   deployment: `p:${chain}:${kind}`, prime: "p", primeName: "P", chain, kind, fetchedAt: "t",
-  contracts: [{ role: "rateLimits", address: a(kind === "diamond" ? "e" : "f"), events: 1, historyComplete, ...(rateLimits ? { rateLimits } : {}) }],
+  contracts: [{ role: "rateLimits", address: a(kind === "diamond" ? "e" : "f"), events: 1, historyComplete, unsetKeys, ...(rateLimits ? { rateLimits } : {}) }],
 });
 // 5M USDC per day is 57870370.37… raw per second; the chain stores it truncated.
 const SNAPS = [
@@ -30,7 +30,7 @@ const SNAPS = [
     lim(k("8"), "1", "0", { derived: { constant: "LIMIT_AAVE_DEPOSIT", args: [SHARED] } }),
   ]),
   snap("ethereum", "diamond", [lim(K_BOTH, "2000000", "0")]),
-  snap("base", "monolithic", undefined, false),
+  snap("base", "monolithic", undefined, false, []),
 ];
 const src = (name: string, params: Record<string, string>): ValueSource => ({ name, docId: `doc:${name}`, params: Object.fromEntries(Object.entries(params).map(([n, v]) => [n, [v, `${name}/${n}`]])) });
 const run = (...sources: ValueSource[]) => checkAtlasValues(sources, SNAPS).map((c) => [c.label, c.status, c.kind]);
@@ -74,6 +74,26 @@ describe("checkAtlasValues", () => {
       ["Inflow maxAmount", "not-set", null], ["Inflow slope", "not-stated", null], ["Outflow maxAmount", "unparsed", null],
       ["Inflow maxAmount", "unread", null], ["Inflow maxAmount", "no-deployment", null],
     ]);
+  });
+  it("says not set only when a live read found the key never set on every RateLimits of the chain", () => {
+    const unprobed = [SNAPS[0], snap("ethereum", "diamond", [], true, [])];
+    const s = src("Ethereum Mainnet - Gone", { "Inflow RateLimitID": K_GONE, "Inflow Rate Limits / maxAmount": "1 USDC" });
+    expect(checkAtlasValues([s], unprobed).map((c) => c.status)).toEqual(["unread"]);
+  });
+  it("gives no verdict on a failed live read, a key naming no side for values on two, or two keys on one deployment", () => {
+    const failed = [snap("ethereum", "monolithic", [{ ...lim(K_IN, "5000000000000", "0"), data: null }])];
+    expect(checkAtlasValues([src("Ethereum Mainnet - A", { "Inflow RateLimitID": K_IN, "Inflow Rate Limits / maxAmount": "5,000,000 USDC" })], failed).map((c) => c.status)).toEqual(["unread"]);
+    const sideless = src("Ethereum Mainnet - S", { "Rate Limit IDs": K_IN, "Inflow Rate Limits / maxAmount": "5,000,000 USDC", "Outflow Rate Limits / maxAmount": "5,000,000 USDC" });
+    expect(checkAtlasValues([sideless], SNAPS).map((c) => c.status)).toEqual(["ambiguous", "ambiguous"]);
+    const two = src("Ethereum Mainnet - T", { "Inflow RateLimitID": K_IN, "Deposit RateLimitID": K_BOTH, "Inflow Rate Limits / maxAmount": "5,000,000 USDC" });
+    expect(checkAtlasValues([two], [SNAPS[0]]).map((c) => c.status)).toEqual(["ambiguous", "ambiguous"]);
+  });
+  it("compares only on the chain the instance names, and not at all when it names none", () => {
+    const coinbase = src("Ethereum Mainnet - Coinbase Custody", { "Inflow RateLimitID": K_IN, "Inflow Rate Limits / maxAmount": "5,000,000 USDC" });
+    const onBase = [snap("base", "monolithic", [lim(K_IN, "1", "0")]), ...SNAPS];
+    expect(checkAtlasValues([coinbase], onBase).map((c) => [c.chain, c.status])).toEqual([["ethereum", "match"]]);
+    const nowhere = src("Somewhere - Vault", { "Inflow RateLimitID": K_IN, "Inflow Rate Limits / maxAmount": "5,000,000 USDC" });
+    expect(checkAtlasValues([nowhere], SNAPS).map((c) => c.status)).toEqual(["unknown-chain"]);
   });
   it("keeps the documents a value belongs to", () => {
     const [c] = checkAtlasValues([src("Ethereum Mainnet - A", { "Inflow RateLimitID": K_IN, "Inflow Rate Limits / maxAmount": "5,000,000 USDC" })], SNAPS);

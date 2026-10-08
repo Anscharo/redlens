@@ -65,7 +65,7 @@ export function LimitName({ r, chain, keyIndex }: { r: { key: string; derived?: 
 function LimitRow({ r, chain, keyIndex }: { r: LiveRateLimit; chain: string; keyIndex: Map<string, AtlasKeyRef[]> }) {
   const max = r.data?.maxAmount ?? r.configured.maxAmount;
   const dec = limitDecimals(r.unit, max);
-  const scale = unitNote(r.unit, max);
+  const scale = unitNote(r.unit, max) + (r.data ? "" : "; live read failed, showing the last value its history set");
   return (
     <tr className="border-t border-[var(--border)] mono" data-off={isOff(r) || undefined} style={{ color: isOff(r) ? "var(--tan-3)" : "var(--tan-2)" }}>
       <td className="py-0.5 pr-3"><LimitName r={r} chain={chain} keyIndex={keyIndex} /></td>

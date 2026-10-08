@@ -64,9 +64,10 @@ async function snapshotOf(
   read: ChainReader,
   historyOf: (chain: string, contract: string) => Promise<ContractHistory>,
   beam: BeamSource | undefined,
-  deriveKey?: (key: string) => DerivedKey | null,
+  opts: { deriveKey?: (key: string) => DerivedKey | null; probe?: string[] },
 ): Promise<PauSnapshot> {
-  const snap = await buildSnapshot(d, read, historyOf, beam);
+  const snap = await buildSnapshot(d, read, historyOf, { beam, probe: opts.probe });
+  const deriveKey = opts.deriveKey;
   return withUnits(deriveKey ? withDerivedKeys(snap, deriveKey) : snap, read);
 }
 
@@ -95,7 +96,13 @@ export async function maybeRefreshPauState(
   db: SqlTag,
   reg: PauRegistry,
   read: ChainReader,
-  opts: { refreshSeconds: number; now?: number; deriveKey?: (key: string) => DerivedKey | null },
+  opts: {
+    refreshSeconds: number;
+    now?: number;
+    deriveKey?: (key: string) => DerivedKey | null;
+    /** The atlas's RateLimitID hashes by prime entity, read live on each of that prime's RateLimits (probe.ts). */
+    atlasKeys?: Map<string, string[]>;
+  },
 ): Promise<StateRefresh> {
   const now = opts.now ?? Date.now();
   const rows = (await db`SELECT deployment, fetched_at FROM pau_state`) as { deployment: string; fetched_at: Date | string }[];
@@ -107,7 +114,8 @@ export async function maybeRefreshPauState(
   const historyOf = async (c: string, a: string) => ({ events: await eventsOf(db, c, a), complete: await historyComplete(db, c, a) });
   const beamOf = beamSources(reg, historyOf);
   for (const d of reg.deployments) {
-    await upsertSnapshot(db, await snapshotOf(d, read, historyOf, await beamOf(d.chain), opts.deriveKey), new Date(now));
+    const snap = await snapshotOf(d, read, historyOf, await beamOf(d.chain), { deriveKey: opts.deriveKey, probe: opts.atlasKeys?.get(d.prime) });
+    await upsertSnapshot(db, snap, new Date(now));
   }
   return { refreshed: reg.deployments.length, removed, reason: "due" };
 }

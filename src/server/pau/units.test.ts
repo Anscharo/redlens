@@ -63,4 +63,10 @@ describe("withUnits", async () => {
     const decimals = seen.filter((c) => c.functionName === "decimals").map((c) => c.address);
     expect(decimals.length).toBe(new Set(decimals).size);
   });
+  it("asserts on a diamond only the units its facets state, and counts a monolithic Uniswap V3 key in its token", async () => {
+    const diamond = await withUnits({ ...snap, kind: "diamond", contracts: [{ role: "rateLimits", address: "0xrl", events: 0, historyComplete: true, rateLimits: [lim("d-mint", "LIMIT_USDS_MINT"), lim("d-uni", "LIMIT_UNISWAP_V3_DEPOSIT", [VAULT]), lim("d-4626", "LIMIT_4626_DEPOSIT", [VAULT])] }] }, read);
+    expect(diamond.contracts[0].rateLimits!.map((r) => r.unit?.symbol ?? null)).toEqual(["USDS", null, null]);
+    const mono = await withUnits({ ...snap, contracts: [{ role: "rateLimits", address: "0xrl", events: 0, historyComplete: true, rateLimits: [lim("m-uni", "LIMIT_UNISWAP_V3_SWAP", [ATOKEN, VAULT])] }] }, read);
+    expect(mono.contracts[0].rateLimits![0].unit).toMatchObject({ decimals: 6, symbol: "aEthUSDC", source: "token" });
+  });
 });
