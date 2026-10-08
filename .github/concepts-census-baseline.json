@@ -7154,7 +7154,7 @@
   },
   "formula-docs": {
     "counts": {
-      "total": 59,
+      "total": 56,
       "A.3.2": 54
     },
     "members": [
@@ -7437,27 +7437,12 @@
         "uuid": "1d676660-675c-40a4-8319-23671c55491b",
         "doc_no": "A.3.2.2.1.3.1.4",
         "title": "Lindy Adjustment Factor"
-      },
-      {
-        "uuid": "e196d2f1-fb65-4e31-b511-5ed9ebbaa164",
-        "doc_no": "A.4.4.1.3.2.1.4.1.1.2",
-        "title": "Collect Borrow And Supply Events"
-      },
-      {
-        "uuid": "08735694-ee69-4315-8ba6-6d08760bdb1c",
-        "doc_no": "A.4.4.1.3.2.1.4.1.1.4",
-        "title": "Calculate Time-Weighted Utilization"
-      },
-      {
-        "uuid": "6300d908-4ed3-4174-95a5-d9d43864a5a6",
-        "doc_no": "A.4.4.1.3.2.1.5",
-        "title": "Rfactor Definition"
       }
     ]
   },
   "numbered-step-docs": {
     "counts": {
-      "total": 47
+      "total": 48
     },
     "members": [
       {
@@ -7644,6 +7629,11 @@
         "uuid": "52fa11b0-7167-47c3-9678-e879dc981127",
         "doc_no": "A.3.5.1.1.1",
         "title": "Current Value"
+      },
+      {
+        "uuid": "1b21d050-e42d-4c93-925e-81f099d42028",
+        "doc_no": "A.3.5.3.2.1.1",
+        "title": "Circulating USDS Supply"
       },
       {
         "uuid": "dd7c5813-2026-4d1c-9bc8-33cf8fbee15a",
@@ -7981,12 +7971,12 @@
   },
   "title-templates": {
     "counts": {
-      "total": 1097,
+      "total": 1098,
       "Primitive Hub Document": 136,
       "Global Activation Status": 140,
       "Hub Data Repository": 136,
       "Single Instance Configuration Document": 48,
-      "Parameters": 228,
+      "Parameters": 229,
       "Rate Limits": 146,
       "Initial Planning": 85,
       "Operational GovOps Review": 85,
@@ -8020,7 +8010,13 @@
       },
       {
         "uuid": "422e200e-2a94-4bde-b718-328ff82d3bb8",
-        "doc_no": "A.2.2.10.1.1.1.2.4.1",
+        "doc_no": "A.2.2.10.1.1.1.2.4.1.1",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "851421ae-c530-4a2a-b22f-a541ba323186",
+        "doc_no": "A.2.2.10.1.1.1.2.4.2.1",
         "title": "Parameters",
         "bucket": "Parameters"
       },
@@ -14580,11 +14576,11 @@
   },
   "normative-title-families": {
     "counts": {
-      "total": 81,
-      "distinct": 74,
+      "total": 82,
+      "distinct": 75,
       "prohibition": 11,
       "derecognition": 14,
-      "suspension-rule": 5,
+      "suspension-rule": 6,
       "operational-conduct": 13,
       "adjudication": 5,
       "alignment": 23,
@@ -14970,6 +14966,12 @@
         "bucket": "prohibition"
       },
       {
+        "uuid": "7872f3b4-7cfd-459e-8142-4b8988c2f3ad",
+        "doc_no": "A.4.4.1.3.8.5.4",
+        "title": "Modification And Suspension Of The stUSDS Keeper",
+        "bucket": "suspension-rule"
+      },
+      {
         "uuid": "535cd1c9-1d4d-42e3-bb44-6c128690dd2d",
         "doc_no": "A.6.1.1.1.2.2.2.2.1.2.1.5",
         "title": "Artifact Edit Restrictions",
@@ -15081,8 +15083,8 @@
   },
   "cross-scope-duplication": {
     "counts": {
-      "total": 165,
-      "groups": 67
+      "total": 156,
+      "groups": 64
     },
     "members": [
       {
@@ -15219,39 +15221,27 @@
       },
       {
         "uuid": "c9ecd9c2-dd1b-426b-8e52-66a2b1892289",
-        "doc_no": "A.2.2.10.1.1.1.2.3.2.1",
+        "doc_no": "A.2.2.10.1.1.1.2.3.1.2.1",
         "title": "Aave v3 Facet",
         "bucket": "aave v3 facet"
       },
       {
         "uuid": "d9cbf883-119e-403d-8efa-125997cd8897",
-        "doc_no": "A.2.2.10.1.1.1.2.3.2.2",
+        "doc_no": "A.2.2.10.1.1.1.2.3.1.2.2",
         "title": "Basin Facet",
         "bucket": "basin facet"
       },
       {
         "uuid": "05f5d939-712b-4204-8f77-4ef5ea598dcc",
-        "doc_no": "A.2.2.10.1.1.1.2.3.2.7",
+        "doc_no": "A.2.2.10.1.1.1.2.3.1.2.7",
         "title": "ERC-4626 Facet",
         "bucket": "erc-4626 facet"
       },
       {
         "uuid": "b808a829-2f31-42f1-ac9f-6801d3eb8437",
-        "doc_no": "A.2.2.10.1.1.1.2.3.2.20",
+        "doc_no": "A.2.2.10.1.1.1.2.3.1.2.20",
         "title": "Uniswap v3 Facet",
         "bucket": "uniswap v3 facet"
-      },
-      {
-        "uuid": "7a98000b-c069-42f3-b1a4-8a3e7323a960",
-        "doc_no": "A.2.2.10.1.1.1.2.4.4.1",
-        "title": "Operator Execution",
-        "bucket": "operator execution"
-      },
-      {
-        "uuid": "e1a96b57-9c5e-469f-b7ac-5dac028eb726",
-        "doc_no": "A.2.2.10.1.1.1.2.4.4.2",
-        "title": "Public Communication",
-        "bucket": "public communication"
       },
       {
         "uuid": "5e941add-bf8d-4623-95a1-69795e7f7034",
@@ -15464,18 +15454,6 @@
         "bucket": "drift"
       },
       {
-        "uuid": "e96da090-34ff-4445-a1d3-22cc69be2e51",
-        "doc_no": "A.3.2.2.1.1.1.1.5",
-        "title": "Reference Implementation",
-        "bucket": "reference implementation"
-      },
-      {
-        "uuid": "35ec7382-0613-4e74-b5ba-d86c647b1d73",
-        "doc_no": "A.3.2.2.1.2.3.4",
-        "title": "Reference Implementation",
-        "bucket": "reference implementation"
-      },
-      {
         "uuid": "70888f64-f53f-488a-b138-b3b2ab2300b0",
         "doc_no": "A.3.2.2.4.1",
         "title": "Sourcing Of Internal Senior Risk Capital",
@@ -15584,12 +15562,6 @@
         "bucket": "operator multisig modification"
       },
       {
-        "uuid": "af8ff5da-704a-4404-a882-8ba52c98e205",
-        "doc_no": "A.3.5.2.4.6.4",
-        "title": "Public Communication",
-        "bucket": "public communication"
-      },
-      {
         "uuid": "1896350c-5f87-4be5-b32f-f1114dc2c271",
         "doc_no": "A.3.7.1.3.1.1",
         "title": "Min Definition",
@@ -15674,18 +15646,6 @@
         "bucket": "operator update process"
       },
       {
-        "uuid": "c49357ad-4961-497b-9449-662922cb70a7",
-        "doc_no": "A.3.7.1.3.6.2",
-        "title": "Operator Execution",
-        "bucket": "operator execution"
-      },
-      {
-        "uuid": "30a9cafe-92cc-4c9b-af94-c341915a1dfc",
-        "doc_no": "A.3.7.1.3.6.3",
-        "title": "Public Communication",
-        "bucket": "public communication"
-      },
-      {
         "uuid": "a9965d58-8cda-49fc-8a7f-f8cc2e0d6b98",
         "doc_no": "A.3.7.1.6",
         "title": "Genesis Capital Backstop",
@@ -15732,12 +15692,6 @@
         "doc_no": "A.4.4.1",
         "title": "SKY Staking",
         "bucket": "sky staking"
-      },
-      {
-        "uuid": "53ed66f4-d010-4370-b83b-e36a185f12ad",
-        "doc_no": "A.4.4.1.3.2.1.4.1.1.5",
-        "title": "Reference Implementation",
-        "bucket": "reference implementation"
       },
       {
         "uuid": "f1ed4794-7642-4ce4-ae80-c5f4e2ec0eed",
@@ -15822,12 +15776,6 @@
         "doc_no": "A.4.4.1.3.8.4.3",
         "title": "Operator Update Process",
         "bucket": "operator update process"
-      },
-      {
-        "uuid": "420d6ca3-405a-41be-ba0f-cdc52746477c",
-        "doc_no": "A.4.4.1.3.8.5.2.2",
-        "title": "Operator Execution",
-        "bucket": "operator execution"
       },
       {
         "uuid": "161ee404-89b3-43a1-80a9-f387f73c0f6f",
