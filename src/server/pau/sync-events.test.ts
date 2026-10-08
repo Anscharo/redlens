@@ -1,8 +1,8 @@
 // syncPauEvents against an in-memory pau_cursor / pau_events. What matters:
 // the cursor advances only past what was stored, never into the unconfirmed
 // tail; a rate limit ends the tick for its chain and leaves its cursor first
-// in line; an
-// unserved chain or a dead RPC never blocks the rest; the budget bounds a tick.
+// in line; an unserved chain or a dead RPC never blocks the rest; a chain
+// another reader owns is left alone; the budget bounds a tick.
 import { beforeEach, describe, expect, it } from "bun:test";
 import type { PauRegistry } from "../../lib/pauRegistry.ts";
 import { CONFIRMATIONS, eventTargets, syncPauEvents, type PauLog, type SyncDeps } from "./sync-events.ts";
@@ -128,6 +128,13 @@ describe("syncPauEvents", () => {
     expect(res).toMatchObject({ visited: 0, pending: 3 });
     expect(heads).toBe(1);
     expect(cursors.every((c) => c.checked_at === null)).toBe(true);
+  });
+  it("never reads or marks a chain another reader owns", async () => {
+    const two = { ...reg(), deployments: [...reg().deployments, ...reg("base").deployments] } as PauRegistry;
+    const seen: string[] = [];
+    await syncPauEvents(db, two, deps({ skipChains: new Set(["base"]), logs: async (chain) => (seen.push(chain), []) }));
+    expect(new Set(seen)).toEqual(new Set(["ethereum"]));
+    expect(cursors.some((c) => c.chain === "base")).toBe(false);
   });
   it("stops when the budget is spent", async () => {
     let t = 0;

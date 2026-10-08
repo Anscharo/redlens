@@ -117,3 +117,15 @@ describe("the chains promoted out of deferred", () => {
     expect(FUTURE_TO_ETHEREUM).not.toContain(key);
   });
 });
+
+describe("explorer request gaps", () => {
+  it("gives each blockscoutApi host one blockscoutIntervalMs", () => {
+    const byHost = new Map<string, Set<number | undefined>>();
+    for (const c of registry.chains as { blockscoutApi?: string; blockscoutIntervalMs?: number }[]) {
+      if (!c.blockscoutApi) continue;
+      const host = new URL(c.blockscoutApi).host;
+      byHost.set(host, (byHost.get(host) ?? new Set()).add(c.blockscoutIntervalMs));
+    }
+    for (const [host, gaps] of byHost) expect(gaps.size, `${host} has conflicting gaps`).toBe(1);
+  });
+});

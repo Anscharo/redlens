@@ -16,8 +16,8 @@ const CACHE_DIR = path.join(ROOT, ".cache/etherscan");
 const CHAINLOG_URL = "https://chainlog.skyeco.com/api/mainnet/active.json";
 
 // Every live explorer call goes through throttleExplorer() (explorer-api.ts),
-// the clock shared with the PAU grant-history lookups, so enrich, impl-ABI and
-// log passes cannot stampede either provider between them.
+// the per-host clocks shared with the PAU grant-history lookups, so enrich,
+// impl-ABI and log passes cannot stampede any provider between them.
 
 /**
  * Substantive proxy metadata fields — deliberately ignores fetchedAt so a
@@ -81,14 +81,15 @@ export async function fetchChainlog() {
 }
 
 // ---------------------------------------------------------------------------
-// Source-code lookup (Etherscan v2 + Blockscout backup)
+// Source-code lookup (Etherscan v2 + Routescan / Blockscout backup)
 //
-// Etherscan v2 and every Blockscout instance expose the same
+// Etherscan v2, Routescan and every Blockscout instance expose the same
 // `?module=contract&action=getsourcecode` response shape, so one parser
 // (makeEntry) covers both. Per chain we build an ordered provider list —
-// Etherscan first where supported, Blockscout as a fallback — and for chains
-// Etherscan v2 doesn't cover (robinhood) Blockscout is the only, primary
-// provider. Blockscout's optional BLOCKSCOUT_API_KEY raises its rate limit.
+// Etherscan first where supported, then Routescan and Blockscout as fallbacks —
+// and for chains Etherscan v2 doesn't cover (plume) Blockscout is the only,
+// primary provider. Blockscout's optional BLOCKSCOUT_API_KEY raises its rate
+// limit.
 // ---------------------------------------------------------------------------
 const EMPTY_SOURCE = { ContractName: "", ABI: "", Proxy: "0", Implementation: "", SourceCode: "" };
 
@@ -100,7 +101,7 @@ function explorerProviders(chain, addr, apiKey) {
 }
 
 async function fetchExplorer(url, providerName, chainid, addr) {
-  await throttleExplorer();
+  await throttleExplorer(url);
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${chainid}/${addr} (${providerName})`);
   const data = await res.json();

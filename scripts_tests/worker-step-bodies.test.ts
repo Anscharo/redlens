@@ -16,6 +16,7 @@ const rpcChainReader = vi.fn(() => "reader");
 vi.mock("../src/server/pau/sync-events.ts", () => ({ syncPauEvents }));
 vi.mock("../src/server/pau/store.ts", () => ({ maybeRefreshPauState }));
 vi.mock("../src/server/pau/rpc-reader.ts", () => ({ rpcChainReader, rpcHead: vi.fn() }));
+vi.mock("../src/server/pau/rpc-sync.ts", () => ({ rpcChains: () => new Set(["base"]) }));
 vi.mock("../src/server/config.ts", () => ({ config: { pauEventBudgetSeconds: 60, pauRefreshSeconds: 3600 } }));
 const derive = vi.fn(() => ({ constant: "LIMIT_X", args: [] }));
 const keyDeriver = vi.fn(() => derive);
@@ -73,6 +74,7 @@ describe("worker tick step bodies", () => {
     expect(await step("pau").run(ctx)).toBe("pau events 40 read, 12 pending, 199 new; state rebuilt 20");
     expect(syncPauEvents.mock.calls[0][0]).toBe(db);
     expect(syncPauEvents.mock.calls[0][2].budgetMs).toBe(60_000);
+    expect(syncPauEvents.mock.calls[0][2].skipChains).toEqual(new Set(["base"]));
     expect(maybeRefreshPauState.mock.calls[0][2]).toBe("reader");
     const opts = maybeRefreshPauState.mock.calls[0][3];
     expect(opts.refreshSeconds).toBe(3600);

@@ -8,7 +8,7 @@ export const onchain: EnvGroup = {
       doc: "Etherscan key for build:addresses (https://etherscan.io/apidashboard). Results are cached under .cache/etherscan.",
       example: "",
     },
-    { name: "ETHERSCAN_THROTTLE_MS", doc: "Minimum gap between Etherscan requests, in ms (1 request a second).", default: "1000" },
+    { name: "ETHERSCAN_THROTTLE_MS", doc: "Minimum gap between requests to one block-explorer API host, in ms (1 request a second). A host whose chain-registry blockscoutIntervalMs is longer keeps that gap.", default: "1000" },
     { name: "BLOCKSCOUT_API_KEY", doc: "Optional key appended to Blockscout source lookups, for the chains build:addresses reads through Blockscout." },
     { name: "REFRESH_PROXY_CACHE", doc: "Any value re-verifies cached proxy contracts, whose implementation can be upgraded, and rewrites the cache only when it changed." },
     {
@@ -35,6 +35,11 @@ export const onchain: EnvGroup = {
       name: "PAU_EVENT_BUDGET_SECONDS",
       doc: "Seconds each worker tick spends reading PAU admin events from the block explorer before handing the rest to the next tick.",
       default: "60",
+    },
+    {
+      name: "PAU_RPC_DEADLINE_MS",
+      doc: "Time from start after which the sync:pau-rpc worker tail starts no new JSON-RPC request. It reads PAU event history for chains no free explorer serves.",
+      default: "480000",
     },
     {
       name: "PAU_REFRESH_SECONDS",
