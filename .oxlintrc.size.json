@@ -53,7 +53,7 @@
     { "files": ["apps/web/src/components/preview/PreviewPrTabs.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 112, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/preview/PreviewRollupBadge.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 77, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/provenance/HistoryProvenance.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 166, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/components/radar/ActorDashboard.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 101, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["apps/web/src/components/radar/ActorDashboard.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 96, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/radar/ActorSettlements.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 77, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/reports/MistakesFilters.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 91, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/reports/OeaAssessmentTable.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 90, "skipBlankLines": true, "skipComments": true }] } },

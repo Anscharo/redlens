@@ -5,14 +5,11 @@ import { atlasHref } from "@/lib/routes";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { StatusPill } from "../reports/RewardsCells";
 import { InstanceCard } from "./InstanceCard";
-import { RadarHeading, type HeadingLevel } from "./RadarHeading";
+import { RadarHeading } from "./RadarHeading";
 
 
 interface Props {
   primitives: RadarPrimitive[];
-  /** Rank of this list's top headings: 2 on the instances page, 3 under the
-   *  Primitives section of a one-page actor. */
-  level?: HeadingLevel;
 }
 
 interface CategoryGroup {
@@ -162,10 +159,11 @@ function SectionHeading({ label, count, level }: { label: string; count: number;
   );
 }
 
-/** An actor's primitives by category. With no invocations the categories
- *  head the list; with some, an Invocations and an Instances heading split it
- *  and everything under them sits one rank lower. */
-export function ActorInstances({ primitives, level = 2 }: Props) {
+/** A Prime's primitives by category, under the page's h1. With no invocations
+ *  the categories are the h2s; with some, an Invocations and an Instances h2
+ *  split the list and everything under them sits one rank lower. */
+export function ActorInstances({ primitives }: Props) {
+  const level = 2;
   const groups = buildCategoryGroups(primitives);
   const instanceCount = primitives.reduce((n, p) => n + p.instances.length, 0);
   const invocationCount = primitives.reduce((n, p) => n + p.invocations.length, 0);

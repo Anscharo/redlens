@@ -89,12 +89,6 @@ describe("ActorInstances sections", () => {
     expect(screen.getByRole("heading", { level: 5, name: "Inst" })).toBeInTheDocument();
   });
 
-  it("starts a rank lower when nested under a section heading", () => {
-    render(<ActorInstances primitives={[prim({ instances: [inst({ displayName: "Solo" })] })]} level={3} />);
-    expect(screen.getByRole("heading", { level: 3, name: "Genesis Primitives" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 5, name: "Solo" })).toBeInTheDocument();
-  });
-
   it("shows an 'unknown' badge and renders a title without a doc link", () => {
     render(
       <ActorInstances

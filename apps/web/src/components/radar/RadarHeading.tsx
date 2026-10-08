@@ -1,5 +1,3 @@
-export type HeadingLevel = 2 | 3 | 4 | 5 | 6;
-
 export interface RadarHeadingProps extends React.ComponentProps<"h2"> {
   /** The heading rank; deeper ranks past 6 are held at 6. */
   level: number;

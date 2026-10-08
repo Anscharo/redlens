@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 // ActorDashboard is the actor-page layout. Its own logic is the header
 // (type-label branch, defining-doc + composite links), the composite-party
-// block, the conditional sections (responsibilities / primitives / relations /
+// block, the conditional sections (responsibilities / relations /
 // notable / rewards), and RelationRow/RecRow. Leaf children (chain, contact,
-// responsibilities, instances, rewards, history, settlements) are covered by
+// responsibilities, rewards, history, settlements) are covered by
 // their own tests and stubbed here so we isolate ActorDashboard's branching.
 
 import { describe, it, expect, afterEach, vi } from "vitest";
@@ -17,7 +17,6 @@ Element.prototype.scrollIntoView = vi.fn();
 vi.mock("./ActorChain", () => ({ ActorChain: () => <div data-testid="chain" /> }));
 vi.mock("./ActorContact", () => ({ ActorContact: () => <div data-testid="contact" /> }));
 vi.mock("./ActorResponsibilities", () => ({ ActorResponsibilities: () => <div data-testid="resp" /> }));
-vi.mock("./ActorInstances", () => ({ ActorInstances: () => <div data-testid="instances" /> }));
 vi.mock("./ActorRewards", () => ({ ActorRewards: () => <div data-testid="rewards" /> }));
 vi.mock("./ActorHistory", () => ({ ActorHistory: () => <div data-testid="history" /> }));
 vi.mock("./ActorSettlementTeaser", () => ({ ActorSettlementTeaser: () => <div data-testid="settlements" /> }));
@@ -30,7 +29,7 @@ function entity(overrides: Partial<GraphEntity> = {}): GraphEntity {
   return { id: "e1", slug: "spark", name: "Spark", et: "agent", st: "prime", did: null, ...overrides };
 }
 
-// An actor without subpages: its one page carries primitives and history too.
+// An actor without subpages: its one page carries its history too.
 const executor = () => entity({ slug: "exec", name: "Exec", st: "core_executor" });
 
 function profile(overrides: Partial<ActorProfile> = {}): ActorProfile {
@@ -111,20 +110,18 @@ describe("ActorDashboard sections", () => {
     expect(screen.getByText("Dev Co")).toBeInTheDocument();
   });
 
-  it("renders responsibilities and primitives sections only when populated", () => {
+  it("renders the responsibilities section only when populated, and never a primitives section", () => {
     const { rerender } = render(<ActorDashboard profile={profile({ entity: executor() })} />);
     expect(screen.queryByText("Responsibilities")).not.toBeInTheDocument();
-    expect(screen.queryByText("Primitives")).not.toBeInTheDocument();
 
     rerender(
       <ActorDashboard
         profile={profile({ entity: executor(), adRows: [{} as never], primitives: [{} as never] })}
       />,
     );
+    expect(screen.queryByText("Primitives")).not.toBeInTheDocument();
     expect(screen.getByText("Responsibilities")).toBeInTheDocument();
-    expect(screen.getByText("Primitives")).toBeInTheDocument();
     expect(screen.getByTestId("resp")).toBeInTheDocument();
-    expect(screen.getByTestId("instances")).toBeInTheDocument();
   });
 
   it("renders relation rows with a link when the other party has a slug", () => {
@@ -177,11 +174,11 @@ describe("ActorDashboard sections", () => {
   });
 
   it("scrolls a matching hash target into view on mount", () => {
-    window.location.hash = "#instances";
+    window.location.hash = "#somewhere";
     const el = document.createElement("div");
-    el.id = "instances";
+    el.id = "somewhere";
     document.body.appendChild(el);
-    render(<ActorDashboard profile={profile({ entity: executor(), primitives: [{} as never] })} />);
+    render(<ActorDashboard profile={profile({ entity: executor() })} />);
     expect(el.scrollIntoView).toHaveBeenCalled();
     document.body.removeChild(el);
     window.location.hash = "";
@@ -209,41 +206,40 @@ describe("ActorDashboard link targets", () => {
         profile={profile({
           entity: executor(),
           adRows: [{} as never],
-          primitives: [{} as never],
           relations: [rel as never],
           recommendations: [{ label: "x", detail: "y" } as never],
           rewardsAgent: {} as never,
         })}
       />,
     );
-    for (const id of ["responsibilities", "primitives", "relationships", "notable", "history", "rewards"]) {
+    for (const id of ["responsibilities", "relationships", "notable", "history", "rewards"]) {
       expect(container.querySelector(`section#${id}`)).not.toBeNull();
     }
   });
 
   it("marks the hash target as arrived and clears the previous one", () => {
-    window.location.hash = "#primitives";
-    const { container, rerender } = render(<ActorDashboard profile={profile({ entity: executor(), primitives: [{} as never] })} />);
-    const el = container.querySelector("#primitives")!;
+    window.location.hash = "#responsibilities";
+    const { container, rerender } = render(<ActorDashboard profile={profile({ entity: executor(), adRows: [{} as never] })} />);
+    const el = container.querySelector("#responsibilities")!;
     expect(el).toHaveAttribute("data-arrived");
     el.removeAttribute("id");
     el.setAttribute("id", "old");
     window.location.hash = "#history";
-    rerender(<ActorDashboard profile={profile({ entity: executor(), primitives: [{} as never] })} />);
+    rerender(<ActorDashboard profile={profile({ entity: executor(), adRows: [{} as never] })} />);
     expect(container.querySelector("#history")).toHaveAttribute("data-arrived");
     expect(el).not.toHaveAttribute("data-arrived");
     window.location.hash = "";
   });
 
   it("scrolls once per arrival, not on every re-render", () => {
-    window.location.hash = "#primitives";
+    window.location.hash = "#responsibilities";
     const scroll = vi.mocked(Element.prototype.scrollIntoView);
     scroll.mockClear();
-    const { rerender } = render(<ActorDashboard profile={profile({ entity: executor(), primitives: [{} as never] })} />);
+    const { rerender } = render(<ActorDashboard profile={profile({ entity: executor(), adRows: [{} as never] })} />);
     expect(scroll).toHaveBeenCalledTimes(1);
-    rerender(<ActorDashboard profile={profile({ entity: executor(), primitives: [{} as never] })} />);
+    rerender(<ActorDashboard profile={profile({ entity: executor(), adRows: [{} as never] })} />);
     expect(scroll).toHaveBeenCalledTimes(1);
-    rerender(<ActorDashboard profile={profile({ entity: { ...executor(), id: "e2" }, primitives: [{} as never] })} />);
+    rerender(<ActorDashboard profile={profile({ entity: { ...executor(), id: "e2" }, adRows: [{} as never] })} />);
     expect(scroll).toHaveBeenCalledTimes(2);
     window.location.hash = "";
   });

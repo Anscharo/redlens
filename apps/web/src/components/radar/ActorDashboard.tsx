@@ -8,7 +8,6 @@ import { ActorChain } from "./ActorChain";
 import { ActorContact } from "./ActorContact";
 import { ActorResponsibilities } from "./ActorResponsibilities";
 import { ActorRewards } from "./ActorRewards";
-import { ActorInstances } from "./ActorInstances";
 import { ActorHistory } from "./ActorHistory";
 import { ActorSettlementTeaser } from "./ActorSettlementTeaser";
 import { ActorConnections } from "./ActorConnections";
@@ -33,7 +32,6 @@ export function ActorDashboard({ profile }: Props) {
     chain,
     adRows,
     rewardsAgent,
-    primitives,
     comprisesMembers,
     partOfComposite,
   } = profile;
@@ -97,12 +95,8 @@ export function ActorDashboard({ profile }: Props) {
               <ActorResponsibilities rows={adRows} />
             </Section>
           )}
-          {/* A Prime's instances, history and PAUs are subpages (radarPages.ts). */}
-          {!split && primitives.length > 0 && (
-            <Section title="Primitives" id={RADAR_SECTION.primitives}>
-              <ActorInstances primitives={primitives} level={3} />
-            </Section>
-          )}
+          {/* Only Primes have primitives, and a Prime's instances, history and
+              PAUs are subpages (radarPages.ts). */}
           {!split && <ActorConnections profile={profile} />}
         </div>
 
