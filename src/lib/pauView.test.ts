@@ -2,7 +2,7 @@
 // and the unlimited sentinel), and the instance label each rate-limit key gets.
 import { describe, expect, it } from "vitest";
 import type { StoredPauSnapshot } from "./pau.ts";
-import { instanceKeyIndex, labelOnChain, formatAmount, formatPerDay, inferDecimals, primeKeyedInstance, snapshotsForPrime } from "./pauView.ts";
+import { exactAmount, instanceKeyIndex, labelOnChain, formatAmount, formatPerDay, inferDecimals, primeKeyedInstance, snapshotsForPrime, wholeAmount } from "./pauView.ts";
 
 const snap = (prime: string, chain: string, kind: "monolithic" | "diamond") =>
   ({ deployment: `${prime}:${chain}:${kind}`, prime, primeName: "P", chain, kind, contracts: [], fetchedAt: "" }) as StoredPauSnapshot;
@@ -24,6 +24,13 @@ describe("amounts", () => {
     expect(formatAmount("1500000000000000000000000000", 18)).toBe("1.5B");
     expect(formatAmount("1234500", 6)).toBe("1.23");
     expect(formatAmount(((1n << 256n) - 1n).toString(), 18)).toBe("unlimited");
+  });
+  it("gives exact amounts, and whole units where a truncated per-second slope would read as noise", () => {
+    expect(exactAmount("1500000", 6)).toBe("1.5");
+    expect(exactAmount("25000000000000", 6)).toBe("25000000");
+    expect(wholeAmount("24999999926400", 6)).toBe("25000000");
+    expect(wholeAmount("500000", 6)).toBe("0.5");
+    expect(wholeAmount(((1n << 256n) - 1n).toString(), 18)).toBe("unlimited");
   });
   it("turns a per-second slope into an amount per day", () => {
     expect(formatPerDay("289351851", 6)).toBe("25M");

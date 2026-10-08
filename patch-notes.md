@@ -36,6 +36,7 @@
 ## 2026-10-08
 
 - Added a PAU on-chain section to each Prime Agent's Radar page, showing its controller roles and rate limits as read from the chain
+- Let the chat and MCP clients look up every Prime Agent's on-chain rate limits and controller roles
 
 ## 2026-10-07
 

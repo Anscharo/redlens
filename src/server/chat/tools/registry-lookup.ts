@@ -2,6 +2,7 @@ import { z } from "zod";
 import { atlasEntity, atlasFilter, atlasEntityParams } from "./tools-graph.ts";
 import { atlasParams } from "./tools-params.ts";
 import { readOnlyAtlasTool, type AtlasTool } from "./tool-types.ts";
+import { withOnchain } from "../../onchain/enrich.ts";
 
 export const LOOKUP_TOOLS: AtlasTool[] = [
   {
@@ -64,7 +65,8 @@ export const LOOKUP_TOOLS: AtlasTool[] = [
     description:
       "Return the immediate Core children of a doc as a parameter map. Useful for any ICD whose params are encoded " +
       "as child Cores. With `id`, returns that one doc's params. With `entity`, returns params for every INSTANCE doc " +
-      "under the entity (not the whole subtree); the response also lists `available_subtypes` so you can refine.",
+      "under the entity (not the whole subtree); the response also lists `available_subtypes` so you can refine. " +
+      "Where an instance states a PAU RateLimitID, `onchain` carries that key's live maximum, refill and available amount.",
     shape: {
       id: z.string().optional().describe("Doc UUID or doc_no (typically an instance doc)."),
       entity: z.string().optional().describe("Entity slug — fetch params for all instance docs under entity."),
@@ -77,7 +79,7 @@ export const LOOKUP_TOOLS: AtlasTool[] = [
         ),
       limit: z.number().int().min(1).max(200).default(50),
     },
-    handler: (ix, a) => atlasEntityParams(ix, a as Parameters<typeof atlasEntityParams>[1]),
+    handler: withOnchain((ix, a) => atlasEntityParams(ix, a as Parameters<typeof atlasEntityParams>[1])),
   },
   {
     name: "atlas_params",
@@ -89,12 +91,13 @@ export const LOOKUP_TOOLS: AtlasTool[] = [
       "§3.1) — name/value/unit/owner rows with source doc UUIDs, for rate limits, ratios, quorums, thresholds, and " +
       "other configured numeric constants. Matches `query` against each row's name + owner + doc_no (every query token " +
       "of 3+ characters must appear somewhere in that combined text). Returns `{ count, truncated?, rows }`; each " +
-      "row: `{ uuid, doc_no, name, value, unit, owner, context }`.",
+      "row: `{ uuid, doc_no, name, value, unit, owner, context }`. Where a row sets a PAU rate limit, `onchain` carries " +
+      "the value the chain holds for it, to compare with the row.",
     shape: {
       query: z.string().optional().describe("Search text matched against parameter name, owner, and doc_no (e.g. 'keel maxAmount', 'liquidation ratio')."),
       limit: z.number().int().min(1).max(100).default(25),
       q: z.string().optional().describe("Deprecated alias of `query`."),
     },
-    handler: (ix, a) => atlasParams(ix, { query: (a.query as string | undefined) ?? (a.q as string | undefined), limit: (a.limit as number | undefined) ?? 25 }),
+    handler: withOnchain((ix, a) => atlasParams(ix, { query: (a.query as string | undefined) ?? (a.q as string | undefined), limit: (a.limit as number | undefined) ?? 25 })),
   },
 ];

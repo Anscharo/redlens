@@ -1,0 +1,18 @@
+# On-chain facts for chat and MCP
+
+What the chat and MCP tools know about the chain: values a worker read and stored, never atlas text. The atlas says what should be set; these say what is.
+
+## Pieces
+
+- `facts.ts` declares `OnchainFact` (entity, chain, contract, name and where the name came from, values, the transaction that set it, when it was read, whether the contract's history is complete) and `Coverage` (how far a source has read each deployment, so a gap reads as "not read yet" rather than as nothing). `factIndex` reads every source, indexes facts by the key hashes, addresses and atlas document ids they are about, and caches the result for a minute per atlas index set. A source that fails contributes nothing rather than failing the tool.
+- `sources.ts` is the registry. A new source is one entry with a `read(ix)` returning facts and coverage; nothing else changes.
+- `pau-source.ts` turns the stored PAU snapshots (`src/server/pau/`) into facts: one per rate-limit key, role holder and AdministeredAgent member. A key is named by the atlas first (its RateLimitID param, `pau-atlas-refs.ts`), else by the controller constant that derives it (`key-derive.ts`), else not at all.
+- `pau-atlas-refs.ts` says which atlas documents a key belongs to: the one stating it, the instance it sits in, and the ones setting its maxAmount and slope, matched by operation (inflow/deposit, outflow/withdraw/redeem, swap); a key naming no operation takes all of its instance's. A prime's own controller-wide keys also belong to the documents under the prime that cite their `LIMIT_*` constant.
+- `enrich.ts` is `withOnchain`, the wrapper on `atlas_params`, `atlas_entity_params` and `atlas_get_address`: their result gains an `onchain` block with the facts it names by a key, a document id or an address (a key first, then a document, then an address; at most 15, compact). A model reading an instance's RateLimitID and its atlas maxAmount sees the chain's value beside them without knowing another tool exists.
+- `query.ts` is `atlas_onchain` (`chat/tools/registry-onchain.ts`): every fact, filtered by entity, chain, kind, address and words, with `coverage`. "deposit" also matches an `Inflow` name and "withdraw" an `Outflow` one, because the atlas names instance keys by direction. Switched-off limits (maximum 0) are left out unless `include_off`.
+
+## Rules
+
+- Amounts carry `raw` and a scaled `amount`. The decimals are inferred (`inferDecimals`: at least 1e18 raw units reads as 18, else 6) and every rate-limit fact says so. A refill per day is rounded to whole units, because the stored per-second slope is truncated.
+- A fact is cited by `set_at.url`, the transaction that set it, never by an atlas document. The chat system prompt says so, and the verifier already flags a chain value cited to an atlas document that does not contain it.
+- `history_complete: false` means the event history is still being read: a missing role or key is not proof of absence.

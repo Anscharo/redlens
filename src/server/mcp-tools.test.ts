@@ -100,11 +100,11 @@ test("external_msc is MCP-only, description leads with Rule 1, and is not in ATL
   expect(EXTERNAL_TOOLS.find((t) => t.name === "external_msc")!.description).toMatch(/\baggregate\b/);
 });
 
-test("tool registry is well-formed: 33 unique tools, valid shapes + handlers", () => {
-  expect(ATLAS_TOOLS.length).toBe(33);
+test("tool registry is well-formed: 34 unique tools, valid shapes + handlers", () => {
+  expect(ATLAS_TOOLS.length).toBe(34);
   const names = ATLAS_TOOLS.map((t) => t.name);
   expect(new Set(names).size).toBe(names.length); // unique
-  expect(TOOLS_BY_NAME.size).toBe(33);
+  expect(TOOLS_BY_NAME.size).toBe(34);
   for (const t of ATLAS_TOOLS) {
     expect(t.name).toMatch(/^atlas_/);
     expect(typeof t.description).toBe("string");
@@ -198,29 +198,29 @@ test("atlas_entities: fuzzy search + type filter", () => {
   expect(insts.total).toBe(1);
 });
 
-test("atlas_entity_params: id path + entity path with subtype filter", () => {
-  const byId = call("atlas_entity_params", { id: "A.2.1", limit: 50 }) as { instances: any[] };
+test("atlas_entity_params: id path + entity path with subtype filter", async () => {
+  const byId = (await call("atlas_entity_params", { id: "A.2.1", limit: 50 })) as { instances: any[] };
   expect(byId.instances[0].params.map((p: any) => p.doc_no)).toContain("A.2.1.1");
-  const byEntity = call("atlas_entity_params", { entity: "spark", type_hint: "reward", limit: 50 }) as { instances: any[]; available_subtypes: string[] };
+  const byEntity = (await call("atlas_entity_params", { entity: "spark", type_hint: "reward", limit: 50 })) as { instances: any[]; available_subtypes: string[] };
   expect(byEntity.instances.map((i: any) => i.doc_no)).toEqual(["A.2.1"]);
   expect(byEntity.available_subtypes).toContain("distribution-reward");
 });
 
 // ── atlas_params (wired via TOOLS_BY_NAME; extraction itself is tools-params.test.ts's job) ──
-test("atlas_params: wired end-to-end, errors on an unusable query, returns a well-formed result otherwise", () => {
-  const empty = call("atlas_params", { query: "at" }) as { error?: string };
+test("atlas_params: wired end-to-end, errors on an unusable query, returns a well-formed result otherwise", async () => {
+  const empty = (await call("atlas_params", { query: "at" })) as { error?: string };
   expect(empty.error).toBeDefined();
-  const res = call("atlas_params", { query: "reward rate" }) as { count: number; rows: unknown[] };
+  const res = (await call("atlas_params", { query: "reward rate" })) as { count: number; rows: unknown[] };
   expect(res.count).toBe(res.rows.length);
 });
 
-test("atlas_params: `q` is a deprecated alias of `query`; `query` wins when both are present", () => {
-  const viaAlias = call("atlas_params", { q: "reward rate" }) as { count: number; rows: unknown[] };
-  const viaQuery = call("atlas_params", { query: "reward rate" }) as { count: number; rows: unknown[] };
+test("atlas_params: `q` is a deprecated alias of `query`; `query` wins when both are present", async () => {
+  const viaAlias = (await call("atlas_params", { q: "reward rate" })) as { count: number; rows: unknown[] };
+  const viaQuery = (await call("atlas_params", { query: "reward rate" })) as { count: number; rows: unknown[] };
   expect(viaAlias.rows).toEqual(viaQuery.rows);
   // q would match nothing ("at" alone is <3 chars after normalization is irrelevant here —
   // it's just a different term), query should win over a conflicting q.
-  const both = call("atlas_params", { query: "reward rate", q: "zzzznomatch" }) as { count: number; rows: unknown[] };
+  const both = (await call("atlas_params", { query: "reward rate", q: "zzzznomatch" })) as { count: number; rows: unknown[] };
   expect(both.rows).toEqual(viaQuery.rows);
 });
 

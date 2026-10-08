@@ -15,6 +15,7 @@ import { GRAPH_TOOLS } from "./registry-graph.ts";
 import { LOOKUP_TOOLS } from "./registry-lookup.ts";
 import { HISTORY_TOOLS } from "./registry-history.ts";
 import { QUERY_TOOLS } from "./registry-query.ts";
+import { ONCHAIN_TOOLS } from "./registry-onchain.ts";
 import { REPORT_TOOLS } from "../../reports/index.ts";
 
 export type { AtlasHandler, AtlasTool, DescribedTool } from "./tool-types.ts";
@@ -96,6 +97,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   ...HISTORY_TOOLS,
   ...QUERY_TOOLS,
   ...PREVIEW_TOOLS,
+  ...ONCHAIN_TOOLS,
   ...REPORT_TOOLS,
 ];
 
