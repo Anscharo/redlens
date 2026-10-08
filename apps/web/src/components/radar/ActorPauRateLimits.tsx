@@ -24,7 +24,7 @@ function LimitName({ r, chain, keyIndex }: { r: LiveRateLimit; chain: string; ke
   if (!ref) {
     return (
       <span title={r.key} style={dim}>
-        {r.key.slice(0, 10)}… <span style={{ color: "var(--accent)" }}>no instance names this key</span>
+        {r.key.slice(0, 10)}… <span style={{ color: "var(--accent)" }}>no document names this limit</span>
       </span>
     );
   }

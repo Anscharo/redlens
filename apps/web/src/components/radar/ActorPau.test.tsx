@@ -62,7 +62,7 @@ describe("ActorPau", () => {
     expect(rows[0]).toHaveTextContent("SparkLend USDC · Inflow");
     expect(rows[0]).toHaveTextContent(/25M.*25M.*12M/);
     expect(within(rows[0]).getByRole("link", { name: "SparkLend USDC · Inflow" })).toBeInTheDocument();
-    expect(rows[1]).toHaveTextContent("no instance names this key");
+    expect(rows[1]).toHaveTextContent("no document names this limit");
     expect(rows[1]).toHaveTextContent(/1B.*0.*\?/);
     expect(rows[2]).toHaveAttribute("data-off", "true");
     expect(rows[2]).toHaveTextContent("off");
