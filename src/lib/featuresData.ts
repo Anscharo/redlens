@@ -68,7 +68,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: [
           "Notes — the Element Annotations attached to this document, linked documents, equivalent documents under the other Prime Agents, mentioned addresses, and which documents cite this one (where you land by default).",
           "History — this document's change timeline, with the governance poll that approved each change where one links it (“approved by poll …”).",
-          "Votes — the Sky executive votes and governance polls behind this document: each one that links it, and each one matched to one of its dates (labelled as on Stale Dates, with how each was matched), linked to vote.sky.money.",
+          "Votes — the Sky executive votes behind this document: each one that links it, and each one matched to one of its dates (labelled as on Stale Dates, with how each was matched), linked to vote.sky.money. Governance polls show in History, under the changes they approved.",
           "Glossary — the defined terms this document uses, with their Atlas definitions.",
         ],
       },

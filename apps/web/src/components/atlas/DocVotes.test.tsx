@@ -46,7 +46,7 @@ describe("DocVotes", () => {
   it("says when nothing links or dates the document, and when the record is missing", async () => {
     record = { index: index(), overlay: null };
     render(<DocVotes id="d" docs={{ d: { ...doc, content: "Nothing dated." } }} />);
-    expect(await screen.findByText(/No vote links this section/)).toBeInTheDocument();
+    expect(await screen.findByText(/No executive vote links this section/)).toBeInTheDocument();
     cleanup();
     record = { index: null, overlay: null };
     render(<DocVotes id="d" docs={{ d: doc }} />);

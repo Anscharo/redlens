@@ -1,8 +1,13 @@
-// The votes behind one atlas document, for the reader's "votes" panel: every
-// vote that links the document by uuid, and every vote the Stale Dates
-// matching (with the worker's refinements, ./overlay.ts) ties to one of its
-// dated claims. One row per vote, newest first, each with why it is listed.
-// Pure.
+// The executive votes behind one atlas document, for the reader's "votes"
+// panel: every executive that links the document by uuid, and every executive
+// the Stale Dates matching (with the worker's refinements, ./overlay.ts) ties
+// to one of its dated claims. One row per executive, newest first, each with
+// why it is listed. Pure.
+//
+// Polls are left to the history list, which shows the poll that approved each
+// edit (VoteIndex.approvals). An executive that cites a poll is not listed for
+// every document that poll's pull request touched: a weekly Atlas Edit pull
+// request touches hundreds of documents, and the executive acts on one item.
 
 import type { AtlasNode } from "../../types";
 import { extractDateClaims } from "../staleDates";
@@ -11,18 +16,17 @@ import { overlayClaim, type VoteEvidenceOverlay } from "./overlay";
 import type { VoteIndex } from "./vote-index";
 
 export type DocVoteReason =
-  | { kind: "links" } // the vote links this document
+  | { kind: "links" } // the executive links this document
   | { kind: "claim"; raw: string; evidence: VoteEvidence }; // matched to a dated claim in it
 
 export interface DocVote {
-  kind: "executive" | "poll";
   title: string;
   date: string;
   url: string;
   reasons: DocVoteReason[];
 }
 
-export function votesForDoc(
+export function executivesForDoc(
   doc: AtlasNode,
   docs: Record<string, AtlasNode>,
   index: VoteIndex | null,
@@ -36,13 +40,12 @@ export function votesForDoc(
     rows.set(v.url, row);
   };
   for (const l of index?.links.get(doc.id) ?? []) {
-    const v = l.kind === "executive" ? { kind: l.kind, title: l.executive.title, date: l.date, url: l.executive.url } : { kind: l.kind, title: l.title, date: l.date, url: l.url };
-    add(v, { kind: "links" });
+    if (l.kind === "executive") add({ title: l.executive.title, date: l.date, url: l.executive.url }, { kind: "links" });
   }
   const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
   for (const claim of extractDateClaims(doc, todayUTC).claims) {
     const e = overlayClaim({ ...claim, voteEvidence: index ? voteEvidence(claim, docs, index) : undefined }, overlay).voteEvidence;
-    if (e?.vote) add({ kind: e.vote.kind, title: e.vote.title, date: e.vote.date, url: e.vote.url }, { kind: "claim", raw: claim.raw, evidence: e });
+    if (e?.vote?.kind === "executive") add({ title: e.vote.title, date: e.vote.date, url: e.vote.url }, { kind: "claim", raw: claim.raw, evidence: e });
   }
   return [...rows.values()].sort((a, b) => b.date.localeCompare(a.date) || a.title.localeCompare(b.title));
 }

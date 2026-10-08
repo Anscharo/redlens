@@ -35,7 +35,7 @@
 
 ## 2026-10-08
 
-- Added a votes section to the document sidebar, listing the executive votes and governance polls that link the open document or match its dates, and showed the poll that approved each change in its history
+- Added a votes section to the document sidebar, listing the executive votes that link the open document or match its dates, and showed the poll that approved each change in its history
 - Stale Dates stops guessing: every dated claim in the Atlas is checked against the vote that should have enacted it
 - Added a PAU on-chain section to each Prime Agent's Radar page, showing its controller roles and rate limits as read from the chain
 

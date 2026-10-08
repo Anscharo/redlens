@@ -527,9 +527,17 @@ database and none after that until something changes.
 The questions are shared with the eval (`src/server/vote-evidence/requests.ts`), so the eval
 measures the requests production sends.
 
-**In the reader.** The right-hand panel has a "votes" section (`DocVotes.tsx`, `votesForDoc` in
-`src/lib/votes/docVotes.ts`). It lists every vote that links the open document by uuid, and every
-vote this matching ties to one of the document's dated claims, with the same labels as Stale Dates.
+**In the reader.** The right-hand panel has a "votes" section (`DocVotes.tsx`, `executivesForDoc`
+in `src/lib/votes/docVotes.ts`). It lists the executive votes behind the open document: every
+executive that links it by uuid, and every executive this matching ties to one of its dated claims,
+with the same labels as Stale Dates. Polls show in the history list instead, under the edits they
+approved (§13).
+
+An executive also reaches atlas pull requests through the poll its authorization cites (62
+sections, one pull request each). That route is not used to list executives per document: those
+pull requests are mostly weekly Atlas Edit bundles of 30 to 3,000 changed hunks, and the executive
+acts on one item of the bundle, so it would attach each executive to hundreds of unrelated
+documents.
 
 ## 12. Renamed parties: the address fallback
 

@@ -1,10 +1,11 @@
-// The reader panel's votes section: the Sky votes behind the open document
-// (votesForDoc), each linked to vote.sky.money with why it is listed — it
-// links the document, or it carried, authorised or failed to mention one of
-// the document's dated claims, as Stale Dates' vote evidence reads it.
+// The reader panel's votes section: the executive votes behind the open
+// document (executivesForDoc), each linked to vote.sky.money with why it is
+// listed — it links the document, or it carried or failed to mention one of the
+// document's dated claims, as Stale Dates' vote evidence reads it. Polls show in
+// the history list instead, under the edits they approved.
 import { useMemo } from "react";
 import type { AtlasNode } from "@/types";
-import { votesForDoc, type DocVote, type DocVoteReason } from "@/lib/votes/docVotes";
+import { executivesForDoc, type DocVote, type DocVoteReason } from "@/lib/votes/docVotes";
 import { EVIDENCE_LABEL, evidenceHint, matchedVia } from "@/lib/votes/labels";
 import { loadVoteRecord } from "../../lib/votes";
 import { useLoaded } from "../../hooks/useAtlasData";
@@ -17,12 +18,12 @@ export function DocVotes({ id, docs }: { id: string; docs: Record<string, AtlasN
   const day = useUTCDay();
   const doc = docs[id];
   const votes = useMemo(
-    () => (record && doc ? votesForDoc(doc, docs, record.index, record.overlay, new Date(`${day}T12:00:00Z`)) : []),
+    () => (record && doc ? executivesForDoc(doc, docs, record.index, record.overlay, new Date(`${day}T12:00:00Z`)) : []),
     [record, doc, docs, day],
   );
   if (!record) return <p className={STATUS_LINE}>loading votes…</p>;
   if (!record.index && !record.overlay) return <p className={STATUS_LINE}>Vote record unavailable.</p>;
-  if (!votes.length) return <p className={STATUS_LINE}>No vote links this section or matches its dates.</p>;
+  if (!votes.length) return <p className={STATUS_LINE}>No executive vote links this section or matches its dates.</p>;
   return (
     <ul className="space-y-4">
       {votes.map((v) => (
@@ -36,7 +37,7 @@ function VoteRow({ vote: v }: { vote: DocVote }) {
   return (
     <li>
       <a href={v.url} target="_blank" rel="noreferrer" className="text-xs mono text-accent hover:underline">
-        {v.kind} {v.date}
+        executive {v.date}
       </a>
       <p className="text-xs leading-relaxed text-tan-2">{v.title}</p>
       {v.reasons.map((r, i) => (

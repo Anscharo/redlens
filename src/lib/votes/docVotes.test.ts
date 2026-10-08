@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AtlasNode } from "../../types";
-import { votesForDoc } from "./docVotes";
+import { executivesForDoc } from "./docVotes";
 import { claimKey, judgeSubject } from "./overlay";
 import { extractDateClaims } from "../staleDates";
 import type { Executive, Poll, VotesArtifact, VoteLink } from "./types";
@@ -29,31 +29,30 @@ const doc: AtlasNode = {
 };
 const docs = { [DOC_ID]: doc };
 
-describe("votesForDoc", () => {
-  it("lists each vote once, newest first, with every reason it is listed", () => {
-    const votes = votesForDoc(doc, docs, buildVoteIndex(artifact), null, TODAY);
-    expect(votes.map((v) => [v.kind, v.date])).toEqual([["executive", "2026-03-26"], ["poll", "2026-02-02"]]);
+describe("executivesForDoc", () => {
+  it("lists each executive once, newest first, with every reason it is listed, and leaves polls to history", () => {
+    const votes = executivesForDoc(doc, docs, buildVoteIndex(artifact), null, TODAY);
+    expect(votes.map((v) => v.date)).toEqual(["2026-03-26"]);
     expect(votes[0].url).toBe("https://vote.sky.money/executive/k-2026-03-26");
     expect(votes[0].reasons.map((r) => r.kind)).toEqual(["links", "claim"]);
     expect(votes[0].reasons[1]).toMatchObject({ raw: "March 26, 2026", evidence: { status: "subject-missing" } });
-    expect(votes[1]).toMatchObject({ title: "Atlas Edit", url: "https://vote.sky.money/polling/atlas-edit", reasons: [{ kind: "links" }] });
   });
 
   it("takes the worker's verdict for a claim, even without the vote record", () => {
     const index = buildVoteIndex(artifact);
     const claim = extractDateClaims(doc, Date.UTC(2026, 9, 7)).claims[0];
-    const rule = votesForDoc(doc, docs, index, null, TODAY)[0].reasons[1];
+    const rule = executivesForDoc(doc, docs, index, null, TODAY)[0].reasons[1];
     if (rule.kind !== "claim") throw new Error("expected a claim reason");
     const judged = judgeSubject(rule.evidence, true, { model: "m", anchor: 0, carried: 0.9 });
     const overlay = { atlasSha: "s", computedAt: "t", claims: { [claimKey(claim)]: judged } };
-    expect(votesForDoc(doc, docs, index, overlay, TODAY)[0].reasons[1]).toMatchObject({ evidence: { status: "enacted", judged: { rule: "subject-missing" } } });
-    const only = votesForDoc(doc, docs, null, overlay, TODAY);
+    expect(executivesForDoc(doc, docs, index, overlay, TODAY)[0].reasons[1]).toMatchObject({ evidence: { status: "enacted", judged: { rule: "subject-missing" } } });
+    const only = executivesForDoc(doc, docs, null, overlay, TODAY);
     expect(only).toHaveLength(1);
     expect(only[0].reasons).toEqual([{ kind: "claim", raw: "March 26, 2026", evidence: judged }]);
   });
 
   it("is empty for a document no vote links or dates", () => {
-    expect(votesForDoc({ ...doc, id: "other", content: "No dates." }, docs, buildVoteIndex(artifact), null, TODAY)).toEqual([]);
+    expect(executivesForDoc({ ...doc, id: "other", content: "No dates." }, docs, buildVoteIndex(artifact), null, TODAY)).toEqual([]);
   });
 });
 
