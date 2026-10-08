@@ -1,16 +1,17 @@
 // @vitest-environment jsdom
-// RightPanel is one scrolling column (notes / history / glossary) with jump
-// pills. We assert the pill wiring (aria-current + onTabChange) and that each
-// section renders. The history children fetch from the server, so they're
+// RightPanel is one scrolling column (notes / onchain / history / glossary)
+// with jump pills. We assert the pill wiring (aria-current + onTabChange), that
+// each section renders, and that an empty section is hidden (history never is). The history children fetch from the server, so they're
 // stubbed — the live-vs-preview history split is an L3 concern.
 
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import userEvent from "@testing-library/user-event";
 import { RightPanel } from "./RightPanel";
 import { makeNode, makeEdgeResult, makeGlossaryEntry, makeAddressInfo, makeEdge } from "../../test/fixtures";
 import { DataSourceContext } from "../../lib/dataSource";
+import type { AtlasTab } from "../../lib/atlasTab";
 
 vi.mock("../history/NodeHistory", () => ({
   NodeHistory: () => <div data-testid="node-history" />,
@@ -26,7 +27,6 @@ vi.mock("@/lib/balances", async (importOriginal) => ({
 
 afterEach(cleanup);
 
-type Tab = "notes" | "glossary" | "history";
 
 function setup(overrides: Partial<Parameters<typeof RightPanel>[0]> = {}) {
   const onTabChange = vi.fn();
@@ -39,12 +39,11 @@ function setup(overrides: Partial<Parameters<typeof RightPanel>[0]> = {}) {
     cousinDocs: [],
     targetAddresses: {},
     chainValues: {},
-    annotationCount: 0,
     graphEdges: makeEdgeResult(),
     glossaryTerms: [],
     onNavigate,
     onNavigateByDocNo,
-    tab: "notes" as Tab,
+    tab: "notes" as AtlasTab,
     onTabChange,
     ...overrides,
   };
@@ -54,7 +53,7 @@ function setup(overrides: Partial<Parameters<typeof RightPanel>[0]> = {}) {
 
 describe("RightPanel section pills", () => {
   it("marks the active section via aria-current, without tab roles", () => {
-    setup({ tab: "glossary" });
+    setup({ tab: "glossary", linkedNodes: [makeNode()], glossaryTerms: [[makeGlossaryEntry({ term: "Accord" })]] });
     expect(screen.queryByRole("tab")).toBeNull();
     expect(screen.getByRole("navigation", { name: "Panel sections" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /glossary/ })).toHaveAttribute("aria-current", "true");
@@ -64,7 +63,7 @@ describe("RightPanel section pills", () => {
   });
 
   it("calls onTabChange with the clicked section", () => {
-    const { onTabChange } = setup({ tab: "notes" });
+    const { onTabChange } = setup({ tab: "notes", glossaryTerms: [[makeGlossaryEntry({ term: "Accord" })]] });
     fireEvent.click(screen.getByRole("button", { name: /glossary/ }));
     expect(onTabChange).toHaveBeenCalledWith("glossary");
     fireEvent.click(screen.getByRole("button", { name: /history/ }));
@@ -72,14 +71,12 @@ describe("RightPanel section pills", () => {
   });
 
   it("shows the annotation count badge when there are linked docs", () => {
-    setup({ linkedNodes: [makeNode(), makeNode()], annotationCount: 2 });
+    setup({ linkedNodes: [makeNode(), makeNode()] });
     expect(screen.getByText(/linked documents · 2/)).toBeInTheDocument();
   });
 
-  it("counts cited-by and relations in the notes pill, not just the AtlasView count", () => {
-    // annotationCount (from AtlasView) omits cited-by/relations; the pill must add them.
+  it("counts cited-by and relations in the notes pill", () => {
     setup({
-      annotationCount: 0,
       graphEdges: makeEdgeResult({
         inbound: [makeEdge({ e: "cites", f: "citing-1", ft: "doc" })],
         outbound: [makeEdge({ e: "depends_on", f: "node-1", t: "other", tt: "doc" })],
@@ -98,7 +95,6 @@ describe("RightPanel section pills", () => {
         makeNode({ id: "a1", doc_no: "A.2.8.0.3.1", type: "Annotation", title: "Business Activities" }),
         makeNode({ id: "a2", doc_no: "A.2.8.0.3.2", type: "Annotation", title: "Ecosystem" }),
       ],
-      annotationCount: 2,
     });
     expect(screen.getByText(/annotated by · 2/)).toBeInTheDocument();
     expect(screen.getByText("Business Activities")).toBeInTheDocument();
@@ -106,14 +102,13 @@ describe("RightPanel section pills", () => {
   });
 
   it("omits the annotated-by section entirely when the doc has no annotations", () => {
-    setup({ linkedNodes: [makeNode()], annotationCount: 1 });
+    setup({ linkedNodes: [makeNode()] });
     expect(screen.queryByText(/annotated by/)).not.toBeInTheDocument();
   });
 
   it("labels equivalent cousin documents by agent", () => {
     setup({
       cousinDocs: [{ node: makeNode({ title: "Grove Agent Artifact" }), agent: "Grove" }],
-      annotationCount: 1,
     });
     expect(screen.getByText(/cousin documents · 1/)).toBeInTheDocument();
     // Agent shown as the reader's agent pill (just the name), not "<name> agent".
@@ -123,18 +118,50 @@ describe("RightPanel section pills", () => {
   });
 });
 
-describe("RightPanel tab content", () => {
-  it("renders addresses on the notes tab", () => {
-    setup({
-      tab: "notes",
-      targetAddresses: { "0xabc": makeAddressInfo({ label: "MCD_VAT" }) },
-    });
-    expect(screen.getByText(/addresses · 1/)).toBeInTheDocument();
+describe("RightPanel section visibility", () => {
+  it("shows only history when the doc has no notes, addresses or glossary terms", () => {
+    setup();
+    const pills = within(screen.getByRole("navigation", { name: "Panel sections" })).getAllByRole("button");
+    expect(pills.map((b) => b.textContent)).toEqual(["history"]);
+    expect(screen.queryByTestId("notes-panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("onchain-panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("glossary-panel")).not.toBeInTheDocument();
+    expect(screen.getByTestId("history-panel")).toBeInTheDocument();
   });
 
-  it("shows the empty-state message on an empty glossary tab", () => {
-    setup({ tab: "glossary", glossaryTerms: [] });
-    expect(screen.getByText("No glossary terms in this section.")).toBeInTheDocument();
+  it("lists shown sections in pill order: notes, onchain, history, glossary", () => {
+    setup({
+      linkedNodes: [makeNode()],
+      targetAddresses: { "0xabc": makeAddressInfo() },
+      glossaryTerms: [[makeGlossaryEntry()]],
+    });
+    const pills = within(screen.getByRole("navigation", { name: "Panel sections" })).getAllByRole("button");
+    expect(pills.map((b) => b.textContent?.split("·")[0].trim())).toEqual(["notes", "onchain", "history", "glossary"]);
+  });
+
+  it("falls back to the first shown section when the requested one is hidden", () => {
+    setup({ tab: "notes", targetAddresses: { "0xabc": makeAddressInfo() } });
+    expect(screen.queryByRole("button", { name: /notes/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /onchain/ })).toHaveAttribute("aria-current", "true");
+  });
+
+  it("falls back to history when the requested section is hidden and nothing else shows", () => {
+    setup({ tab: "glossary" });
+    expect(screen.getByRole("button", { name: /history/ })).toHaveAttribute("aria-current", "true");
+  });
+});
+
+describe("RightPanel tab content", () => {
+  it("renders addresses in the onchain section, not in notes", () => {
+    setup({
+      tab: "onchain",
+      linkedNodes: [makeNode()],
+      targetAddresses: { "0xabc": makeAddressInfo({ label: "MCD_VAT" }) },
+    });
+    expect(within(screen.getByTestId("onchain-panel")).getByText(/addresses · 1/)).toBeInTheDocument();
+    expect(within(screen.getByTestId("notes-panel")).queryByText(/addresses/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /onchain.*1/ })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("button", { name: /notes.*1/ })).toBeInTheDocument();
   });
 
   it("groups glossary terms on the glossary tab", () => {
@@ -158,7 +185,6 @@ describe("RightPanel tab content", () => {
           cousinDocs={[]}
           targetAddresses={{}}
           chainValues={{}}
-          annotationCount={0}
           graphEdges={makeEdgeResult()}
           glossaryTerms={[]}
           onNavigate={vi.fn()}
@@ -302,7 +328,23 @@ describe("RightPanel graph relations", () => {
     expect(screen.getByText("←")).toBeInTheDocument();
   });
 
-  it("hides relations pointing back at the current node (self-nav) from the rendered rows", () => {
+  it("drops relations pointing back at the current node (self-nav) from rows and counts", () => {
+    setup({
+      id: "node-1",
+      tab: "notes",
+      graphEdges: makeEdgeResult({
+        outbound: [
+          makeEdge({ e: "depends_on", f: "node-1", t: "node-1", tt: "doc" }),
+          makeEdge({ e: "depends_on", f: "node-1", t: "other", tt: "doc", to_label: "Other Doc" }),
+        ],
+      }),
+    });
+    expect(screen.getByText(/relations · 1/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /notes.*1/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Other Doc" })).toBeInTheDocument();
+  });
+
+  it("hides the notes section when its only relations are self-nav", () => {
     setup({
       id: "node-1",
       tab: "notes",
@@ -310,9 +352,8 @@ describe("RightPanel graph relations", () => {
         outbound: [makeEdge({ e: "depends_on", f: "node-1", t: "node-1", tt: "doc" })],
       }),
     });
-    // The section header still counts the raw edge, but no row is rendered for it.
-    expect(screen.getByText(/relations · 1/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /node-1|00000000/ })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("notes-panel")).not.toBeInTheDocument();
+    expect(screen.queryByText(/relations ·/)).not.toBeInTheDocument();
   });
 
   it("filters out HIDE-listed edge kinds from the relations section", () => {
