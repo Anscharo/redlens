@@ -9,7 +9,10 @@
     "explorer": "Block-explorer base including the trailing path segment, so `explorer + address` is a complete URL.",
     "nativeToken": "Gas token. Its presence is what enables the EVM balances path; omitting it makes fetch-balances treat the chain as unsupported.",
     "blockscoutApi": "Etherscan-compatible Blockscout /api base. Primary contract-metadata source when `etherscan` is false, fallback otherwise.",
-    "etherscan": "False when Etherscan v2 has no endpoint for this chainId, so Blockscout is the only source."
+    "etherscan": "False when Etherscan v2 has no endpoint for this chainId, so Blockscout is the only source.",
+    "blockscoutIntervalMs": "Minimum gap between requests to this chain's blockscoutApi host, in ms, when the host allows fewer than one request a second. Set it to use 75% of the host's stated limit.",
+    "logsRpcs": "JSON-RPC endpoints that serve this chain's full eth_getLogs history, each with the most blocks one request may span and, optionally, the gap its host needs between requests (intervalMs). Read by the PAU RPC reader (src/server/pau/rpc-sync.ts) for a chain no free explorer serves; rotated per request.",
+    "routescan": "True when Routescan serves the chain's Etherscan-compatible API at its chainId (keyless). Tried after Etherscan v2 and before Blockscout."
   },
   "deferred": [],
   "$deferred": "Chains the atlas names that are not registered yet. They collapse to ethereum deliberately and are bucketed `deferred` (not `unknown`) by census:chains. Promote with `pnpm chains:add <name>`.",
@@ -28,7 +31,14 @@
       "nativeToken": {
         "symbol": "ETH",
         "decimals": 18
-      }
+      },
+      "logsRpcs": [
+        {
+          "url": "https://mainnet.base.org",
+          "blocks": 500,
+          "intervalMs": 1334
+        }
+      ]
     },
     {
       "chain": "arbitrum",
@@ -62,7 +72,8 @@
       "nativeToken": {
         "symbol": "ETH",
         "decimals": 18
-      }
+      },
+      "blockscoutApi": "https://optimism.blockscout.com/api"
     },
     {
       "chain": "unichain",
@@ -123,7 +134,8 @@
       "nativeToken": {
         "symbol": "AVAX",
         "decimals": 18
-      }
+      },
+      "routescan": true
     },
     {
       "chain": "gnosis",
@@ -150,7 +162,7 @@
     },
     {
       "chain": "robinhood",
-      "note": "Arbitrum Orbit L2, chain id 4663 (0x1237). Not on Etherscan v2, so contract metadata comes from its Blockscout instance.",
+      "note": "Arbitrum Orbit L2, chain id 4663 (0x1237). Etherscan v2 serves it on the free plan. Its Blockscout answers scripted requests with a Cloudflare challenge page (HTTP 403), so Blockscout is only the fallback.",
       "chainId": 4663,
       "aliases": [
         "robinhood"
@@ -164,8 +176,7 @@
         "symbol": "ETH",
         "decimals": 18
       },
-      "blockscoutApi": "https://robinhoodchain.blockscout.com/api",
-      "etherscan": false
+      "blockscoutApi": "https://robinhoodchain.blockscout.com/api"
     },
     {
       "chain": "plasma",
@@ -213,10 +224,13 @@
       "nativeToken": {
         "symbol": "PLUME",
         "decimals": 18
-      }
+      },
+      "blockscoutApi": "https://explorer.plume.org/api",
+      "etherscan": false
     },
     {
       "chain": "xlayer",
+      "note": "Etherscan v2 has no endpoint for chain 196. XLayerScan's keyless Etherscan-compatible API serves logs and contract metadata, at most one request every 5 seconds per IP. The 7-second gap uses 75% of that, the margin every provider gets; requests exactly 5 seconds apart were refused.",
       "chainId": 196,
       "aliases": [
         "xlayer",
@@ -231,7 +245,10 @@
       "nativeToken": {
         "symbol": "OKB",
         "decimals": 18
-      }
+      },
+      "blockscoutApi": "https://api.xlayerscan.com/api",
+      "blockscoutIntervalMs": 7000,
+      "etherscan": false
     },
     {
       "chain": "ethereum",

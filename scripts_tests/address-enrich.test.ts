@@ -289,23 +289,23 @@ describe("explorer providers (Etherscan + Blockscout backup)", () => {
     delete process.env.BLOCKSCOUT_API_KEY;
   });
 
-  it("enriches a robinhood address via its Blockscout instance, never Etherscan", async () => {
+  it("enriches a plume address via its Blockscout instance, never Etherscan", async () => {
     const addr = "0xdddd333333333333333333333333333333dddd3";
     const seen: string[] = [];
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
       seen.push(url);
       return verified({ ContractName: "RhToken" });
     }));
-    const out = await enrichAddresses({ [addr]: { chain: "robinhood" } }, {}, "KEY");
-    expect(out[addr]).toMatchObject({ chain: "robinhood", etherscanName: "RhToken", isContract: true });
+    const out = await enrichAddresses({ [addr]: { chain: "plume" } }, {}, "KEY");
+    expect(out[addr]).toMatchObject({ chain: "plume", etherscanName: "RhToken", isContract: true });
     expect(seen).toHaveLength(1);
-    expect(seen[0]).toContain("robinhoodchain.blockscout.com");
+    expect(seen[0]).toContain("explorer.plume.org/api");
     expect(seen[0]).not.toContain("api.etherscan.io");
-    // cached under the robinhood chainId (4663) directory
-    expect([...store.keys()].some((k) => k.includes("/4663/") && k.endsWith(`${addr}.json`))).toBe(true);
+    // cached under the plume chainId (98866) directory
+    expect([...store.keys()].some((k) => k.includes("/98866/") && k.endsWith(`${addr}.json`))).toBe(true);
   });
 
-  it("appends BLOCKSCOUT_API_KEY to the Blockscout request when set", async () => {
+  it("appends BLOCKSCOUT_API_KEY to a request to an instance Blockscout hosts", async () => {
     const addr = "0xdddd444444444444444444444444444444dddd4";
     process.env.BLOCKSCOUT_API_KEY = "bs-secret";
     const seen: string[] = [];
@@ -313,8 +313,8 @@ describe("explorer providers (Etherscan + Blockscout backup)", () => {
       seen.push(url);
       return verified();
     }));
-    await enrichAddresses({ [addr]: { chain: "robinhood" } }, {}, "KEY");
-    expect(seen[0]).toContain("apikey=bs-secret");
+    await enrichAddresses({ [addr]: { chain: "ethereum" } }, {}, undefined);
+    expect(seen[0]).toMatch(/^https:\/\/eth\.blockscout\.com\/api\?apikey=bs-secret&/);
   });
 
   it("falls back to Blockscout when the Etherscan call hard-fails for a backed chain", async () => {
