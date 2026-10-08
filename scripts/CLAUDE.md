@@ -34,6 +34,7 @@ Each build pass is its own script. They run in order in `pnpm build`.
   - **Phase 2.5** scans Instance entities for address-valued ICD params and emits `has_address` edges.
   - **Phase 4.5** (five passes) enriches `public/addresses.atlas.json` with ICD-derived roles and labels, entity-linked labels, doc-title labels, and chainlog fallback.
   - It emits `public/graph.json` and `public/relations.json`. There is no loopback to `build-index`. See `.claude/skills/parse-atlas/SKILL.md`.
+  - A Prime Agent entity's `meta.params` holds the controller-wide RateLimitIDs it states outside any instance (its "… Rate Limit IDs" sections), read with the same param walk as an instance's (`lib/graph-prime-rate-limits.ts`).
   - It imports `lib/graph-patterns.mjs`, `lib/graph-instances.mjs`, `lib/graph-entities.mjs` (Phase 1), `lib/graph-doc-edges.mjs` (Phase 2 doc edges 2a–2h), `lib/graph-entity-edges.mjs` (Phase 2 entity/address edges 2i–2x, one module per pattern under `lib/graph-entity-edges/`, run in the order `patterns.mjs` lists), `lib/graph-multisigs.mjs`, `lib/graph-transfers.mjs`, `lib/graph-bridges.mjs`, `lib/graph-omni.mjs`, `lib/graph-transitions.mjs` (Phase 2.8 patterns 17/18/21/22/23), `lib/address-chains.mjs` and `lib/address-annotate.mjs`.
 - **`scripts/required/build-manifest.mjs`** writes a sha256 digest of every shipping artifact.
 - **`scripts/required/build-at.mjs`** does a reproducible build at a pinned atlas commit. It orchestrates the other `build:*` scripts.

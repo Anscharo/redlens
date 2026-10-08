@@ -1,14 +1,15 @@
 import { useMemo } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
-import { instanceKeyIndex, loadPau, snapshotsForPrime, type KeyedInstance } from "../../lib/pau";
+import { instanceKeyIndex, loadPau, primeKeyedInstance, snapshotsForPrime, type KeyedInstance } from "../../lib/pau";
+import type { GraphEntity } from "@/types";
 import { RADAR_SECTION } from "@/lib/radarAnchors";
 import { Section } from "./RadarSection";
 import { PauDeployment } from "./ActorPauDeployment";
 
 interface Props {
-  /** Graph entity UUID of the prime agent; the PAU registry keys deployments by it. */
-  primeId: string;
-  /** The prime's instances; their rate-limit ID parameters name the on-chain keys. */
+  /** The prime agent: the PAU registry keys deployments by its id, and its params name its controller-wide keys. */
+  prime: Pick<GraphEntity, "id" | "m">;
+  /** The prime's instances; their rate-limit ID parameters name the other on-chain keys. */
   instances: KeyedInstance[];
 }
 
@@ -18,10 +19,10 @@ interface Props {
  * a snapshot for this entity, so every actor the PAU registry does not list (any
  * non-prime) and a prime with no snapshot yet simply have no section.
  */
-export function ActorPau({ primeId, instances }: Props) {
+export function ActorPau({ prime, instances }: Props) {
   const res = useLoaded(loadPau, { soft: true });
-  const keyIndex = useMemo(() => instanceKeyIndex(instances), [instances]);
-  const snaps = useMemo(() => (res ? snapshotsForPrime(res, primeId) : []), [res, primeId]);
+  const keyIndex = useMemo(() => instanceKeyIndex([primeKeyedInstance(prime.m), ...instances]), [prime.m, instances]);
+  const snaps = useMemo(() => (res ? snapshotsForPrime(res, prime.id) : []), [res, prime.id]);
   if (snaps.length === 0) return null;
 
   return (
@@ -29,7 +30,7 @@ export function ActorPau({ primeId, instances }: Props) {
       <Section title="PAU on-chain" id={RADAR_SECTION.pau}>
         <p className="text-[11px] mb-3" style={{ color: "var(--tan-3)" }}>
           Read from the chain for each contract in the PAU registry. Role holders come from the contracts&apos; grant history,
-          each confirmed live; a rate limit is named by the instance whose parameters state its ID.
+          each confirmed live; a rate limit is named by the prime or instance whose parameters state its ID.
         </p>
         {snaps.map((s, i) => (
           <PauDeployment key={s.deployment} snap={s} keyIndex={keyIndex} defaultOpen={i === 0} />

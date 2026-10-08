@@ -2,7 +2,7 @@
 // and the unlimited sentinel), and the instance label each rate-limit key gets.
 import { describe, expect, it } from "vitest";
 import type { StoredPauSnapshot } from "./pau.ts";
-import { instanceKeyIndex, labelOnChain, formatAmount, formatPerDay, inferDecimals, snapshotsForPrime } from "./pauView.ts";
+import { instanceKeyIndex, labelOnChain, formatAmount, formatPerDay, inferDecimals, primeKeyedInstance, snapshotsForPrime } from "./pauView.ts";
 
 const snap = (prime: string, chain: string, kind: "monolithic" | "diamond") =>
   ({ deployment: `${prime}:${chain}:${kind}`, prime, primeName: "P", chain, kind, contracts: [], fetchedAt: "" }) as StoredPauSnapshot;
@@ -51,6 +51,27 @@ describe("instanceKeyIndex", () => {
   it("lowercases and trims the key, keeps a missing source doc as null, and skips non-key values", () => {
     expect(index.get(H2.toLowerCase())).toEqual([{ docId: null, label: "Curve AUSD/USDC · Outflow (AUSD)" }]);
     expect(index.size).toBe(2);
+  });
+  it("names the prime's own keys by the param alone, a bullet key by its bullet, and a bare list by its instance", () => {
+    const k = (n: number) => "0x" + String(n).repeat(64);
+    const prime = primeKeyedInstance(JSON.stringify({ params: { "USDS Mint RateLimitID": [k(1), "p1", "A.1"], "Aggregate CCTP Rate Limit ID": [k(2), "", "A.2"] } }));
+    const ix = instanceKeyIndex([
+      prime,
+      inst("Maple USDT", [["Rate Limit IDs / deposit", k(3), "m1"]]),
+      inst("USDC To USDG Via Paxos", [["Rate Limit IDs", k(4), "c1"]]),
+      inst("Uniswap v4 PYUSD/USDS Pool", [["Pool ID", k(5), "u1"]]),
+    ]);
+    expect([1, 2, 3, 4].map((n) => ix.get(k(n))?.[0])).toEqual([
+      { docId: "p1", label: "USDS Mint" },
+      { docId: null, label: "Aggregate CCTP" },
+      { docId: "m1", label: "Maple USDT · deposit" },
+      { docId: "c1", label: "USDC To USDG Via Paxos" },
+    ]);
+    expect(ix.has(k(5))).toBe(false);
+  });
+  it("reads a prime with no params as no keys", () => {
+    expect(primeKeyedInstance(undefined).signalParams).toEqual([]);
+    expect(primeKeyedInstance(JSON.stringify({ forum_handle: "x" })).signalParams).toEqual([]);
   });
 });
 

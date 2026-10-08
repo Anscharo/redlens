@@ -148,8 +148,10 @@ const stripSentence =
     if (suffixRe) v = v.replace(suffixRe, "");
     return v.replace(/\.$/, "").trim();
   };
-// Extracts the 64-char hex hash from backticks, or preserves N/A variants.
-const RATE_LIMIT_ID_RE = /^(Inflow|Outflow|Swap) Rate ?Limit ?ID/i;
+// Extracts the 64-char hex hash from backticks, or preserves N/A variants. Any
+// title naming a RateLimitID qualifies ("Inflow RateLimitID", "Aggregate Deposit
+// RateLimitID", "Rate Limit IDs"), since the hash sits in a sentence after it.
+const RATE_LIMIT_ID_RE = /Rate ?Limit ?IDs?\b/i;
 const extractRateLimitId = (s) => {
   const hash = s.match(/`(0x[0-9a-fA-F]{64})`/)?.[1];
   if (hash) return hash;
@@ -218,12 +220,12 @@ const PARAM_EXPANDERS = {
 //   "The {variant} are:\n\n- `key`: value\n- `key`: value"
 // Keys are prefixed with the leaf title so sibling groups stay distinct
 // ("Inflow Rate Limits / maxAmount" vs "Outflow Rate Limits / maxAmount").
+// Under a RateLimitID title each value is a backticked hash and is unwrapped.
 const BULLET_KV_RE = /^\s*[-*]\s+`([^`\n]+)`\s*:\s*(.+?)\s*$/gm;
 function expandBulletList(content, outerTitle) {
   const out = [];
-  for (const m of content.matchAll(BULLET_KV_RE)) {
-    out.push([`${outerTitle} / ${m[1].trim()}`, m[2].trim()]);
-  }
+  const value = RATE_LIMIT_ID_RE.test(outerTitle) ? (v) => extractRateLimitId(v.trim()) : (v) => v.trim();
+  for (const m of content.matchAll(BULLET_KV_RE)) out.push([`${outerTitle} / ${m[1].trim()}`, value(m[2])]);
   return out.length ? out : null;
 }
 

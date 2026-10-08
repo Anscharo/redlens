@@ -17,6 +17,9 @@ vi.mock("../src/server/pau/sync-events.ts", () => ({ syncPauEvents }));
 vi.mock("../src/server/pau/store.ts", () => ({ maybeRefreshPauState }));
 vi.mock("../src/server/pau/rpc-reader.ts", () => ({ rpcChainReader, rpcHead: vi.fn() }));
 vi.mock("../src/server/config.ts", () => ({ config: { pauEventBudgetSeconds: 60, pauRefreshSeconds: 3600 } }));
+const derive = vi.fn(() => ({ constant: "LIMIT_X", args: [] }));
+const keyDeriver = vi.fn(() => derive);
+vi.mock("../src/server/pau/key-derive.ts", () => ({ keyDeriver, limitConstants: () => ["LIMIT_X"], candidateAddresses: () => [] }));
 
 const { WORKER_STEPS } = await import("../scripts/lib/worker-steps/index.mjs");
 
@@ -71,7 +74,12 @@ describe("worker tick step bodies", () => {
     expect(syncPauEvents.mock.calls[0][0]).toBe(db);
     expect(syncPauEvents.mock.calls[0][2].budgetMs).toBe(60_000);
     expect(maybeRefreshPauState.mock.calls[0][2]).toBe("reader");
-    expect(maybeRefreshPauState.mock.calls[0][3]).toEqual({ refreshSeconds: 3600 });
+    const opts = maybeRefreshPauState.mock.calls[0][3];
+    expect(opts.refreshSeconds).toBe(3600);
+    expect(keyDeriver).not.toHaveBeenCalled();
+    expect(opts.deriveKey("0x01")).toEqual({ constant: "LIMIT_X", args: [] });
+    opts.deriveKey("0x02");
+    expect(keyDeriver).toHaveBeenCalledTimes(1);
     syncPauEvents.mockResolvedValueOnce({ visited: 3, pending: 0, events: 0, errors: 2, rateLimited: ["robinhood"] });
     maybeRefreshPauState.mockResolvedValueOnce({ reason: "fresh", refreshed: 0, removed: 1 });
     expect(await step("pau").run(ctx)).toBe("pau events 3 read, 0 pending, 0 new, 2 error(s) (explorer rate limit: robinhood); state fresh, dropped 1");
