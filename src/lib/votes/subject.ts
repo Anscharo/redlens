@@ -1,11 +1,14 @@
 // The subject check: does an executive mention the named things a claim says
 // it carried? An executive on the right date is not evidence on its own — one
 // can carry four transfers and omit the fifth that the atlas credits to it.
+// A party renamed between the vote and the atlas sentence still has the same
+// address, so an address the claim's document gives stands in for its names.
 // Pure.
 
 const MONTHS_RE = /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\b/g;
 const DOC_NO_RE = /\b[A-Z]\.[\w.]*\d\b/g;
 const NAME_RE = /\b[A-Z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*\b/g;
+const ADDRESS_RE = /\b0x[0-9a-fA-F]{40}\b/g;
 // Capitalised words that open sentences or name the vote itself, never a subject.
 const NOISE = new Set([
   "the", "this", "that", "these", "those", "any", "all", "each", "in", "as", "at", "on", "for", "of", "and",
@@ -18,6 +21,11 @@ export function subjectTerms(clause: string): string[] {
   const words = clause.replace(MONTHS_RE, " ").replace(DOC_NO_RE, " ").match(NAME_RE) ?? [];
   const terms = words.map((w) => w.toLowerCase()).filter((w) => w.length >= 3 && !NOISE.has(w));
   return [...new Set(terms)];
+}
+
+/** The EVM addresses a document gives, lowercased and deduplicated. */
+export function documentAddresses(content: string): string[] {
+  return [...new Set((content.match(ADDRESS_RE) ?? []).map((a) => a.toLowerCase()))];
 }
 
 // A term in at most this share of executives is rare enough to identify an action.
@@ -52,16 +60,29 @@ export interface SubjectCheck {
   verdict: "found" | "missing" | "unchecked";
   found: string[];
   missing: string[];
+  /** Set when the names did not decide it and an address from the claim's document did. */
+  address?: string;
 }
 
 /**
- * Checks `terms` against one executive's text. Only discriminating terms
- * count: the rare ones when the claim has any, else the merely uncommon ones,
- * since a word every executive uses ("USDS", "Spell") is no evidence. The
- * subject is found when the rarest of them is present and at least half of
- * them are; a claim with no discriminating term is unchecked.
+ * Checks `terms` against one executive's text, then, if the names do not find
+ * the subject, `addresses` (the claim document's own).
+ *
+ * Only discriminating terms count: the rare ones when the claim has any, else
+ * the merely uncommon ones, since a word every executive uses ("USDS",
+ * "Spell") is no evidence. The subject is found when the rarest of them is
+ * present and at least half of them are; a claim with no discriminating term
+ * is unchecked. An address counts only when it is rare, so a token or core
+ * contract that most executives touch never stands in for a party.
  */
-export function checkSubject(terms: readonly string[], text: string, corpus: SubjectCorpus): SubjectCheck {
+export function checkSubject(terms: readonly string[], text: string, corpus: SubjectCorpus, addresses: readonly string[] = []): SubjectCheck {
+  const byNames = checkNames(terms, text, corpus);
+  if (byNames.verdict === "found") return byNames;
+  const address = addresses.find((a) => corpus.share(a) <= RARE_SHARE && corpus.has(text, a));
+  return address ? { ...byNames, verdict: "found", address } : byNames;
+}
+
+function checkNames(terms: readonly string[], text: string, corpus: SubjectCorpus): SubjectCheck {
   const rare = terms.filter((t) => corpus.share(t) <= RARE_SHARE);
   const considered = rare.length ? rare : terms.filter((t) => corpus.share(t) <= COMMON_SHARE);
   if (!considered.length) return { verdict: "unchecked", found: [], missing: [] };

@@ -14,7 +14,7 @@
 
 import type { AtlasNode } from "../../types";
 import type { VoteRef } from "./claim";
-import { checkSubject, type SubjectCheck } from "./subject";
+import { checkSubject, documentAddresses, type SubjectCheck } from "./subject";
 import { addDays, executiveFor, linkedVotes, offset, SLIP_DAYS, type IndexedExecutive, type VoteIndex } from "./vote-index";
 
 export type VoteEvidenceStatus =
@@ -45,7 +45,7 @@ export interface VoteEvidence {
    */
   via: "date" | "link" | "history" | "judge" | null;
   vote: VoteMatch | null;
-  subject: Pick<SubjectCheck, "found" | "missing"> | null;
+  subject: Pick<SubjectCheck, "found" | "missing" | "address"> | null;
   /** Set when a decision model decided the status; `rule` is what the rules alone said. */
   judged?: { model: string; p: number; rule: VoteEvidenceStatus };
 }
@@ -57,17 +57,17 @@ interface ClaimKey {
 }
 
 export function voteEvidence(claim: ClaimKey, docs: Record<string, AtlasNode>, index: VoteIndex): VoteEvidence {
-  return claim.vote ? byDate(claim.dateISO, claim.vote, index) : byLink(claim, docs, index);
+  return claim.vote ? byDate(claim.dateISO, claim.vote, index, docs[claim.docId]?.content ?? "") : byLink(claim, docs, index);
 }
 
-function byDate(dateISO: string, ref: VoteRef, index: VoteIndex): VoteEvidence {
+function byDate(dateISO: string, ref: VoteRef, index: VoteIndex, content: string): VoteEvidence {
   const e = executiveFor(index, dateISO, ref.outOfSchedule);
   if (!e) {
     const outside = dateISO < index.first || addDays(dateISO, SLIP_DAYS) > index.last;
     return { status: outside ? "not-covered" : "no-vote", via: null, vote: null, subject: null };
   }
-  const check = ref.anchor ? null : checkSubject(ref.subject, e.text, index.corpus);
-  const subject = check && check.verdict !== "unchecked" ? { found: check.found, missing: check.missing } : null;
+  const check = ref.anchor ? null : checkSubject(ref.subject, e.text, index.corpus, documentAddresses(content));
+  const subject = check && check.verdict !== "unchecked" ? { found: check.found, missing: check.missing, ...(check.address ? { address: check.address } : {}) } : null;
   return { status: dateStatus(e, check), via: "date", vote: executiveMatch(e, dateISO), subject };
 }
 

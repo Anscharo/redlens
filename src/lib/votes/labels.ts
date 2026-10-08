@@ -37,6 +37,8 @@ const VIA_HINT: Partial<Record<NonNullable<VoteEvidence["via"]>, string>> = {
 /** The tooltip for an evidence tag: what the status means, how the vote was found, and what the heuristic said where the AI overruled it. */
 export function evidenceHint(e: VoteEvidence): string {
   const parts = [VIA_HINT[e.via ?? "date"] ?? EVIDENCE_HINT[e.status]];
+  const a = e.subject?.address;
+  if (a) parts.push(`The vote names the party differently, but sends to ${a.slice(0, 6)}…${a.slice(-4)}, the address the claim's document gives.`);
   if (e.judged) parts.push(`Checked by an AI model (${e.judged.model}, p ${e.judged.p.toFixed(2)}).`);
   if (ruleDisagrees(e)) parts.push(`The heuristic alone said: ${EVIDENCE_LABEL[e.judged!.rule]}.`);
   return parts.join(" ");

@@ -9,7 +9,7 @@ import type { AtlasNode } from "../../types";
 import { buildStaleDatesReport } from "../staleDates";
 import type { VoteRef } from "./claim";
 import { voteEvidence } from "./evidence";
-import { evidenceText } from "./labels";
+import { evidenceHint, evidenceText } from "./labels";
 import type { Executive, Poll, VotesArtifact } from "./types";
 import { buildVoteIndex, LINK_WINDOW } from "./vote-index";
 
@@ -45,7 +45,7 @@ const artifact: VotesArtifact = {
   sources: { executives: "", polls: "", portal: null },
   executives: [
     ...filler,
-    exec("2026-03-26", "Genesis Funding transfers to Keel, Amatsu and Ozone from the Surplus Buffer."),
+    exec("2026-03-26", "Genesis Funding transfers to Keel, Amatsu and Ozone from the Surplus Buffer, and to the Launch Agent 6 SubProxy (0x24fdcd3bfa5c2553e05b2f9ad0365ebc296278d3)."),
     exec("2025-10-06", "Spark Proxy Spell: transfer to the Spark Foundation."),
     exec("2025-11-13", "Kicker activation."),
     exec("2025-11-13", "Solana bridge migration.", { outOfSchedule: true, title: "OOS 2025-11-13", file: "2025/oos-executive-vote-2025-11-13.md" }),
@@ -88,11 +88,19 @@ describe("claims that name an Executive Vote", () => {
     expect(evidenceText(partial)).toBe("enacted · executive 2026-03-26 (+0d) · via date");
   });
 
-  it("flags an executive on the date that never names the subject (the Osero case)", () => {
+  it("flags an executive on the date that never names the subject, when the document gives no address", () => {
     const e = byDate("2026-03-26", ref(["osero", "genesis"]));
     expect(e.status).toBe("subject-missing");
     expect(e.subject?.missing).toContain("osero");
     expect(evidenceText(e)).toBe("subject missing · executive 2026-03-26 (+0d) · via date · missing: osero");
+  });
+
+  it("finds a renamed party through an address the claim's document gives", () => {
+    const addr = "0x24fdcd3bFA5C2553e05B2f9AD0365EBC296278D3";
+    const withAddr = { ...docs, orphan: { ...docs.orphan, content: `Osero's SubProxy is ${addr}.` } };
+    const e = voteEvidence({ docId: "orphan", dateISO: "2026-03-26", vote: ref(["osero", "genesis"]) }, withAddr, index);
+    expect(e).toMatchObject({ status: "enacted", subject: { missing: ["osero"], address: addr.toLowerCase() } });
+    expect(evidenceHint(e)).toContain("sends to 0x24fd…78d3");
   });
 
   it("follows a spell that slipped a few days, and reports the offset", () => {
@@ -165,30 +173,27 @@ describe("buildVoteIndex", () => {
   });
 });
 
-// Pins the matcher's behaviour on the live atlas. The Osero transfer is
-// flagged subject-missing because the March 26, 2026 executive names the agent
-// by its earlier name, Launch Agent 6: a known false alarm of name matching
-// (docs/plans/vote-matching.md §10), which the worker's Jev judgment overrules
-// (./overlay.ts). A rules fix that recognises renamed agents updates this test.
-// Skipped when either artifact is missing (votes.json is gitignored and built
-// by `pnpm votes:sync`).
+// Pins the matcher's behaviour on the live atlas. The March 26, 2026 executive
+// names Osero by its earlier name, Launch Agent 6; the subject check still finds
+// it through the SubProxy address Osero's document gives. Skipped when either
+// artifact is missing (votes.json is gitignored and built by `pnpm votes:sync`).
 const ROOT = path.resolve(__dirname, "../../..");
 const votesPath = path.join(ROOT, "public/votes.json");
 const docsPath = path.join(ROOT, "public/docs.json");
 const live = fs.existsSync(votesPath) && fs.existsSync(docsPath);
 
 describe.skipIf(!live)("against the built atlas and vote record", () => {
-  it("flags the renamed Osero transfer and confirms its siblings", () => {
+  it("confirms the renamed Osero transfer through its address, and its siblings", () => {
     const liveDocs: Record<string, AtlasNode> = JSON.parse(fs.readFileSync(docsPath, "utf8")).nodes;
     const votes = buildVoteIndex(JSON.parse(fs.readFileSync(votesPath, "utf8")));
     const report = buildStaleDatesReport(liveDocs, new Date("2026-10-07T12:00:00Z"), votes);
     const claims = [...report.stale, ...report.dueSoon, ...report.upcoming, ...report.recorded];
     // Keyed by uuid prefix: A.2.8.2.6.2.2.2.2 (Osero), A.2.8.2.8.2.1 (Amatsu), A.2.8.2.9.2.1 (Ozone).
-    const statusOf = (prefix: string) =>
-      claims.find((c) => c.docId.startsWith(prefix) && c.dateISO === "2026-03-26")?.voteEvidence?.status;
-    const osero = statusOf("65638659");
+    const evidenceOf = (prefix: string) => claims.find((c) => c.docId.startsWith(prefix) && c.dateISO === "2026-03-26")?.voteEvidence;
+    const statusOf = (prefix: string) => evidenceOf(prefix)?.status;
+    const osero = evidenceOf("65638659");
     if (osero === undefined) return; // the sentence has since been rewritten
-    expect(osero).toBe("subject-missing");
+    expect(osero).toMatchObject({ status: "enacted", subject: { address: "0x24fdcd3bfa5c2553e05b2f9ad0365ebc296278d3" } });
     for (const sibling of ["ff5c1b0c", "ee64a5b7"]) expect(statusOf(sibling) ?? "enacted").toBe("enacted");
   });
 });

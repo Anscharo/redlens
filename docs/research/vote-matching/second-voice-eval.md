@@ -211,7 +211,9 @@ The plan (§10) and the research note carry the correction. Two consequences:
   that row.
 - **For the product:** the Stale Dates page currently shows a false "subject missing" on Osero.
   Fixing it means recognising renamed agents (aliases, or addresses through linked documents). That
-  decision is separate from this eval.
+  decision is separate from this eval. **Since fixed:** the subject check falls back to a rare
+  address from the claim's document (`docs/plans/vote-matching.md` §12). The heuristic now scores
+  100% on the real slice and still catches 17 of 34 swapped executives.
 
 ## How to decide
 

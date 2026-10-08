@@ -24,7 +24,7 @@ import { askJev, noulOf } from "../../src/server/jev.ts";
 import { config } from "../../src/server/config.ts";
 import { openrouterJson } from "../../src/server/chat/llm.ts";
 import { mapPool } from "../../src/server/pool.ts";
-import { checkSubject } from "../../src/lib/votes/subject.ts";
+import { checkSubject, documentAddresses } from "../../src/lib/votes/subject.ts";
 import { buildVoteIndex } from "../../src/lib/votes/vote-index.ts";
 import type { VotesArtifact } from "../../src/lib/votes/types.ts";
 import { repoTree } from "../lib/votes/fetch.ts";
@@ -146,7 +146,7 @@ async function main(): Promise<void> {
   if (!HISTORY) console.log(`history arm off: ${ATLAS_DIR} has no full git history (run \`pnpm pull-atlas\`, or pass --atlas-dir)`);
   const decisionArms = DECISION_MODELS.map((m) => `, ${S.armName(m)} (${m})`).join("");
   console.log(`arms: heuristic, lexical${HISTORY ? ", history" : ""}${decisionArms}${LLM_MODEL ? `, llm (${LLM_MODEL})` : ""}`);
-  const subject = flags.task === "poll" ? [] : await runSubject(cases.subject, artifact, index);
+  const subject = flags.task === "poll" ? [] : await runSubject(cases.subject, artifact, index, docs);
   const fileByTitle = new Map(artifact.polls.map((p) => [`${p.date}|${p.title}`, p.file]));
   const poll = flags.task === "subject" ? [] : await mapPool(cases.poll, CONC, (c) => pollRow(c, fileByTitle, bodies));
   const out = { generatedAt: new Date().toISOString(), decisionModels: DECISION_MODELS, llmModel: LLM_MODEL, tau: TAU, staleGold: cases.staleGold, prefilter: S.prefilterRecall(cases.poll), subject, poll };
@@ -155,7 +155,7 @@ async function main(): Promise<void> {
   printReport(out);
 }
 
-async function runSubject(cases: SubjectCase[], artifact: VotesArtifact, index: ReturnType<typeof buildVoteIndex>): Promise<SubjectRow[]> {
+async function runSubject(cases: SubjectCase[], artifact: VotesArtifact, index: ReturnType<typeof buildVoteIndex>, docs: Record<string, { content: string }>): Promise<SubjectRow[]> {
   const real = await mapPool(cases, CONC, (c) => subjectRow(c, "real", S.heuristicSubject(c)));
   if (flags["no-swap"]) return real;
   const swaps = cases.flatMap((c) => {
@@ -163,7 +163,7 @@ async function runSubject(cases: SubjectCase[], artifact: VotesArtifact, index: 
     const other = S.swapExecutive(c, artifact.executives, c.gold.evidence);
     if (!other) return [];
     const text = index.executives.find((x) => x.date === other.date && x.title === other.title)?.text ?? "";
-    const h = checkSubject(c.claim.vote.subject, text, index.corpus).verdict;
+    const h = checkSubject(c.claim.vote.subject, text, index.corpus, documentAddresses(docs[c.docId]?.content ?? "")).verdict;
     const label: S.SubjectLabel = h === "found" ? "yes" : h === "missing" ? "no" : "abstain";
     return [{ c: { ...c, key: `${c.key}#swap`, vote: other, gold: { ...c.gold, label: "no" as const } }, label }];
   });

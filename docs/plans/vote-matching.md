@@ -476,11 +476,9 @@ production the key runs on the atlas worker's full clone (§11): `atlas_history`
 pull request number per document, but not the commit that first wrote a given sentence, which is
 what the pickaxe search finds.
 
-**Next fixes suggested by the gold** (§11 ships both: Jev follows the rename through the document's
-address, and K3 runs in the worker):
-- **Recognise renamed agents.** Match a claim's agent through its aliases (Launch Agent N, the
-  earlier Prime name) or through the addresses its document links. Only the Osero document holds
-  an address itself today, so addresses alone reach one case.
+**Next fixes suggested by the gold** (both shipped: the address fallback in §12, K3 in the worker in §11):
+- **Recognise renamed agents.** Match a claim's agent through the addresses its document gives (§12).
+  Aliases (Launch Agent N, the earlier Prime name) were not needed for any gold case.
 - **Build K3 for undated claims.** Use it to replace "no linked vote" with the authorising poll.
 
 ## 11. Stage three: the worker refines the evidence
@@ -506,8 +504,8 @@ the most polls with no false match among the claims that need none. A Jev verdic
 `judged: { model, p, rule }`, where `rule` is what the heuristic alone said. Every matched vote
 carries one tag naming how it was matched: "via date", "via link", "via history" or "via AI" (the
 model decided the status, whether it confirmed or overruled the heuristic). The hover gives the
-model, its p and, where it overruled, what the heuristic said. So Osero now reads "enacted · via AI"
-instead of a false flag.
+model, its p and, where it overruled, what the heuristic said. Osero reads "enacted": the heuristic
+finds it through its address (§12), and Jev's judgment, where it runs, tags it "via AI".
 
 **The run.**
 - It is time-gated: it reruns when the stored row is older than `VOTE_EVIDENCE_REFRESH_SECONDS`
@@ -532,4 +530,29 @@ measures the requests production sends.
 **In the reader.** The right-hand panel has a "votes" section (`DocVotes.tsx`, `votesForDoc` in
 `src/lib/votes/docVotes.ts`). It lists every vote that links the open document by uuid, and every
 vote this matching ties to one of the document's dated claims, with the same labels as Stale Dates.
+
+## 12. Renamed parties: the address fallback
+
+The subject check matches names, and a party renamed between the vote and the atlas sentence has
+none in common with it. Osero is the live case: the March 26, 2026 executive pays "the Launch Agent
+6 SubProxy (0x24fdcd3b…78D3)", and Osero's document (A.2.8.2.6.2.2.2.2 · `65638659`) gives that
+same SubProxy address.
+
+**The rule** (`checkSubject`, `src/lib/votes/subject.ts`). When the names do not find the subject,
+an address from the claim's own document counts when the executive text contains it and it is rare:
+in a quarter of executives or fewer, the threshold rare names already use. A token or core contract
+that most executives touch therefore never stands in for a party. The evidence keeps the address
+(`subject.address`), and the badge's hover names it.
+
+**Measured** on the gold, heuristic alone:
+
+| Slice | Before | After |
+|---|---|---|
+| Real executive sentences (39) | 97% at 87% coverage, 1 false alarm (Osero) | **100%** at 87% coverage, none |
+| Swapped executives (34) | 17 caught | 17 caught |
+
+On the current atlas only the Osero claim changes, from subject missing to enacted. Osero's address
+appears in 6 of 33 executives, including the later ones that name it Osero, so a claim that pairs
+this document with one of those executives would also pass. The swapped slice has no such pairing,
+and Jev's judgment still reads the action itself.
 

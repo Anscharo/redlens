@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { executiveVoteRef } from "./claim";
-import { checkSubject, SubjectCorpus, subjectTerms } from "./subject";
+import { checkSubject, documentAddresses, SubjectCorpus, subjectTerms } from "./subject";
 
 describe("subjectTerms", () => {
   it("keeps capitalised names, dropping months, doc_nos, sentence openers and the vote itself", () => {
@@ -77,3 +77,28 @@ describe("executiveVoteRef", () => {
     expect(at(prose, "March 26, 2026")?.subject).toEqual([]);
   });
 });
+
+describe("the address fallback for a renamed party", () => {
+  const PARTY = "0x24fdcd3bfa5c2553e05b2f9ad0365ebc296278d3";
+  const TOKEN = "0xdc035d45d973e3ec169d2276ddab16f1e407384f";
+  // The party's address is in two of ten executives; the token's in all of them.
+  const texts = Array.from({ length: 10 }, (_, i) => `transfer usds ${TOKEN}${i < 2 ? ` to the launch agent 6 subproxy (${PARTY})` : ""}`);
+  const corpus = new SubjectCorpus(texts);
+
+  it("reads a document's addresses, lowercased and deduplicated", () => {
+    expect(documentAddresses(`SubProxy ${PARTY.toUpperCase().replace("0X", "0x")} and [link](https://etherscan.io/address/${PARTY})`)).toEqual([PARTY]);
+    expect(documentAddresses("no address, and 0x123 is too short")).toEqual([]);
+  });
+
+  it("finds the subject through a rare address the names miss", () => {
+    expect(checkSubject(["osero"], texts[0], corpus, [PARTY])).toEqual({ verdict: "found", found: [], missing: ["osero"], address: PARTY });
+    expect(checkSubject(["osero"], texts[5], corpus, [PARTY]).verdict).toBe("missing");
+  });
+
+  it("never lets a common address stand in for a party, and leaves a names match alone", () => {
+    expect(checkSubject(["osero"], texts[5], corpus, [TOKEN]).verdict).toBe("missing");
+    const named = new SubjectCorpus([...texts, "osero grant"]);
+    expect(checkSubject(["osero"], "osero grant", named, [PARTY])).not.toHaveProperty("address");
+  });
+});
+
