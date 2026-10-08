@@ -65,6 +65,17 @@ export const worker: EnvGroup = {
       default: "186",
     },
     { name: "BRIEFINGS_DEADLINE_MS", doc: "Time from process start after which sync:briefings starts no new model request.", default: "480000" },
+    {
+      name: "VOTE_EVIDENCE_MODEL",
+      doc: "Decision model (OpenRouter /systemone) the worker's sync:vote-evidence tail judges Stale Dates vote evidence with. An empty value turns judging off; the atlas-history match still runs.",
+      default: "typesafe/jev-1.13",
+    },
+    { name: "VOTE_EVIDENCE_PER_CYCLE", doc: "Most decision-model requests sync:vote-evidence makes in one run; answers are cached, so only new or changed claims cost one. 0 turns judging off.", default: "80" },
+    {
+      name: "VOTE_EVIDENCE_REFRESH_SECONDS",
+      doc: "Minimum age of the stored vote evidence before sync:vote-evidence refetches the vote record and runs again. A new atlas commit or an unfinished run reruns sooner.",
+      default: "3600",
+    },
     { name: "ATLAS_COMMIT", doc: "Atlas commit stamped into built artifacts. Defaults to the source checkout's HEAD." },
     { name: "ATLAS_SRC_DIR", doc: "Atlas checkout the build reads. Defaults to vendor/next-gen-atlas." },
     { name: "ATLAS_OUT_DIR", doc: "Directory the build writes artifacts to. Defaults to public." },

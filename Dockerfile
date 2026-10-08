@@ -100,7 +100,9 @@ RUN rm -rf vendor/next-gen-atlas \
  && VITE_USERS_ENABLED=$VITE_USERS_ENABLED VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY RAILWAY_GIT_COMMIT_SHA=$RAILWAY_GIT_COMMIT_SHA bun run build:vite \
  && gzip -9 -k dist/search-index.json dist/relations.json dist/glossary.json dist/oea-report.json \
  && (bun scripts/aux/parse-settlements.mjs --out dist/settlements.json \
-     || echo "WARN: settlements:parse failed; Radar MSC charts will be hidden")
+     || echo "WARN: settlements:parse failed; Radar MSC charts will be hidden") \
+ && (bun scripts/aux/sync-votes.ts --out dist/votes.json --quiet && gzip -9 -k dist/votes.json \
+     || echo "WARN: votes:sync failed; Stale Dates will show no vote evidence")
 
 # ─── Stage 2: runtime ────────────────────────────────────────────────────────
 # Lean image — no git, no atlas source, no build toolchain.

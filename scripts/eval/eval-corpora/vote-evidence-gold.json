@@ -1,0 +1,554 @@
+{
+  "_about": "Hand-checked gold for pnpm eval:vote-evidence, labelled 2026-10-07 against atlas 33fd2631 by reading each executive section and poll body; evidence fields are verbatim. See docs/research/vote-matching/second-voice-eval.md.",
+  "subject": [
+    {
+      "docId": "12425328-8344-4fbd-9afb-3ea6316972dd",
+      "date": "2025-10-02",
+      "label": "yes",
+      "correct_vote_file": "2025/executive-vote-2025-10-06-lockstake-capped-osm-wrapper.md",
+      "subject_in_vote": null,
+      "evidence": "##### [Ethereum] Spark Treasury - Spark Foundation Grant ... A transfer from the SubDAO Proxy to the Spark Foundation will be made ... - Transfer amount: **1,100,000 USDS**",
+      "note": "No October 2, 2025 executive exists; the Oct 6 vote carries it (its Spark proposal link is 'october-2-2025-proposed-changes-to-spark-for-upcoming-spell')."
+    },
+    {
+      "docId": "badd8b62-dffe-4778-b5e2-78c76195242d",
+      "date": "2026-06-18",
+      "label": "anchor",
+      "correct_vote_file": "2026/executive-vote-2026-06-18-onboard-allocator-grove-a-update-stusds-mom.md",
+      "subject_in_vote": false,
+      "evidence": "No mention of an Agent Spell Reviewer Checklist or spell reviewers anywhere in the executive.",
+      "note": "Start-date anchor for a process requirement."
+    },
+    {
+      "docId": "badd8b62-dffe-4778-b5e2-78c76195242d",
+      "date": "2026-07-16",
+      "label": "anchor",
+      "correct_vote_file": "2026/executive-vote-2026-07-16-june-msc-staking-rewards-normalization.md",
+      "subject_in_vote": false,
+      "evidence": "No mention of an Agent Spell Reviewer Checklist or spell reviewers anywhere in the executive.",
+      "note": "Start-date anchor for a process requirement."
+    },
+    {
+      "docId": "41824fb1-a4e0-4f58-9095-0b3e646fb42c",
+      "date": "2026-10-08",
+      "label": "anchor",
+      "correct_vote_file": "2026/executive-vote-2026-10-08-stusds-keeper-launch.md",
+      "subject_in_vote": true,
+      "evidence": "##### [Ethereum] Migrate Grove × Steakhouse Vaults to the Atlas Morpho Vault Curation Framework -- If this executive proposal passes, then the Grove proxy spell will approve the queued Safe transaction that brings the Grove × Steakhouse USDC, AUSD, and RLUSD Morpho Vault V2s into the role configuration required by the Atlas Morpho Vault Curation Framework.",
+      "note": "Deadline anchor ('no later than the execution of'); the Grove spell does migrate vaults to the framework."
+    },
+    {
+      "docId": "e3ec99ec-54c9-4fe7-8104-aee20c57ec57",
+      "date": "2025-06-26",
+      "label": "yes",
+      "correct_vote_file": "2025/executive-vote-2025-06-26-SPK-farming-MKR-to-SKY-partial-upgrade-phase-three.md",
+      "subject_in_vote": null,
+      "evidence": "### Spark USDS Transfer ... - Transfer **20.6 million USDS** to the Spark SubProxy at [0x3300f198988e4C9C63F75dF86De36421f06af8c4]",
+      "note": ""
+    },
+    {
+      "docId": "1b8248bf-5d88-4d67-8c4a-21981a0aa937",
+      "date": "2025-06-26",
+      "label": "yes",
+      "correct_vote_file": "2025/executive-vote-2025-06-26-SPK-farming-MKR-to-SKY-partial-upgrade-phase-three.md",
+      "subject_in_vote": null,
+      "evidence": "#### Disable MKR_SKY_LEGACY Converter -- If this executive proposal passes MKR_SKY_LEGACY will be disabled by calling disableOldConverterMkrSky().",
+      "note": ""
+    },
+    {
+      "docId": "03f04153-de54-494b-8bb4-639865e85f2c",
+      "date": "2025-09-04",
+      "label": "yes",
+      "correct_vote_file": "2025/executive-vote-2025-09-04-stusds-onboarding.md",
+      "subject_in_vote": null,
+      "evidence": "#### [Ethereum] Spark Treasury - Transfer USDS to Spark Foundation -- Transfer **800,000 USDS** from the Spark SubProxy to the Spark Foundation at [0x92e4629a4510AF5819d7D1601464C233599fF5ec]",
+      "note": "Third of the three 800,000 USDS transfers."
+    },
+    {
+      "docId": "ff3aa296-34eb-4783-904f-4510fa0c6c37",
+      "date": "2025-09-18",
+      "label": "yes",
+      "correct_vote_file": "2025/executive-vote-2025-09-18.md",
+      "subject_in_vote": null,
+      "evidence": "### Monthly Settlement Cycle Execution for July-August 2025 -- **Authorization**: [A.2.5.1.2.2.1](.../A.2.5.1.2.2.1_Stage_1/...) -- 'The first Monthly Settlement Cycle, corresponding to July-August 2025, will be executed.'",
+      "note": "First MSC execution, authorized under the Stage 1 doc."
+    },
+    {
+      "docId": "ec820ddb-5d12-43d8-81b7-a7602a70332a",
+      "date": "2025-09-18",
+      "label": "yes",
+      "correct_vote_file": "2025/executive-vote-2025-09-18.md",
+      "subject_in_vote": null,
+      "evidence": "### Set Delayed Upgrade Penalty -- If this executive proposal passes, then the Delayed Upgrade Penalty for upgrading MKR to SKY will be set to **1%**.",
+      "note": ""
+    },
+    {
+      "docId": "0803e6b5-5755-431c-9ef0-999115f6f897",
+      "date": "2025-10-30",
+      "label": "yes",
+      "correct_vote_file": "2025/executive-vote-2025-10-30-init-kicker-lsSKY-farm-and-spark-starguard.md",
+      "subject_in_vote": null,
+      "evidence": "### Initialize Kicker -- If this executive proposal passes, then the following actions required to initialize the Kicker module will be executed: Init Kicker by calling FlapperInit.initKicker ...",
+      "note": ""
+    },
+    {
+      "docId": "c39702fb-bb6a-43c7-b208-18ddd279b1d3",
+      "date": "2025-11-13",
+      "label": "yes",
+      "correct_vote_file": "2025/executive-vote-2025-11-13-solana-bridge-migration.md",
+      "subject_in_vote": null,
+      "evidence": "### Launch Agent 4 Genesis Capital Funding -- If this executive proposal passes, then **21 million USDS** of Genesis Capital will be transferred to the Launch Agent 4 SubProxy at [0x8be042581f581E3620e29F213EA8b94afA1C8071]",
+      "note": "Obex is Launch Agent 4 (same file's 'Launch Agent 4' proxy spell initializes the Obex Liquidity Layer; 0x8be0... is OBEX_SUBPROXY in later executives)."
+    },
+    {
+      "docId": "593095a6-aec4-4ca5-9c2e-87ce748ac198",
+      "date": "2025-11-13",
+      "label": "yes",
+      "correct_vote_file": "2025/executive-vote-2025-11-13-solana-bridge-migration.md",
+      "subject_in_vote": null,
+      "evidence": "### Solana Bridge Migration Spell 0 -- If this executive proposal passes, then the first stage of the Solana Bridge Migration will be executed ... Call MigrationInit.initMigrationStep0",
+      "note": ""
+    },
+    {
+      "docId": "593095a6-aec4-4ca5-9c2e-87ce748ac198",
+      "date": "2025-11-17",
+      "label": "yes",
+      "correct_vote_file": "2025/oos-executive-vote-2025-11-17-solana-bridge-migration.md",
+      "subject_in_vote": null,
+      "evidence": "### Solana Bridge Migration -- If this executive proposal passes, then the final stage of the Solana Bridge Migration will be executed ... Call MigrationInit.initMigrationStep1 ... Add new SkyOFTAdapter ... to the Chainlog as USDS_OFT",
+      "note": ""
+    },
+    {
+      "docId": "7ced22ef-d015-48f5-92f5-52ccdfd7eec2",
+      "date": "2025-11-27",
+      "label": "yes",
+      "correct_vote_file": "2025/executive-vote-2025-11-27-launch-starguards.md",
+      "subject_in_vote": null,
+      "evidence": "##### [Mainnet] Foundation Grant -- Spark will transfer funding for the December Spark Foundation Grant to the Spark Foundation: - Payment Amount: **1.1 million USDS**",
+      "note": ""
+    },
+    {
+      "docId": "418d496b-2e2e-4ee2-b37a-8178de5d656c",
+      "date": "2025-11-27",
+      "label": "yes",
+      "correct_vote_file": "2025/executive-vote-2025-11-27-launch-starguards.md",
+      "subject_in_vote": null,
+      "evidence": "### Payment to Gnosis -- Authorization: [A.4.1.1.1.1] -- Transfer **1,806,670 USDS** to Gnosis at [0x849D52316331967b6fF1198e5E32A0eB168D039d]",
+      "note": ""
+    },
+    {
+      "docId": "b83a89eb-454b-413f-9d67-b4877a59a393",
+      "date": "2025-12-11",
+      "label": "yes",
+      "correct_vote_file": "2025/executive-vote-2025-12-11-launch-ccea1-subproxy-and-starguard.md",
+      "subject_in_vote": null,
+      "evidence": "##### [Mainnet] Spark Treasury - Spark Foundation Grants -- Transfer **150,000 USDS** to the Spark Asset Foundation at [0xEabCb8C0346Ac072437362f1692706BA5768A911]",
+      "note": ""
+    },
+    {
+      "docId": "2deb96b0-c985-49cd-a46e-7d1fa38c53b5",
+      "date": "2025-12-11",
+      "label": "yes",
+      "correct_vote_file": "2025/executive-vote-2025-12-11-launch-ccea1-subproxy-and-starguard.md",
+      "subject_in_vote": null,
+      "evidence": "### Core Council Executor Agent 1 Genesis Capital Allocation Distribution -- Transfer **20 million USDS** to the Core Council Executor Agent 1 SubProxy at [0x64a2b7CfA832fE83BE6a7C1a67521B350519B9c1]",
+      "note": ""
+    },
+    {
+      "docId": "2f9fb868-f137-4110-90ec-8ab8d75ebcaa",
+      "date": "2025-12-11",
+      "label": "yes",
+      "correct_vote_file": "2025/executive-vote-2025-12-11-launch-ccea1-subproxy-and-starguard.md",
+      "subject_in_vote": null,
+      "evidence": "### Core Council Executor Agent 1 Genesis Capital Allocation Distribution -- Transfer **5 million USDS** to the Core Council Buffer Multisig at [0x210CFcF53d1f9648C1c4dcaEE677f0Cb06914364]",
+      "note": ""
+    },
+    {
+      "docId": "36556509-d2b6-4932-8781-9bf4ecc90987",
+      "date": "2026-01-29",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-01-29-msc-pattern-and-skybase-onboarding.md",
+      "subject_in_vote": null,
+      "evidence": "#### Skybase Genesis Funding -- Transfer **10 million USDS** to SKYBASE_SUBPROXY located at [0x08978E3700859E476201c1D7438B3427e3C81140].",
+      "note": ""
+    },
+    {
+      "docId": "be600bf6-c0f2-42c5-ad5c-fd0cb429b628",
+      "date": "2026-01-29",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-01-29-msc-pattern-and-skybase-onboarding.md",
+      "subject_in_vote": null,
+      "evidence": "#### Skybase Genesis Funding -- Transfer **5 million USDS** to the USDS Demand Subsidies Multisig at [0x3F32bC09d41eE699844F8296e806417D6bf61Bba].",
+      "note": ""
+    },
+    {
+      "docId": "e62499b4-d444-40a6-8eea-9b5f6d85bbb6",
+      "date": "2026-02-26",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-02-26-agent-6-and-7-onboarding.md",
+      "subject_in_vote": null,
+      "evidence": "##### [Mainnet] Spark Treasury - Spark Foundation Grant for March -- **1.1 million USDS** will be transferred to the Spark Foundation at [0x92e4629a4510AF5819d7D1601464C233599fF5ec].",
+      "note": ""
+    },
+    {
+      "docId": "7df88d38-679b-42a2-a8a8-f798ac6a736b",
+      "date": "2026-03-26",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-03-26-agent-onboardings-genesis-funding.md",
+      "subject_in_vote": null,
+      "evidence": "### Genesis Funding Transfers -- Transfer **10 million USDS** to the [Keel SubProxy](https://etherscan.io/address/0x355CD90Ecb1b409Fdf8b64c4473C3B858dA2c310).",
+      "note": "Address matches the atlas Keel SubProxy (A.6.1.1.3.2.1.1.3.1.1.2)."
+    },
+    {
+      "docId": "65638659-eb0d-4e5c-87e8-50705e3595b8",
+      "date": "2026-03-26",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-03-26-agent-onboardings-genesis-funding.md",
+      "subject_in_vote": null,
+      "evidence": "### Genesis Funding Transfers -- Transfer **10 million USDS** to the [Launch Agent 6 SubProxy](https://etherscan.io/address/0x24fdcd3bFA5C2553e05B2f9AD0365EBC296278D3). (Summary: 'Genesis Funding will be transferred to Ozone, Amatsu, Keel, and Prysm.')",
+      "note": "Contradicts the expected 'no': the word Osero is absent, but 0x24fdcd3b... is exactly the Osero SubProxy the atlas doc names; it was onboarded as Launch Agent 6 / PRYSM_SUBPROXY (Feb 26, 2026) and later executives call it OSERO_SUBPROXY with vault ALLOCATOR-PRYSM-A, so Osero = Prysm = Launch Agent 6."
+    },
+    {
+      "docId": "ff5c1b0c-8027-4711-9cc3-a18772c0ba5b",
+      "date": "2026-03-26",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-03-26-agent-onboardings-genesis-funding.md",
+      "subject_in_vote": null,
+      "evidence": "### Genesis Funding Transfers -- Transfer **25 million USDS** to the [Amatsu SubProxy](https://etherscan.io/address/0xF33B14329e7115dD0B40DBb2985E1A0Df10E3fAa).",
+      "note": ""
+    },
+    {
+      "docId": "ee64a5b7-da29-4b14-aaa7-e2f370a37301",
+      "date": "2026-03-26",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-03-26-agent-onboardings-genesis-funding.md",
+      "subject_in_vote": null,
+      "evidence": "### Genesis Funding Transfers -- Transfer **25 million USDS** to the [Ozone SubProxy](https://etherscan.io/address/0x9FE628BFc33f0352Bb1f93168881a9Ef93C8d2CF).",
+      "note": ""
+    },
+    {
+      "docId": "c7a49d2a-72c2-438e-ab04-8ae284b811e0",
+      "date": "2026-04-09",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-04-09-launch-avalanche-skylink-staking-rewards-update.md",
+      "subject_in_vote": null,
+      "evidence": "### Grove Genesis Capital Transfer -- If this executive proposal passes, then **20,797,477 USDS** will be transferred to the [Grove SubProxy](https://etherscan.io/address/0x1369f7b2b38c76B6478c0f0E66D94923421891Ba) as part of their Genesis Capital allocation.",
+      "note": ""
+    },
+    {
+      "docId": "1c0d2cf1-dc44-4b7f-b709-61fcc5c1612c",
+      "date": "2026-04-09",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-04-09-launch-avalanche-skylink-staking-rewards-update.md",
+      "subject_in_vote": null,
+      "evidence": "### Launch Avalanche SkyLink -- 'Avalanche SkyLink will be launched.' (wires LZ_GOV_SENDER, USDS_OFT and SUSDS_OFT with Avalanche Mainnet, sets USDS rate limits for Avalanche)",
+      "note": ""
+    },
+    {
+      "docId": "9f4636c0-c658-42b7-9ac4-0dffe0e7f9f2",
+      "date": "2026-05-07",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-05-07-solana-bridge-unpause-gsm-increase-msc-staking-rewards-update.md",
+      "subject_in_vote": null,
+      "evidence": "##### [Ethereum] Spark Treasury - Monthly Grants for Spark Foundation and Spark Assets Foundation -- Spark Foundation Grant ... Transfer amount: **1,100,000 USDS**.",
+      "note": ""
+    },
+    {
+      "docId": "a6c4def1-c286-4667-a861-34c8d8541180",
+      "date": "2026-05-07",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-05-07-solana-bridge-unpause-gsm-increase-msc-staking-rewards-update.md",
+      "subject_in_vote": null,
+      "evidence": "##### [Ethereum] Spark Treasury - Monthly Grants for Spark Foundation and Spark Assets Foundation -- Spark Asset Foundation Grant ... Transfer amount: **100,000 USDS**.",
+      "note": ""
+    },
+    {
+      "docId": "bf609e8f-a9ef-4787-846e-96a43028a216",
+      "date": "2026-05-07",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-05-07-solana-bridge-unpause-gsm-increase-msc-staking-rewards-update.md",
+      "subject_in_vote": null,
+      "evidence": "##### [Ethereum] Grove Treasury — Monthly Grant for Grove Foundation -- **800,000 USDS** will be transferred to the Grove Foundation at [0xE3EC4CC359E68c9dCE15Bf667b1aD37Df54a5a42].",
+      "note": "0xE3EC... is labelled Grove Foundation Multisig in the Jun 4/Jul 2/Aug 27 executives."
+    },
+    {
+      "docId": "bf609e8f-a9ef-4787-846e-96a43028a216",
+      "date": "2026-06-04",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-06-04-rwa001-a-offboarding-keeper-adjustments.md",
+      "subject_in_vote": null,
+      "evidence": "##### [Mainnet] Grove Treasury - Monthly Grant for Grove Foundation -- The Grove Foundation will receive a combined disbursement covering Months 2 and 3 ... **1,600,000 USDS** will be transferred from the Grove SubProxy to the [Grove Foundation Multisig].",
+      "note": ""
+    },
+    {
+      "docId": "61625749-4df9-411e-b4dd-15c9e4b059d3",
+      "date": "2026-07-02",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-07-02-grove-token-rewards.md",
+      "subject_in_vote": null,
+      "evidence": "##### [Ethereum] Treasury Distribution - 800,000 USDS to the Grove Foundation Multisig -- **800,000 USDS** will be transferred from the [Grove SubProxy] to the [Grove Foundation Multisig](...0xE3EC4CC359E68c9dCE15Bf667b1aD37Df54a5a42).",
+      "note": ""
+    },
+    {
+      "docId": "c6541e3b-628b-47a6-9f2b-b7b27df7913d",
+      "date": "2026-07-02",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-07-02-grove-token-rewards.md",
+      "subject_in_vote": null,
+      "evidence": "##### [Ethereum] Transfer 700,000 USDS from the Skybase SubProxy to the Skybase Foundation Operational Multisig -- **700,000 USDS** will be transferred from the [Skybase SubProxy] to the [Skybase Foundation Operational Multisig].",
+      "note": ""
+    },
+    {
+      "docId": "d5240aa5-72c1-4f92-b22c-7a80a35d733c",
+      "date": "2026-08-27",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-08-27-initialize-pas.md",
+      "subject_in_vote": null,
+      "evidence": "### Parallelized Allocation System Module Initialization -- Call [PASInit.pauseTimelock](...) with the following arguments: address timelock_ = 0xB50a06Af02dDE44dB6EA7ee729403848c2B35293 (PAS_TIMELOCK)",
+      "note": ""
+    },
+    {
+      "docId": "aeaadaf7-b8a4-45ef-864f-5ecd2929ecce",
+      "date": "2026-08-27",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-08-27-initialize-pas.md",
+      "subject_in_vote": null,
+      "evidence": "##### [Ethereum] Spark Treasury - Grants for Spark Foundation and Spark Asset Foundation -- **1.1 million USDS** will be transferred from the Spark SubProxy to the Spark Foundation at [0x92e4629a4510AF5819d7D1601464C233599fF5ec]",
+      "note": ""
+    },
+    {
+      "docId": "991fafeb-2adf-4afd-97df-9cb3aad5fa99",
+      "date": "2026-08-27",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-08-27-initialize-pas.md",
+      "subject_in_vote": null,
+      "evidence": "##### [Ethereum] Spark Treasury - Grants for Spark Foundation and Spark Asset Foundation -- ... and **155,000 USDS** will be transferred from the Spark SubProxy to the Spark Asset Foundation at [0xEabCb8C0346Ac072437362f1692706BA5768A911].",
+      "note": ""
+    },
+    {
+      "docId": "b5ab118c-b968-4e8b-ba13-7d745b1f4860",
+      "date": "2026-08-27",
+      "label": "yes",
+      "correct_vote_file": "2026/executive-vote-2026-08-27-initialize-pas.md",
+      "subject_in_vote": null,
+      "evidence": "##### [Ethereum] Treasury Distribution — 800,000 USDS to the Grove Foundation Multisig -- **800,000 USDS** will be transferred from the Grove SubProxy to the Grove Foundation Multisig at [0xE3EC4CC359E68c9dCE15Bf667b1aD37Df54a5a42].",
+      "note": ""
+    },
+    {
+      "docId": "20aa9663-214b-46f5-8b37-53be387b996b",
+      "date": "2026-10-08",
+      "label": "anchor",
+      "correct_vote_file": "2026/executive-vote-2026-10-08-stusds-keeper-launch.md",
+      "subject_in_vote": true,
+      "evidence": "##### [Ethereum] Migrate Grove × Steakhouse Vaults to the Atlas Morpho Vault Curation Framework -- If this executive proposal passes, then the Grove proxy spell will approve the queued Safe transaction that brings the Grove × Steakhouse USDC, AUSD, and RLUSD Morpho Vault V2s into the role configuration required by the Atlas Morpho Vault Curation Framework.",
+      "note": "'Following the execution of' is a time anchor; the vote touches Morpho Vault Curation Framework compliance but does not mention the CRR."
+    }
+  ],
+  "poll": [
+    {
+      "docId": "93dddb43-1d2e-4ea8-ab18-eb0518a193ba",
+      "date": "2024-05-20",
+      "label": "none-expected",
+      "authorising": [],
+      "enacting": [],
+      "evidence": "",
+      "note": "Past-tense history (Spark pre-launch rewards Season 1 'ending on May 20 2024', text present since the atlas repo's first commit); no vote records it and both vote repos start in May 2025."
+    },
+    {
+      "docId": "5a62cc3f-4337-4770-a4d1-8a9b3d158b3f",
+      "date": "2025-07-01",
+      "label": "authorised",
+      "authorising": [
+        "2025/2025-07-21-Atlas-edit-weekly-cycle-proposal.md"
+      ],
+      "enacting": [],
+      "evidence": "**Replace Date Of Finalization Of Risk Framework With Fixed Date** - Replaces the date of finalization of the Risk Framework with a specific date of July 1, 2025 for certain milestones related to Spark and Grove TGE and income generation.",
+      "note": "Poll PR #31 wrote the July 1, 2025 TGE-penalty deadline (retroactively, +20 d); no executive levies a penalty."
+    },
+    {
+      "docId": "f3672ca1-b305-4e16-86f0-3dc3267073bb",
+      "date": "2025-07-01",
+      "label": "authorised",
+      "authorising": [
+        "2025/2025-07-21-Atlas-edit-weekly-cycle-proposal.md"
+      ],
+      "enacting": [],
+      "evidence": "**Replace Date Of Finalization Of Risk Framework With Fixed Date** - Replaces the date of finalization of the Risk Framework with a specific date of July 1, 2025 for certain milestones related to Spark and Grove TGE and income generation.",
+      "note": "Same poll (PR #31) inserted the July 1, 2025 cut-off for pre-TGE expenses; no Spark/Grove capital-transfer executive in window."
+    },
+    {
+      "docId": "3ae9fa89-97e6-46ac-9b8b-ecb77a10574f",
+      "date": "2025-07-01",
+      "label": "authorised",
+      "authorising": [
+        "2025/2025-07-21-Atlas-edit-weekly-cycle-proposal.md"
+      ],
+      "enacting": [],
+      "evidence": "**Replace Date Of Finalization Of Risk Framework With Fixed Date** - Replaces the date of finalization of the Risk Framework with a specific date of July 1, 2025 for certain milestones related to Spark and Grove TGE and income generation.",
+      "note": "Same poll (PR #31) set Income Generation to commence July 1, 2025; no executive."
+    },
+    {
+      "docId": "a768dda1-1075-4762-a904-c523687cbe6c",
+      "date": "2025-07-14",
+      "label": "authorised",
+      "authorising": [
+        "2025/2025-08-04-Atlas-edit-weekly-cycle-proposal.md"
+      ],
+      "enacting": [],
+      "evidence": "**Update Spark / Grove Ecosystem Accord To Include Ethena Revenue Share** - Adds the terms for sharing revenue from investments in USDe and sUSDe to the Ecosystem Accord between Spark and Grove.",
+      "note": "Poll PR #38 added the retroactive Spark/Grove USDe revenue share (+21 d); settled between the Primes, no executive section."
+    },
+    {
+      "docId": "146d3d9c-7f8a-4dc4-b6b3-349bab4279bb",
+      "date": "2025-09-10",
+      "label": "authorised",
+      "authorising": [
+        "2025/2025-09-08-Atlas-edit-weekly-cycle-proposal.md"
+      ],
+      "enacting": [
+        "2025/executive-vote-2025-09-18.md"
+      ],
+      "evidence": "Poll: **Define Monthly Settlement Cycle Process** - Defines the initial process for conducting the Monthly Settlement Cycle. | Exec: The first Monthly Settlement Cycle, corresponding to July-August 2025, will be executed.",
+      "note": "Poll PR #57 wrote the Sept 10 posting deadline (-2 d); the 2025-09-18 executive executed that July-August MSC (+8 d)."
+    },
+    {
+      "docId": "6ecef2b2-42c7-4bea-80f0-1cb1cd4e735d",
+      "date": "2025-09-17",
+      "label": "authorised",
+      "authorising": [
+        "2025/2025-06-23-Atlas-edit-weekly-cycle-proposal.md"
+      ],
+      "enacting": [],
+      "evidence": "**Add Timeline For Transition Of Spark Governance Processes** - Adds timeline for transferring control of Spark infrastructure from Sky Governance to Spark.",
+      "note": "Poll PR #18 wrote the 'currently estimated' Sept 17, 2025 handover (-86 d); no vote records the handover itself (09-15 'Build Out Spark Governance Processes' is related but not this date)."
+    },
+    {
+      "docId": "12425328-8344-4fbd-9afb-3ea6316972dd",
+      "date": "2025-10-01",
+      "label": "authorised",
+      "authorising": [
+        "2025/2025-09-29-Atlas-edit-weekly-cycle-proposal.md"
+      ],
+      "enacting": [
+        "2025/executive-vote-2025-10-06-lockstake-capped-osm-wrapper.md",
+        "2025/executive-vote-2025-10-30-init-kicker-lsSKY-farm-and-spark-starguard.md",
+        "2025/executive-vote-2025-11-27-launch-starguards.md"
+      ],
+      "evidence": "Poll: **Authorize Transfer To Spark Foundation** - Authorizes an additional cash grant from Spark to the Spark Foundation. | Exec 10-06 '[Ethereum] Spark Treasury - Spark Foundation Grant' (Authorization: Governance Poll 1597): Transfer amount: **1,100,000 USDS**",
+      "note": "Poll PR #63 (portal poll 1597) authorised the 3-month grant (-2 d); months Oct/Nov/Dec paid in execs 10-06 (+5 d), 10-30 and 11-27."
+    },
+    {
+      "docId": "552e7b01-c2d0-4658-ac49-2c74e230aeac",
+      "date": "2026-01-01",
+      "label": "authorised",
+      "authorising": [
+        "2025/2025-11-24-Atlas-edit-weekly-cycle-proposal.md"
+      ],
+      "enacting": [],
+      "evidence": "**Trigger Subsidized Borrowing For Spark And Grove** - Triggers Subsidized Borrowing for Spark and Grove as of January 1, 2026.",
+      "note": "Poll PR #121 triggered subsidized borrowing from Jan 1, 2026 (-38 d); applied through the MSC rate, no executive section mentions it."
+    },
+    {
+      "docId": "c612d4e4-96c4-4ccf-a830-7f742338cfd9",
+      "date": "2026-01-01",
+      "label": "none-expected",
+      "authorising": [],
+      "enacting": [],
+      "evidence": "",
+      "note": "Negative checkpoint ('no re-approval on January 1, 2026') in Spark's delegate terms, written by Spark-side SAEP-05 (atlas PR #113, no Sky poll); Spark Foundation re-approvals are not Sky votes."
+    },
+    {
+      "docId": "bd9673db-225e-42f4-8f26-6e993dc72bd0",
+      "date": "2026-03-31",
+      "label": "authorised",
+      "authorising": [
+        "2026/2026-01-12-Atlas-edit-weekly-cycle-proposal.md"
+      ],
+      "enacting": [
+        "2025/executive-vote-2025-12-11-launch-ccea1-subproxy-and-starguard.md",
+        "2026/executive-vote-2026-01-29-msc-pattern-and-skybase-onboarding.md",
+        "2026/executive-vote-2026-02-26-agent-6-and-7-onboarding.md"
+      ],
+      "evidence": "Poll: **Authorize Transfer To Spark Foundation** - Authorizes a transfer from Spark to the Spark Foundation and clarifies the process for future approvals. | Exec 12-11: Transfer **1.1 million USDS** to the Spark Foundation ... Transfer **150,000 USDS** to the Spark Asset Foundation",
+      "note": "Poll PR #156 authorised the Q1 2026 grant (-78 d, after the first payment); paid in execs 12-11 (Jan + one-time SAF 150k, per the Dec 11 forum post the doc cites), 01-29 and 02-26 (both cite 'Grant Authorization: December 2025')."
+    },
+    {
+      "docId": "85f7d545-d56c-40b9-b1b4-05663cd7772a",
+      "date": "2026-04-01",
+      "label": "authorised",
+      "authorising": [
+        "2026/2026-04-27-Atlas-edit-weekly-cycle-proposal.md"
+      ],
+      "enacting": [
+        "2026/executive-vote-2026-05-07-solana-bridge-unpause-gsm-increase-msc-staking-rewards-update.md",
+        "2026/executive-vote-2026-06-04-rwa001-a-offboarding-keeper-adjustments.md"
+      ],
+      "evidence": "Poll: **Add Grove Foundation Grant Authorization For Q2 2026** — Adds a grant authorization of 800,000 USDS per month to the Grove Foundation from Grove's Prime Treasury for Q2 2026. | Exec 05-07 (Authorization: Governance Poll 1630): **800,000 USDS** will be transferred to the Grove Foundation",
+      "note": "Poll PR #227 (portal poll 1630) authorised retroactively (+26 d); month 1 paid 05-07 (+36 d), months 2-3 (1,600,000 USDS) paid 06-04 (+64 d)."
+    },
+    {
+      "docId": "6033699f-1d55-45ba-8eb1-bd8982571cc0",
+      "date": "2026-05-20",
+      "label": "authorised",
+      "authorising": [
+        "2026/2026-04-20-Atlas-edit-weekly-cycle-proposal.md"
+      ],
+      "enacting": [],
+      "evidence": "**Add Multisig Security Enforcement Framework** — Adds the Multisig Security Enforcement Framework governing security and operational requirements for Multisigs across Sky Core and Prime Agent infrastructure, effective May 20, 2026.",
+      "note": "Poll PR #224 set the May 20, 2026 effective date (-30 d); a rule taking effect, no executive."
+    },
+    {
+      "docId": "c612d4e4-96c4-4ccf-a830-7f742338cfd9",
+      "date": "2026-06-30",
+      "label": "none-expected",
+      "authorising": [],
+      "enacting": [],
+      "evidence": "",
+      "note": "Term-end checkpoint ('deemed approved through June 30, 2026') in Spark's delegate terms, written by Spark-side SAEP-05 (no Sky poll); no vote records a term ending."
+    },
+    {
+      "docId": "c612d4e4-96c4-4ccf-a830-7f742338cfd9",
+      "date": "2026-07-01",
+      "label": "none-expected",
+      "authorising": [],
+      "enacting": [],
+      "evidence": "",
+      "note": "First Spark Foundation re-approval checkpoint, written by SAEP-05; re-approval is a Spark Foundation act, not a Sky poll or executive."
+    },
+    {
+      "docId": "2e484aa5-73d1-4773-a97d-cccf9323c576",
+      "date": "2026-08-01",
+      "label": "authorised",
+      "authorising": [
+        "2026/2026-07-27-Atlas-edit-weekly-cycle-proposal.md"
+      ],
+      "enacting": [],
+      "evidence": "**Enable Grove Self-Governance With A New Delegation Framework** — Adds Grove's Delegation Framework, letting GROVE holders delegate their voting power on Root Edit proposals to Delegates. Also operationalizes Grove's Root Edit Primitive.",
+      "note": "Poll PR #283 (-5 d) added Grove's Delegation Framework including this initial term start (prior research's 'no vote expected' missed it); no executive."
+    },
+    {
+      "docId": "41824fb1-a4e0-4f58-9095-0b3e646fb42c",
+      "date": "2026-08-17",
+      "label": "authorised",
+      "authorising": [
+        "2026/2026-09-14-Atlas-edit-weekly-cycle-proposal.md"
+      ],
+      "enacting": [
+        "2026/executive-vote-2026-10-08-stusds-keeper-launch.md"
+      ],
+      "evidence": "Poll: **Add Morpho Vault Curation Framework** - Sets the requirements for Morpho vaults that Prime Agents deploy capital into, covering roles, eligible markets, oracles and timelocks. Allocations to noncompliant Morpho vaults carry a 100% Instance Financial CRR after the October 8, 2026 Executive Vote. | Exec: [Ethereum] Migrate Grove × Steakhouse Vaults to the Atlas Morpho Vault Curation Framework",
+      "note": "Poll PR #331 set the Aug 17 exposure cut-off retroactively (+28 d); the 10-08 executive (+52 d) migrates Grove's existing vaults to the framework."
+    },
+    {
+      "docId": "2e484aa5-73d1-4773-a97d-cccf9323c576",
+      "date": "2026-12-31",
+      "label": "authorised",
+      "authorising": [
+        "2026/2026-07-27-Atlas-edit-weekly-cycle-proposal.md"
+      ],
+      "enacting": [],
+      "evidence": "**Enable Grove Self-Governance With A New Delegation Framework** — Adds Grove's Delegation Framework, letting GROVE holders delegate their voting power on Root Edit proposals to Delegates. Also operationalizes Grove's Root Edit Primitive.",
+      "note": "Initial-term end set by the same poll (-157 d); the term ending needs no vote, so a match to this poll is correct provenance and anything else is spurious."
+    }
+  ]
+}

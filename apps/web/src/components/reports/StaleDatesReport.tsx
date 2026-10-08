@@ -1,4 +1,5 @@
-import { staleDatesToCSV, type StaleDatesReport as StaleDates } from "@/lib/staleDates";
+import type { StaleDatesReport as StaleDates } from "@/lib/staleDates";
+import { staleDatesToCSV } from "@/lib/staleDatesCsv";
 import { type ReportMode } from "@/lib/reportFilter";
 import type { ReportId } from "@/types";
 import { DownloadCsvButton } from "./DownloadCsvButton";
@@ -27,7 +28,7 @@ function StaleDatesCsvButton({ csvReport, report, query }: { csvReport: StaleDat
 }
 
 export function StaleDatesReport({ query, mode }: { query: string; mode: ReportMode }) {
-  const { report, rq, sections, csvReport, anyShown } = useStaleDatesState(query, mode);
+  const { report, voteRecord, judgedAt, rq, sections, csvReport, anyShown } = useStaleDatesState(query, mode);
   return (
     <ReportShell
       report={REPORT}
@@ -36,8 +37,17 @@ export function StaleDatesReport({ query, mode }: { query: string; mode: ReportM
         <>
           Future-tense claims in atlas prose ("will be included in the … Executive Vote") checked against
           today's date. An overdue claim means the event happened and the text was never updated — or it
-          slipped.
+          slipped. Each claim is also checked against the Sky vote record (Executive Votes and governance
+          polls), which tells those two apart: a date in the atlas is not evidence that a vote happened.
           {report && <span className="mono"> {report.totalDateMentions} dated mentions scanned.</span>}
+          {report && (
+            <span className="mono">
+              {voteRecord
+                ? ` Vote record: Executive Votes ${voteRecord.first} → ${voteRecord.last}.`
+                : " Vote record unavailable — no vote evidence shown."}
+              {judgedAt && ` Atlas history and AI judgments as of ${judgedAt.slice(0, 10)}.`}
+            </span>
+          )}
         </>
       }
       query={query}

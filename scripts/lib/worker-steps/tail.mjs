@@ -40,4 +40,15 @@ export const TAIL_LANES = [
         env: { ...ctx.env, ...(ctx.noFetch ? { ATLAS_WORKER_NO_FETCH: "1" } : {}) },
       }),
   },
+  {
+    // Stale Dates vote evidence (vote_evidence): the vote record refetched, atlas
+    // history and a decision model laid over the matching rules. Time-gated inside;
+    // under --no-fetch the child skips, since it would fetch and spend.
+    id: "vote-evidence",
+    phase: "tail",
+    run: (ctx) =>
+      ctx.runAsync("bun", ["src/server/sync-vote-evidence.ts"], {
+        env: { ...ctx.env, ...(ctx.noFetch ? { ATLAS_WORKER_NO_FETCH: "1" } : {}) },
+      }),
+  },
 ];

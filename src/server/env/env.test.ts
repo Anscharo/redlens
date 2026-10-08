@@ -12,7 +12,14 @@ const DECLARED = new Set(VARS.map((v) => v.name));
 
 // Where operator-facing configuration is read. Tests and type declarations are
 // excluded: they set variables, they do not consume configuration.
-const SCANNED = ["src/server", "scripts/required", "scripts/lib", "scripts/aux/dev-preflight.mjs", "scripts/aux/dev.mjs"];
+const SCANNED = [
+  "src/server",
+  "scripts/required",
+  "scripts/lib",
+  "scripts/aux/dev-preflight.mjs",
+  "scripts/aux/dev-offchain-artifacts.ts",
+  "scripts/aux/dev.mjs",
+];
 // Set by the CI runner for its own protocol, never by an operator.
 const NOT_CONFIG = new Set(["GITHUB_ACTIONS", "GITHUB_OUTPUT"]);
 

@@ -14,6 +14,8 @@ vi.mock("../../hooks/useGraphEdges", () => ({
   useGraphEdges: () => ({ outbound: [], inbound: [] }),
 }));
 
+vi.mock("../../lib/votes", () => ({ loadVoteRecord: () => Promise.resolve({ index: null, overlay: null }) }));
+
 import { AtlasAnnotations } from "./AtlasAnnotations";
 import type { AtlasTab } from "../../lib/atlasTab";
 
@@ -30,6 +32,7 @@ function setup(over: Partial<Parameters<typeof AtlasAnnotations>[0]> = {}) {
     targetAddresses: {},
     chainValues: {},
     glossaryTerms: [],
+    docs: {},
     tab: "notes" as AtlasTab,
     onTabChange: vi.fn(),
     onNavigate: vi.fn(),
