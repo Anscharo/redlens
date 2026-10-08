@@ -85,6 +85,12 @@ describe("syncPauRpc", () => {
     expect(windows.every((w) => w.url === "good")).toBe(true);
     expect(res.base.behind).toBe(0);
   });
+  it("reports a dead endpoint as the chain's error and moves no cursor", async () => {
+    const res = await syncPauRpc(db, reg, deps({ head: async () => Promise.reject(new Error("rpc eth_blockNumber: HTTP 503")) }));
+    expect(res.base.error).toBe("rpc eth_blockNumber: HTTP 503");
+    expect(windows).toEqual([]);
+    expect(rpc.every((r) => r.next_block === 0)).toBe(true);
+  });
   it("stores an error and never crawls a contract with no code", async () => {
     const res = await syncPauRpc(db, reg, deps({ deployBlock: async (_u, addr) => (addr === A ? null : 300) }));
     expect(rpc.find((r) => r.contract === A)!.last_error).toBe(`no code at block ${TIP}`);
