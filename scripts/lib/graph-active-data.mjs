@@ -61,11 +61,13 @@ const BREACH_REGISTRY_UUID = "1ddd9cf6-3f93-4a33-8c1d-80405eec1ffb"; // A.1.6.6.
 // fit. A future extractor would need to resolve the Multisig Address column
 // against the Pattern 17 multisig entity (by address) and treat the
 // Approved Deviation cell as an alternate-config annotation on it.
-// Current Non-Circulating Balance Positions (issue #490, atlas c62e690) —
-// Holder | Position | Network rows name balance positions ("SubProxy",
-// "PSM3 reserves"), not actors; the Position cell is free text that only
-// resolves against an address elsewhere. Same deferral shape as the Sky
-// Direct Exposures tables: no existing entity_type fits a position row.
+//
+// Current Non-Circulating Balance Positions — Holder | Position | Network rows
+// name balance positions ("SubProxy", "PSM3 reserves"), not actors; the
+// Position cell is free text that only resolves against an address elsewhere.
+// Same deferral as the Sky Direct Exposures tables above (no existing
+// entity_type fits a position row; see parse-atlas SKILL.md Pattern 16
+// addendum).
 const KNOWN_UNEXTRACTED_TABLES = new Set([
   "93f5b36b-06a7-4282-9fd7-14e0cbafd08e", // A.1.10.2.5.1.3.2.0.6.1
   "5f368e33-7a82-4244-a9ba-f285193ec043", // A.2.2.10.1.1.1.1.2.0.6.1 List Of Current Sky Direct Exposures
