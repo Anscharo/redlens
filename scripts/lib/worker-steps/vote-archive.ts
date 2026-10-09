@@ -5,7 +5,8 @@
 const FILES_PER_TICK = Number(process.env.EXECUTIVE_ARCHIVE_FILES_PER_TICK ?? 3);
 
 async function fetchOk(url: string): Promise<Response> {
-  const res = await fetch(url, { headers: { "User-Agent": "redlens-atlas-worker" }, signal: AbortSignal.timeout(30_000) });
+  const { politeFetch } = await import("../../../src/lib/upstreamBackoff.ts");
+  const res = await politeFetch(url, { headers: { "User-Agent": "redlens-atlas-worker" }, signal: AbortSignal.timeout(30_000) });
   if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
   return res;
 }

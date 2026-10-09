@@ -4,6 +4,7 @@
 // Public RPCs drop old transactions from their hash index but still serve old
 // blocks, so a lookup by hash falls back to the transaction's block.
 import { toHex } from "viem";
+import { politeFetch } from "../../lib/upstreamBackoff.ts";
 import { rpcFor } from "../balances/fetch-balances.ts";
 import { linkFor, type LinkDeps } from "./origin-links.ts";
 import type { OriginIo } from "./origin.ts";
@@ -11,7 +12,7 @@ import type { OriginIo } from "./origin.ts";
 export async function jsonRpc(chain: string, method: string, params: unknown[]): Promise<unknown> {
   const url = rpcFor(chain);
   if (!url) throw new Error(`no RPC for ${chain}`);
-  const res = await fetch(url, {
+  const res = await politeFetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),

@@ -244,6 +244,7 @@ async function main() {
   const db = openDb();
   const ctx = { db, full, noFetch: NO_FETCH, env: process.env, runAsync, log: console.log, warn: console.warn };
 
+  (await import("../../src/server/upstream-cooldowns.ts")).useDbCooldowns(db); // a host that said slow down stays left alone across runs
   await runTickSteps(WORKER_STEPS, ctx); // ── 1. tick steps (best-effort)
   console.log("atlas-worker: checking upstream atlas SHA…"); // ── 2. drift check
   const drift = await readDriftState(db, () => readUpstreamSha(NO_FETCH));

@@ -9,6 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import type { StoredPauSnapshot } from "../../src/lib/pau.ts";
+import { politeFetch } from "../../src/lib/upstreamBackoff.ts";
 
 export const PRODUCTION_PAU = "https://atlas.redline.support/api/pau";
 
@@ -25,7 +26,7 @@ export interface SnapshotRead {
 const isUrl = (source: string) => /^https?:\/\//.test(source);
 
 async function fetchJson(url: string): Promise<unknown> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+  const res = await politeFetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }

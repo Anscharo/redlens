@@ -7,6 +7,7 @@
  * that module's per-host clocks with the address enrichment.
  */
 import { explorerBases, throttleExplorer, type ExplorerBase } from "./explorer-api.ts";
+import { politeFetch } from "../../src/lib/upstreamBackoff.ts";
 
 export interface ExplorerLog {
   address: string;
@@ -65,7 +66,7 @@ function topicParams(topics: (string | null)[]): string {
 /** One page of logs from `fromBlock`; an explorer's "no records" answer is an empty page. */
 async function page(url: string): Promise<ExplorerLog[]> {
   await throttleExplorer(url);
-  const res = await fetch(url);
+  const res = await politeFetch(url);
   if (!res.ok) throw new Error(`explorer logs: HTTP ${res.status}`);
   const body = (await res.json()) as { status?: string; message?: string; result: unknown };
   if (Array.isArray(body.result)) return body.result.map((l) => parseLog(l as Record<string, unknown>));

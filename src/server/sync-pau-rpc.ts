@@ -6,6 +6,7 @@
 //   bun src/server/sync-pau-rpc.ts
 import { sql } from "./db.ts";
 import { runMigrations } from "./migrate.ts";
+import { useDbCooldowns } from "./upstream-cooldowns.ts";
 import { deadlineMs, runPauRpc, withLock, type Reserved } from "./pau/rpc-lane.ts";
 import reg from "../data/pau-registry.json" with { type: "json" };
 import type { PauRegistry } from "../lib/pauRegistry.ts";
@@ -18,6 +19,7 @@ const T0 = Date.now();
 
 async function run(): Promise<void> {
   await runMigrations();
+  useDbCooldowns(sql);
   const deps = { providers: logsRpcsFor, head: rpcHeadBlock, deployBlock: rpcDeployBlock, logs: rpcLogs, deadline: T0 + deadlineMs() };
   await runPauRpc(sql, reg as unknown as PauRegistry, deps);
 }
