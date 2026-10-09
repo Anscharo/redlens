@@ -35,9 +35,7 @@
 
 ## 2026-10-09
 
-- Added a Change history to each Prime Agent's PAUs page, crediting every on-chain configuration change to the Executive Vote, operator or deployment that made it
-- Named every rate limit on Grove's and Osero's newer PAU contracts, and matched more Atlas swap limits against the chain
-- Checked each diamond PAU's AdministeredAgent members against the chain on Radar's PAUs pages, instead of trusting the event history
+- Added a Change history to each Prime Agent's PAUs page, crediting every on-chain change to the Executive Vote, operator or deployment behind it, and checked more of its rate limits and members against the chain
 
 ## 2026-10-08
 

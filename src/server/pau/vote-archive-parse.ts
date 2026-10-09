@@ -30,12 +30,12 @@ export function readFrontmatterFields(md: string): ArchiveFields {
   };
 }
 
-/** `cast.first` is the spell's earliest cast (ISO), null when never cast; `cast.casts` whether the cast list has been read at all. */
+/** `cast.first` is the spell's earliest cast (ISO), null when never cast; `cast.casts` whether the cast list is read past the vote's cast window, without which "never cast" is not yet known. */
 export function verdictFor(f: ArchiveFields, cast: { first: string | null; casts: boolean }): ArchiveVerdict {
   const v = (status: ArchiveVerdict["status"], reason: string): ArchiveVerdict => ({ ...f, status, reason });
   if (!f.spell) return v("rejected", "the file names no spell address");
   if (!f.title || !f.date) return v("rejected", "the file has no title or no date");
-  if (!cast.casts) return v("pending", "the DSPause casts are not read yet");
+  if (!cast.casts) return v("pending", "the DSPause casts are not read past the vote's cast window yet");
   if (!cast.first) return v("rejected", `spell ${f.spell} was never cast through DSPause`);
   if (cast.first.slice(0, 10) < f.date) return v("rejected", `spell ${f.spell} was cast on ${cast.first.slice(0, 10)}, before the vote's date ${f.date}`);
   return v("verified", `DSPause.exec ran spell ${f.spell} on ${cast.first.slice(0, 10)}`);

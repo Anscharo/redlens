@@ -29,13 +29,13 @@ describe("readFrontmatterFields / verdictFor", () => {
   });
 });
 
-function fakeDb(count: number) {
+function fakeDb(count: number, lastCast = new Date("2025-01-01T00:00:00Z")) {
   const writes: unknown[][] = [];
   const db = async (strings: TemplateStringsArray, ...v: unknown[]) => {
     const text = strings.join("?");
     if (text.includes("count(*)::int AS n FROM executive_archive")) return [{ n: count }];
     if (text.includes("SELECT file FROM executive_archive")) return [{ file: "Executive vote - September 5, 2024.md" }];
-    if (text.includes("min(block_time)")) return [{ first: new Date("2024-09-09T14:00:00Z") }];
+    if (text.includes("min(block_time)")) return [{ first: new Date("2024-09-09T14:00:00Z"), last: lastCast }];
     if (text.includes("spell_cast_cursor")) return [{ next_block: "20000000" }];
     writes.push([text, ...v]);
     return [];
@@ -59,5 +59,21 @@ describe("backfillArchive", () => {
     const down = await backfillArchive(failing.db, { fetchJson: async () => [], fetchText: async () => Promise.reject(new Error("HTTP 503")) }, 3);
     expect(down.verified).toBe(0);
     expect(failing.writes.find((w) => String(w[0]).includes("UPDATE"))).toContain("pending");
+  });
+  it("lists the whole archive in one statement", async () => {
+    const { db, writes } = fakeDb(0);
+    const files = Array.from({ length: 120 }, (_, i) => ({ name: `Executive vote - May ${i}, 2020.md` }));
+    const run = await backfillArchive(db, { fetchJson: async () => files, fetchText: async () => MD }, 0);
+    const inserts = writes.filter((w) => String(w[0]).includes("INSERT INTO executive_archive"));
+    expect(run.listed).toBe(120);
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0][1]).toHaveLength(120);
+  });
+  it("keeps a file pending while the cast list is not read past its vote's cast window", async () => {
+    const early = fakeDb(229, new Date("2024-09-20T00:00:00Z"));
+    await backfillArchive(early.db, { fetchJson: async () => [], fetchText: async () => MD }, 3);
+    const update = early.writes.find((w) => String(w[0]).includes("UPDATE"))!;
+    expect(update).toContain("pending");
+    expect(update).toContain("the DSPause casts are not read past the vote's cast window yet");
   });
 });

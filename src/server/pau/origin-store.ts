@@ -53,7 +53,10 @@ export const queuedOf = (db: SqlTag, chain: string, executor: string, id: number
     SELECT tx_hash, block FROM pau_events WHERE chain = ${chain} AND contract = ${executor} AND event = 'ActionsSetQueued'
       AND args->>'id' = ${String(id)} ORDER BY block DESC LIMIT 1`);
 
-/** Whether every cursor of `contracts` has read past `block` without an error, and there are `expected` of them. */
+/**
+ * Whether every cursor of `contracts` has read past `block` without an error, and there are `expected` of them.
+ * `expected` counts pau_cursor rows, one per (contract, event), as eventTargets lists them, not contracts.
+ */
 export async function cursorsPast(db: SqlTag, chain: string, contracts: string[], expected: number, block: number): Promise<boolean> {
   if (expected === 0) return true;
   const rows = (await db`

@@ -18,7 +18,7 @@ export interface ArchiveDeps {
   now?: () => number;
 }
 
-/** Lists the repository's executive files once, as pending rows; a later run never relists. */
+/** Lists the repository's executive files once, as pending rows, in one statement so a failed run leaves none; a later run never relists. */
 async function seed(db: SqlTag, deps: ArchiveDeps): Promise<number> {
   const rows = (await db`SELECT count(*)::int AS n FROM executive_archive`) as { n: number }[];
   if (rows[0]?.n) return 0;
@@ -26,20 +26,25 @@ async function seed(db: SqlTag, deps: ArchiveDeps): Promise<number> {
   if (!Array.isArray(listing)) throw new Error("executive archive: the listing is not an array");
   const files = listing.map((f) => String((f as { name?: unknown }).name ?? "")).filter((n) => /^executive vote.*\.md$/i.test(n));
   if (files.length < 100) throw new Error(`executive archive: listing names ${files.length} executive files, expected 100 or more`);
-  for (const f of files) await db`INSERT INTO executive_archive (file, status) VALUES (${f}, 'pending') ON CONFLICT DO NOTHING`;
+  await db`INSERT INTO executive_archive (file, status) SELECT f, 'pending' FROM jsonb_array_elements_text(${files}::jsonb) AS f ON CONFLICT DO NOTHING`;
   return files.length;
 }
 
-async function castOf(db: SqlTag, spell: string): Promise<{ first: string | null; casts: boolean }> {
-  const [c] = (await db`SELECT min(block_time) AS first FROM spell_casts WHERE spell = ${spell}`) as { first: Date | string | null }[];
+/** An executive's spell expires about 30 days after its vote, so a cast list read past that settles "never cast". */
+const CAST_WINDOW_MS = 30 * 86_400_000;
+
+/** The spell's earliest cast, and whether the cast list is read, without error, past `date`'s cast window. */
+async function castOf(db: SqlTag, spell: string, date: string | null): Promise<{ first: string | null; casts: boolean }> {
+  const [c] = (await db`SELECT min(block_time) FILTER (WHERE spell = ${spell}) AS first, max(block_time) AS last FROM spell_casts`) as { first: Date | string | null; last: Date | string | null }[];
   const [cur] = (await db`SELECT next_block FROM spell_cast_cursor WHERE id = 1 AND last_error IS NULL`) as { next_block: string }[];
   const first = c?.first ? new Date(c.first).toISOString() : null;
-  return { first, casts: Number(cur?.next_block ?? 0) > 0 };
+  const readPast = !!c?.last && !!date && new Date(c.last).getTime() >= Date.parse(date) + CAST_WINDOW_MS;
+  return { first, casts: Number(cur?.next_block ?? 0) > 0 && readPast };
 }
 
 async function check(db: SqlTag, deps: ArchiveDeps, file: string): Promise<ArchiveVerdict> {
   const fields = readFrontmatterFields(await deps.fetchText(RAW + encodeURIComponent(file)));
-  return verdictFor(fields, fields.spell ? await castOf(db, fields.spell) : { first: null, casts: true });
+  return verdictFor(fields, fields.spell ? await castOf(db, fields.spell, fields.date) : { first: null, casts: true });
 }
 
 async function record(db: SqlTag, file: string, v: ArchiveVerdict, at: Date): Promise<void> {
