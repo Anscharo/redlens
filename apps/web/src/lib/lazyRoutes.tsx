@@ -15,9 +15,10 @@ export function lazyRetry<T>(factory: () => Promise<T>): Promise<T> {
 // Wraps React.lazy + lazyRetry + picking a named export in one call, so each
 // route below only states its import path and the export name it needs.
 // NOTE: ConversationsPage is deliberately NOT defined here — it stays local
-// to App.tsx, next to the __CHAT_ENABLED__ guard it's only ever rendered
-// behind, so that guard's dead-code-elimination proof (chat-off builds strip
-// the whole chunk) isn't disturbed by crossing a module boundary.
+// to components/routes/AppRoutes.tsx, next to the __CHAT_ENABLED__ guard it's
+// only ever rendered behind, so that guard's dead-code-elimination proof
+// (chat-off builds strip the whole chunk) isn't disturbed by crossing a
+// module boundary.
 function lazyImport<M extends Record<string, ComponentType<any>>, K extends keyof M>(
   factory: () => Promise<M>,
   key: K,
@@ -54,7 +55,7 @@ export const SharedCollectionOpener = lazyImport(
 );
 
 // Context handed to each SIMPLE_ROUTES entry's props() factory — the subset
-// of App's render-time values any of these routes need.
+// of the shell's render-time values any of these routes need.
 export interface RouteCtx {
   query: string;
   mode: SearchMode;
@@ -86,12 +87,12 @@ const REPORT_PAGES: Record<ReportId, Omit<SimpleRoute, "path">> = {
 };
 
 // Report/page routes that are just <Suspense><Component .../></Suspense> with
-// no route params and no custom children — rendered by App.tsx's Switch with
+// no route params and no custom children — rendered by AppRoutes' Switch with
 // one .map() instead of repeating that wrapper by hand. Routes needing
 // :param-derived props (RADAR_ACTOR, RADAR_ACTOR_PAGE,
 // SHARED_COLLECTION), a custom child (SEARCH_HINTS), a redirect, the
 // __CHAT_ENABLED__-guarded CONVERSATIONS route, or the admin catch-all stay
-// explicit in App.tsx.
+// explicit in components/routes/AppRoutes.tsx.
 export const SIMPLE_ROUTES: SimpleRoute[] = [
   { path: ROUTES.REPORTS, Component: ReportsIndex, props: (c) => ({ query: c.query }) },
   ...(Object.entries(REPORT_PAGES) as [ReportId, Omit<SimpleRoute, "path">][]).map(([id, page]) => ({ path: reportPath(id), ...page })),

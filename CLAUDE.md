@@ -92,7 +92,7 @@ Each build pass is its own script under `scripts/required/`, with shared modules
 
 ### Frontend
 
-`App.tsx` is the shell (routing, URL sync, layout); the main atlas view is `apps/web/src/components/atlas/AtlasView.tsx`. Three workers live under `apps/web/src/workers/`: search (MiniSearch), atlas tree and graph. Search-bar behaviour, the meaning lane's browser half, styling and themes, and component rules are in `apps/web/CLAUDE.md`; the meaning lane's server half is in `src/server/retrieval/CLAUDE.md`.
+`App.tsx` is the shell (search bar, tree drawer, layout) and `apps/web/src/components/routes/AppRoutes.tsx` holds the routes; the main atlas view is `apps/web/src/components/atlas/AtlasView.tsx`. Three workers live under `apps/web/src/workers/`: search (MiniSearch), atlas tree and graph. Search-bar behaviour, the meaning lane's browser half, styling and themes, and component rules are in `apps/web/CLAUDE.md`; the meaning lane's server half is in `src/server/retrieval/CLAUDE.md`.
 
 ### Citation dictate (non-negotiable) — cite every normative claim in context
 
