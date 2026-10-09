@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CHAIN_ID } from "./chains.mjs";
 import { explorerBases, throttleExplorer } from "./explorer-api.ts";
+import { readChainlogOnchain } from "./chainlog-onchain.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
@@ -59,25 +60,40 @@ async function writeCache(chainid, addr, entry) {
 // ---------------------------------------------------------------------------
 // Chainlog
 // ---------------------------------------------------------------------------
-export async function fetchChainlog() {
+async function fetchChainlogJson() {
+  const res = await fetch(CHAINLOG_URL);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+/**
+ * addr → chainlog name. Reads the website first and the ChainLog contract when
+ * the website fails, so an outage at chainlog.skyeco.com does not stop the
+ * build. `readOnchain` is injectable so tests never reach a live RPC.
+ */
+export async function fetchChainlog(readOnchain = readChainlogOnchain) {
+  let data;
   try {
-    const res = await fetch(CHAINLOG_URL);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    // chainlog shape: { "MCD_VAT": "0x35D1…", ... }
-    const inverted = {};
-    for (const [name, addr] of Object.entries(data)) {
-      if (typeof addr === "string" && addr.startsWith("0x")) {
-        inverted[addr.toLowerCase()] = name;
-      }
-    }
-    return inverted;
+    data = await fetchChainlogJson();
   } catch (err) {
-    console.warn(`! chainlog fetch failed (${err.message}) — proceeding without chainlog labels`);
-    // null = fetch failed entirely (distinct from a real, never-empty result)
-    // so callers can refuse to overwrite artifacts with empty data.
-    return null;
+    console.warn(`! chainlog fetch failed (${err.message}) — reading the ChainLog contract instead`);
+    try {
+      data = await readOnchain();
+    } catch (err2) {
+      console.warn(`! on-chain chainlog read failed (${err2.message}) — proceeding without chainlog labels`);
+      // null = both sources failed (distinct from a real, never-empty result)
+      // so callers can refuse to overwrite artifacts with empty data.
+      return null;
+    }
   }
+  // chainlog shape: { "MCD_VAT": "0x35D1…", ... }
+  const inverted = {};
+  for (const [name, addr] of Object.entries(data)) {
+    if (typeof addr === "string" && addr.startsWith("0x")) {
+      inverted[addr.toLowerCase()] = name;
+    }
+  }
+  return inverted;
 }
 
 // ---------------------------------------------------------------------------

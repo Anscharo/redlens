@@ -53,9 +53,15 @@ describe("fetchChainlog", () => {
     vi.stubGlobal("fetch", vi.fn(async () => okJson({ CHANGELOG_VERSION: "1.20.0", MCD_VAT: "0xAbC0000000000000000000000000000000000001" })));
     expect(await fetchChainlog()).toEqual({ "0xabc0000000000000000000000000000000000001": "MCD_VAT" });
   });
-  it("returns null (not {}) when the fetch fails so callers can refuse to overwrite", async () => {
+  it("reads the ChainLog contract when the website fails", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 403, json: async () => ({}) })));
+    const onchain = vi.fn(async () => ({ MCD_VAT: "0xAbC0000000000000000000000000000000000001" }));
+    expect(await fetchChainlog(onchain)).toEqual({ "0xabc0000000000000000000000000000000000001": "MCD_VAT" });
+    expect(onchain).toHaveBeenCalledOnce();
+  });
+  it("returns null (not {}) when both sources fail so callers can refuse to overwrite", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) })));
-    expect(await fetchChainlog()).toBeNull();
+    expect(await fetchChainlog(async () => { throw new Error("rpc down"); })).toBeNull();
   });
 });
 
