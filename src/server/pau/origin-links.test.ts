@@ -1,6 +1,6 @@
-// Bridge links, against values copied from mainnet: Unichain action set 0
-// (queued 2025-06-02 by the 2025-05-29 executive's cast) and Arbitrum action set
-// 6 (queued 2026-04-13 through Spark's StarGuard execution).
+// Bridge links, against values copied from mainnet: Unichain action set 0,
+// queued by a direct spell cast, and Arbitrum action set 6, queued through
+// Spark's StarGuard execution.
 import { describe, expect, it } from "bun:test";
 import { l1Origin, linkFor, sourceHash, type LinkDeps } from "./origin-links.ts";
 

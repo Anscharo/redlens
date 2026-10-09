@@ -7,7 +7,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { PauResponse, StoredPauSnapshot } from "../../lib/pau";
+import type { PauHistoryResponse, PauResponse, StoredPauSnapshot } from "../../lib/pau";
 
 const PRIME = "dee2f5a4-0000-4000-8000-000000000000";
 const RL = "0x" + "1".repeat(40);
@@ -42,9 +42,19 @@ const ETH: StoredPauSnapshot = {
 const BASE: StoredPauSnapshot = { ...ETH, deployment: `${PRIME}:base:monolithic`, chain: "base", contracts: [{ role: "rateLimits", address: RL, events: 0, historyComplete: false }] };
 let served: PauResponse = { deployments: [BASE, ETH, { ...ETH, prime: "other", deployment: "other:ethereum:monolithic" }] };
 
+const SPELL = "0x" + "5e".repeat(20);
+const change = { deployments: [ETH.deployment], contract: RL, role: "rateLimits", event: "RateLimitDataSet", args: { maxAmount: "25000000000000", slope: "0" }, subject: NAMED, label: null, before: { maxAmount: "10000000000000", slope: "0" } };
+const spellOrigin = { kind: "spell" as const, path: "starguard" as const, spell: SPELL, starSpell: null, l1Tx: at.tx, from: null, to: null, relay: null, evidence: "StarGuard Exec" };
+const history: PauHistoryResponse = {
+  entries: [
+    { chain: "ethereum", tx: "0x" + "1".repeat(64), block: 1, time: "2025-01-01T00:00:00.000Z", primes: [PRIME], origin: { ...spellOrigin, kind: "deployment", path: null, spell: null, from: "0x" + "d".repeat(40) }, executive: null, changes: [change] },
+    { chain: "ethereum", tx: at.tx, block: 2, time: at.time, primes: [PRIME], origin: spellOrigin, executive: { title: "Prime Agent Proxy Spells", date: "2026-08-27", url: "https://vote.example/x", source: "vote-record" }, changes: [change] },
+  ],
+};
+
 vi.mock("../../lib/pau", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/pau")>();
-  return { ...actual, loadPau: () => Promise.resolve(served) };
+  return { ...actual, loadPau: () => Promise.resolve(served), loadPauHistory: () => Promise.resolve(history) };
 });
 
 import { ActorPau } from "./ActorPau";
@@ -57,6 +67,21 @@ const instances = [
 const prime = { id: PRIME, m: JSON.stringify({ params: { "USDS Mint RateLimitID": [MINT, "doc-2", "A.1"] } }) };
 
 afterEach(cleanup);
+
+describe("ActorPau change history", () => {
+  it("groups changes under their executive, collapses the deployment, and chips each Set date with its origin", async () => {
+    render(<ActorPau prime={prime} instances={instances} />);
+    const section = await screen.findByRole("region", { name: "Change history" });
+    const groups = section.querySelectorAll(".pau-timeline-group");
+    expect([...groups].map((g) => g.getAttribute("data-kind"))).toEqual(["executive", "deployment"]);
+    expect(within(groups[0] as HTMLElement).getByRole("link", { name: "Executive Vote 2026-08-27" })).toHaveAttribute("href", "https://vote.example/x");
+    expect(groups[0]).toHaveTextContent("through the StarGuard");
+    expect(groups[0]).toHaveTextContent("max 25M (was 10M)");
+    expect(groups[1].querySelector("details")).not.toHaveAttribute("open");
+    const chips = await screen.findAllByText("exec 2026-08-27");
+    expect(chips[0]).toHaveAttribute("href", `#pau-tx-ethereum-${at.tx}`);
+  });
+});
 
 describe("ActorPau", () => {
   it("lists the prime's deployments only, Ethereum first and open", async () => {

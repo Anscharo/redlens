@@ -1,5 +1,6 @@
 import { Address } from "../Address";
 import { holderRows, type HolderStatus, type PauSnapshot } from "../../lib/pau";
+import { PauOriginChip } from "./PauOriginChip";
 
 const STATUS: Record<HolderStatus, { mark: string; color: string; role: string; member: string }> = {
   holds: { mark: "✓", color: "var(--tan-2)", role: "holds the role", member: "the AdministeredAgent lists it" },
@@ -33,6 +34,7 @@ export function PauHolders({ snap }: { snap: PauSnapshot }) {
               <span style={{ color: "var(--tan-3)" }}>on {ON_LABEL[r.on] ?? r.on}</span>
               <Address address={r.account} chain={snap.chain} />
               <span style={{ color: "var(--tan-3)" }}>{r.since ? `since ${r.since.time.slice(0, 10)}` : "not in the stored history"}</span>
+              {r.since && <PauOriginChip chain={snap.chain} tx={r.since.tx} />}
             </li>
           );
         })}
