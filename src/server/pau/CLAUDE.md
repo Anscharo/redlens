@@ -25,7 +25,7 @@ The worker step is `scripts/lib/worker-steps/pau.mjs`. It injects `explorerLogs`
 
 ## PR environments copy instead of reading
 
-A Railway PR environment (`pr-<n>`, `src/server/pr-env/gate.ts`) never reads an explorer or an RPC: the `pau` step and the `sync:pau-rpc` tail are skipped there with the rest of `--no-fetch`. Its worker's `pr-env-copy` tick step copies the tables in `src/server/pr-env/copy-tables.ts` (`pau_state`, `pau_events`, `pau_cursor`, `pau_rpc_cursor`, `chain_state`, and the balance, bytecode and contract-state columns of `atlas_addresses`) from `PR_ENV_SOURCE_DATABASE_URL`, the development database, every tick (`src/server/pr-env/copy.ts`).
+A Railway PR environment (`redlens-pr-<n>`, `src/server/pr-env/gate.ts`) never reads an explorer or an RPC: the `pau` step and the `sync:pau-rpc` tail are skipped there with the rest of `--no-fetch`. Its worker's `pr-env-copy` tick step copies the tables in `src/server/pr-env/copy-tables.ts` (`pau_state`, `pau_events`, `pau_cursor`, `pau_rpc_cursor`, `chain_state`, and the balance, bytecode and contract-state columns of `atlas_addresses`) from `PR_ENV_SOURCE_DATABASE_URL`, the development database, every tick (`src/server/pr-env/copy.ts`).
 
 - The source is read inside one `REPEATABLE READ, READ ONLY` transaction, so it cannot be written and every table comes from one snapshot.
 - Each table is replaced in one transaction of its own. A `merge` entry instead overwrites its columns on the rows that match its key, because `sync.ts` owns those rows.

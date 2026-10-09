@@ -8,7 +8,7 @@
 # embeddings). The web service's in-process updater polls sync_state.atlas_sha
 # and rebuilds its in-memory indexes from DB rows when it changes.
 #
-# PR environments: Railway forks one environment per pull request (`pr-<n>`)
+# PR environments: Railway forks one environment per pull request (`redlens-pr-<n>`)
 # from the base environment, with its own empty Postgres and the base's
 # variables, API keys included. There the worker is INERT
 # (src/server/pr-env/gate.ts): it builds the atlas commit the image cloned
@@ -23,7 +23,7 @@
 #                         one warning a tick, and the environment keeps what
 #                         it has; it never falls back to fetching.
 #   PR_ENV_INERT        — 1/0 forces the mode on/off; unset, only an
-#                         environment named exactly pr-<n> is inert.
+#                         environment named <project>-pr-<n> (or pr-<n>) is inert.
 # The worker logs which way the gate resolved as its first line.
 #
 # Required env vars on the cron service (set in Railway dashboard):

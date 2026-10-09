@@ -5,10 +5,11 @@ describe("prEnvGate", () => {
   test("a Railway PR environment is inert", () => {
     expect(prEnvGate("pr-123", undefined).inert).toBe(true);
     expect(prEnvGate("pr-1", "").inert).toBe(true);
+    expect(prEnvGate("redlens-pr-498", undefined).inert).toBe(true);
   });
 
   test("production, development, no Railway and near-miss names stay live", () => {
-    for (const env of ["production", "development", "", "redlens-pr-12", "pr-12a", "expr-12", "pr-"]) {
+    for (const env of ["production", "development", "", "redlens-pr-12a", "pr-12a", "expr-12", "redlens-expr-12", "pr-", "-pr-12x"]) {
       expect(prEnvGate(env, undefined).inert).toBe(false);
     }
   });

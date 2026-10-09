@@ -1,17 +1,19 @@
 // The PR-environment gate. Railway forks one environment per pull request
-// (`pr-<n>`) from the base environment, so each inherits the base's API keys and
+// from the base environment, named `<project>-pr-<n>` (`redlens-pr-498`, so a
+// PR deploy serves at redlens-redlens-pr-498.up.railway.app), so each inherits the base's API keys and
 // runs its own atlas worker against its own database. In such an environment the
 // worker is INERT: it builds the checked-out atlas commit (no-fetch), skips every
 // step and tail that calls an outside API, and copies the PAU and on-chain tables
 // from the development database instead (copy.ts).
 //
-// Only an exact `pr-<n>` name turns it on. An unknown name stays live, because
+// Only a name ending in `-pr-<n>`, or exactly `pr-<n>`, turns it on. Any other
+// name stays live, because
 // an inert production worker would stop advancing the atlas with no error, while
 // a live PR environment only spends quota. PR_ENV_INERT=1 forces it on and
 // PR_ENV_INERT=0 forces it off, whatever the name; unset defers to the name.
 import { config } from "../config.ts";
 
-const PR_ENV = /^pr-\d+$/;
+const PR_ENV = /^(?:[a-z0-9-]+-)?pr-\d+$/;
 
 export interface PrEnvGate {
   inert: boolean;

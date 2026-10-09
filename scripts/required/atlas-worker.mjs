@@ -39,7 +39,7 @@
 //
 // Optional env:
 //   PR_ENV_INERT        — 1/0 forces PR-environment mode on/off; unset, a Railway
-//                         environment named pr-<n> turns it on (src/server/pr-env/gate.ts)
+//                         environment named redlens-pr-<n> turns it on (src/server/pr-env/gate.ts)
 //   PR_ENV_SOURCE_DATABASE_URL — in PR-environment mode, the database the PAU and
 //                         on-chain tables are copied from (the development one)
 //   GITHUB_TOKEN        — for `gh api` PR metadata in build-history
@@ -64,7 +64,7 @@ import { logRebuildReason, readDriftState } from "../lib/worker-drift.mjs";
 import { WORKER_STEPS, runTailSteps, runTickSteps, stepsIn } from "../lib/worker-steps/index.mjs";
 import { currentPrEnvGate } from "../../src/server/pr-env/gate.ts";
 
-// A Railway PR environment (`pr-<n>`, or PR_ENV_INERT=1) is inert: it implies
+// A Railway PR environment (`redlens-pr-<n>`, or PR_ENV_INERT=1) is inert: it implies
 // --no-fetch and skips every step that would still call an outside API there.
 const PR_ENV = currentPrEnvGate();
 // --no-fetch (or ATLAS_WORKER_NO_FETCH=1): build the CHECKED-OUT submodule commit

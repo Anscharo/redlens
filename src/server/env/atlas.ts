@@ -45,7 +45,7 @@ export const worker: EnvGroup = {
     { name: "ATLAS_WORKER_NO_FETCH", doc: "1 builds the checked-out atlas commit instead of fetching upstream (same as --no-fetch)." },
     {
       name: "PR_ENV_INERT",
-      doc: "PR-environment mode for the worker: no-fetch, no outside API calls, PAU and on-chain tables copied from PR_ENV_SOURCE_DATABASE_URL. 1 forces it on and 0 forces it off; unset, a Railway environment named pr-<n> turns it on.",
+      doc: "PR-environment mode for the worker: no-fetch, no outside API calls, PAU and on-chain tables copied from PR_ENV_SOURCE_DATABASE_URL. 1 forces it on and 0 forces it off; unset, a Railway environment named <project>-pr-<n> (or pr-<n>) turns it on.",
     },
     {
       name: "PR_ENV_SOURCE_DATABASE_URL",
