@@ -34,9 +34,11 @@ async function originRows(db: SqlTag): Promise<Map<string, PauOrigin>> {
 }
 
 /** Each spell's executive: the vote record first, then the verified archive, else the bare spell. */
-async function executives(db: SqlTag): Promise<(spell: string) => ExecutiveRef> {
+type VoteRecord = () => { executives: { spell: string | null; title: string; date: string; url: string }[] } | null;
+
+async function executives(db: SqlTag, votes: VoteRecord): Promise<(spell: string) => ExecutiveRef> {
   const record = new Map<string, ExecutiveRef>();
-  for (const e of loadVoteIndexFromDisk()?.executives ?? []) {
+  for (const e of votes()?.executives ?? []) {
     if (e.spell) record.set(e.spell.toLowerCase(), { title: e.title, date: e.date, url: e.url, source: "vote-record" });
   }
   const rows = (await db`SELECT file, spell, title, date FROM executive_archive WHERE status = 'verified'`) as Record<string, string>[];
@@ -44,15 +46,23 @@ async function executives(db: SqlTag): Promise<(spell: string) => ExecutiveRef> 
   return (spell) => record.get(spell) ?? archive.get(spell) ?? { title: null, date: null, url: null, source: null };
 }
 
-export async function readPauHistory(db: SqlTag = sql, reg: PauRegistry = registry as PauRegistry): Promise<PauHistoryResponse> {
-  const [rows, origins, executiveOf] = await Promise.all([eventRows(db), originRows(db), executives(db)]);
-  return { entries: buildEntries(rows, ownersOf(reg), origins, executiveOf) };
+/** Every change to a prime's PAU; changes to shared contracts alone (a Beacon's setup) belong to no prime's history. */
+export async function readPauHistory(db: SqlTag = sql, votes: VoteRecord = loadVoteIndexFromDisk, reg = registry as PauRegistry): Promise<PauHistoryResponse> {
+  const [rows, origins, executiveOf] = await Promise.all([eventRows(db), originRows(db), executives(db, votes)]);
+  return { entries: buildEntries(rows, ownersOf(reg), origins, executiveOf).filter((e) => e.primes.length > 0) };
 }
 
-// Public, ungated, like /api/pau: an empty list until the worker has run.
-export async function handlePauHistory(): Promise<Response> {
+const HEADERS = { "Cache-Control": "public, max-age=300", Vary: "Accept-Encoding" };
+
+// Public, ungated, like /api/pau: an empty list until the worker has run. The
+// full history is several hundred kilobytes of repetitive JSON, so a client
+// that accepts gzip gets it gzipped.
+export async function handlePauHistory(req?: Request): Promise<Response> {
   try {
-    return json(await readPauHistory(), 200, { headers: { "Cache-Control": "public, max-age=300" } });
+    const body = await readPauHistory();
+    if (!req?.headers.get("accept-encoding")?.includes("gzip")) return json(body, 200, { headers: HEADERS });
+    const headers = { ...HEADERS, "content-type": "application/json", "content-encoding": "gzip" };
+    return new Response(Bun.gzipSync(JSON.stringify(body)), { status: 200, headers });
   } catch (e) {
     console.error(`pau history: ${(e as Error).message}`);
     return json({ error: "unavailable" }, 503);

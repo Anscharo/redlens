@@ -46,7 +46,7 @@ const PUBLIC_ROUTES = {
   "/api/chain-state": () => handleChainState(),
   "/api/forum-topics": (req: Request) => handleForumTopics(req),
   "/api/pau": () => handlePau(),
-  "/api/pau/history": () => handlePauHistory(),
+  "/api/pau/history": (req: Request) => handlePauHistory(req),
   "/api/reports/search": (req: Request) => handleReportsSearch(req),
   // An unconfigured deployment answers `available: false` rather than 404 so
   // the UI can say why the lane is missing.
