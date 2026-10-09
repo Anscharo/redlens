@@ -296,6 +296,28 @@
       "chain": "arbitrum",
       "members": [
         {
+          "role": "beacon",
+          "address": "0x86036ce5d2f792367c0aa43164e688d13c5a60a8",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "03224b6d-a770-43b1-a4fa-8192a2fcdbc9",
+              "note": "listed among the Allocation System primitive's Arbitrum shared contracts"
+            }
+          ]
+        },
+        {
+          "role": "facet",
+          "address": "0xecca0d296cb133081d41e9772b60d57f5fd2798e",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "fe17841c-2898-4ce6-b1c4-2e64b0a7f91b",
+              "note": "listed among the Allocation System primitive's Arbitrum shared contracts"
+            }
+          ]
+        },
+        {
           "role": "beamState",
           "address": "0x11cfefea67b18de9046a6250555d438854ffeeda",
           "label": "BeamState",
@@ -719,6 +741,34 @@
             {
               "source": "atlas",
               "doc": "dcf0beac-b93e-41a7-b8b6-98c1d4cc819b"
+            }
+          ]
+        },
+        {
+          "role": "controller",
+          "address": "0x0c462fff7cc975bc9f2b0aeb8270feba5fd71e1b",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "15083990-2c69-45c1-93ab-8d48d140159c"
+            },
+            {
+              "source": "onchain",
+              "note": "Same address as a different contract on another chain; on Plume, controller.proxy() and rateLimits() return this deployment's ALM proxy and rate limits, and both grant it CONTROLLER (read 2026-10-09)."
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "0x7f8408ebbbc3504f83eeda52910dd75eba92c955",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "441a9fa5-4dcc-45f5-83a7-644128c23b05"
+            },
+            {
+              "source": "onchain",
+              "note": "Same address as a different contract on another chain; on Plume, controller.proxy() and rateLimits() return this deployment's ALM proxy and rate limits, and both grant it CONTROLLER (read 2026-10-09)."
             }
           ]
         }
@@ -1720,20 +1770,6 @@
       "reason": "The X Layer docs swap freezer and relayer; on-chain this address holds FREEZER, not RELAYER."
     },
     {
-      "prime": "727b0de6-095b-485e-bf9c-02108a364480",
-      "chain": "plume",
-      "role": "controller",
-      "address": "0x0c462fff7cc975bc9f2b0aeb8270feba5fd71e1b",
-      "reason": "Copy of Grove's Plasma ALM Proxy address (the Plasma controller's proxy() returns it)."
-    },
-    {
-      "prime": "727b0de6-095b-485e-bf9c-02108a364480",
-      "chain": "plume",
-      "role": "rateLimits",
-      "address": "0x7f8408ebbbc3504f83eeda52910dd75eba92c955",
-      "reason": "Copy of Grove's Base ForeignController address (verified on Base as ForeignController)."
-    },
-    {
       "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",
       "chain": "arbitrum",
       "role": "beacon",
@@ -1747,6 +1783,14 @@
       "role": "relayer",
       "address": "0x8cc0cb0cfb6b7e548cfd395b833c05c346534795",
       "reason": "Spark core-operator relayer, but not an actor of the Arbitrum diamond AdministeredAgent (on-chain enumeration lists only 0x8a25a24e…)."
+    },
+    {
+      "prime": null,
+      "chain": "arbitrum",
+      "kind": "diamond",
+      "role": "beacon",
+      "address": "0x10e6593cdda8c58a1d0f14c5164b376352a55f2f",
+      "reason": "The shared Beacon doc names it as the Arbitrum Sky Governance Relay that controls the Beacon, not as the Beacon; verified on Arbitrum as L2GovernanceRelay, and the Controller's beacon() is 0x86036ce5…."
     }
   ]
 }

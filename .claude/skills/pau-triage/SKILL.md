@@ -66,6 +66,6 @@ The first registry encoded these; re-check them when the atlas changes:
 - Spark mainnet: the atlas controller `0x577fa18a…` lost CONTROLLER on 2025-12-01; the live one is `0x5c46fc65…`.
 - Spark Avalanche: the atlas lists proxy and rate limits as TBD; the controller points at `0xece6b0e8…` and `0xb79972e8…`. Its listed controller is also not granted CONTROLLER (history needs an Etherscan key).
 - Spark X Layer: the docs swap freezer and relayer; on-chain `0x90d8c80c…` is FREEZER and `0x8a25a24e…` is RELAYER.
-- Grove Plume: the controller and rate-limits docs copy the Plasma proxy and the Base controller addresses.
+- Grove Plume: the controller and rate-limits docs give addresses that are also Grove's Plasma ALM proxy and Base controller. On Plume they are a different controller and rate limits, wired to the Plume ALM proxy and granted CONTROLLER, so the registry lists them. Check an address on the chain it is listed for before calling it a copy.
 - Spark Arbitrum diamond: the Beacon doc's second address is an L2GovernanceRelay.
 - Grove Plasma: the controller holds no grants and the multisigs hold no roles; listed, not active.
