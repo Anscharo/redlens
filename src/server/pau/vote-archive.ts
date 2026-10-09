@@ -1,12 +1,14 @@
 // Executive votes older than the vote record, read from the makerdao/community
 // repository (governance/votes) a few files per worker tick into
 // executive_archive. A title is stored only when the file's spell address is a
-// cast spell (casts.ts) cast on or after the vote's date; any other file is
-// rejected with the reason, or kept pending while the casts are not read yet.
+// cast spell (casts.ts) cast on or after the vote's date. A spell with no
+// recorded cast is rejected only when its own contract says it never will be
+// (done() false and expiration() past; vote-archive-parse.ts); otherwise the
+// file stays pending and is checked again.
 // Nothing here touches votes.json: the PAU history joins the archive at read
 // time (history.ts), after the vote record.
 import type { SqlTag } from "../sql-types.ts";
-import { readFrontmatterFields, verdictFor, type ArchiveVerdict } from "./vote-archive-parse.ts";
+import { readFrontmatterFields, verdictFor, type ArchiveVerdict, type SpellState } from "./vote-archive-parse.ts";
 
 export const ARCHIVE_BLOB = "https://github.com/makerdao/community/blob/master/governance/votes/";
 const RAW = "https://raw.githubusercontent.com/makerdao/community/master/governance/votes/";
@@ -15,6 +17,8 @@ const LIST = "https://api.github.com/repos/makerdao/community/contents/governanc
 export interface ArchiveDeps {
   fetchText: (url: string) => Promise<string>;
   fetchJson: (url: string) => Promise<unknown>;
+  /** The spell contract's own done() and expiration(), read on Ethereum. */
+  spellState: (spell: string) => Promise<SpellState>;
   now?: () => number;
 }
 
@@ -30,21 +34,17 @@ async function seed(db: SqlTag, deps: ArchiveDeps): Promise<number> {
   return files.length;
 }
 
-/** An executive's spell expires about 30 days after its vote, so a cast list read past that settles "never cast". */
-const CAST_WINDOW_MS = 30 * 86_400_000;
-
-/** The spell's earliest cast, and whether the cast list is read, without error, past `date`'s cast window. */
-async function castOf(db: SqlTag, spell: string, date: string | null): Promise<{ first: string | null; casts: boolean }> {
-  const [c] = (await db`SELECT min(block_time) FILTER (WHERE spell = ${spell}) AS first, max(block_time) AS last FROM spell_casts`) as { first: Date | string | null; last: Date | string | null }[];
-  const [cur] = (await db`SELECT next_block FROM spell_cast_cursor WHERE id = 1 AND last_error IS NULL`) as { next_block: string }[];
-  const first = c?.first ? new Date(c.first).toISOString() : null;
-  const readPast = !!c?.last && !!date && new Date(c.last).getTime() >= Date.parse(date) + CAST_WINDOW_MS;
-  return { first, casts: Number(cur?.next_block ?? 0) > 0 && readPast };
+/** The spell's earliest recorded DSPause cast (ISO), null when the cast list holds none. */
+async function firstCast(db: SqlTag, spell: string): Promise<string | null> {
+  const [c] = (await db`SELECT min(block_time) AS first FROM spell_casts WHERE spell = ${spell}`) as { first: Date | string | null }[];
+  return c?.first ? new Date(c.first).toISOString() : null;
 }
 
-async function check(db: SqlTag, deps: ArchiveDeps, file: string): Promise<ArchiveVerdict> {
+async function check(db: SqlTag, deps: ArchiveDeps, file: string, now: number): Promise<ArchiveVerdict> {
   const fields = readFrontmatterFields(await deps.fetchText(RAW + encodeURIComponent(file)));
-  return verdictFor(fields, fields.spell ? await castOf(db, fields.spell, fields.date) : { first: null, casts: true });
+  if (!fields.spell) return verdictFor(fields, null, { done: null, expiration: null }, now);
+  const first = await firstCast(db, fields.spell);
+  return verdictFor(fields, first, first ? { done: true, expiration: null } : await deps.spellState(fields.spell), now);
 }
 
 async function record(db: SqlTag, file: string, v: ArchiveVerdict, at: Date): Promise<void> {
@@ -64,7 +64,7 @@ export interface ArchiveRun {
 async function checkOne(db: SqlTag, deps: ArchiveDeps, file: string, at: Date): Promise<ArchiveVerdict> {
   let v: ArchiveVerdict;
   try {
-    v = await check(db, deps, file);
+    v = await check(db, deps, file, at.getTime());
   } catch (e) {
     v = { status: "pending", spell: null, title: null, date: null, reason: String((e as Error).message ?? e).slice(0, 200) };
   }

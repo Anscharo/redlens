@@ -29,6 +29,8 @@ export const PAU_STATE_ABI = parseAbi([
   // What AaveFacet reads from an aToken to build its keys (facet-keys.ts HOOKS), and the unit of its withdrawals
   "function POOL() view returns (address)",
   "function UNDERLYING_ASSET_ADDRESS() view returns (address)",
+  // A DssSpell's own state (vote-archive.ts)
+  "function done() view returns (bool)", "function expiration() view returns (uint256)",
   // AdministeredAgent membership (agent-live.ts)
   "function actorCount() view returns (uint256)", "function getActor(uint256) view returns (address)", "function getIsActor(address) view returns (bool)",
   "function adminCount() view returns (uint256)", "function getAdmin(uint256) view returns (address)", "function getIsAdmin(address) view returns (bool)",
