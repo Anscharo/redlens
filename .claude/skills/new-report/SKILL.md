@@ -108,7 +108,7 @@ uncited normative claims. See CLAUDE.md "Citation dictate".
      cards and the page's `<ReportShell>` h1 all derive from it.
    - `apps/web/src/lib/lazyRoutes.tsx` — a `lazyImport` line and the report's
      `REPORT_PAGES` entry (keyed by `ReportId`, so a missing page fails to compile).
-    (`report_open` is auto-tracked in `App.tsx` on route entry — don't re-add it.)
+    (`report_open` is auto-tracked by `useReportOpenTracking` in `App.tsx` on route entry — don't re-add it.)
 
 6. **Result count + empty state.** Pass `count` (e.g. `` `${filtered.length} <unit>` ``) and
    `noRows={filtered.length === 0}` to `ReportShell` — it renders the count row and the shared

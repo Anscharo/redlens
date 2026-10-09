@@ -150,7 +150,7 @@ sheet lists the rest (`in:`, `type:`, `~N`, exclusions).
 ## Chat
 
 ⚠️ Gated behind the `__CHAT_ENABLED__` build flag and hidden in preview mode
-(`App.tsx`, `__CHAT_ENABLED__ && chatEnabled() && !preview`) — these only exist
+(`components/routes/AppRoutes.tsx`, `__CHAT_ENABLED__ && chatEnabled() && !preview`) — these only exist
 in builds where chat is turned on.
 
 | Key | Effect |

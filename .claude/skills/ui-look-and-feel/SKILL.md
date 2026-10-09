@@ -148,7 +148,7 @@ token in index.css should also be registered there** so it's editable/audited.
 
 ## App shell map (what each view is)
 
-`App.tsx` routes: `/` home (search + feature cards) · `/atlas?id=<uuid>` reader
+`components/routes/AppRoutes.tsx` routes: `/` home (search + feature cards) · `/atlas?id=<uuid>` reader
 (tree Drawer + virtualized node list + RightPanel tabs) · `/radar[/:slug]`
 actor dashboards · `/reports/*` four reports · `/hints`, `/provenance`,
 `/admin/*`. Reports + radar use window scroll;

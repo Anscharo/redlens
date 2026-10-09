@@ -27,6 +27,7 @@ vi.mock("./hooks/useSearchInput", () => ({
 }));
 vi.mock("./hooks/useNavigation", () => ({
   useNavigation: () => ({ navigateToNode: vi.fn(), handleViewChange: vi.fn() }),
+  useNavigateToNode: () => vi.fn(),
 }));
 vi.mock("./hooks/usePageAnalytics", () => ({ usePageAnalytics: vi.fn() }));
 vi.mock("./hooks/usePageVisitTracking", () => ({ usePageVisitTracking: vi.fn() }));

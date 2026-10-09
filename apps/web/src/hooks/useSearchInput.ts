@@ -170,3 +170,6 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
     lane, selectLane, searchAnyway,
   };
 }
+
+/** The search box's state and handlers, as the shell hands them to the search results route. */
+export type SearchInput = ReturnType<typeof useSearchInput>;
