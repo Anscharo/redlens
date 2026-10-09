@@ -38,13 +38,14 @@ Artifacts are gitignored — build first: `pnpm build:index && pnpm build:graph`
    Also run `git -C vendor/next-gen-atlas diff <old>..HEAD -- ATLAS_MARKDOWN_SYNTAX.md`.
    A spec diff is the leading indicator of a new structural convention.
 2. **What was silently auto-accepted this week** —
-   `git log -p --since='1 week ago' -- .github/atlas-census-baseline.json .github/govops-census-baseline.json .github/risk-census-baseline.json .github/concepts-census-baseline.json .github/pau-census-baseline.json .github/atlas-warnings-baseline.txt`
+   `git log -p --since='1 week ago' -- .github/atlas-census-baseline.json .github/govops-census-baseline.json .github/risk-census-baseline.json .github/concepts-census-baseline.json .github/chains-census-baseline.json .github/pau-census-baseline.json .github/atlas-warnings-baseline.txt`
    and `git log --stat --since='1 week ago' -- graph-snapshots/__snapshots__`.
    This is the drift the hourly bumps recorded and then erased. Review every
    hunk: baseline *additions* are new uncovered structure; baseline *removals*
    may be matcher breaks reported as resolution.
 3. **Live censuses (no `--update`)** — `pnpm census:check`, `pnpm census:govops`,
-   `pnpm census:risk`, `pnpm census:concepts`, `pnpm census:pau`; collect
+   `pnpm census:risk`, `pnpm census:concepts`, `pnpm census:chains`,
+   `pnpm census:pau`; collect
    `[drift]` stderr lines. `census:pau` reads production's `GET /api/pau`; its
    "could not be read", "served no deployments" and "hours old" lines are a
    worker or deployment problem, not atlas drift.
