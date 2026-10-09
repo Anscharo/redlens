@@ -61,7 +61,7 @@ function score(firedFn: (c: Scored) => CensusSlug[], cases: Scored[], arm: strin
   for (const c of cases) {
     const fired = firedFn(c);
     if (c.expectSlug === null) {
-      if (fired.length > 0) (fp++, falseFires.push(`${c.q} -> ${fired.join(",")}`));
+      if (fired.length > 0) { fp++; falseFires.push(`${c.q} -> ${fired.join(",")}`); }
       else tn++;
     } else if (fired.includes(c.expectSlug)) {
       tp++;

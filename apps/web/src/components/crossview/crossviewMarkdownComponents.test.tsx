@@ -19,14 +19,14 @@ describe("buildComponents().code — children shape fallback", () => {
     const uuid = "55999acf-75fe-4adf-8584-9746ef50d3e4";
     const parts = [uuid.slice(0, 20), uuid.slice(20)];
     const Code = buildComponents(null).code as CodeFn;
-    render(<Code children={parts} />);
+    render(<Code>{parts}</Code>);
     const link = screen.getByRole("link", { name: "55999acf" });
     expect(link).toHaveAttribute("href", expect.stringContaining(uuid));
   });
 
   it("falls back to plain code for non-string, non-array children", () => {
     const Code = buildComponents(null).code as CodeFn;
-    const { container } = render(<Code children={undefined} />);
+    const { container } = render(<Code>{undefined}</Code>);
     const code = container.querySelector("code");
     expect(code).toBeInTheDocument();
     expect(code).toBeEmptyDOMElement();

@@ -16,7 +16,6 @@ import {
 const KEYPAIR = "99J5Vcf3tav2dorWmB1qxdXtD4MKk6pyayQwS8RCXZKc";
 const OFF_CURVE = "8JmDPG5BFQ6gpUPJV9xBixYJLqTKCSNotkXksTmNsQfj";
 
-const hex = (h: string) => Uint8Array.from(Buffer.from(h, "hex"));
 const b64 = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64");
 
 // An account as getMultipleAccounts returns it, with base64 + encoding tuple data.

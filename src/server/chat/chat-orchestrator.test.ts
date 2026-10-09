@@ -384,7 +384,7 @@ test("a stripped (unrepairable) link is not a failure: the reader never saw it, 
     expect(done.content).not.toContain("00000000-dead-beef");
     expect(events.some((e) => e.type === "verify_result")).toBe(false); // deterministic-only + nothing failed ⇒ quiet
     const round = done.checksMeta.find((c) => c.kind === "round_checks");
-    expect((round?.verdict as { repair: { stripped: unknown[] } }).repair.stripped).toHaveLength(1);
+    expect((round?.verdict as { repair: { stripped: unknown[] } } | undefined)?.repair.stripped).toHaveLength(1);
   }));
 
 test("reference-style citations are normalized to canonical inline form before repair and checks", () =>

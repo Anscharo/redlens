@@ -76,7 +76,7 @@ function loadHtmlEraCommits() {
 }
 
 /** Resolve the committed curation decisions (plan §10.4) into seed/hop override maps. */
-function resolveDecisionOverrides(decisionsPath, { commits, shas, md }) {
+function resolveDecisionOverrides(decisionsPath, { commits, shas }) {
   const file = JSON.parse(fs.readFileSync(decisionsPath, "utf8"));
   const rawUuid = new Map();
   const mdContentByUuid = new Map();
@@ -149,7 +149,7 @@ function resolveDecisionOverrides(decisionsPath, { commits, shas, md }) {
  *  it returns is the same one the shipped artifact is built from. */
 export function seedHtmlEra({ decisionsPath = null } = {}) {
   const { commits, shas, commitMeta, md } = loadHtmlEraCommits();
-  const resolved = decisionsPath ? resolveDecisionOverrides(decisionsPath, { commits, shas, md }) : null;
+  const resolved = decisionsPath ? resolveDecisionOverrides(decisionsPath, { commits, shas }) : null;
   const last = commits[commits.length - 1];
   const seed = seedFromMd(md, last.nodes, resolved?.seedOverrides ? { overrides: resolved.seedOverrides } : {});
   return { md, htmlNodes: last.nodes, seed, lastSha: last.sha, commitMeta, applied: resolved?.applied ?? null };
@@ -162,7 +162,7 @@ export function seedHtmlEra({ decisionsPath = null } = {}) {
 export function threadHtmlEra({ decisionsPath = null, recover = true, diff = true } = {}) {
   const { commits, shas, commitMeta, md } = loadHtmlEraCommits();
   const { seedOverrides, hopOverrides, methodPins, splitOf, applied } = decisionsPath
-    ? resolveDecisionOverrides(decisionsPath, { commits, shas, md })
+    ? resolveDecisionOverrides(decisionsPath, { commits, shas })
     : { seedOverrides: null, hopOverrides: null, methodPins: [], splitOf: new Map(), applied: null };
 
   const lastSha = commits[commits.length - 1].sha;
