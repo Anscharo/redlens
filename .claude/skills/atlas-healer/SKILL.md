@@ -38,13 +38,16 @@ Artifacts are gitignored — build first: `pnpm build:index && pnpm build:graph`
    Also run `git -C vendor/next-gen-atlas diff <old>..HEAD -- ATLAS_MARKDOWN_SYNTAX.md`.
    A spec diff is the leading indicator of a new structural convention.
 2. **What was silently auto-accepted this week** —
-   `git log -p --since='1 week ago' -- .github/atlas-census-baseline.json .github/govops-census-baseline.json .github/risk-census-baseline.json .github/concepts-census-baseline.json .github/atlas-warnings-baseline.txt`
+   `git log -p --since='1 week ago' -- .github/atlas-census-baseline.json .github/govops-census-baseline.json .github/risk-census-baseline.json .github/concepts-census-baseline.json .github/pau-census-baseline.json .github/atlas-warnings-baseline.txt`
    and `git log --stat --since='1 week ago' -- graph-snapshots/__snapshots__`.
    This is the drift the hourly bumps recorded and then erased. Review every
    hunk: baseline *additions* are new uncovered structure; baseline *removals*
    may be matcher breaks reported as resolution.
 3. **Live censuses (no `--update`)** — `pnpm census:check`, `pnpm census:govops`,
-   `pnpm census:risk`, `pnpm census:concepts`; collect `[drift]` stderr lines.
+   `pnpm census:risk`, `pnpm census:concepts`, `pnpm census:pau`; collect
+   `[drift]` stderr lines. `census:pau` reads production's `GET /api/pau`; its
+   "could not be read", "served no deployments" and "hours old" lines are a
+   worker or deployment problem, not atlas drift.
 4. **Process inventory** — `pnpm processes:check`; read `.cache/processes-audit.md`
    (missing UUIDs, ★ new candidates).
 5. **Build warnings vs baseline** — `comm -13 <(sort -u .github/atlas-warnings-baseline.txt) <(sort -u <captured stderr>)`
@@ -132,6 +135,19 @@ build-side ↔ `NodeContent.tsx` / `rehypeEthAddresses.ts` (see the
   `processes-triage` skill (curation is a human-methodology flow).
 - **Rewards**: the `.2.5.1` / `.2.5.2` doc_no arithmetic and exact ICD param
   keys in `src/lib/rewardsIndex.ts` — check after any A.6 renumber.
+- **PAU vs atlas** (`[drift] pau-census:`): the atlas's stated rate limits
+  against the Prime agents' PAU contracts. A `NEW mismatch` / `NEW not-set`
+  line says which side moved. *atlas changed*: usually a spell not yet
+  executed; find the atlas PR with `atlas_recent_changes` and say whether one
+  is scheduled. *chain changed*: read the key's `setAt` transaction in
+  `/api/pau` and whether BeamState let the Configurator make the change
+  without a spell. *new in the atlas*: the atlas states a limit the chain
+  does not hold. `LOST MATCH`, `unparsed`, `unknown-chain` and "deployment …
+  is gone" are reader or registry regressions; route them through the
+  `pau-triage` skill (`pnpm pau:candidates --rpc`) or the owning
+  `src/lib/pau*.ts` module. All of these are findings, never fixes; accept
+  them with `pnpm census:pau --update` only with the issue saying what was
+  accepted.
 - **Vocabulary drift**: a new agent token missing from `TOKEN_SYMBOLS`
   (`scripts/lib/address-annotate.mjs`); a new chain defaulting to ethereum
   (`CHAIN_HINTS` in `scripts/lib/address-chains.mjs`); new date phrasings

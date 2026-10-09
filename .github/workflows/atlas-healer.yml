@@ -60,12 +60,16 @@ jobs:
       - name: Verify the build read the whole atlas
         run: pnpm check:atlas 2> >(tee -a /tmp/healer-warnings.log >&2)
 
+      # census:pau reads production's GET /api/pau (CI has no database) and is
+      # run only here: chain-side drift is not tied to an atlas bump, so the
+      # hourly flow never accepts its baseline.
       - name: Run censuses in verify mode
         run: |
           pnpm census:check 2> >(tee -a /tmp/healer-warnings.log >&2)
           pnpm census:govops 2> >(tee -a /tmp/healer-warnings.log >&2)
           pnpm census:risk 2> >(tee -a /tmp/healer-warnings.log >&2)
           pnpm census:concepts 2> >(tee -a /tmp/healer-warnings.log >&2)
+          pnpm census:pau 2> >(tee -a /tmp/healer-warnings.log >&2)
 
       - name: Check process inventory
         id: processes
@@ -112,6 +116,7 @@ jobs:
           git log -p --since='7 days ago' -- \
             .github/atlas-census-baseline.json .github/govops-census-baseline.json \
             .github/risk-census-baseline.json .github/concepts-census-baseline.json \
+            .github/pau-census-baseline.json \
             .github/atlas-warnings-baseline.txt > /tmp/accepted-baselines.txt || true
           git log --stat --since='7 days ago' -- \
             graph-snapshots/__snapshots__ > /tmp/accepted-snapshots.txt || true
