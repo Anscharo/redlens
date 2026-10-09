@@ -3,11 +3,12 @@
 // only the contracts it uses (a vault, an aToken, a pool) is matched to the
 // prime's keys derived from one of those addresses with a controller constant
 // for the same operation (an Inflow limit to a *_DEPOSIT key), through the
-// argument that identifies it: a transfer's destination, else the first
-// address. Underlying asset addresses are left out (a USDC address would match
-// every USDC key), and so is an address two instances list, which cannot say
-// whose key it is.
-import type { LiveRateLimit, StoredPauSnapshot } from "./pau.ts";
+// argument that identifies it: the one its derivation marks (a transfer's
+// destination, a pool, a basin, an aToken), else the first address.
+// Underlying asset addresses are left out (a USDC address would match every
+// USDC key), and so is an address two instances list, which cannot say whose
+// key it is.
+import type { DerivedKey, LiveRateLimit, StoredPauSnapshot } from "./pau.ts";
 import { RATE_LIMIT_ID_RE } from "./atlasHashes.ts";
 import { paramSide } from "./pauParams.ts";
 import { chainSnaps } from "./pauInstanceChain.ts";
@@ -48,13 +49,13 @@ const limitsOf = (snaps: StoredPauSnapshot[]): LiveRateLimit[] => snaps.flatMap(
 export const listedAddresses = (src: ValueSource): string[] =>
   Object.entries(src.params).flatMap(([name, [value]]) => (!/underlying/i.test(name) && ADDRESS_RE.test(value.trim()) ? [value.trim().toLowerCase()] : []));
 
-/** The derivation argument that says which contract a key is for: a transfer's destination, else its first address. */
-const identifyingArg = (constant: string, args: string[]) => (/^LIMIT_ASSET_TRANSFER$/.test(constant) ? args[1] : args.find((a) => a.startsWith("0x")))?.toLowerCase();
+/** The derivation argument that says which contract a key is for: the one it marks, else (a snapshot named before derivations marked it) a transfer's destination, else its first address. */
+const identifyingArg = ({ constant, args, via }: DerivedKey) => (via ?? (/^LIMIT_ASSET_TRANSFER$/.test(constant) ? args[1] : args.find((a) => a.startsWith("0x"))))?.toLowerCase();
 
 function derivedKeys(src: ValueSource, snaps: StoredPauSnapshot[], shared: Set<string>): InstanceKey[] {
   const listed = new Set(listedAddresses(src).filter((a) => !shared.has(a)));
   return limitsOf(chainSnaps(snaps, src)).flatMap((r) => {
-    const via = r.derived ? identifyingArg(r.derived.constant, r.derived.args) : undefined;
+    const via = r.derived ? identifyingArg(r.derived) : undefined;
     return r.derived && via && listed.has(via) ? [{ side: constantSide(r.derived.constant), key: r.key.toLowerCase(), via }] : [];
   });
 }
@@ -73,3 +74,4 @@ export function instanceKeys(src: ValueSource, snaps: StoredPauSnapshot[], share
   );
   return stated.length ? stated : derivedKeys(src, snaps, shared);
 }
+

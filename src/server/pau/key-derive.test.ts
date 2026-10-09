@@ -1,7 +1,7 @@
 // Rate-limit key derivation: each encoding shape the controllers use reproduces
 // its key (the bare constant against the known LIMIT_USDS_MINT id), an
 // underivable key is null, and the ABI and address loaders tolerate a
-// truncated cache file and missing artifacts.
+// truncated cache file, missing artifacts and addresses.atlas.json's nesting.
 import { afterAll, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
@@ -26,7 +26,7 @@ describe("keyDeriver", () => {
   it("names a key encoded with an address, a domain, an address pair, or an address and endpoint id", () => {
     expect(derive(enc(["bytes32", "address"], [base("LIMIT_4626_DEPOSIT"), VAULT]))).toEqual({ constant: "LIMIT_4626_DEPOSIT", args: [VAULT] });
     expect(derive(enc(["bytes32", "uint32"], [base("LIMIT_USDC_TO_DOMAIN"), 3]))).toEqual({ constant: "LIMIT_USDC_TO_DOMAIN", args: ["3"] });
-    expect(derive(enc(["bytes32", "address", "address"], [base("LIMIT_ASSET_TRANSFER"), VAULT, DEST]))).toEqual({ constant: "LIMIT_ASSET_TRANSFER", args: [VAULT, DEST] });
+    expect(derive(enc(["bytes32", "address", "address"], [base("LIMIT_ASSET_TRANSFER"), VAULT, DEST]))).toEqual({ constant: "LIMIT_ASSET_TRANSFER", args: [VAULT, DEST], via: DEST });
     expect(derive(enc(["bytes32", "address", "uint32"], [base("LIMIT_LAYERZERO_TRANSFER"), VAULT, 30110]))).toEqual({ constant: "LIMIT_LAYERZERO_TRANSFER", args: [VAULT, "30110"] });
   });
   it("tries an address pair only for the transfer constants, and returns null for a key nothing derives", () => {
@@ -55,6 +55,11 @@ describe("loaders", () => {
     const f = path.join(dir, "addresses.json");
     fs.writeFileSync(f, JSON.stringify({ [VAULT]: {}, notAnAddress: {} }));
     expect(candidateAddresses([f, path.join(dir, "gone.json")], { members: [{ address: DEST }] }).sort()).toEqual([VAULT, DEST].sort());
+  });
+  it("reads addresses.atlas.json's addresses under its `addresses` key", () => {
+    const f = path.join(dir, "addresses.atlas.json");
+    fs.writeFileSync(f, JSON.stringify({ atlasCommit: "abc", addresses: { [VAULT]: {} } }));
+    expect(candidateAddresses([f], {})).toEqual([VAULT]);
   });
 });
 

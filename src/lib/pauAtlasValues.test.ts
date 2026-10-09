@@ -60,6 +60,11 @@ describe("checkAtlasValues", () => {
       ["Ethereum Mainnet - Vault", "match", VAULT], ["Ethereum Mainnet - Transfer", "match", DEST], ["Ethereum Mainnet - S1", "no-key", null],
     ]);
   });
+  it("identifies a derived key by the argument its derivation marks, not its first address", () => {
+    const basin = [snap("ethereum", "diamond", [lim(k("a"), "7000000000000", "0", { derived: { constant: "LIMIT_BASIN_DEPOSIT", args: [USDC, VAULT], roles: ["asset", "basin"], via: VAULT } })])];
+    const s = src("Ethereum Mainnet - Basin", { "Basin Contract Address": VAULT, "Inflow Rate Limits / maxAmount": "7,000,000 USDC" });
+    expect(checkAtlasValues([s], basin).map((c) => [c.status, c.via])).toEqual([["match", VAULT]]);
+  });
   it("compares a key held on both PAUs of a chain on each", () => {
     expect(run(src("Ethereum Mainnet - Both", { "Rate Limit IDs": K_BOTH, "Rate Limits / maxAmount": "1 USDC" }))).toEqual([
       ["Rate limit maxAmount", "match", "monolithic"], ["Rate limit maxAmount", "mismatch", "diamond"],

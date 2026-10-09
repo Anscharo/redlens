@@ -11,9 +11,9 @@ import { json } from "../http.ts";
 import type { SqlTag } from "../sql-types.ts";
 import type { PauEventRow } from "./replay.ts";
 import type { BeamSource } from "./beam.ts";
-import { buildSnapshot, withDerivedKeys, type ChainReader, type ContractHistory, type PauSnapshot } from "./snapshot.ts";
+import { buildSnapshot, type ChainReader, type ContractHistory, type PauSnapshot } from "./snapshot.ts";
 import { withUnits } from "./units.ts";
-import type { DerivedKey } from "../../lib/pau.ts";
+import type { KeyNamer } from "./diamond-derive.ts";
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v));
 
@@ -64,11 +64,10 @@ async function snapshotOf(
   read: ChainReader,
   historyOf: (chain: string, contract: string) => Promise<ContractHistory>,
   beam: BeamSource | undefined,
-  opts: { deriveKey?: (key: string) => DerivedKey | null; probe?: string[] },
+  opts: { nameKeys?: KeyNamer; probe?: string[] },
 ): Promise<PauSnapshot> {
   const snap = await buildSnapshot(d, read, historyOf, { beam, probe: opts.probe });
-  const deriveKey = opts.deriveKey;
-  return withUnits(deriveKey ? withDerivedKeys(snap, deriveKey) : snap, read);
+  return withUnits(opts.nameKeys ? await opts.nameKeys(snap, read) : snap, read);
 }
 
 /** Each chain's shared BeamState with its history, read once per refresh. */
@@ -99,7 +98,8 @@ export async function maybeRefreshPauState(
   opts: {
     refreshSeconds: number;
     now?: number;
-    deriveKey?: (key: string) => DerivedKey | null;
+    /** Names each snapshot's keys by its generation (diamond-derive.ts). */
+    nameKeys?: KeyNamer;
     /** The atlas's RateLimitID hashes by prime entity, read live on each of that prime's RateLimits (probe.ts). */
     atlasKeys?: Map<string, string[]>;
   },
@@ -114,7 +114,7 @@ export async function maybeRefreshPauState(
   const historyOf = async (c: string, a: string) => ({ events: await eventsOf(db, c, a), complete: await historyComplete(db, c, a) });
   const beamOf = beamSources(reg, historyOf);
   for (const d of reg.deployments) {
-    const snap = await snapshotOf(d, read, historyOf, await beamOf(d.chain), { deriveKey: opts.deriveKey, probe: opts.atlasKeys?.get(d.prime) });
+    const snap = await snapshotOf(d, read, historyOf, await beamOf(d.chain), { nameKeys: opts.nameKeys, probe: opts.atlasKeys?.get(d.prime) });
     await upsertSnapshot(db, snap, new Date(now));
   }
   return { refreshed: reg.deployments.length, removed, reason: "due" };

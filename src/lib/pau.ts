@@ -42,6 +42,13 @@ export interface RateLimitKey {
 export interface DerivedKey {
   constant: string;
   args: string[];
+  /** Each argument's parameter name in the source that encodes it ("asset", "pool"), where the source names them. */
+  roles?: string[];
+  /** The diamond facet whose key getter encodes the key, and that getter. */
+  facet?: string;
+  getter?: string;
+  /** The argument that says which contract the key is for (a pool, a vault, a transfer's destination). */
+  via?: string;
 }
 
 /**
