@@ -21,26 +21,31 @@ async function fetchChainlogJson(): Promise<Record<string, unknown>> {
 export async function fetchChainlog(
   readOnchain: () => Promise<Record<string, unknown>> = readChainlogOnchain,
 ): Promise<Record<string, string> | null> {
-  let data: Record<string, unknown>;
-  try {
-    data = await fetchChainlogJson();
-  } catch (err) {
-    console.warn(`! chainlog fetch failed (${(err as Error).message}) — reading the ChainLog contract instead`);
-    try {
-      data = await readOnchain();
-    } catch (err2) {
-      console.warn(`! on-chain chainlog read failed (${(err2 as Error).message}) — proceeding without chainlog labels`);
-      // null = both sources failed (distinct from a real, never-empty result)
-      // so callers can refuse to overwrite artifacts with empty data.
-      return null;
-    }
-  }
+  const data = await readChainlogSource(readOnchain);
+  if (!data) return null;
   // chainlog shape: { "MCD_VAT": "0x35D1…", ... }
   const inverted: Record<string, string> = {};
   for (const [name, addr] of Object.entries(data)) {
-    if (typeof addr === "string" && addr.startsWith("0x")) {
-      inverted[addr.toLowerCase()] = name;
-    }
+    if (typeof addr === "string" && addr.startsWith("0x")) inverted[addr.toLowerCase()] = name;
   }
   return inverted;
+}
+
+// name → address from the website, else the contract; null when both fail.
+async function readChainlogSource(
+  readOnchain: () => Promise<Record<string, unknown>>,
+): Promise<Record<string, unknown> | null> {
+  try {
+    return await fetchChainlogJson();
+  } catch (err) {
+    console.warn(`! chainlog fetch failed (${(err as Error).message}) — reading the ChainLog contract instead`);
+  }
+  try {
+    return await readOnchain();
+  } catch (err) {
+    console.warn(`! on-chain chainlog read failed (${(err as Error).message}) — proceeding without chainlog labels`);
+    // null = both sources failed (distinct from a real, never-empty result)
+    // so callers can refuse to overwrite artifacts with empty data.
+    return null;
+  }
 }
