@@ -41,6 +41,8 @@ export const EXPECTED_NAME: Record<PauRole, RegExp> = {
   configurator: /^Configurator$/,
   freezer: /Safe/,
   relayer: /Safe/,
+  starGuard: /^StarGuard$/,
+  executor: /^Executor$/,
 };
 
 const has = (members: PauMember[], o: PauObservation) => members.some((m) => m.role === o.role && m.address === o.address);
