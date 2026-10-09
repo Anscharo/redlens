@@ -1,14 +1,15 @@
 // The unit a rate limit is counted in: fixed by its constant, read from a
 // vault's asset() or an OFT adapter's token() (else the address itself), or
 // from the address itself; a key no rule covers, or a token whose decimals()
-// fails, keeps inferred decimals. BeamState defaults get the same.
+// fails, keeps inferred decimals. BeamState defaults get the same. A diamond
+// key gets a unit only from its facet getter's entry in facet-keys.ts.
 import { describe, expect, it } from "bun:test";
-import type { LiveRateLimit, PauSnapshot } from "../../lib/pau.ts";
+import type { DerivedKey, LiveRateLimit, PauSnapshot } from "../../lib/pau.ts";
 import type { ChainCall } from "./snapshot.ts";
 import { withUnits } from "./units.ts";
 
 const [VAULT, USDC, OFT, NATIVE_OFT, ATOKEN, BROKEN] = ["1", "2", "3", "4", "5", "6"].map((c) => "0x" + c.repeat(40));
-const TOKEN_OF: Record<string, string> = { [`asset:${VAULT}`]: USDC, [`token:${OFT}`]: USDC };
+const TOKEN_OF: Record<string, string> = { [`asset:${VAULT}`]: USDC, [`token:${OFT}`]: USDC, [`UNDERLYING_ASSET_ADDRESS:${ATOKEN}`]: USDC };
 const DECIMALS: Record<string, number> = { [USDC]: 6, [NATIVE_OFT]: 18, [ATOKEN]: 6 };
 const SYMBOL: Record<string, string> = { [USDC]: "USDC", [ATOKEN]: "aEthUSDC" };
 
@@ -16,15 +17,15 @@ const seen: ChainCall[] = [];
 const read = async (_chain: string, calls: ChainCall[]) => {
   seen.push(...calls);
   return calls.map((c) => {
-    if (c.functionName === "asset" || c.functionName === "token") return TOKEN_OF[`${c.functionName}:${c.address}`]?.toUpperCase().replace("0X", "0x") ?? null;
+    if (c.functionName === "asset" || c.functionName === "token" || c.functionName === "UNDERLYING_ASSET_ADDRESS") return TOKEN_OF[`${c.functionName}:${c.address}`]?.toUpperCase().replace("0X", "0x") ?? null;
     if (c.functionName === "decimals") return DECIMALS[c.address] ?? null;
     return SYMBOL[c.address] ?? null;
   });
 };
 
 const at = { block: 1, time: "t", tx: "0xt" };
-const lim = (key: string, constant?: string, args: string[] = []): LiveRateLimit => ({
-  key, configured: { maxAmount: "1", slope: "0" }, setAt: at, changes: 1, data: null, available: null, ...(constant ? { derived: { constant, args } } : {}),
+const lim = (key: string, constant?: string, args: string[] = [], facet?: Omit<DerivedKey, "constant" | "args">): LiveRateLimit => ({
+  key, configured: { maxAmount: "1", slope: "0" }, setAt: at, changes: 1, data: null, available: null, ...(constant ? { derived: { constant, args, ...facet } } : {}),
 });
 const snap: PauSnapshot = {
   deployment: "p:ethereum:monolithic", prime: "p", primeName: "P", chain: "ethereum", kind: "monolithic",
@@ -63,9 +64,25 @@ describe("withUnits", async () => {
     const decimals = seen.filter((c) => c.functionName === "decimals").map((c) => c.address);
     expect(decimals.length).toBe(new Set(decimals).size);
   });
-  it("asserts on a diamond only the units its facets state, and counts a monolithic Uniswap V3 key in its token", async () => {
-    const diamond = await withUnits({ ...snap, kind: "diamond", contracts: [{ role: "rateLimits", address: "0xrl", events: 0, historyComplete: true, rateLimits: [lim("d-mint", "LIMIT_USDS_MINT"), lim("d-uni", "LIMIT_UNISWAP_V3_DEPOSIT", [VAULT]), lim("d-4626", "LIMIT_4626_DEPOSIT", [VAULT])] }] }, read);
-    expect(diamond.contracts[0].rateLimits!.map((r) => r.unit?.symbol ?? null)).toEqual(["USDS", null, null]);
+  it("asserts on a diamond only the units its facet getters state, by argument role", async () => {
+    const f = (facet: string, getter: string, roles: string[] = []) => ({ facet, getter, roles });
+    const diamond = await withUnits({ ...snap, kind: "diamond", contracts: [{ role: "rateLimits", address: "0xrl", events: 0, historyComplete: true, rateLimits: [
+      lim("d-burn", "LIMIT_USDS_BURN", [], f("USDSFacet", "burnRateLimitKey")),
+      lim("d-agg", "LIMIT_UNISWAP_V3_DEPOSIT", [VAULT], f("UniswapV3Facet", "getAggregateDepositRateLimitKey", ["pool"])),
+      lim("d-swap", "LIMIT_UNISWAP_V3_SWAP", [ATOKEN, VAULT], f("UniswapV3Facet", "getSwapRateLimitKey", ["token", "pool"])),
+      lim("d-aave-out", "LIMIT_AAVE_WITHDRAW", [VAULT, ATOKEN], f("AaveFacet", "getWithdrawRateLimitKey", ["pool", "aToken"])),
+      lim("d-mono-name", "LIMIT_USDS_MINT"), lim("d-unlisted", "LIMIT_4626_DEPOSIT", [USDC, VAULT], f("ERC4626Facet", "getDepositRateLimitKey", ["asset", "token"])),
+    ] }] }, read);
+    expect(diamond.contracts[0].rateLimits!.map((r) => r.unit ?? null)).toEqual([
+      { decimals: 18, symbol: "USDS", source: "constant" },
+      { decimals: 18, symbol: null, source: "constant" },
+      { decimals: 6, symbol: "aEthUSDC", token: ATOKEN, source: "token" },
+      { decimals: 6, symbol: "USDC", token: USDC, source: "token" },
+      null,
+      null,
+    ]);
+  });
+  it("counts a monolithic Uniswap V3 key in its token", async () => {
     const mono = await withUnits({ ...snap, contracts: [{ role: "rateLimits", address: "0xrl", events: 0, historyComplete: true, rateLimits: [lim("m-uni", "LIMIT_UNISWAP_V3_SWAP", [ATOKEN, VAULT])] }] }, read);
     expect(mono.contracts[0].rateLimits![0].unit).toMatchObject({ decimals: 6, symbol: "aEthUSDC", source: "token" });
   });
