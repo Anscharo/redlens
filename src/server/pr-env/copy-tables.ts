@@ -1,5 +1,6 @@
-// The tables a PR environment copies from the development database on every
-// worker tick (copy.ts). One entry per table; a new table is one appended line.
+// The tables a PR environment seeds once from the development database
+// (copy.ts). The source's reader role needs SELECT on each (scripts/CLAUDE.md,
+// "PR environments"). One entry per table; a new table is one appended line.
 //
 // An entry without `merge` is replaced wholesale. An entry with `merge` keeps
 // this environment's own rows, which its own sync writes, and overwrites only

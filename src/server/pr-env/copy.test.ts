@@ -3,7 +3,7 @@
 // keeps its microseconds, the READ ONLY transaction refuses a write) is not
 // covered here; see the verification recipe in src/server/pau/CLAUDE.md.
 import { describe, expect, test } from "bun:test";
-import { copyFromSource, copyTables, planColumns, type CopyDb } from "./copy.ts";
+import { copyFromSource, copyTables, pendingTables, planColumns, type CopyDb } from "./copy.ts";
 import type { CopyTable } from "./copy-tables.ts";
 
 type Row = Record<string, unknown>;
@@ -14,6 +14,11 @@ function fakeDb(tables: Tables, journal: string[] = [], opts: { writable?: strin
   const db: CopyDb = {
     async unsafe(query, params = []) {
       journal.push(query);
+      if (query.includes("SELECT EXISTS")) {
+        const t = named(query, /FROM "(\w+)"/);
+        const cols = [...query.matchAll(/"(\w+)" IS NOT NULL/g)].map((m) => m[1]!);
+        return [{ any: t.rows.some((r) => !cols.length || cols.some((c) => r[c] != null)) }];
+      }
       if (query.includes("has_table_privilege")) return (opts.writable ?? []).map((name) => ({ name }));
       if (opts.unreadable && query.startsWith("SELECT to_jsonb") && query.includes(`"${opts.unreadable}"`)) throw new Error("permission denied");
       if (query.includes("information_schema")) return (tables[params[0] as string]?.cols ?? []).map((name) => ({ name }));
@@ -119,6 +124,31 @@ describe("copyTables", () => {
     const line = await copyTables(failing, src, [{ table: "a" }, { table: "b" }], quiet);
     expect(line).toBe("pr-env copy from the source database — a failed (disk full), b 1");
     expect(dstTables.b!.rows).toEqual([{ x: 2 }]);
+  });
+});
+
+describe("pendingTables", () => {
+  test("a table is pending while this environment holds none of its data, or lacks the table", async () => {
+    const merge: CopyTable = { table: "atlas_addresses", merge: { key: ["address"], columns: ["balances"] } };
+    const db = fakeDb({
+      pau_events: { cols: EVENTS, rows: [{ chain: "e", tx_hash: "0x1", args: {} }] },
+      pau_state: { cols: ["deployment"], rows: [] },
+      atlas_addresses: { cols: ["address", "balances"], rows: [{ address: "0xa", balances: null }] },
+    });
+    const pending = await pendingTables(db, [{ table: "pau_events" }, { table: "pau_state" }, merge, { table: "spell_casts" }]);
+    expect(pending.map((t) => t.table)).toEqual(["pau_state", "atlas_addresses", "spell_casts"]);
+  });
+
+  test("a merge entry is seeded once any row has one of its columns set", async () => {
+    const merge: CopyTable = { table: "atlas_addresses", merge: { key: ["address"], columns: ["balances", "has_code"] } };
+    const db = fakeDb({ atlas_addresses: { cols: ["address", "balances", "has_code"], rows: [{ address: "0xa", balances: null, has_code: true }] } });
+    expect(await pendingTables(db, [merge])).toEqual([]);
+  });
+
+  test("a merge entry whose columns this environment lacks is pending, not an error", async () => {
+    const merge: CopyTable = { table: "atlas_addresses", merge: { key: ["address"], columns: ["balances", "has_code"] } };
+    const db = fakeDb({ atlas_addresses: { cols: ["address", "balances"], rows: [{ address: "0xa", balances: { ETH: 1 } }] } });
+    expect(await pendingTables(db, [merge])).toEqual([merge]);
   });
 });
 

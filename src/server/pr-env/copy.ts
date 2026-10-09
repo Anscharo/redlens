@@ -1,5 +1,8 @@
 // Copies the registry's tables (copy-tables.ts) from a source database into this
-// one. The source is only ever read, inside one REPEATABLE READ, READ ONLY
+// one, once: a table is copied only while this environment holds none of its
+// data (no rows; for a merge entry, no row with its columns set), so a PR
+// environment is seeded when it is created and every later tick finds nothing
+// to do without opening the source. Emptying a table here copies it again. The source is only ever read, inside one REPEATABLE READ, READ ONLY
 // transaction, so every table comes from the same snapshot and a stray write
 // would fail there. That guard is this code's own, and a PR environment runs
 // the PR's code with the source URL in its environment, so the copy also
@@ -100,6 +103,22 @@ async function copyIsolated(target: CopyDb, rx: CopyDb, entry: CopyTable, log: (
     await rx.unsafe("ROLLBACK TO SAVEPOINT pr_env_copy");
     return `${entry.table} failed (${(e as Error).message})`;
   }
+}
+
+/** Whether this environment already holds the table's data; a table or merge column missing here is not seeded yet. */
+async function seeded(target: CopyDb, entry: CopyTable): Promise<boolean> {
+  const have = await columnsOf(target, entry.table);
+  if (!have.length || entry.merge?.columns.some((c) => !have.includes(c))) return false;
+  const filled = entry.merge ? ` WHERE ${entry.merge.columns.map((c) => `${q(c)} IS NOT NULL`).join(" OR ")}` : "";
+  const [r] = (await target.unsafe(`SELECT EXISTS (SELECT 1 FROM ${q(entry.table)}${filled}) AS any`)) as { any: boolean }[];
+  return Boolean(r?.any);
+}
+
+/** The tables this environment has not been seeded with yet. */
+export async function pendingTables(target: CopyDb, tables: CopyTable[]): Promise<CopyTable[]> {
+  const pending: CopyTable[] = [];
+  for (const entry of tables) if (!(await seeded(target, entry))) pending.push(entry);
+  return pending;
 }
 
 /** Copies every table, returning the summary line. A table that fails is reported and the rest carry on. Throws when the source login can write. */

@@ -23,7 +23,8 @@ const keyDeriver = vi.fn(() => derive);
 vi.mock("../src/server/pau/key-derive.ts", () => ({ keyDeriver, limitConstants: () => ["LIMIT_X"], candidateAddresses: () => [] }));
 
 const copyFromSource = vi.fn(async (..._args: unknown[]) => "copied");
-vi.mock("../src/server/pr-env/copy.ts", () => ({ copyFromSource }));
+const pendingTables = vi.fn(async (_db: unknown, tables: unknown[]) => tables);
+vi.mock("../src/server/pr-env/copy.ts", () => ({ copyFromSource, pendingTables }));
 
 const { WORKER_STEPS } = await import("../scripts/lib/worker-steps/index.mjs");
 
@@ -98,5 +99,12 @@ describe("worker tick step bodies", () => {
     expect((copyFromSource.mock.calls[0]![2] as { table: string }[]).map((t) => t.table)).toContain("pau_events");
     await expect(step("pr-env-copy").run(ctx)).rejects.toThrow("PR_ENV_SOURCE_DATABASE_URL is unset");
     expect(copyFromSource).toHaveBeenCalledTimes(1);
+  });
+
+  it("pr-env-copy does nothing once every table is seeded, without needing the source", async () => {
+    const before = copyFromSource.mock.calls.length;
+    pendingTables.mockResolvedValueOnce([]);
+    expect(await step("pr-env-copy").run(ctx)).toBe("pr-env copy: already seeded from the source database");
+    expect(copyFromSource.mock.calls.length).toBe(before);
   });
 });
