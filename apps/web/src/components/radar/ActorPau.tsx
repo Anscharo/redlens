@@ -3,6 +3,7 @@ import { useLoaded } from "../../hooks/useAtlasData";
 import { addressKeyIndex, instanceKeyIndex, loadPau, primeKeyedInstance, snapshotsForPrime, withAddressKeys, type KeyedInstance } from "../../lib/pau";
 import type { GraphEntity } from "@/types";
 import { PauDeployment } from "./ActorPauDeployment";
+import { ActorPauTimeline } from "./ActorPauTimeline";
 
 interface Props {
   /** The prime agent: the PAU registry keys deployments by its id, and its params name its controller-wide keys. */
@@ -40,6 +41,7 @@ export function ActorPau({ prime, instances }: Props) {
       {snaps.map((s, i) => (
         <PauDeployment key={s.deployment} snap={s} keyIndex={keyIndex} defaultOpen={i === 0} />
       ))}
+      <ActorPauTimeline prime={prime.id} snaps={snaps} keyIndex={keyIndex} />
     </section>
   );
 }

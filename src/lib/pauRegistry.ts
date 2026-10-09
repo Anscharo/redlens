@@ -25,6 +25,8 @@ export const PAU_ROLES = [
   "configurator",
   "freezer",
   "relayer",
+  "starGuard",
+  "executor",
 ] as const;
 export type PauRole = (typeof PAU_ROLES)[number];
 
@@ -71,7 +73,7 @@ export interface PauIgnored {
 
 export interface PauRegistry {
   $comment?: string;
-  /** Contracts shared by every diamond PAU (Beacon, facets, BeamState, Configurator), one entry per chain. */
+  /** Contracts shared by a chain's PAUs (Beacon, facets, BeamState, Configurator, governance Executors), one entry per chain. */
   shared: { chain: string; members: PauMember[] }[];
   deployments: PauDeployment[];
   ignored: PauIgnored[];

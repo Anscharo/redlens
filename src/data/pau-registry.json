@@ -343,6 +343,191 @@
               "note": "verified Configurator; its beamState() is the Arbitrum BeamState"
             }
           ]
+        },
+        {
+          "role": "executor",
+          "address": "0x65d946e533748a998b1f0e430803e39a6388f7a1",
+          "label": "Spark Executor",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "cf2088f4-c708-4b07-96f1-c040659a2ac7"
+            },
+            {
+              "source": "onchain",
+              "note": "holds DEFAULT_ADMIN_ROLE on Spark's Arbitrum PAU contracts; actionsSetCount() and GUARDIAN_ROLE() answer as a spark-gov-relay Executor"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "chain": "avalanche",
+      "members": [
+        {
+          "role": "executor",
+          "address": "0x7566debc906c17338524a414343fa61bca26a843",
+          "label": "Spark Executor",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "13349fb3-57ed-4ab8-b1e3-18be5874c43c"
+            },
+            {
+              "source": "onchain",
+              "note": "holds DEFAULT_ADMIN_ROLE on Spark's Avalanche PAU contracts; actionsSetCount() and GUARDIAN_ROLE() answer as a spark-gov-relay Executor"
+            }
+          ]
+        },
+        {
+          "role": "executor",
+          "address": "0x4b803781828b76eabf21aaf02e5ce23596b4d60c",
+          "label": "Grove Executor",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "4a1a3c1d-2291-4251-bbe5-8afdb1c9b725"
+            },
+            {
+              "source": "onchain",
+              "note": "holds DEFAULT_ADMIN_ROLE on Grove's Avalanche PAU contracts; actionsSetCount() and GUARDIAN_ROLE() answer as a spark-gov-relay Executor"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "chain": "base",
+      "members": [
+        {
+          "role": "executor",
+          "address": "0xf93b7122450a50af3e5a76e1d546e95ac1d0f579",
+          "label": "Spark Executor",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "target() of receiver 0xfda082e00ef89185d9db7e5dcd8c5505070f5a3b, whose l1Authority() is Spark's SubProxy; actionsSetCount() and GUARDIAN_ROLE() answer as a spark-gov-relay Executor"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "chain": "optimism",
+      "members": [
+        {
+          "role": "executor",
+          "address": "0x205216d89a00feb2a73273ceecd297baf89d576d",
+          "label": "Spark Executor",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "holds DEFAULT_ADMIN_ROLE on Spark's Optimism PAU contracts; actionsSetCount() and GUARDIAN_ROLE() answer as a spark-gov-relay Executor; target() of receiver 0x61baf0ce69d23c8318c786e161d1cac285aa4ea3, whose l1Authority() is Spark's SubProxy"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "chain": "plasma",
+      "members": [
+        {
+          "role": "executor",
+          "address": "0x26e9512547fec1906c55256e491dfb6673d8c23f",
+          "label": "Grove Executor",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "holds DEFAULT_ADMIN_ROLE on Grove's Plasma PAU contracts; actionsSetCount() and GUARDIAN_ROLE() answer as a spark-gov-relay Executor"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "chain": "plume",
+      "members": [
+        {
+          "role": "executor",
+          "address": "0x3048386e09c72c20fb268a37d2b630d7f2ee9138",
+          "label": "Grove Executor",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "holds DEFAULT_ADMIN_ROLE on Grove's Plume PAU contracts; actionsSetCount() and GUARDIAN_ROLE() answer as a spark-gov-relay Executor"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "chain": "robinhood",
+      "members": [
+        {
+          "role": "executor",
+          "address": "0x826aeaeee9233fa8ba199518dd8621a5962b1d02",
+          "label": "Spark Executor",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "9f747b40-077a-4d10-894b-ea006629b58f"
+            },
+            {
+              "source": "onchain",
+              "note": "holds DEFAULT_ADMIN_ROLE on Spark's Robinhood PAU contracts; actionsSetCount() and GUARDIAN_ROLE() answer as a spark-gov-relay Executor"
+            }
+          ]
+        },
+        {
+          "role": "executor",
+          "address": "0x5ff98717a18833de1a49e11b498866d6fa1c9296",
+          "label": "Grove Executor",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "bf6cb739-26f4-4e52-a35f-370aac57bd98"
+            },
+            {
+              "source": "onchain",
+              "note": "holds DEFAULT_ADMIN_ROLE on Grove's Robinhood PAU contracts; actionsSetCount() and GUARDIAN_ROLE() answer as a spark-gov-relay Executor"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "chain": "unichain",
+      "members": [
+        {
+          "role": "executor",
+          "address": "0xb037c43b433964a2017cd689f535beb6b0531473",
+          "label": "Spark Executor",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "holds DEFAULT_ADMIN_ROLE on Spark's Unichain PAU contracts; actionsSetCount() and GUARDIAN_ROLE() answer as a spark-gov-relay Executor; target() of receiver 0x7b8ee8b0fd62662f7fb1ac9e5e6ceaad5195a3bf, whose l1Authority() is Spark's SubProxy"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "chain": "xlayer",
+      "members": [
+        {
+          "role": "executor",
+          "address": "0xcf5af6f53cec74b791cb4182ac778ca9cd323510",
+          "label": "Spark Executor",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "647925dc-3546-4752-ab35-ada93692540b"
+            },
+            {
+              "source": "onchain",
+              "note": "holds DEFAULT_ADMIN_ROLE on Spark's X Layer PAU contracts; actionsSetCount() and GUARDIAN_ROLE() answer as a spark-gov-relay Executor"
+            }
+          ]
         }
       ]
     }
@@ -569,6 +754,17 @@
               "doc": "33cb22ad-7032-4eec-ab47-4c5f5d28e064"
             }
           ]
+        },
+        {
+          "role": "starGuard",
+          "address": "0xfc51caa049e8894becffb68c61095c3f3ec8a880",
+          "label": "StarGuard",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "subProxy() is 0x1369f7b2b38c76b6478c0f0e66d94923421891ba, the DEFAULT_ADMIN_ROLE holder of Grove's Ethereum RateLimits (both generations)"
+            }
+          ]
         }
       ]
     },
@@ -645,6 +841,17 @@
             {
               "source": "atlas",
               "doc": "712e0f02-b787-4812-8d67-60a81449b238"
+            }
+          ]
+        },
+        {
+          "role": "starGuard",
+          "address": "0xfc51caa049e8894becffb68c61095c3f3ec8a880",
+          "label": "StarGuard",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "subProxy() is 0x1369f7b2b38c76b6478c0f0e66d94923421891ba, the DEFAULT_ADMIN_ROLE holder of Grove's Ethereum RateLimits (both generations)"
             }
           ]
         }
@@ -907,6 +1114,17 @@
               "doc": "5a0b849f-fbfc-4a4d-88f2-d639924548bf"
             }
           ]
+        },
+        {
+          "role": "starGuard",
+          "address": "0xe8ff70481d653ec31ab9e0cb2a8b316aff8d84ee",
+          "label": "StarGuard",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "subProxy() is 0x355cd90ecb1b409fdf8b64c4473c3b858da2c310, the DEFAULT_ADMIN_ROLE holder of Keel's RateLimits"
+            }
+          ]
         }
       ]
     },
@@ -1063,6 +1281,21 @@
               "doc": "3b22b5f4-3cc4-4c47-9b84-a64fb4f3b159"
             }
           ]
+        },
+        {
+          "role": "starGuard",
+          "address": "0xbfa2d1da838e55a74c61699e164cdff8cf0cf0e2",
+          "label": "StarGuard",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "d3499ce6-c517-49f7-a07e-b321c390470d"
+            },
+            {
+              "source": "onchain",
+              "note": "subProxy() is 0x24fdcd3bfa5c2553e05b2f9ad0365ebc296278d3, the DEFAULT_ADMIN_ROLE holder of Osero's RateLimits"
+            }
+          ]
         }
       ]
     },
@@ -1119,6 +1352,21 @@
             {
               "source": "atlas",
               "doc": "008e670d-d877-475a-96f2-950aa0d6c072"
+            }
+          ]
+        },
+        {
+          "role": "starGuard",
+          "address": "0x2fb18b28fb39ec3b26c3b5af5222e2ca3b8b2269",
+          "label": "StarGuard",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "16b680a4-27f8-457a-acb5-f6c6e8d29d4d"
+            },
+            {
+              "source": "onchain",
+              "note": "subProxy() is 0xbc8959ae2d4e9b385fe620bef48c2fd7f4a84736, the DEFAULT_ADMIN_ROLE holder of Pattern's RateLimits"
             }
           ]
         }
@@ -1509,6 +1757,17 @@
             {
               "source": "atlas",
               "doc": "51777bdd-df5f-4a6e-93f5-8163d981f595"
+            }
+          ]
+        },
+        {
+          "role": "starGuard",
+          "address": "0x6605aa120fe8b656482903e7757babf56947e45e",
+          "label": "StarGuard",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "subProxy() is 0x3300f198988e4c9c63f75df86de36421f06af8c4, the DEFAULT_ADMIN_ROLE holder of Spark's Ethereum RateLimits; its Exec(addr) logs sit in the transactions that set those limits from 2025-11-17"
             }
           ]
         }
