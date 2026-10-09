@@ -17,7 +17,7 @@ const base = (c: string) => keccak256(toHex(c));
 const enc = (types: string[], values: unknown[]) => keccak256(encodeAbiParameters(types.map((type) => ({ type })), values));
 
 describe("keyDeriver", () => {
-  const derive = keyDeriver(["LIMIT_USDS_MINT", "LIMIT_4626_DEPOSIT", "LIMIT_USDC_TO_DOMAIN", "LIMIT_ASSET_TRANSFER", "LIMIT_LAYERZERO_TRANSFER"], [VAULT, DEST]);
+  const derive = keyDeriver(["LIMIT_USDS_MINT", "LIMIT_4626_DEPOSIT", "LIMIT_USDC_TO_DOMAIN", "LIMIT_ASSET_TRANSFER", "LIMIT_LAYERZERO_TRANSFER", "LIMIT_UNISWAP_V3_SWAP"], [VAULT, DEST]);
 
   it("names the bare constant, matching the atlas-stated LIMIT_USDS_MINT id", () => {
     expect(base("LIMIT_USDS_MINT").startsWith("0xcb0537d5e5dba65a8edbac12555995860e5b8e1b70996011edb")).toBe(true);
@@ -29,7 +29,11 @@ describe("keyDeriver", () => {
     expect(derive(enc(["bytes32", "address", "address"], [base("LIMIT_ASSET_TRANSFER"), VAULT, DEST]))).toEqual({ constant: "LIMIT_ASSET_TRANSFER", args: [VAULT, DEST], via: DEST });
     expect(derive(enc(["bytes32", "address", "uint32"], [base("LIMIT_LAYERZERO_TRANSFER"), VAULT, 30110]))).toEqual({ constant: "LIMIT_LAYERZERO_TRANSFER", args: [VAULT, "30110"] });
   });
-  it("tries an address pair only for the transfer constants, and returns null for a key nothing derives", () => {
+  it("names UniswapV3Lib's (token, pool) pair, identified by the pool", () => {
+    // UniswapV3Lib: makeAssetDestinationKey(LIMIT_UNISWAP_V3_SWAP, tokenIn, pool).
+    expect(derive(enc(["bytes32", "address", "address"], [base("LIMIT_UNISWAP_V3_SWAP"), VAULT, DEST]))).toEqual({ constant: "LIMIT_UNISWAP_V3_SWAP", args: [VAULT, DEST], via: DEST });
+  });
+  it("tries an address pair only for the transfer and Uniswap V3 constants, and returns null for a key nothing derives", () => {
     expect(derive(enc(["bytes32", "address", "address"], [base("LIMIT_4626_DEPOSIT"), VAULT, DEST]))).toBeNull();
     expect(derive("0x" + "9".repeat(64))).toBeNull();
   });

@@ -67,14 +67,14 @@ export function shapeDeriver(shapes: KeyShape[], addresses: string[]): (key: str
 
 /**
  * The monolithic controllers' shapes: every constant bare, with one address
- * and with one id; an asset transfer's makeAssetDestinationKey pair (asset,
- * destination), identified by the destination; and (address, id) for
- * LayerZero and Centrifuge transfers.
+ * and with one id; makeAssetDestinationKey pairs, identified by the second
+ * argument, for an asset transfer (asset, destination) and for UniswapV3Lib
+ * (token, pool); and (address, id) for LayerZero and Centrifuge transfers.
  */
 function monolithicShapes(constant: string): KeyShape[] {
   const plain = (types: ArgType[]): KeyShape => ({ constant, types, name: (args) => ({ constant, args }) });
   const shapes = [plain([]), plain(["address"]), plain(["uint"])];
-  if (/^LIMIT_ASSET_TRANSFER$/.test(constant)) shapes.push({ constant, types: ["address", "address"], name: (args) => ({ constant, args, via: args[1] }) });
+  if (/^LIMIT_(ASSET_TRANSFER|UNISWAP_V3_\w+)$/.test(constant)) shapes.push({ constant, types: ["address", "address"], name: (args) => ({ constant, args, via: args[1] }) });
   if (/^LIMIT_(LAYERZERO|CENTRIFUGE)_TRANSFER$/.test(constant)) shapes.push(plain(["address", "uint"]));
   return shapes;
 }
