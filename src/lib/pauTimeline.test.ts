@@ -23,13 +23,16 @@ const res = {
     entry("0x4", "2026-04-13T01", o({ kind: "spell", path: "arbitrum", spell: "0xs", relay: { executor: "0xe", actionsSet: 6 } }), "arbitrum", `${P}:arbitrum:monolithic`),
     entry("0x5", "2026-05-01", o({ kind: "direct", from: "0xf", to: "0xrl" })),
     entry("0x6", "2026-06-01", o({ kind: "relayed", relay: { executor: "0xe", actionsSet: 7 } }), "arbitrum", `${P}:arbitrum:monolithic`),
+    entry("0x7", "2026-06-02", o({ kind: "operator", to: "0xsafe" })),
+    entry("0x8", "2026-06-03", o({ kind: "operator", to: "0xsafe" })),
   ],
 };
 
 describe("timelineFor", () => {
-  it("groups a spell across chains, folds setup into Deployment, and keeps a later direct call apart", () => {
+  it("groups a spell across chains and an operator's run, folds setup into Deployment, and keeps a later direct call apart", () => {
     const groups = timelineFor(res, P);
     expect(groups.map((g) => [g.kind, g.entries.map((e) => e.tx)])).toEqual([
+      ["operator", ["0x7", "0x8"]],
       ["relayed", ["0x6"]],
       ["direct", ["0x5"]],
       ["executive", ["0x3", "0x4"]],
@@ -46,6 +49,7 @@ describe("origin words", () => {
     expect(chipText({ ...res.entries[2], executive: { title: null, date: null, url: null, source: null } })).toBe("spell 0xs…0xs");
     expect(routeText(res.entries[3].origin, "arbitrum")).toBe("relayed to Arbitrum action set 6 (Arbitrum retryable id proven)");
     expect(routeText(null, "ethereum")).toBe("origin not resolved yet");
+    expect(routeText(o({ kind: "operator" }), "ethereum")).toBe("through the Configurator");
   });
   it("finds a transaction's entry and sums a spell's effects", () => {
     expect(entryOf(res, "arbitrum", "0x4")?.tx).toBe("0x4");

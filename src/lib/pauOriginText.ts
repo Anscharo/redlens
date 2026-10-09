@@ -36,5 +36,5 @@ export function routeText(o: PauOrigin | null, chain: string): string {
   if (o.kind === "spell" && o.path === "starguard") return "through the StarGuard";
   if (o.kind === "spell") return `relayed to ${set} (${o.path === "arbitrum" ? "Arbitrum retryable" : "OP-stack deposit"} id proven)`;
   if (o.kind === "relayed") return `relayed from Ethereum: ${set}`;
-  return o.kind === "unknown" ? "origin not resolved yet" : o.kind;
+  return { operator: "through the Configurator", deployment: "contract creation", direct: "direct call" }[o.kind as string] ?? "origin not resolved yet";
 }

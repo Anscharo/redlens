@@ -27,17 +27,17 @@ function ExecutiveHeading({ g }: { g: TimelineGroup }) {
   );
 }
 
-/** What a group's changes came from, by kind. `beam` gives an operator change its BeamState bounds. */
+/** What a group's changes came from, by kind. An operator's day is a collapsed group, so its heading is phrasing content for the summary; `beam` gives it the BeamState bounds. */
 export function PauTimelineHeader({ g, beam }: { g: TimelineGroup; beam?: BeamLimits }) {
   const first = g.entries[0];
   const o = first.origin;
   if (g.kind === "executive") return <ExecutiveHeading g={g} />;
   if (g.kind === "operator") {
     return (
-      <p className="text-xs" style={{ color: "var(--tan)" }}>
+      <span style={{ color: "var(--tan)" }}>
         Operator change by <Address address={o?.to ?? ""} chain={first.chain} noBalance /> through the Configurator, without a spell
         {beam && <span className="mono text-[10px]" style={dim}> · within BeamState bounds: up to {beam.maxChange === null ? "?" : `${exactAmount(beam.maxChange, 18)}×`} per step, one step per key every {hours(beam.hop)}</span>}
-      </p>
+      </span>
     );
   }
   if (g.kind === "relayed") {

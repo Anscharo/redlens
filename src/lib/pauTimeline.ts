@@ -1,8 +1,10 @@
 // Groups one prime's PAU change history (pauHistory.ts) for the Radar
 // timeline, newest first:
 //   - a spell's changes on every chain form one group under its executive;
-//   - a relayed action set without a proven spell, an operator's Configurator
-//     change, an unresolved change and any later direct call each stand alone;
+//   - an operator's run of Configurator changes, uninterrupted by any other
+//     change of this prime, forms one group;
+//   - a relayed action set without a proven spell, an unresolved change and
+//     any later direct call each stand alone;
 //   - contract creations, and direct calls made before a deployment's first
 //     governed change (spell, relay or operator), are its "Deployment" group.
 // Pure.
@@ -42,21 +44,27 @@ function groupOf(e: PauHistoryEntry, since: Map<string, string>): Pick<TimelineG
     const setup = ds.length > 0 && ds.every((d) => !since.has(d) || e.time <= since.get(d)!);
     if (setup) return { key: `deployment:${firstDeployment(e)}`, kind: "deployment", spell: null };
   }
+  if (o?.kind === "operator") return { key: `operator:${e.chain}:${o.to}:${e.tx}`, kind: "operator", spell: null };
   const kind = (o?.kind ?? "unknown") as GroupKind;
   return { key: `${kind}:${e.chain}:${e.tx}`, kind, spell: null };
 }
+
+const sameOperator = (a: PauHistoryEntry, b: PauHistoryEntry) => a.chain === b.chain && a.origin?.to === b.origin?.to;
 
 /** One prime's timeline groups, newest first; entries inside a group oldest first. */
 export function timelineFor(res: PauHistoryResponse, prime: string): TimelineGroup[] {
   const mine = res.entries.filter((e) => e.primes.includes(prime));
   const since = governedSince(mine);
   const groups = new Map<string, TimelineGroup>();
+  let prev: TimelineGroup | undefined;
   for (const e of mine) {
     const g = groupOf(e, since);
+    if (g.kind === "operator" && prev?.kind === "operator" && sameOperator(prev.entries[0], e)) g.key = prev.key;
     const group = groups.get(g.key) ?? { ...g, time: e.time, executive: e.executive, entries: [] };
     group.entries.push(e);
     if (e.time > group.time) group.time = e.time;
     groups.set(g.key, group);
+    prev = group;
   }
   return [...groups.values()].sort((a, b) => b.time.localeCompare(a.time));
 }

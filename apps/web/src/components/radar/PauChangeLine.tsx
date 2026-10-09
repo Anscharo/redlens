@@ -1,8 +1,14 @@
 import { Address } from "../Address";
-import { formatAmount, formatPerDay, limitDecimals, type AtlasKeyRef, type PauChange } from "../../lib/pau";
+import { formatAmount, formatPerDay, limitDecimals, type AtlasKeyRef, type DerivedKey, type PauChange } from "../../lib/pau";
 import { LimitName } from "./ActorPauRateLimits";
 
 const dim = { color: "var(--tan-3)" };
+
+/** How a rate-limit key is named: the atlas params that state it, else the controller constant the snapshot derived it from. */
+export interface KeyNames {
+  keyIndex: Map<string, AtlasKeyRef[]>;
+  derived: Map<string, DerivedKey>;
+}
 const str = (v: unknown) => (typeof v === "object" && v !== null ? JSON.stringify(v) : String(v));
 
 /** A limit's new maximum and refill, with what it replaced when the history holds the earlier setting. */
@@ -24,13 +30,14 @@ const argsText = (c: PauChange) =>
     .filter(([, v]) => str(v) !== c.subject)
     .map(([k, v]) => `${k} ${str(v)}`)
     .join(" · ");
+const clip = (t: string) => (t.length > 140 ? `${t.slice(0, 140)}…` : t);
 
 /** One configuration change, in the words of what it set. */
-export function PauChangeLine({ c, chain, keyIndex }: { c: PauChange; chain: string; keyIndex: Map<string, AtlasKeyRef[]> }) {
+export function PauChangeLine({ c, chain, names }: { c: PauChange; chain: string; names: KeyNames }) {
   if (c.event === "RateLimitDataSet") {
     return (
       <li className="mono text-[10px] break-words" data-event={c.event} style={{ color: "var(--tan-2)" }}>
-        <LimitName r={{ key: String(c.subject) }} chain={chain} keyIndex={keyIndex} /> <LimitValue c={c} />
+        <LimitName r={{ key: String(c.subject), derived: names.derived.get(String(c.subject).toLowerCase()) }} chain={chain} keyIndex={names.keyIndex} /> <LimitValue c={c} />
       </li>
     );
   }
@@ -40,7 +47,7 @@ export function PauChangeLine({ c, chain, keyIndex }: { c: PauChange; chain: str
   return (
     <li className="mono text-[10px] break-words" data-event={c.event} style={{ color: "var(--tan-2)" }}>
       {c.event} <span title={c.subject ?? undefined}>{subject}</span>
-      {account ? <> <Address address={account} chain={chain} noBalance /></> : <span style={dim}> {argsText(c)}</span>}
+      {account ? <> <Address address={account} chain={chain} noBalance /></> : <span style={dim} title={argsText(c)}> {clip(argsText(c))}</span>}
       <span style={dim}> on {c.role}</span>
     </li>
   );
