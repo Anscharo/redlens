@@ -32,7 +32,7 @@ export function readFrontmatterFields(md: string): ArchiveFields {
 
 /**
  * What the spell contract says of itself: `done()`, and `expiration()` (unix
- * seconds) after which it can no longer be cast. `done` is null when the spell
+ * seconds), the last moment it can be cast. `done` is null when the spell
  * could not be read; `expiration` is null when it has none (spells before
  * mid-2020) or it could not be read.
  */

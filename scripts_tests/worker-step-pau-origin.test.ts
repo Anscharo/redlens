@@ -9,7 +9,7 @@ const rpcHead = vi.fn(async () => 100);
 vi.mock("../src/server/pau/casts.ts", () => ({ DS_PAUSE: "0xpause", EXEC_NOTE: "0xnote", syncSpellCasts }));
 vi.mock("../src/server/pau/origin.ts", () => ({ originDeps, resolveOrigins }));
 vi.mock("../src/server/pau/origin-io.ts", () => ({ originIo }));
-const chainRead = vi.fn(async () => [false, 1_600_000_000n]);
+const chainRead = vi.fn(async (): Promise<unknown[]> => [false, 1_600_000_000n]);
 vi.mock("../src/server/pau/rpc-reader.ts", () => ({ rpcHead, rpcChainReader: () => chainRead }));
 vi.mock("../scripts/lib/explorer-logs.ts", () => ({ explorerLogs }));
 const backfillArchive = vi.fn();
