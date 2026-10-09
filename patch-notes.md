@@ -33,9 +33,14 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-09
+
+- Added a Change history to each Prime Agent's PAUs page, crediting every on-chain configuration change to the Executive Vote, operator or deployment that made it
+- Named every rate limit on Grove's and Osero's newer PAU contracts, and matched more Atlas swap limits against the chain
+- Checked each diamond PAU's AdministeredAgent members against the chain on Radar's PAUs pages, instead of trusting the event history
+
 ## 2026-10-08
 
-- Checked each diamond PAU's AdministeredAgent members against the chain on Radar's PAUs pages, instead of trusting the event history
 - Compared the rate limits a document states with the PAU contract's live values in the right-hand panel's Onchain section
 - Split each Prime Agent's Radar page into Info, Settlements, History, Primitive instances and PAUs pages, opened from the actor list on the left
 - Listed the Executive Votes behind a document in the right-hand panel's Onchain section, each linked to its cast spell, and showed the poll that approved each change in its history
