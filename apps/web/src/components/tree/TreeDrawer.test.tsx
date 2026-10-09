@@ -6,12 +6,16 @@ import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 
 vi.mock("../../lib/analytics", () => ({ track: vi.fn(), captureException: vi.fn() }));
+const sidebar = vi.hoisted(() => ({ crash: false }));
 vi.mock("./TreeSidebar", () => ({
-  TreeSidebar: ({ nodeId, onNavigate }: { nodeId: string | null; onNavigate: (id: string) => void }) => (
-    <button type="button" data-testid="tree-sidebar" onClick={() => onNavigate("next")}>
-      {nodeId ?? "none"}
-    </button>
-  ),
+  TreeSidebar: ({ nodeId, onNavigate }: { nodeId: string | null; onNavigate: (id: string) => void }) => {
+    if (sidebar.crash) throw new Error("tree broke");
+    return (
+      <button type="button" data-testid="tree-sidebar" onClick={() => onNavigate("next")}>
+        {nodeId ?? "none"}
+      </button>
+    );
+  },
 }));
 
 import { TreeDrawer } from "./TreeDrawer";
@@ -37,6 +41,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  sidebar.crash = false;
+  vi.restoreAllMocks();
   cleanup();
   vi.unstubAllGlobals();
 });
@@ -62,5 +68,12 @@ describe("TreeDrawer", () => {
     fireEvent.click(screen.getByTestId("tree-sidebar"));
     expect(history?.at(-1)).toBe("/atlas?id=next");
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("contains a crashing sidebar to its own panel", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    sidebar.crash = true;
+    renderAt("/atlas?id=a");
+    expect(screen.getByText("failed to load")).toBeInTheDocument();
   });
 });

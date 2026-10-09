@@ -4,14 +4,16 @@
 // Worker), and data-fetching children (Footer, PreviewBanner) are mocked so
 // this test can mount the shell in jsdom without a worker or network.
 import { it, expect, describe, afterEach, beforeEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 
+// Mutable so a test can put a query in the box; reset in beforeEach.
+const searchInput = vi.hoisted(() => ({ query: "", searchAnyway: (): boolean => false }));
 vi.mock("./hooks/useSearchInput", () => ({
   useSearchInput: () => ({
-    query: "",
+    query: searchInput.query,
     activeMode: "broad",
     isMixed: false,
     inputRef: { current: null },
@@ -23,6 +25,7 @@ vi.mock("./hooks/useSearchInput", () => ({
     handleHintClick: vi.fn(),
     recentSearches: [],
     selectRecent: vi.fn(),
+    searchAnyway: searchInput.searchAnyway,
   }),
 }));
 vi.mock("./hooks/useNavigation", () => ({
@@ -31,8 +34,32 @@ vi.mock("./hooks/useNavigation", () => ({
 }));
 vi.mock("./hooks/usePageAnalytics", () => ({ usePageAnalytics: vi.fn() }));
 vi.mock("./hooks/usePageVisitTracking", () => ({ usePageVisitTracking: vi.fn() }));
-vi.mock("./components/SearchBar", () => ({ SearchBar: () => <div data-testid="search-bar" /> }));
-vi.mock("./components/SearchResults", () => ({ SearchResults: () => <div data-testid="search-results" /> }));
+vi.mock("./components/SearchBar", () => ({
+  SearchBar: ({ onSubmit }: { onSubmit: () => void }) => (
+    <button type="button" data-testid="search-bar" onClick={onSubmit}>submit</button>
+  ),
+}));
+vi.mock("./components/SearchResults", () => ({
+  SearchResults: () => (
+    <div data-testid="search-results">
+      <a className="search-result-link" href="/atlas?id=hit">hit</a>
+    </div>
+  ),
+}));
+vi.mock("./components/SearchHints", () => ({
+  SearchHintsPage: ({ onHintClick }: { onHintClick: (q: string) => void }) => (
+    <button type="button" data-testid="search-hints" onClick={() => onHintClick("fees")}>hint</button>
+  ),
+}));
+vi.mock("./lib/radarRoute", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./lib/radarRoute")>()),
+  RadarActorRoute: ({ slug, page }: { slug: string; page?: string }) => (
+    <div data-testid="radar-actor">{`${slug}/${page ?? ""}`}</div>
+  ),
+}));
+vi.mock("./components/collections/SharedCollectionOpener", () => ({
+  SharedCollectionOpener: ({ id }: { id: string }) => <div data-testid="shared-collection">{id}</div>,
+}));
 vi.mock("./components/atlas/AtlasView", () => ({ AtlasView: () => <div data-testid="atlas-view" /> }));
 vi.mock("./components/tree/TreeSidebar", () => ({ TreeSidebar: () => <div data-testid="tree-sidebar" /> }));
 vi.mock("./components/NodeContent", () => ({ prefetchNodeContent: vi.fn() }));
@@ -74,6 +101,8 @@ function wrap(path = "/") {
 // mocked outer content below still renders — so the test would pass while App is
 // actually crashing. Stub it so the shell mounts for real.
 beforeEach(() => {
+  searchInput.query = "";
+  searchInput.searchAnyway = () => false;
   vi.stubGlobal("matchMedia", (query: string) => ({
     matches: false,
     media: query,
@@ -168,5 +197,68 @@ describe("App", () => {
     render(<App />, { wrapper: ({ children }) => <Router hook={hook}>{children}</Router> });
     await screen.findByTestId("crossview-page");
     expect(history?.at(-1)).toBe("/reports/crossview/concepts");
+  });
+});
+
+describe("App routes", () => {
+  function renderAt(path: string) {
+    const { hook, history } = memoryLocation({ path, record: true });
+    render(<App />, { wrapper: ({ children }) => <Router hook={hook}>{children}</Router> });
+    return history;
+  }
+
+  it("shows search results on the home route once there is a query", async () => {
+    searchInput.query = "fees";
+    renderAt("/");
+    expect(await screen.findByTestId("search-results")).toBeInTheDocument();
+    expect(screen.queryByTestId("home-page")).toBeNull();
+  });
+
+  it("opens the dev panel for a __dev query", async () => {
+    searchInput.query = "__dev";
+    renderAt("/");
+    expect(await screen.findByTestId("dev-panel")).toBeInTheDocument();
+  });
+
+  it("runs a search hint's example search from /search-hints", async () => {
+    const history = renderAt("/search-hints");
+    fireEvent.click(await screen.findByTestId("search-hints"));
+    expect(history?.at(-1)).toMatch(/^\/\?q=fees/);
+  });
+
+  it("passes the slug and subpage to the radar actor route", async () => {
+    renderAt("/radar/spark/info");
+    expect(await screen.findByTestId("radar-actor")).toHaveTextContent("spark/info");
+  });
+
+  it("opens a shared collection from its link", async () => {
+    renderAt("/c/abc123");
+    expect(await screen.findByTestId("shared-collection")).toHaveTextContent("abc123");
+  });
+});
+
+describe("App search submit", () => {
+  it("focuses the first result when the search has nothing to re-run", async () => {
+    searchInput.query = "fees";
+    render(<App />, { wrapper: wrap("/") });
+    const link = within(await screen.findByTestId("search-results")).getByRole("link");
+    fireEvent.click(screen.getByTestId("search-bar"));
+    expect(link).toHaveFocus();
+  });
+
+  it("leaves focus alone when there is no result to move to", () => {
+    render(<App />, { wrapper: wrap("/") });
+    const before = document.activeElement;
+    fireEvent.click(screen.getByTestId("search-bar"));
+    expect(document.activeElement).toBe(before);
+  });
+
+  it("does not move focus when Enter re-ran a held search", async () => {
+    searchInput.query = "fees";
+    searchInput.searchAnyway = () => true;
+    render(<App />, { wrapper: wrap("/") });
+    const link = within(await screen.findByTestId("search-results")).getByRole("link");
+    fireEvent.click(screen.getByTestId("search-bar"));
+    expect(link).not.toHaveFocus();
   });
 });

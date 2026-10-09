@@ -23,6 +23,8 @@ export interface TreeDrawerProps {
 export function TreeDrawer({ open, onClose }: TreeDrawerProps) {
   const [location] = useLocation();
   const nodeId = useAtlasNodeId();
+  // The tree only opens documents, so it takes the navigator alone rather
+  // than useNavigation, whose other half switches the reader's panel.
   const navigateToNode = useNavigateToNode();
   const { handleSplitChange } = useSplitPane(nodeId);
   const handleNavigate = useCallback(

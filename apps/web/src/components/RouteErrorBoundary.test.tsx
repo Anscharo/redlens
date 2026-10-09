@@ -9,8 +9,9 @@ import { RouteErrorBoundary } from "./RouteErrorBoundary";
 vi.mock("../lib/analytics", () => ({ captureException: vi.fn() }));
 
 let shouldThrow = true;
+let message = "boom";
 function Page() {
-  if (shouldThrow) throw new Error("boom");
+  if (shouldThrow) throw new Error(message);
   return <p>page</p>;
 }
 
@@ -18,6 +19,7 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   shouldThrow = true;
+  message = "boom";
 });
 
 describe("RouteErrorBoundary", () => {
@@ -36,5 +38,14 @@ describe("RouteErrorBoundary", () => {
     shouldThrow = false;
     act(() => navigate("/b"));
     expect(screen.getByText("page")).toBeInTheDocument();
+  });
+
+  it("offers a refresh instead for a stale chunk after a deploy", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    message = "Failed to fetch dynamically imported module: /assets/Page-old.js";
+    const { hook } = memoryLocation({ path: "/a" });
+    render(<Router hook={hook}><RouteErrorBoundary><Page /></RouteErrorBoundary></Router>);
+    expect(screen.getByRole("button", { name: "refresh to update" })).toBeInTheDocument();
+    expect(screen.queryByText("page failed to load")).toBeNull();
   });
 });
