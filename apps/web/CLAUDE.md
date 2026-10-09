@@ -9,7 +9,7 @@ Two subsystems have their own CLAUDE.md, which loads when you work there:
 
 ## Layout and workers
 
-`App.tsx` is the shell (routing, URL sync, layout). The main atlas view is `apps/web/src/components/atlas/AtlasView.tsx`.
+`App.tsx` is the shell (search bar, tree drawer, layout, shell-wide hooks). Its routes are in `apps/web/src/components/routes/` (`AppRoutes.tsx` is the `<Switch>`), behind `RouteErrorBoundary`; the tree sidebar mounts through `components/tree/TreeDrawer.tsx`. The main atlas view is `apps/web/src/components/atlas/AtlasView.tsx`.
 
 Three workers, all under `apps/web/src/workers/`:
 

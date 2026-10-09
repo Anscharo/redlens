@@ -41,6 +41,10 @@ export async function fetchPr(prNum) {
   if (fs.existsSync(cacheFile)) {
     return JSON.parse(fs.readFileSync(cacheFile, "utf8"));
   }
+  // A PR environment calls no outside API (src/server/pr-env/gate.ts), so a
+  // missing record degrades to null there, as it does without `gh`.
+  const { currentPrEnvGate } = await import("../../src/server/pr-env/gate.ts");
+  if (currentPrEnvGate().inert) return null;
 
   console.error(`  fetching PR #${prNum}…`);
   try {

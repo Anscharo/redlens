@@ -12,7 +12,7 @@ function fakeCtx(over: Partial<WorkerContext> = {}) {
   const log = vi.fn<(line: string) => void>();
   const warn = vi.fn<(line: string) => void>();
   const runAsync = vi.fn<WorkerContext["runAsync"]>(async () => {});
-  const ctx: WorkerContext = { db: {}, full: false, noFetch: false, env: {}, runAsync, log, warn, ...over };
+  const ctx: WorkerContext = { db: {}, full: false, noFetch: false, inert: false, env: {}, runAsync, log, warn, ...over };
   return { ctx, log, warn, runAsync };
 }
 
@@ -31,7 +31,7 @@ describe("worker step registry", () => {
   });
 
   it("runs the tick steps and tail lanes in their declared order", () => {
-    expect(stepsIn(WORKER_STEPS, "tick").map((s) => s.id)).toEqual(["pr-state", "chain-state", "balances", "pau", "pau-origin", "vote-archive", "forum"]);
+    expect(stepsIn(WORKER_STEPS, "tick").map((s) => s.id)).toEqual(["pr-env-copy", "pr-state", "chain-state", "balances", "pau", "pau-origin", "vote-archive", "forum"]);
     expect(stepsIn(WORKER_STEPS, "tail").map((s) => s.id)).toEqual(["embeddings", "history", "doc-versions", "briefings", "pau-rpc", "vote-evidence"]);
   });
 
@@ -39,6 +39,54 @@ describe("worker step registry", () => {
     for (const s of stepsIn(WORKER_STEPS, "tick")) expect(s.label, s.id).toBeTruthy();
     const skipping = stepsIn(WORKER_STEPS, "tick").filter((s) => s.skipWhenNoFetch).map((s) => s.id);
     expect(skipping).toEqual(["chain-state", "balances", "pau", "pau-origin", "vote-archive", "forum"]);
+  });
+});
+
+describe("in a PR environment", () => {
+  const prEnv = () => fakeCtx({ noFetch: true, inert: true, env: { GITHUB_TOKEN: "t" } });
+
+  it("only the copy runs among the tick steps; every other one logs why it is skipped", async () => {
+    const { ctx, log } = prEnv();
+    const ran: string[] = [];
+    const steps = stepsIn(WORKER_STEPS, "tick").map((s) => ({ ...s, run: async () => (ran.push(s.id), `${s.id} ran`) }));
+    await runTickSteps(steps, ctx);
+    expect(ran).toEqual(["pr-env-copy"]);
+    expect(log.mock.calls.map((c) => c[0])).toEqual([
+      "atlas-worker: pr-env-copy ran",
+      "atlas-worker: pr-state sweep skipped (PR environment) — it calls the GitHub API",
+      "atlas-worker: chain-state skipped (--no-fetch) — run `pnpm snap:chainstate` to populate it locally",
+      "atlas-worker: balances skipped (--no-fetch) — POST /api/balances to populate them locally",
+      "atlas-worker: pau skipped (--no-fetch) — it reads block explorers and RPCs",
+      "atlas-worker: pau origin skipped (--no-fetch) — it reads block explorers and RPCs",
+      "atlas-worker: vote archive skipped (--no-fetch) — it reads GitHub",
+      "atlas-worker: forum sync skipped (--no-fetch)",
+    ]);
+  });
+
+  it("the copy is skipped silently everywhere else", async () => {
+    for (const over of [{}, { noFetch: true }]) {
+      const { ctx, log } = fakeCtx(over);
+      const copy = vi.fn(async () => "copied");
+      await runTickSteps([{ ...WORKER_STEPS.find((s) => s.id === "pr-env-copy")!, run: copy }], ctx);
+      expect(copy).not.toHaveBeenCalled();
+      expect(log).not.toHaveBeenCalled();
+    }
+  });
+
+  it("skips the OpenRouter lanes and tells the rest not to fetch", async () => {
+    const { ctx, runAsync, log } = prEnv();
+    await runTailSteps(WORKER_STEPS, ctx);
+    const spawned = runAsync.mock.calls.map(([, args, opts]) => [args[0], opts?.env?.ATLAS_WORKER_NO_FETCH]);
+    expect(spawned).toEqual([
+      ["scripts/required/build-history.mjs", undefined],
+      ["scripts/required/build-doc-versions.mjs", undefined],
+      ["src/server/sync-pau-rpc.ts", "1"],
+      ["src/server/sync-vote-evidence.ts", "1"],
+    ]);
+    expect(log.mock.calls.map((c) => c[0])).toEqual([
+      "atlas-worker: embeddings skipped (PR environment) — they call OpenRouter",
+      "atlas-worker: briefings skipped (PR environment) — the embed pass calls OpenRouter even under --no-fetch",
+    ]);
   });
 });
 
