@@ -13,6 +13,7 @@ import { handleBalances } from "./balances/balances.ts";
 import { handleChainState } from "./chain-state.ts";
 import { handleForumTopics } from "./forum.ts";
 import { handlePau } from "./pau/store.ts";
+import { handlePauHistory } from "./pau/history.ts";
 import { handleReportsSearch } from "./reports-search.ts";
 import { handleSemanticSearch } from "./search-semantic.ts";
 import { handleModCounts } from "./history/mod-counts.ts";
@@ -45,6 +46,7 @@ const PUBLIC_ROUTES = {
   "/api/chain-state": () => handleChainState(),
   "/api/forum-topics": (req: Request) => handleForumTopics(req),
   "/api/pau": () => handlePau(),
+  "/api/pau/history": () => handlePauHistory(),
   "/api/reports/search": (req: Request) => handleReportsSearch(req),
   // An unconfigured deployment answers `available: false` rather than 404 so
   // the UI can say why the lane is missing.
