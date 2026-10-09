@@ -65,6 +65,18 @@ describe("checkAtlasValues", () => {
     const s = src("Ethereum Mainnet - Basin", { "Basin Contract Address": VAULT, "Inflow Rate Limits / maxAmount": "7,000,000 USDC" });
     expect(checkAtlasValues([s], basin).map((c) => [c.status, c.via])).toEqual([["match", VAULT]]);
   });
+  it("lets a stated hash derived as a swap key answer Swap values, and keeps every other hash on the side the atlas gives it", () => {
+    const snaps = [snap("ethereum", "monolithic", [
+      lim(k("b"), "5000000000000", "0", { derived: { constant: "LIMIT_CURVE_SWAP", args: [VAULT] } }),
+      lim(k("6"), "8000000000000", "0", { derived: { constant: "LIMIT_ASSET_TRANSFER", args: [USDC, DEST], via: DEST } }),
+    ])];
+    const swaps = src("Ethereum Mainnet - Swaps", { "Inflow RateLimitID": k("b"), "Deposit Rate Limits / maxAmount": "N/A - swaps only", "Swap Rate Limits / maxAmount": "5,000,000 USDC" });
+    const deposit = src("Ethereum Mainnet - Deposit", { "Deposit RateLimitID": k("6"), "Deposit Rate Limits / maxAmount": "8,000,000 USDC", "Swap Rate Limits / maxAmount": "8,000,000 USDC" });
+    expect(checkAtlasValues([swaps, deposit], snaps).map((c) => [c.instance, c.label, c.status])).toEqual([
+      ["Ethereum Mainnet - Swaps", "Deposit maxAmount", "not-stated"], ["Ethereum Mainnet - Swaps", "Swap maxAmount", "match"],
+      ["Ethereum Mainnet - Deposit", "Deposit maxAmount", "match"], ["Ethereum Mainnet - Deposit", "Swap maxAmount", "no-key"],
+    ]);
+  });
   it("compares a key held on both PAUs of a chain on each", () => {
     expect(run(src("Ethereum Mainnet - Both", { "Rate Limit IDs": K_BOTH, "Rate Limits / maxAmount": "1 USDC" }))).toEqual([
       ["Rate limit maxAmount", "match", "monolithic"], ["Rate limit maxAmount", "mismatch", "diamond"],

@@ -7,7 +7,8 @@
 // destination, a pool, a basin, an aToken), else the first address.
 // Underlying asset addresses are left out (a USDC address would match every
 // USDC key), and so is an address two instances list, which cannot say whose
-// key it is.
+// key it is. A stated hash whose derivation is a *_SWAP key also answers the
+// instance's Swap values, whatever side the atlas files the hash under.
 import type { DerivedKey, LiveRateLimit, StoredPauSnapshot } from "./pau.ts";
 import { RATE_LIMIT_ID_RE } from "./atlasHashes.ts";
 import { paramSide } from "./pauParams.ts";
@@ -72,6 +73,12 @@ export function instanceKeys(src: ValueSource, snaps: StoredPauSnapshot[], share
   const stated = Object.entries(src.params).flatMap(([name, [value]]) =>
     RATE_LIMIT_ID_RE.test(name) && HASH_RE.test(value.trim()) ? [{ side: valueSide(name), key: value.trim().toLowerCase() }] : [],
   );
-  return stated.length ? stated : derivedKeys(src, snaps, shared);
+  return stated.length ? [...stated, ...swapSides(stated, src, snaps)] : derivedKeys(src, snaps, shared);
 }
 
+/** A swap side for each stated hash filed under another side that its derivation, on the instance's chain, proves a *_SWAP key. */
+function swapSides(stated: InstanceKey[], src: ValueSource, snaps: StoredPauSnapshot[]): InstanceKey[] {
+  const swaps = new Set(limitsOf(chainSnaps(snaps, src)).filter((r) => r.derived && constantSide(r.derived.constant) === "swap").map((r) => r.key.toLowerCase()));
+  const already = new Set(stated.filter((k) => k.side === "swap").map((k) => k.key));
+  return [...new Set(stated.filter((k) => swaps.has(k.key) && !already.has(k.key)).map((k) => k.key))].map((key) => ({ side: "swap", key }));
+}
