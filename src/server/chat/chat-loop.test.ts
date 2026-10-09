@@ -455,7 +455,7 @@ test("export_findings: intercepts the tool, emits an export event, and never put
     // The retained assistant tool-call args are redacted too — the file body
     // must not linger in context (re-sent every turn, fed to the verifier).
     const asst = done.transcript.find((m) => m.role === "assistant" && "tool_calls" in m && m.tool_calls);
-    const argStr = asst && "tool_calls" in asst ? (asst.tool_calls?.[0] as { function: { arguments: string } }).function.arguments : "";
+    const argStr = asst && "tool_calls" in asst ? (asst.tool_calls?.[0] as { function: { arguments: string } } | undefined)?.function.arguments ?? "" : "";
     expect(argStr).not.toContain("Alpha");
     expect(argStr).not.toContain("rows");
     expect(argStr).toContain("duties"); // filename kept

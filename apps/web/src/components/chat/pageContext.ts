@@ -31,7 +31,7 @@ export interface PageContextView extends PageContext {
 // PageContext field (new ones included) reaches the server without being
 // hand-picked at each call site.
 export function toPageContext(view: PageContextView): PageContext {
-  const { short, placeholder, chip, ...rest } = view;
+  const { short: _short, placeholder: _placeholder, chip: _chip, ...rest } = view;
   return rest;
 }
 

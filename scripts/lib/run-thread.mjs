@@ -76,7 +76,7 @@ function loadHtmlEraCommits() {
 }
 
 /** Resolve the committed curation decisions (plan §10.4) into seed/hop override maps. */
-function resolveDecisionOverrides(decisionsPath, { commits, shas, md }) {
+function resolveDecisionOverrides(decisionsPath, { commits, shas }) {
   const file = JSON.parse(fs.readFileSync(decisionsPath, "utf8"));
   const rawUuid = new Map();
   const mdContentByUuid = new Map();
