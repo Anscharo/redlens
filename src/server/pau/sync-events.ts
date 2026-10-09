@@ -9,6 +9,7 @@
 // revisits every cursor in rotation. A rate-limited explorer ends the tick for
 // its chain only (the next request would be refused too); other chains go on.
 import type { PauRegistry } from "../../lib/pauRegistry.ts";
+import { isRateLimited } from "../../lib/upstreamBackoff.ts";
 import type { SqlTag } from "../sql-types.ts";
 import { adminTopics, decodeAdminLog } from "./admin-events.ts";
 
@@ -108,7 +109,6 @@ export interface SyncResult {
   rateLimited: string[];
 }
 
-const RATE_LIMITED = /\b429\b|rate.?limit|max calls per sec/i;
 
 /** One cursor: read its window, store what decodes, advance. "limited" on an explorer rate limit; a database error propagates. */
 async function visit(db: SqlTag, c: CursorRow, to: number, deps: SyncDeps, res: SyncResult): Promise<"limited" | void> {
@@ -122,7 +122,7 @@ async function visit(db: SqlTag, c: CursorRow, to: number, deps: SyncDeps, res: 
     const msg = (e as Error).message;
     res.errors++;
     // A rate-limited cursor stays unmarked, so it is first in line next tick.
-    if (RATE_LIMITED.test(msg)) return "limited";
+    if (isRateLimited(msg)) return "limited";
     return mark(db, c, at, msg.slice(0, 300));
   }
   if (logs === null) return mark(db, c, at, `no explorer serves ${c.chain}`);

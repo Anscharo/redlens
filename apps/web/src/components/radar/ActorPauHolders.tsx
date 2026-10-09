@@ -1,11 +1,11 @@
 import { Address } from "../Address";
 import { holderRows, type HolderStatus, type PauSnapshot } from "../../lib/pau";
+import { PauOriginChip } from "./PauOriginChip";
 
-const STATUS: Record<HolderStatus, { mark: string; text: string; color: string }> = {
-  holds: { mark: "✓", text: "holds the role", color: "var(--tan-2)" },
-  member: { mark: "✓", text: "listed by the AdministeredAgent", color: "var(--tan-2)" },
-  denied: { mark: "✗", text: "granted in the history but the chain says it does not hold the role", color: "var(--accent)" },
-  unread: { mark: "?", text: "hasRole could not be read", color: "var(--tan-3)" },
+const STATUS: Record<HolderStatus, { mark: string; color: string; role: string; member: string }> = {
+  holds: { mark: "✓", color: "var(--tan-2)", role: "holds the role", member: "the AdministeredAgent lists it" },
+  denied: { mark: "✗", color: "var(--accent)", role: "granted in the history but the chain says it does not hold the role", member: "added in the history but the AdministeredAgent no longer lists it" },
+  unread: { mark: "?", color: "var(--tan-3)", role: "hasRole could not be read", member: "membership could not be read" },
 };
 
 const ON_LABEL: Record<string, string> = {
@@ -26,13 +26,15 @@ export function PauHolders({ snap }: { snap: PauSnapshot }) {
       <ul className="space-y-0.5">
         {rows.map((r) => {
           const s = STATUS[r.status];
+          const text = s[r.check];
           return (
-            <li key={`${r.on}:${r.name}:${r.account}`} className="mono text-[10px] flex flex-wrap items-baseline gap-x-2" data-status={r.status}>
-              <span style={{ color: s.color }} title={s.text} aria-label={s.text}>{s.mark}</span>
+            <li key={`${r.contract}:${r.name}:${r.account}`} className="mono text-[10px] flex flex-wrap items-baseline gap-x-2" data-status={r.status}>
+              <span style={{ color: s.color }} title={text} aria-label={text}>{s.mark}</span>
               <span style={{ color: "var(--tan-2)" }}>{r.name}</span>
               <span style={{ color: "var(--tan-3)" }}>on {ON_LABEL[r.on] ?? r.on}</span>
               <Address address={r.account} chain={snap.chain} />
-              <span style={{ color: "var(--tan-3)" }}>since {r.since.time.slice(0, 10)}</span>
+              <span style={{ color: "var(--tan-3)" }}>{r.since ? `since ${r.since.time.slice(0, 10)}` : "not in the stored history"}</span>
+              {r.since && <PauOriginChip chain={snap.chain} tx={r.since.tx} />}
             </li>
           );
         })}

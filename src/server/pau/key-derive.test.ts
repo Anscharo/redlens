@@ -1,7 +1,7 @@
 // Rate-limit key derivation: each encoding shape the controllers use reproduces
 // its key (the bare constant against the known LIMIT_USDS_MINT id), an
 // underivable key is null, and the ABI and address loaders tolerate a
-// truncated cache file and missing artifacts.
+// truncated cache file, missing artifacts and addresses.atlas.json's nesting.
 import { afterAll, describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
@@ -17,7 +17,7 @@ const base = (c: string) => keccak256(toHex(c));
 const enc = (types: string[], values: unknown[]) => keccak256(encodeAbiParameters(types.map((type) => ({ type })), values));
 
 describe("keyDeriver", () => {
-  const derive = keyDeriver(["LIMIT_USDS_MINT", "LIMIT_4626_DEPOSIT", "LIMIT_USDC_TO_DOMAIN", "LIMIT_ASSET_TRANSFER", "LIMIT_LAYERZERO_TRANSFER"], [VAULT, DEST]);
+  const derive = keyDeriver(["LIMIT_USDS_MINT", "LIMIT_4626_DEPOSIT", "LIMIT_USDC_TO_DOMAIN", "LIMIT_ASSET_TRANSFER", "LIMIT_LAYERZERO_TRANSFER", "LIMIT_UNISWAP_V3_SWAP"], [VAULT, DEST]);
 
   it("names the bare constant, matching the atlas-stated LIMIT_USDS_MINT id", () => {
     expect(base("LIMIT_USDS_MINT").startsWith("0xcb0537d5e5dba65a8edbac12555995860e5b8e1b70996011edb")).toBe(true);
@@ -26,10 +26,14 @@ describe("keyDeriver", () => {
   it("names a key encoded with an address, a domain, an address pair, or an address and endpoint id", () => {
     expect(derive(enc(["bytes32", "address"], [base("LIMIT_4626_DEPOSIT"), VAULT]))).toEqual({ constant: "LIMIT_4626_DEPOSIT", args: [VAULT] });
     expect(derive(enc(["bytes32", "uint32"], [base("LIMIT_USDC_TO_DOMAIN"), 3]))).toEqual({ constant: "LIMIT_USDC_TO_DOMAIN", args: ["3"] });
-    expect(derive(enc(["bytes32", "address", "address"], [base("LIMIT_ASSET_TRANSFER"), VAULT, DEST]))).toEqual({ constant: "LIMIT_ASSET_TRANSFER", args: [VAULT, DEST] });
+    expect(derive(enc(["bytes32", "address", "address"], [base("LIMIT_ASSET_TRANSFER"), VAULT, DEST]))).toEqual({ constant: "LIMIT_ASSET_TRANSFER", args: [VAULT, DEST], via: DEST });
     expect(derive(enc(["bytes32", "address", "uint32"], [base("LIMIT_LAYERZERO_TRANSFER"), VAULT, 30110]))).toEqual({ constant: "LIMIT_LAYERZERO_TRANSFER", args: [VAULT, "30110"] });
   });
-  it("tries an address pair only for the transfer constants, and returns null for a key nothing derives", () => {
+  it("names UniswapV3Lib's (token, pool) pair, identified by the pool", () => {
+    // UniswapV3Lib: makeAssetDestinationKey(LIMIT_UNISWAP_V3_SWAP, tokenIn, pool).
+    expect(derive(enc(["bytes32", "address", "address"], [base("LIMIT_UNISWAP_V3_SWAP"), VAULT, DEST]))).toEqual({ constant: "LIMIT_UNISWAP_V3_SWAP", args: [VAULT, DEST], via: DEST });
+  });
+  it("tries an address pair only for the transfer and Uniswap V3 constants, and returns null for a key nothing derives", () => {
     expect(derive(enc(["bytes32", "address", "address"], [base("LIMIT_4626_DEPOSIT"), VAULT, DEST]))).toBeNull();
     expect(derive("0x" + "9".repeat(64))).toBeNull();
   });
@@ -55,6 +59,11 @@ describe("loaders", () => {
     const f = path.join(dir, "addresses.json");
     fs.writeFileSync(f, JSON.stringify({ [VAULT]: {}, notAnAddress: {} }));
     expect(candidateAddresses([f, path.join(dir, "gone.json")], { members: [{ address: DEST }] }).sort()).toEqual([VAULT, DEST].sort());
+  });
+  it("reads addresses.atlas.json's addresses under its `addresses` key", () => {
+    const f = path.join(dir, "addresses.atlas.json");
+    fs.writeFileSync(f, JSON.stringify({ atlasCommit: "abc", addresses: { [VAULT]: {} } }));
+    expect(candidateAddresses([f], {})).toEqual([VAULT]);
   });
 });
 

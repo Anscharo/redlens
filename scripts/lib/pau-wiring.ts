@@ -10,6 +10,7 @@
  */
 import { createPublicClient, http, parseAbi, type PublicClient } from "viem";
 import { MULTICALL3, rpcFor } from "../../src/server/balances/fetch-balances.ts";
+import { politeFetch, withBackoff } from "../../src/lib/upstreamBackoff.ts";
 import { deploymentId, membersOf, type PauDeployment, type PauRole } from "../../src/lib/pauRegistry.ts";
 
 export const PAU_WIRING_ABI = parseAbi([
@@ -67,10 +68,10 @@ export function rpcReader(): Reader {
   return async (chain, calls) => {
     const rpc = rpcFor(chain);
     if (!rpc) return calls.map(() => null);
-    if (!clients.has(chain)) clients.set(chain, createPublicClient({ transport: http(rpc, { timeout: 20_000, retryCount: 2 }) }));
+    if (!clients.has(chain)) clients.set(chain, createPublicClient({ transport: http(rpc, { timeout: 20_000, retryCount: 0, fetchFn: politeFetch }) }));
     const contracts = calls.map((c) => ({ ...c, abi: PAU_WIRING_ABI })) as never[];
     try {
-      const res = await clients.get(chain)!.multicall({ contracts, allowFailure: true, multicallAddress: MULTICALL3 });
+      const res = await withBackoff(rpc, () => clients.get(chain)!.multicall({ contracts, allowFailure: true, multicallAddress: MULTICALL3 }));
       return res.map((r) => (r.status === "success" ? r.result : null));
     } catch {
       // An unreachable RPC fails this chain's checks ("call failed"), not the run.

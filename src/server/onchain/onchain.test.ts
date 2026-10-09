@@ -116,6 +116,8 @@ describe("snapshotFacts", () => {
   });
   it("lists role holders and members with the history state of their contract", () => {
     expect(facts.filter((f) => f.kind === "role" || f.kind === "member").map((f) => [f.kind, f.name, f.history_complete])).toEqual([["role", "RELAYER", false], ["member", "actors", false]]);
+    // A member stored before membership was read live carries holds null, never a guessed true.
+    expect(facts.find((f) => f.kind === "member")?.values).toMatchObject({ as: "actors", holds: null });
   });
 });
 

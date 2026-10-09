@@ -3,6 +3,7 @@ import { Address } from "../Address";
 import { atlasHref } from "@/lib/routes";
 import { explorerTxUrl } from "@/lib/explorer";
 import { PauAmount } from "./PauAmount";
+import { PauOriginChip } from "./PauOriginChip";
 import { formatAmount, formatPerDay, labelOnChain, limitDecimals, unitNote, type AtlasKeyRef, type DerivedKey, type LiveRateLimit } from "../../lib/pau";
 
 interface Props {
@@ -75,7 +76,8 @@ function LimitRow({ r, chain, keyIndex }: { r: LiveRateLimit; chain: string; key
       <td className="py-0.5 text-right">
         <a href={explorerTxUrl(chain, r.setAt.tx)} target="_blank" rel="noopener" className="hover:underline" style={dim}>
           {r.setAt.time.slice(0, 10)}
-        </a>
+        </a>{" "}
+        <PauOriginChip chain={chain} tx={r.setAt.tx} />
       </td>
     </tr>
   );

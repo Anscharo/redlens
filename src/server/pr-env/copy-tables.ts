@@ -17,6 +17,10 @@ export const PR_ENV_COPY_TABLES: CopyTable[] = [
   { table: "pau_cursor" },
   { table: "pau_rpc_cursor" },
   { table: "chain_state" },
+  // The change history: spell casts, transaction origins and the vote archive (src/server/pau/CLAUDE.md).
+  { table: "spell_casts" },
+  { table: "pau_tx_origin" },
+  { table: "executive_archive" },
   // Balances, the bytecode check and the joined contract state live on the
   // address rows sync.ts owns, so they are copied onto those rows.
   {

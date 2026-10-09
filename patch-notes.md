@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-09
+
+- Added a Change history to each Prime Agent's PAUs page, crediting every on-chain change to the Executive Vote, operator or deployment behind it, and checked more of its rate limits and members against the chain
+
 ## 2026-10-08
 
 - Compared the rate limits a document states with the PAU contract's live values in the right-hand panel's Onchain section

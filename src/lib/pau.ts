@@ -22,9 +22,11 @@ export interface LiveRoleHolder extends RoleHolder {
   holds: boolean | null;
 }
 
+/** An AdministeredAgent member: `since` is null for one the chain lists that the stored history lacks; `holds` is the live check, null when it could not be read (absent on snapshots written before it was read). */
 export interface AgentMember {
   account: string;
-  since: SetAt;
+  since: SetAt | null;
+  holds?: boolean | null;
 }
 
 export interface RateLimitKey {
@@ -40,6 +42,13 @@ export interface RateLimitKey {
 export interface DerivedKey {
   constant: string;
   args: string[];
+  /** Each argument's parameter name in the source that encodes it ("asset", "pool"), where the source names them. */
+  roles?: string[];
+  /** The diamond facet whose key getter encodes the key, and that getter. */
+  facet?: string;
+  getter?: string;
+  /** The argument that says which contract the key is for (a pool, a vault, a transfer's destination). */
+  via?: string;
 }
 
 /**

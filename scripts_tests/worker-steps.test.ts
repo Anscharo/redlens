@@ -31,14 +31,14 @@ describe("worker step registry", () => {
   });
 
   it("runs the tick steps and tail lanes in their declared order", () => {
-    expect(stepsIn(WORKER_STEPS, "tick").map((s) => s.id)).toEqual(["pr-env-copy", "pr-state", "chain-state", "balances", "pau", "forum"]);
+    expect(stepsIn(WORKER_STEPS, "tick").map((s) => s.id)).toEqual(["pr-env-copy", "pr-state", "chain-state", "balances", "pau", "pau-origin", "vote-archive", "forum"]);
     expect(stepsIn(WORKER_STEPS, "tail").map((s) => s.id)).toEqual(["embeddings", "history", "doc-versions", "briefings", "pau-rpc", "vote-evidence"]);
   });
 
   it("every tick step has a failure label; only network steps skip under --no-fetch", () => {
     for (const s of stepsIn(WORKER_STEPS, "tick")) expect(s.label, s.id).toBeTruthy();
     const skipping = stepsIn(WORKER_STEPS, "tick").filter((s) => s.skipWhenNoFetch).map((s) => s.id);
-    expect(skipping).toEqual(["chain-state", "balances", "pau", "forum"]);
+    expect(skipping).toEqual(["chain-state", "balances", "pau", "pau-origin", "vote-archive", "forum"]);
   });
 });
 
@@ -57,6 +57,8 @@ describe("in a PR environment", () => {
       "atlas-worker: chain-state skipped (--no-fetch) — run `pnpm snap:chainstate` to populate it locally",
       "atlas-worker: balances skipped (--no-fetch) — POST /api/balances to populate them locally",
       "atlas-worker: pau skipped (--no-fetch) — it reads block explorers and RPCs",
+      "atlas-worker: pau origin skipped (--no-fetch) — it reads block explorers and RPCs",
+      "atlas-worker: vote archive skipped (--no-fetch) — it reads GitHub",
       "atlas-worker: forum sync skipped (--no-fetch)",
     ]);
   });

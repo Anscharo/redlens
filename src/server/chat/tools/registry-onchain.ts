@@ -14,7 +14,7 @@ export const ONCHAIN_TOOLS: AtlasTool[] = [
       "Values read from the chain and stored by the atlas worker — today every Prime Agent PAU controller: each rate limit's " +
       "maximum, refill per day and available amount (raw, and scaled by the decimals `decimals_source` names: `token` read from the " +
       "token, `constant` fixed by the controller constant, `inferred` from the limit's size), each role holder (with whether hasRole " +
-      "confirms it) and AdministeredAgent member, and the transaction that last set each. Where BeamState manages a RateLimits, a " +
+      "confirms it) and AdministeredAgent member (with whether the AdministeredAgent lists it now), and the transaction that last set each. Where BeamState manages a RateLimits, a " +
       "`beam-state` fact says how far the Configurator may move its limits without a spell (hop, max change, the rule), and each " +
       "`rate-limit-default` fact is a default (\"init\") rate limit it may set a key up to; none listed means none is set for any key the RateLimits holds. Each " +
       "`atlas-vs-contract` fact is one maxAmount or slope an instance states in the atlas beside what its contract holds " +

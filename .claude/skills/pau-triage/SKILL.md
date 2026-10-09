@@ -21,8 +21,9 @@ The PAU registry is the single source for which contracts count as a prime's PAU
 ## Model
 
 - One **deployment** per (prime entity UUID, chain, `monolithic | diamond`). Spark on Arbitrum has two, because its diamond shares the ALM proxy with a ForeignController that stays in service.
-- **Members** carry a role (`controller`, `almProxy`, `rateLimits`, `accessControls`, `administeredAgent`, `beacon`, `facet`, `beamState`, `configurator`, `freezer`, `relayer`) and provenance: `atlas` (with the doc UUID), `onchain` (what the contract itself says), `llm`, or `manual`, each with a `note`.
+- **Members** carry a role (`controller`, `almProxy`, `rateLimits`, `accessControls`, `administeredAgent`, `beacon`, `facet`, `beamState`, `configurator`, `freezer`, `relayer`, `starGuard`, `executor`) and provenance: `atlas` (with the doc UUID), `onchain` (what the contract itself says), `llm`, or `manual`, each with a `note`.
 - **`shared`** holds the contracts every diamond on a chain uses (Beacon, the facet set from the Allocation System primitive's "Liquidity Layer Shared Contracts", and the BeamState and Configurator that let cBEAM change rate limits without a spell). A chain's BeamState is the one its Configurator's `beamState()` returns.
+- **Governance carriers** are listed so origin attribution (`src/server/pau/origin.ts`) can read their events: each prime's **StarGuard** is a `starGuard` member of every Ethereum deployment of that prime (its `subProxy()` is the PAU's DEFAULT_ADMIN_ROLE holder), and each L2 **Executor** (spark-gov-relay) is an `executor` member of that chain's `shared` entry (it holds DEFAULT_ADMIN_ROLE on the prime's PAU there, and `actionsSetCount()` answers). A chain whose Executor is not listed shows its relayed changes as direct calls.
 - **`ignored`** holds atlas claims you rejected, each with a reason, so the queue stops proposing them. A rejected atlas claim is still an atlas error, and the reason is what the UI will cite, so write it as a fact a reader can check ("RateLimits revoked its CONTROLLER role on 2025-12-01").
 - Types and the validator: `src/lib/pauRegistry.ts`. Primes are keyed by entity UUID; `primeName` is for humans only.
 
@@ -66,6 +67,6 @@ The first registry encoded these; re-check them when the atlas changes:
 - Spark mainnet: the atlas controller `0x577fa18a…` lost CONTROLLER on 2025-12-01; the live one is `0x5c46fc65…`.
 - Spark Avalanche: the atlas lists proxy and rate limits as TBD; the controller points at `0xece6b0e8…` and `0xb79972e8…`. Its listed controller is also not granted CONTROLLER (history needs an Etherscan key).
 - Spark X Layer: the docs swap freezer and relayer; on-chain `0x90d8c80c…` is FREEZER and `0x8a25a24e…` is RELAYER.
-- Grove Plume: the controller and rate-limits docs copy the Plasma proxy and the Base controller addresses.
+- Grove Plume: the controller and rate-limits docs give addresses that are also Grove's Plasma ALM proxy and Base controller. On Plume they are a different controller and rate limits, wired to the Plume ALM proxy and granted CONTROLLER, so the registry lists them. Check an address on the chain it is listed for before calling it a copy.
 - Spark Arbitrum diamond: the Beacon doc's second address is an L2GovernanceRelay.
 - Grove Plasma: the controller holds no grants and the multisigs hold no roles; listed, not active.

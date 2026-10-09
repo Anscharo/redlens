@@ -6,28 +6,12 @@
 // too. Values that cannot be compared (chain not read, no key found) are left
 // out; the coverage list says which deployments are read.
 import { checkAtlasValues, type ValueCheck } from "../../lib/pauAtlasValues.ts";
-import type { ValueSource } from "../../lib/pauInstanceKeys.ts";
 import type { StoredPauSnapshot } from "../../lib/pau.ts";
 import { exactAmount, limitDecimals, wholeAmount } from "../../lib/pauView.ts";
-import type { Entity, Indexes } from "../retrieval/indexes.ts";
+import { primeValueSources } from "../../lib/pauPrimeSources.ts";
+import type { Indexes } from "../retrieval/indexes.ts";
 import type { OnchainFact } from "./facts.ts";
 import { setAt } from "./pau-fact-parts.ts";
-
-/** An entity's meta; an unreadable one reads as empty, so one bad row cannot fail the source. */
-const metaOf = (e: Entity | undefined): { agent_doc_id?: string; params?: ValueSource["params"] } => {
-  try {
-    return JSON.parse(e?.meta ?? "{}");
-  } catch {
-    return {};
-  }
-};
-
-/** The prime's own params and every instance's, as the check reads them. */
-export function primeValueSources(ix: Indexes, prime: string): ValueSource[] {
-  const own = ix.entities.filter((e) => (e.entity_type === "instance" || e.entity_type === "invocation") && e.meta?.includes(prime) && metaOf(e).agent_doc_id === prime);
-  const prim = ix.entityById.get(prime);
-  return [{ name: prim?.name ?? "", docId: null, params: metaOf(prim).params ?? {} }, ...own.map((e) => ({ name: e.name, docId: e.defining_doc_id, params: metaOf(e).params ?? {} }))];
-}
 
 /** What the contract holds for the checked value, exact, in its token's units. */
 function contractValue(c: ValueCheck): string {
@@ -66,5 +50,5 @@ const deploymentsOf = (c: ValueCheck, snaps: StoredPauSnapshot[]): StoredPauSnap
 /** One fact per value the chain can be compared on, or lacks on a read chain, for one prime. */
 export function valueFacts(ix: Indexes, prime: string, snaps: StoredPauSnapshot[]): OnchainFact[] {
   const name = snaps[0]?.primeName ?? ix.entityById.get(prime)?.name ?? "";
-  return checkAtlasValues(primeValueSources(ix, prime), snaps).flatMap((c) => deploymentsOf(c, snaps).map((s) => valueFact(c, name, prime, s)));
+  return checkAtlasValues(primeValueSources(ix.entities, prime, ix.entityById.get(prime)), snaps).flatMap((c) => deploymentsOf(c, snaps).map((s) => valueFact(c, name, prime, s)));
 }
