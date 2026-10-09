@@ -204,6 +204,13 @@ They were four separate lists until every one of them was shown to fail silently
 
 - `pnpm env:example` writes `.env.example` from the env registry in `src/server/env/`. `--check` fails on drift instead. `src/server/env/env.test.ts` holds the registry to the code: every variable the server, the worker, the build scripts and `pnpm dev` read is declared, every declared one is read. It checks names only and never prints values.
 
+## PR environments
+
+Railway forks one environment per pull request (`pr-<n>`) from the base environment, so each gets the base's API keys and runs its own atlas worker against its own empty database. There the worker is inert (`src/server/pr-env/gate.ts`; `PR_ENV_INERT=1`/`0` forces it on/off, unset defers to the exact name `pr-<n>`), and its first log line says which way the gate resolved.
+
+- Inert implies `--no-fetch`: the worker builds the atlas commit its image cloned. A step that would still call an outside API under `--no-fetch` declares `skipWhenInert` in `scripts/lib/worker-steps/`: the `pr-state` sweep (GitHub), and the `embeddings` and `briefings` tails (OpenRouter). The `history` tail runs, but `fetchPr` fetches no missing PR record, so its rows carry no PR metadata.
+- The `pr-env-copy` tick step (`onlyWhenInert`) copies the tables in `src/server/pr-env/copy-tables.ts` from `PR_ENV_SOURCE_DATABASE_URL`, the development database's public URL, each tick. A new table is one appended line there. The copy is described in `src/server/pau/CLAUDE.md`.
+
 ## GitHub environment pruning
 
 - `pnpm env:prune` deletes the GitHub deployment-environment records Railway's per-PR environments leave behind.

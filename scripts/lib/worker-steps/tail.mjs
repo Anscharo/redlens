@@ -2,7 +2,9 @@
 // its own cursor, run in parallel once the served snapshot is committed. Every
 // lane is best-effort — a later tick retries all of them, so a transient failure
 // self-heals. `ctx.full` (ATLAS_WORKER_FULL=1) forces the history walks to start
-// over; the fast-exit path never sets it.
+// over; the fast-exit path never sets it. In a PR environment the lanes that
+// would still spend under --no-fetch carry skipWhenInert; history runs there
+// with no PR-metadata fetch (scripts/lib/github-pr-cache.mjs).
 const fullFlag = (ctx) => (ctx.full ? ["--full"] : []);
 
 export const TAIL_LANES = [
@@ -10,6 +12,7 @@ export const TAIL_LANES = [
     // atlas_doc_embeddings; a no-op when hashes AND grouping flags match.
     id: "embeddings",
     phase: "tail",
+    skipWhenInert: "embeddings skipped (PR environment) — they call OpenRouter",
     run: (ctx) => ctx.runAsync("bun", ["src/server/sync-embeddings.ts"]),
   },
   {
@@ -35,6 +38,7 @@ export const TAIL_LANES = [
     // spend on the model.
     id: "briefings",
     phase: "tail",
+    skipWhenInert: "briefings skipped (PR environment) — the embed pass calls OpenRouter even under --no-fetch",
     run: (ctx) =>
       ctx.runAsync("bun", ["src/server/sync-briefings.ts"], {
         env: { ...ctx.env, ...(ctx.noFetch ? { ATLAS_WORKER_NO_FETCH: "1" } : {}) },

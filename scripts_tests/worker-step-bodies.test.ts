@@ -22,10 +22,13 @@ const derive = vi.fn(() => ({ constant: "LIMIT_X", args: [] }));
 const keyDeriver = vi.fn(() => derive);
 vi.mock("../src/server/pau/key-derive.ts", () => ({ keyDeriver, limitConstants: () => ["LIMIT_X"], candidateAddresses: () => [] }));
 
+const copyFromSource = vi.fn(async (..._args: unknown[]) => "copied");
+vi.mock("../src/server/pr-env/copy.ts", () => ({ copyFromSource }));
+
 const { WORKER_STEPS } = await import("../scripts/lib/worker-steps/index.mjs");
 
 const db = {};
-const ctx = { db, full: false, noFetch: false, env: {}, runAsync: async () => {}, log: () => {}, warn: () => {} };
+const ctx = { db, full: false, noFetch: false, inert: false, env: {}, runAsync: async () => {}, log: () => {}, warn: () => {} };
 const step = (id: string) => WORKER_STEPS.find((s) => s.id === id)!;
 
 describe("worker tick step bodies", () => {
@@ -85,5 +88,15 @@ describe("worker tick step bodies", () => {
     syncPauEvents.mockResolvedValueOnce({ visited: 3, pending: 0, events: 0, errors: 2, rateLimited: ["robinhood"] });
     maybeRefreshPauState.mockResolvedValueOnce({ reason: "fresh", refreshed: 0, removed: 1 });
     expect(await step("pau").run(ctx)).toBe("pau events 3 read, 0 pending, 0 new, 2 error(s) (explorer rate limit: robinhood); state fresh, dropped 1");
+  });
+
+  it("pr-env-copy copies from PR_ENV_SOURCE_DATABASE_URL into the worker's database, and refuses without it", async () => {
+    const url = "postgres://dev.proxy.example:5432/railway";
+    expect(await step("pr-env-copy").run({ ...ctx, env: { PR_ENV_SOURCE_DATABASE_URL: url } })).toBe("copied");
+    expect(copyFromSource.mock.calls[0]![0]).toBe(db);
+    expect(copyFromSource.mock.calls[0]![1]).toBe(url);
+    expect((copyFromSource.mock.calls[0]![2] as { table: string }[]).map((t) => t.table)).toContain("pau_events");
+    await expect(step("pr-env-copy").run(ctx)).rejects.toThrow("PR_ENV_SOURCE_DATABASE_URL is unset");
+    expect(copyFromSource).toHaveBeenCalledTimes(1);
   });
 });

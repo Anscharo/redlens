@@ -153,6 +153,8 @@ e. **Set the worker variables:**
 | `ETH_RPC_URL` | optional | Mainnet RPC for that sweep; the public `CHAIN_RPC.ethereum` default is used when unset |
 | `BALANCES_REFRESH_SECONDS` | optional | Age past which an address's token balances are eligible for the worker's rolling refresh (default `86400`, daily). A lookup still happens at most hourly |
 | `BALANCES_REFRESH_BATCH` | optional | Addresses fetched per lookup, one chain at a time (default `50`) |
+| `PR_ENV_SOURCE_DATABASE_URL` | PR environments | The development Postgres's **public** URL (Postgres service → Settings → Networking → TCP Proxy, then its `DATABASE_PUBLIC_URL`; the private network does not span environments). Set it on the base environment so every `pr-<n>` environment inherits it. A PR environment's worker makes no outside API calls and copies the PAU tables, `chain_state` and address balances from this database, read-only, each tick |
+| `PR_ENV_INERT` | optional | `1`/`0` forces PR-environment mode on/off. Unset, only an environment named exactly `pr-<n>` is inert |
 
 ## 5. Configure services and deploy
 

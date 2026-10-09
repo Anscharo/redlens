@@ -10,7 +10,7 @@
 // this file; the best-effort side steps are entries in
 // scripts/lib/worker-steps/ (add a step there, not here):
 //
-//   tick steps (pr-state, chain-state, balances, pau, forum — every tick)
+//   tick steps (pr-env-copy, pr-state, chain-state, balances, pau, forum — every tick)
 //   → drift check (scripts/lib/worker-drift.mjs)
 //   → fast-exit:  heartbeat → tail
 //   → rebuild:    build-index → … (stepsFor("worker")) → sync.ts →
@@ -38,6 +38,10 @@
 //   DATABASE_URL    — same Postgres as the web service
 //
 // Optional env:
+//   PR_ENV_INERT        — 1/0 forces PR-environment mode on/off; unset, a Railway
+//                         environment named pr-<n> turns it on (src/server/pr-env/gate.ts)
+//   PR_ENV_SOURCE_DATABASE_URL — in PR-environment mode, the database the PAU and
+//                         on-chain tables are copied from (the development one)
 //   GITHUB_TOKEN        — for `gh api` PR metadata in build-history
 //   OPENROUTER_API_KEY  — for embeddings (skipped if unset)
 //   ATLAS_WORKER_FULL   — set to "1" to force a full history rebuild
@@ -58,11 +62,16 @@ import { inspectStructuralSnapshot } from "../lib/atlas-sync-health.mjs";
 import { SUBMODULE, readUpstreamSha, run, runAsync } from "../lib/worker-proc.mjs";
 import { logRebuildReason, readDriftState } from "../lib/worker-drift.mjs";
 import { WORKER_STEPS, runTailSteps, runTickSteps, stepsIn } from "../lib/worker-steps/index.mjs";
+import { currentPrEnvGate } from "../../src/server/pr-env/gate.ts";
 
+// A Railway PR environment (`pr-<n>`, or PR_ENV_INERT=1) is inert: it implies
+// --no-fetch and skips every step that would still call an outside API there.
+const PR_ENV = currentPrEnvGate();
 // --no-fetch (or ATLAS_WORKER_NO_FETCH=1): build the CHECKED-OUT submodule commit
 // instead of fetching + checking out origin/main. Used by `pnpm dev` — local dev
-// builds the pinned commit you have, not upstream main (that's the cron's job).
-const NO_FETCH = process.argv.includes("--no-fetch") || process.env.ATLAS_WORKER_NO_FETCH === "1";
+// builds the pinned commit you have, not upstream main (that's the cron's job) —
+// and by every PR environment, whose image clones the atlas at build time.
+const NO_FETCH = process.argv.includes("--no-fetch") || process.env.ATLAS_WORKER_NO_FETCH === "1" || PR_ENV.inert;
 const t0 = Date.now();
 const HARD_CAP_MS = 15 * 60 * 1000;
 const TAIL_CAP_MS = 11 * 60 * 1000;
@@ -186,7 +195,7 @@ async function fastExit(db, ctx, syncState) {
 // annotation. sync.ts advances sync_state.atlas_sha. Every run() is fatal.
 function buildAndSync(forceStructuralSync) {
   if (NO_FETCH) {
-    console.log("atlas-worker: --no-fetch — building the checked-out submodule commit (local dev)");
+    console.log("atlas-worker: --no-fetch — building the checked-out submodule commit");
   } else {
     console.log("atlas-worker: fetching atlas origin/main…");
     run("git", ["-C", SUBMODULE, "fetch", "origin", "main"]);
@@ -238,11 +247,12 @@ function openDb() {
 }
 
 async function main() {
+  console.log(`atlas-worker: ${PR_ENV.line}`);
   const full = process.env.ATLAS_WORKER_FULL === "1";
   warnIfFull(full);
   armHardCap();
   const db = openDb();
-  const ctx = { db, full, noFetch: NO_FETCH, env: process.env, runAsync, log: console.log, warn: console.warn };
+  const ctx = { db, full, noFetch: NO_FETCH, inert: PR_ENV.inert, env: process.env, runAsync, log: console.log, warn: console.warn };
 
   await runTickSteps(WORKER_STEPS, ctx); // ── 1. tick steps (best-effort)
   console.log("atlas-worker: checking upstream atlas SHA…"); // ── 2. drift check

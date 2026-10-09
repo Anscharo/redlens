@@ -44,6 +44,14 @@ export const worker: EnvGroup = {
     { name: "ATLAS_WORKER_FULL", doc: "1 makes the worker rewalk history from the start. Leave it unset; every cycle then pays for the full walk." },
     { name: "ATLAS_WORKER_NO_FETCH", doc: "1 builds the checked-out atlas commit instead of fetching upstream (same as --no-fetch)." },
     {
+      name: "PR_ENV_INERT",
+      doc: "PR-environment mode for the worker: no-fetch, no outside API calls, PAU and on-chain tables copied from PR_ENV_SOURCE_DATABASE_URL. 1 forces it on and 0 forces it off; unset, a Railway environment named pr-<n> turns it on.",
+    },
+    {
+      name: "PR_ENV_SOURCE_DATABASE_URL",
+      doc: "The development database's PUBLIC connection URL (its TCP proxy, since Railway's private network does not span environments), which a PR environment's worker copies the PAU and on-chain tables from, read-only. Set it on the base environment so every PR environment inherits it; nothing reads it outside PR-environment mode.",
+    },
+    {
       name: "GITHUB_TOKEN",
       doc: "GitHub token for PR metadata in the history walk, preview resolution and tarball downloads.",
       default: "",
