@@ -1,8 +1,13 @@
 // Copies the registry's tables (copy-tables.ts) from a source database into this
 // one. The source is only ever read, inside one REPEATABLE READ, READ ONLY
 // transaction, so every table comes from the same snapshot and a stray write
-// would fail there. Each table is written here in its own transaction, so a
-// reader sees the old rows or the new ones, never a half-copied table.
+// would fail there. That guard is this code's own, and a PR environment runs
+// the PR's code with the source URL in its environment, so the copy also
+// refuses a source login that could write any copied table: only a read-only
+// role keeps a PR from writing to the development database. Each table is
+// read under its own savepoint, so one that fails to read leaves the rest
+// readable, and written here in its own transaction, so a reader sees the old
+// rows or the new ones, never a half-copied table.
 //
 // Rows travel as jsonb built by Postgres (`to_jsonb`) and are unpacked by
 // Postgres (`jsonb_populate_recordset` against this table's row type), so a
@@ -58,26 +63,53 @@ async function writeRows(tx: CopyDb, entry: CopyTable, cols: string[], rows: unk
   for (let i = 0; i < rows.length; i += CHUNK) await tx.unsafe(stmt, [rows.slice(i, i + CHUNK)]);
 }
 
+function skip(log: (line: string) => void, table: string, why: string): string {
+  log(`pr-env copy: ${table} skipped (${why})`);
+  return `${table} skipped`;
+}
+
+/** An empty source table is skipped rather than copied, so a truncated or half-migrated source never blanks this environment's rows. */
 async function copyOne(target: CopyDb, source: CopyDb, entry: CopyTable, log: (line: string) => void): Promise<string> {
   const cols = planColumns(entry, await columnsOf(source, entry.table), await columnsOf(target, entry.table));
-  if (typeof cols === "string") {
-    log(`pr-env copy: ${entry.table} skipped (${cols})`);
-    return `${entry.table} skipped`;
-  }
+  if (typeof cols === "string") return skip(log, entry.table, cols);
   const read = (await source.unsafe(`SELECT to_jsonb(t) AS row FROM (SELECT ${list(cols)} FROM ${q(entry.table)}) t`)) as { row: unknown }[];
+  if (!read.length) return skip(log, entry.table, "empty on the source; keeping the rows here");
   const rows = read.map((r) => r.row);
   await target.begin((tx) => writeRows(tx, entry, cols, rows));
   return `${entry.table} ${rows.length}`;
 }
 
-/** Copies every table, returning the summary line. A table that fails is reported and the rest carry on. */
+/** The copied tables the source login could write to; the copy runs only when there are none. */
+async function writableTables(rx: CopyDb, tables: CopyTable[]): Promise<string[]> {
+  const names = `{${tables.map((t) => t.table).join(",")}}`;
+  const rows = (await rx.unsafe(
+    "SELECT t AS name FROM unnest($1::text[]) AS t WHERE to_regclass(t) IS NOT NULL AND has_table_privilege(to_regclass(t), 'INSERT, UPDATE, DELETE, TRUNCATE')",
+    [names],
+  )) as { name: string }[];
+  return rows.map((r) => r.name);
+}
+
+/** One table's read under its own savepoint, so a failed read does not abort the snapshot for the tables after it. */
+async function copyIsolated(target: CopyDb, rx: CopyDb, entry: CopyTable, log: (line: string) => void): Promise<string> {
+  await rx.unsafe("SAVEPOINT pr_env_copy");
+  try {
+    const part = await copyOne(target, rx, entry, log);
+    await rx.unsafe("RELEASE SAVEPOINT pr_env_copy");
+    return part;
+  } catch (e) {
+    await rx.unsafe("ROLLBACK TO SAVEPOINT pr_env_copy");
+    return `${entry.table} failed (${(e as Error).message})`;
+  }
+}
+
+/** Copies every table, returning the summary line. A table that fails is reported and the rest carry on. Throws when the source login can write. */
 export async function copyTables(target: CopyDb, source: CopyDb, tables: CopyTable[], log: (line: string) => void): Promise<string> {
   const parts: string[] = [];
   await source.begin(async (rx) => {
     await rx.unsafe("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY");
-    for (const entry of tables) {
-      parts.push(await copyOne(target, rx, entry, log).catch((e: Error) => `${entry.table} failed (${e.message})`));
-    }
+    const writable = await writableTables(rx, tables);
+    if (writable.length) throw new Error(`its login can write to ${writable.join(", ")}; use a read-only role (scripts/CLAUDE.md, "PR environments")`);
+    for (const entry of tables) parts.push(await copyIsolated(target, rx, entry, log));
   });
   return `pr-env copy from the source database — ${parts.join(", ")}`;
 }

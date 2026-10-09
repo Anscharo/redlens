@@ -9,11 +9,13 @@ import type { CopyTable } from "./copy-tables.ts";
 type Row = Record<string, unknown>;
 type Tables = Record<string, { cols: string[]; rows: Row[] }>;
 
-function fakeDb(tables: Tables, journal: string[] = []): CopyDb {
+function fakeDb(tables: Tables, journal: string[] = [], opts: { writable?: string[]; unreadable?: string } = {}): CopyDb {
   const named = (query: string, re: RegExp) => tables[re.exec(query)![1]!]!;
   const db: CopyDb = {
     async unsafe(query, params = []) {
       journal.push(query);
+      if (query.includes("has_table_privilege")) return (opts.writable ?? []).map((name) => ({ name }));
+      if (opts.unreadable && query.startsWith("SELECT to_jsonb") && query.includes(`"${opts.unreadable}"`)) throw new Error("permission denied");
       if (query.includes("information_schema")) return (tables[params[0] as string]?.cols ?? []).map((name) => ({ name }));
       if (query.startsWith("SET TRANSACTION")) return [];
       if (query.startsWith("SELECT to_jsonb")) {
@@ -74,12 +76,38 @@ describe("copyTables", () => {
     expect(line).toBe("pr-env copy from the source database — pau_events skipped, spell_casts skipped, pau_state 1");
   });
 
-  test("never writes to the source: a READ ONLY transaction first, then reads only", async () => {
+  test("never writes to the source: a READ ONLY transaction first, then reads and savepoints only", async () => {
     const journal: string[] = [];
     const src = fakeDb({ pau_events: { cols: EVENTS, rows: [{ chain: "e", tx_hash: "0x1", args: {} }] } }, journal);
     await copyTables(fakeDb({ pau_events: { cols: EVENTS, rows: [] } }), src, [{ table: "pau_events" }], quiet);
     expect(journal[0]).toBe("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY");
-    for (const q of journal.slice(1)) expect(q).toStartWith("SELECT");
+    for (const q of journal.slice(1)) expect(q).toMatch(/^(SELECT|SAVEPOINT|RELEASE SAVEPOINT)/);
+  });
+
+  test("refuses a source login that can write a copied table, and copies nothing", async () => {
+    const src = fakeDb({ pau_events: { cols: EVENTS, rows: [{ chain: "e", tx_hash: "0x1", args: {} }] } }, [], { writable: ["pau_events"] });
+    const dst: Tables = { pau_events: { cols: EVENTS, rows: [{ chain: "e", tx_hash: "0xkeep", args: {} }] } };
+    await expect(copyTables(fakeDb(dst), src, [{ table: "pau_events" }], quiet)).rejects.toThrow("its login can write to pau_events; use a read-only role");
+    expect(dst.pau_events!.rows).toEqual([{ chain: "e", tx_hash: "0xkeep", args: {} }]);
+  });
+
+  test("an empty source table keeps this environment's rows", async () => {
+    const log: string[] = [];
+    const dst: Tables = { pau_events: { cols: EVENTS, rows: [{ chain: "e", tx_hash: "0xkeep", args: {} }] } };
+    const line = await copyTables(fakeDb(dst), fakeDb({ pau_events: { cols: EVENTS, rows: [] } }), [{ table: "pau_events" }], (l) => log.push(l));
+    expect(dst.pau_events!.rows).toEqual([{ chain: "e", tx_hash: "0xkeep", args: {} }]);
+    expect(log).toEqual(["pr-env copy: pau_events skipped (empty on the source; keeping the rows here)"]);
+    expect(line).toBe("pr-env copy from the source database — pau_events skipped");
+  });
+
+  test("a table that fails to read rolls back to its savepoint and the rest carry on", async () => {
+    const journal: string[] = [];
+    const src = fakeDb({ a: { cols: ["x"], rows: [{ x: 1 }] }, b: { cols: ["x"], rows: [{ x: 2 }] } }, journal, { unreadable: "a" });
+    const dstTables: Tables = { a: { cols: ["x"], rows: [] }, b: { cols: ["x"], rows: [] } };
+    const line = await copyTables(fakeDb(dstTables), src, [{ table: "a" }, { table: "b" }], quiet);
+    expect(line).toBe("pr-env copy from the source database — a failed (permission denied), b 1");
+    expect(journal).toContain("ROLLBACK TO SAVEPOINT pr_env_copy");
+    expect(dstTables.b!.rows).toEqual([{ x: 2 }]);
   });
 
   test("a table whose write fails is reported and the rest carry on", async () => {

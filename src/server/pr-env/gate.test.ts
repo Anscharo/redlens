@@ -9,7 +9,7 @@ describe("prEnvGate", () => {
   });
 
   test("production, development, no Railway and near-miss names stay live", () => {
-    for (const env of ["production", "development", "", "redlens-pr-12a", "pr-12a", "expr-12", "redlens-expr-12", "pr-", "-pr-12x"]) {
+    for (const env of ["production", "development", "redlens", "staging", "", "redlens-pr-12a", "pr-12a", "expr-12", "redlens-expr-12", "pr-", "-pr-12x"]) {
       expect(prEnvGate(env, undefined).inert).toBe(false);
     }
   });

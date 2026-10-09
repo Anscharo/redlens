@@ -49,7 +49,7 @@ export const worker: EnvGroup = {
     },
     {
       name: "PR_ENV_SOURCE_DATABASE_URL",
-      doc: "The development database's PUBLIC connection URL (its TCP proxy, since Railway's private network does not span environments), which a PR environment's worker copies the PAU and on-chain tables from, read-only. Set it on the base environment so every PR environment inherits it; nothing reads it outside PR-environment mode.",
+      doc: "The development database's PUBLIC connection URL (its TCP proxy, since Railway's private network does not span environments), which a PR environment's worker copies the PAU and on-chain tables from. It must log in as a read-only role (scripts/CLAUDE.md, \"PR environments\"): the PR's own code can read this URL, and the copy refuses a login that can write the copied tables. Set it on the base environment so every PR environment inherits it; nothing reads it outside PR-environment mode.",
     },
     {
       name: "GITHUB_TOKEN",

@@ -18,7 +18,9 @@
 # development database each tick, read-only. Two variables:
 #   PR_ENV_SOURCE_DATABASE_URL — the development Postgres's PUBLIC URL (its TCP
 #                         proxy; the private network does not span
-#                         environments). Set on the base environment so every
+#                         environments), logged in as a READ-ONLY role
+#                         (scripts/CLAUDE.md, "PR environments"); the copy
+#                         refuses a login that can write. Set on the base environment so every
 #                         PR environment inherits it. Unset or unreachable:
 #                         one warning a tick, and the environment keeps what
 #                         it has; it never falls back to fetching.
