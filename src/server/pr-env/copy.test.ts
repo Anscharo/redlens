@@ -14,6 +14,7 @@ function fakeDb(tables: Tables, journal: string[] = [], opts: { writable?: strin
   const db: CopyDb = {
     async unsafe(query, params = []) {
       journal.push(query);
+      if (query.startsWith("SELECT 1 AS present")) return named(query, /FROM "(\w+)" LIMIT/).rows.length ? [{ present: 1 }] : [];
       if (query.includes("has_table_privilege")) return (opts.writable ?? []).map((name) => ({ name }));
       if (opts.unreadable && query.startsWith("SELECT to_jsonb") && query.includes(`"${opts.unreadable}"`)) throw new Error("permission denied");
       if (query.includes("information_schema")) return (tables[params[0] as string]?.cols ?? []).map((name) => ({ name }));
@@ -48,9 +49,10 @@ describe("copyTables", () => {
   test("replaces the target's rows wholesale with the source's", async () => {
     const src = fakeDb({ pau_events: { cols: EVENTS, rows: [{ chain: "ethereum", tx_hash: "0x1", args: { a: 1 } }] } });
     const dst: Tables = { pau_events: { cols: EVENTS, rows: [{ chain: "ethereum", tx_hash: "0xstale", args: {} }] } };
-    const line = await copyTables(fakeDb(dst), src, [{ table: "pau_events" }], quiet);
+    const { line, done } = await copyTables(fakeDb(dst), src, [{ table: "pau_events" }], quiet);
     expect(dst.pau_events!.rows).toEqual([{ chain: "ethereum", tx_hash: "0x1", args: { a: 1 } }]);
     expect(line).toBe("pr-env copy from the source database — pau_events 1");
+    expect(done).toBe(true);
   });
 
   test("a merge entry overwrites only its columns on matching rows and keeps this environment's rows", async () => {
@@ -65,12 +67,22 @@ describe("copyTables", () => {
     ]);
   });
 
+  test("a merge into an empty table is owed, not done", async () => {
+    const cols = ["address", "chain", "balances"];
+    const entry: CopyTable = { table: "atlas_addresses", merge: { key: ["address", "chain"], columns: ["balances"] } };
+    const src = fakeDb({ atlas_addresses: { cols, rows: [{ address: "0xa", chain: "base", balances: {} }] } });
+    const { done, line } = await copyTables(fakeDb({ atlas_addresses: { cols, rows: [] } }), src, [entry], quiet);
+    expect(done).toBe(false);
+    expect(line).toBe("pr-env copy from the source database — atlas_addresses skipped");
+  });
+
   test("skips a table missing on either side with a log line and copies the rest", async () => {
     const log: string[] = [];
     const src = fakeDb({ pau_events: { cols: EVENTS, rows: [] }, pau_state: { cols: ["deployment"], rows: [{ deployment: "d" }] } });
     const dst: Tables = { pau_state: { cols: ["deployment"], rows: [] }, spell_casts: { cols: ["id"], rows: [] } };
     const tables = [{ table: "pau_events" }, { table: "spell_casts" }, { table: "pau_state" }];
-    const line = await copyTables(fakeDb(dst), src, tables, (l) => log.push(l));
+    const { line, done } = await copyTables(fakeDb(dst), src, tables, (l) => log.push(l));
+    expect(done).toBe(false);
     expect(log).toEqual(["pr-env copy: pau_events skipped (missing here)", "pr-env copy: spell_casts skipped (missing on the source)"]);
     expect(dst.pau_state!.rows).toEqual([{ deployment: "d" }]);
     expect(line).toBe("pr-env copy from the source database — pau_events skipped, spell_casts skipped, pau_state 1");
@@ -94,7 +106,8 @@ describe("copyTables", () => {
   test("an empty source table keeps this environment's rows", async () => {
     const log: string[] = [];
     const dst: Tables = { pau_events: { cols: EVENTS, rows: [{ chain: "e", tx_hash: "0xkeep", args: {} }] } };
-    const line = await copyTables(fakeDb(dst), fakeDb({ pau_events: { cols: EVENTS, rows: [] } }), [{ table: "pau_events" }], (l) => log.push(l));
+    const { line, done } = await copyTables(fakeDb(dst), fakeDb({ pau_events: { cols: EVENTS, rows: [] } }), [{ table: "pau_events" }], (l) => log.push(l));
+    expect(done).toBe(true);
     expect(dst.pau_events!.rows).toEqual([{ chain: "e", tx_hash: "0xkeep", args: {} }]);
     expect(log).toEqual(["pr-env copy: pau_events skipped (empty on the source; keeping the rows here)"]);
     expect(line).toBe("pr-env copy from the source database — pau_events skipped");
@@ -104,7 +117,8 @@ describe("copyTables", () => {
     const journal: string[] = [];
     const src = fakeDb({ a: { cols: ["x"], rows: [{ x: 1 }] }, b: { cols: ["x"], rows: [{ x: 2 }] } }, journal, { unreadable: "a" });
     const dstTables: Tables = { a: { cols: ["x"], rows: [] }, b: { cols: ["x"], rows: [] } };
-    const line = await copyTables(fakeDb(dstTables), src, [{ table: "a" }, { table: "b" }], quiet);
+    const { line, done } = await copyTables(fakeDb(dstTables), src, [{ table: "a" }, { table: "b" }], quiet);
+    expect(done).toBe(false);
     expect(line).toBe("pr-env copy from the source database — a failed (permission denied), b 1");
     expect(journal).toContain("ROLLBACK TO SAVEPOINT pr_env_copy");
     expect(dstTables.b!.rows).toEqual([{ x: 2 }]);
@@ -116,7 +130,7 @@ describe("copyTables", () => {
     const dst = fakeDb(dstTables);
     let begins = 0;
     const failing: CopyDb = { ...dst, begin: (fn) => (begins++ === 0 ? Promise.reject(new Error("disk full")) : fn(dst)) };
-    const line = await copyTables(failing, src, [{ table: "a" }, { table: "b" }], quiet);
+    const { line } = await copyTables(failing, src, [{ table: "a" }, { table: "b" }], quiet);
     expect(line).toBe("pr-env copy from the source database — a failed (disk full), b 1");
     expect(dstTables.b!.rows).toEqual([{ x: 2 }]);
   });

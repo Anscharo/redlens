@@ -22,7 +22,7 @@ const derive = vi.fn(() => ({ constant: "LIMIT_X", args: [] }));
 const keyDeriver = vi.fn(() => derive);
 vi.mock("../src/server/pau/key-derive.ts", () => ({ keyDeriver, limitConstants: () => ["LIMIT_X"], candidateAddresses: () => [] }));
 
-const copyFromSource = vi.fn(async (..._args: unknown[]) => "copied");
+const copyFromSource = vi.fn(async (..._args: unknown[]) => ({ line: "copied", done: true }));
 vi.mock("../src/server/pr-env/copy.ts", () => ({ copyFromSource }));
 
 const { WORKER_STEPS } = await import("../scripts/lib/worker-steps/index.mjs");
@@ -90,13 +90,27 @@ describe("worker tick step bodies", () => {
     expect(await step("pau").run(ctx)).toBe("pau events 3 read, 0 pending, 0 new, 2 error(s) (explorer rate limit: robinhood); state fresh, dropped 1");
   });
 
-  it("pr-env-copy copies from PR_ENV_SOURCE_DATABASE_URL into the worker's database, and refuses without it", async () => {
+  it("pr-env-copy copies once from PR_ENV_SOURCE_DATABASE_URL, records it, and refuses without the URL", async () => {
     const url = "postgres://dev.proxy.example:5432/railway";
-    expect(await step("pr-env-copy").run({ ...ctx, env: { PR_ENV_SOURCE_DATABASE_URL: url } })).toBe("copied");
-    expect(copyFromSource.mock.calls[0]![0]).toBe(db);
+    let marked = false;
+    const stateDb = {
+      unsafe: async (q: string) => {
+        if (q.startsWith("INSERT")) marked = true;
+        return q.startsWith("SELECT") && marked ? [{ done: 1 }] : [];
+      },
+    };
+    const c = { ...ctx, db: stateDb };
+    await expect(step("pr-env-copy").run(c)).rejects.toThrow("PR_ENV_SOURCE_DATABASE_URL is unset");
+    copyFromSource.mockResolvedValueOnce({ line: "partial", done: false });
+    expect(await step("pr-env-copy").run({ ...c, env: { PR_ENV_SOURCE_DATABASE_URL: url } })).toContain("trying again next tick");
+    expect(marked).toBe(false);
+    copyFromSource.mockResolvedValueOnce({ line: "copied", done: true });
+    expect(await step("pr-env-copy").run({ ...c, env: { PR_ENV_SOURCE_DATABASE_URL: url } })).toBe("copied");
+    expect(marked).toBe(true);
+    expect(copyFromSource.mock.calls[0]![0]).toBe(stateDb);
     expect(copyFromSource.mock.calls[0]![1]).toBe(url);
     expect((copyFromSource.mock.calls[0]![2] as { table: string }[]).map((t) => t.table)).toContain("pau_events");
-    await expect(step("pr-env-copy").run(ctx)).rejects.toThrow("PR_ENV_SOURCE_DATABASE_URL is unset");
-    expect(copyFromSource).toHaveBeenCalledTimes(1);
+    expect(await step("pr-env-copy").run({ ...c, env: { PR_ENV_SOURCE_DATABASE_URL: url } })).toContain("already done");
+    expect(copyFromSource).toHaveBeenCalledTimes(2);
   });
 });

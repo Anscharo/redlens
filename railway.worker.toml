@@ -15,7 +15,7 @@
 # instead of fetching upstream, skips every step and tail that would call an
 # outside API (explorers, RPCs, Discourse, GitHub, OpenRouter), and instead
 # copies the PAU tables, chain_state and the address balances from the
-# development database each tick, read-only. Two variables:
+# development database once, read-only. Two variables:
 #   PR_ENV_SOURCE_DATABASE_URL — the development Postgres's PUBLIC URL (its TCP
 #                         proxy; the private network does not span
 #                         environments), logged in as a READ-ONLY role
