@@ -4,6 +4,8 @@ export interface WorkerContext {
   db: unknown;
   full: boolean;
   noFetch: boolean;
+  /** A PR environment (src/server/pr-env/gate.ts): noFetch is set too, and no step may call an outside API. */
+  inert: boolean;
   env: Record<string, string | undefined>;
   runAsync: (cmd: string, args: string[], opts?: { env?: Record<string, string | undefined> }) => Promise<void>;
   log: (line: string) => void;
@@ -18,6 +20,10 @@ export interface WorkerStep {
   label?: string;
   /** Tick steps that need the network: the line logged instead of running under --no-fetch. */
   skipWhenNoFetch?: string;
+  /** Steps that would still call an outside API under --no-fetch: the line logged instead in a PR environment. */
+  skipWhenInert?: string;
+  /** Runs only in a PR environment; skipped silently everywhere else. */
+  onlyWhenInert?: boolean;
   /** Tick: resolves to the log line. Tail: the child's promise. */
   run(ctx: WorkerContext): Promise<string | void>;
 }

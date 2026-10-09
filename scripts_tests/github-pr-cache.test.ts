@@ -18,6 +18,8 @@ vi.mock("node:fs", () => ({
 
 const execSync = vi.fn();
 vi.mock("node:child_process", () => ({ execSync: (...args: unknown[]) => execSync(...args) }));
+const gate = { inert: false, line: "" };
+vi.mock("../src/server/pr-env/gate.ts", () => ({ currentPrEnvGate: () => gate }));
 
 // @ts-expect-error — runtime-only .mjs import.
 import { extractPrNumber, fetchPr, PR_CACHE_DIR } from "../scripts/lib/github-pr-cache.mjs";
@@ -25,6 +27,7 @@ import { extractPrNumber, fetchPr, PR_CACHE_DIR } from "../scripts/lib/github-pr
 const cacheKey = (pr: number) => `${PR_CACHE_DIR}/${pr}.json`;
 
 beforeEach(() => {
+  gate.inert = false;
   store.clear();
   execSync.mockReset();
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -84,5 +87,13 @@ describe("fetchPr", () => {
     execSync.mockImplementation(() => { throw new Error("Resource not accessible by integration"); });
     expect(await fetchPr(999)).toBeNull();
     expect(store.has(cacheKey(999))).toBe(false);
+  });
+
+  it("in a PR environment returns null without calling gh, but still serves the cache", async () => {
+    gate.inert = true;
+    store.set(cacheKey(294), JSON.stringify({ number: 294, title: "cached" }));
+    expect(await fetchPr(294)).toEqual({ number: 294, title: "cached" });
+    expect(await fetchPr(341)).toBeNull();
+    expect(execSync).not.toHaveBeenCalled();
   });
 });

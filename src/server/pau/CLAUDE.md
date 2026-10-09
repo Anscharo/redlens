@@ -23,6 +23,18 @@ Reads what the chain says about every contract in `src/data/pau-registry.json` (
 
 The worker step is `scripts/lib/worker-steps/pau.mjs`. It injects `explorerLogs` (`scripts/lib/explorer-logs.ts`), `rpcHead` and `rpcChainReader`, so everything above is tested with fakes.
 
+## PR environments copy instead of reading
+
+A Railway PR environment (`redlens-pr-<n>`, `src/server/pr-env/gate.ts`) never reads an explorer or an RPC: the `pau` step and the `sync:pau-rpc` tail are skipped there with the rest of `--no-fetch`. Its worker's `pr-env-copy` tick step copies the tables in `src/server/pr-env/copy-tables.ts` (`pau_state`, `pau_events`, `pau_cursor`, `pau_rpc_cursor`, `chain_state`, and the balance, bytecode and contract-state columns of `atlas_addresses`) from `PR_ENV_SOURCE_DATABASE_URL`, the development database, once (`src/server/pr-env/copy.ts`). A table is copied only while the PR environment holds none of its data (for a merge entry, no row with its columns set); once every table is seeded the step does nothing and never opens the source. Emptying a table there copies it again.
+
+- The source is read inside one `REPEATABLE READ, READ ONLY` transaction, so every table comes from one snapshot, and each table under its own savepoint, so one that fails to read leaves the rest. The source login must be a read-only role, and the copy refuses one that can write a copied table (`scripts/CLAUDE.md`, "PR environments").
+- An empty source table is skipped, so a truncated or half-migrated source never blanks this environment's rows.
+- Each table is replaced in one transaction of its own. A `merge` entry instead overwrites its columns on the rows that match its key, because `sync.ts` owns those rows.
+- Rows travel as `to_jsonb` and land through `jsonb_populate_recordset`, so jsonb stays an object and timestamptz keeps its microseconds.
+- A table missing on either side is skipped with a log line. An unset or unreachable source is one warning, and the environment keeps what it has.
+- A new PAU table is one appended line in `copy-tables.ts`.
+- `copy.test.ts` uses a fake. Re-verify against real Postgres after changing the copy: create two scratch databases, run `bun src/server/migrate.ts` against each, seed the source, run `copyFromSource`, and compare `count(*)`, `jsonb_typeof` of every jsonb column and an md5 of `string_agg(row::text ORDER BY row::text)` per table.
+
 ## Why logs come from an explorer
 
 Public RPCs cap `eth_getLogs` at about 10,000 blocks (Arbitrum's refuses even 1,000), far below a contract's lifetime. The explorer pages by result count instead.

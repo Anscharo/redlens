@@ -8,6 +8,26 @@
 # embeddings). The web service's in-process updater polls sync_state.atlas_sha
 # and rebuilds its in-memory indexes from DB rows when it changes.
 #
+# PR environments: Railway forks one environment per pull request (`redlens-pr-<n>`)
+# from the base environment, with its own empty Postgres and the base's
+# variables, API keys included. There the worker is INERT
+# (src/server/pr-env/gate.ts): it builds the atlas commit the image cloned
+# instead of fetching upstream, skips every step and tail that would call an
+# outside API (explorers, RPCs, Discourse, GitHub, OpenRouter), and instead
+# copies the PAU tables, chain_state and the address balances from the
+# development database once, when the environment is seeded. Two variables:
+#   PR_ENV_SOURCE_DATABASE_URL — the development Postgres's PUBLIC URL (its TCP
+#                         proxy; the private network does not span
+#                         environments), logged in as a READ-ONLY role
+#                         (scripts/CLAUDE.md, "PR environments"); the copy
+#                         refuses a login that can write. Set on the base environment so every
+#                         PR environment inherits it. Unset or unreachable:
+#                         one warning a tick, and the environment keeps what
+#                         it has; it never falls back to fetching.
+#   PR_ENV_INERT        — 1/0 forces the mode on/off; unset, only an
+#                         environment named <project>-pr-<n> (or pr-<n>) is inert.
+# The worker logs which way the gate resolved as its first line.
+#
 # Required env vars on the cron service (set in Railway dashboard):
 #   DATABASE_URL        — same Postgres as the web service
 #
