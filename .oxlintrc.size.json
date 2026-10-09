@@ -113,7 +113,6 @@
     { "files": ["scripts/htmlhist/curate-clusters.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 51, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/htmlhist/history-anchored-align.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 68, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/htmlhist/history-html-era.mjs"], "rules": { "max-lines": ["error", { "max": 192, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 101, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["scripts/lib/address-enrich.mjs"], "rules": { "max-lines": ["error", { "max": 202, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 69, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/atlas-git-source.mjs"], "rules": { "max-lines": ["error", { "max": 198, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 131, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/atlas-html.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 52, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/atlas-parser.mjs"], "rules": { "max-lines": ["error", { "max": 332, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 73, "skipBlankLines": true, "skipComments": true }] } },
