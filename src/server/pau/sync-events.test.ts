@@ -104,6 +104,11 @@ describe("syncPauEvents", () => {
     expect(limited.next_block).toBe(0);
     expect(cursors.filter((c) => c.chain === "base").every((c) => c.checked_at !== null)).toBe(true);
   });
+  it("reads Blockscout's 'Too many requests' answer as a rate limit, not an error", async () => {
+    const res = await syncPauEvents(db, reg(), deps({ logs: async () => Promise.reject(new Error("explorer logs: NOTOK Too many requests, please try again later")) }));
+    expect(res).toMatchObject({ rateLimited: ["ethereum"] });
+    expect(cursors.every((c) => c.last_error == null)).toBe(true);
+  });
   it("records other errors on the cursor and carries on", async () => {
     const res = await syncPauEvents(db, reg(), deps({ logs: async (_c, _a, t) => (t[0] === DATA_SET_TOPIC ? Promise.reject(new Error("explorer logs: NOTOK boom")) : []) }));
     expect(res).toMatchObject({ visited: 3, errors: 1, rateLimited: [] });

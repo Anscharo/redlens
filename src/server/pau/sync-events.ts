@@ -108,7 +108,7 @@ export interface SyncResult {
   rateLimited: string[];
 }
 
-const RATE_LIMITED = /\b429\b|rate.?limit|max calls per sec/i;
+const RATE_LIMITED = /\b429\b|rate.?limit|max calls per sec|too many requests/i;
 
 /** One cursor: read its window, store what decodes, advance. "limited" on an explorer rate limit; a database error propagates. */
 async function visit(db: SqlTag, c: CursorRow, to: number, deps: SyncDeps, res: SyncResult): Promise<"limited" | void> {

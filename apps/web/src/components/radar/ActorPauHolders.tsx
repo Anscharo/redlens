@@ -28,7 +28,7 @@ export function PauHolders({ snap }: { snap: PauSnapshot }) {
           const s = STATUS[r.status];
           const text = s[r.check];
           return (
-            <li key={`${r.on}:${r.name}:${r.account}`} className="mono text-[10px] flex flex-wrap items-baseline gap-x-2" data-status={r.status}>
+            <li key={`${r.contract}:${r.name}:${r.account}`} className="mono text-[10px] flex flex-wrap items-baseline gap-x-2" data-status={r.status}>
               <span style={{ color: s.color }} title={text} aria-label={text}>{s.mark}</span>
               <span style={{ color: "var(--tan-2)" }}>{r.name}</span>
               <span style={{ color: "var(--tan-3)" }}>on {ON_LABEL[r.on] ?? r.on}</span>
