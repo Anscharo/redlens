@@ -1087,6 +1087,36 @@
       "title": "Unapproved Products"
     },
     {
+      "taskKey": "u:3e8ed24b-da4a-4c3f-9a74-c3dd6a557abf",
+      "uuid": "3e8ed24b-da4a-4c3f-9a74-c3dd6a557abf",
+      "docNo": "A.6.1.1.1.3.9.7.2.1",
+      "title": "Spark USDS Morpho Vault - Ethereum Mainnet"
+    },
+    {
+      "taskKey": "u:603cf96e-5819-4e3d-942e-5290dd000847",
+      "uuid": "603cf96e-5819-4e3d-942e-5290dd000847",
+      "docNo": "A.6.1.1.1.3.9.7.2.2",
+      "title": "Spark Blue Chip USDC Morpho Vault - Ethereum Mainnet"
+    },
+    {
+      "taskKey": "u:5ef1e78f-e1d2-4b09-b00c-618e36ccb2d8",
+      "uuid": "5ef1e78f-e1d2-4b09-b00c-618e36ccb2d8",
+      "docNo": "A.6.1.1.1.3.9.7.2.3",
+      "title": "Spark Blue Chip USDT Morpho Vault - Ethereum Mainnet"
+    },
+    {
+      "taskKey": "u:85722a93-ec30-4e7f-883c-adde12b0ac6b",
+      "uuid": "85722a93-ec30-4e7f-883c-adde12b0ac6b",
+      "docNo": "A.6.1.1.1.3.9.7.2.4",
+      "title": "Spark USDC Morpho Vault - Base"
+    },
+    {
+      "taskKey": "u:67d8abe9-a398-4c7c-9e0d-ee48e97489e1",
+      "uuid": "67d8abe9-a398-4c7c-9e0d-ee48e97489e1",
+      "docNo": "A.6.1.1.1.3.9.7.2.5",
+      "title": "Sentora RLUSD Morpho Vault - Ethereum Mainnet"
+    },
+    {
       "taskKey": "u:6823cc5a-6667-4754-a030-9ac7126b006e",
       "uuid": "6823cc5a-6667-4754-a030-9ac7126b006e",
       "docNo": "A.6.1.1.2.2.6.1.2.1.1.4.2",

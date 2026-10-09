@@ -404,7 +404,7 @@ export const AtlasReader = memo(function AtlasReader({
     // under it.
     setBodiesExpanded([rootId, ...children], true);
     revealStore.reveal(children);
-  }, [data, writeRungs, visualChildren, setBodiesExpanded, navigate, markExiting]);
+  }, [data, writeRungs, visualChildren, setBodiesExpanded, navigate, markExiting, rungRef]);
 
   // The "N hidden" tab reveals every row beneath the node, left collapsed
   // (bodies closed): every member of the visual span that itself has visual

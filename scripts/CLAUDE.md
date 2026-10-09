@@ -21,7 +21,7 @@ Each build pass is its own script. They run in order in `pnpm build`.
 
 - **`scripts/required/build-index.mjs`** parses `Sky Atlas.md`. It emits `public/docs.json` (`Record<uuid, AtlasNode>`), `public/search-index.json` (serialized MiniSearch index), and a minimal `public/addresses.atlas.json` (`{ addr: { chain } }`). Annotation (roles, labels, tokens) is deferred to `build-graph` Phase 2.6. It imports `lib/atlas-parser.mjs` and `lib/address-chains.mjs`.
 - **`scripts/required/build-glossary.mjs`** finds all `Definitions` sections and collects direct `[Core]` children as terms. It emits `public/glossary.json` keyed by lowercased term.
-- **`scripts/required/build-addresses.mjs`** fetches the Sky chainlog and calls Etherscan `getsourcecode` per unique address. A read-through disk cache lives at `.cache/etherscan/<chainid>/<addr>.json`. It emits `public/addresses.json` (on-chain fields only: `chain`, `chainlogId`, `etherscanName`, `isContract`, `isProxy`, `implementation`). It does **not** delete `public/addresses.atlas.json`. It imports `lib/address-enrich.mjs`.
+- **`scripts/required/build-addresses.mjs`** fetches the Sky chainlog (chainlog.skyeco.com, then the ChainLog contract via `lib/chainlog-onchain.ts` when the site fails; if both fail it keeps `public/addresses.json` and exits 0) and calls Etherscan `getsourcecode` per unique address. A read-through disk cache lives at `.cache/etherscan/<chainid>/<addr>.json`. It emits `public/addresses.json` (on-chain fields only: `chain`, `chainlogId`, `etherscanName`, `isContract`, `isProxy`, `implementation`). It does **not** delete `public/addresses.atlas.json`. It imports `lib/address-enrich.mjs`.
 
 **Address artifact split:**
 

@@ -324,7 +324,7 @@ const htmlShingles = lastHtmlNodes.map((n) => shingleSet(n.content));
 // inverted index: shingle -> [htmlRowIndex]
 const seedIndex = new Map();
 lastHtmlNodes.forEach((_, i) => { for (const s of htmlShingles[i]) { let a = seedIndex.get(s); if (!a) seedIndex.set(s, (a = [])); a.push(i); } });
-const TITLE_TIE_WINDOW = 0.1, TITLE_TIE_MARGIN = 0.34;
+const TITLE_TIE_WINDOW = 0.1;
 
 markdownDocs.forEach((mdDoc, mi) => {
   const docShingles = markdownShingles[mi];
@@ -338,7 +338,6 @@ markdownDocs.forEach((mdDoc, mi) => {
   const [bestRow, bestCov] = ranked[0], secondCov = ranked[1]?.[1] ?? 0;
   if (bestCov < 0.5 || bestCov - secondCov >= 0.1) return; // confident or no-match → not a close call
   // title tiebreak (mirrors seedFromMd) to mark the auto-pick the pipeline would seed
-  const rowTitle = titleTokens(lastHtmlNodes[bestRow].title);
   let autoRow = bestRow, autoTitleScore = jaccard(markdownTitleTokens[mi], titleTokens(lastHtmlNodes[bestRow].title)) ;
   for (const [ri, cov] of ranked) {
     if (bestCov - cov > TITLE_TIE_WINDOW) break;

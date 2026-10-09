@@ -4315,7 +4315,7 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Tokenize
     "title": "Off-chain Operational Parameters",
   },
   {
-    "content": "Total exposure through this Instance may not exceed 500,000,000 USDS.",
+    "content": "Total exposure through this Instance may not exceed 1,500,000,000 USDS.",
     "title": "Maximum Exposure",
   },
   {
@@ -10001,6 +10001,16 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Sentora 
     "content": "Force-Deallocate Penalty: 0.01%",
     "title": "Force-Deallocate Penalty",
   },
+  {
+    "content": "The documents herein contain exposure details for this Instance.",
+    "title": "Market Exposure",
+  },
+  {
+    "content": "- Pool ID: 0xa128dddc761075df9a9a60689f3a41a989b245aad506352c509c0c3a76a9ec6b
+- Absolute cap: 250 million
+- Relative cap: 10%",
+    "title": "WBTC/RLUSD 86% LLTV Pool",
+  },
 ]
 `;
 
@@ -15243,7 +15253,7 @@ exports[`instances > allocation-system instances 1`] = `
       "Inflow Rate Limits / slope": "50,000,000 USDS per day",
       "Inflow RateLimitID": "0x44ad4f925dffddd260f6ba5813208bf35b11b254e79611cbc8443c1504f68e68",
       "JTRSY Rate Provider Address": "0x29209ceCFeFa6f675E6f1f829320D67cE2b025E5",
-      "Maximum Exposure": "Total exposure through this Instance may not exceed 500,000,000 USDS.",
+      "Maximum Exposure": "Total exposure through this Instance may not exceed 1,500,000,000 USDS.",
       "Network": "Ethereum Mainnet",
       "Outflow Rate Limits / maxAmount": "Unlimited",
       "Outflow RateLimitID": "0x0d8db6f922b464d5eb8ac718bef62b82b05d9bd0ea5dafd09ccd0461d4d98e12",

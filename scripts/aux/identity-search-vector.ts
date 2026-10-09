@@ -66,7 +66,6 @@ const pairs: Pair[] = [];
 const band = (t: string): Pair["band"] => { const n = lineCount(t); return n <= SHORT_BODY_MAX_LINES ? "short" : n <= 20 ? "mid" : "long"; };
 
 // ---- real retitles, from the atlas git history ------------------------------
-let retitleCommits = 0;
 let lastWorld: { of: Map<string, Node>; world: World } | null = null;
 const latest = walkRetitles((c, beforeNodes, afterNodes, ids) => {
   // Rows are planned over the whole atlas, so only for commits that need it,
@@ -81,12 +80,10 @@ const latest = walkRetitles((c, beforeNodes, afterNodes, ids) => {
   const added = [...after.byId.keys()].filter((id) => !before.byId.has(id));
   const swapNodes = (w: World) => w.byId as Map<string, SwapNode>;
   const { identitySwap } = detectIdentitySwaps({ changed, added, mainById: swapNodes(before), previewById: swapNodes(after) });
-  let used = 0;
   for (const id of ids) {
     const a = before.byId.get(id)!, b = after.byId.get(id)!;
     if (!a.content.trim() || !b.content.trim()) continue; // the gate skips a stub on either side
     if (wordCount(a.content) < JUDGEABLE_MIN_WORDS) continue; // …and a body too small to judge
-    used++;
     pairs.push({
       group: "retitle", band: band(a.content), anchor: before.anchors.has(id) || after.anchors.has(id),
       shapeChanged: before.anchors.has(id) !== after.anchors.has(id),
@@ -96,7 +93,6 @@ const latest = walkRetitles((c, beforeNodes, afterNodes, ids) => {
       note: `${c.hash.slice(0, 7)} ${c.date.slice(0, 10)} ${id.slice(0, 8)}`, body: NaN, search: NaN, word: NaN, line: NaN,
     });
   }
-  if (used) retitleCommits++;
 });
 const live0 = world(latest);
 const retitleCount = pairs.length;

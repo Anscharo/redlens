@@ -5,7 +5,7 @@
  *
  * Inputs:
  *   public/addresses.merged.json   (intermediate; produced by build-index.mjs)
- *   https://chainlog.skyeco.com/api/mainnet/active.json
+ *   https://chainlog.skyeco.com/api/mainnet/active.json (ChainLog contract on failure)
  *   Etherscan v2 getsourcecode      (one call per unique non-mainnet+mainnet addr)
  *
  * Outputs:
@@ -56,13 +56,15 @@ console.log(`Loaded ${Object.keys(atlas).length} merged atlas addresses`);
 
 const chainlog = await fetchChainlog();
 
+// Writing without a chainlog would strip every chainlogId and leave
+// snap:chainstate with no contracts to sweep, so the existing file stays. The
+// step still exits 0: an unreachable chainlog must not fail the whole build.
 if (!chainlog || Object.keys(chainlog).length === 0) {
-  console.error(
-    "Chainlog fetch failed or returned empty — refusing to overwrite public/addresses.json.\n" +
-    "Doing so would strip every chainlogId and leave snap:chainstate with no contracts to sweep.\n" +
-    "Keeping the existing committed artifacts; retry when chainlog.skyeco.com is reachable.",
+  console.warn(
+    "Chainlog unavailable from both chainlog.skyeco.com and the ChainLog contract — leaving public/addresses.json unchanged.\n" +
+    "Retry `pnpm build:addresses` when either source is reachable.",
   );
-  process.exit(1);
+  process.exit(0);
 }
 
 console.log(`Loaded chainlog: ${Object.keys(chainlog).length} mainnet entries`);

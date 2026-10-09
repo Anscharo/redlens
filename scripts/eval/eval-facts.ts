@@ -63,8 +63,8 @@ function score(fired: (c: Scored) => boolean, cases: Scored[], arm: string, thre
   for (const c of cases) {
     const f = fired(c);
     if (f && c.fire) tp++;
-    else if (f && !c.fire) (fp++, falseFires.push(c.q));
-    else if (!f && c.fire) (fn++, misses.push(c.q));
+    else if (f && !c.fire) { fp++; falseFires.push(c.q); }
+    else if (!f && c.fire) { fn++; misses.push(c.q); }
     else tn++;
   }
   const f1 = tp === 0 ? 0 : (2 * tp) / (2 * tp + fp + fn);

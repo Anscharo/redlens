@@ -250,7 +250,7 @@ export async function runAutoCurate({
           const win = remaining.slice(i, i + W);
           // candidate-complete: the union of THIS window's subjects' own candidates, still available.
           const cand = [...new Set(win.flatMap((k) => (byKey.get(k).candidates || []).map((c) => c.key)).filter((k) => avail.has(k)))].sort((a, b) => occN(a) - occN(b) || a.localeCompare(b));
-          const { locks, disagreed, conflicts } = await resolveWindow(win, cand, change);
+          const { locks, conflicts } = await resolveWindow(win, cand, change);
           clu.conflicts += conflicts;
           const lockedSet = new Set(locks.map((l) => l.subjectKey));
           commitLocks(locks);
