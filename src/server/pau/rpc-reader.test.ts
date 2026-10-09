@@ -1,21 +1,34 @@
 // The live reader's failure contract: a chain with no RPC, an RPC that errors,
 // and a head lookup that fails all come back as null values, never a throw,
 // so one dead endpoint marks its own values unread instead of failing a tick.
-import { afterEach, describe, expect, it } from "bun:test";
-import { rpcChainReader, rpcHead } from "./rpc-reader.ts";
+//
+// viem is mocked here rather than reached through a stubbed fetch: Bun keeps a
+// mock.module for the whole run, so another file's viem mock would otherwise
+// answer these calls depending on file order.
+import { beforeEach, describe, expect, it, mock } from "bun:test";
+import * as realViem from "viem";
 
-const realFetch = globalThis.fetch;
-afterEach(() => {
-  globalThis.fetch = realFetch;
+let multicallImpl: (contracts: unknown[]) => Promise<unknown[]>;
+let headImpl: () => Promise<bigint>;
+
+mock.module("viem", () => ({
+  ...realViem,
+  createPublicClient: () => ({
+    multicall: ({ contracts }: { contracts: unknown[] }) => multicallImpl(contracts),
+    getBlockNumber: () => headImpl(),
+  }),
+}));
+
+const { rpcChainReader, rpcHead } = await import("./rpc-reader.ts");
+
+const down = async (): Promise<never> => {
+  throw new Error("HTTP request failed. Status: 500");
+};
+
+beforeEach(() => {
+  multicallImpl = down;
+  headImpl = down;
 });
-
-function answer(body: (req: { method: string; id: number }) => unknown) {
-  globalThis.fetch = (async (_url: string, init: RequestInit) => {
-    const req = JSON.parse(String(init.body));
-    const reply = Array.isArray(req) ? req.map((r) => ({ jsonrpc: "2.0", id: r.id, result: body(r) })) : { jsonrpc: "2.0", id: req.id, result: body(req) };
-    return new Response(JSON.stringify(reply), { headers: { "content-type": "application/json" } });
-  }) as typeof fetch;
-}
 
 const call = { address: "0x" + "1".repeat(40), functionName: "getCurrentRateLimit" as const, args: [`0x${"0".repeat(64)}`] };
 
@@ -24,19 +37,21 @@ describe("rpcChainReader", () => {
     expect(await rpcChainReader()("not-a-chain", [call, call])).toEqual([null, null]);
   });
   it("answers null for every call when the RPC fails", async () => {
-    globalThis.fetch = (async () => new Response("down", { status: 500 })) as unknown as typeof fetch;
     expect(await rpcChainReader()("ethereum", [call])).toEqual([null]);
+  });
+  it("answers null only for the calls that fail", async () => {
+    multicallImpl = async () => [{ status: "success", result: 7n }, { status: "failure", error: new Error("revert") }];
+    expect(await rpcChainReader()("ethereum", [call, call])).toEqual([7n, null]);
   });
 });
 
 describe("rpcHead", () => {
   it("reads the head block", async () => {
-    answer(() => "0x2a");
+    headImpl = async () => 42n;
     expect(await rpcHead("ethereum")).toBe(42);
   });
   it("is null for a chain with no RPC or an RPC that fails", async () => {
     expect(await rpcHead("not-a-chain")).toBeNull();
-    globalThis.fetch = (async () => new Response("down", { status: 500 })) as unknown as typeof fetch;
     expect(await rpcHead("ethereum")).toBeNull();
   });
 });
