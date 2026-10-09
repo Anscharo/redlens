@@ -18,10 +18,6 @@
   },
   "overrides": [
     { "files": ["**/*.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 75, "skipBlankLines": true, "skipComments": true }] } },
-    // Raised by 4 / 3 in total: the lane pill's `lane` / `onLaneSelect` props and the
-    // mode pills' disabled-reason, all JSX plumbing through the shell, plus that
-    // reason's copy. None of it can live anywhere but the shell that renders the bar.
-    { "files": ["apps/web/src/App.tsx"], "rules": { "max-lines": ["error", { "max": 268, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 227, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/admin/ColorPickerModal.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 124, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/admin/PalettePage.tsx"], "rules": { "max-lines": ["error", { "max": 211, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 195, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/admin/PalettePreview.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 103, "skipBlankLines": true, "skipComments": true }] } },
