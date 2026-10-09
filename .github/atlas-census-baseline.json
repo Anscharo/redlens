@@ -148,8 +148,8 @@
       "samples": []
     },
     "Core|plain": {
-      "total": 8307,
-      "uncovered": 6373,
+      "total": 8309,
+      "uncovered": 6375,
       "samples": [
         "A.0.1.1.1",
         "A.0.1.1.10",
