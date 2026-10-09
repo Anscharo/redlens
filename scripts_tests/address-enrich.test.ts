@@ -59,6 +59,11 @@ describe("fetchChainlog", () => {
     expect(await fetchChainlog(onchain)).toEqual({ "0xabc0000000000000000000000000000000000001": "MCD_VAT" });
     expect(onchain).toHaveBeenCalledOnce();
   });
+  it.each([[null], [[]], [{}]])("treats a 200 with %j as an outage and reads the contract", async (body) => {
+    vi.stubGlobal("fetch", vi.fn(async () => okJson(body)));
+    const onchain = vi.fn(async () => ({ MCD_VAT: "0xAbC0000000000000000000000000000000000001" }));
+    expect(await fetchChainlog(onchain)).toEqual({ "0xabc0000000000000000000000000000000000001": "MCD_VAT" });
+  });
   it("returns null (not {}) when both sources fail so callers can refuse to overwrite", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) })));
     expect(await fetchChainlog(async () => { throw new Error("rpc down"); })).toBeNull();

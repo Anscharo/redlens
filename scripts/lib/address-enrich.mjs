@@ -63,7 +63,12 @@ async function writeCache(chainid, addr, entry) {
 async function fetchChainlogJson() {
   const res = await fetch(CHAINLOG_URL);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const data = await res.json();
+  // A 200 with null, an array or {} is an outage in disguise: fall through to the contract.
+  if (!data || typeof data !== "object" || Array.isArray(data) || Object.keys(data).length === 0) {
+    throw new Error("unexpected response shape");
+  }
+  return data;
 }
 
 /**
