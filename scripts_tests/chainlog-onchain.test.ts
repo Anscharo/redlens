@@ -3,7 +3,8 @@
 import { describe, it, expect, vi } from "vitest";
 
 const readContract = vi.fn(async () => 2n);
-const multicall = vi.fn(async () => [
+type MulticallArgs = { contracts: { args: bigint[] }[]; allowFailure: boolean };
+const multicall = vi.fn(async (_args: MulticallArgs) => [
   ["0x" + "4d43445f564154".padEnd(64, "0"), "0xAbC0000000000000000000000000000000000001"],
   ["0x" + "4d43445f4a554d50".padEnd(64, "0"), "0xAbC0000000000000000000000000000000000002"],
 ]);
@@ -21,7 +22,7 @@ describe("readChainlogOnchain", () => {
       "MCD_VAT": "0xAbC0000000000000000000000000000000000001",
       "MCD_JUMP": "0xAbC0000000000000000000000000000000000002",
     });
-    const call = multicall.mock.calls[0][0] as { contracts: { args: bigint[] }[]; allowFailure: boolean };
+    const call = multicall.mock.calls[0][0];
     expect(call.contracts.map((c) => c.args[0])).toEqual([0n, 1n]);
     expect(call.allowFailure).toBe(false);
   });

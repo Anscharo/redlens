@@ -10,7 +10,7 @@ async function fetchChainlogJson(): Promise<Record<string, unknown>> {
   if (!data || typeof data !== "object" || Array.isArray(data) || Object.keys(data).length === 0) {
     throw new Error("unexpected response shape");
   }
-  return data;
+  return data as Record<string, unknown>;
 }
 
 /**
