@@ -36,7 +36,7 @@ const clip = (t: string) => (t.length > 140 ? `${t.slice(0, 140)}…` : t);
 export function PauChangeLine({ c, chain, names }: { c: PauChange; chain: string; names: KeyNames }) {
   if (c.event === "RateLimitDataSet") {
     return (
-      <li className="mono text-[10px] break-words" data-event={c.event} style={{ color: "var(--tan-2)" }}>
+      <li className="mono text-[11px] break-words" data-event={c.event} style={{ color: "var(--tan-2)" }}>
         <LimitName r={{ key: String(c.subject), derived: names.derived.get(String(c.subject).toLowerCase()) }} chain={chain} keyIndex={names.keyIndex} /> <LimitValue c={c} />
       </li>
     );
@@ -45,7 +45,7 @@ export function PauChangeLine({ c, chain, names }: { c: PauChange; chain: string
   const raw = c.subject === account ? null : c.subject;
   const subject = c.label ?? (raw && raw.length > 20 ? `${raw.slice(0, 10)}…` : raw);
   return (
-    <li className="mono text-[10px] break-words" data-event={c.event} style={{ color: "var(--tan-2)" }}>
+    <li className="mono text-[11px] break-words" data-event={c.event} style={{ color: "var(--tan-2)" }}>
       {c.event} <span title={c.subject ?? undefined}>{subject}</span>
       {account ? <> <Address address={account} chain={chain} noBalance /></> : <span style={dim} title={argsText(c)}> {clip(argsText(c))}</span>}
       <span style={dim}> on {c.role}</span>

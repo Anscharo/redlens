@@ -14,7 +14,7 @@ export function PauOriginChip({ chain, tx }: { chain: string; tx: string }) {
   return (
     <a
       href={`#${txAnchor(chain, tx)}`}
-      className="pau-origin-chip mono text-[9px] px-1 rounded hover:underline whitespace-nowrap"
+      className="pau-origin-chip mono text-[10px] px-1 rounded hover:underline whitespace-nowrap"
       data-kind={entry.origin?.kind ?? "pending"}
       title={title || undefined}
       style={{ border: "1px solid var(--border)", color: "var(--tan-2)" }}

@@ -87,9 +87,9 @@ function LimitRow({ r, chain, keyIndex }: { r: LiveRateLimit; chain: string; key
 export function PauRateLimits({ chain, limits, keyIndex }: Props) {
   if (limits.length === 0) return null;
   return (
-    <table className="w-full border-collapse mt-3 text-[11px]">
+    <table className="w-full border-collapse mt-3 text-[12px]">
       <thead>
-        <tr className="mono text-[10px] uppercase tracking-wider" style={dim}>
+        <tr className="mono text-[11px] uppercase tracking-wider" style={dim}>
           <th className="text-left font-normal pb-1">Rate limit</th>
           <th className="text-right font-normal pb-1">Max</th>
           <th className="text-right font-normal pb-1">Per day</th>

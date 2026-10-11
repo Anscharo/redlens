@@ -43,9 +43,9 @@ export function PauTimelineGroup({ g, names, beamOf }: Props) {
   return (
     <li className="pau-timeline-group border-t border-[var(--border)] pt-2" data-kind={g.kind}>
       <details>
-        <summary className="cursor-pointer text-xs" style={{ color: "var(--tan-2)" }}>
+        <summary className="cursor-pointer text-[13px]" style={{ color: "var(--tan-2)" }}>
           {g.kind === "deployment" ? "Deployment" : <PauTimelineHeader g={g} beam={beam} />}
-          <span className="mono text-[10px]" style={dim}> · {chains(g)} · {n} change{n === 1 ? "" : "s"} in {g.entries.length} tx · {span(g)}</span>
+          <span className="mono text-[11px]" style={dim}> · {chains(g)} · {n} change{n === 1 ? "" : "s"} in {g.entries.length} tx · {span(g)}</span>
         </summary>
         {entries}
       </details>

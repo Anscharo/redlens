@@ -26,7 +26,7 @@ export function ActorPau({ prime, instances }: Props) {
   );
   if (snaps.length === 0) {
     return (
-      <p className="mono text-[10px]" style={{ color: "var(--tan-3)" }}>
+      <p className="mono text-[11px]" style={{ color: "var(--tan-3)" }}>
         {res ? "no PAU contracts have been read for this Prime yet" : "loading PAU snapshots…"}
       </p>
     );
@@ -34,7 +34,7 @@ export function ActorPau({ prime, instances }: Props) {
 
   return (
     <section aria-label="PAU on-chain">
-      <p className="text-[11px] mb-3" style={{ color: "var(--tan-3)" }}>
+      <p className="text-[12px] mb-3" style={{ color: "var(--tan-3)" }}>
         Read from the chain for each contract in the PAU registry. Role holders come from the contracts&apos; grant history,
         each confirmed live; a rate limit is named by the prime or instance whose parameters state its ID.
       </p>

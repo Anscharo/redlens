@@ -9,7 +9,7 @@ const chainLabel = (chain: string) => chain.charAt(0).toUpperCase() + chain.slic
 export function PauTimelineEntry({ e, names }: { e: PauHistoryEntry; names: KeyNames }) {
   return (
     <li id={txAnchor(e.chain, e.tx)} className="pau-timeline-entry pt-1" style={{ scrollMarginTop: "64px" }} data-chain={e.chain}>
-      <p className="mono text-[10px] flex flex-wrap gap-x-2" style={dim}>
+      <p className="mono text-[11px] flex flex-wrap gap-x-2" style={dim}>
         <span style={{ color: "var(--tan)" }}>{chainLabel(e.chain)}</span>
         <a href={explorerTxUrl(e.chain, e.tx)} target="_blank" rel="noopener" className="hover:underline" title={e.tx}>
           {e.time.slice(0, 16).replace("T", " ")} UTC

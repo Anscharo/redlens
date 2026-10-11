@@ -24,8 +24,8 @@ export function ActorPauTimeline({ prime, snaps, keyIndex }: Props) {
   if (groups.length === 0) return null;
   return (
     <section aria-labelledby="pau-change-history" className="mt-6" id="pau-history" style={{ scrollMarginTop: "64px" }}>
-      <h3 id="pau-change-history" className="mono text-[11px] uppercase tracking-wider mb-1" style={{ color: "var(--tan-2)" }}>Change history</h3>
-      <p className="text-[11px] mb-2" style={{ color: "var(--tan-3)" }}>
+      <h3 id="pau-change-history" className="mono text-[12px] uppercase tracking-wider mb-1" style={{ color: "var(--tan-2)" }}>Change history</h3>
+      <p className="text-[12px] mb-2" style={{ color: "var(--tan-3)" }}>
         Each change is credited to a spell only when the chain proves it: DSPause ran the spell in the transaction, the prime&apos;s StarGuard
         executed a star spell that spell plotted, or a bridge message id ties an L2 action set to that transaction.
       </p>

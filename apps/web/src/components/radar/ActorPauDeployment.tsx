@@ -22,15 +22,15 @@ export function PauDeployment({ snap, keyIndex, defaultOpen }: { snap: StoredPau
   const loading = snap.contracts.some((c) => !c.historyComplete);
   return (
     <details open={defaultOpen} className="pau-deployment mb-3 border-t border-[var(--border)] pt-2" data-deployment={snap.deployment} data-kind={snap.kind}>
-      <summary className="cursor-pointer mono text-[11px] flex flex-wrap items-baseline gap-2" style={{ color: "var(--tan)" }}>
+      <summary className="cursor-pointer mono text-[12px] flex flex-wrap items-baseline gap-2" style={{ color: "var(--tan)" }}>
         <span>{chainLabel(snap.chain)}</span>
-        <span className="text-[10px] px-1.5 rounded" style={{ border: "1px solid var(--border)", color: "var(--tan-2)" }}>{snap.kind}</span>
-        <span className="text-[10px]" style={dim}>{limits.length} rate limits</span>
-        {loading && <span className="text-[10px]" style={{ color: "var(--accent)" }}>history still being read</span>}
+        <span className="text-[11px] px-1.5 rounded" style={{ border: "1px solid var(--border)", color: "var(--tan-2)" }}>{snap.kind}</span>
+        <span className="text-[11px]" style={dim}>{limits.length} rate limits</span>
+        {loading && <span className="text-[11px]" style={{ color: "var(--accent)" }}>history still being read</span>}
       </summary>
       <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
         {snap.contracts.map((c) => (
-          <li key={c.address} className="mono text-[10px]" style={dim}>
+          <li key={c.address} className="mono text-[11px]" style={dim}>
             {ROLE_LABEL[c.role] ?? c.role} <Address address={c.address} chain={snap.chain} />
           </li>
         ))}
@@ -39,7 +39,7 @@ export function PauDeployment({ snap, keyIndex, defaultOpen }: { snap: StoredPau
       <PauRateLimits chain={snap.chain} limits={limits} keyIndex={keyIndex} />
       {snap.contracts.map((c) => c.beam && <PauBeam key={c.address} beam={c.beam} chain={snap.chain} keyIndex={keyIndex} />)}
       <PauParams params={params} />
-      <p className="mono text-[10px] mt-2" style={dim}>read {snap.fetchedAt.slice(0, 16).replace("T", " ")} UTC</p>
+      <p className="mono text-[11px] mt-2" style={dim}>read {snap.fetchedAt.slice(0, 16).replace("T", " ")} UTC</p>
     </details>
   );
 }
@@ -55,10 +55,10 @@ function PauParams({ params }: { params: (PauParam & { contract: string })[] }) 
   if (params.length === 0) return null;
   return (
     <div className="mt-3">
-      <h4 className="mono text-[10px] uppercase tracking-wider mb-1" style={dim}>Parameters</h4>
+      <h4 className="mono text-[11px] uppercase tracking-wider mb-1" style={dim}>Parameters</h4>
       <ul className="space-y-0.5">
         {params.map((p) => (
-          <li key={`${p.contract}:${p.event}:${p.subject}`} className="mono text-[10px] break-words" style={{ color: "var(--tan-2)" }}>
+          <li key={`${p.contract}:${p.event}:${p.subject}`} className="mono text-[11px] break-words" style={{ color: "var(--tan-2)" }}>
             {p.event} <span title={p.subject}>{p.subject.length > 20 ? `${p.subject.slice(0, 10)}…` : p.subject}</span>{" "}
             <span style={dim}>{paramValue(p)}</span>
           </li>

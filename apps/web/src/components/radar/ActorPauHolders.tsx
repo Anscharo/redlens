@@ -22,13 +22,13 @@ export function PauHolders({ snap }: { snap: PauSnapshot }) {
   if (rows.length === 0) return null;
   return (
     <div className="mt-3">
-      <h4 className="mono text-[10px] uppercase tracking-wider mb-1" style={{ color: "var(--tan-3)" }}>Roles</h4>
+      <h4 className="mono text-[11px] uppercase tracking-wider mb-1" style={{ color: "var(--tan-3)" }}>Roles</h4>
       <ul className="space-y-0.5">
         {rows.map((r) => {
           const s = STATUS[r.status];
           const text = s[r.check];
           return (
-            <li key={`${r.contract}:${r.name}:${r.account}`} className="mono text-[10px] flex flex-wrap items-baseline gap-x-2" data-status={r.status}>
+            <li key={`${r.contract}:${r.name}:${r.account}`} className="mono text-[11px] flex flex-wrap items-baseline gap-x-2" data-status={r.status}>
               <span style={{ color: s.color }} title={text} aria-label={text}>{s.mark}</span>
               <span style={{ color: "var(--tan-2)" }}>{r.name}</span>
               <span style={{ color: "var(--tan-3)" }}>on {ON_LABEL[r.on] ?? r.on}</span>
