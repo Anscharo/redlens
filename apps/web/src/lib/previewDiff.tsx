@@ -4,6 +4,7 @@ import { usePreviewView } from "./previewView";
 import type { ActiveBase, PreviewBaseKey, PreviewBases } from "./previewMetaCopy";
 import type { DiffLine } from "@/lib/history";
 import { loadIdentityVerdict } from "./previewIdentity";
+import { loadPreviewMeta } from "./previewMeta";
 
 // Doc ids the preview adds / changes vs current main (from GET diff.json).
 // Drives the green new/changed redline indicators. `renumbered` maps a changed
@@ -110,9 +111,7 @@ export function PreviewDiffProvider({ children }: { children: ReactNode }) {
     let live = true;
     const gone = new AbortController();
     async function run() {
-      const meta: { bases?: PreviewBases } | null = await fetch(`${base}meta.json`)
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null);
+      const meta = await loadPreviewMeta(base);
       if (!live) return;
       const { fetchKey, activeBase } = resolveBase(baseKey, meta?.bases);
       const url = fetchKey ? `${base}diff.${fetchKey}.json` : `${base}diff.json`;

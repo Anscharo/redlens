@@ -9,6 +9,7 @@ import { loadChainState } from "../lib/chainstate";
 import { loadHealth } from "../lib/health";
 import { liveAtlasSha } from "../lib/atlasBase";
 import { useDataSource } from "../lib/dataSource";
+import { usePreviewMeta } from "../lib/previewMeta";
 import { StatusPill } from "./StatusPill";
 import { FooterInfo } from "./FooterInfo";
 import { FooterHint } from "./FooterHint";
@@ -29,7 +30,6 @@ export function Footer() {
   const [block, setBlock] = useState<string | null>(null);
   const [atlasCommit, setAtlasCommit] = useState<string | null>(null);
   const [nodeCount, setNodeCount] = useState<number>(0);
-  const [previewRepo, setPreviewRepo] = useState<string | null>(null);
   // No "atlas updated" prompt in preview — the bundle is pinned to a SHA, so we
   // pass null (useAtlasVersion no-ops on null), keeping the hook call unconditional.
   // Compared against liveAtlasSha() — the sha this page was actually served/pinned
@@ -65,12 +65,7 @@ export function Footer() {
     }
   }, [base, preview]);
 
-  useEffect(() => {
-    if (!preview) { setPreviewRepo(null); return; }
-    fetch(`${base}meta.json`).then((r) => r.json()).then((m) => setPreviewRepo(m.repo)).catch(() => {});
-  }, [base, preview]);
-
-  const atlasRepo = previewRepo ?? "sky-ecosystem/next-gen-atlas";
+  const atlasRepo = usePreviewMeta(preview ? base : null)?.repo ?? "sky-ecosystem/next-gen-atlas";
 
   const buildDate = __BUILD_TIME__.slice(0, 19).replace("T", " ");
   // buildBehind (this JS build is older than the server's) surfaces through the

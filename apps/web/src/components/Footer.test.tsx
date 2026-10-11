@@ -12,6 +12,7 @@ import { loadAtlas } from "../lib/docs";
 import { loadChainState } from "../lib/chainstate";
 import { loadHealth } from "../lib/health";
 import { useDataSource } from "../lib/dataSource";
+import { resetPreviewMetaCache } from "../lib/previewMeta";
 
 vi.mock("../hooks/useOnlineStatus", () => ({ useOnlineStatus: vi.fn() }));
 vi.mock("../hooks/useSWUpdate", () => ({ useSWUpdate: vi.fn() }));
@@ -58,6 +59,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  resetPreviewMetaCache();
   vi.restoreAllMocks();
   delete (window as unknown as { __ATLAS_SHA__?: string }).__ATLAS_SHA__;
 });
