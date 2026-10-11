@@ -22,7 +22,6 @@ import type { CitationStyle } from "./system-prompt.ts";
 import { looksComplex } from "./complexity.ts";
 import { EXTREMUM_Q_RE } from "./verify/completeness.ts";
 import { JEV_COMPLEXITY_THRESHOLD } from "./prefetch-judge.ts";
-import { knownChain } from "./model-catalog.ts";
 
 export type ModelTier = "fast" | "default" | "strong";
 
@@ -135,15 +134,11 @@ export function citationStyleFor(model: string): CitationStyle {
 
 // Tier → model chain: first entry is the primary, the rest are OpenRouter
 // fallbacks tried in order on provider failure. Unset tier slots inherit the
-// default chain so partial configuration can't strand a tier. IDs the boot
-// check found missing from OpenRouter's catalog are left out (model-catalog.ts),
-// so a tier whose every ID is mistyped falls back to the default chain.
+// default chain so partial configuration can't strand a tier.
 export function resolveTierModels(tier: ModelTier): string[] {
-  const fast = knownChain(config.chatModelFast);
-  if (tier === "fast" && fast.length) return fast;
-  const strong = knownChain(config.chatModelStrong);
-  if (tier === "strong" && strong.length) return strong;
-  return [config.chatModel, ...knownChain(config.chatModelFallbacks)];
+  if (tier === "fast" && config.chatModelFast.length) return config.chatModelFast;
+  if (tier === "strong" && config.chatModelStrong.length) return config.chatModelStrong;
+  return [config.chatModel, ...config.chatModelFallbacks];
 }
 
 /** Hard tool-round cap for this turn. Strong never sits below the default cap. */

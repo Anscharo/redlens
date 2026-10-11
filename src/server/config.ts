@@ -79,7 +79,9 @@ const canonicalHostRedirect =
 // One CSV rule for every comma-separated model list, parsed once — the
 // /teach review default and chatModelStrong used to each re-parse
 // CHAT_MODEL_STRONG with a copy of the same expression.
-const csv = (v: string | undefined): string[] => (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+// OpenRouter 400s an unknown ID, so stray characters (a trailing ".") are dropped.
+const modelId = (s: string): string => s.replace(/[^\w./:~-]/g, "").replace(/[./:~-]+$/, "");
+const csv = (v: string | undefined): string[] => (v ?? "").split(",").map(modelId).filter(Boolean);
 const chatModelStrongList = csv(process.env.CHAT_MODEL_STRONG);
 // The pinned Jev release every Jev-backed lane defaults to. Pinned, not
 // `~typesafe/jev-latest`, so a floating release can't move a shipped threshold
@@ -279,7 +281,7 @@ export const config = {
   searchSemanticUserPerHour: Number(process.env.SEARCH_SEMANTIC_USER_PER_HOUR ?? 600),
 
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.
-  chatModel: process.env.CHAT_MODEL ?? "google/gemma-4-31b-it",
+  chatModel: modelId(process.env.CHAT_MODEL ?? "google/gemma-4-31b-it"),
   // Cheap LLM call that titles a conversation after assistant turns 1, 4, and
   // 10 (title.ts). Unlike chatVerifierModel (empty = feature OFF, opt-in
   // reliability-harness extras), this is chatModel-style

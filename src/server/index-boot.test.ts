@@ -41,7 +41,6 @@ function fakeDeps(over: Partial<BootDeps> = {}): { deps: BootDeps; calls: string
     startBootEmbeddings: () => void calls.push("startBootEmbeddings"),
     startUpdater: () => void calls.push("startUpdater"),
     startPreviewSweeper: async () => void calls.push("startPreviewSweeper"),
-    checkChatModels: async () => void calls.push("checkChatModels"),
     ...over,
   };
   return { deps, calls };

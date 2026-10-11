@@ -33,10 +33,6 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-10-11
-
-- Fixed harder chat questions failing with a "not a valid model ID" error
-
 ## 2026-10-08
 
 - Compared the rate limits a document states with the PAU contract's live values in the right-hand panel's Onchain section

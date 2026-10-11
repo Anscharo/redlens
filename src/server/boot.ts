@@ -10,7 +10,6 @@ import { checkAuthConfig } from "./check-auth-config.ts";
 import { buildRoutes } from "./routes.ts";
 import { handleRequest } from "./request-handler.ts";
 import { seedDbIfEmpty } from "./seed-db.ts";
-import { checkChatModelIds } from "./chat/model-catalog.ts";
 
 // Everything boot needs from the outside world, injected so the sequence runs
 // without a socket, Postgres or a subprocess. Only tests pass anything but realBootDeps.
@@ -25,7 +24,6 @@ export interface BootDeps {
   startBootEmbeddings: () => void;
   startUpdater: () => void;
   startPreviewSweeper: () => Promise<void>;
-  checkChatModels: () => Promise<unknown>;
 }
 
 const realBootDeps: BootDeps = {
@@ -47,7 +45,6 @@ const realBootDeps: BootDeps = {
     const { startPreviewDiffBaseBackfill } = await import("./preview/diff-base-backfill.ts");
     startPreviewDiffBaseBackfill();
   },
-  checkChatModels: () => checkChatModelIds(),
 };
 
 function loadAndPinIndexes(deps: BootDeps): void {
@@ -93,6 +90,4 @@ export async function boot(deps: BootDeps = realBootDeps): Promise<void> {
   deps.startBootEmbeddings();
   deps.startUpdater(); // ATLAS_UPDATE_ENABLED=0 disables
   void deps.startPreviewSweeper();
-  // Chat-only, and never awaited: a slow catalog fetch must not delay serving.
-  if (config.openrouterApiKey) void deps.checkChatModels();
 }
