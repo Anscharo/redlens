@@ -1,6 +1,6 @@
 // The atlas against the contract: a stated key or one derived from a listed
-// address, compared in token units (slopes per day); a switched-off limit
-// agreeing whatever slope the atlas writes; and every reason a value cannot be
+// address, compared in token units (slopes per day); each field of a
+// switched-off limit judged on its own; and every reason a value cannot be
 // compared kept apart from a mismatch.
 import { describe, expect, it } from "vitest";
 import type { LiveRateLimit, StoredPauSnapshot } from "./pau.ts";
@@ -46,10 +46,10 @@ describe("checkAtlasValues", () => {
       ["Outflow maxAmount", "match", "monolithic"], ["Outflow slope", "mismatch", "monolithic"],
     ]);
   });
-  it("lets any slope agree with a limit both sides switch off", () => {
-    const off = [snap("ethereum", "monolithic", [lim(K_IN, "0", "0")])];
-    const s = src("Ethereum Mainnet - Off", { "Inflow RateLimitID": K_IN, "Inflow Rate Limits / maxAmount": "0", "Inflow Rate Limits / slope": "Unlimited" });
-    expect(checkAtlasValues([s], off).map((c) => c.status)).toEqual(["match", "match"]);
+  it("judges a switched-off limit's slope on its own, not by its maxAmount", () => {
+    const off = [snap("ethereum", "monolithic", [lim(K_IN, "0", "578703703")])];
+    const s = src("Ethereum Mainnet - Off", { "Inflow RateLimitID": K_IN, "Inflow Rate Limits / maxAmount": "0", "Inflow Rate Limits / slope": "0" });
+    expect(checkAtlasValues([s], off).map((c) => c.status)).toEqual(["match", "mismatch"]);
   });
   it("derives keys from listed addresses: a vault by its first argument, a transfer by its destination, never an underlying or a shared address", () => {
     const vault = src("Ethereum Mainnet - Vault", { "Token Address": VAULT, "Underlying Asset Address": USDC, "Deposit Rate Limits / maxAmount": "7,000,000 USDC" });
@@ -104,6 +104,11 @@ describe("checkAtlasValues", () => {
     expect(checkAtlasValues([sideless], SNAPS).map((c) => c.status)).toEqual(["ambiguous", "ambiguous"]);
     const two = src("Ethereum Mainnet - T", { "Inflow RateLimitID": K_IN, "Deposit RateLimitID": K_BOTH, "Inflow Rate Limits / maxAmount": "5,000,000 USDC" });
     expect(checkAtlasValues([two], [SNAPS[0]]).map((c) => c.status)).toEqual(["ambiguous", "ambiguous"]);
+  });
+  it("matches when every key on one deployment that could be the value's matches it", () => {
+    const twin = [snap("ethereum", "monolithic", [lim(K_IN, "5000000000000", "0"), lim(K_OUT, "5000000000000", "0")])];
+    const both = src("Ethereum Mainnet - Both", { "Inflow RateLimitID": K_IN, "Deposit RateLimitID": K_OUT, "Inflow Rate Limits / maxAmount": "5,000,000 USDC" });
+    expect(checkAtlasValues([both], twin).map((c) => c.status)).toEqual(["match", "match"]);
   });
   it("compares only on the chain the instance names, and not at all when it names none", () => {
     const coinbase = src("Ethereum Mainnet - Coinbase Custody", { "Inflow RateLimitID": K_IN, "Inflow Rate Limits / maxAmount": "5,000,000 USDC" });

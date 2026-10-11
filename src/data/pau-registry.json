@@ -1536,11 +1536,11 @@
       "members": [
         {
           "role": "controller",
-          "address": "0x4e64b576f72c237690f27727376186639447f096",
+          "address": "0x4ee67c8db1baa6dde99d936c7d313b5d31e8fa38",
           "provenance": [
             {
-              "source": "atlas",
-              "doc": "2a9bf1bb-81f7-40d2-a26d-2cc7e729913f"
+              "source": "onchain",
+              "note": "Holds CONTROLLER on the RateLimits contract and the ALM proxy (granted 2025-12-01); the atlas lists 0x4e64b576…, which was never granted CONTROLLER."
             }
           ]
         },
@@ -2013,6 +2013,13 @@
       "role": "controller",
       "address": "0x577fa18a498e1775939b668b0224a5e5a1e56fc3",
       "reason": "Superseded: RateLimits revoked its CONTROLLER role on 2025-12-01; the live controller is 0x5c46fc65…."
+    },
+    {
+      "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",
+      "chain": "avalanche",
+      "role": "controller",
+      "address": "0x4e64b576f72c237690f27727376186639447f096",
+      "reason": "Never wired: neither RateLimits nor the ALM proxy grants it CONTROLLER; the live controller is 0x4ee67c8d…, granted 2025-12-01."
     },
     {
       "prime": "dee2f5a4-279a-488c-9a9d-9583e3216fbf",

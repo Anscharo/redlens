@@ -4,6 +4,7 @@ import { PauBeam } from "./ActorPauBeam";
 import { PauHolders } from "./ActorPauHolders";
 import { PauRateLimits } from "./ActorPauRateLimits";
 import { AtlasDocLink, PauContracts } from "./PauContracts";
+import { PauWiring } from "./PauWiring";
 
 const chainLabel = (chain: string) => chain.charAt(0).toUpperCase() + chain.slice(1);
 const dim = { color: "var(--tan-3)" };
@@ -22,6 +23,7 @@ export function PauDeployment({ snap, keyIndex, matched, defaultOpen }: { snap: 
         <AtlasDocLink docs={controller?.atlasDocs} title="the atlas document stating this controller" className="text-[11px] px-1.5 rounded" style={{ border: "1px solid var(--border)", color: "var(--tan-2)" }}>
           {snap.kind}
         </AtlasDocLink>
+        <PauWiring snap={snap} />
         <span className="text-[11px]" style={dim}>{limits.length} rate limits</span>
         {loading && <span className="text-[11px]" style={{ color: "var(--accent)" }}>history still being read</span>}
       </summary>

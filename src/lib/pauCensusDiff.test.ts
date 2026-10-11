@@ -1,8 +1,8 @@
-// The PAU census drift rules: a new disagreement says which side moved, a
-// lost match and a value the reader cannot read are drift, a renumbering or a
-// change in how a value reads is not, a gone deployment or a collapsed prime
-// is one line instead of one per value, resolutions are notes, and each kind
-// of line stops at a cap.
+// The PAU census drift rules: a new disagreement says which side moved as far
+// as the baseline can tell, a lost match and a value the reader cannot read are
+// drift, a renumbering or a change in how a value reads is not, a gone
+// deployment or a collapsed prime is one line instead of one per value,
+// resolutions are notes, and each kind of line stops at a cap.
 import { describe, expect, it } from "vitest";
 import type { CensusSlot, CensusValue, PauCensus } from "./pauCensus.ts";
 import { diffPauCensus } from "./pauCensusDiff.ts";
@@ -22,10 +22,10 @@ describe("diffPauCensus", () => {
   it("is silent on an unchanged census", () => {
     expect(diffPauCensus(BASE, BASE, name)).toEqual({ drift: [], notes: ["pau-census: 0 baseline disagreement(s) resolved, 0 new value(s) not yet comparable"] });
   });
-  it("reports a match turning into a mismatch as the chain moving", () => {
+  it("reports a match turning into a mismatch without claiming which of chain and comparison moved", () => {
     const cur = census([value(1, ["mismatch", "1", "0.000001 USDC"]), value(2, "match"), value(3, ["mismatch", "9000000", "9 USDC"]), value(4, "match")]);
     expect(drift(BASE, cur)).toEqual([
-      '[drift] pau-census: NEW mismatch — Prime One · Ethereum Mainnet - I1 · Inflow maxAmount (A.1.1, doc-1) on ethereum/monolithic: atlas "5 USDC", chain 0.000001 USDC (chain changed)',
+      '[drift] pau-census: NEW mismatch — Prime One · Ethereum Mainnet - I1 · Inflow maxAmount (A.1.1, doc-1) on ethereum/monolithic: atlas "5 USDC", chain 0.000001 USDC (chain or comparison changed)',
     ]);
   });
   it("reports an atlas edit, and a known mismatch whose chain value changed", () => {
@@ -34,6 +34,10 @@ describe("diffPauCensus", () => {
       expect.stringContaining('I1 · Inflow maxAmount (A.1.1, doc-1) on ethereum/monolithic: atlas "7 USDC", chain 5 USDC (atlas changed, was "5 USDC")'),
       expect.stringContaining("I3 · Inflow maxAmount (A.1.3, doc-3) on ethereum/monolithic: atlas \"5 USDC\", chain 8 USDC (chain changed)"),
     ]);
+  });
+  it("reports a known chain value newly disagreeing as the comparison moving", () => {
+    const cur = census([value(1, "match"), value(2, "match"), value(3, ["not-set", "9000000", "9 USDC"]), value(4, "match")]);
+    expect(drift(BASE, cur)).toEqual([expect.stringContaining("NEW not-set — Prime One · Ethereum Mainnet - I3 · Inflow maxAmount (A.1.3, doc-3) on ethereum/monolithic: atlas \"5 USDC\", chain 9 USDC (comparison changed)")]);
   });
   it("reports a new atlas value that already disagrees, and counts one not yet comparable as a note", () => {
     const cur = census([...Object.entries(BASE.values), value(5, ["not-set", null, "not set"]), value(6, "no-key")]);

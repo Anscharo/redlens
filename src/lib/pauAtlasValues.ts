@@ -54,7 +54,7 @@ export interface ValueCheck {
   readAt: string | null;
 }
 
-type Base = Omit<ValueCheck, "status" | "key" | "chain" | "kind" | "contract" | "limit" | "readAt"> & { statedOff: boolean; src: ValueSource };
+type Base = Omit<ValueCheck, "status" | "key" | "chain" | "kind" | "contract" | "limit" | "readAt"> & { src: ValueSource };
 
 /**
  * What the instance's chain says about a key none of its contracts holds. "Not
@@ -77,7 +77,7 @@ const holdings = (snaps: StoredPauSnapshot[], key: string, src: ValueSource) =>
   );
 
 /** One check per deployment holding the key, or one saying why none can be made. */
-function check({ statedOff, src, ...base }: Base, stated: StatedValue | null, key: string | null, snaps: StoredPauSnapshot[]): ValueCheck[] {
+function check({ src, ...base }: Base, stated: StatedValue | null, key: string | null, snaps: StoredPauSnapshot[]): ValueCheck[] {
   const none = { ...base, key, chain: instanceChain(src), kind: null, contract: null, limit: null, readAt: null };
   if (!stated) return [{ ...none, status: "unparsed" }];
   if (stated.kind === "none") return [{ ...none, status: "not-stated" }];
@@ -85,16 +85,7 @@ function check({ statedOff, src, ...base }: Base, stated: StatedValue | null, ke
   if (held.length === 0) return [{ ...none, status: absence(src, snaps, key) }];
   return held.map((h) => {
     const { data } = h.limit;
-    return { ...base, key, ...h, status: data ? verdict(stated, base.field, { ...h.limit, data }, statedOff) : ("unread" as const) };
-  });
-}
-
-/** Whether the source states a maxAmount of 0 for the same side as `prefix`. */
-function statedOff(src: ValueSource, prefix: string): boolean {
-  return Object.entries(src.params).some(([name, [text]]) => {
-    const m = VALUE_PARAM_RE.exec(name);
-    const v = m && m[2] === "maxAmount" && m[1] === prefix ? parseStated(text) : null;
-    return v?.kind === "amount" && /^0(\.0*)?$/.test(v.units);
+    return { ...base, key, ...h, status: data ? verdict(stated, base.field, { ...h.limit, data }) : ("unread" as const) };
   });
 }
 
@@ -103,16 +94,17 @@ const VERDICTS = new Set<ValueStatus>(["match", "mismatch", "units-unknown"]);
 /**
  * A value's checks with no verdict where its key is not certain: a key naming no
  * side while the instance states values for more than one, or more than one key
- * held on the same deployment.
+ * held on the same deployment. Several keys on one deployment still give a match
+ * when every candidate matches, since the value agrees whichever key is its own;
+ * a sideless key never does, because the value's own key may not be among them.
  */
 function unambiguous(checks: ValueCheck[], keys: InstanceKey[], sides: Set<string>): ValueCheck[] {
   const perDeployment = new Map<string, number>();
   for (const c of checks) if (c.limit) perDeployment.set(`${c.chain}:${c.kind}`, (perDeployment.get(`${c.chain}:${c.kind}`) ?? 0) + 1);
-  return checks.map((c) => {
-    const sideless = keys.find((k) => k.key === c.key)?.side === "" && sides.size > 1;
-    const several = c.limit && (perDeployment.get(`${c.chain}:${c.kind}`) ?? 0) > 1;
-    return VERDICTS.has(c.status) && (sideless || several) ? { ...c, status: "ambiguous" as const } : c;
-  });
+  const sideless = (c: ValueCheck) => keys.find((k) => k.key === c.key)?.side === "" && sides.size > 1;
+  const several = (c: ValueCheck) => !!c.limit && (perDeployment.get(`${c.chain}:${c.kind}`) ?? 0) > 1;
+  if (checks.every((c) => c.status === "match" && !sideless(c))) return checks;
+  return checks.map((c) => (VERDICTS.has(c.status) && (sideless(c) || several(c)) ? { ...c, status: "ambiguous" as const } : c));
 }
 
 function sourceChecks(src: ValueSource, snaps: StoredPauSnapshot[], shared: Set<string>): ValueCheck[] {
@@ -124,7 +116,7 @@ function sourceChecks(src: ValueSource, snaps: StoredPauSnapshot[], shared: Set<
   const sides = new Set(values.map((v) => valueSide(v.m[1])));
   return values.flatMap(({ m, text, docId }) => {
     const field = m[2] as ValueCheck["field"];
-    const base = { docId, instance: src.name, instanceDocId: src.docId ?? null, label: `${m[1].trim() || "Rate limit"} ${field}`, field, stated: text, statedOff: statedOff(src, m[1]), src };
+    const base = { docId, instance: src.name, instanceDocId: src.docId ?? null, label: `${m[1].trim() || "Rate limit"} ${field}`, field, stated: text, src };
     const mine = keys.filter((k) => !k.side || k.side === valueSide(m[1]));
     const stated = parseStated(text);
     if (mine.length === 0) return check(base, stated, null, snaps);

@@ -2,7 +2,8 @@
 // look at. Drift lines are `[drift] pau-census: …` and fixed in wording, so the
 // healer's comm against the warnings baseline treats a repeat as the same line:
 //   - NEW mismatch / not-set: a disagreement (status, deployment, atlas text,
-//     raw chain value) the baseline does not hold, saying which side moved;
+//     raw chain value) the baseline does not hold, saying which side moved
+//     as far as the baseline can tell;
 //   - LOST MATCH: a value that matched now matches nowhere and disagrees
 //     nowhere (unread, no key, ambiguous, or absent from the atlas);
 //   - unparsed / unknown-chain: a value the reader newly cannot read;
@@ -41,10 +42,22 @@ function capped(lines: string[]): string[] {
   return sorted.length <= CAP ? sorted : [...sorted.slice(0, CAP), `${PREFIX} …and ${sorted.length - CAP} more line(s) like the one above`];
 }
 
+/**
+ * Which side moved. With the atlas text unchanged, the chain moved only where
+ * the baseline kept a different raw value at the slot; the same raw value means
+ * the comparison changed, and a slot that kept none (a match) cannot tell them apart.
+ */
+function moved(p: CensusValue | undefined, v: CensusValue, slot: string, raw: string | null): string {
+  if (!p) return "new in the atlas";
+  if (p.stated !== v.stated) return `atlas changed, was "${p.stated}"`;
+  const was = p.at[slot];
+  if (!Array.isArray(was)) return "chain or comparison changed";
+  return was[1] === raw ? "comparison changed" : "chain changed";
+}
+
 function newDisagreements(who: string, p: CensusValue | undefined, v: CensusValue): string[] {
   const before = p && p.stated === v.stated ? disagreements(p) : new Map();
-  const moved = !p ? "new in the atlas" : p.stated !== v.stated ? `atlas changed, was "${p.stated}"` : "chain changed";
-  return [...disagreements(v)].filter(([k]) => !before.has(k)).map(([, [slot, s]]) => `${PREFIX} NEW ${s[0]} — ${who} on ${deploymentOf(slot)}: atlas "${v.stated}", chain ${s[2]} (${moved})`);
+  return [...disagreements(v)].filter(([k]) => !before.has(k)).map(([, [slot, s]]) => `${PREFIX} NEW ${s[0]} — ${who} on ${deploymentOf(slot)}: atlas "${v.stated}", chain ${s[2]} (${moved(p, v, slot, s[1])})`);
 }
 
 /** Deployments in the baseline that the snapshots do not serve. */

@@ -142,8 +142,12 @@ build-side ↔ `NodeContent.tsx` / `rehypeEthAddresses.ts` (see the
   executed; find the atlas PR with `atlas_recent_changes` and say whether one
   is scheduled. *chain changed*: read the key's `setAt` transaction in
   `/api/pau` and whether BeamState let the Configurator make the change
-  without a spell. *new in the atlas*: the atlas states a limit the chain
-  does not hold. `LOST MATCH`, `unparsed`, `unknown-chain` and "deployment …
+  without a spell. *comparison changed*: the chain value is the one the
+  baseline holds, so a change to `src/lib/pauAtlasValues.ts` or
+  `pauValueVerdict.ts` moved the verdict; check the commit that did.
+  *chain or comparison changed*: the value matched before, so the baseline
+  kept no chain value; check both. *new in the atlas*: the atlas states a
+  limit the chain does not hold. `LOST MATCH`, `unparsed`, `unknown-chain` and "deployment …
   is gone" are reader or registry regressions; route them through the
   `pau-triage` skill (`pnpm pau:candidates --rpc`) or the owning
   `src/lib/pau*.ts` module. All of these are findings, never fixes; accept
