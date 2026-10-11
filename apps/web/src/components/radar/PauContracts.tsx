@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { Address } from "../Address";
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "@/lib/routes";
@@ -13,11 +14,18 @@ const ROLE_LABEL: Record<string, string> = {
 
 const dim = { color: "var(--tan-3)" };
 
-/** Text linked to the first atlas document that states the contract's address (registry provenance), else plain. */
-export function AtlasDocLink({ docs, title, className, style, children }: { docs?: string[]; title: string; className?: string; style?: React.CSSProperties; children: React.ReactNode }) {
+interface AtlasDocLinkProps extends Omit<ComponentProps<typeof AtlasLink>, "to" | "title"> {
+  /** The atlas documents stating it (registry provenance); the link goes to the first. */
+  docs?: string[];
+  /** The link's tooltip; it counts the documents when several state it. */
+  title: string;
+}
+
+/** Text linked to the first atlas document that states the contract's address, else plain. */
+function AtlasDocLink({ docs, title, className, style, children, ...rest }: AtlasDocLinkProps) {
   if (!docs?.length) return <span className={className} style={style}>{children}</span>;
   return (
-    <AtlasLink to={atlasHref(docs[0])} className={`${className ?? ""} hover:underline`} style={style} title={docs.length > 1 ? `${title} (${docs.length} atlas documents state it)` : title}>
+    <AtlasLink {...rest} to={atlasHref(docs[0])} className={`${className ?? ""} hover:underline`} style={style} title={docs.length > 1 ? `${title} (${docs.length} atlas documents state it)` : title}>
       {children}
     </AtlasLink>
   );

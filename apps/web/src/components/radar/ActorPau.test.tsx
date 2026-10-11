@@ -163,11 +163,11 @@ describe("ActorPau", () => {
     expect(screen.getByRole("heading", { level: 4, name: "Roles" })).toBeInTheDocument();
   });
 
-  it("links the generation badge to the controller's atlas document and each cited contract to its own", async () => {
+  it("keeps the summary free of links and links each cited contract to its own atlas document", async () => {
     render(<ActorPau prime={prime} instances={instances} />);
     await screen.findByRole("region", { name: "Current state" });
     const card = document.querySelector(`details[data-deployment="${ETH.deployment}"]`) as HTMLElement;
-    expect(within(card).getByRole("link", { name: "monolithic" })).toHaveAttribute("href", expect.stringContaining("doc-ctrl"));
+    expect(card.querySelector("summary a")).toBeNull();
     expect(within(card).getByRole("link", { name: "Controller" })).toHaveAttribute("href", expect.stringContaining("doc-ctrl"));
     const rl = within(card).getByRole("link", { name: "Rate limits" });
     expect(rl).toHaveAttribute("href", expect.stringContaining("doc-rl"));
@@ -203,7 +203,7 @@ describe("ActorPau", () => {
     await screen.findByText("Roles");
     const statuses = [...document.querySelectorAll("li[data-status]")].map((li) => li.getAttribute("data-status"));
     expect(statuses).toEqual(["holds", "holds", "holds", "denied", "unread", "unread"]);
-    expect(screen.getByLabelText(/chain says it does not hold the role/)).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /chain says it does not hold the role/ })).toHaveTextContent("✗");
     expect(screen.getAllByLabelText("the AdministeredAgent lists it")).toHaveLength(2);
     expect(screen.getByLabelText("membership could not be read")).toBeInTheDocument();
     expect(screen.getByText("not in the stored history")).toBeInTheDocument();

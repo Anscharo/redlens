@@ -3,7 +3,7 @@ import { matchId } from "@/lib/pauAtlasMatch";
 import { PauBeam } from "./ActorPauBeam";
 import { PauHolders } from "./ActorPauHolders";
 import { PauRateLimits } from "./ActorPauRateLimits";
-import { AtlasDocLink, PauContracts } from "./PauContracts";
+import { PauContracts } from "./PauContracts";
 import { PauWiring } from "./PauWiring";
 import { PauSectionHeading, anchorProps } from "./PauSectionHeading";
 import { CopyLink } from "../CopyLink";
@@ -27,7 +27,6 @@ export function PauDeployment({ snap, keyIndex, matched, defaultOpen, anchor }: 
   const atlas = new Set(snap.contracts.flatMap((c) => (c.rateLimits ?? []).filter((r) => matched.has(matchId(c.address, r.key))).map((r) => r.key)));
   const params = snap.contracts.flatMap((c) => (c.params ?? []).map((p) => ({ ...p, contract: c.address })));
   const loading = snap.contracts.some((c) => !c.historyComplete);
-  const controller = snap.contracts.find((c) => c.role === "controller");
   const firstBeam = snap.contracts.find((c) => c.beam)?.address;
   return (
     <div className="relative">
@@ -35,9 +34,7 @@ export function PauDeployment({ snap, keyIndex, matched, defaultOpen, anchor }: 
       <details {...anchorProps(anchor)} open={defaultOpen} className="pau-deployment mb-3 border-t border-[var(--border)] pt-2" data-deployment={snap.deployment} data-kind={snap.kind}>
         <summary className="cursor-pointer mono text-[12px] flex flex-wrap items-baseline gap-2" style={{ color: "var(--tan)" }}>
           <h3 className="inline">{chainLabel(snap.chain)}</h3>
-          <AtlasDocLink docs={controller?.atlasDocs} title="the atlas document stating this controller" className="text-[11px] px-1.5 rounded" style={{ border: "1px solid var(--border)", color: "var(--tan-2)" }}>
-            {snap.kind}
-          </AtlasDocLink>
+          <span className="text-[11px] px-1.5 rounded" style={{ border: "1px solid var(--border)", color: "var(--tan-2)" }}>{snap.kind}</span>
           <PauWiring snap={snap} />
           <span className="text-[11px]" style={dim}>{limits.length} rate limits</span>
           {loading && <span className="text-[11px]" style={{ color: "var(--accent)" }}>history still being read</span>}

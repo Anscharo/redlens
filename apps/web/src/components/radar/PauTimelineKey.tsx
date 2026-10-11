@@ -16,7 +16,7 @@ export function PauTimelineKey({ kinds }: { kinds: Set<TimelineGroup["kind"]> })
   const rows = KEY.filter(([k]) => kinds.has(k));
   if (rows.length === 0) return null;
   return (
-    <dl className="pau-timeline-key text-[12px] mb-3 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5" aria-label="Group kinds">
+    <dl className="pau-timeline-key text-[12px] mb-3 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5">
       {rows.map(([k, term, meaning]) => (
         <div key={k} className="contents" data-kind={k}>
           <dt style={{ color: "var(--tan-2)" }}>{term}</dt>
