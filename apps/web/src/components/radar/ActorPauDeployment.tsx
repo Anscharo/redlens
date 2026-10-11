@@ -1,17 +1,9 @@
-import { Address } from "../Address";
 import type { AtlasKeyRef, PauParam, StoredPauSnapshot } from "../../lib/pau";
 import { matchId } from "@/lib/pauAtlasMatch";
 import { PauBeam } from "./ActorPauBeam";
 import { PauHolders } from "./ActorPauHolders";
 import { PauRateLimits } from "./ActorPauRateLimits";
-
-const ROLE_LABEL: Record<string, string> = {
-  controller: "Controller",
-  almProxy: "ALM proxy",
-  rateLimits: "Rate limits",
-  accessControls: "AccessControls",
-  administeredAgent: "AdministeredAgent",
-};
+import { AtlasDocLink, PauContracts } from "./PauContracts";
 
 const chainLabel = (chain: string) => chain.charAt(0).toUpperCase() + chain.slice(1);
 const dim = { color: "var(--tan-3)" };
@@ -22,21 +14,18 @@ export function PauDeployment({ snap, keyIndex, matched, defaultOpen }: { snap: 
   const atlas = new Set(snap.contracts.flatMap((c) => (c.rateLimits ?? []).filter((r) => matched.has(matchId(c.address, r.key))).map((r) => r.key)));
   const params = snap.contracts.flatMap((c) => (c.params ?? []).map((p) => ({ ...p, contract: c.address })));
   const loading = snap.contracts.some((c) => !c.historyComplete);
+  const controller = snap.contracts.find((c) => c.role === "controller");
   return (
     <details open={defaultOpen} className="pau-deployment mb-3 border-t border-[var(--border)] pt-2" data-deployment={snap.deployment} data-kind={snap.kind}>
       <summary className="cursor-pointer mono text-[12px] flex flex-wrap items-baseline gap-2" style={{ color: "var(--tan)" }}>
         <h3 className="inline">{chainLabel(snap.chain)}</h3>
-        <span className="text-[11px] px-1.5 rounded" style={{ border: "1px solid var(--border)", color: "var(--tan-2)" }}>{snap.kind}</span>
+        <AtlasDocLink docs={controller?.atlasDocs} title="the atlas document stating this controller" className="text-[11px] px-1.5 rounded" style={{ border: "1px solid var(--border)", color: "var(--tan-2)" }}>
+          {snap.kind}
+        </AtlasDocLink>
         <span className="text-[11px]" style={dim}>{limits.length} rate limits</span>
         {loading && <span className="text-[11px]" style={{ color: "var(--accent)" }}>history still being read</span>}
       </summary>
-      <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-        {snap.contracts.map((c) => (
-          <li key={c.address} className="mono text-[11px]" style={dim}>
-            {ROLE_LABEL[c.role] ?? c.role} <Address address={c.address} chain={snap.chain} />
-          </li>
-        ))}
-      </ul>
+      <PauContracts snap={snap} />
       <PauHolders snap={snap} />
       <PauRateLimits chain={snap.chain} limits={limits} keyIndex={keyIndex} atlasMatched={atlas} />
       {snap.contracts.map((c) => c.beam && <PauBeam key={c.address} beam={c.beam} chain={snap.chain} keyIndex={keyIndex} />)}

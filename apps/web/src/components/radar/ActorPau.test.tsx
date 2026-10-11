@@ -31,9 +31,9 @@ const holder = (account: string, holds: boolean | null) => ({ role: "0xr", name:
 const ETH: StoredPauSnapshot = {
   deployment: `${PRIME}:ethereum:monolithic`, prime: PRIME, primeName: "Spark", chain: "ethereum", kind: "monolithic", fetchedAt: "2026-10-07T16:00:00.000Z",
   contracts: [
-    { role: "controller", address: CTRL, events: 3, historyComplete: true, roles: [holder("0x" + "a".repeat(40), true), holder("0x" + "b".repeat(40), false), holder("0x" + "d".repeat(40), null)],
+    { role: "controller", address: CTRL, atlasDocs: ["doc-ctrl"], events: 3, historyComplete: true, roles: [holder("0x" + "a".repeat(40), true), holder("0x" + "b".repeat(40), false), holder("0x" + "d".repeat(40), null)],
       params: [{ event: "MaxSlippageSet", subject: "0x" + "5".repeat(40), args: { pool: "0x" + "5".repeat(40), maxSlippage: "999" }, setAt: at }] },
-    { role: "rateLimits", address: RL, events: 3, historyComplete: true, rateLimits: [limit(OFF, "0", "0", "0"), limit(MINT, "50000000000000000000000000", "0", null), { ...limit(DERIVED, "5000000000000", "0", null), derived: { constant: "LIMIT_4626_DEPOSIT", args: [VAULT] } }, { ...limit(BY_ADDRESS, "7000000000000", "0", null), derived: { constant: "LIMIT_ASSET_TRANSFER", args: [VAULT, LISTED] }, unit: { decimals: 6, symbol: "PYUSD", token: VAULT, source: "token" as const } }, limit(UNNAMED, "1000000000000000000000000000", "0", null), limit(NAMED, "25000000000000", "289351851", "12000000000000")],
+    { role: "rateLimits", address: RL, atlasDocs: ["doc-rl", "doc-rl-2"], events: 3, historyComplete: true, rateLimits: [limit(OFF, "0", "0", "0"), limit(MINT, "50000000000000000000000000", "0", null), { ...limit(DERIVED, "5000000000000", "0", null), derived: { constant: "LIMIT_4626_DEPOSIT", args: [VAULT] } }, { ...limit(BY_ADDRESS, "7000000000000", "0", null), derived: { constant: "LIMIT_ASSET_TRANSFER", args: [VAULT, LISTED] }, unit: { decimals: 6, symbol: "PYUSD", token: VAULT, source: "token" as const } }, limit(UNNAMED, "1000000000000000000000000000", "0", null), limit(NAMED, "25000000000000", "289351851", "12000000000000")],
       beam: { beamState: BEAM, hop: "57600", maxChange: "1200000000000000000", historyComplete: true, defaults: [{ key: MINT, maxAmount: "10000000000000000000000000", slope: "0", scope: "general" as const, setAt: null }] } },
     { role: "administeredAgent", address: "0x" + "e".repeat(40), events: 2, historyComplete: false,
       agent: { actors: [{ account: "0x" + "e1".repeat(20), since: at, holds: true }, { account: "0x" + "e2".repeat(20), since: null, holds: true }], revokers: [{ account: "0x" + "e3".repeat(20), since: at }] } },
@@ -158,6 +158,20 @@ describe("ActorPau", () => {
     expect(h3).toContain("Deployment");
     expect(screen.getByRole("heading", { level: 3, name: /Executive Vote 2026-08-27/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 4, name: "Roles" })).toBeInTheDocument();
+  });
+
+  it("links the generation badge to the controller's atlas document and each cited contract to its own", async () => {
+    render(<ActorPau prime={prime} instances={instances} />);
+    await screen.findByRole("region", { name: "Current state" });
+    const card = document.querySelector(`details[data-deployment="${ETH.deployment}"]`) as HTMLElement;
+    expect(within(card).getByRole("link", { name: "monolithic" })).toHaveAttribute("href", expect.stringContaining("doc-ctrl"));
+    expect(within(card).getByRole("link", { name: "Controller" })).toHaveAttribute("href", expect.stringContaining("doc-ctrl"));
+    const rl = within(card).getByRole("link", { name: "Rate limits" });
+    expect(rl).toHaveAttribute("href", expect.stringContaining("doc-rl"));
+    expect(rl).toHaveAttribute("title", expect.stringContaining("2 atlas documents"));
+    expect(within(card).queryByRole("link", { name: "AdministeredAgent" })).toBeNull();
+    const base = document.querySelector(`details[data-deployment="${BASE.deployment}"]`) as HTMLElement;
+    expect(within(base).queryByRole("link", { name: "monolithic" })).toBeNull();
   });
 
   it("titles the table Rate limits and checks only keys whose every atlas value matches the chain", async () => {

@@ -6,6 +6,8 @@
 // chain-state.ts).
 import type { PauDeployment, PauRegistry } from "../../lib/pauRegistry.ts";
 import { deploymentId } from "../../lib/pauRegistry.ts";
+import { withAtlasDocs } from "../../lib/pauAtlasDocs.ts";
+import registry from "../../data/pau-registry.json" with { type: "json" };
 import { sql } from "../db.ts";
 import { json } from "../http.ts";
 import type { SqlTag } from "../sql-types.ts";
@@ -131,7 +133,7 @@ export async function readPauState(db: SqlTag = sql): Promise<(PauSnapshot & { f
 // Public, ungated, like /api/chain-state: an empty list until the worker has run.
 export async function handlePau(): Promise<Response> {
   try {
-    const deployments = await readPauState();
+    const deployments = withAtlasDocs(await readPauState(), registry as PauRegistry);
     return json({ deployments }, 200, { headers: { "Cache-Control": "public, max-age=300" } });
   } catch (e) {
     console.error(`pau: ${(e as Error).message}`);

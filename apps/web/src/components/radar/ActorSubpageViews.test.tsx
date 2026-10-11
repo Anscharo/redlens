@@ -51,5 +51,6 @@ describe("actor subpages", () => {
     render(<ActorPauPage profile={profile()} />);
     expect(screen.getByRole("heading", { level: 1, name: "Parallelized Allocation Units" })).toBeInTheDocument();
     expect(screen.getByTestId("pau")).toHaveAttribute("data-prime", "e1");
+    expect(screen.getByRole("link", { name: "Diamond PAU" })).toHaveAttribute("href", expect.stringContaining("d5cfb5ed-20a9-42a0-9838-ef21e1115648"));
   });
 });

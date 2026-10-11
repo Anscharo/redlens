@@ -130,6 +130,8 @@ export interface ContractState {
   unsetKeys?: string[];
   params?: PauParam[];
   integrations?: PauIntegration[];
+  /** Atlas documents stating this contract's address, from the registry's provenance; attached when GET /api/pau serves it (pauAtlasDocs.ts). */
+  atlasDocs?: string[];
   /** Admin events stored for this contract. */
   events: number;
   /** Every event type's history is read to the confirmed head; until then an absent part means "not read yet". */
