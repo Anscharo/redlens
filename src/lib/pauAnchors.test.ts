@@ -40,4 +40,12 @@ describe("groupAnchors", () => {
       "operator-ethereum-2026-03-02", "unattributed-ethereum", "deployment-ethereum",
     ]);
   });
+  it("keeps a run's link when a later change joins it, naming it by its first change's day", () => {
+    const at = (time: string) => ({ chain: "ethereum", time }) as PauHistoryEntry;
+    const run = (entries: PauHistoryEntry[]) => group("operator:ethereum:0xo:0xt", "operator", entries.at(-1)!.time, { entries });
+    const first = groupAnchors([run([at("2026-10-01T09:00:00Z")])]).get("operator:ethereum:0xo:0xt");
+    const grown = groupAnchors([run([at("2026-10-01T09:00:00Z"), at("2026-10-05T09:00:00Z")])]).get("operator:ethereum:0xo:0xt");
+    expect(grown).toEqual(first);
+    expect(grown!.id).toBe("operator-ethereum-2026-10-01");
+  });
 });

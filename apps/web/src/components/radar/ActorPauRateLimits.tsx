@@ -7,13 +7,17 @@ import { PauOriginChip } from "./PauOriginChip";
 import { anchorProps } from "./PauSectionHeading";
 import { CopyLink } from "../CopyLink";
 import { sectionAnchor, type Anchor } from "@/lib/pauAnchors";
+import { matchId } from "@/lib/pauAtlasMatch";
 import { formatAmount, formatPerDay, labelOnChain, limitDecimals, unitNote, type AtlasKeyRef, type DerivedKey, type LiveRateLimit } from "../../lib/pau";
+
+/** A limit with the RateLimits contract holding it: two contracts of one deployment can hold the same key. */
+export type ContractLimit = LiveRateLimit & { contract: string };
 
 interface Props {
   chain: string;
-  limits: LiveRateLimit[];
+  limits: ContractLimit[];
   keyIndex: Map<string, AtlasKeyRef[]>;
-  /** Keys whose every atlas-stated value matches the chain (pauAtlasMatch.ts). */
+  /** Contract and key pairs (`matchId`) whose every atlas-stated value matches the chain (pauAtlasMatch.ts). */
   atlasMatched: Set<string>;
   /** The deployment's anchor; the table is `#<deployment>-rate-limits`. */
   anchor: Anchor;
@@ -23,7 +27,7 @@ const dim = { color: "var(--tan-3)" };
 const isOff = (r: LiveRateLimit) => (r.data?.maxAmount ?? r.configured.maxAmount) === "0";
 
 /** Limits the atlas names first, by name; then keys named by their derivation; unnamed keys after; switched-off keys last. */
-function ordered(limits: LiveRateLimit[], keyIndex: Map<string, AtlasKeyRef[]>) {
+function ordered<T extends LiveRateLimit>(limits: T[], keyIndex: Map<string, AtlasKeyRef[]>): T[] {
   const atlas = (r: LiveRateLimit) => keyIndex.get(r.key.toLowerCase())?.[0]?.label;
   const tier = (r: LiveRateLimit) => (isOff(r) ? 3 : atlas(r) ? 0 : r.derived ? 1 : 2);
   const name = (r: LiveRateLimit) => atlas(r) ?? r.derived?.constant ?? r.key;
@@ -113,7 +117,7 @@ export function PauRateLimits({ chain, limits, keyIndex, atlasMatched, anchor }:
         </thead>
         <tbody>
           {ordered(limits, keyIndex).map((r) => (
-            <LimitRow key={r.key} r={r} chain={chain} keyIndex={keyIndex} matches={atlasMatched.has(r.key)} />
+            <LimitRow key={`${r.contract}:${r.key}`} r={r} chain={chain} keyIndex={keyIndex} matches={atlasMatched.has(matchId(r.contract, r.key))} />
           ))}
         </tbody>
       </table>

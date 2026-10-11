@@ -14,7 +14,8 @@ function summary(ev, st) {
   const limited = ev.rateLimited.length ? ` (explorer rate limit: ${ev.rateLimited.join(", ")})` : "";
   const state = st.reason === "due" ? `rebuilt ${st.refreshed}` : "fresh";
   const dropped = st.removed ? `, dropped ${st.removed}` : "";
-  return `pau events ${ev.visited} read, ${ev.pending} pending, ${ev.events} new${errors}${limited}; state ${state}${dropped}`;
+  const failed = st.failed?.length ? `, ${st.failed.length} kept their last snapshot` : "";
+  return `pau events ${ev.visited} read, ${ev.pending} pending, ${ev.events} new${errors}${limited}; state ${state}${dropped}${failed}`;
 }
 
 const ADDRESS_ARTIFACTS = ["public/addresses.atlas.json", "public/addresses.json"];
@@ -24,7 +25,7 @@ export default {
   phase: "tick",
   label: "pau step",
   skipWhenNoFetch: "pau skipped (--no-fetch) — it reads block explorers and RPCs",
-  async run({ db }) {
+  async run({ db, warn }) {
     const { config } = await import("../../../src/server/config.ts");
     const { default: reg } = await import("../../../src/data/pau-registry.json", { with: { type: "json" } });
     const { syncPauEvents } = await import("../../../src/server/pau/sync-events.ts");
@@ -40,6 +41,7 @@ export default {
     const ev = await syncPauEvents(db, reg, { logs: explorerLogs, head: rpcHead, budgetMs: config.pauEventBudgetSeconds * 1000, skipChains });
     const nameKeys = keyNamer(ADDRESS_ARTIFACTS, reg);
     const st = await maybeRefreshPauState(db, reg, rpcChainReader(), { refreshSeconds: config.pauRefreshSeconds, nameKeys, atlasKeys: atlasKeysByPrime() });
+    for (const f of st.failed ?? []) warn(`atlas-worker: pau snapshot ${f.deployment} not rebuilt, keeping its last: ${f.error}`);
     return summary(ev, st);
   },
 };

@@ -86,6 +86,30 @@ export interface StateRefresh {
   refreshed: number;
   removed: number;
   reason: "fresh" | "due";
+  /** Deployments whose rebuild threw, with why; each keeps its last snapshot and read time. */
+  failed?: { deployment: string; error: string }[];
+}
+
+type RefreshOpts = { nameKeys?: KeyNamer; atlasKeys?: Map<string, string[]> };
+
+/**
+ * Rebuilds each deployment on its own: one that throws keeps its stored
+ * snapshot, whose read time then shows how far behind it is, and the rest
+ * still refresh.
+ */
+async function refreshEach(db: SqlTag, reg: PauRegistry, read: ChainReader, opts: RefreshOpts, now: number) {
+  const historyOf = async (c: string, a: string) => ({ events: await eventsOf(db, c, a), complete: await historyComplete(db, c, a) });
+  const beamOf = beamSources(reg, historyOf);
+  const failed: { deployment: string; error: string }[] = [];
+  for (const d of reg.deployments) {
+    try {
+      const snap = await snapshotOf(d, read, historyOf, await beamOf(d.chain), { nameKeys: opts.nameKeys, probe: opts.atlasKeys?.get(d.prime) });
+      await upsertSnapshot(db, snap, new Date(now));
+    } catch (e) {
+      failed.push({ deployment: deploymentId(d), error: (e as Error).message });
+    }
+  }
+  return failed;
 }
 
 /**
@@ -113,13 +137,8 @@ export async function maybeRefreshPauState(
   const stale = (id: string) => !stored.has(id) || now - stored.get(id)! >= opts.refreshSeconds * 1000;
   const removed = await dropUnlisted(db, [...stored.keys()].filter((x) => !ids.has(x)));
   if (![...ids].some(stale)) return { refreshed: 0, removed, reason: "fresh" };
-  const historyOf = async (c: string, a: string) => ({ events: await eventsOf(db, c, a), complete: await historyComplete(db, c, a) });
-  const beamOf = beamSources(reg, historyOf);
-  for (const d of reg.deployments) {
-    const snap = await snapshotOf(d, read, historyOf, await beamOf(d.chain), { nameKeys: opts.nameKeys, probe: opts.atlasKeys?.get(d.prime) });
-    await upsertSnapshot(db, snap, new Date(now));
-  }
-  return { refreshed: reg.deployments.length, removed, reason: "due" };
+  const failed = await refreshEach(db, reg, read, opts, now);
+  return { refreshed: reg.deployments.length - failed.length, removed, reason: "due", ...(failed.length ? { failed } : {}) };
 }
 
 /** Every stored snapshot, ordered by prime then chain. */

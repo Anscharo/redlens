@@ -5,6 +5,8 @@
 // vectors are keys Grove's and Osero's diamond RateLimits hold, each confirmed
 // by calling the facet's own pure getter on Ethereum.
 import { describe, expect, it } from "bun:test";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { encodeAbiParameters, keccak256, toHex } from "viem";
 import type { DerivedKey, LiveRateLimit, PauSnapshot } from "../../lib/pau.ts";
@@ -95,5 +97,12 @@ describe("keyNamer", () => {
     expect(mono[mono4626]).toEqual({ constant: "LIMIT_4626_DEPOSIT", args: [vault] } satisfies DerivedKey);
     const onDiamond = named(await name(diamond([FACET.usds], [mono4626]), read));
     expect(onDiamond[mono4626]).toBeNull();
+  });
+  it("leaves a facet's keys unnamed when the parser refuses its source, instead of failing the snapshot", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "facets-"));
+    fs.mkdirSync(path.join(dir, "1"));
+    fs.writeFileSync(path.join(dir, "1", `${FACET.usds}.json`), JSON.stringify({ contractName: "USDSFacet", sourceCode: "contract Other {}" }));
+    const bad = keyNamer([], {}, dir);
+    expect(named(await bad(diamond([FACET.usds], [KEY.usdsBurn]), read))[KEY.usdsBurn]).toBeNull();
   });
 });

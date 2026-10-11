@@ -81,6 +81,40 @@ describe("politeFetch", () => {
     expect(coolingDown("https://short.example/")).toBe(true);
   });
 
+  it("reads no further than a refusal's length when the body declares none, or declares its compressed size", async () => {
+    const long = JSON.stringify({ status: "0", message: "NOTOK", result: "Max calls per sec rate limit reached", pad: "x".repeat(10_000) });
+    const chunked = () => new Response(new Blob([long]).stream(), { headers: { "content-type": "application/json" } });
+    vi.stubGlobal("fetch", vi.fn(async () => chunked()));
+    const res = await politeFetch("https://chunked.example/");
+    expect(coolingDown("https://chunked.example/")).toBe(false);
+    expect((await res.json()).pad).toHaveLength(10_000);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(long, { headers: { "content-type": "application/json", "content-encoding": "gzip", "content-length": "90" } })));
+    await politeFetch("https://gzip.example/");
+    expect(coolingDown("https://gzip.example/")).toBe(false);
+  });
+
+  it("takes a -32005 that says the query asked for too much as the request's fault, not a rate limit", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => json({ jsonrpc: "2.0", id: 1, error: { code: -32005, message: "query returned more than 10000 results" } })));
+    await politeFetch("https://wide.example/");
+    expect(coolingDown("https://wide.example/")).toBe(false);
+  });
+
+  it("backs off from GitHub's spent rate limit until three times its reset, and its secondary limit, but not another 403", async () => {
+    const reset = String(Math.floor(Date.now() / 1000) + 600);
+    vi.stubGlobal("fetch", vi.fn(async () => json({ message: "API rate limit exceeded for 1.2.3.4." }, 403, { "x-ratelimit-remaining": "0", "x-ratelimit-reset": reset })));
+    await politeFetch("https://api.github.com/repos/x");
+    await vi.advanceTimersByTimeAsync(1_799_000);
+    expect(coolingDown("https://api.github.com/")).toBe(true);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(coolingDown("https://api.github.com/")).toBe(false);
+    vi.stubGlobal("fetch", vi.fn(async () => json({ message: "You have exceeded a secondary rate limit." }, 403, { "retry-after": "60" })));
+    await politeFetch("https://ghe.example/x");
+    expect(coolingDown("https://ghe.example/")).toBe(true);
+    vi.stubGlobal("fetch", vi.fn(async () => json({ message: "Resource not accessible by integration" }, 403)));
+    await politeFetch("https://denied.example/x");
+    expect(coolingDown("https://denied.example/")).toBe(false);
+  });
+
   it("makes the next request to that host wait out the cooldown", async () => {
     const fetch = vi.fn().mockResolvedValueOnce(new Response("", { status: 429 })).mockResolvedValue(json({ result: "0x1" }));
     vi.stubGlobal("fetch", fetch);
@@ -97,7 +131,7 @@ describe("politeFetch", () => {
 describe("isRateLimited", () => {
   it("takes a status or code only when the error labels it, never a bare number", () => {
     const limited = ["explorer logs: HTTP 429", "HTTP request failed.\n\nStatus: 429\nURL: https://rpc.example", "rpc eth_getLogs: code -32005 limit exceeded", "Too Many Requests", "Max calls per sec rate limit reached"];
-    const not = ["rpc eth_getBlockByNumber: no block 429", 'Request body: {"params":["0x1",429]}', "rpc eth_call: code -32000 execution reverted"];
+    const not = ["rpc eth_getBlockByNumber: no block 429", 'Request body: {"params":["0x1",429]}', "rpc eth_call: code -32000 execution reverted", "rpc eth_getLogs: code -32005 query returned more than 10000 results"];
     expect(limited.map(isRateLimited)).toEqual(limited.map(() => true));
     expect(not.map(isRateLimited)).toEqual(not.map(() => false));
   });

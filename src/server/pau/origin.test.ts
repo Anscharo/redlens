@@ -62,7 +62,9 @@ describe("resolveOrigin", () => {
   it("reads the rest from the transaction: a creation, or a direct call", async () => {
     expect((await resolveOrigin(ctx("base", []), deps({ tx: async () => ({ from: "0xdeployer", to: null }) }))).kind).toBe("deployment");
     expect(await resolveOrigin(ctx("base", []), deps())).toMatchObject({ kind: "direct", from: "0xkeeper", to: "0xsafe" });
-    expect((await resolveOrigin(ctx("base", []), deps({ tx: async () => null }))).kind).toBe("unknown");
+    expect(await resolveOrigin(ctx("base", []), deps({ tx: async () => null }))).toMatchObject({ kind: "unknown", evidence: "the tx could not be read (no such tx on the chain)" });
+    const down = deps({ tx: async () => Promise.reject(new Error("base eth_getTransactionByHash: HTTP 503")) });
+    expect(await resolveOrigin(ctx("base", []), down)).toMatchObject({ kind: "unknown", evidence: "the tx could not be read (base eth_getTransactionByHash: HTTP 503)" });
   });
   it("decides nothing before the chain's governance events are read past the transaction", async () => {
     expect((await resolveOrigin(ctx("base", []), deps({ evidenceRead: async () => false }))).kind).toBe("unknown");

@@ -54,15 +54,74 @@ export async function readPauHistory(db: SqlTag = sql, votes: VoteRecord = loadV
 
 const HEADERS = { "Cache-Control": "public, max-age=300", Vary: "Accept-Encoding" };
 
+/** How long a built history is served before the database is asked whether it changed. */
+const RECHECK_MS = 60_000;
+
+/**
+ * What the history is built from, as one string a change to any input moves:
+ * an event added, an origin resolved again, an archive entry checked. The vote
+ * record is read from disk and changes only with a deploy, which restarts the
+ * process.
+ */
+async function inputsVersion(db: SqlTag): Promise<string> {
+  const rows = (await db`SELECT
+    (SELECT count(*) FROM pau_events)::text AS events_version, (SELECT max(block) FROM pau_events)::text AS head,
+    (SELECT count(*) FROM pau_tx_origin)::text AS origins, (SELECT max(resolved_at) FROM pau_tx_origin)::text AS resolved,
+    (SELECT max(checked_at) FROM executive_archive)::text AS archive`) as Record<string, unknown>[];
+  return Object.values(rows[0] ?? {}).join("|");
+}
+
+interface Built {
+  json: string;
+  gzip: () => Uint8Array;
+}
+
+function build(body: PauHistoryResponse): Built {
+  const json = JSON.stringify(body);
+  let gz: Uint8Array | undefined;
+  return { json, gzip: () => (gz ??= Bun.gzipSync(json)) };
+}
+
+let cache: { version: string; checkedAt: number; built: Promise<Built> } | null = null;
+let checking: Promise<Built> | null = null;
+
+/** The history as last built, rebuilt only when its inputs moved; one check runs at a time, and a failed build is not kept. */
+async function currentHistory(): Promise<Built> {
+  if (cache && Date.now() - cache.checkedAt < RECHECK_MS) return cache.built;
+  checking ??= (async () => {
+    const version = await inputsVersion(sql);
+    if (cache?.version === version) cache.checkedAt = Date.now();
+    else {
+      const entry = { version, checkedAt: Date.now(), built: readPauHistory().then(build) };
+      cache = entry;
+      entry.built.catch(() => {
+        if (cache === entry) cache = null;
+      });
+    }
+    return cache!.built;
+  })().finally(() => {
+    checking = null;
+  });
+  return checking;
+}
+
+/** Forgets the built history (tests). */
+export function resetPauHistoryCache(): void {
+  cache = null;
+  checking = null;
+}
+
 // Public, ungated, like /api/pau: an empty list until the worker has run. The
-// full history is several hundred kilobytes of repetitive JSON, so a client
-// that accepts gzip gets it gzipped.
+// full history is several hundred kilobytes of repetitive JSON, built once per
+// change of its inputs and gzipped once for every client that accepts it.
 export async function handlePauHistory(req?: Request): Promise<Response> {
   try {
-    const body = await readPauHistory();
-    if (!req?.headers.get("accept-encoding")?.includes("gzip")) return json(body, 200, { headers: HEADERS });
+    const built = await currentHistory();
+    if (!req?.headers.get("accept-encoding")?.includes("gzip")) {
+      return new Response(built.json, { status: 200, headers: { ...HEADERS, "content-type": "application/json" } });
+    }
     const headers = { ...HEADERS, "content-type": "application/json", "content-encoding": "gzip" };
-    return new Response(Bun.gzipSync(JSON.stringify(body)), { status: 200, headers });
+    return new Response(built.gzip(), { status: 200, headers });
   } catch (e) {
     console.error(`pau history: ${(e as Error).message}`);
     return json({ error: "unavailable" }, 503);

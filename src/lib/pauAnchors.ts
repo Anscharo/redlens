@@ -38,19 +38,22 @@ export const sectionAnchor = (deployment: Anchor, section: PauSection): Anchor =
 
 const day = (time: string) => time.slice(0, 10);
 
+/** When a group began: its oldest entry. A later change can join a group but never move its start, so anchors keyed on it hold. */
+const started = (g: TimelineGroup) => g.entries[0]?.time ?? g.time;
+
 function baseAnchor(g: TimelineGroup): string {
   const chain = g.entries[0]?.chain ?? "unknown";
   if (g.kind === "executive") return g.executive?.date ? `exec-vote-${g.executive.date}` : `spell-${g.spell?.toLowerCase()}`;
   if (g.kind === "unknown") return `unattributed-${chain}`;
   if (g.kind === "deployment") return `deployment-${chain}`;
-  return `${g.kind}-${chain}-${day(g.time)}`;
+  return `${g.kind}-${chain}-${day(started(g))}`;
 }
 
 /** Each change-history group's anchor by group key; an executive's spell address is an alias. */
 export function groupAnchors(groups: TimelineGroup[]): Map<string, Anchor> {
   const seen = new Map<string, number>();
   const out = new Map<string, Anchor>();
-  for (const g of [...groups].sort((a, b) => a.time.localeCompare(b.time))) {
+  for (const g of [...groups].sort((a, b) => started(a).localeCompare(started(b)))) {
     const base = baseAnchor(g);
     const n = (seen.get(base) ?? 0) + 1;
     seen.set(base, n);

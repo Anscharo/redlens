@@ -7,20 +7,29 @@ import { origin, type OriginDeps, type OriginRule, type TxContext } from "./orig
 
 const configurator = (c: TxContext, d: OriginDeps) => c.events.find((e) => d.roleOf(c.chain, e.contract) === "configurator");
 
+type Read = { t: { from: string; to: string | null } | null; why: string };
+
+/** The transaction, or why it could not be read: the chain has none by that hash, or the read failed and says how. */
+const readTx = (c: TxContext, d: OriginDeps): Promise<Read> =>
+  d.tx(c.chain, c.tx, c.block).then(
+    (t) => ({ t, why: t ? "" : "no such tx on the chain" }),
+    (e: unknown) => ({ t: null, why: String((e as Error)?.message ?? e).slice(0, 120) }),
+  );
+
 // The operator is whoever called the Configurator: the transaction's target (a
 // Safe executing its owners' transaction) or, when the target is the
 // Configurator itself, its sender.
 async function viaConfigurator(c: TxContext, d: OriginDeps): Promise<PauOrigin> {
   const cfg = configurator(c, d)!.contract;
-  const t = await d.tx(c.chain, c.tx, c.block);
-  if (!t) return origin({ kind: "unknown", evidence: `Configurator ${cfg} acted in this tx, but the tx could not be read` });
+  const { t, why } = await readTx(c, d);
+  if (!t) return origin({ kind: "unknown", evidence: `Configurator ${cfg} acted in this tx, but the tx could not be read (${why})` });
   const operator = !t.to || t.to === cfg ? t.from : t.to;
   return origin({ kind: "operator", from: t.from, to: operator, evidence: `Configurator ${cfg} ${configurator(c, d)!.event} in a tx sent to ${t.to ?? "a new contract"}` });
 }
 
 async function viaTx(c: TxContext, d: OriginDeps): Promise<PauOrigin> {
-  const t = await d.tx(c.chain, c.tx, c.block);
-  if (!t) return origin({ kind: "unknown", evidence: "the tx could not be read" });
+  const { t, why } = await readTx(c, d);
+  if (!t) return origin({ kind: "unknown", evidence: `the tx could not be read (${why})` });
   if (!t.to) return origin({ kind: "deployment", from: t.from, evidence: `contract creation by ${t.from}` });
   return origin({ kind: "direct", from: t.from, to: t.to, evidence: `a direct call from ${t.from} to ${t.to}, with no spell, relay or Configurator in the tx` });
 }

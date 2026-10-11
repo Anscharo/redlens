@@ -66,13 +66,24 @@ const CHAIN_ID = new Map(chainRegistry.chains.map((c) => [c.chain, c.chainId]));
 /**
  * The worker's namer: each generation's deriver, over the address artifacts
  * and the registry's addresses, with the facet sources and monolithic ABIs
- * cached in `dir`. The candidates and the monolithic table are built once.
+ * cached in `dir`. The candidates and the monolithic table are built once. A
+ * facet whose source the parser refuses names none of its keys, rather than
+ * guessing or stopping the diamond's snapshot.
  */
 export function keyNamer(addressFiles: string[], extra: unknown, dir = ".cache/etherscan"): KeyNamer {
   let addresses: string[] | undefined;
   let mono: ReturnType<typeof keyDeriver> | undefined;
   const all = () => (addresses ??= candidateAddresses(addressFiles, extra));
-  const shapesOf = (chain: string, facet: string) => (CHAIN_ID.has(chain) ? facetShapesAt(dir, CHAIN_ID.get(chain)!, facet) : []);
+  const unparsed = new Set<string>();
+  const shapesOf = (chain: string, facet: string) => {
+    try {
+      return CHAIN_ID.has(chain) ? facetShapesAt(dir, CHAIN_ID.get(chain)!, facet) : [];
+    } catch (e) {
+      if (!unparsed.has(facet)) console.warn(`pau: facet ${facet} on ${chain} not parsed, its keys stay unnamed: ${(e as Error).message}`);
+      unparsed.add(facet);
+      return [];
+    }
+  };
   return async (snap, read) =>
     snap.kind === "diamond" ? withDiamondKeys(snap, read, { addresses: all(), shapesOf }) : withDerivedKeys(snap, (mono ??= keyDeriver(limitConstants(dir), all())));
 }

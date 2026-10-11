@@ -6,7 +6,7 @@ import "@testing-library/jest-dom/vitest";
 
 vi.mock("../../lib/pauAudit", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../lib/pauAudit")>()),
-  loadPauAudit: () => Promise.resolve([{ item: "a", primeId: "p1" }, { item: "a", primeId: "p1" }, { item: "b", primeId: "p1" }, { item: "c", primeId: "p2" }]),
+  loadPauAuditItems: () => Promise.resolve([{ item: "a", primeId: "p1" }, { item: "a", primeId: "p1" }, { item: "b", primeId: "p1" }, { item: "c", primeId: "p2" }]),
 }));
 
 import { PauAuditLink } from "./PauAuditLink";

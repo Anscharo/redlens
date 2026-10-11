@@ -56,6 +56,18 @@ describe("maybeRefreshPauState", () => {
     const old = fakeDb([{ deployment: "p:ethereum:monolithic", fetched_at: new Date(NOW - 3_600_000) }]);
     expect((await maybeRefreshPauState(old.db, reg, read, { refreshSeconds: 3600, now: NOW })).reason).toBe("due");
   });
+  it("keeps a deployment's last snapshot when its rebuild throws, and still rebuilds the rest", async () => {
+    const two = { ...reg, deployments: [{ ...reg.deployments[0], chain: "base" }, reg.deployments[0]] } as unknown as PauRegistry;
+    const { db, writes } = fakeDb([]);
+    const nameKeys = async (snap: { chain: string }) => {
+      if (snap.chain === "base") throw new Error("a key getter is not a single return");
+      return snap as never;
+    };
+    expect(await maybeRefreshPauState(db, two, read, { refreshSeconds: 3600, now: NOW, nameKeys: nameKeys as never })).toEqual({
+      refreshed: 1, removed: 0, reason: "due", failed: [{ deployment: "p:base:monolithic", error: "a key getter is not a single return" }],
+    });
+    expect(writes).toEqual(["upsert p:ethereum:monolithic"]);
+  });
 });
 
 describe("a chain with a BeamState", () => {
