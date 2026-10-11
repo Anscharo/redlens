@@ -133,8 +133,9 @@ export async function readPauState(db: SqlTag = sql): Promise<(PauSnapshot & { f
 // Public, ungated, like /api/chain-state: an empty list until the worker has run.
 export async function handlePau(): Promise<Response> {
   try {
-    const deployments = withAtlasDocs(await readPauState(), registry as PauRegistry);
-    return json({ deployments }, 200, { headers: { "Cache-Control": "public, max-age=300" } });
+    const reg = registry as PauRegistry;
+    const deployments = withAtlasDocs(await readPauState(), reg);
+    return json({ deployments, rejectedClaims: reg.ignored }, 200, { headers: { "Cache-Control": "public, max-age=300" } });
   } catch (e) {
     console.error(`pau: ${(e as Error).message}`);
     return json({ error: "unavailable" }, 503);

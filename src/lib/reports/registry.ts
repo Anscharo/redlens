@@ -9,6 +9,7 @@ import { modFrequency } from "./mod-frequency";
 import { oeaAssessment } from "./oea-assessment";
 import { ofResponsibilities } from "./of-responsibilities";
 import { onchainAddresses } from "./onchain-addresses";
+import { pauAudit } from "./pau-audit";
 import { potentialMistakes } from "./potential-mistakes";
 import { processes } from "./processes";
 import { rewards } from "./rewards";
@@ -20,6 +21,7 @@ export const REPORTS = [
   govOpsResponsibilities,
   oeaAssessment,
   onchainAddresses,
+  pauAudit,
   rewards,
   riskRules,
   processes,

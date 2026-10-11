@@ -103,12 +103,15 @@ describe("historyComplete", () => {
 });
 
 describe("handlePau", () => {
-  it("serves every snapshot with a cache header, an empty list before the first run", async () => {
+  it("serves every snapshot and the registry's rejected atlas claims with a cache header, an empty list before the first run", async () => {
     served = [];
     const empty = await handlePau();
     expect(empty.status).toBe(200);
     expect(empty.headers.get("cache-control")).toBe("public, max-age=300");
-    expect(await empty.json()).toEqual({ deployments: [] });
+    const body = (await empty.json()) as { deployments: unknown[]; rejectedClaims: { reason: string }[] };
+    expect(body.deployments).toEqual([]);
+    expect(body.rejectedClaims.length).toBeGreaterThan(0);
+    expect(body.rejectedClaims.every((c) => c.reason)).toBe(true);
     served = [{ state: { primeName: "Spark", chain: "base", kind: "monolithic", contracts: [] }, fetched_at: new Date(NOW) }];
     expect(((await (await handlePau()).json()) as { deployments: unknown[] }).deployments).toHaveLength(1);
   });

@@ -68,6 +68,8 @@ export interface PauIgnored {
   kind?: PauKind;
   role: PauRole;
   address: string;
+  /** The atlas documents making the rejected claim, by UUID; the PAU audit report cites them. */
+  docs?: string[];
   reason: string;
 }
 
@@ -126,6 +128,7 @@ function ignoredErrors(g: PauIgnored, where: string): string[] {
   if (!ADDR_RE.test(g.address)) errs.push(`${where}: address must be lowercase 0x hex`);
   if (!ROLES.has(g.role)) errs.push(`${where}: unknown role "${g.role}"`);
   if (!g.reason?.trim()) errs.push(`${where}: needs a reason`);
+  if (g.docs?.some((d) => !UUID_RE.test(d))) errs.push(`${where}: docs must be document UUIDs`);
   return errs;
 }
 

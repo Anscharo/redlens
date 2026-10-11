@@ -2012,6 +2012,9 @@
       "chain": "ethereum",
       "role": "controller",
       "address": "0x577fa18a498e1775939b668b0224a5e5a1e56fc3",
+      "docs": [
+        "3546c2d3-7b7c-4446-aa16-ff357c1a7a0f"
+      ],
       "reason": "Superseded: RateLimits revoked its CONTROLLER role on 2025-12-01; the live controller is 0x5c46fc65…."
     },
     {
@@ -2019,6 +2022,9 @@
       "chain": "avalanche",
       "role": "controller",
       "address": "0x4e64b576f72c237690f27727376186639447f096",
+      "docs": [
+        "2a9bf1bb-81f7-40d2-a26d-2cc7e729913f"
+      ],
       "reason": "Never wired: neither RateLimits nor the ALM proxy grants it CONTROLLER; the live controller is 0x4ee67c8d…, granted 2025-12-01."
     },
     {
@@ -2026,6 +2032,9 @@
       "chain": "xlayer",
       "role": "freezer",
       "address": "0x8a25a24ede9482c4fc0738f99611be58f1c839ab",
+      "docs": [
+        "ed5c698b-cca9-43b8-965f-1dacd3ec46b3"
+      ],
       "reason": "The X Layer docs swap freezer and relayer; on-chain this address holds RELAYER, not FREEZER."
     },
     {
@@ -2033,6 +2042,9 @@
       "chain": "xlayer",
       "role": "relayer",
       "address": "0x90d8c80c028b4c09c0d8dcaab9bbb057f0513431",
+      "docs": [
+        "7248a5ae-a45e-46a1-9cee-a8cb0b391ff8"
+      ],
       "reason": "The X Layer docs swap freezer and relayer; on-chain this address holds FREEZER, not RELAYER."
     },
     {
@@ -2040,6 +2052,9 @@
       "chain": "arbitrum",
       "role": "beacon",
       "address": "0x10e6593cdda8c58a1d0f14c5164b376352a55f2f",
+      "docs": [
+        "e7ef2fd6-d98a-454d-9dd5-1cb0dc739101"
+      ],
       "reason": "Second address in the Beacon doc; verified on Arbitrum as L2GovernanceRelay, and the Controller's beacon() is 0x86036ce5…."
     },
     {
@@ -2048,6 +2063,9 @@
       "kind": "diamond",
       "role": "relayer",
       "address": "0x8cc0cb0cfb6b7e548cfd395b833c05c346534795",
+      "docs": [
+        "567e4905-2b05-493e-95ac-8a4d20afed2b"
+      ],
       "reason": "Spark core-operator relayer, but not an actor of the Arbitrum diamond AdministeredAgent (on-chain enumeration lists only 0x8a25a24e…)."
     },
     {
@@ -2056,6 +2074,9 @@
       "kind": "diamond",
       "role": "beacon",
       "address": "0x10e6593cdda8c58a1d0f14c5164b376352a55f2f",
+      "docs": [
+        "03224b6d-a770-43b1-a4fa-8192a2fcdbc9"
+      ],
       "reason": "The shared Beacon doc names it as the Arbitrum Sky Governance Relay that controls the Beacon, not as the Beacon; verified on Arbitrum as L2GovernanceRelay, and the Controller's beacon() is 0x86036ce5…."
     }
   ]

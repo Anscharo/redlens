@@ -1,7 +1,7 @@
 // The PAU snapshot shape GET /api/pau serves (written by src/server/pau/), and
 // the pure helpers the Radar PAU section reads it with. DOM-free, so the server
 // and the browser share one declaration.
-import type { PauKind, PauRole } from "./pauRegistry.ts";
+import type { PauIgnored, PauKind, PauRole } from "./pauRegistry.ts";
 
 /** Where a value was last set: the block, its time and the transaction. */
 export interface SetAt {
@@ -152,6 +152,8 @@ export type StoredPauSnapshot = PauSnapshot & { fetchedAt: string };
 /** GET /api/pau. */
 export interface PauResponse {
   deployments: StoredPauSnapshot[];
+  /** Atlas claims about PAU contracts that triage rejected because the chain contradicts them (the registry's `ignored`); absent from older responses. */
+  rejectedClaims?: PauIgnored[];
 }
 
 export const EMPTY_PAU: PauResponse = { deployments: [] };
