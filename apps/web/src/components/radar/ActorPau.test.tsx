@@ -4,7 +4,7 @@
 // ID (an unnamed key says so),
 // role holders marked as the chain confirms them, and a deployment whose
 // history is still being read says that instead of looking complete.
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, screen, cleanup, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { PauHistoryResponse, PauResponse, StoredPauSnapshot } from "../../lib/pau";
@@ -152,10 +152,13 @@ describe("ActorPau", () => {
   it("heads the page's two parts at h2, each chain and history group at h3, and a chain's parts at h4", async () => {
     render(<ActorPau prime={prime} instances={instances} />);
     await screen.findByRole("region", { name: "Change history" });
-    expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(["Current state", "Change history"]);
-    const h3 = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
-    expect(h3.slice(0, 2)).toEqual(["Ethereum", "Base"]);
-    expect(h3).toContain("Deployment");
+    expect(screen.getAllByRole("heading", { level: 2 })).toEqual([
+      screen.getByRole("heading", { level: 2, name: "Current state" }),
+      screen.getByRole("heading", { level: 2, name: "Change history" }),
+    ]);
+    const h3 = screen.getAllByRole("heading", { level: 3 });
+    expect(h3.slice(0, 2)).toEqual([screen.getByRole("heading", { level: 3, name: "Ethereum" }), screen.getByRole("heading", { level: 3, name: "Base" })]);
+    expect(screen.getByRole("heading", { level: 3, name: "Deployment" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 3, name: /Executive Vote 2026-08-27/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 4, name: "Roles" })).toBeInTheDocument();
   });
@@ -219,5 +222,52 @@ describe("ActorPau", () => {
     render(<ActorPau prime={prime} instances={instances} />);
     expect(await screen.findByText("no PAU contracts have been read for this Prime yet")).toBeInTheDocument();
     expect(document.querySelector("details.pau-deployment")).toBeNull();
+  });
+});
+
+describe("ActorPau fragments", () => {
+  const arrive = async (hash: string) => {
+    window.location.hash = hash;
+    render(<ActorPau prime={prime} instances={instances} />);
+    await screen.findByRole("region", { name: "Change history" });
+    return waitFor(() => {
+      const el = document.querySelector("[data-arrived]");
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+  };
+  beforeEach(() => {
+    served = { deployments: [BASE, ETH] };
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+  afterEach(() => {
+    window.location.hash = "";
+  });
+
+  it("names every chain, section and history group, each with a # link", async () => {
+    render(<ActorPau prime={prime} instances={instances} />);
+    await screen.findByRole("region", { name: "Change history" });
+    for (const id of ["current-state", "ethereum", "base", "ethereum-roles", "ethereum-rate-limits", "change-history", "exec-vote-2026-08-27", "deployment-ethereum"]) {
+      expect(document.getElementById(id), id).not.toBeNull();
+      expect(document.querySelector(`a.heading-anchor[href="#${id}"]`), id).not.toBeNull();
+    }
+  });
+
+  it("lands on a bare section name, in any case, at the first chain showing it", async () => {
+    expect((await arrive("#Rate-limits")).id).toBe("ethereum-rate-limits");
+  });
+
+  it("opens a collapsed deployment or history group it lands on", async () => {
+    const card = await arrive("#base");
+    expect(card).toHaveAttribute("open");
+    cleanup();
+    const group = await arrive("#deployment-ethereum");
+    expect(group.tagName).toBe("DETAILS");
+    expect(group).toHaveAttribute("open");
+  });
+
+  it("lands on an executive's group by its spell address", async () => {
+    const el = await arrive(`#spell-${spellOrigin.spell.toLowerCase()}`);
+    expect(el.id).toBe("exec-vote-2026-08-27");
   });
 });

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
-import { useLoaded } from "../../hooks/useAtlasData";
-import { loadPauHistory, timelineFor, type AtlasKeyRef, type StoredPauSnapshot, type TimelineGroup } from "../../lib/pau";
+import type { AtlasKeyRef, StoredPauSnapshot, TimelineGroup } from "../../lib/pau";
+import { groupAnchors, PAU_ANCHOR } from "@/lib/pauAnchors";
+import { HeadingAnchor } from "../HeadingAnchor";
 import { PauTimelineGroup } from "./PauTimelineGroup";
 import { PauTimelineKey } from "./PauTimelineKey";
 
@@ -30,8 +31,8 @@ function Intro({ groups }: { groups: TimelineGroup[] }) {
 }
 
 interface Props {
-  /** Prime entity UUID. */
-  prime: string;
+  /** The prime's change history, grouped (pauTimeline.ts); empty until GET /api/pau/history loads. */
+  groups: TimelineGroup[];
   snaps: StoredPauSnapshot[];
   keyIndex: Map<string, AtlasKeyRef[]>;
 }
@@ -41,20 +42,21 @@ interface Props {
  * first, grouped by the executive whose spell made it (GET /api/pau/history).
  * Changes no spell made say what made them instead.
  */
-export function ActorPauTimeline({ prime, snaps, keyIndex }: Props) {
-  const res = useLoaded(loadPauHistory, { soft: true });
-  const groups = useMemo(() => (res ? timelineFor(res, prime) : []), [res, prime]);
+export function ActorPauTimeline({ groups, snaps, keyIndex }: Props) {
+  const anchors = useMemo(() => groupAnchors(groups), [groups]);
   const derived = useMemo(() => new Map(snaps.flatMap((s) => s.contracts.flatMap((c) => c.rateLimits ?? [])).flatMap((r) => (r.derived ? [[r.key.toLowerCase(), r.derived] as const] : []))), [snaps]);
   const beamOf = (chain: string, contract: string) =>
     snaps.filter((s) => s.chain === chain).flatMap((s) => s.contracts).find((c) => c.address === contract && c.beam)?.beam;
   if (groups.length === 0) return null;
   return (
-    <section aria-labelledby="pau-change-history" className="mt-6" id="pau-history" style={{ scrollMarginTop: "64px" }}>
-      <h2 id="pau-change-history" className="mono text-[14px] uppercase tracking-wider mb-1" style={{ color: "var(--tan-2)" }}>Change history</h2>
+    <section aria-labelledby={PAU_ANCHOR.changeHistory} className="mt-6">
+      <h2 id={PAU_ANCHOR.changeHistory} data-anchor-alias="pau-history" className="heading-with-anchor mono text-[14px] uppercase tracking-wider mb-1" style={{ color: "var(--tan-2)" }}>
+        Change history<HeadingAnchor id={PAU_ANCHOR.changeHistory} />
+      </h2>
       <Intro groups={groups} />
       <ol className="space-y-3">
         {groups.map((g) => (
-          <PauTimelineGroup key={g.key} g={g} names={{ keyIndex, derived }} beamOf={beamOf} />
+          <PauTimelineGroup key={g.key} g={g} anchor={anchors.get(g.key)!} names={{ keyIndex, derived }} beamOf={beamOf} />
         ))}
       </ol>
     </section>

@@ -1,7 +1,11 @@
+import type { ReactNode } from "react";
 import type { BeamLimits, TimelineGroup } from "../../lib/pau";
 import type { KeyNames } from "./PauChangeLine";
 import { PauTimelineEntry } from "./PauTimelineEntry";
 import { PauTimelineHeader } from "./PauTimelineHeader";
+import { anchorProps } from "./PauSectionHeading";
+import { HeadingAnchor } from "../HeadingAnchor";
+import type { Anchor } from "@/lib/pauAnchors";
 
 const dim = { color: "var(--tan-3)" };
 const chains = (g: TimelineGroup) => [...new Set(g.entries.map((e) => e.chain))].join(", ");
@@ -13,6 +17,8 @@ const count = (g: TimelineGroup) => g.entries.reduce((n, e) => n + e.changes.len
 
 interface Props {
   g: TimelineGroup;
+  /** Its fragment (pauAnchors.ts): on the group when shown, on its `<details>` when collapsed, so arriving opens it. */
+  anchor: Anchor;
   names: KeyNames;
   beamOf: (chain: string, contract: string) => BeamLimits | undefined;
 }
@@ -26,7 +32,7 @@ const LABEL: Partial<Record<TimelineGroup["kind"], string>> = { deployment: "Dep
  * collapsed, their summary saying what they hold; an executive's changes are
  * shown.
  */
-export function PauTimelineGroup({ g, names, beamOf }: Props) {
+export function PauTimelineGroup({ g, anchor, names, beamOf }: Props) {
   const entries = (
     <ul className="mt-1 space-y-1">
       {g.entries.map((e) => (
@@ -36,22 +42,30 @@ export function PauTimelineGroup({ g, names, beamOf }: Props) {
   );
   if (!COLLAPSED.has(g.kind)) {
     return (
-      <li className="pau-timeline-group border-t border-[var(--border)] pt-2" data-kind={g.kind} data-spell={g.spell ?? undefined}>
-        <PauTimelineHeader g={g} />
+      <li {...anchorProps(anchor)} className="pau-timeline-group border-t border-[var(--border)] pt-2" data-kind={g.kind} data-spell={g.spell ?? undefined}>
+        <PauTimelineHeader g={g} anchor={anchor.id} />
         {entries}
       </li>
     );
   }
-  const n = count(g);
   const beam = g.kind === "operator" ? beamOf(g.entries[0].chain, g.entries[0].changes[0]?.contract ?? "") : undefined;
+  return <CollapsedGroup g={g} anchor={anchor} beam={beam}>{entries}</CollapsedGroup>;
+}
+
+/** A group that starts collapsed, its summary saying what it holds; the fragment is on its `<details>`, so arriving opens it. */
+function CollapsedGroup({ g, anchor, beam, children }: { g: TimelineGroup; anchor: Anchor; beam?: BeamLimits; children: ReactNode }) {
+  const n = count(g);
   return (
     <li className="pau-timeline-group border-t border-[var(--border)] pt-2" data-kind={g.kind}>
-      <details>
-        <summary className="cursor-pointer text-[13px]" style={{ color: "var(--tan-2)" }}>
-          <h3 className="inline">{LABEL[g.kind] ?? <PauTimelineHeader g={g} beam={beam} />}</h3>
+      <details {...anchorProps(anchor)}>
+        <summary className="heading-with-anchor cursor-pointer text-[13px]" style={{ color: "var(--tan-2)" }}>
+          <h3 className="inline">
+            {LABEL[g.kind] ?? <PauTimelineHeader g={g} beam={beam} />}
+            <HeadingAnchor id={anchor.id} />
+          </h3>
           <span className="mono text-[11px]" style={dim}> · {chains(g)} · {n} change{n === 1 ? "" : "s"} in {g.entries.length} tx · {span(g)}</span>
         </summary>
-        {entries}
+        {children}
       </details>
     </li>
   );

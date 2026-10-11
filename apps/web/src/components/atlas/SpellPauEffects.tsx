@@ -21,7 +21,7 @@ export function SpellPauEffects({ spell }: { spell: string }) {
       {actors.map((a) => (
         <span key={a.id}>
           {" · "}
-          <Link to={actorPageHref(a.slug, "pau", "pau-history")} className="text-accent hover:underline">
+          <Link to={actorPageHref(a.slug, "pau", `spell-${spell.toLowerCase()}`)} className="text-accent hover:underline">
             {a.name} PAU history
           </Link>
         </span>

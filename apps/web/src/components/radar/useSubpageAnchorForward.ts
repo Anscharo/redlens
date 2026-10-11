@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useLocationProperty } from "wouter/use-browser-location";
 import { actorPageHref } from "@/lib/routes";
 import { RADAR_SECTION } from "@/lib/radarAnchors";
+import { isPauFragment } from "@/lib/pauAnchors";
 import type { ActorPageKey } from "@/lib/radarPages";
 import type { RadarPrimitive } from "../../lib/actorIndex";
 import { toAnchorId } from "../../lib/anchorId";
@@ -18,6 +19,7 @@ export function subpageForAnchor(
 ): { page: ActorPageKey; fragment?: string } | null {
   if (id === RADAR_SECTION.history) return { page: "history" };
   if (id === RADAR_SECTION.pau) return { page: "pau" };
+  if (isPauFragment(id)) return { page: "pau", fragment: id };
   if (id === RADAR_SECTION.primitives) return { page: "instances" };
   const onInstances =
     id.startsWith("instance-") ||

@@ -2,6 +2,8 @@ import { Address } from "../Address";
 import { exactAmount, formatPerDay, limitDecimals, unitNote, type AtlasKeyRef, type BeamDefault, type BeamLimits } from "../../lib/pau";
 import { LimitName } from "./ActorPauRateLimits";
 import { PauAmount } from "./PauAmount";
+import type { Anchor } from "@/lib/pauAnchors";
+import { PauSectionHeading } from "./PauSectionHeading";
 
 const dim = { color: "var(--tan-3)" };
 const hours = (seconds: string | null) => (seconds === null ? "?" : `${Math.round((Number(seconds) / 3600) * 100) / 100} h`);
@@ -20,10 +22,10 @@ function DefaultRow({ d, chain, keyIndex }: { d: BeamDefault; chain: string; key
 }
 
 /** What BeamState lets the Configurator do to this RateLimits without a spell, and the default ("init") limits it may set keys up to. */
-export function PauBeam({ beam, chain, keyIndex }: { beam: BeamLimits; chain: string; keyIndex: Map<string, AtlasKeyRef[]> }) {
+export function PauBeam({ beam, chain, keyIndex, anchor }: { beam: BeamLimits; chain: string; keyIndex: Map<string, AtlasKeyRef[]>; anchor?: Anchor }) {
   return (
     <div className="mt-3 pau-beam">
-      <h4 className="mono text-[11px] uppercase tracking-wider mb-1" style={dim}>Configurator limits</h4>
+      {anchor ? <PauSectionHeading deployment={anchor} section="configurator-limits">Configurator limits</PauSectionHeading> : <h4 className="mono text-[11px] uppercase tracking-wider mb-1" style={dim}>Configurator limits</h4>}
       <p className="text-[12px]" style={{ color: "var(--tan-2)" }}>
         <span className="mono text-[11px]" style={dim}>BeamState <Address address={beam.beamState} chain={chain} noBalance /> · </span>
         Without a spell the Configurator may raise a limit to its default or by up to {factor(beam.maxChange)}, once every {hours(beam.hop)} per key, and lower one at any time.{" "}

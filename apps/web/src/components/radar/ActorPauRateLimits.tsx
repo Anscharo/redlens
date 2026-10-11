@@ -4,6 +4,9 @@ import { atlasHref } from "@/lib/routes";
 import { explorerTxUrl } from "@/lib/explorer";
 import { PauAmount } from "./PauAmount";
 import { PauOriginChip } from "./PauOriginChip";
+import { anchorProps } from "./PauSectionHeading";
+import { HeadingAnchor } from "../HeadingAnchor";
+import { sectionAnchor, type Anchor } from "@/lib/pauAnchors";
 import { formatAmount, formatPerDay, labelOnChain, limitDecimals, unitNote, type AtlasKeyRef, type DerivedKey, type LiveRateLimit } from "../../lib/pau";
 
 interface Props {
@@ -12,6 +15,8 @@ interface Props {
   keyIndex: Map<string, AtlasKeyRef[]>;
   /** Keys whose every atlas-stated value matches the chain (pauAtlasMatch.ts). */
   atlasMatched: Set<string>;
+  /** The deployment's anchor; the table is `#<deployment>-rate-limits`. */
+  anchor: Anchor;
 }
 
 const dim = { color: "var(--tan-3)" };
@@ -89,13 +94,14 @@ function LimitRow({ r, chain, keyIndex, matches }: { r: LiveRateLimit; chain: st
 }
 
 /** Every rate-limit key the contract has been given: on-chain maximum, refill per day, and what is available now. */
-export function PauRateLimits({ chain, limits, keyIndex, atlasMatched }: Props) {
+export function PauRateLimits({ chain, limits, keyIndex, atlasMatched, anchor }: Props) {
   if (limits.length === 0) return null;
+  const a = sectionAnchor(anchor, "rate-limits");
   return (
-    <table className="w-full border-collapse mt-3 text-[12px]">
+    <table {...anchorProps(a)} className="w-full border-collapse mt-3 text-[12px]">
       <thead>
         <tr className="mono text-[11px] uppercase tracking-wider" style={dim}>
-          <th className="text-left font-normal pb-1">Rate limits</th>
+          <th className="heading-with-anchor text-left font-normal pb-1">Rate limits<HeadingAnchor id={a.id} /></th>
           <th className="text-right font-normal pb-1">Max</th>
           <th className="text-right font-normal pb-1">Per day</th>
           <th className="text-right font-normal pb-1">Available</th>

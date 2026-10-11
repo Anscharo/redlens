@@ -1,10 +1,13 @@
 import { useMemo } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
+import { useArrivalTarget } from "../../hooks/useArrivalTarget";
 import { loadGraph } from "../../lib/graph";
 import { checkAtlasValues } from "@/lib/pauAtlasValues";
 import { atlasMatchedKeys } from "@/lib/pauAtlasMatch";
 import { primeValueSources } from "@/lib/pauDocSources";
-import { addressKeyIndex, instanceKeyIndex, loadPau, primeKeyedInstance, snapshotsForPrime, withAddressKeys, type KeyedInstance } from "../../lib/pau";
+import { addressKeyIndex, instanceKeyIndex, loadPau, loadPauHistory, primeKeyedInstance, snapshotsForPrime, timelineFor, withAddressKeys, type KeyedInstance } from "../../lib/pau";
+import { deploymentAnchors, PAU_ANCHOR } from "@/lib/pauAnchors";
+import { HeadingAnchor } from "../HeadingAnchor";
 import type { GraphEntity } from "@/types";
 import { PauDeployment } from "./ActorPauDeployment";
 import { ActorPauTimeline } from "./ActorPauTimeline";
@@ -25,12 +28,8 @@ function useAtlasMatched(primeId: string, snaps: Parameters<typeof checkAtlasVal
   }, [graph, primeId, snaps]);
 }
 
-/**
- * The prime's PAU deployments as the chain reports them (GET /api/pau), the
- * body of its PAUs subpage. Until the worker has stored a snapshot for this
- * entity it says so instead.
- */
-export function ActorPau({ prime, instances }: Props) {
+/** The page's data: the prime's snapshots and change history, the names of their keys, and where a fragment link lands. */
+function usePauPage({ prime, instances }: Props) {
   const res = useLoaded(loadPau, { soft: true });
   const snaps = useMemo(() => (res ? snapshotsForPrime(res, prime.id) : []), [res, prime.id]);
   const keyIndex = useMemo(
@@ -38,25 +37,43 @@ export function ActorPau({ prime, instances }: Props) {
     [prime.m, instances, snaps],
   );
   const matched = useAtlasMatched(prime.id, snaps);
+  const history = useLoaded(loadPauHistory, { soft: true });
+  const groups = useMemo(() => (history ? timelineFor(history, prime.id) : []), [history, prime.id]);
+  const anchors = useMemo(() => deploymentAnchors(snaps), [snaps]);
+  useArrivalTarget(`${prime.id}/pau`, `${snaps.length}:${groups.length}`);
+  return { loaded: !!res, snaps, keyIndex, matched, groups, anchors };
+}
+
+/**
+ * The prime's PAU deployments as the chain reports them (GET /api/pau), the
+ * body of its PAUs subpage, then their change history. Until the worker has
+ * stored a snapshot for this entity it says so instead. Every deployment,
+ * section and history group is a fragment (pauAnchors.ts); a link to one
+ * lands once both loads have rendered it.
+ */
+export function ActorPau(props: Props) {
+  const { loaded, snaps, keyIndex, matched, groups, anchors } = usePauPage(props);
   if (snaps.length === 0) {
     return (
       <p className="mono text-[11px]" style={{ color: "var(--tan-3)" }}>
-        {res ? "no PAU contracts have been read for this Prime yet" : "loading PAU snapshots…"}
+        {loaded ? "no PAU contracts have been read for this Prime yet" : "loading PAU snapshots…"}
       </p>
     );
   }
 
   return (
-    <section aria-labelledby="pau-current-state">
-      <h2 id="pau-current-state" className="mono text-[14px] uppercase tracking-wider mb-1" style={{ color: "var(--tan-2)" }}>Current state</h2>
+    <section aria-labelledby={PAU_ANCHOR.currentState}>
+      <h2 id={PAU_ANCHOR.currentState} className="heading-with-anchor mono text-[14px] uppercase tracking-wider mb-1" style={{ color: "var(--tan-2)" }}>
+        Current state<HeadingAnchor id={PAU_ANCHOR.currentState} />
+      </h2>
       <p className="text-[12px] mb-3" style={{ color: "var(--tan-3)" }}>
         Read from the chain for each contract in the PAU registry. Role holders come from the contracts&apos; grant history,
         each confirmed live; a rate limit is named by the prime or instance whose parameters state its ID.
       </p>
       {snaps.map((s, i) => (
-        <PauDeployment key={s.deployment} snap={s} keyIndex={keyIndex} matched={matched} defaultOpen={i === 0} />
+        <PauDeployment key={s.deployment} snap={s} keyIndex={keyIndex} matched={matched} defaultOpen={i === 0} anchor={anchors.get(s.deployment)!} />
       ))}
-      <ActorPauTimeline prime={prime.id} snaps={snaps} keyIndex={keyIndex} />
+      <ActorPauTimeline groups={groups} snaps={snaps} keyIndex={keyIndex} />
     </section>
   );
 }

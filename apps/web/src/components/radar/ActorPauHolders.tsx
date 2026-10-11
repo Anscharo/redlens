@@ -1,6 +1,8 @@
 import { Address } from "../Address";
 import { holderRows, type HolderStatus, type PauSnapshot } from "../../lib/pau";
+import type { Anchor } from "@/lib/pauAnchors";
 import { PauOriginChip } from "./PauOriginChip";
+import { PauSectionHeading } from "./PauSectionHeading";
 
 const STATUS: Record<HolderStatus, { mark: string; color: string; role: string; member: string }> = {
   holds: { mark: "✓", color: "var(--tan-2)", role: "holds the role", member: "the AdministeredAgent lists it" },
@@ -17,12 +19,12 @@ const ON_LABEL: Record<string, string> = {
 };
 
 /** Who holds which role on which PAU contract, each marked as the chain confirms it. */
-export function PauHolders({ snap }: { snap: PauSnapshot }) {
+export function PauHolders({ snap, anchor }: { snap: PauSnapshot; anchor: Anchor }) {
   const rows = holderRows(snap);
   if (rows.length === 0) return null;
   return (
     <div className="mt-3">
-      <h4 className="mono text-[11px] uppercase tracking-wider mb-1" style={{ color: "var(--tan-3)" }}>Roles</h4>
+      <PauSectionHeading deployment={anchor} section="roles">Roles</PauSectionHeading>
       <ul className="space-y-0.5">
         {rows.map((r) => {
           const s = STATUS[r.status];
