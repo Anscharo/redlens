@@ -12,6 +12,11 @@ import { readFrontmatterFields, verdictFor, type ArchiveVerdict, type SpellState
 
 export const ARCHIVE_BLOB = "https://github.com/makerdao/community/blob/master/governance/votes/";
 const RAW = "https://raw.githubusercontent.com/makerdao/community/master/governance/votes/";
+// The contents API lists at most 1,000 entries per directory and does not say
+// when it stopped, and the listing is taken once, so a capped listing would be
+// kept for good: the 100-file floor in seed() catches a short list, not a
+// capped one. If governance/votes reaches 1,000 entries, list through the git
+// trees API (/git/trees/master?recursive=1, which reports `truncated`) instead.
 const LIST = "https://api.github.com/repos/makerdao/community/contents/governance/votes?ref=master";
 
 export interface ArchiveDeps {

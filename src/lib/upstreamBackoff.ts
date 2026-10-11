@@ -8,8 +8,11 @@
 // runs of the worker, which exits after each one.
 //
 // "Too fast" is an HTTP 429, or a JSON body that says so: a JSON-RPC error
-// with code 429 or -32005, or an explorer's NOTOK whose text names a limit.
-export const RATE_LIMITED = /\b429\b|rate.?limit|max calls per sec|too many requests|cooling down/i;
+// with code 429 or -32005, or an explorer's NOTOK whose text names a limit. In
+// an error's text a status or code must be labelled as one ("HTTP 429",
+// viem's "Status: 429", "code -32005"), because a bare 429 can be a block
+// number or an id in the request a client echoes back.
+export const RATE_LIMITED = /\b(?:http|status|code)\W{0,2}(?:429|-32005)\b|rate.?limit|max calls per sec|too many requests|cooling down/i;
 export const isRateLimited = (e: unknown) => RATE_LIMITED.test(e instanceof Error ? e.message : String(e));
 
 const MIN_WAIT_MS = 30_000;
@@ -30,6 +33,7 @@ export interface CooldownStore {
 const hosts = new Map<string, HostState>();
 let store: CooldownStore | null = null;
 let loaded: Promise<void> | null = null;
+const saving = new Set<Promise<void>>();
 
 const hostOf = (url: string) => {
   try {
@@ -57,8 +61,19 @@ export function backOff(url: string, retryAfter?: string | null): number {
   const wait = Math.min(MAX_WAIT_MS, Math.max(MIN_WAIT_MS * 2 ** (strikes - 1), RETRY_AFTER_FACTOR * retryAfterMs(retryAfter, now)));
   const until = Math.max(s.until, now + wait);
   hosts.set(host, { until, strikes });
-  void store?.save(host, until).catch(() => {});
+  if (store) {
+    const p: Promise<void> = store
+      .save(host, until)
+      .catch((e) => console.warn(`upstream cooldown for ${host} not saved: ${(e as Error).message}`))
+      .finally(() => saving.delete(p));
+    saving.add(p);
+  }
   return wait;
+}
+
+/** Waits for every cooldown save still in flight; a process awaits it before closing its store or exiting, so a late refusal is not forgotten by the next run. */
+export async function flushCooldowns(): Promise<void> {
+  await Promise.all([...saving]);
 }
 
 /** Waits out `url`'s host cooldown, or throws when it runs longer than this run should wait. */
@@ -80,10 +95,14 @@ async function seed(s: CooldownStore): Promise<void> {
   }
 }
 
-/** Whether a response says the caller is going too fast. */
+/** A JSON body longer than this is data, not a refusal: rate-limit answers are a line or two. */
+const REFUSAL_MAX_BYTES = 4_096;
+
+/** Whether a response says the caller is going too fast. A long JSON body (an explorer page, a multicall result) is not parsed a second time to find out. */
 async function refused(res: Response): Promise<boolean> {
   if (res.status === 429) return true;
   if (!(res.headers.get("content-type") ?? "").includes("json")) return false;
+  if (Number(res.headers.get("content-length") ?? 0) > REFUSAL_MAX_BYTES) return false;
   const body = (await res.clone().json().catch(() => null)) as Record<string, unknown> | null;
   const err = body?.error as { code?: number; message?: string } | undefined;
   if (err && (err.code === 429 || err.code === -32005 || RATE_LIMITED.test(String(err.message ?? "")))) return true;
@@ -138,5 +157,6 @@ export function useCooldownStore(s: CooldownStore | null): void {
 /** Forgets every cooldown and the store (tests). */
 export function resetBackoff(): void {
   hosts.clear();
+  saving.clear();
   useCooldownStore(null);
 }

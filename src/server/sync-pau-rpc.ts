@@ -6,7 +6,7 @@
 //   bun src/server/sync-pau-rpc.ts
 import { sql } from "./db.ts";
 import { runMigrations } from "./migrate.ts";
-import { useDbCooldowns } from "./upstream-cooldowns.ts";
+import { flushCooldowns, useDbCooldowns } from "./upstream-cooldowns.ts";
 import { deadlineMs, runPauRpc, withLock, type Reserved } from "./pau/rpc-lane.ts";
 import reg from "../data/pau-registry.json" with { type: "json" };
 import type { PauRegistry } from "../lib/pauRegistry.ts";
@@ -30,6 +30,7 @@ if (import.meta.main) {
     if (process.env.ATLAS_WORKER_NO_FETCH === "1") console.log("sync:pau-rpc — skipped (--no-fetch)");
     else await withLock(async () => (await sql.reserve()) as unknown as Reserved, LOCK_KEY, run);
   } finally {
+    await flushCooldowns();
     await sql.end();
   }
 }

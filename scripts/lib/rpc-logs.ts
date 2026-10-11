@@ -36,7 +36,7 @@ async function call(url: string, method: string, params: unknown[]): Promise<unk
   });
   if (!res.ok) throw new Error(`rpc ${method}: HTTP ${res.status}`);
   const body = (await res.json()) as { result?: unknown; error?: { code?: number; message?: string } };
-  if (body.error) throw new Error(`rpc ${method}: ${body.error.code ?? ""} ${body.error.message ?? "error"}`);
+  if (body.error) throw new Error(`rpc ${method}: code ${body.error.code ?? "?"} ${body.error.message ?? "error"}`);
   return body.result;
 }
 

@@ -1,6 +1,6 @@
 // The upstream_cooldown table as the back-off's store (src/lib/upstreamBackoff.ts),
 // so a host that asked the worker to slow down stays left alone across runs.
-import { useCooldownStore, type CooldownStore } from "../lib/upstreamBackoff.ts";
+import { flushCooldowns, useCooldownStore, type CooldownStore } from "../lib/upstreamBackoff.ts";
 import type { SqlTag } from "./sql-types.ts";
 
 export function dbCooldownStore(db: SqlTag): CooldownStore {
@@ -19,3 +19,6 @@ export function dbCooldownStore(db: SqlTag): CooldownStore {
 
 /** Loads and saves cooldowns through `db` for the rest of this process. */
 export const useDbCooldowns = (db: SqlTag) => useCooldownStore(dbCooldownStore(db));
+
+/** Waits for cooldown saves still in flight; call it before closing `db` or exiting. */
+export { flushCooldowns };

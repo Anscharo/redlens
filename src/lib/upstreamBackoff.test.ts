@@ -2,7 +2,7 @@
 // 30 s, three times any Retry-After, doubling per refusal in a row, for every
 // caller of that host, and past two minutes not slept through at all.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { backOff, coolingDown, holdOff, politeFetch, resetBackoff, retryAfterMs, useCooldownStore, withBackoff } from "./upstreamBackoff";
+import { backOff, coolingDown, flushCooldowns, holdOff, isRateLimited, politeFetch, resetBackoff, retryAfterMs, useCooldownStore, withBackoff } from "./upstreamBackoff";
 
 const URL_A = "https://rpc.example/a";
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
@@ -71,6 +71,16 @@ describe("politeFetch", () => {
     }
   });
 
+  it("does not parse a long JSON body again to look for a refusal", async () => {
+    const notok = { status: "0", message: "NOTOK", result: "Max calls per sec rate limit reached (5/sec)" };
+    vi.stubGlobal("fetch", vi.fn(async () => json(notok, 200, { "content-length": "100000" })));
+    await politeFetch("https://long.example/");
+    expect(coolingDown("https://long.example/")).toBe(false);
+    vi.stubGlobal("fetch", vi.fn(async () => json(notok, 200, { "content-length": "90" })));
+    await politeFetch("https://short.example/");
+    expect(coolingDown("https://short.example/")).toBe(true);
+  });
+
   it("makes the next request to that host wait out the cooldown", async () => {
     const fetch = vi.fn().mockResolvedValueOnce(new Response("", { status: 429 })).mockResolvedValue(json({ result: "0x1" }));
     vi.stubGlobal("fetch", fetch);
@@ -81,6 +91,15 @@ describe("politeFetch", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     await next;
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("isRateLimited", () => {
+  it("takes a status or code only when the error labels it, never a bare number", () => {
+    const limited = ["explorer logs: HTTP 429", "HTTP request failed.\n\nStatus: 429\nURL: https://rpc.example", "rpc eth_getLogs: code -32005 limit exceeded", "Too Many Requests", "Max calls per sec rate limit reached"];
+    const not = ["rpc eth_getBlockByNumber: no block 429", 'Request body: {"params":["0x1",429]}', "rpc eth_call: code -32000 execution reverted"];
+    expect(limited.map(isRateLimited)).toEqual(limited.map(() => true));
+    expect(not.map(isRateLimited)).toEqual(not.map(() => false));
   });
 });
 
@@ -109,6 +128,20 @@ describe("cooldown store", () => {
     await expect(holdOff(URL_A)).rejects.toThrow(/cooling down/);
     backOff("https://new.example/");
     expect(saved).toEqual([["new.example", Date.now() + 30_000]]);
+  });
+
+  it("lets a process wait for saves still in flight before it exits", async () => {
+    let finish = () => {};
+    const saved: string[] = [];
+    useCooldownStore({ load: async () => [], save: (h) => new Promise((r) => (finish = () => { saved.push(h); r(); })) });
+    backOff(URL_A);
+    let flushed = false;
+    const flush = flushCooldowns().then(() => (flushed = true));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(flushed).toBe(false);
+    finish();
+    await flush;
+    expect(saved).toEqual(["rpc.example"]);
   });
 
   it("carries on with in-process cooldowns when the store cannot be read", async () => {

@@ -41,13 +41,13 @@ export interface PrimeChecks {
   checks: ValueCheck[];
 }
 
-/** The atlas documents whose last change places a disagreement: those stating a mismatch. */
 /** An amount's whole part with thousands separators, as the atlas writes it ("20,000,000 USDC"). */
 export const groupDigits = (s: string): string => s.replace(/^\d+/, (n) => BigInt(n).toLocaleString("en-US"));
 
 /** What the chain holds for a checked value, in the atlas's own style. */
 const onchainText = (c: ValueCheck): string => (c.status === "not-set" ? "never set" : c.limit ? groupDigits(checkChainValue(c)) : "");
 
+/** The atlas documents whose last change places a disagreement: those stating a mismatch. */
 export const docsToDate = (primes: PrimeChecks[]): string[] => [...new Set(primes.flatMap((p) => p.checks.filter((c) => c.status === "mismatch").map((c) => c.docId)))];
 
 function valueRows({ primeId, prime, checks }: PrimeChecks, atlasChanged: Map<string, string>): AuditRow[] {
