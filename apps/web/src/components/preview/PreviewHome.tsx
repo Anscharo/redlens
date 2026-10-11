@@ -5,6 +5,7 @@ import { initAnalytics, register, track, pageview } from "../../lib/analytics";
 import { ProfileButton } from "../chat/ProfileButton";
 import { useAuth } from "../chat/auth";
 import { usersEnabled } from "../../lib/usersEnabled";
+import { previewBackHref } from "../../lib/previewBack";
 import { PreviewPrTabs } from "./PreviewPrTabs";
 
 // /preview index: paste a PR / branch / fork URL (or id) → generate a preview;
@@ -102,7 +103,7 @@ export function PreviewHome() {
   return (
     <div className="min-h-dvh flex flex-col items-center px-6 pt-[18vh] relative" style={{ background: "var(--bg)" }}>
       <a
-        href={import.meta.env.BASE_URL}
+        href={previewBackHref(document.referrer, window.location.origin, import.meta.env.BASE_URL)}
         className="mono text-xs absolute top-4 left-4"
         style={{ color: "var(--tan-3)" }}
       >

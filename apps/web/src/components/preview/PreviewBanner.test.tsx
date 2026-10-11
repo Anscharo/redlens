@@ -111,6 +111,13 @@ describe("PreviewBanner", () => {
     expect(screen.getByText(/3 new on-chain addresses/)).toBeTruthy();
   });
 
+  it("leads with a back link to the preview index", () => {
+    renderBanner(PREVIEW_SOURCE);
+    const back = screen.getByRole("link", { name: "← back" });
+    expect(back).toHaveAttribute("href", "/preview");
+    expect(back.parentElement?.firstElementChild).toBe(back);
+  });
+
   it("falls back to the preview id before meta.json resolves", () => {
     // fetch unresolved → no meta yet; banner still renders using preview.id.
     vi.spyOn(globalThis, "fetch").mockReturnValue(new Promise(() => {}) as Promise<Response>);

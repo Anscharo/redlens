@@ -21,11 +21,12 @@ function wrap(source: DataSource = DEFAULT_SOURCE) {
 }
 
 describe("NavBar", () => {
-  it("renders Reader, Radar, and Reports links when not in preview", () => {
+  it("renders Reader, Radar, Reports and Previews links when not in preview", () => {
     render(<NavBar activePage="atlas" />, { wrapper: wrap() });
     expect(screen.getByRole("link", { name: "Reader" })).toHaveAttribute("href", "/atlas");
     expect(screen.getByRole("link", { name: "Radar" })).toHaveAttribute("href", "/radar");
     expect(screen.getByRole("link", { name: "Reports" })).toHaveAttribute("href", "/reports");
+    expect(screen.getByRole("link", { name: "Previews" })).toHaveAttribute("href", "/preview");
   });
 
   it("marks the active page via data-active", () => {
@@ -40,12 +41,13 @@ describe("NavBar", () => {
     expect(screen.getByRole("link", { name: "Radar" })).not.toHaveAttribute("data-active");
   });
 
-  it("hides the Reports link in preview mode", () => {
+  it("hides the Reports and Previews links in preview mode", () => {
     render(<NavBar activePage="atlas" />, {
       wrapper: wrap({ base: "/api/preview/abc/", preview: { id: "abc", sha: "deadbeef" } }),
     });
     expect(screen.getByRole("link", { name: "Reader" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Reports" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Previews" })).toBeNull();
   });
 
   it("places feedback then colour scheme after the page links, not in front of them", () => {
@@ -55,9 +57,10 @@ describe("NavBar", () => {
     expect(kids[0]).toHaveTextContent("Reader");
     expect(kids[1]).toHaveTextContent("Radar");
     expect(kids[2]).toHaveTextContent("Reports");
-    expect(kids[3]).toHaveAccessibleName("Send feedback");
-    expect(screen.getByRole("button", { name: "Send feedback" })).toBe(kids[3]);
-    expect(screen.getByRole("button", { name: "Colour scheme" })).toBe(kids[4].querySelector("button"));
+    expect(kids[3]).toHaveTextContent("Previews");
+    expect(kids[4]).toHaveAccessibleName("Send feedback");
+    expect(screen.getByRole("button", { name: "Send feedback" })).toBe(kids[4]);
+    expect(screen.getByRole("button", { name: "Colour scheme" })).toBe(kids[5].querySelector("button"));
   });
 
   it("still renders the feedback button in preview mode (unlike Reports)", () => {
