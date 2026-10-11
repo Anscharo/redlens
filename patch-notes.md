@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-11
+
+- Added a back link to the preview bar, and made the Preview page's back link return to the preview or Atlas page you came from
+
 ## 2026-10-08
 
 - Compared the rate limits a document states with the PAU contract's live values in the right-hand panel's Onchain section

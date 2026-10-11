@@ -451,3 +451,23 @@ describe("PreviewHome private repo form", () => {
     Object.defineProperty(window, "location", { value: originalLocation, writable: true });
   });
 });
+
+describe("PreviewHome back link", () => {
+  function backHref(referrer: string) {
+    vi.spyOn(document, "referrer", "get").mockReturnValue(referrer);
+    render(<PreviewHome />);
+    return screen.getByRole("link", { name: "← back" }).getAttribute("href");
+  }
+
+  it("returns to the PR preview the visitor came from", () => {
+    expect(backHref(`${window.location.origin}/preview/pull-256/atlas?id=x`)).toBe("/preview/pull-256/atlas?id=x");
+  });
+
+  it("returns to the live atlas page the visitor came from", () => {
+    expect(backHref(`${window.location.origin}/atlas?id=x`)).toBe("/atlas?id=x");
+  });
+
+  it("falls back to the live atlas with no same-site referrer", () => {
+    expect(backHref("https://github.com/sky-ecosystem/next-gen-atlas/pull/1")).toBe("/");
+  });
+});

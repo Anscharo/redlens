@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDataSource } from "../../lib/dataSource";
 import { previewKind, previewTabTitle, type PreviewMeta } from "../../lib/previewMetaCopy";
-import { PreviewExitLink, PreviewSourceLink } from "./PreviewBannerLinks";
+import { PreviewExitLink, PreviewIndexLink, PreviewSourceLink } from "./PreviewBannerLinks";
 import { PreviewBaseSwitchLink, PreviewCompareStatement } from "./PreviewCompare";
 import { PreviewKindChip } from "./PreviewKindChip";
 import { PreviewNotices, usePreviewNotices } from "./PreviewNotices";
@@ -40,6 +40,7 @@ export function PreviewBanner({ onTabTitle }: { onTabTitle?: (title: string | nu
         className="flex items-center gap-3 px-4 py-2 text-sm"
         style={{ background: "var(--hover)", borderBottom: `1px solid ${edge}`, color: "var(--tan)" }}
       >
+        <PreviewIndexLink />
         <PreviewKindChip meta={meta} />
         <PreviewCompareStatement meta={meta} />
         <PreviewBaseSwitchLink meta={meta} />
