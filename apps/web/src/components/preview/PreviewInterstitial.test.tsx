@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { PreviewInterstitial } from "./PreviewInterstitial";
+import { resetPreviewMetaCache } from "../../lib/previewMeta";
 
 function mockMeta(meta: Record<string, unknown> | null) {
   vi.spyOn(globalThis, "fetch").mockResolvedValue({
@@ -21,6 +22,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  resetPreviewMetaCache();
   vi.restoreAllMocks();
   sessionStorage.clear();
 });

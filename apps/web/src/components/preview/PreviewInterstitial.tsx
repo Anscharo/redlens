@@ -1,5 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { initAnalytics, track } from "../../lib/analytics";
+import { usePreviewMeta } from "../../lib/previewMeta";
 
 // Low-trust click-through: shown on first visit per session for (a) fork
 // previews whose owner is NOT trusted-tier (whitelisted orgs / atlas-merged
@@ -8,33 +9,10 @@ import { initAnalytics, track } from "../../lib/analytics";
 // — opening a PR is cheap, so PR-ness alone earns no clean treatment).
 // Dismissal is per preview sha per session (sessionStorage).
 
-interface Meta {
-  repo: string;
-  ref: string;
-  prAuthor?: string;
-  forkOwner?: string;
-  trustTier?: string;
-  newAddresses?: number;
-  addressCheckFailed?: boolean;
-  behindBy?: number;
-}
-
 export function PreviewInterstitial({ sha, base, children }: { sha: string; base: string; children: ReactNode }) {
   const ackKey = `preview-ack-${sha}`;
   const [acked, setAcked] = useState(() => sessionStorage.getItem(ackKey) === "1");
-  const [meta, setMeta] = useState<Meta | null | undefined>(undefined);
-
-  useEffect(() => {
-    if (acked) return;
-    let live = true;
-    fetch(`${base}meta.json`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((m) => live && setMeta(m))
-      .catch(() => live && setMeta(null));
-    return () => {
-      live = false;
-    };
-  }, [base, acked]);
+  const meta = usePreviewMeta(acked ? null : base);
 
   if (acked) return children;
   if (meta === undefined) return null; // meta loading — blank beat, no flash of content
@@ -43,7 +21,7 @@ export function PreviewInterstitial({ sha, base, children }: { sha: string; base
   // meta === null (fetch failed) → both false → fail open; our server's fault, fork banner still shows.
   if (!isFork && !lowTrustPr) return children;
 
-  const owner = meta!.forkOwner ?? meta!.prAuthor ?? meta!.repo.split("/")[0];
+  const owner = meta!.forkOwner ?? meta!.prAuthor ?? (meta!.repo ?? "").split("/")[0];
   return (
     <div
       className="flex flex-col items-center justify-center gap-4 px-6"

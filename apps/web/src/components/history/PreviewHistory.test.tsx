@@ -22,6 +22,7 @@ vi.mock("./DiffView", () => ({
 
 import { PreviewHistory } from "./PreviewHistory";
 import { usePreviewDiff, usePreviewPatch } from "../../lib/previewDiff";
+import { resetPreviewMetaCache } from "../../lib/previewMeta";
 import type { PreviewDiff } from "../../lib/previewDiff";
 import type { DiffLine } from "@/lib/history";
 
@@ -63,6 +64,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  resetPreviewMetaCache();
   vi.restoreAllMocks();
 });
 

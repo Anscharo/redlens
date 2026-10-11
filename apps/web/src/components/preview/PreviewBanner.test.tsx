@@ -9,6 +9,7 @@ import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { PreviewBanner } from "./PreviewBanner";
+import { resetPreviewMetaCache } from "../../lib/previewMeta";
 import { DataSourceContext, type DataSource } from "../../lib/dataSource";
 import type { ActiveBase } from "../../lib/previewMetaCopy";
 
@@ -53,6 +54,7 @@ const PREVIEW_SOURCE: DataSource = {
 
 afterEach(() => {
   cleanup();
+  resetPreviewMetaCache();
   vi.restoreAllMocks();
   activeBaseValue = null;
   localStorage.clear();
