@@ -40,6 +40,19 @@ describe("timelineFor", () => {
     ]);
     expect(timelineFor(res, "other")).toEqual([]);
   });
+  it("folds every change not attributed yet into one group per chain, timed by its latest", () => {
+    const pending = { entries: [
+      entry("0xa", "2026-02-01", null),
+      entry("0xb", "2026-03-01", o({ kind: "spell", path: "direct", spell: "0xs2" })),
+      entry("0xc", "2026-04-01", o({ kind: "unknown" })),
+      entry("0xd", "2026-02-15", null, "base", `${P}:base:monolithic`),
+    ] };
+    expect(timelineFor(pending, P).map((g) => [g.key, g.entries.map((e) => e.tx), g.time])).toEqual([
+      ["unknown:ethereum", ["0xa", "0xc"], "2026-04-01"],
+      ["spell:0xs2", ["0xb"], "2026-03-01"],
+      ["unknown:base", ["0xd"], "2026-02-15"],
+    ]);
+  });
 });
 
 describe("origin words", () => {
@@ -48,7 +61,9 @@ describe("origin words", () => {
     expect(chipText(res.entries[5])).toBe("relayed · set 7");
     expect(chipText({ ...res.entries[2], executive: { title: null, date: null, url: null, source: null } })).toBe("spell 0xs…0xs");
     expect(routeText(res.entries[3].origin, "arbitrum")).toBe("relayed to Arbitrum action set 6 (Arbitrum retryable id proven)");
-    expect(routeText(null, "ethereum")).toBe("origin not resolved yet");
+    expect(routeText(null, "ethereum")).toBe("not yet attributed: the worker has not checked this transaction yet");
+    expect(routeText(o({ evidence: "the DSPause casts are not read to block 9 yet" }), "ethereum")).toBe("not yet attributed: the DSPause casts are not read to block 9 yet");
+    expect(chipText({ ...res.entries[0], origin: null })).toBe("unattributed");
     expect(routeText(o({ kind: "operator" }), "ethereum")).toBe("through the Configurator");
   });
   it("finds a transaction's entry and sums a spell's effects", () => {

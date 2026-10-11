@@ -3,8 +3,10 @@
 //   - a spell's changes on every chain form one group under its executive;
 //   - an operator's run of Configurator changes, uninterrupted by any other
 //     change of this prime, forms one group;
-//   - a relayed action set without a proven spell, an unresolved change and
-//     any later direct call each stand alone;
+//   - a relayed action set without a proven spell and any later direct call
+//     each stand alone;
+//   - every change not attributed yet on one chain forms one group, whatever
+//     its time, since its place among the others is not known;
 //   - contract creations, and direct calls made before a deployment's first
 //     governed change (spell, relay or operator), are its "Deployment" group.
 // Pure.
@@ -45,8 +47,8 @@ function groupOf(e: PauHistoryEntry, since: Map<string, string>): Pick<TimelineG
     if (setup) return { key: `deployment:${firstDeployment(e)}`, kind: "deployment", spell: null };
   }
   if (o?.kind === "operator") return { key: `operator:${e.chain}:${o.to}:${e.tx}`, kind: "operator", spell: null };
-  const kind = (o?.kind ?? "unknown") as GroupKind;
-  return { key: `${kind}:${e.chain}:${e.tx}`, kind, spell: null };
+  if (!o || o.kind === "unknown") return { key: `unknown:${e.chain}`, kind: "unknown", spell: null };
+  return { key: `${o.kind}:${e.chain}:${e.tx}`, kind: o.kind as GroupKind, spell: null };
 }
 
 const sameOperator = (a: PauHistoryEntry, b: PauHistoryEntry) => a.chain === b.chain && a.origin?.to === b.origin?.to;

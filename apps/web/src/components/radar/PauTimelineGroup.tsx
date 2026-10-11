@@ -17,10 +17,14 @@ interface Props {
   beamOf: (chain: string, contract: string) => BeamLimits | undefined;
 }
 
+const COLLAPSED = new Set<TimelineGroup["kind"]>(["deployment", "operator", "unknown"]);
+const LABEL: Partial<Record<TimelineGroup["kind"], string>> = { deployment: "Deployment", unknown: "Not yet attributed" };
+
 /**
- * One group of the change history. A deployment's group and an operator's day
- * of Configurator changes start collapsed, their summary saying what they
- * hold; an executive's changes are shown.
+ * One group of the change history. A deployment's group, an operator's day of
+ * Configurator changes and a chain's changes not attributed yet start
+ * collapsed, their summary saying what they hold; an executive's changes are
+ * shown.
  */
 export function PauTimelineGroup({ g, names, beamOf }: Props) {
   const entries = (
@@ -30,7 +34,7 @@ export function PauTimelineGroup({ g, names, beamOf }: Props) {
       ))}
     </ul>
   );
-  if (g.kind !== "deployment" && g.kind !== "operator") {
+  if (!COLLAPSED.has(g.kind)) {
     return (
       <li className="pau-timeline-group border-t border-[var(--border)] pt-2" data-kind={g.kind} data-spell={g.spell ?? undefined}>
         <PauTimelineHeader g={g} />
@@ -44,7 +48,7 @@ export function PauTimelineGroup({ g, names, beamOf }: Props) {
     <li className="pau-timeline-group border-t border-[var(--border)] pt-2" data-kind={g.kind}>
       <details>
         <summary className="cursor-pointer text-[13px]" style={{ color: "var(--tan-2)" }}>
-          <h3 className="inline">{g.kind === "deployment" ? "Deployment" : <PauTimelineHeader g={g} beam={beam} />}</h3>
+          <h3 className="inline">{LABEL[g.kind] ?? <PauTimelineHeader g={g} beam={beam} />}</h3>
           <span className="mono text-[11px]" style={dim}> · {chains(g)} · {n} change{n === 1 ? "" : "s"} in {g.entries.length} tx · {span(g)}</span>
         </summary>
         {entries}

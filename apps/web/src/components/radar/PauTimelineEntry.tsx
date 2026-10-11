@@ -14,7 +14,7 @@ export function PauTimelineEntry({ e, names }: { e: PauHistoryEntry; names: KeyN
         <a href={explorerTxUrl(e.chain, e.tx)} target="_blank" rel="noopener" className="hover:underline" title={e.tx}>
           {e.time.slice(0, 16).replace("T", " ")} UTC
         </a>
-        <span title={e.origin?.evidence}>{routeText(e.origin, e.chain)}</span>
+        <span title={e.origin?.evidence} data-attributed={(e.origin && e.origin.kind !== "unknown") || undefined}>{routeText(e.origin, e.chain)}</span>
       </p>
       <ul className="pl-3 space-y-0.5">
         {e.changes.map((c, i) => (

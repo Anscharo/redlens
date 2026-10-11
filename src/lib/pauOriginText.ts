@@ -11,7 +11,7 @@ const chainName = (chain: string) => chain.charAt(0).toUpperCase() + chain.slice
 /** The chip text beside a Set date. */
 export function chipText(e: PauHistoryEntry): string {
   const o = e.origin;
-  if (!o) return "origin pending";
+  if (!o) return "unattributed";
   switch (o.kind) {
     case "spell":
       return e.executive?.date ? `exec ${e.executive.date}` : `spell ${short(o.spell ?? "")}`;
@@ -24,17 +24,20 @@ export function chipText(e: PauHistoryEntry): string {
     case "direct":
       return "direct call";
     default:
-      return "origin pending";
+      return "unattributed";
   }
 }
 
-/** How one entry's changes reached the chain: the spell path, or the relay that carried it. */
+/** Why a change is not attributed yet: the worker has not checked it, or what it is still waiting on. */
+export const pendingReason = (o: PauOrigin | null) => (o ? o.evidence || "no rule has proven its origin yet" : "the worker has not checked this transaction yet");
+
+/** How one entry's changes reached the chain: the spell path, the relay that carried it, or why that is not known yet. */
 export function routeText(o: PauOrigin | null, chain: string): string {
-  if (!o) return "origin not resolved yet";
+  if (!o || o.kind === "unknown") return `not yet attributed: ${pendingReason(o)}`;
   const set = o.relay ? `${chainName(chain)} action set ${o.relay.actionsSet}` : "";
   if (o.kind === "spell" && o.path === "direct") return "cast directly";
   if (o.kind === "spell" && o.path === "starguard") return "through the StarGuard";
   if (o.kind === "spell") return `relayed to ${set} (${o.path === "arbitrum" ? "Arbitrum retryable" : "OP-stack deposit"} id proven)`;
   if (o.kind === "relayed") return `relayed from Ethereum: ${set}`;
-  return { operator: "through the Configurator", deployment: "contract creation", direct: "direct call" }[o.kind as string] ?? "origin not resolved yet";
+  return { operator: "through the Configurator", deployment: "contract creation", direct: "direct call" }[o.kind as string] ?? `not yet attributed: ${pendingReason(o)}`;
 }

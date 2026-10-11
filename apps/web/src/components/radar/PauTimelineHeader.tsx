@@ -27,7 +27,7 @@ function ExecutiveHeading({ g }: { g: TimelineGroup }) {
   );
 }
 
-/** What a group's changes came from, by kind, as its h3. An operator's day is a collapsed group, so its header is phrasing content that the summary's h3 wraps; `beam` gives it the BeamState bounds. */
+/** What an executive, operator, relayed or direct group's changes came from, as its h3 (the other kinds are labelled by PauTimelineGroup). An operator's day is a collapsed group, so its header is phrasing content that the summary's h3 wraps; `beam` gives it the BeamState bounds. */
 export function PauTimelineHeader({ g, beam }: { g: TimelineGroup; beam?: BeamLimits }) {
   const first = g.entries[0];
   const o = first.origin;
@@ -48,6 +48,5 @@ export function PauTimelineHeader({ g, beam }: { g: TimelineGroup; beam?: BeamLi
       </h3>
     );
   }
-  if (g.kind === "direct") return <h3 className="text-[13px]" style={{ color: "var(--tan)" }}>Direct call by <Address address={o?.from ?? ""} chain={first.chain} noBalance /></h3>;
-  return <h3 className="text-[13px]" style={dim} title={o?.evidence}>Origin not resolved yet</h3>;
+  return <h3 className="text-[13px]" style={{ color: "var(--tan)" }}>Direct call by <Address address={o?.from ?? ""} chain={first.chain} noBalance /></h3>;
 }

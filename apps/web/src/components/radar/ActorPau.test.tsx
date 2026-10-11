@@ -91,6 +91,34 @@ describe("ActorPau change history", () => {
   });
 });
 
+describe("ActorPau change history key and unattributed changes", () => {
+  it("explains the group kinds the history holds", async () => {
+    render(<ActorPau prime={prime} instances={instances} />);
+    const key = await screen.findByText("Executive Vote", { selector: "dt" });
+    const dl = key.closest("dl") as HTMLElement;
+    expect([...dl.querySelectorAll("dt")].map((d) => d.textContent)).toEqual(["Executive Vote", "Deployment"]);
+  });
+
+  it("folds unattributed changes by chain, says why each is pending, and notes when nothing is attributed yet", async () => {
+    const saved = history.entries;
+    history.entries = saved.map((e, i) => ({ ...e, tx: "0x" + String(i + 1).repeat(64), origin: i === 0 ? null : { ...e.origin!, kind: "unknown" as const, spell: null, evidence: "the DSPause casts are not read to block 5 yet" }, executive: null }));
+    try {
+      render(<ActorPau prime={prime} instances={instances} />);
+      const section = await screen.findByRole("region", { name: "Change history" });
+      await waitFor(() => expect(section.querySelector("[data-unattributed]")).toHaveTextContent("None of this Prime's 2 changes is attributed yet"));
+      expect(section.querySelector("dl")).toBeNull();
+      const groups = section.querySelectorAll(".pau-timeline-group");
+      expect([...groups].map((g) => g.getAttribute("data-kind"))).toEqual(["unknown"]);
+      expect(within(groups[0] as HTMLElement).getByRole("heading", { level: 3, name: "Not yet attributed" })).toBeInTheDocument();
+      expect(groups[0].querySelector("details")).not.toHaveAttribute("open");
+      expect(groups[0]).toHaveTextContent("not yet attributed: the DSPause casts are not read to block 5 yet");
+      expect(groups[0]).toHaveTextContent("not yet attributed: the worker has not checked this transaction yet");
+    } finally {
+      history.entries = saved;
+    }
+  });
+});
+
 describe("ActorPau", () => {
   it("lists the prime's deployments only, Ethereum first and open", async () => {
     render(<ActorPau prime={prime} instances={instances} />);

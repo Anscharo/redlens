@@ -37,12 +37,9 @@ describe("PauTimelineHeader", () => {
     expect(screen.getByText(/no bridge message id proves which spell queued it/)).toBeInTheDocument();
   });
 
-  it("names a direct caller, and says when an origin is not resolved", () => {
+  it("names a direct caller as the group's h3", () => {
     render(<PauTimelineHeader g={group("direct", origin({ kind: "direct", from: A }))} />);
-    expect(screen.getByText(/Direct call by/)).toBeInTheDocument();
-    cleanup();
-    render(<PauTimelineHeader g={group("unknown", origin({}))} />);
-    expect(screen.getByTitle("waiting on the StarGuard's cursor")).toHaveTextContent("Origin not resolved yet");
+    expect(screen.getByRole("heading", { level: 3, name: /Direct call by/ })).toBeInTheDocument();
   });
 });
 
