@@ -96,7 +96,7 @@ function reportStreamError(t: ChatTurn, err: unknown, send: Send): void {
   const message = isContextOverflowError(err)
     ? noteContextOverflow(t.convId, { forcedThisTurn: t.forcedCompaction, compactionEnabled: !!config.chatSummaryModel })
     : /not a valid model ID/.test((err as Error).message)
-      ? `${(err as Error).message}: fix the CHAT_MODEL* variable in Railway that names it`
+      ? "The chat is set up with a model name our AI provider does not recognise, so it could not answer. Please report this with the feedback button"
       : (err as Error).message;
   send({ type: "error", message });
 }

@@ -81,8 +81,8 @@ const canonicalHostRedirect =
 // CHAT_MODEL_STRONG with a copy of the same expression.
 // OpenRouter 400s an unknown ID, so stray characters (a trailing ".") are dropped.
 const modelId = (s: string): string => s.replace(/[^\w./:~-]/g, "").replace(/[./:~-]+$/, "");
-const csv = (v: string | undefined): string[] => (v ?? "").split(",").map(modelId).filter(Boolean);
-const chatModelStrongList = csv(process.env.CHAT_MODEL_STRONG);
+const modelIds = (v: string | undefined): string[] => (v ?? "").split(",").map(modelId).filter(Boolean);
+const chatModelStrongList = modelIds(process.env.CHAT_MODEL_STRONG);
 // The pinned Jev release every Jev-backed lane defaults to. Pinned, not
 // `~typesafe/jev-latest`, so a floating release can't move a shipped threshold
 // underneath us — which is why it is ONE constant: six copies meant a bump
@@ -372,7 +372,7 @@ export const config = {
   // the context, so one small-window model in the chain turns this off. The
   // per-turn total keeps a turn's input under the 272k-token step where
   // OpenRouter doubles the OpenAI models' price.
-  chatLargeContextModels: csv(process.env.CHAT_LARGE_CONTEXT_MODELS ?? "openai/gpt-6-luna,openai/gpt-5.6-luna"),
+  chatLargeContextModels: modelIds(process.env.CHAT_LARGE_CONTEXT_MODELS ?? "openai/gpt-6-luna,openai/gpt-5.6-luna"),
   chatLargeReadMaxChars: Number(process.env.CHAT_LARGE_READ_MAX_CHARS ?? 600_000),
   chatLargeResultMaxChars: Number(process.env.CHAT_LARGE_RESULT_MAX_CHARS ?? 300_000),
 
@@ -639,10 +639,10 @@ export const config = {
   // tried in order on provider failure. Unset tier slots inherit chatModel +
   // chatModelFallbacks, so with nothing set routing is a no-op and CHAT_MODEL
   // behaves exactly as before.
-  chatModelFast: csv(process.env.CHAT_MODEL_FAST),
+  chatModelFast: modelIds(process.env.CHAT_MODEL_FAST),
   chatModelStrong: chatModelStrongList,
   // Fallbacks for the default chain (also inherited by unset tiers).
-  chatModelFallbacks: csv(process.env.CHAT_MODEL_FALLBACKS),
+  chatModelFallbacks: modelIds(process.env.CHAT_MODEL_FALLBACKS),
   // Models PROMPTED for reference-style citations (system-prompt.ts). Every model
   // still accepts both formats — this is prompt wording only. Used to default to
   // `chatModelStrong` outright, on the theory that the strong tier IS the measured
