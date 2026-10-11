@@ -19,6 +19,10 @@ describe("previewBackHref", () => {
     expect(previewBackHref(`${O}/preview/`, O, "/")).toBe("/");
   });
 
+  it("never returns a protocol-relative path, which would leave the site", () => {
+    expect(previewBackHref(`${O}//evil.example/x`, O, "/")).toBe("/");
+  });
+
   it("respects a non-root base path", () => {
     expect(previewBackHref(`${O}/redlens/preview/pull-1`, O, "/redlens/")).toBe("/redlens/preview/pull-1");
     expect(previewBackHref(`${O}/redlens`, O, "/redlens/")).toBe("/redlens");

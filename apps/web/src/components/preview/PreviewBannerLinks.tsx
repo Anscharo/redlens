@@ -2,9 +2,8 @@ import type { ComponentProps } from "react";
 import { sourceLabel, sourceUrl, type PreviewMeta } from "../../lib/previewMetaCopy";
 import { GitHubMark } from "../chat/glyphs";
 
-// The banner row's links: back to the preview index (which opens the banner
-// row), back to the PR/branch/commit on GitHub, and out of preview mode (which
-// close it).
+// The banner row's links: back to the preview index, out to the PR/branch/commit
+// on GitHub, and out of preview mode.
 
 export function PreviewIndexLink(props: Omit<ComponentProps<"a">, "href">) {
   return (

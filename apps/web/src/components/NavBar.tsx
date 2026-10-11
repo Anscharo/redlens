@@ -13,9 +13,9 @@ export interface NavBarProps {
 export function NavBar({ activePage }: NavBarProps) {
   // Reports + chat are disabled in preview mode (they'd read main data / need a
   // logged-in session); reader + radar stay. Previews is hidden there too: the
-  // preview bar's own back link already leads to the index. Feedback and the colour-scheme
-  // picker are NOT gated on preview — a broken preview is exactly when someone
-  // wants to report it, and theme is per-browser, not account data.
+  // preview bar's own back link already leads to the index. Feedback and the
+  // colour-scheme picker are NOT gated on preview — a broken preview is exactly
+  // when someone wants to report it, and theme is per-browser, not account data.
   const { preview } = useDataSource();
   return (
     <div className="order-2 sm:order-3 flex-1 flex items-center justify-end gap-2">
