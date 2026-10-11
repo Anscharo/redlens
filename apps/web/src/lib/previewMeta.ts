@@ -7,21 +7,24 @@ import type { PreviewMeta } from "./previewMetaTypes";
 // landed reads the answer on its first render instead of flashing a null beat.
 // A failure resolves null and is not kept, so the next caller asks again.
 
-const inFlight = new Map<string, Promise<PreviewMeta | null>>();
+// One request per base, kept after it succeeds so every later call reuses it
+// rather than fetching again; only a failure removes it. `settled` mirrors the
+// successful answers so the hook can read them synchronously on first render.
+const requests = new Map<string, Promise<PreviewMeta | null>>();
 const settled = new Map<string, PreviewMeta>();
 
 export function loadPreviewMeta(base: string): Promise<PreviewMeta | null> {
-  let p = inFlight.get(base);
+  let p = requests.get(base);
   if (!p) {
     p = fetch(`${base}meta.json`)
       .then((r) => (r.ok ? (r.json() as Promise<PreviewMeta>) : null))
       .catch(() => null)
       .then((meta) => {
         if (meta) settled.set(base, meta);
-        else inFlight.delete(base);
+        else requests.delete(base);
         return meta;
       });
-    inFlight.set(base, p);
+    requests.set(base, p);
   }
   return p;
 }
@@ -45,6 +48,6 @@ export function usePreviewMeta(base: string | null): PreviewMeta | null | undefi
 
 /** Tests only: forget every base, so one test's meta never answers the next. */
 export function resetPreviewMetaCache(): void {
-  inFlight.clear();
+  requests.clear();
   settled.clear();
 }

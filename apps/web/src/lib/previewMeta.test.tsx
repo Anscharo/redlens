@@ -28,6 +28,14 @@ describe("loadPreviewMeta", () => {
     expect(fetchMock).toHaveBeenCalledWith(`${BASE}meta.json`);
   });
 
+  it("reuses a request that already succeeded instead of fetching again", async () => {
+    const fetchMock = mockMeta({ repo: "o/r" });
+    const first = await loadPreviewMeta(BASE);
+    const later = await loadPreviewMeta(BASE);
+    expect(later).toBe(first);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("resolves null on a non-ok answer or a rejection, and asks again next time", async () => {
     const fetchMock = mockMeta(null, false);
     expect(await loadPreviewMeta(BASE)).toBeNull();
