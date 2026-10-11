@@ -145,10 +145,11 @@
     { "files": ["src/lib/crossviewShape.ts"], "rules": { "max-lines-per-function": ["error", { "max": 125, "skipBlankLines": true, "skipComments": true }] } },
     // One catalog of Features-guide entries (search lanes, Radar search, …). Adding an
     // entry is how the guide is meant to grow; a split would scatter one catalog.
-    // Raised by 2: the Features guide is the one list of what the app does, so a
-    // Prime's subpages are described here (a how line, and the note on when two of
-    // them appear). It is data with no seam to split along.
-    { "files": ["src/lib/featuresData.ts"], "rules": { "max-lines": ["error", { "max": 414, "skipBlankLines": true, "skipComments": true }] } },
+    // The Features guide is the one list of what the app does, so every
+    // user-visible feature is described here (a Prime's subpages, each report,
+    // the PAU Values Needing Audit report among them). It is data with no seam to
+    // split along, so the pin rises by exactly what a new entry needs.
+    { "files": ["src/lib/featuresData.ts"], "rules": { "max-lines": ["error", { "max": 424, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/oeaTasks.ts"], "rules": { "max-lines-per-function": ["error", { "max": 97, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/onchainAddressesIndex.ts"], "rules": { "max-lines": ["error", { "max": 345, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 57, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/rewardsIndex.ts"], "rules": { "max-lines": ["error", { "max": 299, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }] } },
