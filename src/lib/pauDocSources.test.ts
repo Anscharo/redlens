@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import type { GraphEntity } from "../types.ts";
 import type { GraphData } from "./graphData.ts";
-import { docValueSources } from "./pauDocSources.ts";
+import { docValueSources, primeValueSources } from "./pauDocSources.ts";
 
 const ent = (id: string, et: string, st: string | null, did: string, m: object): GraphEntity => ({ id, slug: id, name: id, et, st, did, m: JSON.stringify(m) });
 const graph: GraphData = {
@@ -28,5 +28,15 @@ describe("docValueSources", () => {
   it("is null for a document no instance states, and before the graph loads", () => {
     expect(docValueSources("elsewhere", graph)).toBeNull();
     expect(docValueSources("i1-doc", null)).toBeNull();
+  });
+});
+
+describe("primeValueSources", () => {
+  it("brings the prime and only its own instances, by entity id", () => {
+    expect(primeValueSources("prime", graph)?.map((s) => [s.name, s.docId])).toEqual([["prime", null], ["i1", "i1-doc"], ["i2", "i2-doc"]]);
+  });
+  it("is null for an unknown prime, and before the graph loads", () => {
+    expect(primeValueSources("nobody", graph)).toBeNull();
+    expect(primeValueSources("prime", null)).toBeNull();
   });
 });

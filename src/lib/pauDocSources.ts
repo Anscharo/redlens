@@ -41,6 +41,16 @@ export function docValueSources(id: string, graph: GraphData | null): DocValueSo
   const hit = instances.find((e) => states(e, id) && metaOf(e).agent_doc_id);
   const primeEntity = hit ? graph.participants.find((p) => p.id === metaOf(hit).agent_doc_id) : graph.participants.find((p) => p.st === "prime" && states(p, id));
   if (!primeEntity) return null;
-  const own = instances.filter((e) => metaOf(e).agent_doc_id === primeEntity.id).map((e) => source(e, e.did));
-  return { prime: primeEntity.id, sources: [source(primeEntity, null), ...own] };
+  return { prime: primeEntity.id, sources: sourcesOf(primeEntity, instances) };
+}
+
+const sourcesOf = (prime: GraphEntity, instances: GraphEntity[]): ValueSource[] => [
+  source(prime, null),
+  ...instances.filter((e) => metaOf(e).agent_doc_id === prime.id).map((e) => source(e, e.did)),
+];
+
+/** Every rate-limit source of one prime, by its entity id; null before the graph loads or for an unknown prime. */
+export function primeValueSources(primeId: string, graph: GraphData | null): ValueSource[] | null {
+  const prime = graph?.participants.find((p) => p.id === primeId);
+  return graph && prime ? sourcesOf(prime, [...graph.instances, ...graph.invocations]) : null;
 }

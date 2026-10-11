@@ -1,5 +1,6 @@
 import { Address } from "../Address";
 import type { AtlasKeyRef, PauParam, StoredPauSnapshot } from "../../lib/pau";
+import { matchId } from "@/lib/pauAtlasMatch";
 import { PauBeam } from "./ActorPauBeam";
 import { PauHolders } from "./ActorPauHolders";
 import { PauRateLimits } from "./ActorPauRateLimits";
@@ -16,8 +17,9 @@ const chainLabel = (chain: string) => chain.charAt(0).toUpperCase() + chain.slic
 const dim = { color: "var(--tan-3)" };
 
 /** One deployment: a collapsible card with its contracts, holders, rate limits and parameters. */
-export function PauDeployment({ snap, keyIndex, defaultOpen }: { snap: StoredPauSnapshot; keyIndex: Map<string, AtlasKeyRef[]>; defaultOpen: boolean }) {
+export function PauDeployment({ snap, keyIndex, matched, defaultOpen }: { snap: StoredPauSnapshot; keyIndex: Map<string, AtlasKeyRef[]>; matched: Set<string>; defaultOpen: boolean }) {
   const limits = snap.contracts.flatMap((c) => c.rateLimits ?? []);
+  const atlas = new Set(snap.contracts.flatMap((c) => (c.rateLimits ?? []).filter((r) => matched.has(matchId(c.address, r.key))).map((r) => r.key)));
   const params = snap.contracts.flatMap((c) => (c.params ?? []).map((p) => ({ ...p, contract: c.address })));
   const loading = snap.contracts.some((c) => !c.historyComplete);
   return (
@@ -36,7 +38,7 @@ export function PauDeployment({ snap, keyIndex, defaultOpen }: { snap: StoredPau
         ))}
       </ul>
       <PauHolders snap={snap} />
-      <PauRateLimits chain={snap.chain} limits={limits} keyIndex={keyIndex} />
+      <PauRateLimits chain={snap.chain} limits={limits} keyIndex={keyIndex} atlasMatched={atlas} />
       {snap.contracts.map((c) => c.beam && <PauBeam key={c.address} beam={c.beam} chain={snap.chain} keyIndex={keyIndex} />)}
       <PauParams params={params} />
       <p className="mono text-[11px] mt-2" style={dim}>read {snap.fetchedAt.slice(0, 16).replace("T", " ")} UTC</p>

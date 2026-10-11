@@ -57,6 +57,14 @@ vi.mock("../../lib/pau", async (importOriginal) => {
   return { ...actual, loadPau: () => Promise.resolve(served), loadPauHistory: () => Promise.resolve(history) };
 });
 
+vi.mock("../../lib/graph", () => ({ loadGraph: () => Promise.resolve({ participants: [{ id: PRIME, slug: "spark", name: "Spark", et: "agent", st: "prime", did: "p", m: "{}" }], instances: [], invocations: [], primitives: [], edges: [] }) }));
+vi.mock("@/lib/pauAtlasValues", () => ({
+  checkAtlasValues: () => [
+    { contract: RL, key: NAMED, status: "match" }, { contract: RL, key: NAMED, status: "match" },
+    { contract: RL, key: MINT, status: "match" }, { contract: RL, key: MINT, status: "mismatch" },
+  ],
+}));
+
 import { ActorPau } from "./ActorPau";
 import { ParamAddressKeys } from "./ParamAddressKeys";
 
@@ -111,6 +119,17 @@ describe("ActorPau", () => {
     expect(rows[4]).toHaveTextContent(/1B.*0.*\?/);
     expect(rows[5]).toHaveAttribute("data-off", "true");
     expect(rows[5]).toHaveTextContent("off");
+  });
+
+  it("titles the table Rate limits and checks only keys whose every atlas value matches the chain", async () => {
+    render(<ActorPau prime={prime} instances={instances} />);
+    const [table] = await screen.findAllByRole("table");
+    expect(within(table).getByRole("columnheader", { name: "Rate limits" })).toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: "Matches Atlas" })).toBeInTheDocument();
+    await waitFor(() => expect(table.querySelectorAll("[data-atlas-match]")).toHaveLength(1));
+    const row = table.querySelector("[data-atlas-match]")!.closest("tr") as HTMLElement;
+    expect(within(row).getByRole("link", { name: "SparkLend USDC · Inflow" })).toBeInTheDocument();
+    expect(within(row).getByRole("img", { name: "matches the atlas" })).toHaveTextContent("✓");
   });
 
   it("says what the Configurator may do without a spell, and lists the default limits by name", async () => {

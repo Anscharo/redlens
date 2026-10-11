@@ -10,6 +10,8 @@ interface Props {
   chain: string;
   limits: LiveRateLimit[];
   keyIndex: Map<string, AtlasKeyRef[]>;
+  /** Keys whose every atlas-stated value matches the chain (pauAtlasMatch.ts). */
+  atlasMatched: Set<string>;
 }
 
 const dim = { color: "var(--tan-3)" };
@@ -63,7 +65,7 @@ export function LimitName({ r, chain, keyIndex }: { r: { key: string; derived?: 
   );
 }
 
-function LimitRow({ r, chain, keyIndex }: { r: LiveRateLimit; chain: string; keyIndex: Map<string, AtlasKeyRef[]> }) {
+function LimitRow({ r, chain, keyIndex, matches }: { r: LiveRateLimit; chain: string; keyIndex: Map<string, AtlasKeyRef[]>; matches: boolean }) {
   const max = r.data?.maxAmount ?? r.configured.maxAmount;
   const dec = limitDecimals(r.unit, max);
   const scale = unitNote(r.unit, max) + (r.data ? "" : "; live read failed, showing the last value its history set");
@@ -73,6 +75,9 @@ function LimitRow({ r, chain, keyIndex }: { r: LiveRateLimit; chain: string; key
       <td className="py-0.5 text-right" title={scale}>{isOff(r) ? "off" : <PauAmount raw={max} dec={dec} symbol={r.unit?.symbol} />}</td>
       <td className="py-0.5 text-right" title={scale}>{formatPerDay(r.data?.slope ?? r.configured.slope, dec)}</td>
       <td className="py-0.5 text-right" title={scale}>{r.available === null ? "?" : formatAmount(r.available, dec)}</td>
+      <td className="py-0.5 text-center" data-atlas-match={matches || undefined}>
+        {matches && <span role="img" aria-label="matches the atlas" title="every value the atlas states for this key matches the chain">✓</span>}
+      </td>
       <td className="py-0.5 text-right">
         <a href={explorerTxUrl(chain, r.setAt.tx)} target="_blank" rel="noopener" className="hover:underline" style={dim}>
           {r.setAt.time.slice(0, 10)}
@@ -84,22 +89,23 @@ function LimitRow({ r, chain, keyIndex }: { r: LiveRateLimit; chain: string; key
 }
 
 /** Every rate-limit key the contract has been given: on-chain maximum, refill per day, and what is available now. */
-export function PauRateLimits({ chain, limits, keyIndex }: Props) {
+export function PauRateLimits({ chain, limits, keyIndex, atlasMatched }: Props) {
   if (limits.length === 0) return null;
   return (
     <table className="w-full border-collapse mt-3 text-[12px]">
       <thead>
         <tr className="mono text-[11px] uppercase tracking-wider" style={dim}>
-          <th className="text-left font-normal pb-1">Rate limit</th>
+          <th className="text-left font-normal pb-1">Rate limits</th>
           <th className="text-right font-normal pb-1">Max</th>
           <th className="text-right font-normal pb-1">Per day</th>
           <th className="text-right font-normal pb-1">Available</th>
+          <th className="text-center font-normal pb-1" title="✓ when every value the atlas states for this key matches the chain">Matches Atlas</th>
           <th className="text-right font-normal pb-1">Set</th>
         </tr>
       </thead>
       <tbody>
         {ordered(limits, keyIndex).map((r) => (
-          <LimitRow key={r.key} r={r} chain={chain} keyIndex={keyIndex} />
+          <LimitRow key={r.key} r={r} chain={chain} keyIndex={keyIndex} matches={atlasMatched.has(r.key)} />
         ))}
       </tbody>
     </table>
