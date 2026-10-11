@@ -2894,7 +2894,10 @@ a.atlas-annotates:focus-visible {
 .copy-link {
   position: absolute;
   right: 100%;
-  padding-right: 6px;
+  padding: 0 6px 0 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
   font-size: 11px;
   line-height: 1.5;
   color: var(--tan-3);

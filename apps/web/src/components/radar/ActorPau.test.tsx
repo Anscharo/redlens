@@ -244,24 +244,26 @@ describe("ActorPau fragments", () => {
     window.location.hash = "";
   });
 
-  it("names every chain, section and history group, each with a # link", async () => {
+  it("names every chain, section and history group, each with a # that holds its link", async () => {
     render(<ActorPau prime={prime} instances={instances} />);
     await screen.findByRole("region", { name: "Change history" });
     for (const id of ["current-state", "ethereum", "base", "ethereum-roles", "ethereum-rate-limits", "change-history", "exec-vote-2026-08-27", "deployment-ethereum"]) {
       expect(document.getElementById(id), id).not.toBeNull();
-      expect(document.querySelector(`a.copy-link[href="#${id}"]`), id).not.toBeNull();
+      expect(document.querySelector(`button.copy-link[data-link="#${id}"]`), id).not.toBeNull();
     }
     expect(screen.getByRole("heading", { level: 4, name: "Roles" })).toBeInTheDocument();
   });
 
-  it("copies a section's full link from its # and says so", async () => {
+  it("copies a section's full link from its # without moving the page or its URL, and says so", async () => {
     const writeText = vi.fn(() => Promise.resolve());
     Object.assign(navigator, { clipboard: { writeText } });
     render(<ActorPau prime={prime} instances={instances} />);
-    const link = await screen.findByRole("link", { name: "Copy link to Executive Vote 2026-08-27" });
-    fireEvent.click(link);
+    const before = window.location.href;
+    const button = await screen.findByRole("button", { name: "Copy link to Executive Vote 2026-08-27" });
+    fireEvent.click(button);
     expect(writeText).toHaveBeenCalledWith(`${window.location.origin}${window.location.pathname}#exec-vote-2026-08-27`);
-    expect(await screen.findByRole("link", { name: "Link to Executive Vote 2026-08-27 copied" })).toHaveTextContent("✓");
+    expect(await screen.findByRole("button", { name: "Link to Executive Vote 2026-08-27 copied" })).toHaveTextContent("✓");
+    expect(window.location.href).toBe(before);
   });
 
   it("lands on a bare section name, in any case, at the first chain showing it", async () => {
