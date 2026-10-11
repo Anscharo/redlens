@@ -10,24 +10,24 @@ function ExecutiveHeading({ g }: { g: TimelineGroup }) {
   const x = g.executive;
   if (!x?.title) {
     return (
-      <p className="text-[13px]" style={{ color: "var(--tan)" }}>
+      <h3 className="text-[13px]" style={{ color: "var(--tan)" }}>
         <SpellLink address={g.spell!} /> <span className="mono text-[11px]" style={dim}>no executive record names this spell</span>
-      </p>
+      </h3>
     );
   }
   return (
     <>
-      <p className="text-[13px] mono">
+      <h3 className="text-[13px] mono">
         {x.url ? <a href={x.url} target="_blank" rel="noreferrer" className="text-accent hover:underline">Executive Vote {x.date}</a> : <span>Executive Vote {x.date}</span>}
         {" · "}
         <SpellLink address={g.spell!} />
-      </p>
+      </h3>
       <p className="text-[13px] leading-relaxed text-tan-2">{x.title}</p>
     </>
   );
 }
 
-/** What a group's changes came from, by kind. An operator's day is a collapsed group, so its heading is phrasing content for the summary; `beam` gives it the BeamState bounds. */
+/** What a group's changes came from, by kind, as its h3. An operator's day is a collapsed group, so its header is phrasing content that the summary's h3 wraps; `beam` gives it the BeamState bounds. */
 export function PauTimelineHeader({ g, beam }: { g: TimelineGroup; beam?: BeamLimits }) {
   const first = g.entries[0];
   const o = first.origin;
@@ -42,12 +42,12 @@ export function PauTimelineHeader({ g, beam }: { g: TimelineGroup; beam?: BeamLi
   }
   if (g.kind === "relayed") {
     return (
-      <p className="text-[13px]" style={{ color: "var(--tan)" }}>
+      <h3 className="text-[13px]" style={{ color: "var(--tan)" }}>
         Relayed from Ethereum · action set {o?.relay?.actionsSet} on Executor <Address address={o?.relay?.executor ?? ""} chain={first.chain} noBalance />
         <span className="mono text-[11px]" style={dim}> · no bridge message id proves which spell queued it</span>
-      </p>
+      </h3>
     );
   }
-  if (g.kind === "direct") return <p className="text-[13px]" style={{ color: "var(--tan)" }}>Direct call by <Address address={o?.from ?? ""} chain={first.chain} noBalance /></p>;
-  return <p className="text-[13px]" style={dim} title={o?.evidence}>Origin not resolved yet</p>;
+  if (g.kind === "direct") return <h3 className="text-[13px]" style={{ color: "var(--tan)" }}>Direct call by <Address address={o?.from ?? ""} chain={first.chain} noBalance /></h3>;
+  return <h3 className="text-[13px]" style={dim} title={o?.evidence}>Origin not resolved yet</h3>;
 }

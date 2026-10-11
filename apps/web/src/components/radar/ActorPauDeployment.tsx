@@ -25,7 +25,7 @@ export function PauDeployment({ snap, keyIndex, matched, defaultOpen }: { snap: 
   return (
     <details open={defaultOpen} className="pau-deployment mb-3 border-t border-[var(--border)] pt-2" data-deployment={snap.deployment} data-kind={snap.kind}>
       <summary className="cursor-pointer mono text-[12px] flex flex-wrap items-baseline gap-2" style={{ color: "var(--tan)" }}>
-        <span>{chainLabel(snap.chain)}</span>
+        <h3 className="inline">{chainLabel(snap.chain)}</h3>
         <span className="text-[11px] px-1.5 rounded" style={{ border: "1px solid var(--border)", color: "var(--tan-2)" }}>{snap.kind}</span>
         <span className="text-[11px]" style={dim}>{limits.length} rate limits</span>
         {loading && <span className="text-[11px]" style={{ color: "var(--accent)" }}>history still being read</span>}

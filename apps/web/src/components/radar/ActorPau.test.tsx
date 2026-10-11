@@ -94,7 +94,7 @@ describe("ActorPau change history", () => {
 describe("ActorPau", () => {
   it("lists the prime's deployments only, Ethereum first and open", async () => {
     render(<ActorPau prime={prime} instances={instances} />);
-    await waitFor(() => expect(screen.getByRole("region", { name: "PAU on-chain" })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("region", { name: "Current state" })).toBeInTheDocument());
     const cards = document.querySelectorAll("details.pau-deployment");
     expect([...cards].map((c) => c.getAttribute("data-deployment"))).toEqual([ETH.deployment, BASE.deployment]);
     expect(cards[0]).toHaveAttribute("open");
@@ -119,6 +119,17 @@ describe("ActorPau", () => {
     expect(rows[4]).toHaveTextContent(/1B.*0.*\?/);
     expect(rows[5]).toHaveAttribute("data-off", "true");
     expect(rows[5]).toHaveTextContent("off");
+  });
+
+  it("heads the page's two parts at h2, each chain and history group at h3, and a chain's parts at h4", async () => {
+    render(<ActorPau prime={prime} instances={instances} />);
+    await screen.findByRole("region", { name: "Change history" });
+    expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(["Current state", "Change history"]);
+    const h3 = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    expect(h3.slice(0, 2)).toEqual(["Ethereum", "Base"]);
+    expect(h3).toContain("Deployment");
+    expect(screen.getByRole("heading", { level: 3, name: /Executive Vote 2026-08-27/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 4, name: "Roles" })).toBeInTheDocument();
   });
 
   it("titles the table Rate limits and checks only keys whose every atlas value matches the chain", async () => {

@@ -47,7 +47,8 @@ export function ActorPau({ prime, instances }: Props) {
   }
 
   return (
-    <section aria-label="PAU on-chain">
+    <section aria-labelledby="pau-current-state">
+      <h2 id="pau-current-state" className="mono text-[14px] uppercase tracking-wider mb-1" style={{ color: "var(--tan-2)" }}>Current state</h2>
       <p className="text-[12px] mb-3" style={{ color: "var(--tan-3)" }}>
         Read from the chain for each contract in the PAU registry. Role holders come from the contracts&apos; grant history,
         each confirmed live; a rate limit is named by the prime or instance whose parameters state its ID.
