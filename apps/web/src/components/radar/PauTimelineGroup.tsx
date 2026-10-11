@@ -4,7 +4,7 @@ import type { KeyNames } from "./PauChangeLine";
 import { PauTimelineEntry } from "./PauTimelineEntry";
 import { PauTimelineHeader } from "./PauTimelineHeader";
 import { anchorProps } from "./PauSectionHeading";
-import { HeadingAnchor } from "../HeadingAnchor";
+import { CopyLink } from "../CopyLink";
 import type { Anchor } from "@/lib/pauAnchors";
 
 const dim = { color: "var(--tan-3)" };
@@ -22,6 +22,10 @@ interface Props {
   names: KeyNames;
   beamOf: (chain: string, contract: string) => BeamLimits | undefined;
 }
+
+/** What a group's copy link names it. */
+const label = (g: TimelineGroup) =>
+  g.kind === "executive" ? (g.executive?.date ? `Executive Vote ${g.executive.date}` : `spell ${g.spell}`) : `${LABEL[g.kind] ?? g.kind} on ${chains(g)}, ${span(g)}`;
 
 const COLLAPSED = new Set<TimelineGroup["kind"]>(["deployment", "operator", "unknown"]);
 const LABEL: Partial<Record<TimelineGroup["kind"], string>> = { deployment: "Deployment", unknown: "Not yet attributed" };
@@ -42,8 +46,9 @@ export function PauTimelineGroup({ g, anchor, names, beamOf }: Props) {
   );
   if (!COLLAPSED.has(g.kind)) {
     return (
-      <li {...anchorProps(anchor)} className="pau-timeline-group border-t border-[var(--border)] pt-2" data-kind={g.kind} data-spell={g.spell ?? undefined}>
-        <PauTimelineHeader g={g} anchor={anchor.id} />
+      <li {...anchorProps(anchor)} className="pau-timeline-group relative border-t border-[var(--border)] pt-2" data-kind={g.kind} data-spell={g.spell ?? undefined}>
+        <CopyLink id={anchor.id} label={label(g)} top={10} />
+        <PauTimelineHeader g={g} />
         {entries}
       </li>
     );
@@ -56,13 +61,11 @@ export function PauTimelineGroup({ g, anchor, names, beamOf }: Props) {
 function CollapsedGroup({ g, anchor, beam, children }: { g: TimelineGroup; anchor: Anchor; beam?: BeamLimits; children: ReactNode }) {
   const n = count(g);
   return (
-    <li className="pau-timeline-group border-t border-[var(--border)] pt-2" data-kind={g.kind}>
+    <li className="pau-timeline-group relative border-t border-[var(--border)] pt-2" data-kind={g.kind}>
+      <CopyLink id={anchor.id} label={label(g)} top={10} />
       <details {...anchorProps(anchor)}>
-        <summary className="heading-with-anchor cursor-pointer text-[13px]" style={{ color: "var(--tan-2)" }}>
-          <h3 className="inline">
-            {LABEL[g.kind] ?? <PauTimelineHeader g={g} beam={beam} />}
-            <HeadingAnchor id={anchor.id} />
-          </h3>
+        <summary className="cursor-pointer text-[13px]" style={{ color: "var(--tan-2)" }}>
+          <h3 className="inline">{LABEL[g.kind] ?? <PauTimelineHeader g={g} beam={beam} />}</h3>
           <span className="mono text-[11px]" style={dim}> · {chains(g)} · {n} change{n === 1 ? "" : "s"} in {g.entries.length} tx · {span(g)}</span>
         </summary>
         {children}

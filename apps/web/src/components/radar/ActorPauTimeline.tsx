@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { AtlasKeyRef, StoredPauSnapshot, TimelineGroup } from "../../lib/pau";
 import { groupAnchors, PAU_ANCHOR } from "@/lib/pauAnchors";
-import { HeadingAnchor } from "../HeadingAnchor";
+import { PauPartHeading } from "./PauSectionHeading";
 import { PauTimelineGroup } from "./PauTimelineGroup";
 import { PauTimelineKey } from "./PauTimelineKey";
 
@@ -50,9 +50,7 @@ export function ActorPauTimeline({ groups, snaps, keyIndex }: Props) {
   if (groups.length === 0) return null;
   return (
     <section aria-labelledby={PAU_ANCHOR.changeHistory} className="mt-6">
-      <h2 id={PAU_ANCHOR.changeHistory} data-anchor-alias="pau-history" className="heading-with-anchor mono text-[14px] uppercase tracking-wider mb-1" style={{ color: "var(--tan-2)" }}>
-        Change history<HeadingAnchor id={PAU_ANCHOR.changeHistory} />
-      </h2>
+      <PauPartHeading anchor={{ id: PAU_ANCHOR.changeHistory, aliases: ["pau-history"] }}>Change history</PauPartHeading>
       <Intro groups={groups} />
       <ol className="space-y-3">
         {groups.map((g) => (

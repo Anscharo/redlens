@@ -5,7 +5,7 @@
 // role holders marked as the chain confirms them, and a deployment whose
 // history is still being read says that instead of looking complete.
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { render, screen, cleanup, waitFor, within } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { PauHistoryResponse, PauResponse, StoredPauSnapshot } from "../../lib/pau";
 
@@ -249,8 +249,19 @@ describe("ActorPau fragments", () => {
     await screen.findByRole("region", { name: "Change history" });
     for (const id of ["current-state", "ethereum", "base", "ethereum-roles", "ethereum-rate-limits", "change-history", "exec-vote-2026-08-27", "deployment-ethereum"]) {
       expect(document.getElementById(id), id).not.toBeNull();
-      expect(document.querySelector(`a.heading-anchor[href="#${id}"]`), id).not.toBeNull();
+      expect(document.querySelector(`a.copy-link[href="#${id}"]`), id).not.toBeNull();
     }
+    expect(screen.getByRole("heading", { level: 4, name: "Roles" })).toBeInTheDocument();
+  });
+
+  it("copies a section's full link from its # and says so", async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.assign(navigator, { clipboard: { writeText } });
+    render(<ActorPau prime={prime} instances={instances} />);
+    const link = await screen.findByRole("link", { name: "Copy link to Executive Vote 2026-08-27" });
+    fireEvent.click(link);
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}${window.location.pathname}#exec-vote-2026-08-27`);
+    expect(await screen.findByRole("link", { name: "Link to Executive Vote 2026-08-27 copied" })).toHaveTextContent("✓");
   });
 
   it("lands on a bare section name, in any case, at the first chain showing it", async () => {

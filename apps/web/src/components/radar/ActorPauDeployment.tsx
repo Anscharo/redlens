@@ -6,7 +6,7 @@ import { PauRateLimits } from "./ActorPauRateLimits";
 import { AtlasDocLink, PauContracts } from "./PauContracts";
 import { PauWiring } from "./PauWiring";
 import { PauSectionHeading, anchorProps } from "./PauSectionHeading";
-import { HeadingAnchor } from "../HeadingAnchor";
+import { CopyLink } from "../CopyLink";
 import type { Anchor } from "@/lib/pauAnchors";
 
 const chainLabel = (chain: string) => chain.charAt(0).toUpperCase() + chain.slice(1);
@@ -30,23 +30,26 @@ export function PauDeployment({ snap, keyIndex, matched, defaultOpen, anchor }: 
   const controller = snap.contracts.find((c) => c.role === "controller");
   const firstBeam = snap.contracts.find((c) => c.beam)?.address;
   return (
-    <details {...anchorProps(anchor)} open={defaultOpen} className="pau-deployment mb-3 border-t border-[var(--border)] pt-2" data-deployment={snap.deployment} data-kind={snap.kind}>
-      <summary className="heading-with-anchor cursor-pointer mono text-[12px] flex flex-wrap items-baseline gap-2" style={{ color: "var(--tan)" }}>
-        <h3 className="inline">{chainLabel(snap.chain)}<HeadingAnchor id={anchor.id} /></h3>
-        <AtlasDocLink docs={controller?.atlasDocs} title="the atlas document stating this controller" className="text-[11px] px-1.5 rounded" style={{ border: "1px solid var(--border)", color: "var(--tan-2)" }}>
-          {snap.kind}
-        </AtlasDocLink>
-        <PauWiring snap={snap} />
-        <span className="text-[11px]" style={dim}>{limits.length} rate limits</span>
-        {loading && <span className="text-[11px]" style={{ color: "var(--accent)" }}>history still being read</span>}
-      </summary>
-      <PauContracts snap={snap} />
-      <PauHolders snap={snap} anchor={anchor} />
-      <PauRateLimits chain={snap.chain} limits={limits} keyIndex={keyIndex} atlasMatched={atlas} anchor={anchor} />
-      {snap.contracts.map((c) => c.beam && <PauBeam key={c.address} beam={c.beam} chain={snap.chain} keyIndex={keyIndex} anchor={c.address === firstBeam ? anchor : undefined} />)}
-      <PauParams params={params} anchor={anchor} />
-      <p className="mono text-[11px] mt-2" style={dim}>read {snap.fetchedAt.slice(0, 16).replace("T", " ")} UTC</p>
-    </details>
+    <div className="relative">
+      <CopyLink id={anchor.id} label={`${chainLabel(snap.chain)} ${snap.kind}`} top={10} />
+      <details {...anchorProps(anchor)} open={defaultOpen} className="pau-deployment mb-3 border-t border-[var(--border)] pt-2" data-deployment={snap.deployment} data-kind={snap.kind}>
+        <summary className="cursor-pointer mono text-[12px] flex flex-wrap items-baseline gap-2" style={{ color: "var(--tan)" }}>
+          <h3 className="inline">{chainLabel(snap.chain)}</h3>
+          <AtlasDocLink docs={controller?.atlasDocs} title="the atlas document stating this controller" className="text-[11px] px-1.5 rounded" style={{ border: "1px solid var(--border)", color: "var(--tan-2)" }}>
+            {snap.kind}
+          </AtlasDocLink>
+          <PauWiring snap={snap} />
+          <span className="text-[11px]" style={dim}>{limits.length} rate limits</span>
+          {loading && <span className="text-[11px]" style={{ color: "var(--accent)" }}>history still being read</span>}
+        </summary>
+        <PauContracts snap={snap} />
+        <PauHolders snap={snap} anchor={anchor} />
+        <PauRateLimits chain={snap.chain} limits={limits} keyIndex={keyIndex} atlasMatched={atlas} anchor={anchor} />
+        {snap.contracts.map((c) => c.beam && <PauBeam key={c.address} beam={c.beam} chain={snap.chain} keyIndex={keyIndex} anchor={c.address === firstBeam ? anchor : undefined} />)}
+        <PauParams params={params} anchor={anchor} />
+        <p className="mono text-[11px] mt-2" style={dim}>read {snap.fetchedAt.slice(0, 16).replace("T", " ")} UTC</p>
+      </details>
+    </div>
   );
 }
 

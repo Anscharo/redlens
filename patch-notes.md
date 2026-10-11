@@ -35,7 +35,7 @@
 
 ## 2026-10-09
 
-- Added a Change history to each Prime Agent's PAUs page, crediting every on-chain change to the Executive Vote, operator or deployment behind it, checked more of its rate limits and members against the chain, flagged controllers that lack the roles they need to move funds, and gave every chain, section and Executive Vote on the page its own link
+- Added a Change history to each Prime Agent's PAUs page, crediting every on-chain change to the Executive Vote, operator or deployment behind it, checked more of its rate limits and members against the chain, flagged controllers that lack the roles they need to move funds, and gave every chain, section and Executive Vote on the page its own link, copied by clicking the # beside it
 
 ## 2026-10-08
 

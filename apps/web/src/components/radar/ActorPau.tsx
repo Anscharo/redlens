@@ -7,7 +7,7 @@ import { atlasMatchedKeys } from "@/lib/pauAtlasMatch";
 import { primeValueSources } from "@/lib/pauDocSources";
 import { addressKeyIndex, instanceKeyIndex, loadPau, loadPauHistory, primeKeyedInstance, snapshotsForPrime, timelineFor, withAddressKeys, type KeyedInstance } from "../../lib/pau";
 import { deploymentAnchors, PAU_ANCHOR } from "@/lib/pauAnchors";
-import { HeadingAnchor } from "../HeadingAnchor";
+import { PauPartHeading } from "./PauSectionHeading";
 import type { GraphEntity } from "@/types";
 import { PauDeployment } from "./ActorPauDeployment";
 import { ActorPauTimeline } from "./ActorPauTimeline";
@@ -63,9 +63,7 @@ export function ActorPau(props: Props) {
 
   return (
     <section aria-labelledby={PAU_ANCHOR.currentState}>
-      <h2 id={PAU_ANCHOR.currentState} className="heading-with-anchor mono text-[14px] uppercase tracking-wider mb-1" style={{ color: "var(--tan-2)" }}>
-        Current state<HeadingAnchor id={PAU_ANCHOR.currentState} />
-      </h2>
+      <PauPartHeading anchor={{ id: PAU_ANCHOR.currentState, aliases: [] }}>Current state</PauPartHeading>
       <p className="text-[12px] mb-3" style={{ color: "var(--tan-3)" }}>
         Read from the chain for each contract in the PAU registry. Role holders come from the contracts&apos; grant history,
         each confirmed live; a rate limit is named by the prime or instance whose parameters state its ID.

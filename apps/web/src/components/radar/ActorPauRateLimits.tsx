@@ -5,7 +5,7 @@ import { explorerTxUrl } from "@/lib/explorer";
 import { PauAmount } from "./PauAmount";
 import { PauOriginChip } from "./PauOriginChip";
 import { anchorProps } from "./PauSectionHeading";
-import { HeadingAnchor } from "../HeadingAnchor";
+import { CopyLink } from "../CopyLink";
 import { sectionAnchor, type Anchor } from "@/lib/pauAnchors";
 import { formatAmount, formatPerDay, labelOnChain, limitDecimals, unitNote, type AtlasKeyRef, type DerivedKey, type LiveRateLimit } from "../../lib/pau";
 
@@ -98,22 +98,25 @@ export function PauRateLimits({ chain, limits, keyIndex, atlasMatched, anchor }:
   if (limits.length === 0) return null;
   const a = sectionAnchor(anchor, "rate-limits");
   return (
-    <table {...anchorProps(a)} className="w-full border-collapse mt-3 text-[12px]">
-      <thead>
-        <tr className="mono text-[11px] uppercase tracking-wider" style={dim}>
-          <th className="heading-with-anchor text-left font-normal pb-1">Rate limits<HeadingAnchor id={a.id} /></th>
-          <th className="text-right font-normal pb-1">Max</th>
-          <th className="text-right font-normal pb-1">Per day</th>
-          <th className="text-right font-normal pb-1">Available</th>
-          <th className="text-center font-normal pb-1" title="✓ when every value the atlas states for this key matches the chain">Matches Atlas</th>
-          <th className="text-right font-normal pb-1">Set</th>
-        </tr>
-      </thead>
-      <tbody>
-        {ordered(limits, keyIndex).map((r) => (
-          <LimitRow key={r.key} r={r} chain={chain} keyIndex={keyIndex} matches={atlasMatched.has(r.key)} />
-        ))}
-      </tbody>
-    </table>
+    <div className="relative mt-3">
+      <CopyLink id={a.id} label={`${anchor.id} rate limits`} top={-2} />
+      <table {...anchorProps(a)} className="w-full border-collapse text-[12px]">
+        <thead>
+          <tr className="mono text-[11px] uppercase tracking-wider" style={dim}>
+            <th className="text-left font-normal pb-1">Rate limits</th>
+            <th className="text-right font-normal pb-1">Max</th>
+            <th className="text-right font-normal pb-1">Per day</th>
+            <th className="text-right font-normal pb-1">Available</th>
+            <th className="text-center font-normal pb-1" title="✓ when every value the atlas states for this key matches the chain">Matches Atlas</th>
+            <th className="text-right font-normal pb-1">Set</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ordered(limits, keyIndex).map((r) => (
+            <LimitRow key={r.key} r={r} chain={chain} keyIndex={keyIndex} matches={atlasMatched.has(r.key)} />
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
