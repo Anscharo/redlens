@@ -35,7 +35,7 @@
 
 ## 2026-10-11
 
-- Added a back link to the preview bar, and made the Preview page's back link return to the preview or Atlas page you came from
+- Added a Previews link to the top bar and a back link to the preview bar, and made the Preview page's back link return to where you came from
 
 ## 2026-10-08
 

@@ -12,7 +12,8 @@ export interface NavBarProps {
 
 export function NavBar({ activePage }: NavBarProps) {
   // Reports + chat are disabled in preview mode (they'd read main data / need a
-  // logged-in session); reader + radar stay. Feedback and the colour-scheme
+  // logged-in session); reader + radar stay. Previews is hidden there too: the
+  // preview bar's own back link already leads to the index. Feedback and the colour-scheme
   // picker are NOT gated on preview — a broken preview is exactly when someone
   // wants to report it, and theme is per-browser, not account data.
   const { preview } = useDataSource();
@@ -24,10 +25,18 @@ export function NavBar({ activePage }: NavBarProps) {
       <NavLink page="radar" active={activePage === "radar"}>
         Radar
       </NavLink>
+      {/* Previews is a plain <a>: /preview is its own page outside the router
+          (main.tsx). Hidden on phones, where a fourth link pushes the row past
+          the screen; the home page's Preview card reaches it there. */}
       {!preview && (
-        <NavLink page="reports" active={activePage === "reports"}>
-          Reports
-        </NavLink>
+        <>
+          <NavLink page="reports" active={activePage === "reports"}>
+            Reports
+          </NavLink>
+          <a href="/preview" className="nav-link hidden sm:inline-block shrink-0 px-3 py-1.5 rounded text-sm">
+            Previews
+          </a>
+        </>
       )}
       <FeedbackButton />
       <ThemeButton />
