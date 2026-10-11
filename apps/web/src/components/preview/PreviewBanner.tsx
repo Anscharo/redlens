@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useDataSource } from "../../lib/dataSource";
+import { usePreviewMeta } from "../../lib/previewMeta";
 import { previewKind, previewTabTitle, type PreviewMeta } from "../../lib/previewMetaCopy";
-import { PreviewExitLink, PreviewSourceLink } from "./PreviewBannerLinks";
+import { PreviewExitLink, PreviewIndexLink, PreviewSourceLink } from "./PreviewBannerLinks";
 import { PreviewBaseSwitchLink, PreviewCompareStatement } from "./PreviewCompare";
 import { PreviewKindChip } from "./PreviewKindChip";
 import { PreviewNotices, usePreviewNotices } from "./PreviewNotices";
@@ -16,15 +17,8 @@ import {
 
 export function PreviewBanner({ onTabTitle }: { onTabTitle?: (title: string | null) => void }) {
   const { base, preview } = useDataSource();
-  const [meta, setMeta] = useState<PreviewMeta | null>(null);
+  const meta: PreviewMeta | null = usePreviewMeta(preview ? base : null) ?? null;
   const { notices, dismiss } = usePreviewNotices(meta);
-  useEffect(() => {
-    if (!preview) return;
-    fetch(`${base}meta.json`)
-      .then((r) => r.json())
-      .then(setMeta)
-      .catch(() => {});
-  }, [base, preview]);
   useEffect(() => {
     onTabTitle?.(preview ? previewTabTitle(meta) : null);
     return () => onTabTitle?.(null);
@@ -40,6 +34,7 @@ export function PreviewBanner({ onTabTitle }: { onTabTitle?: (title: string | nu
         className="flex items-center gap-3 px-4 py-2 text-sm"
         style={{ background: "var(--hover)", borderBottom: `1px solid ${edge}`, color: "var(--tan)" }}
       >
+        <PreviewIndexLink />
         <PreviewKindChip meta={meta} />
         <PreviewCompareStatement meta={meta} />
         <PreviewBaseSwitchLink meta={meta} />

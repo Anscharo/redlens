@@ -33,10 +33,11 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-10-09
+## 2026-10-11
 
 - Added a PAU Values Needing Audit report, grouping every PAU value where the Atlas and the chain disagree by whether the Atlas looks out of date, a spell may not have executed yet, or the Atlas lacks the detail to check, linked from the top of each Prime Agent's PAUs page
 - Added a Change history to each Prime Agent's PAUs page, crediting every on-chain change to the Executive Vote, operator or deployment behind it, checked more of its rate limits and members against the chain, flagged controllers that lack the roles they need to move funds, and gave every chain, section and Executive Vote on the page its own link, copied by clicking the # beside it
+- Added a Previews link to the top bar and a back link to the preview bar, and made the Preview page's back link return to where you came from
 
 ## 2026-10-08
 

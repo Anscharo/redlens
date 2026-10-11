@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
 import { useDataSource } from "../../lib/dataSource";
 import { usePreviewDiff, usePreviewPatch } from "../../lib/previewDiff";
+import { usePreviewMeta } from "../../lib/previewMeta";
 import { CANONICAL_REPO, diffBaseLabel, type PreviewMeta } from "../../lib/previewMetaCopy";
 import { NodeHistory } from "./NodeHistory";
 import { DiffView } from "./DiffView";
@@ -15,10 +15,7 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
   const { base } = useDataSource();
   const diff = usePreviewDiff();
   const patch = usePreviewPatch(nodeId);
-  const [meta, setMeta] = useState<PreviewMeta | null>(null);
-  useEffect(() => {
-    fetch(`${base}meta.json`).then((r) => r.json()).then(setMeta).catch(() => {});
-  }, [base]);
+  const meta: PreviewMeta | null = usePreviewMeta(base) ?? null;
   // "the live atlas" (sky/absent) or "{repo}:{ref}" (repo base) — what this
   // preview's redlines are actually compared against.
   const label = diffBaseLabel(meta ?? {}, diff.activeBase ?? null);

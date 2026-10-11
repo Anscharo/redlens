@@ -15,6 +15,7 @@ vi.mock("./previewView", () => ({
 }));
 
 import { usePreviewDiff, usePreviewPatch, PreviewDiffProvider } from "./previewDiff";
+import { resetPreviewMetaCache } from "./previewMeta";
 
 function wrapper({ children }: { children: ReactNode }) {
   return <PreviewDiffProvider>{children}</PreviewDiffProvider>;
@@ -37,6 +38,7 @@ function mockFetchByUrl(routes: Record<string, unknown | null>) {
 
 afterEach(() => {
   cleanup();
+  resetPreviewMetaCache();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   dataSourceValue = { base: "/api/atlas/live/", preview: null };

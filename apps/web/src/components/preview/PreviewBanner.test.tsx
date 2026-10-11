@@ -9,6 +9,7 @@ import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { PreviewBanner } from "./PreviewBanner";
+import { resetPreviewMetaCache } from "../../lib/previewMeta";
 import { DataSourceContext, type DataSource } from "../../lib/dataSource";
 import type { ActiveBase } from "../../lib/previewMetaCopy";
 
@@ -53,6 +54,7 @@ const PREVIEW_SOURCE: DataSource = {
 
 afterEach(() => {
   cleanup();
+  resetPreviewMetaCache();
   vi.restoreAllMocks();
   activeBaseValue = null;
   localStorage.clear();
@@ -109,6 +111,13 @@ describe("PreviewBanner", () => {
     expect(await screen.findByText("FORK PREVIEW")).toBeTruthy();
     expect(screen.getByText("author has no PRs accepted into the atlas")).toBeTruthy();
     expect(screen.getByText(/3 new on-chain addresses/)).toBeTruthy();
+  });
+
+  it("leads with a back link to the preview index", () => {
+    renderBanner(PREVIEW_SOURCE);
+    const back = screen.getByRole("link", { name: "← back" });
+    expect(back).toHaveAttribute("href", "/preview");
+    expect(back.parentElement?.firstElementChild).toBe(back);
   });
 
   it("falls back to the preview id before meta.json resolves", () => {
