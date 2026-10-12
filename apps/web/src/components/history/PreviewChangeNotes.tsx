@@ -1,4 +1,4 @@
-import { usePreviewDiff } from "../../lib/previewDiff";
+import { usePreviewDiff, type PreviewDiff } from "../../lib/previewDiff";
 import { isReassigned } from "../../lib/identitySwap";
 import { diffBaseLabel, type PreviewMeta } from "../../lib/previewMetaCopy";
 
@@ -13,6 +13,20 @@ interface PreviewChangeNotesProps {
   status: "Added" | "Changed";
 }
 
+/** What the preview diff says about one doc's identity, number and title. */
+function docChanges(diff: PreviewDiff, nodeId: string) {
+  return {
+    // UUID-identity reassignment: this UUID's document was replaced (swap), or
+    // this doc holds content that used to live under another UUID (former).
+    swap: diff.identitySwap[nodeId],
+    former: diff.formerUuid[nodeId],
+    // A changed doc that moved: same UUID, new doc number ([live, preview]).
+    renumber: diff.renumbered[nodeId],
+    // A changed doc whose title differs from the live atlas.
+    retitle: diff.retitled[nodeId],
+  };
+}
+
 // Prose notes about *how* a doc changed in this preview: the ⚠ identity
 // paragraphs (and the plain "rewritten" one for a swap with no sign of where
 // the old content went), the renumber/retitle lines, and — when a Changed doc has none
@@ -23,14 +37,7 @@ interface PreviewChangeNotesProps {
 // under it reads as a bug.
 export function PreviewChangeNotes({ nodeId, meta, source, hasPatch, status }: PreviewChangeNotesProps) {
   const diff = usePreviewDiff();
-  // UUID-identity reassignment: this UUID's document was replaced (swap), or
-  // this doc holds content that used to live under another UUID (former).
-  const swap = diff.identitySwap[nodeId];
-  const former = diff.formerUuid[nodeId];
-  // A changed doc that moved: same UUID, new doc number ([live, preview]).
-  const renumber = diff.renumbered[nodeId];
-  // A changed doc whose title differs from the live atlas.
-  const retitle = diff.retitled[nodeId];
+  const { swap, former, renumber, retitle } = docChanges(diff, nodeId);
   // "the live atlas" or "{repo}:{ref}": what the redlines are compared against.
   const label = diffBaseLabel(meta ?? {}, diff.activeBase ?? null);
   const silent = status === "Changed" && !hasPatch && !renumber && !retitle && !swap;
