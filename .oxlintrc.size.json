@@ -186,7 +186,7 @@
     { "files": ["src/server/preview/diff-base-backfill.ts"], "rules": { "max-lines": ["error", { "max": 253, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/preview/diff-base-write.ts"], "rules": { "max-lines-per-function": ["error", { "max": 72, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/preview/github-app.ts"], "rules": { "max-lines": ["error", { "max": 203, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["src/server/preview/handler.ts"], "rules": { "max-lines": ["error", { "max": 260, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["src/server/preview/handler.ts"], "rules": { "max-lines": ["error", { "max": 249, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/preview/resolve.ts"], "rules": { "max-lines": ["error", { "max": 313, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/retrieval/embed-units.ts"], "rules": { "max-lines": ["error", { "max": 515, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 52, "skipBlankLines": true, "skipComments": true }] } },
     // Raised by 3: `_clearIndexes` resets this module's own `state`, so it cannot live
