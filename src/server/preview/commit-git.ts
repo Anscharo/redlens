@@ -28,6 +28,8 @@ export interface FetchOpts {
   token?: string | null;
   gitdir: string;
   onProgress?: (p: FetchProgress) => void;
+  /** Aborts the fetch's HTTP requests, so a walk past its deadline stops downloading. */
+  signal?: AbortSignal;
 }
 
 const basicAuth = (token: string) => `Basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;
@@ -41,9 +43,10 @@ export async function fetchCommits(o: FetchOpts): Promise<void> {
   await git.addRemote({ fs, gitdir: o.gitdir, remote: "origin", url: `https://github.com/${o.repo}` });
   // fetch refuses a remote without a refspec, even when it names the ref itself.
   await git.setConfig({ fs, gitdir: o.gitdir, path: "remote.origin.fetch", value: "+refs/*:refs/remotes/origin/*" });
+  const signal = o.signal;
   await git.fetch({
     fs,
-    http,
+    http: signal ? { request: (r) => http.request({ ...r, signal }) } : http,
     gitdir: o.gitdir,
     remote: "origin",
     ref: o.sha,

@@ -48,6 +48,18 @@ describe("commitRange", () => {
     expect(gh.pages).toEqual([1, 2, 3]);
   });
 
+  test.each([
+    [100, [1]],
+    [101, [1, 2]],
+    [200, [1, 2]],
+    [201, [1, 2, 3]],
+  ])("at a page boundary (%i commits) it still returns exactly the newest 100", async (total, pages) => {
+    const gh = fakeCompare(total);
+    const r = await commitRange(gh, "o/r", "mb", "head", 100);
+    expect(r!.commits.map((c) => c.sha)).toEqual(Array.from({ length: 100 }, (_, i) => `c${total - i}`));
+    expect(gh.pages).toEqual(pages);
+  });
+
   test("the cap applies to a one-page branch too", async () => {
     const r = await commitRange(fakeCompare(40), "o/r", "mb", "head", 10);
     expect(r!.commits.map((c) => c.sha)).toEqual(Array.from({ length: 10 }, (_, i) => `c${40 - i}`));

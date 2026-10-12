@@ -21,19 +21,22 @@ export interface WalkPlan {
 }
 
 /** What a walk needs from the bundle's meta.json; null when the diff base has
- *  no merge base (a live-main degrade), so there is no range to walk. */
+ *  no merge base (a live-main degrade), so there is no range to walk, or when a
+ *  private head repo has no installation token to fetch it with. */
 export async function planWalk(sha: string, base: BaseKey, meta: PreviewMeta, token = installationToken): Promise<WalkPlan | null> {
   const cand = meta.bases?.[base];
   if (!cand?.mergeBase) return null;
   const priv = !!meta.private;
   const compareToken = base === "sky" || !priv ? config.githubToken : ((await token(cand.repo)) ?? "");
+  const fetchToken = priv ? await token(meta.repo) : null;
+  if (priv && !fetchToken) return null;
   return {
     sha,
     base,
     mergeBase: cand.mergeBase,
     fetchRepo: meta.repo,
     compareRepo: cand.repo,
-    fetchToken: priv ? await token(meta.repo) : null,
+    fetchToken,
     gh: makeGhClient(compareToken),
   };
 }

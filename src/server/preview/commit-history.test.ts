@@ -2,6 +2,7 @@
 // Run via `bun test`.
 
 import { describe, expect, test } from "bun:test";
+import fs from "node:fs";
 
 import { makeNodeEntry, type GitSnapshot } from "../../../scripts/lib/atlas-git-parse.ts";
 import type { PreviewMeta } from "./cache.ts";
@@ -79,6 +80,25 @@ describe("runWalk", () => {
     }
   });
 
+  test("a fetch past the deadline is aborted, and its directory goes once it stops", async () => {
+    let signal: AbortSignal | undefined;
+    let gitdir = "";
+    let stop = () => {};
+    const stopped = new Promise<void>((r) => (stop = r));
+    const fetchCommits: WalkDeps["fetchCommits"] = (o) => {
+      signal = o.signal;
+      gitdir = o.gitdir;
+      return new Promise((_, reject) => o.signal!.addEventListener("abort", () => setTimeout(() => (reject(new Error("aborted")), stop()), 10)));
+    };
+    const { events } = await run({ fetchCommits, timeoutMs: () => 20 });
+    expect(events.at(-1)).toEqual({ type: "error", reason: "timeout" });
+    expect(signal!.aborted).toBe(true);
+    expect(fs.existsSync(gitdir)).toBe(true);
+    await stopped;
+    await Bun.sleep(0);
+    expect(fs.existsSync(gitdir)).toBe(false);
+  });
+
   test("failing to keep a finished walk still finishes it", async () => {
     const { events } = await run({ writeCache: () => { throw new Error("bundle evicted"); } });
     expect(events.at(-1)).toEqual({ type: "done", truncated: false });
@@ -106,5 +126,9 @@ describe("planWalk", () => {
     const p = (await planWalk("h", "repo", meta({ bases, private: true }), token))!;
     expect(p.fetchToken).toBe("tok:o/head");
     expect(asked).toEqual(["o/base", "o/head"]);
+  });
+
+  test("a private bundle with no installation token has nothing to fetch with", async () => {
+    expect(await planWalk("h", "repo", meta({ bases, private: true }), async () => null)).toBeNull();
   });
 });

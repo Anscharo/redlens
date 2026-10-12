@@ -1,8 +1,8 @@
 // A finished commit-history walk, kept in the preview bundle as
-// commits-<base>.json. A bundle is immutable per head sha and a diff base's
-// merge base is fixed in its meta.json, so the file never goes stale; it goes
-// when the bundle is evicted. It is written last and renamed into place, so a
-// file that exists is a whole walk.
+// commits-<base>.json. A walk is fixed by its head sha and its diff base's merge
+// base, so it is served only while that merge base is still the one meta.json
+// names: a rebuild that moves the base leaves the in-memory copy behind. It is
+// written last and renamed into place, so a file that exists is a whole walk.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -54,10 +54,11 @@ function readFile(p: string): CommitHistoryFile | null {
   return f;
 }
 
-/** The finished walk as the event sequence a live walk sends, or null. */
-export function cachedCommitEvents(sha: string, base: BaseKey, root?: string): CommitStreamEvent[] | null {
-  const f = readFile(commitCachePath(sha, base, root));
-  if (!f) return null;
+/** The finished walk from `mergeBase` as the event sequence a live walk sends, or null. */
+export function cachedCommitEvents(sha: string, base: BaseKey, mergeBase: string, root?: string): CommitStreamEvent[] | null {
+  const p = commitCachePath(sha, base, root);
+  const f = readFile(p);
+  if (f?.mergeBase !== mergeBase) return (held.delete(p), null);
   return [
     { type: "range", total: f.total, walking: f.commits.length },
     ...f.commits.map((commit, index): CommitStreamEvent => ({ type: "commit", index, commit })),

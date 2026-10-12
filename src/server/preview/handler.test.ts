@@ -1517,6 +1517,9 @@ function writeCommitHistory(previewPaths: (sha: string) => { outDir: string }, s
   fs.writeFileSync(path.join(previewPaths(sha).outDir, "commits-repo.json"), JSON.stringify(file));
 }
 
+/** The diff base the kept walk above was made from. */
+const WALKED: Partial<PreviewMeta> = { bases: { auto: "repo", repo: { repo: TEST_REPO, ref: "main", mergeBase: "mb" } } };
+
 /** The router hands the handler the pathname alone; the query stays on the request. */
 async function commits(sha: string, query: string): Promise<Response> {
   const { handlePreview } = await freshHandler();
@@ -1526,7 +1529,7 @@ async function commits(sha: string, query: string): Promise<Response> {
 
 test("commits: a finished walk replays from the bundle, every commit carrying only the asked-for document's rows", async () => {
   const { previewPaths, writeMeta } = await freshHandler();
-  makeReadyBundle(previewPaths, writeMeta, SHA_COMMITS, { private: false });
+  makeReadyBundle(previewPaths, writeMeta, SHA_COMMITS, { private: false, extra: WALKED });
   writeCommitHistory(previewPaths, SHA_COMMITS);
   const res = await commits(SHA_COMMITS, `base=repo&uuid=${DOC}`);
   expect(res.headers.get("content-type")).toBe("text/event-stream");
@@ -1550,7 +1553,7 @@ test("commits: the query must name a diff base and a document uuid", async () =>
 test("commits: a private bundle is gated like every sha-keyed response", async () => {
   const sha = "9".repeat(40);
   const { previewPaths, writeMeta } = await freshHandler();
-  makeReadyBundle(previewPaths, writeMeta, sha, { private: true });
+  makeReadyBundle(previewPaths, writeMeta, sha, { private: true, extra: WALKED });
   writeCommitHistory(previewPaths, sha);
   accessDecision = "forbidden";
   const denied = await commits(sha, `base=repo&uuid=${DOC}`);

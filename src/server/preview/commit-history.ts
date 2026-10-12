@@ -73,12 +73,15 @@ function progress(emit: Send): FetchOpts["onProgress"] {
   };
 }
 
+/** Fetch, then describe each commit. At the deadline the fetch is aborted, and
+ *  its scratch directory goes only once it has stopped writing there. */
 async function describe(plan: WalkPlan, commits: CommitMeta[], emit: Send, d: WalkDeps, deadline: number) {
   const records: CommitRecord[] = [];
   const gitdir = fs.mkdtempSync(path.join(os.tmpdir(), "redlens-commits-"));
+  const abort = new AbortController();
+  const fetch = d.fetchCommits({ repo: plan.fetchRepo, sha: plan.sha, depth: commits.length + 1, token: plan.fetchToken, gitdir, onProgress: progress(emit), signal: abort.signal });
   try {
-    const fetch = d.fetchCommits({ repo: plan.fetchRepo, sha: plan.sha, depth: commits.length + 1, token: plan.fetchToken, gitdir, onProgress: progress(emit) });
-    await beforeDeadline(fetch.catch((e) => Promise.reject(fetchFailed(plan, e))), deadline);
+    await beforeDeadline(fetch.catch((e) => Promise.reject(abort.signal.aborted ? new WalkError("timeout") : fetchFailed(plan, e))), deadline);
     const r = await walkCommits(commits, {
       loadSnapshot: d.loadSnapshot(gitdir),
       emit: (rec, index) => (records.push(rec), emit({ type: "commit", index, commit: rec })),
@@ -87,7 +90,9 @@ async function describe(plan: WalkPlan, commits: CommitMeta[], emit: Send, d: Wa
     if (Date.now() > deadline) throw new WalkError("timeout");
     return { records, truncated: r.truncated };
   } finally {
-    fs.rmSync(gitdir, { recursive: true, force: true });
+    abort.abort();
+    const rm = () => fs.rmSync(gitdir, { recursive: true, force: true });
+    void fetch.then(rm, rm).catch(() => {});
   }
 }
 
@@ -109,7 +114,7 @@ export async function runWalk(plan: WalkPlan, emit: Send, d: WalkDeps = defaultW
     if (!range) throw new WalkError("range-failed");
     emit({ type: "range", total: range.total, walking: range.commits.length });
     const out = range.commits.length ? await describe(plan, range.commits, emit, d, deadline) : { records: [], truncated: false };
-    const truncated = range.total > out.records.length;
+    const truncated = out.truncated || range.total > out.records.length;
     keep(plan, d, { version: 1, base: plan.base, mergeBase: plan.mergeBase, head: plan.sha, total: range.total, truncated, commits: out.records });
     emit({ type: "done", truncated });
   } catch (e) {

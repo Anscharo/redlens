@@ -31,17 +31,27 @@ export function forDocument(ev: CommitStreamEvent, uuid: string): CommitWireEven
   return { type: "commit", index: ev.index, commit: { ...commit, entries: entries[uuid] ?? [] } };
 }
 
+export interface FollowDeps {
+  plan: typeof planWalk;
+  start: typeof startCommitWalk;
+}
+
+const FOLLOW: FollowDeps = { plan: planWalk, start: startCommitWalk };
+
 /** Feed `send` from the cache, a running walk, or a new one. Returns the unsubscribe. */
-async function follow(sha: string, base: BaseKey, meta: PreviewMeta, ip: string, send: Send): Promise<() => void> {
-  const cached = cachedCommitEvents(sha, base);
+export async function follow(sha: string, base: BaseKey, meta: PreviewMeta, ip: string, send: Send, d: FollowDeps = FOLLOW): Promise<() => void> {
+  const cached = cachedCommitEvents(sha, base, meta.bases?.[base]?.mergeBase ?? "");
   if (cached) return (cached.forEach(send), () => {});
   const key = walkKey(sha, base);
   const joined = joinWalk(key, send);
   if (joined) return joined;
   if (rateLimited(ip)) return (send({ type: "error", reason: "rate-limited" }), () => {});
-  const plan = await planWalk(sha, base, meta);
+  const plan = await d.plan(sha, base, meta);
   if (!plan) return (send({ type: "error", reason: "unavailable" }), () => {});
-  startCommitWalk(plan);
+  // Another reader may have started this walk while the plan was being made.
+  const raced = joinWalk(key, send);
+  if (raced) return raced;
+  d.start(plan);
   return joinWalk(key, send) ?? (() => {});
 }
 
@@ -62,17 +72,37 @@ function writer(controller: ReadableStreamDefaultController, isClosed: () => boo
   };
 }
 
+const PING = new TextEncoder().encode(":\n\n");
+const PING_MS = 20_000;
+
+/** A comment frame every `ms`: a walk queued behind others, or a quiet
+ *  stretch of one, must not read as an idle connection to the server's
+ *  idleTimeout or a proxy. */
+function keepAlive(controller: ReadableStreamDefaultController, end: () => void, ms: number): ReturnType<typeof setInterval> {
+  const t = setInterval(() => {
+    try {
+      controller.enqueue(PING);
+    } catch {
+      end();
+    }
+  }, ms);
+  t.unref?.();
+  return t;
+}
+
 /** The stream shell: `run` feeds it and returns the unsubscribe; a `run` that
  *  rejects still ends the stream with an error event. */
-export function sse(headers: Record<string, string>, run: (send: (ev: CommitWireEvent) => void) => Promise<() => void>): Response {
+export function sse(headers: Record<string, string>, run: (send: (ev: CommitWireEvent) => void) => Promise<() => void>, pingMs = PING_MS): Response {
   // `closed` is shared with cancel: a reader gone before the walk is joined
   // must still release its subscription once the join resolves.
   let stop = () => {};
   let closed = false;
-  const end = () => ((closed = true), stop());
+  let ping: ReturnType<typeof setInterval> | undefined;
+  const end = () => ((closed = true), clearInterval(ping), stop());
   const stream = new ReadableStream({
     start(controller) {
       const send = writer(controller, () => closed, end);
+      ping = keepAlive(controller, end, pingMs);
       run(send).then(
         (u) => (closed ? u() : (stop = u)),
         () => send({ type: "error", reason: "failed" }),
