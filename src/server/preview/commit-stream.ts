@@ -3,9 +3,10 @@
 // joiner gets every event so far, then the live tail. One walk per
 // (sha, diff base); a walk leaves the registry on its last event.
 
+import type { PreviewCommitError } from "../../lib/previewCommits.ts";
 import type { CommitRecord } from "./commit-walk.ts";
 
-export type CommitStreamError = "unavailable" | "range-failed" | "fetch-failed" | "timeout" | "failed" | "rate-limited";
+export type CommitStreamError = PreviewCommitError;
 
 export type CommitStreamEvent =
   /** Fetching the branch's history; `loaded` of `total` objects when git reports them. */

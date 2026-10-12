@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { compareLine, compareParts, previewKind, previewTabTitle, baseSwitch, broadGrantCopy, diffBaseLabel, pullsPermissionCopy, dismissAccessRepo, readDismissedAccessRepos, type PreviewMeta, type PreviewBases } from "./previewMetaCopy";
+import { compareLine, compareParts, previewKind, previewTabTitle, baseSwitch, broadGrantCopy, diffBaseLabel, entrySourceUrl, pullsPermissionCopy, dismissAccessRepo, readDismissedAccessRepos, type PreviewMeta, type PreviewBases } from "./previewMetaCopy";
 
 function meta(bases?: PreviewBases, extra: Partial<PreviewMeta> = {}): PreviewMeta {
   return { sha: "x", repo: "r", ref: "b", kind: "branch", ...extra, bases };
@@ -225,5 +225,13 @@ describe("diffBaseLabel", () => {
 
   it("falls back to the live atlas when the repo candidate is missing from meta", () => {
     expect(diffBaseLabel(meta({ auto: "sky" }), { key: "repo", auto: false })).toBe("the live atlas");
+  });
+});
+
+describe("entrySourceUrl", () => {
+  it("links a canonical PR on the canonical repo, a fork's own PR on the fork, and a bare branch to its head commit", () => {
+    expect(entrySourceUrl({ kind: "pr", repo: "acme/fork", prNumber: 42 })).toBe("https://github.com/sky-ecosystem/next-gen-atlas/pull/42");
+    expect(entrySourceUrl({ kind: "branch", repo: "acme/fork", prNumber: 5 })).toBe("https://github.com/acme/fork/pull/5");
+    expect(entrySourceUrl({ kind: "branch", repo: "acme/fork", ref: "feat/x", sha: "abc123" })).toBe("https://github.com/acme/fork/commit/abc123");
   });
 });
