@@ -4,7 +4,7 @@ import { useArrivalTarget } from "../../hooks/useArrivalTarget";
 import { loadGraph } from "../../lib/graph";
 import { checkAtlasValues } from "@/lib/pauAtlasValues";
 import { atlasMatchedKeys } from "@/lib/pauAtlasMatch";
-import { primeValueSources } from "@/lib/pauDocSources";
+import { graphPrimeSources } from "@/lib/pauDocSources";
 import { addressKeyIndex, instanceKeyIndex, loadPau, loadPauHistory, primeKeyedInstance, snapshotsForPrime, timelineFor, withAddressKeys, type KeyedInstance } from "../../lib/pau";
 import { deploymentAnchors, PAU_ANCHOR } from "@/lib/pauAnchors";
 import { PauPartHeading } from "./PauSectionHeading";
@@ -23,7 +23,7 @@ interface Props {
 function useAtlasMatched(primeId: string, snaps: Parameters<typeof checkAtlasValues>[1]): Set<string> {
   const graph = useLoaded(loadGraph, { soft: true });
   return useMemo(() => {
-    const sources = primeValueSources(primeId, graph);
+    const sources = graphPrimeSources(primeId, graph);
     return sources ? atlasMatchedKeys(checkAtlasValues(sources, snaps)) : new Set<string>();
   }, [graph, primeId, snaps]);
 }

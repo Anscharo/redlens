@@ -7,7 +7,7 @@
 // on-chain integer, which is what is compared, and a formatted copy to read.
 import type { StoredPauSnapshot } from "./pau.ts";
 import { checkAtlasValues, type ValueCheck, type ValueStatus } from "./pauAtlasValues.ts";
-import { primesStatingValues, primeValueSources, type SourceEntity } from "./pauPrimeSources.ts";
+import { primesStatingValues, primeValueSources, rowView, type SourceEntity } from "./pauPrimeSources.ts";
 import { exactAmount, limitDecimals, wholeAmount } from "./pauView.ts";
 
 /** A slot: its status, or for a disagreement the status, the raw chain value and how it reads. */
@@ -52,9 +52,10 @@ function addCheck(values: Record<string, CensusValue>, c: ValueCheck, prime: str
 export function pauCensus(entities: SourceEntity[], docNoOf: (id: string) => string | null, snaps: StoredPauSnapshot[]): PauCensus {
   const values: Record<string, CensusValue> = {};
   const counts: Record<string, number> = {};
-  const primes = new Set([...snaps.map((s) => s.prime), ...primesStatingValues(entities)]);
+  const views = entities.map(rowView);
+  const primes = new Set([...snaps.map((s) => s.prime), ...primesStatingValues(views)]);
   for (const prime of [...primes].sort()) {
-    for (const c of checkAtlasValues(primeValueSources(entities, prime), snaps.filter((s) => s.prime === prime))) {
+    for (const c of checkAtlasValues(primeValueSources(views, prime), snaps.filter((s) => s.prime === prime))) {
       addCheck(values, c, prime, docNoOf);
       counts[c.status] = (counts[c.status] ?? 0) + 1;
     }

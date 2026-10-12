@@ -1,7 +1,7 @@
 import { buildPauAudit, docsToDate, type AuditInput, type AuditRow, type PrimeChecks } from "@/lib/pauAuditIndex";
 import { lastContentChange } from "@/lib/pauAudit";
 import { checkAtlasValues } from "@/lib/pauAtlasValues";
-import { primeValueSources } from "@/lib/pauDocSources";
+import { graphPrimeSources } from "@/lib/pauDocSources";
 import { loadHistoryBatch } from "@/lib/history";
 import type { GraphData } from "@/lib/graphData";
 import { loadGraph } from "./graph";
@@ -16,7 +16,7 @@ function primeChecks(graph: GraphData, res: PauResponse): PrimeChecks[] {
   return graph.participants
     .filter((p) => p.st === "prime")
     .flatMap((p) => {
-      const sources = primeValueSources(p.id, graph);
+      const sources = graphPrimeSources(p.id, graph);
       return sources ? [{ primeId: p.id, prime: p.name, checks: checkAtlasValues(sources, snapshotsForPrime(res, p.id)) }] : [];
     });
 }

@@ -8,7 +8,7 @@
 import { checkAtlasValues, type ValueCheck } from "../../lib/pauAtlasValues.ts";
 import type { StoredPauSnapshot } from "../../lib/pau.ts";
 import { checkChainValue } from "../../lib/pauCheckValue.ts";
-import { primeValueSources } from "../../lib/pauPrimeSources.ts";
+import { primeValueSources, rowView } from "../../lib/pauPrimeSources.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import type { OnchainFact } from "./facts.ts";
 import { setAt } from "./pau-fact-parts.ts";
@@ -29,7 +29,6 @@ function valueFact(c: ValueCheck, primeName: string, prime: string, snap: Stored
   };
 }
 
-/** The deployment a check is about: the one holding the key, else the read one on the instance's chain. */
 /** The deployments a check is about: the one holding the key, else, for "not set", every one on the instance's chain (each read and found without it). */
 const deploymentsOf = (c: ValueCheck, snaps: StoredPauSnapshot[]): StoredPauSnapshot[] => {
   if (c.status === "match" || c.status === "mismatch") return snaps.filter((s) => s.chain === c.chain && s.kind === c.kind);
@@ -39,5 +38,6 @@ const deploymentsOf = (c: ValueCheck, snaps: StoredPauSnapshot[]): StoredPauSnap
 /** One fact per value the chain can be compared on, or lacks on a read chain, for one prime. */
 export function valueFacts(ix: Indexes, prime: string, snaps: StoredPauSnapshot[]): OnchainFact[] {
   const name = snaps[0]?.primeName ?? ix.entityById.get(prime)?.name ?? "";
-  return checkAtlasValues(primeValueSources(ix.entities, prime, ix.entityById.get(prime)), snaps).flatMap((c) => deploymentsOf(c, snaps).map((s) => valueFact(c, name, prime, s)));
+  const primeEntity = ix.entityById.get(prime);
+  return checkAtlasValues(primeValueSources(ix.entities.map(rowView), prime, primeEntity && rowView(primeEntity)), snaps).flatMap((c) => deploymentsOf(c, snaps).map((s) => valueFact(c, name, prime, s)));
 }
