@@ -35,6 +35,7 @@
 
 ## 2026-10-12
 
+- Added a button on each document to copy its sky-atlas.io link
 - Added a By commit switch to a preview's history tab, listing each commit on the branch that changed the document, with its diff
 
 ## 2026-10-11
