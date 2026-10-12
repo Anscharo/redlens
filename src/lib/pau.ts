@@ -132,6 +132,8 @@ export interface ContractState {
   integrations?: PauIntegration[];
   /** Atlas documents stating this contract's address, from the registry's provenance; attached when GET /api/pau serves it (pauAtlasDocs.ts). */
   atlasDocs?: string[];
+  /** The registry's non-atlas evidence for listing this contract in its role (what the chain or a curator showed), attached with `atlasDocs`. */
+  evidence?: string[];
   /** Admin events stored for this contract. */
   events: number;
   /** Every event type's history is read to the confirmed head; until then an absent part means "not read yet". */
