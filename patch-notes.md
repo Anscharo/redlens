@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-12
+
+- Showed the Atlas vs contract rate-limit table on a Rate Limits heading as well as on its Inflow and Outflow pages, and read rate limits the Atlas lists one token at a time
+
 ## 2026-10-11
 
 - Added a PAU Values Needing Audit report, grouping every PAU value where the Atlas and the chain disagree by whether the Atlas looks out of date, a spell may not have executed yet, or the Atlas lacks the detail to check, linked from the top of each Prime Agent's PAUs page

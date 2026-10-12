@@ -11,7 +11,7 @@
 // instance's Swap values, whatever side the atlas files the hash under.
 import type { DerivedKey, LiveRateLimit, StoredPauSnapshot } from "./pau.ts";
 import { RATE_LIMIT_ID_RE } from "./atlasHashes.ts";
-import { paramSide } from "./pauParams.ts";
+import { paramQualifier, paramSide } from "./pauParams.ts";
 import { chainSnaps } from "./pauInstanceChain.ts";
 
 const HASH_RE = /^0x[0-9a-fA-F]{64}$/;
@@ -29,6 +29,8 @@ export interface InstanceKey {
   /** The operation the key is for ("in", "out", "swap", "transfer"), or "" for every one. */
   side: string;
   key: string;
+  /** The token or aggregate a stated key names (pauParams.ts paramQualifier), when it names one. */
+  qualifier?: string;
   /** The listed address the key was derived from, when the instance states no hash. */
   via?: string;
 }
@@ -71,10 +73,12 @@ export function sharedAddresses(sources: ValueSource[]): Set<string> {
 /** The keys an instance's values belong to: the hashes it states, else the ones derived from addresses it lists. */
 export function instanceKeys(src: ValueSource, snaps: StoredPauSnapshot[], shared: Set<string> = new Set()): InstanceKey[] {
   const stated = Object.entries(src.params).flatMap(([name, [value]]) =>
-    RATE_LIMIT_ID_RE.test(name) && HASH_RE.test(value.trim()) ? [{ side: valueSide(name), key: value.trim().toLowerCase() }] : [],
+    RATE_LIMIT_ID_RE.test(name) && HASH_RE.test(value.trim()) ? [withQualifier({ side: valueSide(name), key: value.trim().toLowerCase() }, paramQualifier(name))] : [],
   );
   return stated.length ? [...stated, ...swapSides(stated, src, snaps)] : derivedKeys(src, snaps, shared);
 }
+
+const withQualifier = (k: InstanceKey, qualifier: string): InstanceKey => (qualifier ? { ...k, qualifier } : k);
 
 /** A swap side for each stated hash filed under another side that its derivation, on the instance's chain, proves a *_SWAP key. */
 function swapSides(stated: InstanceKey[], src: ValueSource, snaps: StoredPauSnapshot[]): InstanceKey[] {

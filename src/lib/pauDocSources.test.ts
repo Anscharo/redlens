@@ -25,6 +25,11 @@ describe("docValueSources", () => {
       expect([out?.prime, out?.sources.map((s) => [s.name, s.docId])]).toEqual(["prime", [["prime", null], ["i1", "i1-doc"], ["i2", "i2-doc"]]]);
     }
   });
+  it("brings them for a heading whose direct child states a value, and carries the children", () => {
+    const out = docValueSources("limits-heading", graph, ["i1-value"]);
+    expect([out?.prime, out?.children]).toEqual(["prime", ["i1-value"]]);
+    expect(docValueSources("limits-heading", graph, ["elsewhere"])).toBeNull();
+  });
   it("is null for a document no instance states, and before the graph loads", () => {
     expect(docValueSources("elsewhere", graph)).toBeNull();
     expect(docValueSources("i1-doc", null)).toBeNull();

@@ -39,6 +39,30 @@ describe("RateLimitID params inside an instance", () => {
   });
 });
 
+describe("per-token rate limits inside an instance", () => {
+  const ICD = "A.6.1.1.9.2.1.2.2";
+  const docs = [
+    doc("icd", ICD, "Ethereum Mainnet - Pool Instance Configuration Document"),
+    doc("p", `${ICD}.1`, "Parameters"),
+    doc("dep", `${ICD}.1.1`, "Deposit Rate Limits", "The deposit rate limits are:\n\n- Aggregate: `maxAmount`: 25,000,000 (normalized), `slope`: 25,000,000 (normalized) per day\n- AUSD: `maxAmount`: 25,000,000 AUSD, `slope`: 25,000,000 AUSD per day"),
+    doc("wd", `${ICD}.1.2`, "Withdrawal Rate Limits", "The withdrawal rate limits are:\n\n- Aggregate: `maxAmount`: Unlimited\n- USDC: `maxAmount`: Unlimited"),
+    doc("other", `${ICD}.1.3`, "Fees", "The fees are:\n\n- Entry: `bps`: 5"),
+  ];
+  const params = extractInstanceParams(docs[0], buildChildrenIndex(docs)) as Record<string, [string, string, string]>;
+
+  it("files each line's values under its label, with commas inside amounts kept", () => {
+    expect(params["Aggregate Deposit Rate Limits / maxAmount"]).toEqual(["25,000,000 (normalized)", "dep", `${ICD}.1.1`]);
+    expect(params["Aggregate Deposit Rate Limits / slope"][0]).toBe("25,000,000 (normalized) per day");
+    expect(params["AUSD Deposit Rate Limits / slope"][0]).toBe("25,000,000 AUSD per day");
+    expect(params["USDC Withdrawal Rate Limits / maxAmount"][0]).toBe("Unlimited");
+    expect(params["Deposit Rate Limits"]).toBeUndefined();
+  });
+  it("leaves a per-line list under any other title as one param", () => {
+    expect(params["Fees"]?.[0]).toBeDefined();
+    expect(Object.keys(params).some((k) => k.startsWith("Entry "))).toBe(false);
+  });
+});
+
 describe("primeRateLimitParams", () => {
   const P = "A.6.1.1.2";
   const docs = [

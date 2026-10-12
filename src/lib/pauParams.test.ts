@@ -1,11 +1,18 @@
 // How the atlas states a rate limit: which operation a param is about, and
 // what its stated maxAmount or slope reads as.
 import { describe, expect, it } from "vitest";
-import { paramSide, parseStated, shiftDecimal } from "./pauParams.ts";
+import { paramQualifier, paramSide, parseStated, shiftDecimal } from "./pauParams.ts";
 
 describe("paramSide", () => {
   it("reads the operation a param names", () => {
     expect(["Aggregate Deposit RateLimitID", "Inflow Rate Limits", "Withdrawal", "Rate Limit IDs / redeem", "Swap RateLimitID (AUSD)", "Rate Limit IDs"].map(paramSide)).toEqual(["in", "in", "out", "out", "swap", ""]);
+  });
+});
+
+describe("paramQualifier", () => {
+  it("reads the token or aggregate a key or value names, and nothing for a plain one", () => {
+    expect(["Deposit RateLimitID (AUSD)", "AUSD Deposit Rate Limits / slope", "Aggregate Deposit RateLimitID", "Aggregate Withdrawal", "Inflow Rate Limits / maxAmount", "Inflow RateLimitID", "Rate Limit IDs / deposit"].map(paramQualifier))
+      .toEqual(["ausd", "ausd", "aggregate", "aggregate", "", "", ""]);
   });
 });
 
@@ -16,6 +23,7 @@ describe("parseStated", () => {
     expect(parseStated("25,000,000 RLUSD or USDC per day")).toEqual({ kind: "amount", units: "25000000", symbol: "RLUSD or USDC" });
     expect(parseStated("100,000,000 per day")).toEqual({ kind: "amount", units: "100000000", symbol: null });
     expect(parseStated("0")).toEqual({ kind: "amount", units: "0", symbol: null });
+    expect(parseStated("25,000,000 (normalized) per day")).toEqual({ kind: "amount", units: "25000000", symbol: null });
   });
   it("reads unlimited, says when the atlas sets nothing yet, and declines other text", () => {
     expect(["Unlimited", "unlimited", "`type(uint256).max`"].map(parseStated)).toEqual(Array(3).fill({ kind: "unlimited" }));

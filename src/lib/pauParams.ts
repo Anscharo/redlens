@@ -16,6 +16,19 @@ export function paramSide(name: string): string {
 }
 
 /**
+ * The token or aggregate a param is for, from its parenthesis or the words
+ * before its operation: "Deposit RateLimitID (AUSD)" and "AUSD Deposit Rate
+ * Limits / slope" are both "ausd", "Aggregate Deposit RateLimitID" is
+ * "aggregate", and "Inflow Rate Limits / maxAmount" is "" (none).
+ */
+export function paramQualifier(name: string): string {
+  const paren = /\(([^)]+)\)/.exec(name);
+  if (paren) return paren[1].trim().toLowerCase();
+  const words = name.replace(/\/.*$/, "").replace(RATE_LIMIT_ID_RE, " ").replace(/Rate\s*Limits?\b/gi, " ").trim().split(/\s+/);
+  return words.slice(0, -1).join(" ").toLowerCase();
+}
+
+/**
  * A stated value: unlimited, an amount in whole token units (a decimal string,
  * "million" and "billion" applied), "none" for a value the atlas says is not
  * set yet or does not apply ("N/A - swaps only", "specified in a future
@@ -35,7 +48,8 @@ export function shiftDecimal(units: string, shift: number): string {
 }
 
 export function parseStated(text: string): StatedValue | null {
-  const t = text.trim().replace(/`/g, "");
+  // "(normalized)" marks an aggregate amount in 18-decimal units, which the key's unit already says.
+  const t = text.trim().replace(/`/g, "").replace(/\s*\(normalized\)/i, "");
   if (/^unlimited$|^type\(uint256\)\.max$/i.test(t)) return { kind: "unlimited" };
   if (/^n\/a\b|specified in a future/i.test(t)) return { kind: "none" };
   const m = AMOUNT_RE.exec(t);

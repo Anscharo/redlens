@@ -36,6 +36,21 @@ const src = (name: string, params: Record<string, string>): ValueSource => ({ na
 const run = (...sources: ValueSource[]) => checkAtlasValues(sources, SNAPS).map((c) => [c.label, c.status, c.kind]);
 
 describe("checkAtlasValues", () => {
+  it("pairs a per-token value with the key naming its token, and an aggregate with the aggregate key in its own units", () => {
+    const ausd = { decimals: 6, symbol: "AUSD", source: "token" as const };
+    const wad = { decimals: 18, symbol: null, source: "constant" as const };
+    const [AGG, K_AUSD, K_USDC] = [k("a"), k("b"), k("c")];
+    const snaps = [snap("ethereum", "diamond", [
+      lim(AGG, "25000000000000000000000000", "0", { unit: wad }), lim(K_AUSD, "25000000000000", "0", { unit: ausd }), lim(K_USDC, "30000000000000", "0"),
+    ])];
+    const s = src("Ethereum Mainnet - Pool", {
+      "Aggregate Deposit RateLimitID": AGG, "Deposit RateLimitID (AUSD)": K_AUSD, "Deposit RateLimitID (USDC)": K_USDC,
+      "Aggregate Deposit Rate Limits / maxAmount": "25,000,000 (normalized)", "AUSD Deposit Rate Limits / maxAmount": "25,000,000 AUSD", "USDC Deposit Rate Limits / maxAmount": "25,000,000 USDC",
+    });
+    expect(checkAtlasValues([s], snaps).map((c) => [c.label, c.key, c.status, c.qualifier])).toEqual([
+      ["Aggregate Deposit maxAmount", AGG, "match", "aggregate"], ["AUSD Deposit maxAmount", K_AUSD, "match", "ausd"], ["USDC Deposit maxAmount", K_USDC, "mismatch", "usdc"],
+    ]);
+  });
   it("compares a stated key in token units, and a slope per day against the truncated per-second value", () => {
     expect(run(src("Ethereum Mainnet - A", {
       "Inflow RateLimitID": K_IN, "Outflow RateLimitID": K_OUT,

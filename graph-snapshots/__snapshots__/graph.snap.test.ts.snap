@@ -14914,15 +14914,18 @@ exports[`instances > allocation-system instances 1`] = `
     "agent": "A.6.1.1.2",
     "name": "Ethereum Mainnet - Grove Diamond PAU Uniswap v3 AUSD/USDC",
     "params": {
+      "AUSD Deposit Rate Limits / maxAmount": "25,000,000 AUSD",
+      "AUSD Deposit Rate Limits / slope": "25,000,000 AUSD per day",
+      "AUSD Swap Rate Limits / maxAmount": "5,000,000 AUSD",
+      "AUSD Swap Rate Limits / slope": "25,000,000 AUSD per day",
+      "AUSD Withdrawal Rate Limits / maxAmount": "Unlimited",
+      "Aggregate Deposit Rate Limits / maxAmount": "25,000,000 (normalized)",
+      "Aggregate Deposit Rate Limits / slope": "25,000,000 (normalized) per day",
       "Aggregate Deposit RateLimitID": "0xd3384d5424cd179640223010fed859f38b86b26e5e0b9ee88b87321b98882f57",
+      "Aggregate Withdrawal Rate Limits / maxAmount": "Unlimited",
       "Aggregate Withdrawal RateLimitID": "0xbe8cbf4b779bbe60101d88f64a8afcc8fdf78863df4303da9047b66fcf427734",
       "Asset Supplied By Grove Liquidity Layer": "USDC and AUSD",
       "CRR": "The CRR for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 2%.",
-      "Deposit Rate Limits": "The deposit rate limits are:
-
-- Aggregate: \`maxAmount\`: 25,000,000 (normalized), \`slope\`: 25,000,000 (normalized) per day
-- AUSD: \`maxAmount\`: 25,000,000 AUSD, \`slope\`: 25,000,000 AUSD per day
-- USDC: \`maxAmount\`: 25,000,000 USDC, \`slope\`: 25,000,000 USDC per day",
       "Deposit RateLimitID (AUSD)": "0x89c0cb8c17898781d7c1776eafcf73fd0b570659ad5c3791ddcbefe66b001541",
       "Deposit RateLimitID (USDC)": "0x71efb11b03476e40dcc1ade629d360114fcbf838d70a3211270f69414ba9a187",
       "Maximum Exposure": "Total exposure through this Instance may not exceed 100,000,000 USDS.",
@@ -14933,13 +14936,13 @@ exports[`instances > allocation-system instances 1`] = `
       "Swap RateLimitID (USDC)": "0x6e850dcb18bea10055c82d1e3753f551b1228d04b81350ba117235de19f9a0da",
       "Target Protocol": "Uniswap v3 AUSD/USDC",
       "Token": "Uniswap V3 AUSD/USDC Pool",
+      "USDC Deposit Rate Limits / maxAmount": "25,000,000 USDC",
+      "USDC Deposit Rate Limits / slope": "25,000,000 USDC per day",
+      "USDC Swap Rate Limits / maxAmount": "5,000,000 USDC",
+      "USDC Swap Rate Limits / slope": "25,000,000 USDC per day",
+      "USDC Withdrawal Rate Limits / maxAmount": "Unlimited",
       "Underlying Asset Address (AUSD)": "0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a",
       "Underlying Asset Address (USDC)": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-      "Withdrawal Rate Limits": "The withdrawal rate limits are:
-
-- Aggregate: \`maxAmount\`: Unlimited
-- AUSD: \`maxAmount\`: Unlimited
-- USDC: \`maxAmount\`: Unlimited",
       "Withdrawal RateLimitID (AUSD)": "0xf353a8cb19089be9c21260f788c98069b2cef6a8a4bf9d061b3e5e7629a85671",
       "Withdrawal RateLimitID (USDC)": "0x17c7a2da0785bd1ad67b8207080dbc243cfc4e573cbac18a68d0bd4b788a1dfc",
     },
