@@ -83,7 +83,12 @@ export function NodeMeta({ node }: { node: AtlasNode }) {
         data-copied={skyCopy.copied ? "true" : undefined}
       >
         <CopyIcon />
-        {skyCopy.copied ? <span>copied</span> : <SkyLogo />}
+        <span className="atlas-copy-flip" data-flipped={skyCopy.copied ? "true" : undefined}>
+          <span className="label pl-0.5">
+            <SkyLogo />
+          </span>
+          <span className="flipped">copied</span>
+        </span>
       </button>
       <a
         href={skyAtlasUrl}
