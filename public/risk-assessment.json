@@ -1,6 +1,6 @@
 {
   "rubricVersion": "37ea5cbd052e",
-  "atlasCommit": "4c466eb1c9508abea08412f43011dfd40e1cfb82",
+  "atlasCommit": "33fd26319e5fe75477b5bd40f4678a8c5e2659fd",
   "triageModel": "google/gemma-4-26b-a4b-it",
   "assessModel": "deepseek/deepseek-v4-pro",
   "triage": [
@@ -189,14 +189,14 @@
     },
     {
       "taskKey": "u:010a904e-e0e0-4c1d-8460-b8e3118b680f",
-      "quoteHash": "926e83e8baf460ce",
+      "quoteHash": "4d7be11e92ffd16b",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "The addInitControllerActions function registers default actions for pre-approved controllers."
+      "description": "The addInitControllerActions function registers default settings for enabled controller actions."
     },
     {
       "taskKey": "u:012c953b-c522-4ea3-939b-3282af4e1d7e",
@@ -621,7 +621,7 @@
     },
     {
       "taskKey": "u:05f5d939-712b-4204-8f77-4ef5ea598dcc",
-      "quoteHash": "e5f47e9f6b921930",
+      "quoteHash": "02f9fe3cf30f1d4d",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
@@ -629,7 +629,7 @@
         "alloc",
         "sc"
       ],
-      "description": "The ERC-4626 Facet manages vault interactions using specific share and exchange rate guards."
+      "description": "The ERC-4626 Facet implements specific guards for vault deposits, withdrawals, and redemptions."
     },
     {
       "taskKey": "u:061ee579-9c4f-4f59-b5cf-401ff4c11f72",
@@ -1858,14 +1858,14 @@
     },
     {
       "taskKey": "u:14aba6cb-eb34-4780-84c1-908666835569",
-      "quoteHash": "227e07544378c960",
+      "quoteHash": "258c7def7d0d28b6",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Mandates specific minimum timelock delays for various Morpho vault protected functions."
+      "description": "Mandates specific minimum timelock delays for various Morpho vault functions to ensure governance security."
     },
     {
       "taskKey": "u:14b1b9d8-c60a-4cb5-a06b-a059f354bcec",
@@ -2064,6 +2064,17 @@
         "sc"
       ],
       "description": "Requires the Core Facilitator to publicly share the Executive Document link and hash with the Technical Point."
+    },
+    {
+      "taskKey": "u:173f0dbd-7c3b-4435-8a8d-04d76478a9df",
+      "quoteHash": "f179bc499de42cb1",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc"
+      ],
+      "description": "Sets supply caps and yield limits for Spark Savings USDC allocations."
     },
     {
       "taskKey": "u:173ff961-bf1f-4c6c-992c-4a67b269e544",
@@ -2592,14 +2603,15 @@
     },
     {
       "taskKey": "u:1cb17b82-a294-4942-8183-4d90b224a79d",
-      "quoteHash": "145ff62378b48953",
+      "quoteHash": "8e49d28ab4632a7d",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": false,
       "domains": [
-        "alloc"
+        "alloc",
+        "sc"
       ],
-      "description": "Provides public view functions to query current rate limit data and calculated limits for specific keys."
+      "description": "Provides public view functions to query current rate limit data and values."
     },
     {
       "taskKey": "u:1cca9f9f-1a60-4de6-8ec2-694b87d3ee91",
@@ -2756,6 +2768,18 @@
         "alloc"
       ],
       "description": "Defines specific liquidation, stability fee, and DC-IAM parameters for the WSTETH-A vault type."
+    },
+    {
+      "taskKey": "u:1dd13ef2-ee4a-4487-8fc3-0e9d83a3bbd1",
+      "quoteHash": "549dfc582dbd106f",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc",
+        "sc"
+      ],
+      "description": "A Relayer Multisig can redeem all ERC-4626 vault shares via the Diamond PAU Controller."
     },
     {
       "taskKey": "u:1ddd532f-ac63-48d8-b873-c2d106252328",
@@ -3025,7 +3049,7 @@
     },
     {
       "taskKey": "u:2091d01d-461a-4a02-9e82-986cc51960d4",
-      "quoteHash": "384aae86560b2b7c",
+      "quoteHash": "60b6686a95358736",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
@@ -3033,7 +3057,7 @@
         "alloc",
         "sc"
       ],
-      "description": "Defines registries, ceilings, multisig authority, timelocks, and emergency halting powers for the allocation system."
+      "description": "Defines registry bounds, rate limit adjustment steps, multisig authority, timelocks, and emergency halting powers."
     },
     {
       "taskKey": "u:20aa9663-214b-46f5-8b37-53be387b996b",
@@ -3112,6 +3136,17 @@
         "sc"
       ],
       "description": "Core GovOps may modify vault risk parameters via Executive Vote during the Operational Weekly Cycle."
+    },
+    {
+      "taskKey": "u:212ba83e-6552-4130-bc0e-c0b687601b4e",
+      "quoteHash": "a2232dc70a7b12bc",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "sc"
+      ],
+      "description": "Requires Osero Operator Multisig signers to follow specific execution and communication instructions."
     },
     {
       "taskKey": "u:21656714-b6f6-4ba5-b99a-ea3ac6f2ff89",
@@ -3487,6 +3522,17 @@
         "sc"
       ],
       "description": "Requires Spell Reviewers to conduct reviews on Tuesday of the second week after crafting."
+    },
+    {
+      "taskKey": "u:24b65a81-c816-480d-ad05-6161d9f01613",
+      "quoteHash": "9c36db09e0e19524",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc"
+      ],
+      "description": "Enforces minimum share receipt and maximum exchange rate limits during ERC-4626 vault deposits."
     },
     {
       "taskKey": "u:24b8a5d0-b2b0-4bdf-94cf-f873d7468d48",
@@ -4124,14 +4170,14 @@
     },
     {
       "taskKey": "u:2c82cfd0-7a9a-464f-844d-ebc43b31c2a6",
-      "quoteHash": "967eb26939201491",
+      "quoteHash": "fe8a0bec9ba43ccf",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Defines immediate execution of PAS ceiling and registry changes via Core Council Multisig or PASMom."
+      "description": "Defines immediate execution of registry changes by the Core Council Multisig and PASMom emergency stop functions."
     },
     {
       "taskKey": "u:2c8e81bf-b79a-486f-80eb-bd9b15464695",
@@ -4289,6 +4335,18 @@
       "description": "Defines the liquidation threshold as the maximum debt-to-collateral ratio before a position is considered under-collateralized."
     },
     {
+      "taskKey": "u:2deb96b0-c985-49cd-a46e-7d1fa38c53b5",
+      "quoteHash": "3fb474b4dd62d143",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": false,
+      "domains": [
+        "alloc",
+        "sc"
+      ],
+      "description": "Records the transfer of 20,000,000 USDS from the Surplus Buffer to a specific SubProxy agent."
+    },
+    {
       "taskKey": "u:2e1a8489-5849-4030-9ed8-8b9a0b09d483",
       "quoteHash": "755c29f97133b619",
       "model": "google/gemma-4-26b-a4b-it",
@@ -4312,7 +4370,7 @@
     },
     {
       "taskKey": "u:2e36bb4f-91db-4dca-bdb1-e4aa385b1129",
-      "quoteHash": "5fefa8f7352c5013",
+      "quoteHash": "da9229b694361a87",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": false,
@@ -4320,7 +4378,7 @@
         "alloc",
         "sc"
       ],
-      "description": "The BeamState contract records registered components and holds ceilings for rate limits and controller actions."
+      "description": "Defines the BeamState contract which tracks registered components and maintains rate limit adjustment bounds."
     },
     {
       "taskKey": "u:2e3dcac8-d641-49b7-94e9-6947f0a413ca",
@@ -4454,6 +4512,18 @@
       "description": "Defines the deployment mechanism and collateral configuration for grouped Standby Spell contracts."
     },
     {
+      "taskKey": "u:2f9fb868-f137-4110-90ec-8ab8d75ebcaa",
+      "quoteHash": "bb6dc51aa7fffca1",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": false,
+      "domains": [
+        "alloc",
+        "sc"
+      ],
+      "description": "Records the transfer of 5,000,000 USDS from the Surplus Buffer to the Core Council Buffer."
+    },
+    {
       "taskKey": "u:2ff0395a-f47a-478a-8621-28bae36bc2f7",
       "quoteHash": "b9bb7fc382373a1d",
       "model": "google/gemma-4-26b-a4b-it",
@@ -4486,6 +4556,17 @@
         "sc"
       ],
       "description": "Requires the Spell Crafter to perform a retrospective and follow-up actions after a Spell is merged."
+    },
+    {
+      "taskKey": "u:301e33b9-545f-4150-a14b-b0775096c2ea",
+      "quoteHash": "85a3d8bd5c9ee885",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": false,
+      "domains": [
+        "sc"
+      ],
+      "description": "Defines the location of registered controllers and their enabled actions within the system."
     },
     {
       "taskKey": "u:303c0d7f-42a7-4b9e-8afd-26e4d54e2f56",
@@ -4867,6 +4948,17 @@
       "description": "Sets the maximum, minimum, and step parameters for the Dai Savings Rate stability module."
     },
     {
+      "taskKey": "u:3375bcc9-aca7-47be-b243-bee6d4126d7c",
+      "quoteHash": "29f67ce813c24c68",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "sc"
+      ],
+      "description": "Specifies minimum signer counts and majority requirements for modifying the Osero Operator Multisig."
+    },
+    {
       "taskKey": "u:33a7389c-c8a3-46ab-96a4-17d6b9ee2b4f",
       "quoteHash": "7b391c572f4bd420",
       "model": "google/gemma-4-26b-a4b-it",
@@ -5159,7 +5251,7 @@
     },
     {
       "taskKey": "u:35ec7382-0613-4e74-b5ba-d86c647b1d73",
-      "quoteHash": "25da2690b3292a69",
+      "quoteHash": "ed539779902a4c2b",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
@@ -5167,7 +5259,7 @@
         "alloc",
         "sc"
       ],
-      "description": "Defines the piecewise mathematical logic for calculating Required Risk Capital based on smart contract risk ratings."
+      "description": "Defines the piecewise mathematical formula for calculating Risk Capital based on smart contract risk ratings."
     },
     {
       "taskKey": "u:35f40a50-fca5-4140-ab93-81e58c181b95",
@@ -5226,12 +5318,15 @@
     },
     {
       "taskKey": "u:36556509-d2b6-4932-8781-9bf4ecc90987",
-      "quoteHash": "0fbae46be05bd162",
+      "quoteHash": "3b8c609c4f34e17a",
       "model": "google/gemma-4-26b-a4b-it",
-      "inScope": false,
-      "isRule": false,
-      "domains": [],
-      "description": "Authorizes a direct Executive Vote to transfer 10,000,000 USDS from the Surplus Buffer to Skybase SubProxy."
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc",
+        "sc"
+      ],
+      "description": "Authorizes direct transfer of USDS from Surplus Buffer to Skybase SubProxy via Executive Vote."
     },
     {
       "taskKey": "u:366436ae-0bab-4fce-a144-64660ac47366",
@@ -5494,7 +5589,7 @@
     },
     {
       "taskKey": "u:39217368-efa1-4168-a231-b010d6e23dfa",
-      "quoteHash": "ce493ccfb8722dac",
+      "quoteHash": "cc2712243a987d43",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
@@ -5502,7 +5597,7 @@
         "alloc",
         "sc"
       ],
-      "description": "Allows the Controller role to decrease specific allocation rate limits via a smart contract function."
+      "description": "Allows the Controller role to decrease allocation rate limits via a specific smart contract function."
     },
     {
       "taskKey": "u:392f7cb8-b2cf-4e2c-91e4-4b1eb6edf68f",
@@ -5635,6 +5730,17 @@
         "alloc"
       ],
       "description": "Requires Prime Agents to manage Total Risk Capital to meet Aggregate Required Risk Capital requirements."
+    },
+    {
+      "taskKey": "u:3afc0502-e0ba-45a1-ae05-fe539053cf07",
+      "quoteHash": "99ead6f8e2708288",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "sc"
+      ],
+      "description": "Defines the AdministeredAgent contract address and its authorized actors and revokers for managing relayer access."
     },
     {
       "taskKey": "u:3b22b5f4-3cc4-4c47-9b84-a64fb4f3b159",
@@ -6058,6 +6164,18 @@
       "description": "Limits external junior risk capital sourcing to a 1:1 ratio relative to internal junior risk capital."
     },
     {
+      "taskKey": "u:3ed97ddc-8198-4b8b-98aa-28c31c068de0",
+      "quoteHash": "1719928ff8baadb9",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc",
+        "sc"
+      ],
+      "description": "Defines the ERC-4626 withdrawal process and the share-burning constraint for asset movement."
+    },
+    {
       "taskKey": "u:3efb0238-aaae-4351-9ec9-31902f3a1394",
       "quoteHash": "26346b2d3c02bb83",
       "model": "google/gemma-4-26b-a4b-it",
@@ -6349,6 +6467,15 @@
         "alloc"
       ],
       "description": "Mandates migration of existing Morpho vault exposures to compliant vaults by October 8, 2026."
+    },
+    {
+      "taskKey": "u:418d496b-2e2e-4ee2-b37a-8178de5d656c",
+      "quoteHash": "1dc736747a9039a8",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": false,
+      "isRule": false,
+      "domains": [],
+      "description": "Records a historical USDS transfer from the Surplus Buffer to Gnosis."
     },
     {
       "taskKey": "u:4192a2f6-a660-476d-bbb8-677a78b1c3a3",
@@ -6721,8 +6848,20 @@
       "description": "Defines the piecewise function and thresholds used to calculate the required Risk Capital ratio."
     },
     {
+      "taskKey": "u:45751856-0a7a-451e-bd01-4bb3cf1e9b33",
+      "quoteHash": "0ef7a2db145867e0",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc",
+        "sc"
+      ],
+      "description": "Enforces on-chain withdrawal limits for vaults via automatic transaction reversion."
+    },
+    {
       "taskKey": "u:45840a10-6c7c-453a-8218-4ab4d705012d",
-      "quoteHash": "f6132ba793c41be0",
+      "quoteHash": "9b0423d502761359",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
@@ -6917,6 +7056,17 @@
         "sc"
       ],
       "description": "Requires Core Operator Relayer Multisig signers to follow Obex Artifact instructions when exercising the RELAYER_ROLE."
+    },
+    {
+      "taskKey": "u:47a492dd-f4e6-4381-b432-d12bd3111c37",
+      "quoteHash": "cf5e45e35c1fad77",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc"
+      ],
+      "description": "Redemptions and withdrawals share a single on-chain rate limit based on the actual underlying asset received."
     },
     {
       "taskKey": "u:47a584fe-9b41-4bce-93fa-871eca8ba8bd",
@@ -7167,7 +7317,7 @@
     },
     {
       "taskKey": "u:4a154956-88d7-4b90-a9b0-3a96871087a7",
-      "quoteHash": "6fffdae59db4466b",
+      "quoteHash": "cc8a17bb4fe49cd3",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": false,
@@ -7200,14 +7350,14 @@
     },
     {
       "taskKey": "u:4a388764-7469-4efb-84f0-6b91278428fb",
-      "quoteHash": "795de19f7585bcda",
+      "quoteHash": "4eefced8c08c5d29",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Requires a minimum timelock delay for proposed PAS ceiling and registry changes via the Core Council Multisig."
+      "description": "Requires a minimum timelock delay for all Core Council Multisig changes to PAS registries and bounds."
     },
     {
       "taskKey": "u:4a3e1d4d-a1d7-4207-9af8-fa0fd195a929",
@@ -8562,14 +8712,14 @@
     },
     {
       "taskKey": "u:583c1a98-b63a-42fa-b29e-ce0688dcdaf6",
-      "quoteHash": "e85bc519e14a98f1",
+      "quoteHash": "285d56d3b5596805",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Allows users to permissionlessly deploy emergency spells to cancel planned governance actions via the Protego contract."
+      "description": "Allows permissionless deployment of emergency spells via the Protego contract function."
     },
     {
       "taskKey": "u:58631630-a9e3-4bd6-a1ea-59b0ef8f5bee",
@@ -8804,6 +8954,17 @@
       "description": "Defines the slippage parameter calculation for Aave and SparkLend based on half-position liquidation limits."
     },
     {
+      "taskKey": "u:5ad1a8cc-4a0a-43da-bab0-3fc087c84184",
+      "quoteHash": "78b7f82e8509aa12",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc"
+      ],
+      "description": "Enforces on-chain deposit limits per asset and vault address to manage allocation risk."
+    },
+    {
       "taskKey": "u:5aeba17d-3869-447d-adcd-8c55f41afc01",
       "quoteHash": "f8da85adb8af3d54",
       "model": "google/gemma-4-26b-a4b-it",
@@ -8950,6 +9111,18 @@
       "description": "Defines the required composition and threshold for modifying the Operator Multisig signers."
     },
     {
+      "taskKey": "u:5c795414-020c-432d-91b6-a7d72495452e",
+      "quoteHash": "4cbe99ab9456c11e",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "peg",
+        "sc"
+      ],
+      "description": "Whitelists the ALM Proxy to execute fee-less buy and sell functions on the Lite PSM contract."
+    },
+    {
       "taskKey": "u:5c9542e5-bd8c-4c9d-a6d2-c2f8382f13d1",
       "quoteHash": "39536dc962dc2439",
       "model": "google/gemma-4-26b-a4b-it",
@@ -9072,14 +9245,15 @@
     },
     {
       "taskKey": "u:5e1f82c7-bcd6-46f8-aec0-3e767e55a93c",
-      "quoteHash": "f5d4459281280f02",
+      "quoteHash": "e8bcf97eb311465b",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
+        "alloc",
         "sc"
       ],
-      "description": "The Configurator contract manages rate limits and controller actions for cBEAMs within specified ceilings."
+      "description": "Defines the Configurator contract for managing rate limits and controller actions for cBEAMs."
     },
     {
       "taskKey": "u:5e300cdb-b221-4b6f-9c4a-11502133a1f9",
@@ -9187,14 +9361,14 @@
     },
     {
       "taskKey": "u:5ecdf33d-c8df-439c-98ac-892e62284797",
-      "quoteHash": "682eb34d98299530",
+      "quoteHash": "6bad6f8c8a3d79db",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "alloc"
       ],
-      "description": "Defines specific vault parameters including gap, line, and ttl for the ALLOCATOR-GROVE-A vault."
+      "description": "Defines specific capacity, gap, and time-to-live parameters for the ALLOCATOR-GROVE-A vault."
     },
     {
       "taskKey": "u:5ef1e78f-e1d2-4b09-b00c-618e36ccb2d8",
@@ -9323,14 +9497,14 @@
     },
     {
       "taskKey": "u:6022623f-e7cd-4a04-a8ab-e5b61c11a9da",
-      "quoteHash": "eb91b2db589878ad",
+      "quoteHash": "a724170a4cb6859e",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Allows any user to permissionlessly cancel specified sets of planned governance Spells via the Protego contract."
+      "description": "Allows users to permissionlessly cancel multiple planned governance spells via the Protego contract."
     },
     {
       "taskKey": "u:6029a425-ad81-46c5-866d-94e2ff663873",
@@ -9489,6 +9663,17 @@
         "sc"
       ],
       "description": "Identifies the specific multisig address used for USDS Demand Subsidies on Ethereum Mainnet."
+    },
+    {
+      "taskKey": "u:61625749-4df9-411e-b4dd-15c9e4b059d3",
+      "quoteHash": "f53c47387669f38a",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "sc"
+      ],
+      "description": "Executes a USDS transfer via a specific Grove Spell and multisig address."
     },
     {
       "taskKey": "u:61b01ab8-6c82-4ce6-91fd-cc5ffb7e1530",
@@ -9841,6 +10026,17 @@
       "description": "Identifies that certain onchain changes require specialized governance processes for Executive Votes."
     },
     {
+      "taskKey": "u:64f794c9-db5f-4875-a800-3da12f4c5bec",
+      "quoteHash": "1697fed51b6997fd",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "sc"
+      ],
+      "description": "Defines the Soter Labs multisig as the authorized entity for adding actors to the AdministeredAgent."
+    },
+    {
       "taskKey": "u:65032e2b-5da8-4fed-b893-20b18e13383b",
       "quoteHash": "25ac12e17754953c",
       "model": "google/gemma-4-26b-a4b-it",
@@ -9886,7 +10082,7 @@
     },
     {
       "taskKey": "u:65638659-eb0d-4e5c-87e8-50705e3595b8",
-      "quoteHash": "c1beff05b4097d30",
+      "quoteHash": "2b92ef3771a5cb03",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
@@ -9894,7 +10090,7 @@
         "alloc",
         "sc"
       ],
-      "description": "Authorizes direct transfer of 10,000,000 USDS from Surplus Buffer to Osero SubProxy via Executive Vote."
+      "description": "Authorizes the transfer of 10,000,000 USDS from the Surplus Buffer to the Osero SubProxy address."
     },
     {
       "taskKey": "u:658b3a32-0416-4380-b960-f86f3a2f3cfa",
@@ -9994,14 +10190,14 @@
     },
     {
       "taskKey": "u:666cf6b3-6d7a-40f7-99fb-b6e2e4375754",
-      "quoteHash": "f1b1fc5b25ba5cd1",
+      "quoteHash": "f3ed4bd7881f691e",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Defines multisig emergency powers and governance procedures for halting or restarting Configurator operations."
+      "description": "Defines Core Council multisig powers for emergency function calls, halting operations, and managing Timelock registry changes."
     },
     {
       "taskKey": "u:66a80a93-fcfa-48d5-819e-99489288fa83",
@@ -10101,7 +10297,7 @@
     },
     {
       "taskKey": "u:6823cc5a-6667-4754-a030-9ac7126b006e",
-      "quoteHash": "f05f67228954b4a2",
+      "quoteHash": "77357d9c3d896cc5",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
@@ -11436,14 +11632,14 @@
     },
     {
       "taskKey": "u:776677da-0601-4b25-97f0-619cb8978415",
-      "quoteHash": "4d2039f2ec493c28",
+      "quoteHash": "27ca71c50822148a",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
-      "isRule": true,
+      "isRule": false,
       "domains": [
         "sc"
       ],
-      "description": "Specifies that Grove Operator Multisig signers are controlled by Operational GovOps Soter Labs."
+      "description": "Identifies Soter Labs as the controller of the Grove Operator Multisig signers."
     },
     {
       "taskKey": "u:77969281-5739-4eba-a856-6b89259b26e1",
@@ -11647,7 +11843,7 @@
     },
     {
       "taskKey": "u:7a98000b-c069-42f3-b1a4-8a3e7323a960",
-      "quoteHash": "b3f402670fcae49b",
+      "quoteHash": "50591db6d556df1c",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
@@ -12215,6 +12411,18 @@
       "description": "Requires Prime Agents to maintain specific percentages of Actively Stabilizing Collateral and Demand Absorption Buffer."
     },
     {
+      "taskKey": "u:810671ff-8674-4178-a7ce-dd98c112688d",
+      "quoteHash": "15a5e3e7b5d8c6cf",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "peg",
+        "sc"
+      ],
+      "description": "Whitelists the Keel ALM Proxy to execute fee-free buy and sell functions on the Lite PSM contract."
+    },
+    {
       "taskKey": "u:8113159f-dcf6-4c44-afb0-aed09b1e5cf7",
       "quoteHash": "9fb88be119365b9d",
       "model": "google/gemma-4-26b-a4b-it",
@@ -12317,7 +12525,7 @@
     },
     {
       "taskKey": "u:817fabeb-fcd9-42f4-bcdb-863c67105ccf",
-      "quoteHash": "b0b9428549b15bee",
+      "quoteHash": "f64aefb1059ca7e4",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
@@ -12325,7 +12533,7 @@
         "peg",
         "sc"
       ],
-      "description": "Whitelists the ALM Proxy to enable fee-less USDS and USDC swaps via the litePSM contract."
+      "description": "Whitelists the Osero ALM Proxy to execute fee-less swap operations on the Lite PSM contract."
     },
     {
       "taskKey": "u:81b4e7f6-8f56-497f-889c-48e412244801",
@@ -13042,14 +13250,14 @@
     },
     {
       "taskKey": "u:88c0c2dd-f974-4690-8477-06e22d6dcd08",
-      "quoteHash": "167e6c9132d733f1",
+      "quoteHash": "f1a23e27b7e19f1f",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "The function removes default settings for pre-approved controller actions."
+      "description": "The delInitControllerActions function removes the default settings for an enabled controller action."
     },
     {
       "taskKey": "u:88cb9621-d10f-49b6-85e6-2c822bb5beda",
@@ -14301,6 +14509,17 @@
       "description": "States that completed instances of the Asset Liability Management Rental Primitive are stored in the document."
     },
     {
+      "taskKey": "u:95aa5811-78f3-4c71-b037-fa81d95e166d",
+      "quoteHash": "62cf248edfad4133",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "sc"
+      ],
+      "description": "Sets the required threshold for the Osero Operator Multisig to two out of three signers."
+    },
+    {
       "taskKey": "u:95c1e447-704f-421e-a6c9-82f342e02a17",
       "quoteHash": "5a1d1fe800d6102e",
       "model": "google/gemma-4-26b-a4b-it",
@@ -14343,6 +14562,18 @@
         "alloc"
       ],
       "description": "Defines the weighted average formula for calculating the final Required Capital Percentage."
+    },
+    {
+      "taskKey": "u:9606346b-a7d3-4acf-93e3-c5f188504b83",
+      "quoteHash": "f4fdf22fb5890aa5",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc",
+        "sc"
+      ],
+      "description": "Defines admin roles and rate limit adjustment bounds for the Osero Diamond PAU contracts."
     },
     {
       "taskKey": "u:9652bd2c-f51c-42bb-9240-701e9723f574",
@@ -14509,8 +14740,19 @@
       "description": "Defines Exposure At Default for off-balance sheet items using book value and a credit conversion factor."
     },
     {
+      "taskKey": "u:9882bb18-4f6b-4fa3-8d7f-d8dfbf9f25dc",
+      "quoteHash": "ada03233659b66bd",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "sc"
+      ],
+      "description": "Identifies the entity controlling the Osero Operator Multisig signers."
+    },
+    {
       "taskKey": "u:989171ed-5424-42ee-83f4-199e1149699c",
-      "quoteHash": "84a86ada0b158115",
+      "quoteHash": "c7a4e2c91040dd4c",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
@@ -14561,6 +14803,18 @@
         "alloc"
       ],
       "description": "Provides a directory of all active Risk Capital Rental Primitive instances."
+    },
+    {
+      "taskKey": "u:99ab3862-8eb2-4cbe-b67b-c8fbb5c2133f",
+      "quoteHash": "0aa28c2fc40a36ed",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc",
+        "sc"
+      ],
+      "description": "Requires ERC-4626 redemptions to meet a minimum underlying asset threshold to complete."
     },
     {
       "taskKey": "u:99bc2dd5-5573-4bb9-9210-5af299d058d9",
@@ -14814,6 +15068,17 @@
         "sc"
       ],
       "description": "Defines the reward structure for website and application vulnerabilities via the Immunefi bug bounty platform."
+    },
+    {
+      "taskKey": "u:9c59a5c5-300a-4694-99ed-46a43dfc7a67",
+      "quoteHash": "97f33a83b4f3a63c",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": false,
+      "domains": [
+        "sc"
+      ],
+      "description": "Identifies the specific Ethereum address used for the Osero Operator multisig."
     },
     {
       "taskKey": "u:9c5cae66-1317-43e9-bd85-041a9d8b5623",
@@ -15239,6 +15504,18 @@
       "description": "Requires Multisig Administrators to provide ongoing training and periodic reviews of operational and incident response procedures."
     },
     {
+      "taskKey": "u:a0a495e3-7cc1-4ccc-bc03-969a9a6a1f35",
+      "quoteHash": "57f710693e465873",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc",
+        "sc"
+      ],
+      "description": "Restricts ERC-4626 vault withdrawals to addresses holding the specific ALLOCATOR_ROLE via the Diamond PAU Controller."
+    },
+    {
       "taskKey": "u:a109ad0d-0743-4ae9-bcc1-df04a6e5da43",
       "quoteHash": "062d067326057506",
       "model": "google/gemma-4-26b-a4b-it",
@@ -15545,14 +15822,14 @@
     },
     {
       "taskKey": "u:a51aef25-bf7e-4467-9678-0b1ea59fb47e",
-      "quoteHash": "c08e738e7f9b7c1c",
+      "quoteHash": "e97bc58b9bbe43c1",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "alloc"
       ],
-      "description": "Penalizes unapproved asset trades via margin calculations and allows liquidation for serious violations."
+      "description": "Penalizes unapproved asset trading via margin adjustments and allows liquidation for serious violations."
     },
     {
       "taskKey": "u:a564f010-a30f-40bb-bf36-12f91f30b8fe",
@@ -15752,15 +16029,27 @@
       "description": "Authorizes an 800,000 USDS grant to the Grove Foundation via a Sky Executive Vote and specific multisig."
     },
     {
+      "taskKey": "u:a8094362-4ca8-4bf0-a1d8-bbed3c80d61c",
+      "quoteHash": "7b9b7b8fab6ace47",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "peg",
+        "sc"
+      ],
+      "description": "Whitelists the ALM Proxy to execute fee-less buy and sell functions on the Lite PSM contract."
+    },
+    {
       "taskKey": "u:a824d088-be58-4163-b382-54a95a728103",
-      "quoteHash": "7f0644ba9413c376",
+      "quoteHash": "686ab35441f48396",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Implements a fourteen-day timelock and role-based governance for registry and ceiling changes."
+      "description": "Establishes a fourteen-day timelock for registry changes and defines role assignments for the Core Council and PASMom."
     },
     {
       "taskKey": "u:a8334e19-fedb-48fb-a38c-f18666ccc8e6",
@@ -15775,14 +16064,15 @@
     },
     {
       "taskKey": "u:a85b7e8b-c4e9-44de-b717-efa4c8268d3b",
-      "quoteHash": "25182caf180c1da7",
+      "quoteHash": "6873ff8a6d7865d5",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
+        "alloc",
         "sc"
       ],
-      "description": "Allows the default admin to remove rate limits for specific keys via a smart contract function."
+      "description": "Allows the default admin to remove rate limits for specific allocation keys."
     },
     {
       "taskKey": "u:a86f03fe-0570-4031-b616-3c1a3f03a65d",
@@ -16249,14 +16539,14 @@
     },
     {
       "taskKey": "u:ae05e069-0626-45f5-82d2-dbf39a5b2598",
-      "quoteHash": "29efaf3f215964f3",
+      "quoteHash": "3401ee541c507e95",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Defines cBEAM operator permissions and mitigation via BeamState bounds and multisig/governance emergency responses."
+      "description": "Defines cBEAM operator permissions, rate limit bounds, and emergency mitigation procedures via multisig and governance halts."
     },
     {
       "taskKey": "u:ae1dbcb9-828d-40c0-8ad8-96b3072dad4e",
@@ -16536,6 +16826,17 @@
         "sc"
       ],
       "description": "Defines the relayer-only process and liquidity requirements for swapping USDS to USDC via the PSM."
+    },
+    {
+      "taskKey": "u:b0b73201-d985-4a71-84d9-05ae9f9320be",
+      "quoteHash": "97413e609a10b79f",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "sc"
+      ],
+      "description": "Defines the specific addresses holding the Allocator role via a multisig."
     },
     {
       "taskKey": "u:b0d1a683-3b92-4283-8e32-22251192a716",
@@ -17011,6 +17312,17 @@
       "description": "Defines parameter bounds and governance constraints for the Smart Burn Engine's external access module."
     },
     {
+      "taskKey": "u:b5ab118c-b968-4e8b-ba13-7d745b1f4860",
+      "quoteHash": "efcdc0ef9c0f6603",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "sc"
+      ],
+      "description": "Executes a USDS transfer via a specific Grove Spell and multisig address."
+    },
+    {
       "taskKey": "u:b5abaa31-031c-4488-a900-05fe5c1afff4",
       "quoteHash": "d5d1ac2641dcfb4d",
       "model": "google/gemma-4-26b-a4b-it",
@@ -17306,6 +17618,17 @@
       "description": "Defines the administrative role hierarchy and ownership for contract access controls and rate limits."
     },
     {
+      "taskKey": "u:b762ae11-c8fa-465d-a8a0-4909257551dd",
+      "quoteHash": "c5a5426065894817",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "peg"
+      ],
+      "description": "Requires the ALM Proxy to be whitelisted on the Lite PSM for USDS and USDC swaps."
+    },
+    {
       "taskKey": "u:b76dbc30-602e-4464-b797-8b6643d8e2b8",
       "quoteHash": "664671e4f6d57b49",
       "model": "google/gemma-4-26b-a4b-it",
@@ -17512,6 +17835,18 @@
         "alloc"
       ],
       "description": "Specifies the existence of penalty mechanisms to incentivize sufficient capital holdings against investments."
+    },
+    {
+      "taskKey": "u:b8f6a3c8-91db-4f25-b8c1-9872deb4040a",
+      "quoteHash": "72bec36d17fff67e",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc",
+        "sc"
+      ],
+      "description": "Restricts ERC-4626 vault deposits to addresses holding the specific Allocator Role via the Diamond PAU Controller."
     },
     {
       "taskKey": "u:b900fd43-5f7c-438f-a1dd-0e89db98f4db",
@@ -17877,6 +18212,18 @@
       "description": "Describes a mechanism for Prime Agents to trade Asset Liability Management obligations."
     },
     {
+      "taskKey": "u:bd20f786-b4af-4d5b-b29a-d84050a8fa2d",
+      "quoteHash": "d9b60aa98c101f54",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "sc",
+        "alloc"
+      ],
+      "description": "Authorizes specific multisigs to bypass governance to remove malicious relayers from the AdministeredAgent contract."
+    },
+    {
       "taskKey": "u:bd2d15af-e32a-4ce9-a7ac-5a5ff1665fd4",
       "quoteHash": "58d953599b47760d",
       "model": "google/gemma-4-26b-a4b-it",
@@ -17944,7 +18291,7 @@
     },
     {
       "taskKey": "u:be600bf6-c0f2-42c5-ad5c-fd0cb429b628",
-      "quoteHash": "6f4114a92572d3f5",
+      "quoteHash": "6c9fc78efbf9c044",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
@@ -17952,7 +18299,7 @@
         "alloc",
         "sc"
       ],
-      "description": "Authorizes a direct Executive Vote to transfer 5,000,000 USDS to the USDS Demand Subsidies Multisig."
+      "description": "Authorizes direct executive voting to transfer USDS from the Surplus Buffer to a multisig for Genesis Capital Allocation."
     },
     {
       "taskKey": "u:be7589f5-32c0-42d2-8d10-38bceb1de28b",
@@ -18032,6 +18379,17 @@
         "sc"
       ],
       "description": "Governance process for modifying Lite Peg Stability Module parameters via Executive Vote."
+    },
+    {
+      "taskKey": "u:bf609e8f-a9ef-4787-846e-96a43028a216",
+      "quoteHash": "9224fc033514eca2",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": false,
+      "domains": [
+        "sc"
+      ],
+      "description": "Records the historical transfer of USDS to the Grove Foundation Multisig via specific Grove Spells."
     },
     {
       "taskKey": "u:bfb8013f-9226-4426-84bf-4b0e03b44107",
@@ -18230,6 +18588,17 @@
       "description": "Defines the process for the Multisig Administrator to classify multisigs to determine required security measures."
     },
     {
+      "taskKey": "u:c2390e13-50af-4008-9474-ed4e99eac308",
+      "quoteHash": "e558b7595b2c6298",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "sc"
+      ],
+      "description": "Identifies the specific addresses authorized to hold the Sentinel role for security monitoring and response."
+    },
+    {
       "taskKey": "u:c28b47a8-951b-4ca4-8501-bbd6d2279b74",
       "quoteHash": "002270be0f0d4e3d",
       "model": "google/gemma-4-26b-a4b-it",
@@ -18363,7 +18732,7 @@
     },
     {
       "taskKey": "u:c39702fb-bb6a-43c7-b208-18ddd279b1d3",
-      "quoteHash": "7d4778728565aca4",
+      "quoteHash": "212c67efe36f7930",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
@@ -18371,7 +18740,7 @@
         "alloc",
         "sc"
       ],
-      "description": "Mandates an Executive Vote to transfer 21,000,000 USDS from the Surplus Buffer to the Obex SubProxy."
+      "description": "Authorizes the direct transfer of 21,000,000 USDS from the Surplus Buffer to the Obex SubProxy."
     },
     {
       "taskKey": "u:c3b53ee8-328a-4a79-8afe-ac0de99d8706",
@@ -18574,6 +18943,17 @@
       "description": "Defines the function to associate a cBEAM with a specific Controller."
     },
     {
+      "taskKey": "u:c6541e3b-628b-47a6-9f2b-b7b27df7913d",
+      "quoteHash": "0f2d3ad863866ec5",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": false,
+      "domains": [
+        "sc"
+      ],
+      "description": "Records a specific USDS transfer to the Skybase Foundation Operational Multisig via a Skybase Spell."
+    },
+    {
       "taskKey": "u:c6591c5c-c767-4769-b2d6-80564d96fa48",
       "quoteHash": "55ddd88c6daba18c",
       "model": "google/gemma-4-26b-a4b-it",
@@ -18672,6 +19052,17 @@
         "alloc"
       ],
       "description": "Sets the Total Value Locked threshold at 100,000,000 for normalizing geometric mean calculations."
+    },
+    {
+      "taskKey": "u:c7a49d2a-72c2-438e-ab04-8ae284b811e0",
+      "quoteHash": "395cf2b8752a30bf",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": false,
+      "domains": [
+        "alloc"
+      ],
+      "description": "Records the execution of a specific USDS transfer from the Surplus Buffer to the Grove SubProxy."
     },
     {
       "taskKey": "u:c7c722e6-f0d7-4182-afe1-ac260ce2482b",
@@ -19179,6 +19570,18 @@
         "alloc"
       ],
       "description": "Defines specific risk parameters including gap, line, and ttl for the Launch Agent 7 Allocator Vault."
+    },
+    {
+      "taskKey": "u:cdcc232f-f2d4-431e-a434-d0e3ba461784",
+      "quoteHash": "9964dcb9d53e99ef",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc",
+        "sc"
+      ],
+      "description": "Restricts ERC-4626 vault share redemptions to addresses holding the specific Allocator Role."
     },
     {
       "taskKey": "u:cdd724f1-5cc7-48df-81f7-25c6a932a184",
@@ -19920,6 +20323,17 @@
       "description": "Lists the current active instances of the Asset Liability Management Rental Primitive."
     },
     {
+      "taskKey": "u:d60d9a19-5661-42ac-9d52-11e3283e3740",
+      "quoteHash": "5d69235cbf5958c2",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": false,
+      "domains": [
+        "sc"
+      ],
+      "description": "Identifies the registered controller contract for the Grove Diamond PAU and its current operational status."
+    },
+    {
       "taskKey": "u:d6ab5e65-bc6b-4959-9c11-e5612cc07ee0",
       "quoteHash": "0af2c934609fe86c",
       "model": "google/gemma-4-26b-a4b-it",
@@ -20306,14 +20720,15 @@
     },
     {
       "taskKey": "u:da8d9885-3b28-478c-bbaa-ec88bdde91a9",
-      "quoteHash": "9e4b5aaa5093b709",
+      "quoteHash": "809354d5950d8320",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
+        "alloc",
         "sc"
       ],
-      "description": "Identifies the Grove Operator Multisig as the operator for the Grove Diamond PAU."
+      "description": "Identifies the Grove Operator Multisig as the entity authorized to adjust Diamond PAU rate limits."
     },
     {
       "taskKey": "u:da93e0a7-5fa1-4d93-af72-24557fbd9f24",
@@ -21163,15 +21578,14 @@
     },
     {
       "taskKey": "u:e3ec99ec-54c9-4fe7-8104-aee20c57ec57",
-      "quoteHash": "2a373ae98cba7e4b",
+      "quoteHash": "6bbef25bd3f08846",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
-      "isRule": true,
+      "isRule": false,
       "domains": [
-        "alloc",
-        "sc"
+        "alloc"
       ],
-      "description": "Mandates an Executive Vote to transfer 20.6 million USDS from the Surplus Buffer to Spark SubProxy."
+      "description": "Records the transfer of USDS from the Surplus Buffer to Spark SubProxy for Genesis Capital Allocation."
     },
     {
       "taskKey": "u:e3f61226-0c1a-4d83-9007-9ac2d21ed3da",
@@ -21241,14 +21655,14 @@
     },
     {
       "taskKey": "u:e4e3c3d9-939d-43ef-9f7a-64f5d4cfe7d6",
-      "quoteHash": "5fc7f3539ee31c0d",
+      "quoteHash": "70a85d69b88c952c",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Allows any user to permissionlessly cancel a planned governance spell via the Protego contract drop function."
+      "description": "Allows any user to permissionlessly cancel a planned governance spell via the Protego contract."
     },
     {
       "taskKey": "u:e50fd86a-ffa4-4387-b212-420730a8d171",
@@ -21583,6 +21997,17 @@
       "description": "Sets a 2/3 signing requirement for the Core Operator Relayer Multisig."
     },
     {
+      "taskKey": "u:e896c546-06e1-4bf7-83a1-d91fc5cfa71a",
+      "quoteHash": "40c8b213fa599885",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "sc"
+      ],
+      "description": "The Osero Operator Multisig is authorized to adjust Diamond PAU rate limits via the Configurator."
+    },
+    {
       "taskKey": "u:e8c82f4c-ef8c-4f72-9346-fd33c20643a6",
       "quoteHash": "b186d5fbf82f8a6b",
       "model": "google/gemma-4-26b-a4b-it",
@@ -21623,6 +22048,17 @@
         "sc"
       ],
       "description": "Sets a 2/3 signing requirement for the Core Operator Relayer Multisig."
+    },
+    {
+      "taskKey": "u:e96da090-34ff-4445-a1d3-22cc69be2e51",
+      "quoteHash": "e58007e5275f1cac",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc"
+      ],
+      "description": "Provides a reference implementation for calculating Instance Financial Required Risk Capital for lending markets."
     },
     {
       "taskKey": "u:e9807449-fdc3-4860-8d53-c56181311618",
@@ -22105,7 +22541,7 @@
     },
     {
       "taskKey": "u:ee55aa72-1405-49cb-a7fe-3e8adc9ee64c",
-      "quoteHash": "14fef255f01c5fe4",
+      "quoteHash": "c1cb0f5ce30932a1",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
@@ -22113,7 +22549,7 @@
         "alloc",
         "sc"
       ],
-      "description": "Allows the Controller role to increase allocation rate limits for specific keys up to a maximum amount."
+      "description": "Allows the Controller role to increase allocation rate limits up to a predefined maximum amount."
     },
     {
       "taskKey": "u:ee6fc86b-99da-4782-bc7f-7c01e5bbcd81",
@@ -22136,6 +22572,17 @@
         "alloc"
       ],
       "description": "Specifies the required calculation method for Instance Administrative Risk Capital Requirements."
+    },
+    {
+      "taskKey": "u:ee79ef13-d1ae-4fc7-9784-a5293c57bfe9",
+      "quoteHash": "178b16663dcf99f5",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "sc"
+      ],
+      "description": "The Osero Diamond PAU controller contract is currently unregistered and has no enabled actions."
     },
     {
       "taskKey": "u:ee8d2d3f-b5cf-4391-8081-81de0a5936c7",
@@ -22922,7 +23369,7 @@
     },
     {
       "taskKey": "u:f671061e-11a0-4d3b-bb6e-9f4ee9a012a9",
-      "quoteHash": "df8ea582195e2298",
+      "quoteHash": "0a7532abeaf3e30e",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
@@ -22930,7 +23377,7 @@
         "alloc",
         "sc"
       ],
-      "description": "Allows the admin to set maximum allocation amounts and slopes via a smart contract function."
+      "description": "Allows the admin role to configure rate limit parameters for specific allocation keys."
     },
     {
       "taskKey": "u:f6762223-29f3-46c1-8fa4-a5c27636772d",
@@ -22945,14 +23392,14 @@
     },
     {
       "taskKey": "u:f6791cf7-f3aa-49da-9691-73e480bf3328",
-      "quoteHash": "b3c654c1a3f5946b",
+      "quoteHash": "e0c343adeadb2ed4",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "The Timelock contract delays registry changes and Configurator restarts to provide security buffers."
+      "description": "The Timelock contract delays registry changes and Configurator restarts to ensure governance security delays."
     },
     {
       "taskKey": "u:f6b14aab-a1af-40e2-9069-2f707cbe60f0",
@@ -23516,6 +23963,18 @@
         "alloc"
       ],
       "description": "Defines how Junior Risk Capital enables Senior Risk Capital to meet required allocation limits."
+    },
+    {
+      "taskKey": "u:fc3f9328-6fdc-4571-a515-5a193acacd0a",
+      "quoteHash": "d19261248b3d64bd",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc",
+        "sc"
+      ],
+      "description": "Defines the Allocator Role authority, authorized actors, and the Freezer Role's power to remove actors."
     },
     {
       "taskKey": "u:fc471b5a-6741-4f50-aa69-302a34479526",
@@ -32408,17 +32867,20 @@
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "Defines cBEAM operator permissions and mitigation via BeamState bounds and multisig/governance emergency responses.",
-      "quote": "A Configurator Bounded External Access Module (cBEAM) is a whitelisted Operator. It can use the Configurator to adjust a Diamond PAU's rate limits or execute pre-approved controller actions, within the ceilings BeamState sets, without waiting for the GSM Pause Delay. See [A.2.2.10.1.1.1.2.4.4 - Configurator](45840a10-6c7c-453a-8218-4ab4d705012d).\n\nThis functionality allows Diamond PAU parameters to be adjusted more quickly than waiting for an Executive Vote and the GSM Pause Delay.\n\nThe risk opened up by this functionality is malicious action by cBEAMs setting rate limits to undesirable values, whether by raising them excessively or lowering them to zero.\n\nThis risk is partially mitigated: BeamState's `hop` and `maxChange` parameters bound how far and how often a cBEAM can raise a rate limit; they do not bound decreases, which take effect immediately. The Core Council Multisig can immediately unpair a specific misbehaving cBEAM from its `RateLimits` contract or Controller to stop it from acting, and can separately remove its registration entirely, as specified in [A.2.2.10.1.1.1.2.4.3.4 - Immediate Function Calls](2c82cfd0-7a9a-464f-844d-ebc43b31c2a6). Sky Governance can halt Configurator operations for all cBEAMs at once, through the PASMom contract, as specified in [A.1.10.3.2.13 - PASMom Exception](2171fb2b-de83-44f2-92bf-26b59a1e8c71).",
-      "quoteHash": "29efaf3f215964f3",
+      "description": "Defines cBEAM operator permissions, rate limit bounds, and emergency mitigation procedures via multisig and governance halts.",
+      "quote": "A Configurator Bounded External Access Module (cBEAM) is a whitelisted Operator. It can use the Configurator to adjust a Diamond PAU's rate limits or execute enabled controller actions, within the bounds BeamState sets, without waiting for the GSM Pause Delay. See [A.2.2.10.1.1.1.2.4.4 - Configurator](45840a10-6c7c-453a-8218-4ab4d705012d).\n\nThis functionality allows Diamond PAU parameters to be adjusted more quickly than waiting for an Executive Vote and the GSM Pause Delay.\n\nThe risk opened up by this functionality is malicious action by cBEAMs setting rate limits to undesirable values, whether by raising them excessively or lowering them to zero.\n\nThis risk is partially mitigated: BeamState's `hop` and `maxChange` parameters bound how far and how often a cBEAM can raise a rate limit; they do not bound decreases, which take effect immediately. The Core Council Multisig can immediately unpair a specific misbehaving cBEAM from its `RateLimits` contract or Controller to stop it from acting, and can separately remove its registration entirely, as specified in [A.2.2.10.1.1.1.2.4.3.4 - Immediate Function Calls](2c82cfd0-7a9a-464f-844d-ebc43b31c2a6). Sky Governance can halt Configurator operations for all cBEAMs at once, through the PASMom contract, as specified in [A.1.10.3.2.13 - PASMom Exception](2171fb2b-de83-44f2-92bf-26b59a1e8c71).",
+      "quoteHash": "3401ee541c507e95",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph describes a system permission and risk mitigations, not an obligation on a regulated party. No actor is required to do or refrain from anything; it merely states what a cBEAM can do and what others may do in response. There is no verifiable compliance condition.",
+      "preciseness": 2,
+      "precisenessReasoning": "The rule describes operator permissions, bounded parameters (hop, maxChange), and emergency mitigation procedures, but provides no numeric thresholds, formulas, or verification criteria. The bounds are named but not quantified, and the mitigation procedures rely on qualitative judgment ('misbehaving').",
       "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No rule exists to enforce. The described on-chain bounds and emergency responses are system features, not consequences for violating a defined rule. Only the generic misalignment backstop could apply, which is always weak."
+      "enforcement": "mid",
+      "mechanismUuids": [
+        "1d940c6d-02ce-4c17-8057-cef13c1cc7ad",
+        "b8266c11-3a84-4bbe-abe2-de9474f74ffd"
+      ],
+      "enforcementReasoning": "The Core Council Multisig's ability to immediately unpair a misbehaving cBEAM and Sky Governance's ability to halt all cBEAM operations via the PASMom contract are specific, named response paths. These align with pre-authorized emergency intervention capabilities defined in the Emergency Response System and Emergency Spells mechanisms."
     },
     {
       "taskKey": "u:fbb0677a-3218-4649-9116-9f3c18e3ef90",
@@ -33827,19 +34289,19 @@
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "Allows users to permissionlessly deploy emergency spells to cancel planned governance actions via the Protego contract.",
-      "quote": "Any user can permissionlessly deploy an Emergency Drop Spell by invoking the `deploy` function on the Protego contract with parameters identifying the planned governance action to be canceled:\n\n`deploy(address _usr, bytes32 _tag, bytes memory _fax, uint256 _eta)(address)`\n\nThe parameters of the `deploy` function are defined in [A.1.10.5.3.1.3 - Protego Parameters](55195cdc-90c3-4133-a0e4-792444b60ed8).",
-      "quoteHash": "e85bc519e14a98f1",
+      "description": "Allows permissionless deployment of emergency spells via the Protego contract function.",
+      "quote": "Any user can permissionlessly deploy an Emergency Drop Spell by invoking the `deploy` function on the Protego contract with parameters identifying the planned governance action to be canceled. The function signature is as follows:\n\n```solidity\nfunction deploy(address _usr, bytes32 _tag, bytes memory _fax, uint256 _eta) public returns (address _spell)\n```\n\nThe parameters of the `deploy` function are defined in [A.1.10.5.3.1.3 - Protego Parameters](55195cdc-90c3-4133-a0e4-792444b60ed8).",
+      "quoteHash": "285d56d3b5596805",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
-      "preciseness": 5,
-      "precisenessReasoning": "The rule gives an exact function signature ('deploy(address _usr, bytes32 _tag, bytes memory _fax, uint256 _eta)') with permissionless invocation; a third party could verify the contract call without ambiguity.",
+      "preciseness": 4,
+      "precisenessReasoning": "The rule specifies the actor ('any user'), the Protego contract, the exact function name, and the full function signature, making the deployment path objectively verifiable. However, the operative parameter definitions are deferred to A.1.10.5.3.1.3, so the full validating content is not in this paragraph.",
       "metrics": [],
       "enforcement": "strong",
       "mechanismUuids": [
         "b8266c11-3a84-4bbe-abe2-de9474f74ffd"
       ],
-      "enforcementReasoning": "The deployment is an on-chain smart-contract function, automatically enforced by the Protego contract; the emergency-spells framework (b8266c11) ensures the cancellation capability is natively enforced without human intervention."
+      "enforcementReasoning": "Deployment is self-executing on-chain through the Protego contract's permissionless `deploy` function, with no off-chain human gate. This is part of the Emergency Spells mechanism (A.1.10.5), so the contract code enforces the described capability directly."
     },
     {
       "taskKey": "u:44bb2b0d-ba95-47db-9195-6c80f97734b7",
@@ -33902,20 +34364,19 @@
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "Allows any user to permissionlessly cancel a planned governance spell via the Protego contract drop function.",
-      "quote": "If the Protego contract has authority from Sky Governance, any user can permissionlessly invoke the `drop` function to cancel a specified Spell:\n\n```\n/// @notice Permissionlessly drop anything that has been planned on the pause.\ndrop(address _usr, bytes32 _tag, bytes memory _fax, uint256 _eta)\n```\n\nThe parameters of the `drop` function are defined in [A.1.10.5.3.1.3 - Protego Parameters](55195cdc-90c3-4133-a0e4-792444b60ed8).",
-      "quoteHash": "5fc7f3539ee31c0d",
+      "description": "Allows any user to permissionlessly cancel a planned governance spell via the Protego contract.",
+      "quote": "If the Protego contract has authority from Sky Governance, any user can permissionlessly invoke the `drop` function to cancel a specified Spell. The function signature is as follows:\n\n```solidity\n/// @notice Permissionlessly drop anything that has been planned on the pause.\nfunction drop(address _usr, bytes32 _tag, bytes memory _fax, uint256 _eta) public\n```\n\nThe parameters of the `drop` function are defined in [A.1.10.5.3.1.3 - Protego Parameters](55195cdc-90c3-4133-a0e4-792444b60ed8).",
+      "quoteHash": "70a85d69b88c952c",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
       "preciseness": 5,
-      "precisenessReasoning": "The rule states an on-chain capability: any user can call the `drop` function to cancel a spell if the Protego contract has authority. This is fully quantified by the function signature and the verifiable on-chain state; compliance is objectively checkable from the contract code.",
+      "precisenessReasoning": "The rule states a concrete, verifiable smart contract feature: any user can call the `drop` function to cancel a planned governance spell. A third party can objectively verify compliance by inspecting the Protego contract’s access control and function signature. No numeric threshold is needed for this binary on-chain permission.",
       "metrics": [],
-      "enforcement": "mid",
+      "enforcement": "strong",
       "mechanismUuids": [
-        "d4bf73e7-2f9f-454c-8add-614dff784f78",
-        "b8ee2d12-c94b-4d22-b55e-d2b6e6d94ad0"
+        "b8266c11-3a84-4bbe-abe2-de9474f74ffd"
       ],
-      "enforcementReasoning": "The rule imposes a functional requirement (the drop function must be permissionlessly callable). Violation would be a code defect, detectable in scheduled Agent Artifact Review (d4bf73e7), which could trigger Penalty Mechanisms (b8ee2d12). No on-chain automatic enforcement exists for the absence of the function itself."
+      "enforcementReasoning": "Enforcement is on-chain and automatic — the contract code itself makes cancellation permissionless, so the rule is self-executing with no human intervention. This is the strongest form; it is governed by the Emergency Spells standard (A.1.10.5, UUID b8266c11)."
     },
     {
       "taskKey": "u:6022623f-e7cd-4a04-a8ab-e5b61c11a9da",
@@ -33928,19 +34389,21 @@
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "Allows any user to permissionlessly cancel specified sets of planned governance Spells via the Protego contract.",
-      "quote": "If the Protego contract has authority from Sky Governance, any user can permissionlessly invoke the `drop` function to cancel a specified set of Spells:\n\n```\n/// @notice Drop multiple plans in a single call.\ndrop(Plan[] calldata plans)\n```\n\nThe parameter of the `drop` function is defined in [A.1.10.5.3.1.3 - Protego Parameters](55195cdc-90c3-4133-a0e4-792444b60ed8).",
-      "quoteHash": "eb91b2db589878ad",
+      "description": "Allows users to permissionlessly cancel multiple planned governance spells via the Protego contract.",
+      "quote": "If the Protego contract has authority from Sky Governance, any user can permissionlessly invoke the `drop` function to cancel a specified set of Spells. The function signature is as follows:\n\n```solidity\n/// @notice Drop multiple plans in a single call.\nfunction drop(Plan[] calldata _plans) external\n```\n\nThe parameter of the `drop` function is defined in [A.1.10.5.3.1.3 - Protego Parameters](55195cdc-90c3-4133-a0e4-792444b60ed8).",
+      "quoteHash": "a724170a4cb6859e",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
       "preciseness": 5,
-      "precisenessReasoning": "The rule states a precise, verifiable capability: any user may invoke the `drop` function, specified with its exact function signature, and the only condition is that the Protego contract holds authority from Sky Governance. This is objectively checkable against contract code; no measurement cadence or discretionary thresholds are needed.",
-      "metrics": [],
+      "precisenessReasoning": "The rule specifies an exact function signature, a defined actor ('any user'), a verifiable condition (Protego has authority), and a concrete action (invoke `drop` to cancel a specified set of Spells). Compliance is objectively verifiable on-chain.",
+      "metrics": [
+        "function drop(Plan[] calldata _plans) external"
+      ],
       "enforcement": "strong",
       "mechanismUuids": [
         "b8266c11-3a84-4bbe-abe2-de9474f74ffd"
       ],
-      "enforcementReasoning": "The cancellation action is executed directly by the Protego smart contract on-chain, with no human intervention required—any user can permissionlessly call `drop` and the contract enforces the outcome. This self-execution is part of the Emergency Spells mechanism (b8266c11), making violation impossible and ensuring the rule is automatically enforced."
+      "enforcementReasoning": "The rule is part of the Emergency Spells framework (A.1.10.5, UUID b8266c11-3a84-4bbe-abe2-de9474f74ffd). The `drop` function is an on-chain, permissionless, self-executing mechanism that directly cancels governance actions, making violation (preventing cancellation) impossible when the contract has authority."
     },
     {
       "taskKey": "u:49997c91-ec3c-47be-ad1a-abfd33dd259b",
@@ -35086,27 +35549,59 @@
       "enforcementReasoning": "No on-chain automatic enforcement is indicated, and no named penalty, review, or capital-at-risk mechanism reaches this conceptual rule. Only the generic catch-all mechanisms could apply, which are always weak."
     },
     {
-      "taskKey": "u:5e1f82c7-bcd6-46f8-aec0-3e767e55a93c",
-      "uuid": "5e1f82c7-bcd6-46f8-aec0-3e767e55a93c",
-      "docNo": "A.2.2.10.1.1.1.2.3.6",
-      "title": "Configurator",
+      "taskKey": "u:05f5d939-712b-4204-8f77-4ef5ea598dcc",
+      "uuid": "05f5d939-712b-4204-8f77-4ef5ea598dcc",
+      "docNo": "A.2.2.10.1.1.1.2.3.2.7",
+      "title": "ERC-4626 Facet",
       "domains": [
+        "alloc",
         "sc"
       ],
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "The Configurator contract manages rate limits and controller actions for cBEAMs within specified ceilings.",
-      "quote": "The Configurator (`PAS_CONFIGURATOR`) is the contract through which cBEAMs operate Diamond PAUs' rate limits and pre-approved controller actions, within the ceilings, as specified in [A.2.2.10.1.1.1.2.4.3 - BeamState](2091d01d-461a-4a02-9e82-986cc51960d4), and once registered and paired, as specified in [A.2.2.10.1.1.1.2.4.4 - Configurator](45840a10-6c7c-453a-8218-4ab4d705012d). Its address on Ethereum Mainnet is `0xb7E61Df6CAb0A51E9A5dab1A7DD3f942dDe5b929`.",
-      "quoteHash": "f5d4459281280f02",
+      "description": "The ERC-4626 Facet implements specific guards for vault deposits, withdrawals, and redemptions.",
+      "quote": "The ERC-4626 Facet (`ERC4626Facet`) deposits, withdraws, and redeems against any ERC-4626 vault, under min-shares, min-assets, max-shares-burned, and max-exchange-rate guards. Its address on Ethereum Mainnet is `0x1dCA18608c89174181153E786778705b4A0E1a06`.",
+      "quoteHash": "02f9fe3cf30f1d4d",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph is a descriptive statement of a contract's role, not a rule with an obligation, threshold, or verifiable condition. It references other documents for specifics but imposes no compliance requirement itself.",
+      "preciseness": 3,
+      "precisenessReasoning": "The rule names the ERC4626Facet, its Ethereum Mainnet address, and four guard parameters, but it does not state the numeric thresholds or formulas for min-shares, min-assets, max-shares-burned, or max-exchange-rate, so the operative limits cannot be verified from the text alone.",
+      "metrics": [
+        "min-shares",
+        "min-assets",
+        "max-shares-burned",
+        "max-exchange-rate"
+      ],
+      "enforcement": "mid",
+      "mechanismUuids": [
+        "b8266c11-3a84-4bbe-abe2-de9474f74ffd"
+      ],
+      "enforcementReasoning": "Emergency Spells (b8266c11) provide a pre-authorized executive freeze/pause path when security rules are violated or threatened, which plausibly reaches failures or bypasses of the ERC-4626 facet's guards; however, no consequence is quantified for this specific rule."
+    },
+    {
+      "taskKey": "u:5e1f82c7-bcd6-46f8-aec0-3e767e55a93c",
+      "uuid": "5e1f82c7-bcd6-46f8-aec0-3e767e55a93c",
+      "docNo": "A.2.2.10.1.1.1.2.3.6",
+      "title": "Configurator",
+      "domains": [
+        "alloc",
+        "sc"
+      ],
+      "anchored": true,
+      "stub": false,
+      "hasMetrics": false,
+      "description": "Defines the Configurator contract for managing rate limits and controller actions for cBEAMs.",
+      "quote": "The Configurator (`PAS_CONFIGURATOR`) is the contract through which cBEAMs operate Diamond PAUs' rate limits and enabled controller actions, within the bounds, as specified in [A.2.2.10.1.1.1.2.4.3 - BeamState](2091d01d-461a-4a02-9e82-986cc51960d4), and once registered and paired, as specified in [A.2.2.10.1.1.1.2.4.4 - Configurator](45840a10-6c7c-453a-8218-4ab4d705012d). Its address on Ethereum Mainnet is `0xb7E61Df6CAb0A51E9A5dab1A7DD3f942dDe5b929`.",
+      "quoteHash": "e8bcf97eb311465b",
+      "model": "deepseek/deepseek-v4-pro",
+      "rubricVersion": "37ea5cbd052e",
+      "preciseness": 2,
+      "precisenessReasoning": "The rule identifies a contract and its general purpose (managing rate limits and controller actions) but provides no specific thresholds, formulas, metrics, or verifiable conditions. The operative bounds are delegated to other documents, leaving compliance entirely dependent on external, unquantified specifications.",
       "metrics": [],
       "enforcement": "weak",
       "mechanismUuids": [],
-      "enforcementReasoning": "No rule to enforce; the text is purely descriptive. No enforcement mechanism is applicable."
+      "enforcementReasoning": "The paragraph is purely definitional, establishing the existence and address of a contract. It contains no operative rule or obligation whose violation could trigger a specific enforcement mechanism. Only the generic misalignment backstops would apply, which is always weak."
     },
     {
       "taskKey": "u:f6791cf7-f3aa-49da-9691-73e480bf3328",
@@ -35119,17 +35614,19 @@
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "The Timelock contract delays registry changes and Configurator restarts to provide security buffers.",
-      "quote": "The Timelock (`PAS_TIMELOCK`) is the contract that delays certain changes to BeamState's registries and ceilings before they take effect, as specified in [A.2.2.10.1.1.1.2.4.3.3 - Delayed Function Calls](4a388764-7469-4efb-84f0-6b91278428fb), and also delays restarting Configurator operations after a halt, as specified in [A.2.2.10.1.1.1.2.4.3.5 - Restart After Halt](e049feea-5af3-4a8d-8766-36e348fd5d7b). Its own operational details, including its roles and their holders, are specified in [A.2.2.10.1.1.1.2.4.3.2 - Timelock](a824d088-be58-4163-b382-54a95a728103). Its address on Ethereum Mainnet is `0xB50a06Af02dDE44dB6EA7ee729403848c2B35293`.",
-      "quoteHash": "b3c654c1a3f5946b",
+      "description": "The Timelock contract delays registry changes and Configurator restarts to ensure governance security delays.",
+      "quote": "The Timelock (`PAS_TIMELOCK`) is the contract that delays certain changes to BeamState's registries and bounds before they take effect, as specified in [A.2.2.10.1.1.1.2.4.3.3 - Delayed Function Calls](4a388764-7469-4efb-84f0-6b91278428fb), and also delays restarting Configurator operations after a halt, as specified in [A.2.2.10.1.1.1.2.4.3.5 - Restart After Halt](e049feea-5af3-4a8d-8766-36e348fd5d7b). Its own operational details, including its roles and their holders, are specified in [A.2.2.10.1.1.1.2.4.3.2 - Timelock](a824d088-be58-4163-b382-54a95a728103). Its address on Ethereum Mainnet is `0xB50a06Af02dDE44dB6EA7ee729403848c2B35293`.",
+      "quoteHash": "e0c343adeadb2ed4",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph is a descriptive stub that defers all operational details to other sections. It contains no thresholds, metrics, deadlines, or verifiable conditions; a regulated party cannot determine compliance from this text alone.",
-      "metrics": [],
+      "preciseness": 5,
+      "precisenessReasoning": "The rule provides a fully verifiable, on-chain address for the Timelock contract and explicitly delegates its operational details, delayed functions, and restart procedures to specific, referenced documents. A third party can verify the contract's existence and behavior against the cited specifications.",
+      "metrics": [
+        "0xB50a06Af02dDE44dB6EA7ee729403848c2B35293"
+      ],
       "enforcement": "weak",
       "mechanismUuids": [],
-      "enforcementReasoning": "The paragraph imposes no obligation and defines no rule that could be violated. No enforcement mechanism is referenced or applicable beyond the generic misalignment backstop, which is always weak."
+      "enforcementReasoning": "The Timelock is an on-chain contract that automatically enforces delays, but no mechanism UUID from the rubric's catalog or the paragraph text explicitly covers this specific contract's enforcement. The rubric requires a cited mechanism for mid/strong ratings, and none is found."
     },
     {
       "taskKey": "u:781172a1-e2b2-4c7b-852a-3f8e89fec8ca",
@@ -35190,16 +35687,18 @@
       "stub": false,
       "hasMetrics": false,
       "description": "Defines the PAS architecture including rate limits, multisig controls, timelocks, and emergency pause mechanisms.",
-      "quote": "The PAS (Parallelized Allocation System) is a permissioned layer that lets cBEAMs operate a Diamond PAU's rate limits and pre-approved controller actions, within BeamState's ceilings, without direct administrative control over the Diamond PAU.\n\nThe PAS consists of the following contracts:\n\n- BeamState: holds the registries and ceilings the Core Council Multisig sets. Sky Governance retains full, direct control over it at all times, since the Sky Pause Proxy holds ward authorization on it, allowing a Sky Core Spell to call any of its functions directly.\n- Configurator: the contract a cBEAM calls to adjust a rate limit or execute a pre-approved controller action within those ceilings.\n- Timelock: delays certain Core Council Multisig changes to BeamState's registries and ceilings before they take effect.\n- PASMom: the PAS's emergency stop-and-pause switch.\n\nThe documents herein define its parameters, the Diamond PAUs with the Configurator enabled, BeamState and who may change its rules, the Configurator and its Operators, and the transitional measures that apply while the Timelock is paused. For the emergency path itself, see [A.1.10.3.2.13 - PASMom Exception](2171fb2b-de83-44f2-92bf-26b59a1e8c71).",
-      "quoteHash": "84a86ada0b158115",
+      "quote": "The PAS (Parallelized Allocation System) is a permissioned layer that lets cBEAMs operate a Diamond PAU's rate limits and enabled controller actions, within the bounds BeamState sets, without direct administrative control over the Diamond PAU.\n\nThe PAS consists of the following contracts:\n\n- BeamState: holds the registries and bounds the Core Council Multisig sets. Sky Governance retains full, direct control over it at all times, since the Sky Pause Proxy holds ward authorization on it, allowing a Sky Core Spell to call any of its functions directly.\n- Configurator: the contract a cBEAM calls to adjust a rate limit or execute an enabled controller action within those bounds.\n- Timelock: delays certain Core Council Multisig changes to BeamState's registries and bounds before they take effect.\n- PASMom: the PAS's emergency stop-and-pause switch.\n\nThe documents herein define its parameters, the Diamond PAUs with the Configurator enabled, BeamState and who may change its rules, the Configurator and its Operators, and the transitional measures that apply while the Timelock is paused. For the emergency path itself, see [A.1.10.3.2.13 - PASMom Exception](2171fb2b-de83-44f2-92bf-26b59a1e8c71).",
+      "quoteHash": "c7a4e2c91040dd4c",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
       "preciseness": 2,
-      "precisenessReasoning": "The paragraph describes the PAS architecture and its contracts but provides no numeric thresholds, formulas, or verifiable conditions. It references parameters defined elsewhere, making compliance unverifiable from this text alone. The text is qualitative only.",
+      "precisenessReasoning": "The paragraph defines the PAS architecture and states that cBEAMs must operate within bounds set by BeamState, but it provides no numeric thresholds, metrics, formulas, or deadlines for those bounds. The obligation is qualitative, and compliance cannot be objectively verified from this text alone.",
       "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "The paragraph imposes no specific obligation; it is descriptive. No enforcement mechanism is stated or implicitly reaches a rule violation because no rule is defined. The emergency path reference is for the system's pause, not a consequence for non-compliance."
+      "enforcement": "strong",
+      "mechanismUuids": [
+        "2171fb2b-de83-44f2-92bf-26b59a1e8c71"
+      ],
+      "enforcementReasoning": "The PAS includes an emergency stop-and-pause switch (PASMom) with a defined exception path (A.1.10.3.2.13, UUID 2171fb2b) that allows Sky Core to directly intervene if a cBEAM violates bounds. This provides a named enforcer (Sky Governance) with a concrete remedy (pause) and a defined escalation, constituting strong enforcement. Additionally, the Configurator contract itself enforces on-chain that cBEAM actions remain within the set bounds, rejecting out-of-bounds transactions automatically—a form of implicit strong enforcement, though the emergency path provides the citable mechanism."
     },
     {
       "taskKey": "u:dc0e3a84-b542-4985-a41b-7ae2a3921cf3",
@@ -35353,6 +35852,30 @@
       "enforcementReasoning": "No enforcement mechanism from the catalog or the paragraph text reaches this rule. The on-chain enforcement of rate limit bounds by the RateLimits contract is not captured by any listed mechanism doc, and only the generic misalignment backstop (c6c6f595, 560e1024) would apply, which is always weak."
     },
     {
+      "taskKey": "u:9606346b-a7d3-4acf-93e3-c5f188504b83",
+      "uuid": "9606346b-a7d3-4acf-93e3-c5f188504b83",
+      "docNo": "A.2.2.10.1.1.1.2.4.2.2",
+      "title": "Osero Diamond PAU",
+      "domains": [
+        "alloc",
+        "sc"
+      ],
+      "anchored": true,
+      "stub": false,
+      "hasMetrics": false,
+      "description": "Defines admin roles and rate limit adjustment bounds for the Osero Diamond PAU contracts.",
+      "quote": "The Configurator is granted `DEFAULT_ADMIN_ROLE` on the Osero Diamond PAU `AccessControls` and `RateLimits` contracts. The Osero Diamond PAU `RateLimits` contract is paired to the Operator specified in [A.2.2.10.1.1.1.2.4.4.3.2 - Operator For The Osero Diamond PAU](e896c546-06e1-4bf7-83a1-d91fc5cfa71a). The bounds within which cBEAMs may adjust rate limits on the Osero Diamond PAU `RateLimits` are:\n\n- `hop`: as specified in [A.2.2.10.1.1.1.2.4.1.1.2 - Hop Default Value](f86fe54a-9770-41ad-8ad2-7c58090224ce)\n- `maxChange`: as specified in [A.2.2.10.1.1.1.2.4.1.2.2 - Max Change Default Value](0414677e-d79e-4d84-b0aa-209f0fa3ffe3)",
+      "quoteHash": "f4fdf22fb5890aa5",
+      "model": "deepseek/deepseek-v4-pro",
+      "rubricVersion": "37ea5cbd052e",
+      "preciseness": 3,
+      "precisenessReasoning": "The rule names specific roles (Configurator, Operator), contracts (AccessControls, RateLimits), and adjustable parameters (hop, maxChange), but the actual numeric bounds are delegated to external documents without stating the values here. A third party cannot verify compliance from this text alone.",
+      "metrics": [],
+      "enforcement": "weak",
+      "mechanismUuids": [],
+      "enforcementReasoning": "The paragraph defines administrative roles and references parameter bounds but contains no enforcement consequence for misconfiguration or violation. Only the generic misalignment/adjudication backstops could apply, and no specific mechanism (on-chain, capital-at-risk, or named penalty) is cited or implicitly reaches this rule."
+    },
+    {
       "taskKey": "u:2091d01d-461a-4a02-9e82-986cc51960d4",
       "uuid": "2091d01d-461a-4a02-9e82-986cc51960d4",
       "docNo": "A.2.2.10.1.1.1.2.4.3",
@@ -35364,17 +35887,17 @@
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "Defines registries, ceilings, multisig authority, timelocks, and emergency halting powers for the allocation system.",
-      "quote": "BeamState holds the registries and ceilings that govern the PAS: which `RateLimits` contracts, Controllers, and cBEAMs are registered, and the bounds within which they may be adjusted. The documents herein define the Core Council Multisig that may change BeamState's rules, the Timelock that delays certain changes, the delayed and immediate processes for making them, how Configurator operations are halted and restarted, and PASMom's independent power to halt or pause the system.",
-      "quoteHash": "384aae86560b2b7c",
+      "description": "Defines registry bounds, rate limit adjustment steps, multisig authority, timelocks, and emergency halting powers.",
+      "quote": "BeamState holds the registries and bounds that govern the PAS: which `RateLimits` contracts, Controllers, and cBEAMs are registered, and how far rate limits may be adjusted in a single step. The documents herein define the Core Council Multisig that may change BeamState's rules, the Timelock that delays certain changes, the delayed and immediate processes for making them, how Configurator operations are halted and restarted, and PASMom's independent power to halt or pause the system.",
+      "quoteHash": "60b6686a95358736",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph describes the structure of BeamState and what the documents define, but imposes no obligation, threshold, or verifiable condition on any actor. It is purely descriptive, not a rule.",
+      "preciseness": 2,
+      "precisenessReasoning": "The paragraph lists categories of information held by BeamState (registries, bounds, multisig, timelock, processes) but provides no specific metrics, thresholds, formulas, or verifiable conditions. It describes what is defined elsewhere without stating any operative parameters itself.",
       "metrics": [],
       "enforcement": "weak",
       "mechanismUuids": [],
-      "enforcementReasoning": "No rule exists to enforce; the text is descriptive. No enforcement mechanism applies."
+      "enforcementReasoning": "The text describes a data structure and references governance processes but does not itself impose a rule with a specific consequence for violation. No on-chain automatic enforcement, capital-at-risk, or named enforcement mechanism is cited or implicitly reaches this descriptive paragraph; only the generic misalignment backstop would apply."
     },
     {
       "taskKey": "u:666cf6b3-6d7a-40f7-99fb-b6e2e4375754",
@@ -36163,29 +36686,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "The rule specifies a configuration requirement, but no on-chain or institutional mechanism automatically enforces that the multisig is deployed with this threshold; only the generic misalignment/adjudication backstop would catch a violation, which is weak."
-    },
-    {
-      "taskKey": "u:776677da-0601-4b25-97f0-619cb8978415",
-      "uuid": "776677da-0601-4b25-97f0-619cb8978415",
-      "docNo": "A.2.2.10.1.1.1.2.4.4.3.1.3",
-      "title": "Grove Operator Multisig Signers",
-      "domains": [
-        "sc"
-      ],
-      "anchored": true,
-      "stub": true,
-      "hasMetrics": false,
-      "description": "Specifies that Grove Operator Multisig signers are controlled by Operational GovOps Soter Labs.",
-      "quote": "The signers of the Grove Operator Multisig are controlled by Operational GovOps Soter Labs. The specific signers will be specified in a future iteration of the Atlas.",
-      "quoteHash": "4d2039f2ec493c28",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph explicitly states that specific signers will be specified in a future iteration, making it a stub with no verifiable obligation today.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No enforcement mechanism is specified or implied; only the generic misalignment backstop could apply, which is weak."
     },
     {
       "taskKey": "u:6618063e-89c7-4ff0-806a-d46b32029dc6",
@@ -37099,30 +37599,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "No operational rule exists to trigger enforcement; the paragraph is merely informational and does not create a compliance requirement that any mechanism could reach."
-    },
-    {
-      "taskKey": "u:05f5d939-712b-4204-8f77-4ef5ea598dcc",
-      "uuid": "05f5d939-712b-4204-8f77-4ef5ea598dcc",
-      "docNo": "A.2.2.10.1.1.1.4.2.7",
-      "title": "ERC-4626 Facet",
-      "domains": [
-        "alloc",
-        "sc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "The ERC-4626 Facet manages vault interactions using specific share and exchange rate guards.",
-      "quote": "The ERC-4626 Facet (`ERC4626Facet`) deposits, withdraws, and redeems against any ERC-4626 vault, under min-shares, min-assets, and max-exchange-rate guards. Its address on Ethereum Mainnet is `0x1dCA18608c89174181153E786778705b4A0E1a06`.",
-      "quoteHash": "e5f47e9f6b921930",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The text is a factual description of a smart contract facet and its address, with no obligation, threshold, or verifiable condition imposed on any actor. It names guard types but does not specify their values or how compliance would be checked.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No enforcement mechanism from the catalog or the document is cited or implied; the contract's internal guards are automatic but no UUID links them to any defined enforcement doc, and the paragraph itself contains no enforcement UUID."
     },
     {
       "taskKey": "u:9b6c5e8f-2148-4e2c-8971-9f516a7910c3",
@@ -40064,33 +40540,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "No specific enforcement mechanism reaches this rule; only the generic misalignment/adjudication backstop would apply, and no on-chain automatic enforcement or capital-at-risk incentive is evident."
-    },
-    {
-      "taskKey": "u:e3ec99ec-54c9-4fe7-8104-aee20c57ec57",
-      "uuid": "e3ec99ec-54c9-4fe7-8104-aee20c57ec57",
-      "docNo": "A.2.8.2.2.2.7.2.1",
-      "title": "Transfer Of Genesis Capital Allocation To Spark SubProxy",
-      "domains": [
-        "alloc",
-        "sc"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": true,
-      "description": "Mandates an Executive Vote to transfer 20.6 million USDS from the Surplus Buffer to Spark SubProxy.",
-      "quote": "The transfer of 20.6 million USDS from the Surplus Buffer to the Spark SubProxy for the Genesis Capital Allocation must be included in the June 26, 2025 Executive Vote. This action is authorized to proceed directly to an Executive Vote without a prior Governance Poll.\n\nThis amount reflects that 4.4 million USDS of pre-TGE expenses were paid by Sky as specified in [A.2.8.2.2.2.7.4 - Treatment of Expenses Paid By Sky Pre-TGE](f3672ca1-b305-4e16-86f0-3dc3267073bb). This includes 2 million USDS transferred from the Sky Ecosystem Liquidity Bootstrapping Budget to Spark to provide liquidity to market makers and 2.4 million USDS transferred from the Ecosystem Liquidity Bootstrapping Budget to Spark to provide liquidity to exchanges. See [A.2.8.2.2.2.7.4.1 - Transfer From Liquidity Bootstrapping Budget To Spark For Market Makers](66abd123-f5cd-4d1a-bf75-2e5f468eae16) and [A.2.8.2.2.2.7.4.2 - Transfer From Liquidity Bootstrapping Budget To Spark For Exchanges](1d7924cd-8105-458f-a959-92f302b971d4).\n\nNo penalties were applied under [A.2.8.2.2.2.7.1 - Token Launch Penalty](5a62cc3f-4337-4770-a4d1-8a9b3d158b3f).",
-      "quoteHash": "2a373ae98cba7e4b",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 5,
-      "precisenessReasoning": "The rule specifies an exact amount (20.6 million USDS), a specific source (Surplus Buffer), a specific destination (Spark SubProxy), and a precise deadline (June 26, 2025 Executive Vote). Compliance is objectively verifiable by checking the Executive Vote's contents.",
-      "metrics": [
-        "20.6 million USDS",
-        "June 26, 2025 Executive Vote"
-      ],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "The rule is a one-time governance directive with no stated consequence for non-compliance. No specific enforcement mechanism is cited or implied; only the generic misalignment/adjudication backstop (catch-all) would apply, which is always weak."
     },
     {
       "taskKey": "u:c39702fb-bb6a-43c7-b208-18ddd279b1d3",
