@@ -123,17 +123,23 @@ export function labelOnChain(label: string, chain: string): string {
   return m && m[1].toLowerCase().includes(chain.toLowerCase()) ? m[2] : label;
 }
 
-/** "holds" / "denied" (the history says granted, the chain says no) / "unread" (hasRole failed) / "member" (AdministeredAgent, enumerated). */
-export type HolderStatus = "holds" | "denied" | "unread" | "member";
+/** "holds" / "denied" (the history says granted or added, the chain says no) / "unread" (the live check failed, or predates it). */
+export type HolderStatus = "holds" | "denied" | "unread";
+
+const status = (holds: boolean | null | undefined): HolderStatus => (holds == null ? "unread" : holds ? "holds" : "denied");
 
 export interface HolderRow {
-  /** The PAU contract the role is held on. */
+  /** The PAU contract the role is held on: its role, and its address (a deployment can hold two contracts of one role). */
   on: ContractState["role"];
+  contract: string;
   /** Role name ("RELAYER"), AdministeredAgent membership ("actor"), or a short hash for an unnamed role. */
   name: string;
   account: string;
   status: HolderStatus;
-  since: SetAt;
+  /** What the chain was asked: hasRole for a role, the AdministeredAgent's own list for a member. */
+  check: "role" | "member";
+  /** Null for a member the chain lists that the stored history lacks. */
+  since: SetAt | null;
 }
 
 const AGENT_NAME: Record<string, string> = { actors: "actor", revokers: "revoker", admins: "admin", grantors: "grantor" };
@@ -141,13 +147,15 @@ const AGENT_NAME: Record<string, string> = { actors: "actor", revokers: "revoker
 function contractHolders(c: ContractState): HolderRow[] {
   const roles = (c.roles ?? []).map((r) => ({
     on: c.role,
+    contract: c.address,
     name: r.name ?? `${r.role.slice(0, 10)}…`,
     account: r.account,
-    status: (r.holds === null ? "unread" : r.holds ? "holds" : "denied") as HolderStatus,
+    status: status(r.holds),
+    check: "role" as const,
     since: r.since,
   }));
   const agent = Object.entries(c.agent ?? {}).flatMap(([kind, members]) =>
-    members.map((m) => ({ on: c.role, name: AGENT_NAME[kind] ?? kind, account: m.account, status: "member" as const, since: m.since })),
+    members.map((m) => ({ on: c.role, contract: c.address, name: AGENT_NAME[kind] ?? kind, account: m.account, status: status(m.holds), check: "member" as const, since: m.since })),
   );
   return [...roles, ...agent];
 }

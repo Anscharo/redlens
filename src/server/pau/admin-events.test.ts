@@ -25,7 +25,11 @@ describe("adminTopics", () => {
   });
   it("polls BeamState for its registrations, defaults and step limits only", () => {
     expect(adminTopics("diamond", "beamState").map((t) => t.name)).toEqual(["AddRateLimits", "DelRateLimits", "AddInitRateLimits", "DelInitRateLimits", "SetHop", "SetMaxChange"]);
-    expect(adminTopics("diamond", "configurator")).toEqual([]);
+  });
+  it("polls the governance carriers for their origin evidence under either generation", () => {
+    expect(adminTopics("diamond", "configurator").map((t) => t.name)).toEqual(["SetRateLimit", "CallControllerAction"]);
+    expect(adminTopics("monolithic", "starGuard").map((t) => t.name)).toEqual(["Plot", "Exec", "Drop"]);
+    expect(adminTopics("diamond", "executor").map((t) => t.name)).toEqual(["ActionsSetQueued", "ActionsSetExecuted", "ActionsSetCanceled"]);
   });
   it("keeps operational events out of the rate-limits list", () => {
     const names = adminTopics("monolithic", "rateLimits").map((t) => t.name);
@@ -34,6 +38,16 @@ describe("adminTopics", () => {
 });
 
 describe("decodeAdminLog", () => {
+  it("decodes a real StarGuard Plot: Spark's star spell of the 2025-11-13 executive", () => {
+    const plot = {
+      topics: ["0x0f870ae93c797c0a219447673e1027ae91aaa67bc1ad8f3951235edfc925f5be", "0x00000000000000000000000063fa202a7020e8ee0837196783f0fb768cbfe2f1"],
+      data: "0x6e88f81cc72989a637f4b87592dcde2016272fbceb08a2af3b2effdb2d20c0fb00000000000000000000000000000000000000000000000000000000692464f7",
+    };
+    expect(decodeAdminLog(plot.topics, plot.data)).toEqual({
+      event: "Plot",
+      args: { addr: "0x63fa202a7020e8ee0837196783f0fb768cbfe2f1", tag: "0x6e88f81cc72989a637f4b87592dcde2016272fbceb08a2af3b2effdb2d20c0fb", deadline: "1763992823" },
+    });
+  });
   it("decodes a real RateLimitDataSet with amounts as decimal strings", () => {
     expect(decodeAdminLog(RATE_LIMIT_DATA_SET.topics, RATE_LIMIT_DATA_SET.data)).toEqual({
       event: "RateLimitDataSet",

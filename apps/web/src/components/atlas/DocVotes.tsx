@@ -10,6 +10,7 @@ import { executivesForDoc, type DocVote, type DocVoteReason } from "@/lib/votes/
 import { EVIDENCE_LABEL, evidenceHint, matchedViaText } from "@/lib/votes/labels";
 import { loadVoteRecord } from "../../lib/votes";
 import { SpellLink } from "../SpellLink";
+import { SpellPauEffects } from "./SpellPauEffects";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUTCDay } from "../../hooks/useUTCDay";
 import { SECTION_HEAD } from "./panelSections";
@@ -51,6 +52,7 @@ function VoteRow({ vote: v }: { vote: DocVote }) {
         </>
       )}
       <p className="text-xs leading-relaxed text-tan-2">{v.title}</p>
+      {v.spell && <SpellPauEffects spell={v.spell} />}
       {v.reasons.map((r, i) => (
         <p key={i} className="text-[11px] mono text-tan-3">
           {reasonText(r)}

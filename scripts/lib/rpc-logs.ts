@@ -7,6 +7,7 @@
  */
 import { CHAIN_LOGS_RPCS, type LogsRpc } from "./chains.mjs";
 import { throttleExplorer } from "./explorer-api.ts";
+import { politeFetch } from "../../src/lib/upstreamBackoff.ts";
 
 export interface RpcLog {
   address: string;
@@ -27,7 +28,7 @@ export const logsRpcsFor = (chain: string): LogsRpc[] => CHAIN_LOGS_RPCS[chain] 
 /** One JSON-RPC call. A non-2xx answer or a JSON-RPC error throws with the provider's code and message. */
 async function call(url: string, method: string, params: unknown[]): Promise<unknown> {
   await throttleExplorer(url);
-  const res = await fetch(url, {
+  const res = await politeFetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
@@ -35,7 +36,7 @@ async function call(url: string, method: string, params: unknown[]): Promise<unk
   });
   if (!res.ok) throw new Error(`rpc ${method}: HTTP ${res.status}`);
   const body = (await res.json()) as { result?: unknown; error?: { code?: number; message?: string } };
-  if (body.error) throw new Error(`rpc ${method}: ${body.error.code ?? ""} ${body.error.message ?? "error"}`);
+  if (body.error) throw new Error(`rpc ${method}: code ${body.error.code ?? "?"} ${body.error.message ?? "error"}`);
   return body.result;
 }
 

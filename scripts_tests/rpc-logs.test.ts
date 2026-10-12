@@ -41,7 +41,7 @@ describe("rpcLogs", () => {
   });
   it("throws with the provider's code and message", async () => {
     stubRpc(() => new Error("eth_getLogs is limited to a 500 range"));
-    await expect(rpcLogs(RPC_URL, ["0xa"], ["0xt1"], 0, 999)).rejects.toThrow("rpc eth_getLogs: -32614 eth_getLogs is limited to a 500 range");
+    await expect(rpcLogs(RPC_URL, ["0xa"], ["0xt1"], 0, 999)).rejects.toThrow("rpc eth_getLogs: code -32614 eth_getLogs is limited to a 500 range");
   });
 });
 

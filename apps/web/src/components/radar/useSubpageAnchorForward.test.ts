@@ -18,6 +18,12 @@ describe("subpageForAnchor", () => {
     }
   });
 
+  it("sends a PAUs page fragment there with the fragment kept", () => {
+    for (const id of ["change-history", "rate-limits", "exec-vote-2026-04-09", "exec-vote-2026-04-09-2", `spell-0x${"ab".repeat(20)}`]) {
+      expect(subpageForAnchor(id, prims)).toEqual({ page: "pau", fragment: id });
+    }
+  });
+
   it("leaves an anchor the Info page renders alone", () => {
     expect(subpageForAnchor("msc", prims)).toBeNull();
     expect(subpageForAnchor("relationships", prims)).toBeNull();

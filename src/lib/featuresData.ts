@@ -67,7 +67,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "Context for whichever document is selected — notes, onchain, history, and glossary in one scrolling panel, with pills at the top to jump between them. A section with nothing for the document is left out; history always shows.",
         how: [
           "Notes — the Element Annotations attached to this document, linked documents, equivalent documents under the other Prime Agents, which documents cite this one, and extracted relations (where you land by default when the document has any).",
-          "Onchain — for a document that states a Prime Agent instance's rate limits (or is the instance), `Atlas vs contract`: each maxAmount and slope the Atlas states beside what the PAU contract holds now, ✗ where they differ and a note where they cannot be compared (contract not read yet, not set on the contract); then the Sky Executive Votes behind the document (each one that links it, and each one matched to one of its dates, labelled as on Stale Dates), linked to vote.sky.money and, once cast, to the spell contract; then the on-chain addresses the document names, each with its chain, labels, balances and live contract values.",
+          "Onchain — for a document that states a Prime Agent instance's rate limits (or is the instance), `Atlas vs contract`: each maxAmount and slope the Atlas states beside what the PAU contract holds now, ✗ where they differ and a note where they cannot be compared (contract not read yet, not set on the contract); then the Sky Executive Votes behind the document (each one that links it, and each one matched to one of its dates, labelled as on Stale Dates), linked to vote.sky.money and, once cast, to the spell contract, with how many PAU settings the spell changed on which chains and a link to each Prime Agent's PAU history; then the on-chain addresses the document names, each with its chain, labels, balances and live contract values.",
           "History — this document's change timeline, with the governance poll that approved each change where one links it (“approved by poll …”), and any Executive Vote that cites that poll (“cited by Executive Vote …”).",
           "Glossary — the defined terms this document uses, with their Atlas definitions.",
         ],
@@ -205,12 +205,12 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "PAU on-chain",
-        what: "On a Prime Agent's page, each PAU deployment (per chain, monolithic or diamond controller) as the chain reports it: who holds which role, every rate limit with its maximum, refill per day and amount available now in its token's units, the latest pool parameters, and on a diamond controller what its Configurator may change without a spell.",
+        what: "On a Prime Agent's page, each PAU deployment (per chain, monolithic or diamond controller, each contract's role linking to the Atlas document that states it, and a `not wired` or `partly wired` pill when the controller lacks the CONTROLLER role on its ALM proxy or rate limits) as the chain reports it: who holds which role, every rate limit with its maximum, refill per day and amount available now in its token's units (a ✓ under `Matches Atlas` where every value the Atlas states for that limit matches the chain), the latest pool parameters, on a diamond controller what its Configurator may change without a spell, and a `Change history` of every configuration change, grouped under the Executive Vote whose spell made it.",
         how: [
-          "Open a Prime Agent on Radar and pick `PAUs` under its name in the actor list; click a chain's row to open or close it.",
+          "Open a Prime Agent on Radar and pick `PAUs` under its name in the actor list; click a chain's row to open or close it. `Change history`, below the chains, lists each change newest first with the value it replaced, grouped by Executive Vote across every chain the spell reached; a spell older than the vote record shows its address, and operator changes through the Configurator (with what BeamState allowed) and `Deployment` setup start collapsed. A key under the heading says what each kind of group means, and changes not yet credited to anything are folded by chain under `Not yet attributed`, each line saying what it is still waiting on. Every chain, section and history group has its own link: click the `#` to its left to copy it (the `#` turns to ✓), or write one by hand, such as `#ethereum`, `#ethereum-rate-limits`, `#roles`, `#parameters`, `#change-history` or `#exec-vote-2026-08-27`. A bare section name opens the first chain that has it, and a link opens any collapsed card or group it points into.",
           "A rate limit is named after the Prime Agent or instance whose parameters state its ID; a key the Atlas never states is named by the controller constant that derives it (such as `LIMIT_4626_DEPOSIT` and the vault), and `no document or controller constant found referencing this limit` marks one neither can name. Where an instance lists an address instead of a RateLimitID, the key derived from that address is named after the instance, marked `(matched by address)`, and the instance card shows it under the address as `on-chain key …`.",
-          "In Roles, ✓ means the chain confirms the role, ✗ means the grant history says granted but the chain says no, ? means the check could not be read.",
-          "The date in the `Set` column opens the transaction that last set that limit. Hover an amount to see where its decimals came from: read from the token, fixed by the controller, or inferred from the limit's size. `Configurator limits` says how far the Configurator may raise a limit without a spell (a factor, once per waiting period per key) and lists any default limits it may raise a key to.",
+          "In Roles, ✓ means the chain confirms the role or the AdministeredAgent membership, ✗ means the history says granted or added but the chain says no, ? means the check could not be read. A member the AdministeredAgent lists that the stored history lacks says `not in the stored history`.",
+          "The date in the `Set` column opens the transaction that last set that limit, and the chip beside it names where the value came from (a spell, an operator, a deployment) and jumps to its `Change history` row. Hover an amount to see where its decimals came from: read from the token, fixed by the controller, or inferred from the limit's size. `Configurator limits` says how far the Configurator may raise a limit without a spell (a factor, once per waiting period per key) and lists any default limits it may raise a key to.",
         ],
         note: "Appears once the atlas worker has read the PAU contracts; a deployment whose history is still being read says `history still being read`. Chat and MCP clients can ask for the same values (`atlas_onchain`), across every Prime Agent at once.",
       },
@@ -250,6 +250,16 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Follow the link to the rubric page to see exactly what the ratings are scored against.",
         ],
         note: "Ratings are AI-drafted and human-reviewed — treat them as a starting point, not a verdict.",
+      },
+      {
+        name: "PAU Values Needing Audit",
+        what: "Every Prime Agent PAU value, controller and Atlas role claim an expert should look at, grouped by why: the Atlas is probably out of date, a spell may not have executed yet, the Atlas lacks the detail to check, a registry conflict, or ambiguous.",
+        how: [
+          "Open it from Reports, or click `N PAU values needing audit` at the top of a Prime Agent's PAUs page to see only that Prime's.",
+          "Filter with the Group and Prime pills; each row shows what the Atlas states, what the chain holds, why it is listed, and the Atlas document stating it.",
+          "Where a value is placed by which side moved last, the row shows both dates: when the chain last set it and when its Atlas document last changed.",
+        ],
+        note: "Values that match, values the Atlas marks as not set, and values the reader has not read yet are left out. Without the server's document history, every disagreement is listed as ambiguous.",
       },
       {
         name: "Potential Mistakes",

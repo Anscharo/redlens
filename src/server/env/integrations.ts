@@ -42,6 +42,16 @@ export const onchain: EnvGroup = {
       default: "480000",
     },
     {
+      name: "PAU_ORIGIN_BUDGET_SECONDS",
+      doc: "Seconds each worker tick spends resolving where stored PAU changes came from (a spell, a relay, an operator, a deployment); the rest waits for the next tick.",
+      default: "60",
+    },
+    {
+      name: "EXECUTIVE_ARCHIVE_FILES_PER_TICK",
+      doc: "Executive vote files the worker fetches from makerdao/community per tick to title spells older than the vote record. Each is kept only when its spell was cast through DSPause.",
+      default: "3",
+    },
+    {
       name: "PAU_REFRESH_SECONDS",
       doc: "Age past which the worker rebuilds the PAU snapshots (role holders confirmed with hasRole, rate limits read live).",
       default: "3600",

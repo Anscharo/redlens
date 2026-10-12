@@ -8,6 +8,7 @@
 // delegatecall), so they are listed under the controller, not the facet.
 import { decodeEventLog, parseAbi, toEventSelector, type AbiEvent } from "viem";
 import type { PauKind, PauRole } from "../../lib/pauRegistry.ts";
+import { CONFIGURATOR_EVENTS, EXECUTOR_EVENTS, STAR_GUARD_EVENTS } from "./governance-events.ts";
 
 const ROLE_EVENTS = [
   "event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender)",
@@ -82,14 +83,25 @@ const BEAM_STATE_EVENTS = [
 
 const events = (sigs: string[]) => parseAbi(sigs).filter((x): x is AbiEvent => x.type === "event");
 
-/** Admin events per (generation, role). A role with none (relayer, freezer, facet, configurator) is not polled. */
+// The contracts that carry governance to either generation (governance-events.ts).
+// Shared contracts are read as diamond members (sync-events.ts), so the
+// Executors and the Configurator listed under `shared` resolve here too.
+const GOVERNANCE: Partial<Record<PauRole, AbiEvent[]>> = {
+  starGuard: events(STAR_GUARD_EVENTS),
+  executor: events(EXECUTOR_EVENTS),
+  configurator: events(CONFIGURATOR_EVENTS),
+};
+
+/** Admin events per (generation, role). A role with none (relayer, freezer, facet) is not polled. */
 const BY_ROLE: Record<PauKind, Partial<Record<PauRole, AbiEvent[]>>> = {
   monolithic: {
+    ...GOVERNANCE,
     controller: events(MONOLITH_CONTROLLER_EVENTS),
     almProxy: events(ROLE_EVENTS),
     rateLimits: events(RATE_LIMIT_EVENTS),
   },
   diamond: {
+    ...GOVERNANCE,
     controller: events(DIAMOND_CONTROLLER_EVENTS),
     almProxy: events([...ROLE_EVENTS, "event ControllerRemoved(address indexed controller)"]),
     rateLimits: events(RATE_LIMIT_EVENTS),

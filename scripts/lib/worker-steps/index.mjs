@@ -16,9 +16,11 @@ import chainState from "./chain-state.mjs";
 import balances from "./balances.mjs";
 import forum from "./forum.mjs";
 import pau from "./pau.mjs";
+import pauOrigin from "./pau-origin.ts";
+import voteArchive from "./vote-archive.ts";
 import { TAIL_LANES } from "./tail.mjs";
 
-export const WORKER_STEPS = [prEnvCopy, prState, chainState, balances, pau, forum, ...TAIL_LANES];
+export const WORKER_STEPS = [prEnvCopy, prState, chainState, balances, pau, pauOrigin, voteArchive, forum, ...TAIL_LANES];
 
 export function stepsIn(steps, phase) {
   return steps.filter((s) => s.phase === phase);

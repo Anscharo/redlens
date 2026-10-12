@@ -4,16 +4,18 @@
 // 18-decimal normalized value. A unit is asserted only where the source of the
 // generation holding the key says so: the monolithic rules are read from
 // MainnetController, ForeignController and their libraries, and a diamond's
-// facets run their own code, so a diamond key gets a unit only from the facet
-// rules. The key's derivation (key-derive.ts) names the address a "via" rule
-// reads. A key no rule covers keeps decimals inferred from its size (pauView.ts),
-// and says so.
+// facets run their own code, so a diamond key gets a unit only from its facet
+// getter's entry in facet-keys.ts. The key's derivation (key-derive.ts,
+// diamond-derive.ts) names the address a "via" rule reads: the argument the
+// rule's role names, else the first address. A key no rule covers keeps
+// decimals inferred from its size (pauView.ts), and says so.
 import type { AmountUnit, DerivedKey, PauSnapshot } from "../../lib/pau.ts";
 import type { PauKind } from "../../lib/pauRegistry.ts";
-import { mapLimits, type ChainReader } from "./snapshot.ts";
+import { argAt, facetKeyRule } from "./facet-keys.ts";
+import { mapLimits, type ChainCall, type ChainReader } from "./snapshot.ts";
 
-type Via = "asset" | "token" | "self";
-type Rule = { fixed: number; symbol: string | null } | { via: Via };
+type Via = "asset" | "token" | "self" | "underlying";
+type Rule = { fixed: number; symbol: string | null } | { via: Via; role?: string };
 
 const MONOLITHIC: [RegExp, Rule][] = [
   // depositToFarm / withdrawFromFarm limit the usdsAmount, whatever the farm.
@@ -30,27 +32,24 @@ const MONOLITHIC: [RegExp, Rule][] = [
   [/^LIMIT_(AAVE_DEPOSIT|AAVE_WITHDRAW|ASSET_TRANSFER|CENTRIFUGE_TRANSFER|PSM_DEPOSIT|PSM_WITHDRAW|UNISWAP_V3_\w+)$/, { via: "self" }],
 ];
 
-// USDSFacet limits the usdsAmount and PSMFacet the usdcAmount; no other facet's key is derived from a LIMIT_* constant with a unit it states.
-const DIAMOND: [RegExp, Rule][] = [
-  [/^LIMIT_USDS_MINT$/, { fixed: 18, symbol: "USDS" }],
-  [/^LIMIT_USDS_TO_USDC$/, { fixed: 6, symbol: "USDC" }],
-];
-
-const RULES: Record<PauKind, [RegExp, Rule][]> = { monolithic: MONOLITHIC, diamond: DIAMOND };
-
-export const unitRule = (d: DerivedKey | undefined, kind: PauKind = "monolithic"): Rule | null =>
-  d ? (RULES[kind].find(([re]) => re.test(d.constant))?.[1] ?? null) : null;
-const firstAddress = (d: DerivedKey) => d.args.find((a) => a.startsWith("0x"))?.toLowerCase() ?? null;
+const unitRule = (d: DerivedKey | undefined, kind: PauKind): Rule | null => {
+  if (!d) return null;
+  if (kind === "diamond") return facetKeyRule(d)?.unit ?? null;
+  return MONOLITHIC.find(([re]) => re.test(d.constant))?.[1] ?? null;
+};
+const ruleAddress = (d: DerivedKey, r: { role?: string }) => (r.role ? argAt(d, r.role) : d.args.find((a) => a.startsWith("0x")))?.toLowerCase() ?? null;
 const viaKey = (d: DerivedKey | undefined, kind: PauKind): string | null => {
   const r = unitRule(d, kind);
-  const a = d ? firstAddress(d) : null;
+  const a = d && r && "via" in r ? ruleAddress(d, r) : null;
   return r && "via" in r && a ? `${r.via}:${a}` : null;
 };
 
-/** The token behind each `via:address`: the vault's asset(), the adapter's token() (else itself), or the address itself. */
+const READ: Record<Exclude<Via, "self">, ChainCall["functionName"]> = { asset: "asset", token: "token", underlying: "UNDERLYING_ASSET_ADDRESS" };
+
+/** The token behind each `via:address`: the vault's asset(), the adapter's token() (else itself), the aToken's underlying, or the address itself. */
 async function tokensOf(read: ChainReader, chain: string, wanted: string[]): Promise<Map<string, string | null>> {
   const lookups = wanted.filter((w) => !w.startsWith("self:"));
-  const res = await read(chain, lookups.map((w) => ({ address: w.split(":")[1], functionName: w.split(":")[0] as "asset" | "token", args: [] })));
+  const res = await read(chain, lookups.map((w) => ({ address: w.split(":")[1], functionName: READ[w.split(":")[0] as Exclude<Via, "self">], args: [] })));
   const out = new Map<string, string | null>(wanted.filter((w) => w.startsWith("self:")).map((w) => [w, w.split(":")[1]]));
   lookups.forEach((w, i) => {
     const found = typeof res[i] === "string" ? (res[i] as string).toLowerCase() : null;

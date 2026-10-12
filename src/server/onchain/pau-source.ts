@@ -54,9 +54,9 @@ function holderFacts(base: Base, c: ContractState): OnchainFact[] {
   }));
   const members = Object.entries(c.agent ?? {}).flatMap(([as, list]) => list.map((m) => ({
     ...base, ...named, kind: "member", name: as,
-    values: { as, account: m.account },
-    summary: { account: m.account },
-    set_at: setAt(base.chain, m.since), match: { hashes: [], addresses: [base.contract, m.account], docs: [] },
+    values: { as, account: m.account, holds: m.holds ?? null },
+    summary: { account: m.account, holds: m.holds ?? null },
+    set_at: m.since ? setAt(base.chain, m.since) : null, match: { hashes: [], addresses: [base.contract, m.account], docs: [] },
   })));
   return [...roles, ...members];
 }

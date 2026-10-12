@@ -1,7 +1,7 @@
 // The PAU snapshot shape GET /api/pau serves (written by src/server/pau/), and
 // the pure helpers the Radar PAU section reads it with. DOM-free, so the server
 // and the browser share one declaration.
-import type { PauKind, PauRole } from "./pauRegistry.ts";
+import type { PauIgnored, PauKind, PauRole } from "./pauRegistry.ts";
 
 /** Where a value was last set: the block, its time and the transaction. */
 export interface SetAt {
@@ -22,9 +22,11 @@ export interface LiveRoleHolder extends RoleHolder {
   holds: boolean | null;
 }
 
+/** An AdministeredAgent member: `since` is null for one the chain lists that the stored history lacks; `holds` is the live check, null when it could not be read (absent on snapshots written before it was read). */
 export interface AgentMember {
   account: string;
-  since: SetAt;
+  since: SetAt | null;
+  holds?: boolean | null;
 }
 
 export interface RateLimitKey {
@@ -40,6 +42,13 @@ export interface RateLimitKey {
 export interface DerivedKey {
   constant: string;
   args: string[];
+  /** Each argument's parameter name in the source that encodes it ("asset", "pool"), where the source names them. */
+  roles?: string[];
+  /** The diamond facet whose key getter encodes the key, and that getter. */
+  facet?: string;
+  getter?: string;
+  /** The argument that says which contract the key is for (a pool, a vault, a transfer's destination). */
+  via?: string;
 }
 
 /**
@@ -121,6 +130,8 @@ export interface ContractState {
   unsetKeys?: string[];
   params?: PauParam[];
   integrations?: PauIntegration[];
+  /** Atlas documents stating this contract's address, from the registry's provenance; attached when GET /api/pau serves it (pauAtlasDocs.ts). */
+  atlasDocs?: string[];
   /** Admin events stored for this contract. */
   events: number;
   /** Every event type's history is read to the confirmed head; until then an absent part means "not read yet". */
@@ -141,6 +152,8 @@ export type StoredPauSnapshot = PauSnapshot & { fetchedAt: string };
 /** GET /api/pau. */
 export interface PauResponse {
   deployments: StoredPauSnapshot[];
+  /** Atlas claims about PAU contracts that triage rejected because the chain contradicts them (the registry's `ignored`); absent from older responses. */
+  rejectedClaims?: PauIgnored[];
 }
 
 export const EMPTY_PAU: PauResponse = { deployments: [] };

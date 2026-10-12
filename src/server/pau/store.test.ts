@@ -56,6 +56,18 @@ describe("maybeRefreshPauState", () => {
     const old = fakeDb([{ deployment: "p:ethereum:monolithic", fetched_at: new Date(NOW - 3_600_000) }]);
     expect((await maybeRefreshPauState(old.db, reg, read, { refreshSeconds: 3600, now: NOW })).reason).toBe("due");
   });
+  it("keeps a deployment's last snapshot when its rebuild throws, and still rebuilds the rest", async () => {
+    const two = { ...reg, deployments: [{ ...reg.deployments[0], chain: "base" }, reg.deployments[0]] } as unknown as PauRegistry;
+    const { db, writes } = fakeDb([]);
+    const nameKeys = async (snap: { chain: string }) => {
+      if (snap.chain === "base") throw new Error("a key getter is not a single return");
+      return snap as never;
+    };
+    expect(await maybeRefreshPauState(db, two, read, { refreshSeconds: 3600, now: NOW, nameKeys: nameKeys as never })).toEqual({
+      refreshed: 1, removed: 0, reason: "due", failed: [{ deployment: "p:base:monolithic", error: "a key getter is not a single return" }],
+    });
+    expect(writes).toEqual(["upsert p:ethereum:monolithic"]);
+  });
 });
 
 describe("a chain with a BeamState", () => {
@@ -103,12 +115,15 @@ describe("historyComplete", () => {
 });
 
 describe("handlePau", () => {
-  it("serves every snapshot with a cache header, an empty list before the first run", async () => {
+  it("serves every snapshot and the registry's rejected atlas claims with a cache header, an empty list before the first run", async () => {
     served = [];
     const empty = await handlePau();
     expect(empty.status).toBe(200);
     expect(empty.headers.get("cache-control")).toBe("public, max-age=300");
-    expect(await empty.json()).toEqual({ deployments: [] });
+    const body = (await empty.json()) as { deployments: unknown[]; rejectedClaims: { reason: string }[] };
+    expect(body.deployments).toEqual([]);
+    expect(body.rejectedClaims.length).toBeGreaterThan(0);
+    expect(body.rejectedClaims.every((c) => c.reason)).toBe(true);
     served = [{ state: { primeName: "Spark", chain: "base", kind: "monolithic", contracts: [] }, fetched_at: new Date(NOW) }];
     expect(((await (await handlePau()).json()) as { deployments: unknown[] }).deployments).toHaveLength(1);
   });

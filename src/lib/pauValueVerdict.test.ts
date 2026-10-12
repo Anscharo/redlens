@@ -12,7 +12,7 @@ const lim = (maxAmount: string, slope: string, unit?: LiveRateLimit["unit"]) => 
   data: { maxAmount, slope, lastAmount: "0", lastUpdated: "1" }, ...(unit ? { unit } : {}),
 });
 const usdc = { decimals: 6, symbol: "USDC", source: "token" as const };
-const v = (text: string, field: "maxAmount" | "slope", r: ReturnType<typeof lim>, off = false) => verdict(parseStated(text) as never, field, r, off);
+const v = (text: string, field: "maxAmount" | "slope", r: ReturnType<typeof lim>) => verdict(parseStated(text) as never, field, r);
 
 describe("verdict", () => {
   it("compares in the key's units, and a slope per day against its truncated per-second value", () => {
@@ -20,10 +20,10 @@ describe("verdict", () => {
     expect(v("5,000,001 USDC", "maxAmount", lim("5000000000000", "0", usdc))).toBe("mismatch");
     expect(v("5,000,000 USDC per day", "slope", lim("1", "57870370", usdc))).toBe("match");
   });
-  it("needs no units for zero and unlimited, and lets a switched-off limit take any slope", () => {
+  it("needs no units for zero and unlimited, and judges a switched-off limit's slope on its own", () => {
     expect([v("0", "maxAmount", lim("0", "0")), v("0", "maxAmount", lim("20000000000000", "0"))]).toEqual(["match", "mismatch"]);
     expect([v("Unlimited", "maxAmount", lim(UNL, "0")), v("Unlimited", "maxAmount", lim("1", "0")), v("1", "maxAmount", lim(UNL, "0"))]).toEqual(["match", "mismatch", "mismatch"]);
-    expect(v("Unlimited", "slope", lim("0", "0"), true)).toBe("match");
+    expect([v("Unlimited", "slope", lim("0", "0")), v("0", "slope", lim("0", "0")), v("0", "slope", lim("0", "578703703"))]).toEqual(["mismatch", "match", "mismatch"]);
   });
   it("with units unknown, matches only at the inferred scale the named token agrees with, and mismatches only when wrong at every scale", () => {
     expect(v("50,000,000 USDC", "maxAmount", lim("50000000000000", "0"))).toBe("match");

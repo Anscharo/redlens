@@ -36,6 +36,7 @@
     "census:risk": "bun scripts/required/check-risk-census.mjs",
     "census:concepts": "bun scripts/required/check-concepts-census.mjs",
     "census:chains": "bun scripts/required/check-chains-census.mjs",
+    "census:pau": "bun scripts/required/check-pau-census.ts",
     "chains:add": "bun scripts/aux/add-chain.mjs",
     "env:prune": "bun scripts/aux/prune-pr-environments.mjs",
     "env:example": "bun scripts/aux/env-example.ts",

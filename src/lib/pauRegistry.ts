@@ -25,6 +25,8 @@ export const PAU_ROLES = [
   "configurator",
   "freezer",
   "relayer",
+  "starGuard",
+  "executor",
 ] as const;
 export type PauRole = (typeof PAU_ROLES)[number];
 
@@ -66,12 +68,14 @@ export interface PauIgnored {
   kind?: PauKind;
   role: PauRole;
   address: string;
+  /** The atlas documents making the rejected claim, by UUID; the PAU audit report cites them. */
+  docs?: string[];
   reason: string;
 }
 
 export interface PauRegistry {
   $comment?: string;
-  /** Contracts shared by every diamond PAU (Beacon, facets, BeamState, Configurator), one entry per chain. */
+  /** Contracts shared by a chain's PAUs (Beacon, facets, BeamState, Configurator, governance Executors), one entry per chain. */
   shared: { chain: string; members: PauMember[] }[];
   deployments: PauDeployment[];
   ignored: PauIgnored[];
@@ -124,6 +128,7 @@ function ignoredErrors(g: PauIgnored, where: string): string[] {
   if (!ADDR_RE.test(g.address)) errs.push(`${where}: address must be lowercase 0x hex`);
   if (!ROLES.has(g.role)) errs.push(`${where}: unknown role "${g.role}"`);
   if (!g.reason?.trim()) errs.push(`${where}: needs a reason`);
+  if (g.docs?.some((d) => !UUID_RE.test(d))) errs.push(`${where}: docs must be document UUIDs`);
   return errs;
 }
 

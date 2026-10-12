@@ -31,6 +31,7 @@ export const OpGovOpsReport = lazyImport(() => import("../components/reports/OpG
 export const ActiveDataReport = lazyImport(() => import("../components/reports/ActiveDataReport"), "ActiveDataReport");
 export const RewardsReport = lazyImport(() => import("../components/reports/RewardsReport"), "RewardsReport");
 export const OnchainAddressesReport = lazyImport(() => import("../components/reports/OnchainAddressesReport"), "OnchainAddressesReport");
+export const PauAuditReport = lazyImport(() => import("../components/reports/PauAuditReport"), "PauAuditReport");
 export const ProcessesReport = lazyImport(() => import("../components/reports/ProcessesReport"), "ProcessesReport");
 export const StaleDatesReport = lazyImport(() => import("../components/reports/StaleDatesReport"), "StaleDatesReport");
 export const PotentialMistakesReport = lazyImport(() => import("../components/reports/PotentialMistakesReport"), "PotentialMistakesReport");
@@ -76,6 +77,7 @@ const REPORT_PAGES: Record<ReportId, Omit<SimpleRoute, "path">> = {
   "gov-ops-responsibilities": { Component: OpGovOpsReport, props: searchProps },
   "oea-assessment": { Component: OeaAssessmentReport, props: searchProps },
   "onchain-addresses": { Component: OnchainAddressesReport, props: searchProps },
+  "pau-audit": { Component: PauAuditReport, props: searchProps },
   rewards: { Component: RewardsReport, props: searchProps },
   "risk-rules": { Component: RiskRulesReport, props: searchProps },
   processes: { Component: ProcessesReport, props: searchProps },

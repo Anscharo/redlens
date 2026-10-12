@@ -1,10 +1,12 @@
 // One deployment's live state: what its admin-event history says is configured,
 // checked against the chain. Role holders come from the replay and each is
-// confirmed with hasRole; rate-limit keys come from RateLimitDataSet and each
-// is read live, because usage moves the available amount between settings.
+// confirmed with hasRole; AdministeredAgent members are listed live
+// (agent-live.ts); rate-limit keys come from RateLimitDataSet and each is read
+// live, because usage moves the available amount between settings.
 import { parseAbi } from "viem";
 import { deploymentId, type PauDeployment, type PauMember, type PauRole } from "../../lib/pauRegistry.ts";
-import type { BeamDefault, ContractState, DerivedKey, LiveRateLimit, PauSnapshot, RateLimitKey, RoleHolder } from "../../lib/pau.ts";
+import type { AgentMember, BeamDefault, ContractState, DerivedKey, LiveRateLimit, PauSnapshot, RateLimitKey, RoleHolder } from "../../lib/pau.ts";
+import { liveAgent } from "./agent-live.ts";
 import { beamLimits, type BeamSource } from "./beam.ts";
 import { probeKeys } from "./probe.ts";
 import { replayAgent, replayIntegrations, replayParams, replayRateLimitKeys, replayRoles, roleName, type PauEventRow } from "./replay.ts";
@@ -24,6 +26,16 @@ export const PAU_STATE_ABI = parseAbi([
   "function token() view returns (address)",
   "function decimals() view returns (uint8)",
   "function symbol() view returns (string)",
+  // What AaveFacet reads from an aToken to build its keys (facet-keys.ts HOOKS), and the unit of its withdrawals
+  "function POOL() view returns (address)",
+  "function UNDERLYING_ASSET_ADDRESS() view returns (address)",
+  // A DssSpell's own state (vote-archive.ts)
+  "function done() view returns (bool)", "function expiration() view returns (uint256)",
+  // AdministeredAgent membership (agent-live.ts)
+  "function actorCount() view returns (uint256)", "function getActor(uint256) view returns (address)", "function getIsActor(address) view returns (bool)",
+  "function adminCount() view returns (uint256)", "function getAdmin(uint256) view returns (address)", "function getIsAdmin(address) view returns (bool)",
+  "function grantorCount() view returns (uint256)", "function getGrantor(uint256) view returns (address)", "function getIsGrantor(address) view returns (bool)",
+  "function revokerCount() view returns (uint256)", "function getRevoker(uint256) view returns (address)", "function getIsRevoker(address) view returns (bool)",
 ]);
 
 export interface ChainCall {
@@ -74,8 +86,7 @@ export async function contractState(read: ChainReader, chain: string, m: PauMemb
   const out: ContractState = { role: m.role, address: m.address, ...(m.label ? { label: m.label } : {}), events: events.length, historyComplete: complete };
   const holders = replayRoles(events);
   if (holders.length) out.roles = await liveRoles(read, chain, m.address, holders);
-  const agent = replayAgent(events);
-  if (Object.keys(agent).length) out.agent = agent;
+  if (m.role === "administeredAgent") await agentState(out, read, chain, replayAgent(events));
   const keys = replayRateLimitKeys(events);
   if (keys.length) out.rateLimits = await liveRateLimits(read, chain, m.address, keys);
   if (m.role === "rateLimits") await rateLimitsExtras(out, read, chain, keys.map((k) => k.key), extras);
@@ -84,6 +95,12 @@ export async function contractState(read: ChainReader, chain: string, m: PauMemb
   const integrations = replayIntegrations(events);
   if (integrations.length) out.integrations = integrations;
   return out;
+}
+
+async function agentState(out: ContractState, read: ChainReader, chain: string, replayed: Record<string, AgentMember[]>) {
+  const { agent, missed } = await liveAgent(read, chain, out.address, replayed);
+  if (Object.keys(agent).length) out.agent = agent;
+  if (missed) out.historyComplete = false;
 }
 
 async function rateLimitsExtras(out: ContractState, read: ChainReader, chain: string, held: string[], { beam, probe }: RateLimitsExtras) {

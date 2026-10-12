@@ -6,14 +6,16 @@
 // chain-state.ts).
 import type { PauDeployment, PauRegistry } from "../../lib/pauRegistry.ts";
 import { deploymentId } from "../../lib/pauRegistry.ts";
+import { withAtlasDocs } from "../../lib/pauAtlasDocs.ts";
+import registry from "../../data/pau-registry.json" with { type: "json" };
 import { sql } from "../db.ts";
 import { json } from "../http.ts";
 import type { SqlTag } from "../sql-types.ts";
 import type { PauEventRow } from "./replay.ts";
 import type { BeamSource } from "./beam.ts";
-import { buildSnapshot, withDerivedKeys, type ChainReader, type ContractHistory, type PauSnapshot } from "./snapshot.ts";
+import { buildSnapshot, type ChainReader, type ContractHistory, type PauSnapshot } from "./snapshot.ts";
 import { withUnits } from "./units.ts";
-import type { DerivedKey } from "../../lib/pau.ts";
+import type { KeyNamer } from "./diamond-derive.ts";
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v));
 
@@ -64,11 +66,10 @@ async function snapshotOf(
   read: ChainReader,
   historyOf: (chain: string, contract: string) => Promise<ContractHistory>,
   beam: BeamSource | undefined,
-  opts: { deriveKey?: (key: string) => DerivedKey | null; probe?: string[] },
+  opts: { nameKeys?: KeyNamer; probe?: string[] },
 ): Promise<PauSnapshot> {
   const snap = await buildSnapshot(d, read, historyOf, { beam, probe: opts.probe });
-  const deriveKey = opts.deriveKey;
-  return withUnits(deriveKey ? withDerivedKeys(snap, deriveKey) : snap, read);
+  return withUnits(opts.nameKeys ? await opts.nameKeys(snap, read) : snap, read);
 }
 
 /** Each chain's shared BeamState with its history, read once per refresh. */
@@ -85,6 +86,30 @@ export interface StateRefresh {
   refreshed: number;
   removed: number;
   reason: "fresh" | "due";
+  /** Deployments whose rebuild threw, with why; each keeps its last snapshot and read time. */
+  failed?: { deployment: string; error: string }[];
+}
+
+type RefreshOpts = { nameKeys?: KeyNamer; atlasKeys?: Map<string, string[]> };
+
+/**
+ * Rebuilds each deployment on its own: one that throws keeps its stored
+ * snapshot, whose read time then shows how far behind it is, and the rest
+ * still refresh.
+ */
+async function refreshEach(db: SqlTag, reg: PauRegistry, read: ChainReader, opts: RefreshOpts, now: number) {
+  const historyOf = async (c: string, a: string) => ({ events: await eventsOf(db, c, a), complete: await historyComplete(db, c, a) });
+  const beamOf = beamSources(reg, historyOf);
+  const failed: { deployment: string; error: string }[] = [];
+  for (const d of reg.deployments) {
+    try {
+      const snap = await snapshotOf(d, read, historyOf, await beamOf(d.chain), { nameKeys: opts.nameKeys, probe: opts.atlasKeys?.get(d.prime) });
+      await upsertSnapshot(db, snap, new Date(now));
+    } catch (e) {
+      failed.push({ deployment: deploymentId(d), error: (e as Error).message });
+    }
+  }
+  return failed;
 }
 
 /**
@@ -99,7 +124,8 @@ export async function maybeRefreshPauState(
   opts: {
     refreshSeconds: number;
     now?: number;
-    deriveKey?: (key: string) => DerivedKey | null;
+    /** Names each snapshot's keys by its generation (diamond-derive.ts). */
+    nameKeys?: KeyNamer;
     /** The atlas's RateLimitID hashes by prime entity, read live on each of that prime's RateLimits (probe.ts). */
     atlasKeys?: Map<string, string[]>;
   },
@@ -111,13 +137,8 @@ export async function maybeRefreshPauState(
   const stale = (id: string) => !stored.has(id) || now - stored.get(id)! >= opts.refreshSeconds * 1000;
   const removed = await dropUnlisted(db, [...stored.keys()].filter((x) => !ids.has(x)));
   if (![...ids].some(stale)) return { refreshed: 0, removed, reason: "fresh" };
-  const historyOf = async (c: string, a: string) => ({ events: await eventsOf(db, c, a), complete: await historyComplete(db, c, a) });
-  const beamOf = beamSources(reg, historyOf);
-  for (const d of reg.deployments) {
-    const snap = await snapshotOf(d, read, historyOf, await beamOf(d.chain), { deriveKey: opts.deriveKey, probe: opts.atlasKeys?.get(d.prime) });
-    await upsertSnapshot(db, snap, new Date(now));
-  }
-  return { refreshed: reg.deployments.length, removed, reason: "due" };
+  const failed = await refreshEach(db, reg, read, opts, now);
+  return { refreshed: reg.deployments.length - failed.length, removed, reason: "due", ...(failed.length ? { failed } : {}) };
 }
 
 /** Every stored snapshot, ordered by prime then chain. */
@@ -131,8 +152,9 @@ export async function readPauState(db: SqlTag = sql): Promise<(PauSnapshot & { f
 // Public, ungated, like /api/chain-state: an empty list until the worker has run.
 export async function handlePau(): Promise<Response> {
   try {
-    const deployments = await readPauState();
-    return json({ deployments }, 200, { headers: { "Cache-Control": "public, max-age=300" } });
+    const reg = registry as PauRegistry;
+    const deployments = withAtlasDocs(await readPauState(), reg);
+    return json({ deployments, rejectedClaims: reg.ignored }, 200, { headers: { "Cache-Control": "public, max-age=300" } });
   } catch (e) {
     console.error(`pau: ${(e as Error).message}`);
     return json({ error: "unavailable" }, 503);

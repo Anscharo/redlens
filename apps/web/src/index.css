@@ -2889,6 +2889,26 @@ a.atlas-annotates:focus-visible {
   column-span: all;
 }
 
+/* CopyLink: a "#" in the left gutter beside a linkable section; its parent
+   is positioned and starts where the heading does. */
+.copy-link {
+  position: absolute;
+  right: 100%;
+  padding: 0 6px 0 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--tan-3);
+  text-decoration: none;
+}
+.copy-link:hover,
+.copy-link:focus-visible,
+.copy-link[data-copied] {
+  color: var(--accent);
+}
+
 /* Target of a Radar search link: a short accent outline that fades out. */
 [data-arrived] {
   animation: radar-arrived 1.6s ease-out;

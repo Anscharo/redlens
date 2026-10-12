@@ -177,6 +177,7 @@ async function fastExit(db, ctx, syncState) {
   console.log(`atlas-worker: already current at ${(syncState ?? "").slice(0, 12)} — skipping fetch/build`);
   await touchSyncHeartbeat(db);
   armTailCap();
+  await flushCooldowns();
   await db.close();
   // Reconcile the independently incremental tails anyway. Hash coverage can be
   // complete while grouping metadata is stale, and a failed history branch
@@ -238,6 +239,10 @@ async function verifyPublishHeartbeat() {
   await verifyDb.close();
 }
 
+// Set once the cooldown store is in use: the tick steps' rate-limit cooldowns
+// are saved through `db`, so each close waits for saves still in flight.
+let flushCooldowns = async () => {};
+
 function openDb() {
   if (!process.env.DATABASE_URL) {
     console.error("atlas-worker: DATABASE_URL is required");
@@ -254,11 +259,15 @@ async function main() {
   const db = openDb();
   const ctx = { db, full, noFetch: NO_FETCH, inert: PR_ENV.inert, env: process.env, runAsync, log: console.log, warn: console.warn };
 
+  const cooldowns = await import("../../src/server/upstream-cooldowns.ts");
+  cooldowns.useDbCooldowns(db); // a host that said slow down stays left alone across runs
+  flushCooldowns = cooldowns.flushCooldowns;
   await runTickSteps(WORKER_STEPS, ctx); // ── 1. tick steps (best-effort)
   console.log("atlas-worker: checking upstream atlas SHA…"); // ── 2. drift check
   const drift = await readDriftState(db, () => readUpstreamSha(NO_FETCH));
   if (canFastExit(drift, full)) return fastExit(db, ctx, drift.syncState);
   logRebuildReason(drift);
+  await flushCooldowns();
   await db.close();
 
   buildAndSync(Boolean(drift.syncState && !drift.structural.healthy)); // ── 3. build + sync (fatal)
