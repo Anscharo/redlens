@@ -122,7 +122,7 @@ added / reordered a field in the document header.
 **If the PR regroups FILES rather than changing markdown syntax** (upstream has
 done this twice: #236 atomized the monolith, #294 consolidated the tree into ~16
 composed files) the fix belongs in `scripts/lib/atlas-source.mjs` (working
-checkouts) and `scripts/lib/atlas-git-source.mjs` (the per-commit history walk),
+checkouts) and `scripts/lib/atlas-git-source.ts` (the per-commit history walk),
 not in the parser. Add a layout arm to `detectLayout` / `detectFormat` — never a
 fallback, since an unreadable checkout and an old layout look identical from an
 empty result. Then prove the regrouping is content-neutral before accepting it:

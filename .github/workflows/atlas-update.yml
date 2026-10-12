@@ -250,7 +250,7 @@ jobs:
           If it was `check:atlas`, the build did not account for every document in the
           atlas source. The usual cause is upstream regrouping its files again (it has
           done so twice: #236 atomized the monolith, #294 consolidated the tree). Add a
-          layout arm to `scripts/lib/atlas-source.mjs` and `scripts/lib/atlas-git-source.mjs`,
+          layout arm to `scripts/lib/atlas-source.mjs` and `scripts/lib/atlas-git-source.ts`,
           then prove the regrouping is content-neutral:
 
               bun scripts/aux/ab-parse-check.mjs vendor/next-gen-atlas <extracted-new-tree>

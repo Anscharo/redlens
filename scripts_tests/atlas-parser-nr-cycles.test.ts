@@ -4,7 +4,6 @@
 // overflows the call stack instead of failing gracefully.
 
 import { describe, it, expect } from "vitest";
-// @ts-expect-error — .mjs without types; runtime-only import for parser access
 import { computeLevels } from "../scripts/lib/atlas-parser.mjs";
 
 describe("computeLevels NR cycle guard", () => {

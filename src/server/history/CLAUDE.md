@@ -9,7 +9,7 @@ This file covers how the atlas change history is built and stored. It holds the 
   - **Default:** upserts straight into Postgres `atlas_history`. It reads its own incremental cursor via `MAX(commit_seq)` and runs under Bun.
   - **`--out-json`:** writes the legacy `public/history/<uuid>.json` files. This sink needs no database and serves the canary and artifact tests.
 - The shared DB write path lives in `src/server/history/history-db.ts` (`eventToRow`, `upsertHistory`, `gitCommitSeq`, `readHistoryCursor`).
-- It imports `lib/atlas-parser.mjs` for `HEADING_RE`.
+- It reads each commit through `lib/atlas-git-source.ts` and turns two snapshots into events and diff bodies with `lib/history-events.ts`, which a preview's commit history shares, so a commit row means the same on both. PR metadata and bullet matching stay in the script.
 
 ## History commands
 

@@ -12,8 +12,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
-// @ts-expect-error — .mjs sibling, no type declarations needed for this test
-import { makeAtlasGitSource, parseMonolithic, extractBody } from "./atlas-git-source.mjs";
+import { makeAtlasGitSource, parseMonolithic, extractBody } from "./atlas-git-source.ts";
 
 let repo: string;
 let src: ReturnType<typeof makeAtlasGitSource>;
@@ -78,7 +77,7 @@ function writeAtomized(): void {
 }
 
 describe("detectFormat", () => {
-  it("classifies each of the three layouts the atlas has shipped", () => {
+  it("classifies each of the three layouts the atlas has shipped", async () => {
     write("Sky Atlas/Sky Atlas.md", MONOLITH);
     const mono = commit("monolith");
 
@@ -90,18 +89,18 @@ describe("detectFormat", () => {
     write("content/A.0 - Preamble.md", MONOLITH);
     const consolidated = commit("consolidate");
 
-    expect(src.detectFormat(mono)).toBe("monolithic");
-    expect(src.detectFormat(atomized)).toBe("atomized");
+    expect(await src.detectFormat(mono)).toBe("monolithic");
+    expect(await src.detectFormat(atomized)).toBe("atomized");
     // `content/` exists in BOTH post-#236 layouts, so directory presence alone
     // cannot discriminate — this is exactly the check that used to say
     // "atomized" for a consolidated tree and then find nothing in it.
-    expect(src.detectFormat(consolidated)).toBe("consolidated");
+    expect(await src.detectFormat(consolidated)).toBe("consolidated");
   });
 
-  it("throws on a commit with no atlas at all, rather than reporting an empty one", () => {
+  it("throws on a commit with no atlas at all, rather than reporting an empty one", async () => {
     write("README.md", "no atlas here\n");
     const sha = commit("empty");
-    expect(() => src.detectFormat(sha)).toThrow(/unrecognised atlas layout/);
+    await expect(src.detectFormat(sha)).rejects.toThrow(/unrecognised atlas layout/);
   });
 });
 
@@ -146,7 +145,7 @@ describe("atlasCommits", () => {
 });
 
 describe("loadSnapshot", () => {
-  it("agrees on uuids and contentHashes across all three layouts", () => {
+  it("agrees on uuids and contentHashes across all three layouts", async () => {
     write("Sky Atlas/Sky Atlas.md", MONOLITH);
     const mono = commit("monolith");
 
@@ -158,9 +157,9 @@ describe("loadSnapshot", () => {
     write("content/A.0 - Preamble.md", MONOLITH);
     const consolidated = commit("consolidate");
 
-    const a = src.loadSnapshot(mono);
-    const b = src.loadSnapshot(atomized);
-    const c = src.loadSnapshot(consolidated);
+    const a = await src.loadSnapshot(mono);
+    const b = await src.loadSnapshot(atomized);
+    const c = await src.loadSnapshot(consolidated);
 
     expect([...a.keys()].sort()).toEqual([U(1), U(2)]);
     expect([...b.keys()].sort()).toEqual([U(1), U(2)]);
@@ -177,15 +176,15 @@ describe("loadSnapshot", () => {
     }
   });
 
-  it("records the bucket file each document lives in, so re-filing reads as a move", () => {
+  it("records the bucket file each document lives in, so re-filing reads as a move", async () => {
     write("content/A.0 - Preamble.md", MONOLITH);
     const sha = commit("consolidated");
-    const snap = src.loadSnapshot(sha);
+    const snap = await src.loadSnapshot(sha);
     expect(snap.get(U(1))!.path).toBe("content/A.0 - Preamble.md");
     expect(snap.get(U(2))!.path).toBe("content/A.0 - Preamble.md");
   });
 
-  it("reassembles buckets in doc-number order, not filename order", () => {
+  it("reassembles buckets in doc-number order, not filename order", async () => {
     // A tenth Star sorts between .1 and .2 as a string. Getting this wrong would
     // reorder documents rather than error, so assert the emitted order directly.
     const doc = (n: number, docNo: string) =>
@@ -196,10 +195,10 @@ describe("loadSnapshot", () => {
     const sha = commit("ten stars");
 
     // Map insertion order follows bucket order, so keys() is the emitted order.
-    expect([...src.loadSnapshot(sha).keys()]).toEqual([U(1), U(2), U(10)]);
+    expect([...(await src.loadSnapshot(sha)).keys()]).toEqual([U(1), U(2), U(10)]);
   });
 
-  it("throws when a classified layout yields no documents", () => {
+  it("throws when a classified layout yields no documents", async () => {
     // The silent-empty path. A tree that looks atomized but holds no
     // document.md must be an error, never a snapshot of zero documents.
     write("content/A/0/document.md", "---\nid: x\n---\n");
@@ -208,9 +207,9 @@ describe("loadSnapshot", () => {
     write("content/A/keep.txt", "still a content dir\n");
     const broken = commit("gutted");
 
-    expect(src.loadSnapshot(sha).size).toBe(1); // the intact tree reads fine…
-    expect(src.detectFormat(broken)).toBe("atomized"); // …and the gutted one still looks atomized
-    expect(() => src.loadSnapshot(broken)).toThrow(/no content\/\*\*\/document\.md blobs/);
+    expect((await src.loadSnapshot(sha)).size).toBe(1); // the intact tree reads fine…
+    expect(await src.detectFormat(broken)).toBe("atomized"); // …and the gutted one still looks atomized
+    await expect(src.loadSnapshot(broken)).rejects.toThrow(/no content\/\*\*\/document\.md blobs/);
   });
 });
 
