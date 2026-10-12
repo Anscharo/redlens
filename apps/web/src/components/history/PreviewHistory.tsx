@@ -1,7 +1,7 @@
 import { useDataSource } from "../../lib/dataSource";
 import { usePreviewDiff, usePreviewPatch } from "../../lib/previewDiff";
 import { usePreviewMeta } from "../../lib/previewMeta";
-import { CANONICAL_REPO, diffBaseLabel, type PreviewMeta } from "../../lib/previewMetaCopy";
+import { entrySourceUrl, type PreviewMeta } from "../../lib/previewMetaCopy";
 import { NodeHistory } from "./NodeHistory";
 import { DiffTitle } from "./DiffTitle";
 import { DiffView } from "./DiffView";
@@ -20,43 +20,16 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
   const diff = usePreviewDiff();
   const patch = usePreviewPatch(nodeId);
   const meta: PreviewMeta | null = usePreviewMeta(base) ?? null;
-  // "the live atlas" (sky/absent) or "{repo}:{ref}" (repo base) — what this
-  // preview's redlines are actually compared against.
-  const label = diffBaseLabel(meta ?? {}, diff.activeBase ?? null);
-
   const status = diff.added.has(nodeId) ? "Added" : diff.changed.has(nodeId) ? "Changed" : null;
-  // A changed doc that moved: same UUID, new doc number ([live, preview]).
-  const renumber = diff.renumbered[nodeId];
-  // A changed doc whose title differs from the live atlas.
-  const retitle = diff.retitled[nodeId];
   // Added doc whose doc number exists on the live atlas under another uuid
   // (slot reuse, flagged server-side with the old occupant's title + where it
   // moved). The label gets an asterisk; the disclaimer below the live-history
   // heading explains it.
   const reused = status === "Added" ? diff.reusedSlot[nodeId] : undefined;
-  // UUID-identity reassignment — surfaced prominently: this UUID's document was
-  // replaced (swap), or this doc holds content that used to live under another
-  // UUID (former).
-  const swap = diff.identitySwap[nodeId];
-  const former = diff.formerUuid[nodeId];
-  // A PR is anything with a PR number — same rule as PreviewBanner. Only a
-  // canonical PR (kind "pr") lives on the canonical repo; a fork's or private
-  // repo's own PR (kind stays "branch", see resolve.ts) links to that repo.
-  const isPr = !!meta?.prNumber;
-  const srcUrl = meta
-    ? isPr
-      ? `https://github.com/${meta.kind === "pr" ? CANONICAL_REPO : meta.repo}/pull/${meta.prNumber}`
-      : `https://github.com/${meta.repo}/commit/${meta.sha}`
-    : null;
-  // What actually made the change — a PR or a bare branch. Until meta.json lands
-  // we don't know which, so fall back to the neutral "preview".
-  const source = meta ? (isPr ? "pull request" : "branch") : "preview";
-  // The head commit's date: the real "when" behind this change, so the entry
-  // reads like a live one. Absent on bundles built before the field existed.
-  const date = meta?.headCommitAt?.slice(0, 10);
-  // Line 1 (date / PR) is what the timeline dot centers on; without it the title
-  // line below becomes the row's first line and takes over that job.
-  const hasLine1 = !!date || isPr;
+  // What actually made the change — a PR (anything with a PR number, the same
+  // rule as PreviewBanner) or a bare branch. Until meta.json lands we don't
+  // know which, so fall back to the neutral "preview".
+  const source = meta ? (meta.prNumber ? "pull request" : "branch") : "preview";
 
   return (
     <div className="mono text-[11px]" style={{ color: "var(--tan-3)" }}>
@@ -71,12 +44,11 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
           {/* A timeline node like the live entries, but its downward line dissolves
               into a fuzzy break — this change isn't cemented into history yet. */}
           <TimelineRow dot="var(--preview-add)" fuzz hideTop>
-          {hasLine1 && <PreviewEntryLine1 date={date} prNumber={isPr ? meta?.prNumber : undefined} href={srcUrl} />}
-          <DiffTitle meta={meta} belowLine1={hasLine1} />
-          <PreviewChangeNotes swap={swap} former={former} renumber={renumber} retitle={retitle} source={source}
-            hasPatch={!!patch && patch.length > 0} status={status} label={label} />
-          {srcUrl && (
-            <a href={srcUrl} target="_blank" rel="noreferrer" className="hover:underline" style={{ color: "var(--accent)" }}>
+          <PreviewEntryLine1 meta={meta} />
+          <DiffTitle meta={meta} />
+          <PreviewChangeNotes nodeId={nodeId} meta={meta} source={source} hasPatch={!!patch && patch.length > 0} status={status} />
+          {meta && (
+            <a href={entrySourceUrl(meta)} target="_blank" rel="noreferrer" className="hover:underline" style={{ color: "var(--accent)" }}>
               view on GitHub
             </a>
           )}

@@ -97,6 +97,14 @@ export function sourceUrl(m: PreviewMeta): string {
   return `https://github.com/${m.repo}/commit/${m.sha}`;
 }
 
+/** Link for a preview's history entry: the PR it came from, else its head
+ *  commit. Only a canonical PR (kind "pr") lives on the canonical repo; a
+ *  fork's or private repo's own PR (kind stays "branch") is on that repo. */
+export function entrySourceUrl(m: PreviewMeta): string {
+  if (m.prNumber) return `https://github.com/${m.kind === "pr" ? CANONICAL_REPO : m.repo}/pull/${m.prNumber}`;
+  return `https://github.com/${m.repo}/commit/${m.sha}`;
+}
+
 export function sourceLabel(m: PreviewMeta): string {
   const pull = pullRefDigits(m.ref);
   const n = m.prNumber ?? (pull !== null ? Number(pull) : undefined);

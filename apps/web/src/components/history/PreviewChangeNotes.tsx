@@ -1,20 +1,16 @@
-import type { FormerUuid, IdentitySwap } from "../../lib/previewDiff";
+import { usePreviewDiff } from "../../lib/previewDiff";
 import { isReassigned } from "../../lib/identitySwap";
+import { diffBaseLabel, type PreviewMeta } from "../../lib/previewMetaCopy";
 
 // The ⚠ glyph renders small for its weight next to 11px mono — size it up 25%.
 export const WARN_GLYPH = { fontSize: "1.25em" };
 
 interface PreviewChangeNotesProps {
-  swap?: IdentitySwap;
-  former?: FormerUuid;
-  renumber?: [string, string];
-  retitle?: [string, string];
+  nodeId: string;
+  meta: PreviewMeta | null;
   source: string;
   hasPatch: boolean;
   status: "Added" | "Changed";
-  /** What this preview's redlines are compared against — "the live atlas" or
-   *  "{repo}:{ref}" — from previewMetaCopy's diffBaseLabel(). */
-  label: string;
 }
 
 // Prose notes about *how* a doc changed in this preview: the ⚠ identity
@@ -25,7 +21,18 @@ interface PreviewChangeNotesProps {
 // a raw-only edit the parser normalises away, or a hash-only change — the
 // client can't tell these apart, and a bare "Changed" heading with nothing
 // under it reads as a bug.
-export function PreviewChangeNotes({ swap, former, renumber, retitle, source, hasPatch, status, label }: PreviewChangeNotesProps) {
+export function PreviewChangeNotes({ nodeId, meta, source, hasPatch, status }: PreviewChangeNotesProps) {
+  const diff = usePreviewDiff();
+  // UUID-identity reassignment: this UUID's document was replaced (swap), or
+  // this doc holds content that used to live under another UUID (former).
+  const swap = diff.identitySwap[nodeId];
+  const former = diff.formerUuid[nodeId];
+  // A changed doc that moved: same UUID, new doc number ([live, preview]).
+  const renumber = diff.renumbered[nodeId];
+  // A changed doc whose title differs from the live atlas.
+  const retitle = diff.retitled[nodeId];
+  // "the live atlas" or "{repo}:{ref}": what the redlines are compared against.
+  const label = diffBaseLabel(meta ?? {}, diff.activeBase ?? null);
   const silent = status === "Changed" && !hasPatch && !renumber && !retitle && !swap;
   return (
     <>
