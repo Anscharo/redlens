@@ -7,21 +7,26 @@ import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 vi.mock("../../lib/previewDiff", () => ({ usePreviewDiff: vi.fn() }));
-vi.mock("../../lib/previewMeta", () => ({ usePreviewMeta: () => ({ repo: "o/r" }) }));
+vi.mock("../../lib/previewMeta", () => ({ usePreviewMeta: vi.fn() }));
 vi.mock("../../hooks/usePreviewCommits", () => ({ usePreviewCommits: vi.fn() }));
 
 import { INITIAL_COMMITS } from "@/lib/previewCommits";
 import { usePreviewCommits } from "../../hooks/usePreviewCommits";
 import { usePreviewDiff, type PreviewDiff } from "../../lib/previewDiff";
+import { usePreviewMeta } from "../../lib/previewMeta";
+import type { PreviewMeta } from "../../lib/previewMetaTypes";
 import { PreviewCommits } from "./PreviewCommits";
 
 const hook = vi.mocked(usePreviewCommits);
 const setBase = (activeBase: PreviewDiff["activeBase"]) => vi.mocked(usePreviewDiff).mockReturnValue({ activeBase } as PreviewDiff);
+const setMeta = (meta: Partial<PreviewMeta> | null | undefined) => vi.mocked(usePreviewMeta).mockReturnValue(meta as PreviewMeta | null | undefined);
+const BASES = { auto: "repo", repo: { repo: "o/r", ref: "main", mergeBase: "mb" } } as PreviewMeta["bases"];
 
 beforeEach(() => {
   window.history.replaceState(null, "", "/atlas");
   hook.mockImplementation((_id, _base, on) => (on ? { ...INITIAL_COMMITS, phase: "done" } : null));
   setBase({ key: "repo", repo: "o/r", ref: "main", auto: true });
+  setMeta({ repo: "o/r", bases: BASES });
 });
 afterEach(() => {
   cleanup();
@@ -46,5 +51,21 @@ describe("PreviewCommits", () => {
     setBase({ key: "live-main", auto: true });
     render(<PreviewCommits nodeId="n1" changed={false} />);
     expect(hook).toHaveBeenLastCalledWith("n1", null, true);
+  });
+
+  it("waits while the base is unknown, and reports none only for a bundle that names no bases", () => {
+    window.history.replaceState(null, "", "/atlas?history=by-commit");
+    setBase(null);
+    const cases: [Partial<PreviewMeta> | null | undefined, undefined | null][] = [
+      [undefined, undefined],
+      [{ repo: "o/r", bases: BASES }, undefined],
+      [{ repo: "o/r" }, null],
+    ];
+    for (const [meta, expected] of cases) {
+      setMeta(meta);
+      render(<PreviewCommits nodeId="n1" changed />);
+      expect(hook).toHaveBeenLastCalledWith("n1", expected, true);
+      cleanup();
+    }
   });
 });

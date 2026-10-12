@@ -83,6 +83,26 @@ describe("usePreviewCommits", () => {
     expect(FakeEventSource.instances).toHaveLength(0);
   });
 
+  it("waits while the diff base is still resolving, then streams against it", () => {
+    const { result, rerender } = renderHook(({ base }) => usePreviewCommits("n1", base, true), {
+      wrapper,
+      initialProps: { base: undefined as "repo" | null | undefined },
+    });
+    expect(FakeEventSource.instances).toHaveLength(0);
+    expect(result.current?.phase).toBe("connecting");
+    rerender({ base: "repo" });
+    expect(latest().url).toBe("/api/preview/abc/commits?base=repo&uuid=n1");
+  });
+
+  it("a frame that does not parse ends the stream as failed", () => {
+    const { result } = renderHook(() => usePreviewCommits("n1", "repo", true), { wrapper });
+    act(() => {
+      for (const cb of latest().listeners.commits ?? []) cb({ data: "{not json" } as MessageEvent);
+    });
+    expect(result.current).toMatchObject({ phase: "error", error: "failed" });
+    expect(latest().closed).toBe(true);
+  });
+
   it("another document closes the old stream and starts fresh", () => {
     const { result, rerender } = renderHook(({ id }) => usePreviewCommits(id, "repo", true), { wrapper, initialProps: { id: "n1" } });
     const first = latest();

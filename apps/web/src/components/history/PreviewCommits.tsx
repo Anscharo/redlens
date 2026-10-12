@@ -3,11 +3,21 @@ import { usePreviewCommits } from "../../hooks/usePreviewCommits";
 import { useDataSource } from "../../lib/dataSource";
 import { usePreviewDiff } from "../../lib/previewDiff";
 import { usePreviewMeta } from "../../lib/previewMeta";
+import type { ActiveBase, PreviewBaseKey, PreviewMeta } from "../../lib/previewMetaTypes";
 import { PreviewCommitList } from "./PreviewCommitList";
 import { TimelineRow } from "./Timeline";
 
 /** `?history=by-commit` turns the list on; no parameter is off. */
 const HISTORY = urlEnum<"" | "by-commit">("", ["by-commit"]);
+
+/** The diff base to walk: the redline's own, null when it has none (a live-main
+ *  degrade, or a bundle that names no bases), undefined while that is still
+ *  unknown, so a shared link waits instead of reporting no merge base. */
+function walkBase(meta: PreviewMeta | null | undefined, active: ActiveBase | null | undefined): PreviewBaseKey | null | undefined {
+  if (active?.key === "sky" || active?.key === "repo") return active.key;
+  if (active?.key === "live-main") return null;
+  return meta === undefined || meta?.bases ? undefined : null;
+}
 
 interface Props {
   nodeId: string;
@@ -22,10 +32,9 @@ interface Props {
 export function PreviewCommits({ nodeId, changed }: Props) {
   const [mode, setMode] = useUrlState("history", HISTORY);
   const on = mode === "by-commit";
-  const { activeBase } = usePreviewDiff();
-  const baseKey = activeBase?.key === "sky" || activeBase?.key === "repo" ? activeBase.key : null;
-  const state = usePreviewCommits(nodeId, baseKey, on);
-  const repo = usePreviewMeta(useDataSource().base)?.repo;
+  const meta = usePreviewMeta(useDataSource().base);
+  const state = usePreviewCommits(nodeId, walkBase(meta, usePreviewDiff().activeBase), on);
+  const repo = meta?.repo;
   return (
     <>
       <TimelineRow>
