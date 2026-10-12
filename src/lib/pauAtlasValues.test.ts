@@ -36,6 +36,26 @@ const src = (name: string, params: Record<string, string>): ValueSource => ({ na
 const run = (...sources: ValueSource[]) => checkAtlasValues(sources, SNAPS).map((c) => [c.label, c.status, c.kind]);
 
 describe("checkAtlasValues", () => {
+  it("pairs a per-asset value with the key naming its asset, and an aggregate with the aggregate key in its own units", () => {
+    const ausd = { decimals: 6, symbol: "AUSD", source: "token" as const };
+    const wad = { decimals: 18, symbol: null, source: "constant" as const };
+    const [AGG, K_AUSD, K_USDC] = [k("a"), k("b"), k("c")];
+    const snaps = [snap("ethereum", "diamond", [
+      lim(AGG, "25000000000000000000000000", "0", { unit: wad }), lim(K_AUSD, "25000000000000", "0", { unit: ausd }), lim(K_USDC, "30000000000000", "0"),
+    ])];
+    const s = src("Ethereum Mainnet - Pool", {
+      "Aggregate Deposit RateLimitID": AGG, "Deposit RateLimitID (AUSD)": K_AUSD, "Deposit RateLimitID (USDC)": K_USDC,
+      "Deposit Rate Limits / maxAmount (Aggregate)": "25,000,000 (normalized)", "Deposit Rate Limits / maxAmount (AUSD)": "25,000,000 AUSD", "Deposit Rate Limits / maxAmount (USDC)": "25,000,000 USDC",
+    });
+    expect(checkAtlasValues([s], snaps).map((c) => [c.label, c.key, c.status, c.qualifier])).toEqual([
+      ["Deposit maxAmount (Aggregate)", AGG, "match", "aggregate"], ["Deposit maxAmount (AUSD)", K_AUSD, "match", "ausd"], ["Deposit maxAmount (USDC)", K_USDC, "mismatch", "usdc"],
+    ]);
+  });
+  it("gives a per-asset value no key when the instance states none for its asset, never another asset's", () => {
+    const snaps = [snap("ethereum", "diamond", [lim(k("b"), "25000000000000", "0")])];
+    const s = src("Ethereum Mainnet - Pool", { "Deposit RateLimitID (AUSD)": k("b"), "Deposit Rate Limits / maxAmount (Aggregate)": "25,000,000 (normalized)" });
+    expect(checkAtlasValues([s], snaps).map((c) => [c.label, c.key, c.status])).toEqual([["Deposit maxAmount (Aggregate)", null, "no-key"]]);
+  });
   it("compares a stated key in token units, and a slope per day against the truncated per-second value", () => {
     expect(run(src("Ethereum Mainnet - A", {
       "Inflow RateLimitID": K_IN, "Outflow RateLimitID": K_OUT,

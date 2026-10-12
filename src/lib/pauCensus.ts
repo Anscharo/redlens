@@ -1,10 +1,11 @@
 // The PAU census: every rate-limit value the atlas states for a prime, checked
 // against the chain (pauAtlasValues.ts), as the record `pnpm census:pau`
 // compares week to week. A value is keyed by the UUID of the document stating
-// it and its field, so a renumbering changes nothing compared; doc_no, instance
-// and label ride along for people only. Each value holds one slot per
-// deployment and key (`chain/kind/key`). A disagreeing slot keeps the raw
-// on-chain integer, which is what is compared, and a formatted copy to read.
+// it and its field (and its token, for a per-token value), so a renumbering
+// changes nothing compared; doc_no, instance and label ride along for people
+// only. Each value holds one slot per deployment and key (`chain/kind/key`). A
+// disagreeing slot keeps the raw on-chain integer, which is what is compared,
+// and a formatted copy to read.
 import type { StoredPauSnapshot } from "./pau.ts";
 import { checkAtlasValues, type ValueCheck, type ValueStatus } from "./pauAtlasValues.ts";
 import { primesStatingValues, primeValueSources, rowView, type SourceEntity } from "./pauPrimeSources.ts";
@@ -44,7 +45,7 @@ function chainValue(c: ValueCheck): [string | null, string] {
 const sortedRecord = <T>(r: Record<string, T>): Record<string, T> => Object.fromEntries(Object.entries(r).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
 
 function addCheck(values: Record<string, CensusValue>, c: ValueCheck, prime: string, docNoOf: (id: string) => string | null): void {
-  const v = (values[`${c.docId}:${c.field}`] ??= { prime, doc_no: docNoOf(c.docId), instance: c.instance, label: c.label, stated: c.stated, at: {} });
+  const v = (values[`${c.docId}:${c.field}${c.qualifier ? `:${c.qualifier}` : ""}`] ??= { prime, doc_no: docNoOf(c.docId), instance: c.instance, label: c.label, stated: c.stated, at: {} });
   v.at[`${c.chain ?? "-"}/${c.kind ?? "-"}/${c.key ?? "-"}`] = DISAGREE.has(c.status) ? [c.status, ...chainValue(c)] : c.status;
 }
 

@@ -10,13 +10,13 @@ import { formatAmount, formatPerDay, limitDecimals, loadPau, unitNote } from "..
 import { useLoaded } from "../../hooks/useAtlasData";
 import { SECTION_HEAD } from "./panelSections";
 
-/** The document's atlas-vs-contract rows; empty until the PAU snapshots load, and when it states none. */
+/** The document's atlas-vs-contract rows: the values it, its instance or its direct children state; empty until the PAU snapshots load, and when there are none. */
 export function useAtlasVsContract(id: string, src: DocValueSources | null | undefined): ValueCheck[] {
   const res = useLoaded(loadPau, { soft: true });
   return useMemo(() => {
     if (!res || !src) return [];
     const snaps = res.deployments.filter((d) => d.prime === src.prime);
-    return checkAtlasValues(src.sources, snaps).filter((c) => c.docId === id || c.instanceDocId === id);
+    return checkAtlasValues(src.sources, snaps).filter((c) => c.docId === id || c.instanceDocId === id || src.children.includes(c.docId));
   }, [res, src, id]);
 }
 
