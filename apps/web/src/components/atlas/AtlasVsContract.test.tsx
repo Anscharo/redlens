@@ -25,6 +25,7 @@ const sources: DocValueSources = {
     "Inflow RateLimitID": p(KEY, "key"), "Deposit Rate Limits / maxAmount": p("0", "max"), "Deposit Rate Limits / slope": p("20,000,000 USDC per day", "slope"),
     "Withdrawal Rate Limits / maxAmount": p("N/A", "na"),
   } }],
+  children: [],
 };
 
 afterEach(cleanup);
@@ -35,6 +36,10 @@ describe("AtlasVsContract", () => {
     await waitFor(() => expect(all.result.current).toHaveLength(3));
     const one = renderHook(() => useAtlasVsContract("doc-max", sources));
     await waitFor(() => expect(one.result.current.map((c) => c.label)).toEqual(["Deposit maxAmount"]));
+  });
+  it("keeps the rows a direct child states, for a heading over its value leaves", async () => {
+    const heading = renderHook(() => useAtlasVsContract("doc-limits", { ...sources, children: ["doc-max", "doc-slope"] }));
+    await waitFor(() => expect(heading.result.current.map((c) => c.label)).toEqual(["Deposit maxAmount", "Deposit slope"]));
   });
   it("lays the atlas and contract out under their headings, marks a mismatch, and says why a value is not compared", async () => {
     const { result } = renderHook(() => useAtlasVsContract("inst", sources));

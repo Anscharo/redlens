@@ -7,7 +7,7 @@
 // keys that could each be the one, or units that cannot be pinned down each
 // say so instead of reading as a match or a mismatch.
 import type { LiveRateLimit, StoredPauSnapshot } from "./pau.ts";
-import { parseStated, VALUE_PARAM_RE, type StatedValue } from "./pauParams.ts";
+import { paramQualifier, parseStated, VALUE_PARAM_RE, type StatedValue } from "./pauParams.ts";
 import { instanceKeys, sharedAddresses, valueSide, type InstanceKey, type ValueSource } from "./pauInstanceKeys.ts";
 import { chainSnaps, instanceChain } from "./pauInstanceChain.ts";
 import { verdict } from "./pauValueVerdict.ts";
@@ -35,8 +35,10 @@ export interface ValueCheck {
   instance: string;
   /** The instance's defining document. */
   instanceDocId: string | null;
-  /** What the value is, as the atlas names it ("Deposit maxAmount"). */
+  /** What the value is, as the atlas names it ("Deposit maxAmount", "Deposit maxAmount (AUSD)"). */
   label: string;
+  /** The asset a per-asset value is for ("ausd", "aggregate"; pauParams.ts paramQualifier), when it names one. */
+  qualifier?: string;
   field: "maxAmount" | "slope";
   stated: string;
   status: ValueStatus;
@@ -107,17 +109,31 @@ function unambiguous(checks: ValueCheck[], keys: InstanceKey[], sides: Set<strin
   return checks.map((c) => (VERDICTS.has(c.status) && (sideless(c) || several(c)) ? { ...c, status: "ambiguous" as const } : c));
 }
 
+/**
+ * The keys on a value's side. A per-asset value takes only the keys naming its
+ * asset, and none when the instance states no such key: an aggregate amount is
+ * in 18-decimal units and an asset's in its own, so any other key would compare
+ * the value at the wrong scale.
+ */
+function ownKeys(keys: InstanceKey[], side: string, qualifier: string): InstanceKey[] {
+  const onSide = keys.filter((k) => !k.side || k.side === side);
+  return qualifier ? onSide.filter((k) => k.qualifier === qualifier) : onSide;
+}
+
 function sourceChecks(src: ValueSource, snaps: StoredPauSnapshot[], shared: Set<string>): ValueCheck[] {
   const keys = instanceKeys(src, snaps, shared);
   const values = Object.entries(src.params).flatMap(([name, [text, docId]]) => {
     const m = VALUE_PARAM_RE.exec(name);
-    return m && docId ? [{ m, text, docId }] : [];
+    return m && docId ? [{ m, name, text, docId }] : [];
   });
   const sides = new Set(values.map((v) => valueSide(v.m[1])));
-  return values.flatMap(({ m, text, docId }) => {
+  return values.flatMap(({ m, name, text, docId }) => {
     const field = m[2] as ValueCheck["field"];
-    const base = { docId, instance: src.name, instanceDocId: src.docId ?? null, label: `${m[1].trim() || "Rate limit"} ${field}`, field, stated: text, src };
-    const mine = keys.filter((k) => !k.side || k.side === valueSide(m[1]));
+    const qualifier = paramQualifier(name);
+    const asset = qualifier && /\(([^)]+)\)\s*$/.exec(name)?.[1].trim();
+    const label = `${m[1].trim() || "Rate limit"} ${field}${asset ? ` (${asset})` : ""}`;
+    const base = { docId, instance: src.name, instanceDocId: src.docId ?? null, label, field, stated: text, src, ...(qualifier ? { qualifier } : {}) };
+    const mine = ownKeys(keys, valueSide(m[1]), qualifier);
     const stated = parseStated(text);
     if (mine.length === 0) return check(base, stated, null, snaps);
     return unambiguous(mine.flatMap((k) => check(base, stated, k.key, snaps).map((c) => (k.via ? { ...c, via: k.via } : c))), mine, sides);
