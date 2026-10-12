@@ -4,14 +4,7 @@ import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "@/lib/routes";
 import type { StoredPauSnapshot } from "../../lib/pau";
 import { roleWhy } from "@/lib/pauRoleWhy";
-
-const ROLE_LABEL: Record<string, string> = {
-  controller: "Controller",
-  almProxy: "ALM proxy",
-  rateLimits: "Rate limits",
-  accessControls: "AccessControls",
-  administeredAgent: "AdministeredAgent",
-};
+import { PAU_ROLE_LABEL } from "@/lib/pauHolderNames";
 
 const dim = { color: "var(--tan-3)" };
 
@@ -38,7 +31,7 @@ export function PauContracts({ snap }: { snap: StoredPauSnapshot }) {
     <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
       {snap.contracts.map((c) => (
         <li key={c.address} className="mono text-[11px]" style={dim}>
-          <AtlasDocLink docs={c.atlasDocs} title={roleWhy(c, snap)}>{ROLE_LABEL[c.role] ?? c.role}</AtlasDocLink> <Address address={c.address} chain={snap.chain} />
+          <AtlasDocLink docs={c.atlasDocs} title={roleWhy(c, snap)}>{PAU_ROLE_LABEL[c.role] ?? c.role}</AtlasDocLink> <Address address={c.address} chain={snap.chain} />
         </li>
       ))}
     </ul>

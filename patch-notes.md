@@ -35,6 +35,7 @@
 
 ## 2026-10-12
 
+- Named the account in each PAU role row (Controller, ALM proxy, Relayer, Freezer) and reworded the rows as "<account> holds <ROLE> on <contract>"
 - Added a tooltip on each PAU contract's role that says why it is listed, including the on-chain evidence for contracts no Atlas document states
 - Renamed the rate-limit "Per day" column to Slope, grouped PAU rate limits by how they are named so same-name limits sit together, and tidied the table's column spacing and headings
 - Showed the Atlas vs contract rate-limit table on a Rate Limits heading as well as on its Inflow and Outflow pages, and read rate limits the Atlas lists one asset at a time
