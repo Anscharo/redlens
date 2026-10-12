@@ -40,13 +40,17 @@ On the live atlas
 
 ## Spike results (isomorphic-git 1.44.1, run 2026-10-12 against `sky-ecosystem/next-gen-atlas`)
 
-- **Fetch by raw sha works** (GitHub serves reachable shas), as does fetch by `refs/pull/N/head`.
+- **Fetch by raw sha works** (GitHub serves any sha reachable from a ref), as does fetch by
+  `refs/pull/N/head`. Verified with a sha that is no ref's tip (5 commits back on main, 1.2 s).
   The remote must be configured first (`addRemote` + a `remote.origin.fetch` refspec), or
   `fetch` throws `NoRefspecError`.
 - Runs unchanged under **Bun** and through the agent HTTPS proxy with `isomorphic-git/http/node`.
 - Shallow fetch: depth 10 took about 1.2 s (108 objects). **Depth 100 took 6.7 s for an 18 MB pack**.
 - Reading every `content/` blob of one commit (about 3.9 MB, 18 bucket files) from that pack
   takes **80–145 ms** with a shared `cache` object.
+- **Private repos: not verified here.** No private repo or App token was reachable from the
+  spike. GitHub's upload-pack treats private repos the same once the request is authenticated, so
+  the same fetch should work. PR 2 proves it with a gated integration test (see Tests).
 - Not yet measured: the **parse** cost per commit (`loadSnapshot` over 3.9 MB). That decides the
   realistic commit cap. Measure it first in the PR 2 work.
 
@@ -123,9 +127,17 @@ all to the browser.
   immediately, so the client has one code path. It is evicted with the bundle. The scratch bare
   repo is deleted when the walk ends, whatever the outcome.
 - **Soft**: a failed walk never touches the bundle or its build outcome.
-- **Private repos**: the installation token goes through isomorphic-git's `onAuth`
-  (`github-app.ts` already mints it for tarballs). The fetch targets the head repo; a canonical
-  PR from a fork can fetch `refs/pull/N/head` from the canonical repo.
+- **Private repos**: HTTP Basic with username `x-access-token` and the installation token that
+  `github-app.ts` already mints for private tarballs (same `contents: read` permission, no new App
+  permission).
+  - Send it up front as an `Authorization` header, not through `onAuth`. `onAuth` fires only after
+    a 401 challenge, and an unauthenticated request for a private repo can answer 404 instead.
+  - Never put the token in the URL: isomorphic-git puts the URL in its error messages.
+  - Mint a fresh token per walk (installation tokens last an hour).
+  - A sha no ref reaches any more (force-pushed away) cannot be fetched, even when the tarball
+    API still serves it. That is a soft `fetch-failed`, on public repos too.
+  - The fetch targets the head repo; a canonical PR from a fork can fetch `refs/pull/N/head` from
+    the canonical repo.
 - New config (`PREVIEW_COMMIT_HISTORY_MAX_COMMITS`, `PREVIEW_COMMIT_HISTORY_TIMEOUT_MS`,
   `PREVIEW_MAX_CONCURRENT_COMMIT_WALKS`) is declared in `src/server/env/`, and
   `pnpm env:example` is run.
@@ -160,6 +172,9 @@ all to the browser.
   a fixture branch with a renumber, a revert and a merge commit.
 - Merge rule: a clean merge yields a marker only, and a hand-resolved conflict yields a flagged
   diff.
+- **Private fetch integration test**, skipped unless the GitHub App credentials and a private
+  mirror (`PREVIEW_IT_PRIVATE_REPO`) are set: mint an installation token, shallow-fetch a sha that
+  is no ref's tip, and walk two commits. Also assert that the token appears in no error message.
 - Backend parity: the CLI and isomorphic-git snapshots are identical for the same atlas commits.
 - Handler: gate and private headers, `uuid` filtering, cache replay equal to the live stream,
   dedupe join, `unavailable` on live-main.
@@ -171,7 +186,7 @@ all to the browser.
    conversion and the parity test), and `history-events.ts` extracted from `build-history.mjs`.
    `REPRO=1 pnpm test` and the history tests stay green.
 2. **Server PR.** The isomorphic-git dependency (`pnpm install`, lockfile committed), the parse
-   cost measurement and the commit cap that follows from it, the walk, the SSE endpoint, the
+   cost measurement and the commit cap that follows from it, the private-fetch integration test, the walk, the SSE endpoint, the
    cache, config, and the `src/server/preview/CLAUDE.md` flow and invariant lines.
 3. **Frontend PR.** The toggle, hook and list. A `patch-notes.md` bullet, and an update to the
    preview history entry in `src/lib/featuresData.ts` naming the toggle.
