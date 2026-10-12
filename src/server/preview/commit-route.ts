@@ -11,8 +11,7 @@ import { cachedCommitEvents } from "./commit-cache.ts";
 import { startCommitWalk } from "./commit-history.ts";
 import { planWalk } from "./commit-plan.ts";
 import { isTerminal, joinWalk, walkKey, type CommitStreamEvent, type Send } from "./commit-stream.ts";
-import type { CommitEntry } from "./commit-events.ts";
-import type { CommitRecord } from "./commit-walk.ts";
+import type { PreviewCommitEvent } from "../../lib/previewCommits.ts";
 import type { BaseKey, PreviewMeta } from "./cache.ts";
 import { rateLimited } from "./rate-limit.ts";
 import { gateSha } from "./sha-gate.ts";
@@ -20,10 +19,9 @@ import { gateSha } from "./sha-gate.ts";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const isBase = (b: string | null): b is BaseKey => b === "sky" || b === "repo";
 
-/** The wire form of the stream: each commit carries only one document's rows. */
-export type CommitWireEvent =
-  | Exclude<CommitStreamEvent, { type: "commit" }>
-  | { type: "commit"; index: number; commit: Omit<CommitRecord, "entries"> & { entries: CommitEntry[] } };
+/** The wire form of the stream, declared in src/lib/previewCommits.ts: each
+ *  commit carries only one document's rows. */
+export type CommitWireEvent = PreviewCommitEvent;
 
 export function forDocument(ev: CommitStreamEvent, uuid: string): CommitWireEvent {
   if (ev.type !== "commit") return ev;

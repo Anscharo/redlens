@@ -1,6 +1,6 @@
 # Preview — commit-by-commit history
 
-Status: **planned** (agreed 2026-10-12). Supersedes the "real per-commit history is P2" line in
+Status: **built** (agreed and built 2026-10-12). Supersedes the "real per-commit history is P2" line in
 `preview.md` § History in preview mode.
 
 ## Goal
@@ -160,8 +160,11 @@ additions:
 ## Frontend
 
 - `useUrlState("history")` is the toggle: `"by-commit"` means on. A labelled switch `<button>`
-  with `aria-pressed` sits directly under the overall diff. It shows for every doc in a preview,
-  including "Unchanged by this branch", because a doc can be touched and then changed back.
+  with `aria-pressed` sits directly under the overall diff. It shows once the diff base is known
+  and the branch adds more than one commit over it (`bases[key].aheadBy`, from the build's
+  compare; an unknown count still shows it), since one commit would only repeat the overall diff.
+  It shows for every such doc, including "Unchanged by this branch", because a doc can be touched
+  and then changed back.
 - `usePreviewCommits(nodeId, baseKey)` opens an `EventSource` only while the toggle is on, and
   closes it when the node changes or the component unmounts. It returns
   `{ phase, received, total, commits, truncated, error }`.
@@ -207,5 +210,7 @@ additions:
 2. **Server PR (done).** `history-classify.d.mts` (the server cannot import untyped JS), the isomorphic-git dependency (`pnpm install`, lockfile committed), the parse
    cost measurement and the commit cap that follows from it, the private-fetch integration test, the walk, the SSE endpoint, the
    cache, config, and the `src/server/preview/CLAUDE.md` flow and invariant lines.
-3. **Frontend PR.** The toggle, hook and list. A `patch-notes.md` bullet, and an update to the
+3. **Frontend PR (done).** The toggle (`PreviewCommits.tsx`), hook (`usePreviewCommits.ts`)
+   and list (`PreviewCommitList.tsx`, `PreviewCommitRow.tsx`), over the wire types and stream
+   reducer in `src/lib/previewCommits.ts`, which the server's route is typed against. A `patch-notes.md` bullet, and an update to the
    preview history entry in `src/lib/featuresData.ts` naming the toggle.
