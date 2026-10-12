@@ -80,7 +80,7 @@ export function useNodeAnnotations(id: string, data: LoadedData | null, graph: G
       if (addAddress(addr)) byNameOnly.add(addr);
     }
     const glossaryTerms = glossaryTermsIn(target.content, glossaryLookup);
-    const rateLimitSources = docValueSources(id, graph, (data.atlas.byParent.get(id) ?? []).map((n) => n.id));
+    const rateLimitSources = docValueSources(id, graph, { title: target.title, children: (data.atlas.byParent.get(id) ?? []).map((n) => n.id) });
     return { linkedNodes, targetAddresses, chainValues: cv, glossaryTerms, cousinDocs, byNameOnly, annotationDocs, rateLimitSources };
   }, [data, id, glossaryLookup, graph]);
 }

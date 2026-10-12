@@ -35,7 +35,7 @@
 
 ## 2026-10-12
 
-- Showed the Atlas vs contract rate-limit table on a Rate Limits heading as well as on its Inflow and Outflow pages, and read rate limits the Atlas lists one token at a time
+- Showed the Atlas vs contract rate-limit table on a Rate Limits heading as well as on its Inflow and Outflow pages, and read rate limits the Atlas lists one asset at a time
 
 ## 2026-10-11
 

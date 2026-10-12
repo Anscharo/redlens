@@ -1,7 +1,7 @@
 // Which prime's rate-limit values a reader document is part of: the instance it
-// defines, the instance whose params it states (a RateLimitID, a maxAmount), or
-// the instance whose params its direct children state, so a "Rate Limits"
-// heading over its Inflow and Outflow leaves shows their values too.
+// defines, the instance whose params it states (a RateLimitID, a maxAmount), or,
+// for a "Rate Limits" heading, the instance whose params its direct children
+// state, so the heading over the Inflow and Outflow leaves shows their values.
 // The check needs every instance of that prime, not only this one, because an
 // address two instances list belongs to neither (pauInstanceKeys.ts). Which
 // values are a prime's is pauPrimeSources.ts's rule; this reads it over the
@@ -10,12 +10,19 @@ import type { GraphEntity } from "../types.ts";
 import type { GraphData } from "./graphData.ts";
 import type { ValueSource } from "./pauInstanceKeys.ts";
 import { graphView, primeValueSources } from "./pauPrimeSources.ts";
+import { RATE_LIMITS_TITLE_RE } from "./pauParams.ts";
 
 export interface DocValueSources {
   /** The prime entity id. */
   prime: string;
   sources: ValueSource[];
-  /** The document's direct children: a value one of them states belongs to the document too. */
+  /** A Rate Limits heading's direct children, whose values belong to it too; empty for any other document. */
+  children: string[];
+}
+
+/** The open document as the check reads it: its title, and its direct children. */
+export interface DocHeading {
+  title: string;
   children: string[];
 }
 
@@ -23,9 +30,10 @@ const states = (e: GraphEntity, id: string) => e.did === id || Object.values(gra
 const instancesOf = (graph: GraphData) => [...graph.instances, ...graph.invocations];
 const sourcesOf = (prime: GraphEntity, graph: GraphData) => primeValueSources(instancesOf(graph).map(graphView), prime.id, graphView(prime));
 
-/** The prime and all its rate-limit sources when the document, or one of its direct children, defines or states one of its instances' params, else null. */
-export function docValueSources(id: string, graph: GraphData | null, children: string[] = []): DocValueSources | null {
+/** The prime and all its rate-limit sources when the document, or a Rate Limits heading's direct child, defines or states one of its instances' params, else null. */
+export function docValueSources(id: string, graph: GraphData | null, heading?: DocHeading): DocValueSources | null {
   if (!graph) return null;
+  const children = heading && RATE_LIMITS_TITLE_RE.test(heading.title.trim()) ? heading.children : [];
   const ids = [id, ...children];
   const statesAny = (e: GraphEntity) => ids.some((d) => states(e, d));
   const hit = instancesOf(graph).find((e) => statesAny(e) && graphView(e).meta.agent_doc_id);

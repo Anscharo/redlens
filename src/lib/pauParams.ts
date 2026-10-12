@@ -3,8 +3,16 @@
 // Shared by the server's key-to-document refs and the atlas-vs-chain check.
 import { RATE_LIMIT_ID_RE } from "./atlasHashes.ts";
 
-/** "Inflow Rate Limits / maxAmount" → side "Inflow", field "maxAmount". */
+/**
+ * "Inflow Rate Limits / maxAmount" → side "Inflow", field "maxAmount". A
+ * per-asset value names its asset in brackets after the field ("Deposit Rate
+ * Limits / slope (AUSD)"), never before the slash, where the atlas's own
+ * brackets name a venue ("Deposit Rate Limits (via FalconX)").
+ */
 export const VALUE_PARAM_RE = /^(.*?)\s*Rate\s*Limits?\s*\/\s*(maxAmount|slope)\b/i;
+
+/** A heading whose children each state one operation's rate limits ("Rate Limits", "Deposit Rate Limits"). */
+export const RATE_LIMITS_TITLE_RE = /Rate\s*Limits?$/i;
 
 const SIDE: Record<string, string> = { inflow: "in", deposit: "in", supply: "in", outflow: "out", withdraw: "out", withdrawal: "out", redeem: "out" };
 
@@ -16,16 +24,16 @@ export function paramSide(name: string): string {
 }
 
 /**
- * The token or aggregate a param is for, from its parenthesis or the words
- * before its operation: "Deposit RateLimitID (AUSD)" and "AUSD Deposit Rate
- * Limits / slope" are both "ausd", "Aggregate Deposit RateLimitID" is
- * "aggregate", and "Inflow Rate Limits / maxAmount" is "" (none).
+ * The asset a key or value is for: a key's brackets ("Deposit RateLimitID
+ * (AUSD)"), a value's brackets after its field ("Deposit Rate Limits / slope
+ * (AUSD)"), or the aggregate over every asset as a leading "Aggregate"
+ * ("Aggregate Deposit RateLimitID", "… / maxAmount (Aggregate)"). Anything
+ * else is "" (none).
  */
 export function paramQualifier(name: string): string {
-  const paren = /\(([^)]+)\)/.exec(name);
+  const paren = /\(([^)]+)\)\s*$/.exec(name);
   if (paren) return paren[1].trim().toLowerCase();
-  const words = name.replace(/\/.*$/, "").replace(RATE_LIMIT_ID_RE, " ").replace(/Rate\s*Limits?\b/gi, " ").trim().split(/\s+/);
-  return words.slice(0, -1).join(" ").toLowerCase();
+  return /^\s*aggregate\b/i.test(name) ? "aggregate" : "";
 }
 
 /**

@@ -3,7 +3,7 @@
  */
 
 import { RATE_LIMIT_ID_RE } from "../../src/lib/atlasHashes.ts";
-import { expandPerToken, RATE_LIMITS_TITLE_RE } from "./rate-limit-per-token.ts";
+import { expandPerToken } from "./rate-limit-per-token.ts";
 import {
   ETH_ADDR_EXACT_RE,
   ETH_ADDR_FIRST_RE,
@@ -228,7 +228,7 @@ function expandBulletList(content, outerTitle) {
   const out = [];
   const value = RATE_LIMIT_ID_RE.test(outerTitle) ? (v) => extractRateLimitId(v.trim()) : (v) => v.trim();
   for (const m of content.matchAll(BULLET_KV_RE)) out.push([`${outerTitle} / ${m[1].trim()}`, value(m[2])]);
-  if (RATE_LIMITS_TITLE_RE.test(outerTitle)) out.push(...expandPerToken(content, outerTitle));
+  out.push(...expandPerToken(content, outerTitle));
   return out.length ? out : null;
 }
 

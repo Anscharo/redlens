@@ -1,7 +1,7 @@
 // How the atlas states a rate limit: which operation a param is about, and
 // what its stated maxAmount or slope reads as.
 import { describe, expect, it } from "vitest";
-import { paramQualifier, paramSide, parseStated, shiftDecimal } from "./pauParams.ts";
+import { paramQualifier, paramSide, parseStated, shiftDecimal, VALUE_PARAM_RE } from "./pauParams.ts";
 
 describe("paramSide", () => {
   it("reads the operation a param names", () => {
@@ -10,9 +10,19 @@ describe("paramSide", () => {
 });
 
 describe("paramQualifier", () => {
-  it("reads the token or aggregate a key or value names, and nothing for a plain one", () => {
-    expect(["Deposit RateLimitID (AUSD)", "AUSD Deposit Rate Limits / slope", "Aggregate Deposit RateLimitID", "Aggregate Withdrawal", "Inflow Rate Limits / maxAmount", "Inflow RateLimitID", "Rate Limit IDs / deposit"].map(paramQualifier))
-      .toEqual(["ausd", "ausd", "aggregate", "aggregate", "", "", ""]);
+  it("reads the asset a key or value names in brackets, or a leading Aggregate", () => {
+    expect(["Deposit RateLimitID (AUSD)", "Deposit Rate Limits / slope (AUSD)", "Aggregate Deposit RateLimitID", "Deposit Rate Limits / maxAmount (Aggregate)"].map(paramQualifier))
+      .toEqual(["ausd", "ausd", "aggregate", "aggregate"]);
+  });
+  it("reads no asset from other leading words, so a name like a venue's is never taken for one", () => {
+    expect(["Inflow Rate Limits / maxAmount", "Uniswap v3 Swap Rate Limits / maxAmount", "Inflow RateLimitID", "Rate Limit IDs / deposit"].map(paramQualifier)).toEqual(["", "", "", ""]);
+  });
+});
+
+describe("VALUE_PARAM_RE", () => {
+  it("reads a value's operation and field with or without an asset after it, and leaves a venue-bracketed name alone", () => {
+    expect(["Deposit Rate Limits / slope (AUSD)", "Inflow Rate Limits / maxAmount"].map((n) => VALUE_PARAM_RE.exec(n)?.slice(1, 3))).toEqual([["Deposit", "slope"], ["Inflow", "maxAmount"]]);
+    expect(VALUE_PARAM_RE.test("Deposit Rate Limits (via FalconX) / maxAmount")).toBe(false);
   });
 });
 
