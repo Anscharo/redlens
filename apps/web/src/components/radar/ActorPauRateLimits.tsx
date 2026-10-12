@@ -24,14 +24,26 @@ interface Props {
 }
 
 const dim = { color: "var(--tan-3)" };
+/** Column rule, fainter than the row rule so rows stay the primary rhythm. */
+const colRule = { borderLeft: "1px solid color-mix(in srgb, var(--border) 45%, transparent)" };
+const cell = "px-3 py-0.5 align-top";
+const head = "px-3 pb-1 align-bottom font-normal leading-tight";
 const isOff = (r: LiveRateLimit) => (r.data?.maxAmount ?? r.configured.maxAmount) === "0";
 
-/** Limits the atlas names first, by name; then keys named by their derivation; unnamed keys after; switched-off keys last. */
+/**
+ * Rows grouped by how the key is named, so siblings sit together: keys an atlas document states (linked), keys the
+ * atlas names without a document, keys named by their controller constant, then unnamed keys. Within a group by name,
+ * so `LIMIT_4626_DEPOSIT` across every vault is one run, then by derivation arguments; a switched-off key follows its
+ * live siblings rather than leaving the group.
+ */
 function ordered<T extends LiveRateLimit>(limits: T[], keyIndex: Map<string, AtlasKeyRef[]>): T[] {
-  const atlas = (r: LiveRateLimit) => keyIndex.get(r.key.toLowerCase())?.[0]?.label;
-  const tier = (r: LiveRateLimit) => (isOff(r) ? 3 : atlas(r) ? 0 : r.derived ? 1 : 2);
-  const name = (r: LiveRateLimit) => atlas(r) ?? r.derived?.constant ?? r.key;
-  return [...limits].sort((a, b) => tier(a) - tier(b) || name(a).localeCompare(name(b)));
+  const ref = (r: LiveRateLimit) => keyIndex.get(r.key.toLowerCase())?.[0];
+  const tier = (r: LiveRateLimit) => (ref(r)?.docId ? 0 : ref(r) ? 1 : r.derived ? 2 : 3);
+  const name = (r: LiveRateLimit) => ref(r)?.label ?? r.derived?.constant ?? r.key;
+  const args = (r: LiveRateLimit) => r.derived?.args.join(" ") ?? "";
+  return [...limits].sort(
+    (a, b) => tier(a) - tier(b) || name(a).localeCompare(name(b)) || args(a).localeCompare(args(b)) || Number(isOff(a)) - Number(isOff(b)) || a.key.localeCompare(b.key),
+  );
 }
 
 const derivation = (d: DerivedKey) => [d.constant, ...d.args].join(" · ");
@@ -80,14 +92,14 @@ function LimitRow({ r, chain, keyIndex, matches }: { r: LiveRateLimit; chain: st
   const scale = unitNote(r.unit, max) + (r.data ? "" : "; live read failed, showing the last value its history set");
   return (
     <tr className="border-t border-[var(--border)] mono" data-off={isOff(r) || undefined} style={{ color: isOff(r) ? "var(--tan-3)" : "var(--tan-2)" }}>
-      <td className="py-0.5 pr-3"><LimitName r={r} chain={chain} keyIndex={keyIndex} /></td>
-      <td className="py-0.5 text-right" title={scale}>{isOff(r) ? "off" : <PauAmount raw={max} dec={dec} symbol={r.unit?.symbol} />}</td>
-      <td className="py-0.5 text-right" title={scale}>{formatPerDay(r.data?.slope ?? r.configured.slope, dec)}</td>
-      <td className="py-0.5 text-right" title={scale}>{r.available === null ? "?" : formatAmount(r.available, dec)}</td>
-      <td className="py-0.5 text-center" data-atlas-match={matches || undefined}>
+      <td className="py-0.5 pr-3 align-top max-w-[22rem] break-words"><LimitName r={r} chain={chain} keyIndex={keyIndex} /></td>
+      <td className={`${cell} text-right`} style={colRule} title={scale}>{isOff(r) ? "off" : <PauAmount raw={max} dec={dec} symbol={r.unit?.symbol} />}</td>
+      <td className={`${cell} text-right`} style={colRule} title={scale}>{formatPerDay(r.data?.slope ?? r.configured.slope, dec)}</td>
+      <td className={`${cell} text-right`} style={colRule} title={scale}>{r.available === null ? "?" : formatAmount(r.available, dec)}</td>
+      <td className={`${cell} text-center`} style={colRule} data-atlas-match={matches || undefined}>
         {matches && <span role="img" aria-label="matches the atlas" title="every value the atlas states for this key matches the chain">✓</span>}
       </td>
-      <td className="py-0.5 text-right">
+      <td className={`${cell} text-right whitespace-nowrap`} style={colRule}>
         <a href={explorerTxUrl(chain, r.setAt.tx)} target="_blank" rel="noopener" className="hover:underline" style={dim}>
           {r.setAt.time.slice(0, 10)}
         </a>{" "}
@@ -97,22 +109,22 @@ function LimitRow({ r, chain, keyIndex, matches }: { r: LiveRateLimit; chain: st
   );
 }
 
-/** Every rate-limit key the contract has been given: on-chain maximum, refill per day, and what is available now. */
+/** Every rate-limit key the contract has been given: on-chain maximum, slope (refill per day), and what is available now. */
 export function PauRateLimits({ chain, limits, keyIndex, atlasMatched, anchor }: Props) {
   if (limits.length === 0) return null;
   const a = sectionAnchor(anchor, "rate-limits");
   return (
     <div className="relative mt-3">
       <CopyLink id={a.id} label={`${anchor.id} rate limits`} top={-2} />
-      <table {...anchorProps(a)} className="w-full border-collapse text-[12px]">
+      <table {...anchorProps(a)} className="border-collapse text-[12px]">
         <thead>
           <tr className="mono text-[11px] uppercase tracking-wider" style={dim}>
-            <th className="text-left font-normal pb-1">Rate limits</th>
-            <th className="text-right font-normal pb-1">Max</th>
-            <th className="text-right font-normal pb-1">Per day</th>
-            <th className="text-right font-normal pb-1">Available</th>
-            <th className="text-center font-normal pb-1" title="✓ when every value the atlas states for this key matches the chain">Matches Atlas</th>
-            <th className="text-right font-normal pb-1">Set</th>
+            <th className={`${head} pl-0 pr-3 text-left max-w-[22rem]`}>Rate limits</th>
+            <th className={`${head} text-right`} style={colRule}>Max</th>
+            <th className={`${head} text-right`} style={colRule} title="how much the limit refills per day">Slope</th>
+            <th className={`${head} text-right`} style={colRule}>Available</th>
+            <th className={`${head} text-center max-w-[5rem]`} style={colRule} title="✓ when every value the atlas states for this key matches the chain">Matches Atlas</th>
+            <th className={`${head} text-right`} style={colRule}>Set</th>
           </tr>
         </thead>
         <tbody>

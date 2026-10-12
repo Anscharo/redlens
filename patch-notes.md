@@ -35,6 +35,7 @@
 
 ## 2026-10-12
 
+- Renamed the rate-limit "Per day" column to Slope, grouped PAU rate limits by how they are named so same-name limits sit together, and tidied the table's column spacing and headings
 - Showed the Atlas vs contract rate-limit table on a Rate Limits heading as well as on its Inflow and Outflow pages, and read rate limits the Atlas lists one asset at a time
 - Added a By commit switch to a preview's history tab, listing each commit on the branch that changed the document, with its diff
 

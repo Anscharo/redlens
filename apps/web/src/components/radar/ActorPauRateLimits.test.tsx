@@ -26,4 +26,16 @@ describe("PauRateLimits", () => {
     expect(errors.mock.calls.flat().join(" ")).not.toMatch(/same key/);
     errors.mockRestore();
   });
+
+  it("groups linked atlas keys first, then constant-named keys with same-name siblings together, a switched-off key staying in its run", () => {
+    const k = (n: number) => "0x" + String(n).repeat(64);
+    const mk = (key: string, constant?: string, args: string[] = [], maxAmount = "1000000"): ContractLimit => ({
+      ...limit(RL1), key, configured: { maxAmount, slope: "0" }, ...(constant ? { derived: { constant, args } } : {}),
+    });
+    const limits = [mk(k(1), "LIMIT_4626_DEPOSIT", ["a"], "0"), mk(k(2), "LIMIT_USDS_MINT"), mk(k(3), "LIMIT_4626_DEPOSIT", ["b"]), mk(k(4)), mk(k(5), "LIMIT_4626_DEPOSIT", ["c"])];
+    const keyIndex = new Map([[k(4), [{ docId: "doc", label: "Linked param" }]]]);
+    const { container } = render(<PauRateLimits chain="ethereum" limits={limits} keyIndex={keyIndex} atlasMatched={new Set()} anchor={{ id: "ethereum", aliases: [] }} />);
+    const names = within(container).getAllByRole("row").slice(1).map((r) => within(r).getAllByRole("cell")[0].textContent);
+    expect(names).toEqual(["Linked param", "LIMIT_4626_DEPOSIT · a", "LIMIT_4626_DEPOSIT · b", "LIMIT_4626_DEPOSIT · c", "LIMIT_USDS_MINT"]);
+  });
 });
