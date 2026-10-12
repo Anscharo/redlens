@@ -73,10 +73,11 @@ describe("NodeMeta", () => {
   it("copies the sky-atlas.io link and flips to a copied state on click", async () => {
     const node = makeNode({ id: "00000000-0000-4000-8000-000000000077" });
     render(<NodeMeta node={node} />);
-    fireEvent.click(screen.getByRole("button", { name: "Copy link to Sky Atlas" }));
+    const btn = screen.getByRole("button", { name: "Copy link to Sky Atlas" });
+    fireEvent.click(btn);
     expect(writeText).toHaveBeenCalledWith(`https://sky-atlas.io/#${node.id}`);
     await waitFor(() => expect(screen.getByTitle("Copied!")).toBeInTheDocument());
-    expect(screen.getByText("copied")).toBeInTheDocument();
+    expect(btn).toHaveTextContent("copied");
   });
 
   it("stops propagation on copy-button clicks so the row isn't also selected", async () => {
