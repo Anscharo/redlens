@@ -3,11 +3,12 @@ import { usePreviewDiff, usePreviewPatch } from "../../lib/previewDiff";
 import { usePreviewMeta } from "../../lib/previewMeta";
 import { CANONICAL_REPO, diffBaseLabel, type PreviewMeta } from "../../lib/previewMetaCopy";
 import { NodeHistory } from "./NodeHistory";
+import { DiffTitle } from "./DiffTitle";
 import { DiffView } from "./DiffView";
 import { PreviewChangeNotes } from "./PreviewChangeNotes";
 import { PreviewCommits } from "./PreviewCommits";
 import { PreviewEntryLine1 } from "./PreviewEntryLine1";
-import { CONTENT_INDENT, LINE1_H, TimelineRow } from "./Timeline";
+import { CONTENT_INDENT, TimelineRow } from "./Timeline";
 
 // History tab in preview mode. The real per-doc history lives in Postgres for
 // the *live* atlas, which is meaningless for an unmerged branch — so instead we
@@ -71,22 +72,7 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
               into a fuzzy break — this change isn't cemented into history yet. */}
           <TimelineRow dot="var(--preview-add)" fuzz hideTop>
           {hasLine1 && <PreviewEntryLine1 date={date} prNumber={isPr ? meta?.prNumber : undefined} href={srcUrl} />}
-          {isPr && meta?.prTitle && (
-            <p className="italic text-[12px] leading-snug mt-1" style={{ color: "var(--tan)" }}>
-              {meta.prTitle}
-            </p>
-          )}
-          {/* No PR to point at — this doc is only reachable via the branch, so the
-              branch takes the title slot. If there's no line 1 above it, it's the
-              row's first line and carries LINE1_H for the dot instead. */}
-          {!isPr && meta?.ref && (
-            <p
-              className={`italic text-[12px] ${hasLine1 ? "leading-snug mt-1" : ""}`}
-              style={{ color: "var(--tan)", ...(hasLine1 ? null : { lineHeight: `${LINE1_H}px` }) }}
-            >
-              Branch: {meta.repo?.split("/")[0]}/{meta.ref}
-            </p>
-          )}
+          <DiffTitle meta={meta} belowLine1={hasLine1} />
           <PreviewChangeNotes swap={swap} former={former} renumber={renumber} retitle={retitle} source={source}
             hasPatch={!!patch && patch.length > 0} status={status} label={label} />
           {srcUrl && (
