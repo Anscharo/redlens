@@ -19,6 +19,12 @@ function walkBase(meta: PreviewMeta | null | undefined, active: ActiveBase | nul
   return meta === undefined || meta?.bases ? undefined : null;
 }
 
+/** More than one commit to list: with a single commit the list would only
+ *  repeat the overall diff. A count the build's compare did not give is not a
+ *  reason to hide the switch. */
+const severalCommits = (meta: PreviewMeta | null | undefined, key: PreviewBaseKey): boolean =>
+  (meta?.bases?.[key]?.aheadBy ?? 2) > 1;
+
 interface Props {
   nodeId: string;
   /** Whether the branch's overall diff touches this document. */
@@ -27,13 +33,17 @@ interface Props {
 
 /** Under a preview's overall diff: a switch that lists the branch's commits
  *  that touched this document, against the same diff base as the redline. It
- *  shows for unchanged documents too, since a branch can change one and then
- *  change it back. */
+ *  shows only once that base is known and the branch adds more than one commit
+ *  over it, and for unchanged documents too, since a branch can change one and
+ *  then change it back. */
 export function PreviewCommits({ nodeId, changed }: Props) {
   const [mode, setMode] = useUrlState("history", HISTORY);
-  const on = mode === "by-commit";
   const meta = usePreviewMeta(useDataSource().base);
-  const state = usePreviewCommits(nodeId, walkBase(meta, usePreviewDiff().activeBase), on);
+  const base = walkBase(meta, usePreviewDiff().activeBase);
+  const shown = !!base && severalCommits(meta, base);
+  const on = shown && mode === "by-commit";
+  const state = usePreviewCommits(nodeId, base, on);
+  if (!shown) return null;
   const repo = meta?.repo;
   return (
     <>

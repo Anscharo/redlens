@@ -160,8 +160,11 @@ additions:
 ## Frontend
 
 - `useUrlState("history")` is the toggle: `"by-commit"` means on. A labelled switch `<button>`
-  with `aria-pressed` sits directly under the overall diff. It shows for every doc in a preview,
-  including "Unchanged by this branch", because a doc can be touched and then changed back.
+  with `aria-pressed` sits directly under the overall diff. It shows once the diff base is known
+  and the branch adds more than one commit over it (`bases[key].aheadBy`, from the build's
+  compare; an unknown count still shows it), since one commit would only repeat the overall diff.
+  It shows for every such doc, including "Unchanged by this branch", because a doc can be touched
+  and then changed back.
 - `usePreviewCommits(nodeId, baseKey)` opens an `EventSource` only while the toggle is on, and
   closes it when the node changes or the component unmounts. It returns
   `{ phase, received, total, commits, truncated, error }`.

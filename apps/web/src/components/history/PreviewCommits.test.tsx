@@ -46,25 +46,24 @@ describe("PreviewCommits", () => {
     expect(screen.getByRole("region", { name: "Commits in this branch" })).toBeInTheDocument();
   });
 
-  it("walks against the redline's diff base, and none when it degraded to live main", () => {
+  it("shows only when the diff base is known and the branch adds more than one commit", () => {
     window.history.replaceState(null, "", "/atlas?history=by-commit");
-    setBase({ key: "live-main", auto: true });
-    render(<PreviewCommits nodeId="n1" changed={false} />);
-    expect(hook).toHaveBeenLastCalledWith("n1", null, true);
-  });
-
-  it("waits while the base is unknown, and reports none only for a bundle that names no bases", () => {
-    window.history.replaceState(null, "", "/atlas?history=by-commit");
-    setBase(null);
-    const cases: [Partial<PreviewMeta> | null | undefined, undefined | null][] = [
-      [undefined, undefined],
-      [{ repo: "o/r", bases: BASES }, undefined],
-      [{ repo: "o/r" }, null],
+    const withAhead = (aheadBy?: number) => ({ repo: "o/r", bases: { ...BASES!, repo: { ...BASES!.repo!, aheadBy } } });
+    const cases: [PreviewDiff["activeBase"], Partial<PreviewMeta> | undefined, boolean][] = [
+      [{ key: "repo", repo: "o/r", ref: "main", auto: true }, withAhead(2), true],
+      [{ key: "repo", repo: "o/r", ref: "main", auto: true }, withAhead(undefined), true],
+      [{ key: "repo", repo: "o/r", ref: "main", auto: true }, withAhead(1), false],
+      [{ key: "live-main", auto: true }, withAhead(5), false],
+      [null, undefined, false],
+      [null, { repo: "o/r", bases: BASES }, false],
+      [null, { repo: "o/r" }, false],
     ];
-    for (const [meta, expected] of cases) {
+    for (const [active, meta, shown] of cases) {
+      setBase(active);
       setMeta(meta);
       render(<PreviewCommits nodeId="n1" changed />);
-      expect(hook).toHaveBeenLastCalledWith("n1", expected, true);
+      expect(screen.queryByRole("button", { name: "By commit" }) !== null).toBe(shown);
+      expect(hook.mock.lastCall![2]).toBe(shown);
       cleanup();
     }
   });
