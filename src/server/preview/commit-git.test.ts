@@ -36,10 +36,14 @@ describe.skipIf(!GITDIR)("isoBackend on the checked-out atlas", () => {
     }
   }, 60_000);
 
-  test("reports a commit's parents", async () => {
+  // The commit object's own parent lines, which a shallow checkout keeps even
+  // where `rev-parse ^@` reports none past its boundary.
+  test("reports a commit's parents as its object records them", async () => {
     const cli = makeAtlasGitSource(ATLAS);
     const head = cli.git("rev-parse HEAD");
-    expect(await commitParents(GITDIR!, head)).toEqual(cli.git(`rev-parse ${head}^@`).split("\n"));
+    const recorded = [...cli.git(`cat-file -p ${head}`).matchAll(/^parent (\S+)$/gm)].map((m) => m[1]);
+    expect(recorded.length).toBeGreaterThan(0);
+    expect(await commitParents(GITDIR!, head)).toEqual(recorded);
   });
 
   test("a directory a commit lacks lists as empty, not as an error", async () => {
