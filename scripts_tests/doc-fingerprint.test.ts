@@ -9,8 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 // @ts-expect-error — .mjs without types
 import { docFingerprint, gitEntryFingerprint } from "../scripts/lib/doc-fingerprint.mjs";
-// @ts-expect-error — .mjs without types
-import { makeAtlasGitSource } from "../scripts/lib/atlas-git-source.mjs";
+import { makeAtlasGitSource } from "../scripts/lib/atlas-git-source.ts";
 import { loadAtlasSource } from "../scripts/lib/atlas-source.mjs";
 
 const ATLAS = path.resolve(__dirname, "../vendor/next-gen-atlas");
@@ -53,10 +52,10 @@ describe("gitEntryFingerprint", () => {
 
 // The tripwire. Needs the submodule's git history, which CI's checkout provides.
 describe.skipIf(!hasAtlas)("parity on the checked-out atlas", () => {
-  it("every document fingerprints the same from the history walk as from the source loader", () => {
+  it("every document fingerprints the same from the history walk as from the source loader", async () => {
     const src = makeAtlasGitSource(ATLAS);
     const head = src.git("rev-parse HEAD");
-    const walk: Map<string, { doc_no: string; title: string; content: string }> = src.loadSnapshot(head);
+    const walk: Map<string, { doc_no: string; title: string; content: string }> = await src.loadSnapshot(head);
     const { nodes } = loadAtlasSource(ATLAS) as { nodes: { id: string; doc_no: string; title: string; content: string }[] };
 
     expect(walk.size).toBe(nodes.length);

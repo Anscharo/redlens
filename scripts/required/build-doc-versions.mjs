@@ -20,7 +20,7 @@
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { makeAtlasGitSource } from "../lib/atlas-git-source.mjs";
+import { makeAtlasGitSource } from "../lib/atlas-git-source.ts";
 import { fingerprintSnapshot, versionRows } from "../lib/doc-versions.mjs";
 
 const FULL = process.argv.includes("--full");
@@ -66,7 +66,7 @@ async function main() {
     const idx = commits.findIndex((c) => c.hash === cursor);
     if (idx >= 0) {
       start = idx + 1;
-      prev = fingerprintSnapshot(loadSnapshot(commits[idx].hash));
+      prev = fingerprintSnapshot(await loadSnapshot(commits[idx].hash));
     } else {
       // Upstream's history no longer contains the cursor (a rewritten main, or a
       // different clone). Rows keyed to the old numbering would corrupt every
@@ -83,7 +83,7 @@ async function main() {
     const c = commits[i];
     const seq = seqs.get(c.hash);
     if (seq === undefined) throw new Error(`commit ${c.hash} is missing from the submodule's full log`);
-    const curr = fingerprintSnapshot(loadSnapshot(c.hash));
+    const curr = fingerprintSnapshot(await loadSnapshot(c.hash));
     const r = versionRows(prev, curr, { sha: c.hash, seq });
     for (const row of r) rows.push(row);
     prev = curr;

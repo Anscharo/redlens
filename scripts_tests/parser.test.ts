@@ -13,7 +13,6 @@ import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
 import type { AtlasNode } from "../src/types";
-// @ts-expect-error — .mjs without types; runtime-only import for parser access
 import { KNOWN_DOC_TYPES, unquoteYamlName } from "../scripts/lib/atlas-parser.mjs";
 import { loadAtlasSource } from "../scripts/lib/atlas-source.mjs";
 

@@ -73,22 +73,24 @@ On the live atlas
 
 ### Reading commits: layout knowledge stays in `atlas-git-source`
 
-`scripts/lib/atlas-git-source.mjs` is one of the two modules allowed to know atlas layouts
-(root CLAUDE.md). It shells out to `git ls-tree` / `git cat-file --batch`. Refactor it to take a
-**backend** `{ lsTreeBlobs(treeish, path), readBlobs(blobs) }`:
+`scripts/lib/atlas-git-source.ts` is one of the two modules allowed to know atlas layouts
+(root CLAUDE.md). It reads trees through an async **`GitTreeBackend`**
+`{ listTree(treeish, dir, recursive?), readBlobs(blobs) }` (done in PR 1):
 
 - The CLI backend stays the default (`build-history`, `build-doc-versions`, the worker), with no
   change in behaviour.
 - A new isomorphic-git backend (`readTree` / `readBlob` over the scratch bare repo) serves the
   preview walk.
 
-That is a substantial change, so convert it to `.ts` (repo rule). Add a parity test: both
-backends produce identical snapshots for the same commits of the checked-out atlas.
+PR 1 converted it to `.ts` and split it into the layout module, the document parsers
+(`atlas-git-parse.ts`) and the CLI backend (`atlas-git-cli.ts`). `atlas-git-backend.test.ts` pins
+the seam with an in-memory backend. PR 2 adds the same parity check for the isomorphic-git backend,
+over real atlas commits.
 
 ### Diff per commit: the same engine as live history
 
-`build-history.mjs` keeps `diffSnapshots` (added / modified / removed / moved), the `DiffLine[]`
-construction and `classifyDiff` (lint / typo / semantic) inside the script. Move the
+`build-history.mjs` kept `diffSnapshots` (added / modified / removed / moved), the `DiffLine[]`
+construction and `classifyDiff` (lint / typo / semantic) inside the script. PR 1 moved the
 snapshot → per-node events step into `scripts/lib/history-events.ts`, used by both
 `build-history` and the preview walk. Preview commit rows then carry exactly the `change_type`,
 `change_kind` and diff shape a live `EntryRow` renders.
@@ -182,10 +184,14 @@ all to the browser.
 
 ## Delivery
 
-1. **Refactor PR, no behaviour change.** The backend seam in `atlas-git-source` (with `.ts`
-   conversion and the parity test), and `history-events.ts` extracted from `build-history.mjs`.
-   `REPRO=1 pnpm test` and the history tests stay green.
-2. **Server PR.** The isomorphic-git dependency (`pnpm install`, lockfile committed), the parse
+1. **Refactor PR, no behaviour change (done).** The backend seam in `atlas-git-source` (`.ts`,
+   split in three, an in-memory backend test), `history-events.ts` extracted from
+   `build-history.mjs`, and `atlas-parser.d.mts`, because the TypeScript projects that cannot
+   import untyped JS (tests now, the server in PR 2) reach the heading grammar through it. Proven
+   equivalent on the checked-out atlas: identical snapshots for all 190 atlas commits (all three
+   layouts), identical `build-history --out-json --full` output, identical `build-doc-versions`
+   counts.
+2. **Server PR.** `history-classify.d.mts` (the server cannot import untyped JS), the isomorphic-git dependency (`pnpm install`, lockfile committed), the parse
    cost measurement and the commit cap that follows from it, the private-fetch integration test, the walk, the SSE endpoint, the
    cache, config, and the `src/server/preview/CLAUDE.md` flow and invariant lines.
 3. **Frontend PR.** The toggle, hook and list. A `patch-notes.md` bullet, and an update to the

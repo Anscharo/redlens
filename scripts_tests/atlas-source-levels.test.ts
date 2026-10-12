@@ -5,7 +5,6 @@
 import { describe, it, expect } from "vitest";
 // @ts-expect-error — .mjs without types
 import { orderDocuments, restoreAbsoluteLevels, structuralDepth } from "../scripts/lib/atlas-source.mjs";
-// @ts-expect-error — .mjs without types
 import { parse } from "../scripts/lib/atlas-parser.mjs";
 
 const U = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -78,10 +77,10 @@ describe("restoreAbsoluteLevels", () => {
   });
   it("gives the artifact root its real parent after parsing (the bug this exists for)", () => {
     const after = parse(out);
-    const spark = after.nodes.find((n: { doc_no: string }) => n.doc_no === "A.6.1.1.1");
+    const spark = after.nodes.find((n: { doc_no: string }) => n.doc_no === "A.6.1.1.1")!;
     expect(spark.parentId).toBe(U(3)); // A.6.1.1 — not A.6.1.2, the last depth-3 heading in the A.6 file
     const before = parse(joined);
-    expect(before.nodes.find((n: { doc_no: string }) => n.doc_no === "A.6.1.1.1").parentId).toBeNull();
+    expect(before.nodes.find((n: { doc_no: string }) => n.doc_no === "A.6.1.1.1")!.parentId).toBeNull();
   });
   it("orders documents, not buckets: A.6.1.2 is emitted after the Prime subtree", () => {
     const order = out.split("\n").filter((l: string) => /^#/.test(l)).map((l: string) => l.split(" ")[1]);

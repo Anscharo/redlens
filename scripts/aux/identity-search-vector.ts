@@ -67,7 +67,7 @@ const band = (t: string): Pair["band"] => { const n = lineCount(t); return n <= 
 
 // ---- real retitles, from the atlas git history ------------------------------
 let lastWorld: { of: Map<string, Node>; world: World } | null = null;
-const latest = walkRetitles((c, beforeNodes, afterNodes, ids) => {
+const latest = await walkRetitles((c, beforeNodes, afterNodes, ids) => {
   // Rows are planned over the whole atlas, so only for commits that need it,
   // and the "after" of one such commit is often the "before" of the next.
   const before = lastWorld?.of === beforeNodes ? lastWorld.world : world(beforeNodes);

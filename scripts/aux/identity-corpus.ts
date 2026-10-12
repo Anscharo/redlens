@@ -7,7 +7,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { makeAtlasGitSource } from "../lib/atlas-git-source.mjs";
+import { makeAtlasGitSource } from "../lib/atlas-git-source.ts";
 import { cleanContent } from "../lib/atlas-parser.mjs";
 import { embedBatch } from "../../src/server/retrieval/embed.ts";
 import { config } from "../../src/server/config.ts";
@@ -188,13 +188,13 @@ export function snapshotNodes(snapshot: Map<string, any>): Map<string, HistoryNo
 /** Walk the atlas history and call `visit` for every commit in which at least
  *  one document kept its UUID and changed its title — the gate's true input.
  *  `ids` are those documents. Returns the latest snapshot. */
-export function walkRetitles(
+export async function walkRetitles(
   visit: (c: { hash: string; date: string }, before: Map<string, HistoryNode>, after: Map<string, HistoryNode>, ids: string[]) => void,
-): Map<string, HistoryNode> {
+): Promise<Map<string, HistoryNode>> {
   const { atlasCommits, loadSnapshot } = atlasGit();
   let prev: Map<string, HistoryNode> | null = null;
   for (const c of atlasCommits("origin/main")) {
-    const cur = snapshotNodes(loadSnapshot(c.hash) as Map<string, any>);
+    const cur = snapshotNodes((await loadSnapshot(c.hash)) as Map<string, any>);
     if (prev) {
       const ids = [...cur.keys()].filter((id) => prev!.has(id) && !sameTitle(prev!.get(id)!.title, cur.get(id)!.title));
       if (ids.length) visit(c, prev, cur, ids);
