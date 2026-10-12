@@ -28,15 +28,19 @@ describe("commitRowLabel", () => {
 });
 
 describe("commitsEndNote", () => {
-  it("says nothing while the stream runs, or when the touching commits explain the diff", () => {
+  it("says nothing while the stream runs", () => {
     expect(commitsEndNote({ ...INITIAL_COMMITS, phase: "walking" }, true)).toBeNull();
-    expect(commitsEndNote(done([commit(true)]), true)).toBeNull();
+  });
+
+  it("always says how many of the branch's commits touched the doc, since only those are listed", () => {
+    expect(commitsEndNote(done([commit(true), commit(false), commit(false)]), true)).toBe("1 of 3 commits in this branch touched this doc.");
+    expect(commitsEndNote(done([commit(true)]), true)).toBe("1 of 1 commit in this branch touched this doc.");
   });
 
   it("names the end states", () => {
     expect(commitsEndNote(done([commit(false)]), true)).toBe("No commit in this branch touched this doc.");
-    expect(commitsEndNote(done([commit(true)]), false)).toBe("Touched by 1 commit, no net change.");
-    expect(commitsEndNote(done([commit(true)], { truncated: true, total: 250 }), true)).toBe("Showing the newest 1 of 250 commits.");
+    expect(commitsEndNote(done([commit(true), commit(true)]), false)).toBe("2 of 2 commits in this branch touched this doc, with no net change.");
+    expect(commitsEndNote(done([commit(true)], { truncated: true, total: 250 }), true)).toBe("Showing the newest 1 of 250 commits. 1 of them touched this doc.");
     expect(commitsEndNote(done([commit(false)], { truncated: true, total: 250 }), true)).toBe("Showing the newest 1 of 250 commits. None of them touched this doc.");
     expect(commitsEndNote({ ...INITIAL_COMMITS, phase: "error", error: "unavailable" }, true)).toMatch(/no merge base/);
   });

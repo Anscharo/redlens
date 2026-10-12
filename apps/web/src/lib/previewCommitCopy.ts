@@ -28,14 +28,20 @@ const ERROR_NOTE: Record<PreviewCommitError, string> = {
   "rate-limited": "Too many requests for commit history; try again shortly.",
 };
 
-/** What the list says once the stream is over; null while it runs. `changed`
+/** What the list says once the stream is over; null while it runs. It always
+ *  says how many of the branch's commits touched this document, since the
+ *  list shows only those and the progress bar counted every commit. `changed`
  *  is whether the branch's overall diff touches this document. */
 export function commitsEndNote(s: PreviewCommitsState, changed: boolean): string | null {
   if (s.phase === "error") return ERROR_NOTE[s.error ?? "failed"];
   if (s.phase !== "done") return null;
   const touching = s.commits.filter((c) => c.entries.length > 0).length;
-  const scope = s.truncated ? `Showing the newest ${s.commits.length} of ${s.total} commits. ` : "";
-  if (touching === 0) return scope ? `${scope}None of them touched this doc.` : "No commit in this branch touched this doc.";
-  if (!changed) return `${scope}Touched by ${touching} commit${touching === 1 ? "" : "s"}, no net change.`;
-  return scope.trim() || null;
+  const n = s.commits.length;
+  const end = changed ? "." : ", with no net change.";
+  if (s.truncated) {
+    const scope = `Showing the newest ${n} of ${s.total} commits.`;
+    return touching === 0 ? `${scope} None of them touched this doc.` : `${scope} ${touching} of them touched this doc${end}`;
+  }
+  if (touching === 0) return "No commit in this branch touched this doc.";
+  return `${touching} of ${n} commit${n === 1 ? "" : "s"} in this branch touched this doc${end}`;
 }
