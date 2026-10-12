@@ -1,4 +1,4 @@
-const SKY_LOGO_PX = 10;
+const SKY_LOGO_PX = 12;
 
 export function CopyIcon() {
   return (
@@ -27,7 +27,7 @@ export function SkyLogo() {
       aria-hidden="true"
       width={SKY_LOGO_PX}
       height={SKY_LOGO_PX}
-      className="block"
+      className="atlas-sky-logo block"
     />
   );
 }

@@ -76,6 +76,7 @@ describe("NodeMeta", () => {
     fireEvent.click(screen.getByRole("button", { name: "Copy link to Sky Atlas" }));
     expect(writeText).toHaveBeenCalledWith(`https://sky-atlas.io/#${node.id}`);
     await waitFor(() => expect(screen.getByTitle("Copied!")).toBeInTheDocument());
+    expect(screen.getByText("copied")).toBeInTheDocument();
   });
 
   it("stops propagation on copy-button clicks so the row isn't also selected", async () => {
