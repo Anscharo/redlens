@@ -39,7 +39,8 @@ export function RiskTableRow({ row, docs, expanded, onToggle, rq }: RiskTableRow
       <tr onClick={() => onToggle(row)}
         className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors cursor-pointer">
         <RiskDocCell row={row} rq={rq} />
-        <RiskRuleCell row={row} expanded={expanded} onToggle={onToggle} rq={rq} />
+        <RiskRuleCell ruleTitle={row.candidate.title} stub={row.candidate.stub} status={row.status}
+          description={e?.description ?? null} expanded={expanded} onToggle={() => onToggle(row)} rq={rq} />
         <td className="py-2 px-3 align-top"><DomainPills row={row} /></td>
         <td className="py-2 px-3 align-top"><ScorePill s={e?.preciseness ?? null} /></td>
         <td className="py-2 px-3 align-top"><RatingPill r={e?.enforcement ?? null} /></td>

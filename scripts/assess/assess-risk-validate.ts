@@ -3,43 +3,10 @@
 // error string doubles as the corrective retry message.
 
 import type { Rating } from "../../src/lib/oeaAssessment";
-import type { RiskDomain } from "../../src/lib/riskRules";
-import type { Preciseness, RiskTriage, RiskRating } from "../../src/lib/riskAssessment";
+import type { Preciseness, RiskRating } from "../../src/lib/riskAssessment";
 import { stripFences, resolveUuid } from "./assess-common";
 
 const RATINGS = new Set<Rating>(["weak", "mid", "strong"]);
-const DOMAINS = new Set<RiskDomain>(["peg", "alloc", "sc"]);
-
-export type TriageValidation = { ok: true; value: RiskTriage } | { ok: false; error: string };
-
-export function validateTriage(raw: string): TriageValidation {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(stripFences(raw));
-  } catch (err) {
-    return { ok: false, error: `not valid JSON: ${(err as Error).message}` };
-  }
-  const t = parsed as RiskTriage;
-  const errors: string[] = [];
-  if (typeof t?.inScope !== "boolean") errors.push("inScope must be true|false");
-  if (typeof t?.isRule !== "boolean") errors.push("isRule must be true|false");
-  if (!Array.isArray(t?.domains) || t.domains.some((d) => !DOMAINS.has(d)))
-    errors.push('domains must be an array drawn from "peg"|"alloc"|"sc"');
-  if (typeof t?.description !== "string" || !t.description.trim())
-    errors.push("description must be a non-empty string");
-  if (t?.inScope === true && Array.isArray(t?.domains) && t.domains.length === 0)
-    errors.push("inScope is true but domains is empty — name at least one domain");
-  if (errors.length) return { ok: false, error: errors.join("; ") };
-  return {
-    ok: true,
-    value: {
-      inScope: t.inScope,
-      isRule: t.isRule,
-      domains: [...new Set(t.domains)],
-      description: t.description.trim().slice(0, 300),
-    },
-  };
-}
 
 export type RatingValidation =
   | { ok: true; value: RiskRating }
@@ -60,6 +27,8 @@ export function validateRating(
   }
   const r = parsed as RiskRating;
   const errors: string[] = [];
+  if (typeof r?.description !== "string" || !r.description.trim())
+    errors.push("description must be a non-empty string");
   if (!Number.isInteger(r?.preciseness) || r.preciseness < 1 || r.preciseness > 5)
     errors.push("preciseness must be an integer 1-5");
   if (typeof r?.precisenessReasoning !== "string" || !r.precisenessReasoning.trim())
@@ -78,6 +47,7 @@ export function validateRating(
     .map((u) => resolveUuid(u, docIds, byPrefix))
     .filter((u): u is string => u !== null);
   const value: RiskRating = {
+    description: r.description.trim().slice(0, 300),
     preciseness: r.preciseness as Preciseness,
     precisenessReasoning: r.precisenessReasoning.trim(),
     metrics: r.metrics,

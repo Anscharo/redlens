@@ -79,7 +79,7 @@
     // Raised by 7: the semantic lane's helpers live in searchWorkerLanes.ts, but binding
     // them to this worker's own index, corpus and hit renderer can only happen here.
     { "files": ["apps/web/src/workers/search.worker.ts"], "rules": { "max-lines": ["error", { "max": 335, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 237, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["scripts/assess/assess-risk.ts"], "rules": { "max-lines": ["error", { "max": 196, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["scripts/assess/assess-risk.ts"], "rules": { "max-lines": ["error", { "max": 172, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/aux/atlas-history/enumerate-onchain-polls.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 73, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/aux/coverage-areas.mjs"], "rules": { "max-lines": ["error", { "max": 316, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 74, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/aux/embed-units-census.ts"], "rules": { "max-lines": ["error", { "max": 185, "skipBlankLines": true, "skipComments": true }] } },

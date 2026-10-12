@@ -2,20 +2,30 @@
 // — written by scripts/aux/assess-risk.ts (LLM-drafted, human-reviewed,
 // committed), read by the /reports/risk-rules page. Rating semantics come from
 // docs/risk-assessment-rubric.md. Two stages share the staleness keying
-// (taskKey + quoteHash): triage (in-scope / rule-vs-mention / description) and
-// assessment (preciseness 1–5 + enforcement weak/mid/strong).
+// (taskKey + quoteHash): triage (in-scope / rule-vs-mention, as Jev
+// probabilities) and assessment (description + preciseness 1–5 + enforcement
+// weak/mid/strong).
 
 import type { Rating } from "./oeaAssessment";
 import type { RiskDomain } from "./riskRules";
 
 export type Preciseness = 1 | 2 | 3 | 4 | 5;
 
-// Stage 1 — the model's triage verdict for one candidate.
+// P(yes) per triage question, kept so a threshold change needs no new calls.
+export interface RiskTriageProbabilities {
+  isRule: number;
+  peg: number;
+  alloc: number;
+  sc: number;
+}
+
+// Stage 1 — the triage verdict for one candidate, derived from `p` at the
+// run's thresholds. inScope holds exactly when domains is non-empty.
 export interface RiskTriage {
   inScope: boolean;
   domains: RiskDomain[];
   isRule: boolean; // operative rule/parameter/process vs mere mention
-  description: string; // the client's "quick description"
+  p: RiskTriageProbabilities;
 }
 
 export interface RiskTriageEntry extends RiskTriage {
@@ -26,6 +36,7 @@ export interface RiskTriageEntry extends RiskTriage {
 
 // Stage 2 — the model's rating for one triaged-in rule.
 export interface RiskRating {
+  description: string; // the client's "quick description"
   preciseness: Preciseness;
   precisenessReasoning: string;
   metrics: string[]; // quantifiable metrics the rule states, verbatim-ish
@@ -44,7 +55,6 @@ export interface RiskAssessmentEntry extends RiskRating {
   anchored: boolean;
   stub: boolean;
   hasMetrics: boolean;
-  description: string; // carried over from triage
   quote: string; // the paragraph's full exact text that was rated
   quoteHash: string;
   model: string; // per entry — runs accrete across models
@@ -55,6 +65,7 @@ export interface RiskAssessmentArtifact {
   rubricVersion: string;
   atlasCommit: string | null;
   triageModel: string; // model of the most recent triage run
+  triageTau: { rule: number; domain: number }; // thresholds the triage verdicts were cut at
   assessModel: string; // model of the most recent assess run
   triage: RiskTriageEntry[]; // verdicts incl. rejections (skip-index for re-runs)
   assessments: RiskAssessmentEntry[];

@@ -1,5 +1,6 @@
 // Prompt construction for the risk-rules assessment (docs/risk-assessment-rubric.md).
-// Two stages: triage (cheap categorical) and assess (rubric rating). The
+// Triage asks Jev yes/no questions (assess-risk-jev.ts) and so writes no prose;
+// the assess stage writes the paragraph's description with its rating. The
 // rubric's axes + catalog + calibration are embedded verbatim at runtime so a
 // rubric edit changes rubricVersion and re-queues every rating.
 
@@ -45,54 +46,19 @@ export const MECHANISM_UUIDS: string[] = [
 ];
 
 const CONTENT_CAP = 6000;
-const capped = (s: string) => (s.length > CONTENT_CAP ? `${s.slice(0, CONTENT_CAP)}\n[…truncated]` : s);
+export const capped = (s: string) => (s.length > CONTENT_CAP ? `${s.slice(0, CONTENT_CAP)}\n[…truncated]` : s);
 
-const candidateHeader = (c: RiskCandidate, docs: Record<string, AtlasNode>) => [
+export const candidateHeader = (c: RiskCandidate, docs: Record<string, AtlasNode>) => [
   `Paragraph: ${c.title} (${c.docNo})`,
   `Context: ${ancestorChain(docs[c.uuid], docs) || "(top level)"}`,
   `Pre-filter domains: ${c.domains.map((d) => RISK_DOMAIN_LABELS[d]).join(", ")}${c.anchored ? " (in a risk-anchor subtree)" : " (keyword match outside anchors)"}`,
   c.agents?.length ? `Replicated across Prime Agents: ${c.agents.join(", ")}` : null,
 ];
 
-// --- Stage 1: triage -------------------------------------------------------
-
-const TRIAGE_SCHEMA = `{"inScope": true|false,
- "domains": ["peg" and/or "alloc" and/or "sc"],
- "isRule": true|false,
- "description": "one plain sentence, <=20 words, describing what the paragraph regulates"}`;
-
-export function buildTriageSystemPrompt(): string {
-  return `You triage paragraphs of the Sky Atlas (the rulebook of the Sky stablecoin protocol: Sky Core mints USDS; Primes, also called Stars, allocate USDS) for a risk-management review. Respond with a single JSON object only — no prose, no markdown fences.
-
-The review covers exactly three domains:
-- "peg" — rules or efforts that maintain the USDS peg (stability parameters, PSM, stabilizing collateral, asset-liability rules serving peg defense).
-- "alloc" — managing the risk of USDS allocations (Risk Capital, exposure/concentration limits, collateral and vault parameters, liquidation, buffers, backstops, RWA counterparty risk).
-- "sc" — smart contract security (audits, governance security delays, circuit breakers, multisigs, admin keys, emergency spells/response, spell testing and insurance).
-
-Output exactly this JSON shape:
-${TRIAGE_SCHEMA}
-
-Rules:
-- inScope: does the paragraph belong to at least one of the three domains? Financial-statement audits, marketing, compensation accounting that merely references a risk term, and governance procedure with no security character are NOT in scope.
-- isRule: is the text operative — does it constrain behavior, set a parameter, or define a process with steps? Pure container intros ("The documents herein…"), pure definitions that constrain nothing, and passing mentions are NOT rules. A stub that promises a future rule IS a rule row (the absence is the finding).
-- domains: every domain that applies, [] if inScope is false.
-- description: neutral and concrete ("Requires Primes to hold 5% of collateral as ASC"), even when isRule is false.`;
-}
-
-export function buildTriageUserPrompt(c: RiskCandidate, docs: Record<string, AtlasNode>): string {
-  return [
-    ...candidateHeader(c, docs),
-    ``,
-    `Paragraph text:`,
-    "```",
-    capped(c.quote),
-    "```",
-  ].filter((l): l is string => l !== null).join("\n");
-}
-
 // --- Stage 2: assess -------------------------------------------------------
 
-const ASSESS_SCHEMA = `{"preciseness": 1|2|3|4|5,
+const ASSESS_SCHEMA = `{"description": "one plain sentence, <=20 words, describing what the paragraph regulates",
+ "preciseness": 1|2|3|4|5,
  "precisenessReasoning": "1-3 sentences naming the concrete evidence (thresholds present, metrics missing, …)",
  "metrics": ["each quantifiable metric/threshold/deadline the rule states, verbatim-ish; [] if none"],
  "enforcement": "weak|mid|strong",
@@ -114,17 +80,16 @@ Rules:
 - The two catch-all mechanisms alone always mean weak. Self-enforcement is always weak.
 - Step back for implicit enforcement: on-chain automatic mechanisms, capital at risk, and priced incentives count even when the paragraph never mentions them — but you must still cite the mechanism doc.
 - Rate the text the regulated party would be held to, not what the document probably intends.
-- A stub paragraph ("specified in a future iteration") is preciseness 1; rate its enforcement on what exists today.`;
+- A stub paragraph ("specified in a future iteration") is preciseness 1; rate its enforcement on what exists today.
+- description: neutral and concrete ("Requires Primes to hold 5% of collateral as ASC").`;
 }
 
 export function buildAssessUserPrompt(
   c: RiskCandidate,
-  description: string,
   docs: Record<string, AtlasNode>,
 ): string {
   return [
     ...candidateHeader(c, docs),
-    `Triage description: ${description}`,
     c.stub ? `Deterministic flag: contains "future iteration" stub language` : null,
     ``,
     `The rule text to assess (the paragraph's full content):`,

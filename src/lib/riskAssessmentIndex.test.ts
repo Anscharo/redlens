@@ -13,7 +13,7 @@ const candidate = (taskKey: string, quote: string): RiskCandidate => ({
 
 const triage = (taskKey: string, over: Partial<RiskTriageEntry> = {}): RiskTriageEntry => ({
   taskKey, quoteHash: "x", model: "m", inScope: true, isRule: true,
-  domains: ["peg"], description: "d", ...over,
+  domains: ["peg"], p: { isRule: 0.9, peg: 0.1, alloc: 0.9, sc: 0.1 }, ...over,
 });
 
 const entry = (taskKey: string, quote: string, rubricVersion = "r1"): RiskAssessmentEntry => ({
@@ -25,7 +25,7 @@ const entry = (taskKey: string, quote: string, rubricVersion = "r1"): RiskAssess
 });
 
 const artifact = (t: RiskTriageEntry[], a: RiskAssessmentEntry[]): RiskAssessmentArtifact => ({
-  rubricVersion: "r1", atlasCommit: null, triageModel: "m", assessModel: "m",
+  rubricVersion: "r1", atlasCommit: null, triageModel: "m", triageTau: { rule: 0.4, domain: 0.4 }, assessModel: "m",
   triage: t, assessments: a,
 });
 
