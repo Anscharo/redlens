@@ -87,16 +87,8 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
               Branch: {meta.repo?.split("/")[0]}/{meta.ref}
             </p>
           )}
-          <PreviewChangeNotes
-            swap={swap}
-            former={former}
-            renumber={renumber}
-            retitle={retitle}
-            source={source}
-            hasPatch={!!patch && patch.length > 0}
-            status={status}
-            label={label}
-          />
+          <PreviewChangeNotes swap={swap} former={former} renumber={renumber} retitle={retitle} source={source}
+            hasPatch={!!patch && patch.length > 0} status={status} label={label} />
           {srcUrl && (
             <a href={srcUrl} target="_blank" rel="noreferrer" className="hover:underline" style={{ color: "var(--accent)" }}>
               view on GitHub

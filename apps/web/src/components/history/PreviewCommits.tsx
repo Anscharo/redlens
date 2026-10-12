@@ -6,6 +6,7 @@ import { usePreviewMeta } from "../../lib/previewMeta";
 import type { ActiveBase, PreviewBaseKey, PreviewMeta } from "../../lib/previewMetaTypes";
 import { PreviewCommitList } from "./PreviewCommitList";
 import { TimelineRow } from "./Timeline";
+import { TimelineDashedSection } from "./TimelineBranch";
 
 /** `?history=by-commit` turns the list on; no parameter is off. */
 const HISTORY = urlEnum<"" | "by-commit">("", ["by-commit"]);
@@ -25,6 +26,15 @@ function walkBase(meta: PreviewMeta | null | undefined, active: ActiveBase | nul
 const severalCommits = (meta: PreviewMeta | null | undefined, key: PreviewBaseKey): boolean =>
   (meta?.bases?.[key]?.aheadBy ?? 2) > 1;
 
+/** Whether the `By commit` switch shows for this preview, and the diff base it
+ *  walks: once that base is known and the branch adds more than one commit
+ *  over it. */
+function useCommitSwitch() {
+  const meta = usePreviewMeta(useDataSource().base);
+  const base = walkBase(meta, usePreviewDiff().activeBase);
+  return { shown: !!base && severalCommits(meta, base), base, meta };
+}
+
 interface Props {
   nodeId: string;
   /** Whether the branch's overall diff touches this document. */
@@ -32,22 +42,19 @@ interface Props {
 }
 
 /** Under a preview's overall diff: a switch that lists the branch's commits
- *  that touched this document, against the same diff base as the redline. It
- *  shows only once that base is known and the branch adds more than one commit
- *  over it, and for unchanged documents too, since a branch can change one and
- *  then change it back. */
+ *  that touched this document, against the same diff base as the redline,
+ *  when useCommitSwitch says it shows. It shows for unchanged documents too,
+ *  since a branch can change one and then change it back. */
 export function PreviewCommits({ nodeId, changed }: Props) {
   const [mode, setMode] = useUrlState("history", HISTORY);
-  const meta = usePreviewMeta(useDataSource().base);
-  const base = walkBase(meta, usePreviewDiff().activeBase);
-  const shown = !!base && severalCommits(meta, base);
+  const { shown, base, meta } = useCommitSwitch();
   const on = shown && mode === "by-commit";
   const state = usePreviewCommits(nodeId, base, on);
   if (!shown) return null;
   const repo = meta?.repo;
   return (
-    <>
-      <TimelineRow>
+    <TimelineDashedSection>
+      <TimelineRow hideTop>
         <button
           type="button"
           aria-pressed={on}
@@ -59,6 +66,6 @@ export function PreviewCommits({ nodeId, changed }: Props) {
         </button>
       </TimelineRow>
       {state && <PreviewCommitList state={state} changed={changed} repo={repo} />}
-    </>
+    </TimelineDashedSection>
   );
 }

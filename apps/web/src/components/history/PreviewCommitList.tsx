@@ -36,9 +36,9 @@ export function PreviewCommitList({ state, changed, repo }: Props) {
   const note = commitsEndNote(state, changed);
   return (
     <section aria-label="Commits in this branch" aria-busy={!commitsSettled(state)}>
-      {!commitsSettled(state) && <TimelineRow><CommitProgress state={state} /></TimelineRow>}
+      {!commitsSettled(state) && <TimelineRow hideTop><CommitProgress state={state} /></TimelineRow>}
       {shown.map((c) => <PreviewCommitRow key={c.sha} commit={c} repo={repo} />)}
-      {note && <TimelineRow><p className="my-2 leading-snug">{note}</p></TimelineRow>}
+      {note && <TimelineRow hideTop><p className="my-2 leading-snug">{note}</p></TimelineRow>}
     </section>
   );
 }

@@ -2,7 +2,8 @@ import { CHANGE_COLOR } from "@/lib/history";
 import type { PreviewCommit, PreviewCommitRow as Row } from "@/lib/previewCommits";
 import { commitRowLabel } from "../../lib/previewCommitCopy";
 import { DiffView } from "./DiffView";
-import { LINE1_H, TimelineRow } from "./Timeline";
+import { LINE1_H } from "./Timeline";
+import { TimelineBranch } from "./TimelineBranch";
 
 const rowColor = (r: Row) => CHANGE_COLOR[r.changeType === "renumbered" ? "moved" : r.changeType] ?? "var(--tan-3)";
 
@@ -24,16 +25,16 @@ interface Props {
   repo?: string;
 }
 
-/** One branch commit on the preview rail, laid out like a live entry: line 1 is
- *  the date, the short sha linked to GitHub and the author; line 2 the commit's
- *  subject; then each change it made to this document. A merge that left the
- *  document alone is a dotless marker. */
+/** One branch commit, branched off the preview rail and laid out like a live
+ *  entry: line 1 is the date, the short sha linked to GitHub and the author;
+ *  line 2 the commit's subject; then each change it made to this document. A
+ *  merge that left the document alone is a dotless marker. */
 export function PreviewCommitRow({ commit, repo }: Props) {
   const sha = commit.sha.slice(0, 7);
   const touched = commit.entries.length > 0;
   return (
     <article data-merge={commit.merge || undefined}>
-      <TimelineRow dot={touched ? rowColor(commit.entries[0]) : undefined} fuzz={touched}>
+      <TimelineBranch dot={touched ? rowColor(commit.entries[0]) : undefined}>
         <h5 className={`flex items-baseline gap-2 flex-wrap mono ${touched ? "text-[13px]" : "text-[11px] my-1"}`} style={{ lineHeight: `${LINE1_H}px`, color: "var(--tan-3)" }}>
           {touched && <time dateTime={commit.date}>{commit.date.slice(0, 10)}</time>}
           {commit.merge && <span>merge</span>}
@@ -53,7 +54,7 @@ export function PreviewCommitRow({ commit, repo }: Props) {
           </p>
         )}
         {commit.entries.map((row, i) => <CommitEntry key={i} row={row} />)}
-      </TimelineRow>
+      </TimelineBranch>
     </article>
   );
 }

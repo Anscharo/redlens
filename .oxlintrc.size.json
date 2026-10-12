@@ -42,7 +42,7 @@
     { "files": ["apps/web/src/components/crossview/CrossViewShape.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 88, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/feedback/FeedbackModal.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 124, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/history/EntryRow.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 125, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/components/history/PreviewHistory.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 95, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["apps/web/src/components/history/PreviewHistory.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 87, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/preview/PreviewGate.tsx"], "rules": { "max-lines": ["error", { "max": 192, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 123, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/preview/PreviewHome.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 146, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/preview/PreviewInterstitial.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 76, "skipBlankLines": true, "skipComments": true }] } },
