@@ -1,6 +1,6 @@
 # Preview — commit-by-commit history
 
-Status: **planned** (agreed 2026-10-12). Supersedes the "real per-commit history is P2" line in
+Status: **built** (agreed and built 2026-10-12). Supersedes the "real per-commit history is P2" line in
 `preview.md` § History in preview mode.
 
 ## Goal
@@ -207,5 +207,7 @@ additions:
 2. **Server PR (done).** `history-classify.d.mts` (the server cannot import untyped JS), the isomorphic-git dependency (`pnpm install`, lockfile committed), the parse
    cost measurement and the commit cap that follows from it, the private-fetch integration test, the walk, the SSE endpoint, the
    cache, config, and the `src/server/preview/CLAUDE.md` flow and invariant lines.
-3. **Frontend PR.** The toggle, hook and list. A `patch-notes.md` bullet, and an update to the
+3. **Frontend PR (done).** The toggle (`PreviewCommits.tsx`), hook (`usePreviewCommits.ts`)
+   and list (`PreviewCommitList.tsx`, `PreviewCommitRow.tsx`), over the wire types and stream
+   reducer in `src/lib/previewCommits.ts`, which the server's route is typed against. A `patch-notes.md` bullet, and an update to the
    preview history entry in `src/lib/featuresData.ts` naming the toggle.

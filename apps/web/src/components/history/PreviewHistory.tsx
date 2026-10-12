@@ -5,12 +5,15 @@ import { CANONICAL_REPO, diffBaseLabel, type PreviewMeta } from "../../lib/previ
 import { NodeHistory } from "./NodeHistory";
 import { DiffView } from "./DiffView";
 import { PreviewChangeNotes } from "./PreviewChangeNotes";
+import { PreviewCommits } from "./PreviewCommits";
+import { PreviewEntryLine1 } from "./PreviewEntryLine1";
 import { CONTENT_INDENT, LINE1_H, TimelineRow } from "./Timeline";
 
 // History tab in preview mode. The real per-doc history lives in Postgres for
 // the *live* atlas, which is meaningless for an unmerged branch — so instead we
 // synthesize "this preview adds/changes this doc" from the accurate diff, with a
-// link to the source. (Diff-as-history; real per-commit history is P2.)
+// link to the source, and under it the branch's commits that touched the doc
+// (PreviewCommits, behind `?history=by-commit`).
 export function PreviewHistory({ nodeId }: { nodeId: string }) {
   const { base } = useDataSource();
   const diff = usePreviewDiff();
@@ -67,24 +70,7 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
           {/* A timeline node like the live entries, but its downward line dissolves
               into a fuzzy break — this change isn't cemented into history yet. */}
           <TimelineRow dot="var(--preview-add)" fuzz hideTop>
-          {/* Line 1, like a live entry's: the head commit's date, then the PR it
-              came from. LINE1_H centers the timeline dot on it. */}
-          {hasLine1 && (
-            <div className="flex items-baseline gap-2 flex-wrap mono text-[13px]" style={{ lineHeight: `${LINE1_H}px` }}>
-              {date ? <time dateTime={date}>{date}</time> : null}
-              {isPr && (
-                <a
-                  href={srcUrl ?? undefined}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:underline focus-visible:underline"
-                  style={{ color: "var(--accent)" }}
-                >
-                  PR {meta?.prNumber}
-                </a>
-              )}
-            </div>
-          )}
+          {hasLine1 && <PreviewEntryLine1 date={date} prNumber={isPr ? meta?.prNumber : undefined} href={srcUrl} />}
           {isPr && meta?.prTitle && (
             <p className="italic text-[12px] leading-snug mt-1" style={{ color: "var(--tan)" }}>
               {meta.prTitle}
@@ -122,6 +108,7 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
       ) : (
         <p style={{ marginLeft: CONTENT_INDENT }}>Unchanged by this {source}.</p>
       )}
+      <PreviewCommits nodeId={nodeId} changed={!!status} />
       {/* Below the preview pseudo-entry, the doc's real main-branch history.
           UUIDs are stable across the PR, so /api/history/<uuid> resolves the
           live history for changed docs; added docs (new UUID) show empty. */}
