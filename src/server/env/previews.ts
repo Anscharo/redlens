@@ -29,6 +29,13 @@ export const previews: EnvGroup = {
     { name: "PREVIEW_MAX_CONCURRENT_BUILDS", doc: "Builds running at once across all previews.", default: "2" },
     { name: "PREVIEW_BUILD_TIMEOUT_MS", doc: "Per-build timeout.", default: "300000" },
     {
+      name: "PREVIEW_COMMIT_HISTORY_MAX_COMMITS",
+      doc: "Newest branch commits a preview's commit-by-commit history walks; older ones are reported as not shown. Each costs about 0.1–0.15 s of parsing.",
+      default: "100",
+    },
+    { name: "PREVIEW_COMMIT_HISTORY_TIMEOUT_MS", doc: "Per-walk timeout for a preview's commit-by-commit history.", default: "120000" },
+    { name: "PREVIEW_MAX_CONCURRENT_COMMIT_WALKS", doc: "Commit-history walks running at once across all previews.", default: "2" },
+    {
       name: "CHAT_PREVIEW_BUILD_WAIT_MS",
       doc: "How long a chat preview tool waits for a build it started before answering \"still building\". The build carries on either way.",
       default: "45000",

@@ -3,6 +3,7 @@
 // static routes object). Three endpoints under /api/preview/:
 //   GET /:id/events           SSE build-status stream (drives the build)
 //   GET /:sha/diff.json        added/changed doc ids vs current main
+//   GET /:sha/commits          one doc's commit-by-commit history (SSE, commit-route.ts)
 //   GET /:sha/<artifact>.json  allowlisted bundle artifact
 //   GET /mine?shas=…&at=…      the caller's own previews: their account history
 //                              plus the shas their browser remembers (with that
@@ -26,6 +27,8 @@ import { getPreviewRow, touchPreview, recordPreviewOpen } from "./db.ts";
 import { parseLocalOpens, visiblePreviews } from "./mine.ts";
 import { fillPrivateDiffBaseOnOpen } from "./diff-base-backfill.ts";
 import { authorizePreviewAccess } from "./access.ts";
+import { commitsResponse } from "./commit-route.ts";
+import { gateSha, PRIVATE_HEADERS } from "./sha-gate.ts";
 import { getSessionUser } from "../session.ts";
 import { appInstallUrl } from "./github-app.ts";
 import { rateLimited, mineRateLimited } from "./rate-limit.ts";
@@ -43,9 +46,6 @@ const SHA_RE = /^[0-9a-f]{40}$/i;
 // this local `CORS` is PREVIEW_CORS (allow-origin + noindex), NOT http.ts's
 // `CORS` (the wider MCP preflight set). Don't swap the import.
 const CORS = PREVIEW_CORS;
-// Private-preview responses: NO access-control-allow-origin — a shared
-// CDN/proxy must not cache one user's private docs for the next visitor (G6).
-const PRIVATE_HEADERS = { "cache-control": "private, no-store", "x-robots-tag": "noindex" };
 
 // Diff cache keyed by (preview sha, current main atlas sha).
 // Exported for the eviction regression test only — not otherwise consumed
@@ -236,27 +236,6 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
   return subscribeBuild(sha, sendRecording);
 }
 
-// Resolve serveability + privacy for a sha-keyed response. Gating on bundleReady
-// FIRST is load-bearing (G1): artifact files exist on disk before meta.json is
-// written, so "no meta yet" MUST read as not-serveable, never as public.
-async function gateSha(req: Request, sha: string): Promise<{ ok: true; headers: Record<string, string> } | { deny: Response }> {
-  if (!bundleReady(sha)) return { deny: json({ error: "not-found" }, 404) };
-  const meta = readMeta(sha);
-  // bundleReady passed (docs.json + meta.json exist on disk) but the meta didn't
-  // parse — a torn/corrupt meta.json. We cannot confirm this bundle is public, so
-  // fail closed: serving it with public CORS would leak a private bundle, since
-  // sha-keyed URLs are not secret. Treat an unreadable meta as not-serveable.
-  if (!meta) return { deny: json({ error: "not-found" }, 404) };
-  if (meta.private) {
-    const d = await authorizePreviewAccess(req, meta.repo);
-    if (d === "ok") return { ok: true, headers: PRIVATE_HEADERS };
-    if (d === "login-required") return { deny: json({ error: "auth-required" }, 401, PRIVATE_HEADERS) };
-    if (d === "forbidden") return { deny: json({ error: "forbidden" }, 403, PRIVATE_HEADERS) };
-    return { deny: json({ error: "unavailable" }, 503, PRIVATE_HEADERS) };
-  }
-  return { ok: true, headers: CORS };
-}
-
 async function diffResponse(req: Request, sha: string): Promise<Response> {
   const gated = await gateSha(req, sha);
   if ("deny" in gated) return gated.deny;
@@ -381,5 +360,6 @@ export function handlePreview(req: Request, server: Server<unknown>, pathname: s
   // artifact + diff endpoints are sha-keyed
   if (!SHA_RE.test(a)) return json({ error: "not-found" }, 404);
   if (b === "diff.json") return diffResponse(req, a.toLowerCase());
+  if (b === "commits") return commitsResponse(req, a.toLowerCase(), server.requestIP(req)?.address ?? "unknown");
   return artifactResponse(req, a.toLowerCase(), b);
 }

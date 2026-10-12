@@ -1494,3 +1494,78 @@ test("identity.json: a private bundle's pending answer is gated like its files",
     stopRefine(SHA_IDENTITY_PRIVATE);
   }
 });
+
+// ---------------------------------------------------------------------------
+// GET /:sha/commits — one document's commit-by-commit history (commit-route.ts)
+// ---------------------------------------------------------------------------
+
+const SHA_COMMITS = "8".repeat(40);
+const DOC = "11111111-2222-3333-4444-555555555555";
+const OTHER = "99999999-2222-3333-4444-555555555555";
+
+function writeCommitHistory(previewPaths: (sha: string) => { outDir: string }, sha: string): void {
+  const commit = (s: string, entries: Record<string, unknown[]>) => ({ sha: s, parents: [], date: "d", author: "a", message: s, merge: false, entries });
+  const file = {
+    version: 1,
+    base: "repo",
+    mergeBase: "mb",
+    head: sha,
+    total: 3,
+    truncated: true,
+    commits: [commit("c2", { [OTHER]: [{ changeType: "modified" }] }), commit("c1", { [DOC]: [{ changeType: "added", docNo: "A.9", title: "New" }] })],
+  };
+  fs.writeFileSync(path.join(previewPaths(sha).outDir, "commits-repo.json"), JSON.stringify(file));
+}
+
+/** The router hands the handler the pathname alone; the query stays on the request. */
+async function commits(sha: string, query: string): Promise<Response> {
+  const { handlePreview } = await freshHandler();
+  const pathname = `/api/preview/${sha}/commits`;
+  return Promise.resolve(handlePreview(new Request(`http://x${pathname}?${query}`), stubServer, pathname));
+}
+
+test("commits: a finished walk replays from the bundle, every commit carrying only the asked-for document's rows", async () => {
+  const { previewPaths, writeMeta } = await freshHandler();
+  makeReadyBundle(previewPaths, writeMeta, SHA_COMMITS, { private: false });
+  writeCommitHistory(previewPaths, SHA_COMMITS);
+  const res = await commits(SHA_COMMITS, `base=repo&uuid=${DOC}`);
+  expect(res.headers.get("content-type")).toBe("text/event-stream");
+  expect(res.headers.get("access-control-allow-origin")).toBe("*");
+  const events = await readSSE(res);
+  expect(events.map((e) => e.type)).toEqual(["range", "commit", "commit", "done"]);
+  expect(events[0]).toEqual({ type: "range", total: 3, walking: 2 });
+  expect(events[1].commit).toMatchObject({ sha: "c2", entries: [] });
+  expect(events[2].commit.entries).toEqual([{ changeType: "added", docNo: "A.9", title: "New" }]);
+  expect(events[3]).toEqual({ type: "done", truncated: true });
+});
+
+test("commits: the query must name a diff base and a document uuid", async () => {
+  const { previewPaths, writeMeta } = await freshHandler();
+  makeReadyBundle(previewPaths, writeMeta, SHA_COMMITS, { private: false });
+  for (const q of ["base=main&uuid=" + DOC, "base=repo&uuid=not-a-uuid", "uuid=" + DOC]) {
+    expect((await commits(SHA_COMMITS, q)).status).toBe(400);
+  }
+});
+
+test("commits: a private bundle is gated like every sha-keyed response", async () => {
+  const sha = "9".repeat(40);
+  const { previewPaths, writeMeta } = await freshHandler();
+  makeReadyBundle(previewPaths, writeMeta, sha, { private: true });
+  writeCommitHistory(previewPaths, sha);
+  accessDecision = "forbidden";
+  const denied = await commits(sha, `base=repo&uuid=${DOC}`);
+  expect(denied.status).toBe(403);
+  accessDecision = "ok";
+  const ok = await commits(sha, `base=repo&uuid=${DOC}`);
+  expect(ok.headers.get("cache-control")).toBe("private, no-store");
+  expect(ok.headers.get("access-control-allow-origin")).toBeNull();
+  expect((await readSSE(ok)).at(-1)).toEqual({ type: "done", truncated: true });
+});
+
+test("commits: a diff base with no merge base has nothing to walk", async () => {
+  const sha = "a1".repeat(20);
+  const { previewPaths, writeMeta } = await freshHandler();
+  makeReadyBundle(previewPaths, writeMeta, sha, { private: false, extra: { bases: { auto: "live-main" } } });
+  const events = await readSSE(await commits(sha, `base=sky&uuid=${DOC}`));
+  expect(events).toEqual([{ type: "error", reason: "unavailable" }]);
+});

@@ -36,7 +36,7 @@ On the live atlas
 | 2 | **On demand**, computed the first time a reader turns the toggle on, **streamed over SSE** so commits arrive one by one behind a progress bar sized by the commit count. Cached in the bundle dir afterwards. |
 | 3 | Toggle state is the URL parameter **`?history=by-commit`**. No saved preference. Absent means off. |
 | 4 | Scope is **only the reader sidebar's history area**. |
-| 5 | **Merge commits** are a marker row with no diff, unless the doc after the merge differs from **both** parents (a hand-resolved conflict). Then it shows the diff against the first parent. |
+| 5 | **Merge commits** are a marker row with no diff, unless the doc after the merge differs from **both** parents (both sides' edits met there: combined by git or resolved by hand). Then it shows the diff against the first parent, flagged `bothSides`. |
 
 ## Spike results (isomorphic-git 1.44.1, run 2026-10-12 against `sky-ecosystem/next-gen-atlas`)
 
@@ -51,8 +51,10 @@ On the live atlas
 - **Private repos: not verified here.** No private repo or App token was reachable from the
   spike. GitHub's upload-pack treats private repos the same once the request is authenticated, so
   the same fetch should work. PR 2 proves it with a gated integration test (see Tests).
-- Not yet measured: the **parse** cost per commit (`loadSnapshot` over 3.9 MB). That decides the
-  realistic commit cap. Measure it first in the PR 2 work.
+- **Parse cost (measured in PR 2):** `loadSnapshot` through isomorphic-git takes 96–156 ms per
+  consolidated commit (median 113 ms, 29 commits), with snapshots identical to the git CLI's.
+  A real walk of upstream PR 187 (44 commits, 5 merges, fetched from GitHub) took 6.6 s, 2.3 s of
+  it fetching, and produced a 685 KB cache file. So the default cap is 100 commits, about 15 s.
 
 ## Server
 
@@ -61,13 +63,13 @@ On the live atlas
 - `activeBase.mergeBase .. head`, where the active base is whichever diff base the preview shows
   (`sky` / `repo`; see `pr-diff-auto.ts`). The range is immutable per (head sha, base key), so the
   cache never goes stale.
-- **Fetch depth = `commitsAhead + 1`.** Every commit in the range lies within `ahead_by` of the
-  head along some path, so its parents and the merge base fall within one more step.
-  `commitsAhead` comes from the compare call `base-drift.ts` already makes. Upstream commits
-  reachable through a merge commit's second parent come along in the pack and are never walked.
-- The walk lists commits reachable from head and not from the merge base (`git log base..head`
-  semantics), and caps them at `PREVIEW_COMMIT_HISTORY_MAX_COMMITS` (start at 100; set it after
-  the parse measurement). The stream reports `truncated` beyond the cap.
+- **The commit list comes from GitHub's compare** (`commit-range.ts`), not from the clone. Compare
+  answers exactly "reachable from the head, not from the merge base"; a shallow clone cannot,
+  because near its boundary a commit has lost the parents that say which side it is on. Compare
+  pages oldest first (100 a page), so the newest `PREVIEW_COMMIT_HISTORY_MAX_COMMITS` (default 100)
+  are read from the last page or two. The stream reports `truncated` when the range is longer.
+- **Fetch depth = commits walked + 1**, from the bundle's own repo (`meta.repo`), where the head
+  is reachable. A parent outside the fetched history ends the walk early, reported `truncated`.
 - **Live-main degrade** (no merge base) has no range. The endpoint answers `unavailable`, and the
   toggle is disabled with that reason.
 
@@ -98,17 +100,19 @@ snapshot → per-node events step into `scripts/lib/history-events.ts`, used by 
 Per commit:
 - **Single parent**: events from `diff(snapshot(parent), snapshot(commit))`.
 - **Merge commit**: a marker. For each uuid whose state differs from **both** parents, emit the
-  first-parent event, flagged `conflictResolution`.
+  first-parent event, flagged `bothSides`.
 - Walk newest first, so the most relevant rows arrive first. Keep one snapshot of look-behind, so
   each commit costs one new parse. A possible later optimisation is to reuse the parse of an
   unchanged bucket file by blob sha. Leave it out unless the measurement calls for it.
 
 ### Endpoint and stream
 
-`GET /api/preview/<sha>/commits?base=sky|repo&uuid=<uuid>` returns `text/event-stream`. It goes
-through the same `open-gate.ts` (resolve → authorize → takedown) and rate limit as `/events`.
-Private responses use `PREVIEW_CORS` and `no-store` (preview CLAUDE.md invariants). It is not
-quota-counted: it builds nothing new for the head sha. It runs under its own small semaphore.
+`GET /api/preview/<sha>/commits?base=sky|repo&uuid=<uuid>` returns `text/event-stream`
+(`commit-route.ts`). It is sha-keyed, so it goes through `sha-gate.ts`, the gate `diff.json` and
+the bundle artifacts share (moved out of `handler.ts` for it). Private responses carry
+`private, no-store` and no allow-origin. Only starting a walk counts against the per-IP limit; a
+replay or a join does not. It is not quota-counted, since it builds nothing for the head sha, and
+it runs under its own semaphore.
 
 The walk is **whole-branch, computed once**. The `uuid` filter applies only when serving, so every
 doc's sidebar reuses one walk, and a renumber commit touching thousands of docs never ships them
@@ -116,11 +120,19 @@ all to the browser.
 
 | event | payload |
 |---|---|
-| `fetching` | `{ received?, total? }` from isomorphic-git's `onProgress` (indeterminate bar) |
-| `range` | `{ total, truncated }`: the commit count, now known (determinate bar) |
-| `commit` | `{ index, sha, parents, date, author, message, merge, entry? }`. Every commit is sent, so the bar advances. `entry` (that doc's event: change type, kind, diff, renumber/retitle) is present only when the commit touched `uuid` |
+| `fetching` | `{ phase?, loaded?, total? }` from isomorphic-git's `onProgress`, a few a second (indeterminate bar) |
+| `range` | `{ total, walking }`: commits since the base, and how many of the newest are read (determinate bar) |
+| `commit` | `{ index, commit: { sha, parents, date, author, message, merge, entries } }`. Every commit is sent, so the bar advances; `entries` holds only `uuid`'s rows and is often empty |
 | `done` | `{ truncated }` |
-| `error` | `{ reason }`: `unavailable` (no merge base), `fetch-failed`, `timeout` |
+| `error` | `{ reason }`: `unavailable` (no merge base), `range-failed`, `fetch-failed`, `timeout`, `failed`, `rate-limited` |
+
+A row (`CommitEntry`, `commit-events.ts`) is a live history event (`changeType`, `diff`,
+`changeKind`, `movedFrom`/`movedTo`) plus `docNo`, `title`, `prevTitle`, and two preview-only
+additions:
+- **`renumbered`** rows with `prevDocNo`. Inside a composed bucket file a renumbering changes no
+  content, title or path, so the shared engine never reports it; on a branch it is often the
+  change a reader is looking for.
+- **`bothSides`** on a merge commit's rows: the document's merged state matches neither parent.
 
 - **In-flight dedupe** works like `build.ts`'s `inflight` / `subscribeBuild`. A second reader joins
   the running walk, and receives every commit so far replayed, then the live tail.
@@ -135,7 +147,8 @@ all to the browser.
   - Send it up front as an `Authorization` header, not through `onAuth`. `onAuth` fires only after
     a 401 challenge, and an unauthenticated request for a private repo can answer 404 instead.
   - Never put the token in the URL: isomorphic-git puts the URL in its error messages.
-  - Mint a fresh token per walk (installation tokens last an hour).
+  - The token is `installationToken()`'s, cached for 55 minutes of its hour, which outlasts a
+    walk's two-minute deadline.
   - A sha no ref reaches any more (force-pushed away) cannot be fetched, even when the tarball
     API still serves it. That is a soft `fetch-failed`, on public repos too.
   - The fetch targets the head repo; a canonical PR from a fork can fetch `refs/pull/N/head` from
@@ -172,7 +185,7 @@ all to the browser.
 - **Composition invariant**: starting from the merge-base snapshot, applying each commit's events
   in order reaches the head snapshot, and so matches the bundle's overall `diff.json`. Run it on
   a fixture branch with a renumber, a revert and a merge commit.
-- Merge rule: a clean merge yields a marker only, and a hand-resolved conflict yields a flagged
+- Merge rule: a clean merge yields a marker only, and a document both sides edited yields a flagged
   diff.
 - **Private fetch integration test**, skipped unless the GitHub App credentials and a private
   mirror (`PREVIEW_IT_PRIVATE_REPO`) are set: mint an installation token, shallow-fetch a sha that
@@ -191,7 +204,7 @@ all to the browser.
    equivalent on the checked-out atlas: identical snapshots for all 190 atlas commits (all three
    layouts), identical `build-history --out-json --full` output, identical `build-doc-versions`
    counts.
-2. **Server PR.** `history-classify.d.mts` (the server cannot import untyped JS), the isomorphic-git dependency (`pnpm install`, lockfile committed), the parse
+2. **Server PR (done).** `history-classify.d.mts` (the server cannot import untyped JS), the isomorphic-git dependency (`pnpm install`, lockfile committed), the parse
    cost measurement and the commit cap that follows from it, the private-fetch integration test, the walk, the SSE endpoint, the
    cache, config, and the `src/server/preview/CLAUDE.md` flow and invariant lines.
 3. **Frontend PR.** The toggle, hook and list. A `patch-notes.md` bullet, and an update to the

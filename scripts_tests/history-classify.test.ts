@@ -17,7 +17,6 @@ import {
   detectAgentScope,
   matchBulletsToNodes,
   nodeTokenSets,
-  // @ts-expect-error — pure-JS module, no types
 } from "../scripts/lib/history-classify.mjs";
 
 // ─────────────────────────────────── classifyPrTitle
