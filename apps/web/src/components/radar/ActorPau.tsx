@@ -2,8 +2,9 @@ import { useMemo } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useArrivalTarget } from "../../hooks/useArrivalTarget";
 import { loadGraph } from "../../lib/graph";
-import { checkAtlasValues } from "@/lib/pauAtlasValues";
+import { checkAtlasValues, type ValueCheck } from "@/lib/pauAtlasValues";
 import { atlasMatchedKeys } from "@/lib/pauAtlasMatch";
+import { withCheckedKeys } from "@/lib/pauCheckKeys";
 import { graphPrimeSources } from "@/lib/pauDocSources";
 import { addressKeyIndex, instanceKeyIndex, loadPau, loadPauHistory, primeKeyedInstance, snapshotsForPrime, timelineFor, withAddressKeys, type KeyedInstance } from "../../lib/pau";
 import { deploymentAnchors, PAU_ANCHOR } from "@/lib/pauAnchors";
@@ -19,12 +20,12 @@ interface Props {
   instances: KeyedInstance[];
 }
 
-/** The prime's rate-limit keys whose stated values all match the chain (pauAtlasMatch.ts); empty until the graph loads. */
-function useAtlasMatched(primeId: string, snaps: Parameters<typeof checkAtlasValues>[1]): Set<string> {
+/** Every value the atlas states for the prime's keys, beside the chain (pauAtlasValues.ts); empty until the graph loads. */
+function useAtlasChecks(primeId: string, snaps: Parameters<typeof checkAtlasValues>[1]): ValueCheck[] {
   const graph = useLoaded(loadGraph, { soft: true });
   return useMemo(() => {
     const sources = graphPrimeSources(primeId, graph);
-    return sources ? atlasMatchedKeys(checkAtlasValues(sources, snaps)) : new Set<string>();
+    return sources ? checkAtlasValues(sources, snaps) : [];
   }, [graph, primeId, snaps]);
 }
 
@@ -32,11 +33,12 @@ function useAtlasMatched(primeId: string, snaps: Parameters<typeof checkAtlasVal
 function usePauPage({ prime, instances }: Props) {
   const res = useLoaded(loadPau, { soft: true });
   const snaps = useMemo(() => (res ? snapshotsForPrime(res, prime.id) : []), [res, prime.id]);
+  const checks = useAtlasChecks(prime.id, snaps);
   const keyIndex = useMemo(
-    () => withAddressKeys(instanceKeyIndex([primeKeyedInstance(prime.m), ...instances]), addressKeyIndex(instances, snaps)),
-    [prime.m, instances, snaps],
+    () => withCheckedKeys(withAddressKeys(instanceKeyIndex([primeKeyedInstance(prime.m), ...instances]), addressKeyIndex(instances, snaps)), checks),
+    [prime.m, instances, snaps, checks],
   );
-  const matched = useAtlasMatched(prime.id, snaps);
+  const matched = useMemo(() => atlasMatchedKeys(checks), [checks]);
   const history = useLoaded(loadPauHistory, { soft: true });
   const groups = useMemo(() => (history ? timelineFor(history, prime.id) : []), [history, prime.id]);
   const anchors = useMemo(() => deploymentAnchors(snaps), [snaps]);

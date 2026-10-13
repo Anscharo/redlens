@@ -76,7 +76,7 @@ export function LimitName({ r, chain, keyIndex }: { r: { key: string; derived?: 
     );
   }
   const label = labelOnChain(ref.label, chain) + (ref.via ? " (matched by address)" : "");
-  const viaNote = ref.via ? [`the atlas lists ${ref.via} here instead of the key; this key is derived from that address`] : [];
+  const viaNote = ref.via ? [`the atlas lists ${ref.via} for this instance, and this key is derived from that address`] : [];
   const title = [r.key, ...viaNote, ...(r.derived ? [`derived from ${derivation(r.derived)}`] : []), ...refs.slice(1).map((x) => `also ${x.label}`)].join("\n");
   if (!ref.docId) return <span title={title}>{label}</span>;
   return (

@@ -134,7 +134,7 @@ describe("ActorPau", () => {
     render(<ActorPau prime={prime} instances={instances} />);
     const [table] = await screen.findAllByRole("table");
     const rows = within(table).getAllByRole("row").slice(1);
-    expect(within(rows[0]).getByRole("link", { name: "Blackrock USDC · BUIDLI_DEPOSIT (matched by address)" })).toHaveAttribute("title", expect.stringContaining(`the atlas lists ${LISTED} here`));
+    expect(within(rows[0]).getByRole("link", { name: "Blackrock USDC · BUIDLI_DEPOSIT (matched by address)" })).toHaveAttribute("title", expect.stringContaining(`the atlas lists ${LISTED} for this instance`));
     expect(rows[0]).toHaveTextContent("7M PYUSD");
     expect(within(rows[0]).getAllByTitle(`6 decimals, read from PYUSD ${VAULT}`)).toHaveLength(3);
     expect(rows[1]).toHaveTextContent("SparkLend USDC · Inflow");

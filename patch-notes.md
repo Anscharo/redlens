@@ -35,7 +35,7 @@
 
 ## 2026-10-13
 
-- Improved the PAU page: rate limits now have a Slope column, grouped rows and cleaner columns, each contract's role has a tooltip saying why it is listed, and role rows name the account (Controller, ALM proxy, Relayer, Freezer) holding each role, with a freezable ALM proxy told apart from the plain one
+- Improved the PAU page: rate limits now have a Slope column, grouped rows and cleaner columns, each contract's role has a tooltip saying why it is listed, and role rows name the account (Controller, ALM proxy, Relayer, Freezer) holding each role, with a freezable ALM proxy told apart from the plain one, and rate limits ticked as matching the Atlas now link to the document that states them
 
 ## 2026-10-12
 
