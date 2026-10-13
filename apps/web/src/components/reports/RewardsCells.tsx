@@ -29,9 +29,10 @@ const STATUS_STYLE: Record<string, string> = {
   Inactive: "bg-transparent text-tan-3 opacity-60 border border-[var(--border)]",
 };
 
-export function StatusPill({ s }: { s: string }) {
+/** `label` replaces the status text; the style still follows `s`. */
+export function StatusPill({ s, label = s }: { s: string; label?: string }) {
   return (
-    <span className={`mono text-[10px] px-1.5 py-0.5 rounded ${STATUS_STYLE[s] ?? ""}`}>{s}</span>
+    <span className={`mono text-[10px] px-1.5 py-0.5 rounded ${STATUS_STYLE[s] ?? ""}`}>{label}</span>
   );
 }
 

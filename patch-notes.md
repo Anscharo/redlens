@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-13
+
+- Widened the Responsibilities table on Radar info pages to the full page width, and listed a Prime Agent's invocations and instances together under each primitive with labels like In Progress Invocation and Active Instance
+
 ## 2026-10-12
 
 - Added a button on each document to copy its sky-atlas.io link

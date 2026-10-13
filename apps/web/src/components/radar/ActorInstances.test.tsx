@@ -57,7 +57,7 @@ function prim(overrides: Partial<RadarPrimitive> = {}): RadarPrimitive {
 }
 
 describe("ActorInstances sections", () => {
-  it("renders Instances and Invocations sections with counts", () => {
+  it("lists a primitive's invocations and instances together, each labelled by its status", () => {
     const primitives = [
       prim({
         instances: [inst({ status: "Active" }), inst({ status: "Suspended" })],
@@ -65,28 +65,19 @@ describe("ActorInstances sections", () => {
       }),
     ];
     render(<ActorInstances primitives={primitives} />);
-    expect(screen.getByRole("heading", { name: "Instances" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Invocations" })).toBeInTheDocument();
-    // The category label appears once per section that has items.
-    expect(screen.getAllByText("Genesis Primitives").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("heading", { name: /^(Instances|Invocations)/ })).not.toBeInTheDocument();
+    expect(screen.getAllByText("Genesis Primitives")).toHaveLength(1);
     expect(screen.getByText("An Invocation")).toBeInTheDocument();
+    expect(screen.getByText("In Progress Invocation")).toBeInTheDocument();
+    expect(screen.getByText("Active Instance")).toBeInTheDocument();
+    expect(screen.getByText("Suspended Instance")).toBeInTheDocument();
   });
 
-  it("with no invocations, drops both section headings and lets the categories head the list", () => {
+  it("heads the list with its categories, primitives and cards one rank apart", () => {
     render(<ActorInstances primitives={[prim({ instances: [inst({ displayName: "Solo" })] })]} />);
-    expect(screen.queryByRole("heading", { name: "Invocations" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: /^Instances/ })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Genesis Primitives" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 3, name: "Distribution Reward" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 4, name: "Solo" })).toBeInTheDocument();
-  });
-
-  it("with invocations, heads each section at the list's rank and sits everything under it one lower", () => {
-    const primitives = [prim({ instances: [inst({ displayName: "Inst" })], invocations: [inst({ displayName: "Inv" })] })];
-    render(<ActorInstances primitives={primitives} />);
-    expect(screen.getByRole("heading", { level: 2, name: "Instances" })).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { level: 3, name: "Genesis Primitives" })).toHaveLength(2);
-    expect(screen.getByRole("heading", { level: 5, name: "Inst" })).toBeInTheDocument();
   });
 
   it("shows an 'unknown' badge and renders a title without a doc link", () => {
@@ -229,7 +220,7 @@ describe("ActorInstances parameter value rendering", () => {
   it("renders instance status pills", () => {
     render(<ActorInstances primitives={[prim({ instances: [inst({ status: "Suspended" })] })]} />);
     const section = screen.getByRole("region", { name: "Instances" });
-    expect(within(section).getByText("Suspended")).toBeInTheDocument();
+    expect(within(section).getByText("Suspended Instance")).toBeInTheDocument();
   });
 });
 

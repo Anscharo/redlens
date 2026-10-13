@@ -20,6 +20,11 @@ function measureKeyPx(key: string): number {
   catch { return key.length * 6; }
 }
 
+/** InProgress is the one Invocation status (atlas A.2.2.1.4); every other status belongs to an Instance. */
+function statusLabel(status: string): string {
+  return status === "InProgress" ? "In Progress Invocation" : `${status} Instance`;
+}
+
 /** A param line, with the on-chain keys derived from it when it lists an address where a RateLimitID belongs. */
 function ParamRow({ prime, ...line }: ComponentProps<typeof ParamLine> & { prime?: PauPrime }) {
   const { p } = line;
@@ -59,7 +64,7 @@ export function InstanceCard({ inst, prime, headingLevel = 4 }: { inst: RadarIns
             <span className="text-sm" style={{ color: "var(--tan)" }}>{inst.displayName}</span>
           )}
         </RadarHeading>
-        {inst.status && <StatusPill s={inst.status} />}
+        {inst.status && <StatusPill s={inst.status} label={statusLabel(inst.status)} />}
       </div>
       {inst.signalParams.length > 0 && (
         <div>
