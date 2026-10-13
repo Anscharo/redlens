@@ -36,7 +36,7 @@ export function PauBeam({ beam, chain, keyIndex, anchor }: { beam: BeamLimits; c
           <thead>
             <tr className="mono text-[11px] uppercase tracking-wider" style={dim}>
               <th className="text-left font-normal pb-1">Default limit</th>
-              <th className="text-right font-normal pb-1">Max</th>
+              <th className="text-right font-normal pb-1 normal-case">maxAmount</th>
               <th className="text-right font-normal pb-1">Slope</th>
               <th className="text-right font-normal pb-1" title="this RateLimits only, or every RateLimits BeamState manages">For</th>
             </tr>

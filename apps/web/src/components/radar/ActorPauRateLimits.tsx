@@ -1,13 +1,13 @@
 import { AtlasLink } from "../AtlasLink";
 import { Address } from "../Address";
-import { atlasHref } from "@/lib/routes";
+import { atlasHref, atlasOnchainHref } from "@/lib/routes";
 import { explorerTxUrl } from "@/lib/explorer";
 import { PauAmount } from "./PauAmount";
 import { PauOriginChip } from "./PauOriginChip";
 import { anchorProps } from "./PauSectionHeading";
 import { CopyLink } from "../CopyLink";
 import { sectionAnchor, type Anchor } from "@/lib/pauAnchors";
-import { matchId } from "@/lib/pauAtlasMatch";
+import { matchId, type AtlasVerdict } from "@/lib/pauAtlasMatch";
 import { formatAmount, formatPerDay, labelOnChain, limitDecimals, unitNote, type AtlasKeyRef, type DerivedKey, type LiveRateLimit } from "../../lib/pau";
 
 /** A limit with the RateLimits contract holding it: two contracts of one deployment can hold the same key. */
@@ -17,8 +17,8 @@ interface Props {
   chain: string;
   limits: ContractLimit[];
   keyIndex: Map<string, AtlasKeyRef[]>;
-  /** Contract and key pairs (`matchId`) whose every atlas-stated value matches the chain (pauAtlasMatch.ts). */
-  atlasMatched: Set<string>;
+  /** The Atlas verdict of each contract and key pair (`matchId`) a document states a value for (pauAtlasMatch.ts). */
+  verdicts: Map<string, AtlasVerdict>;
   /** The deployment's anchor; the table is `#<deployment>-rate-limits`. */
   anchor: Anchor;
 }
@@ -86,7 +86,24 @@ export function LimitName({ r, chain, keyIndex }: { r: { key: string; derived?: 
   );
 }
 
-function LimitRow({ r, chain, keyIndex, matches }: { r: LiveRateLimit; chain: string; keyIndex: Map<string, AtlasKeyRef[]>; matches: boolean }) {
+const MARK = {
+  match: { mark: "✓", text: "matches the atlas: every value the atlas states for this key matches the chain" },
+  mismatch: { mark: "✗", text: "differs from the atlas: a value the atlas states for this key is not what the chain holds" },
+  unsure: { mark: "?", text: "the atlas states a value for this key, but it cannot be told whether it matches" },
+};
+
+/** The Atlas column: the verdict's mark, linked to the document's Onchain tab; blank when no document states a value for the key. */
+function AtlasMark({ verdict }: { verdict?: AtlasVerdict }) {
+  if (!verdict) return null;
+  const { mark, text } = MARK[verdict.mark];
+  return (
+    <AtlasLink to={atlasOnchainHref(verdict.docId)} className="hover:underline" title={text} aria-label={text}>
+      {mark}
+    </AtlasLink>
+  );
+}
+
+function LimitRow({ r, chain, keyIndex, verdict }: { r: LiveRateLimit; chain: string; keyIndex: Map<string, AtlasKeyRef[]>; verdict?: AtlasVerdict }) {
   const max = r.data?.maxAmount ?? r.configured.maxAmount;
   const dec = limitDecimals(r.unit, max);
   const scale = unitNote(r.unit, max) + (r.data ? "" : "; live read failed, showing the last value its history set");
@@ -96,8 +113,8 @@ function LimitRow({ r, chain, keyIndex, matches }: { r: LiveRateLimit; chain: st
       <td className={`${cell} text-right`} style={colRule} title={scale}>{isOff(r) ? "off" : <PauAmount raw={max} dec={dec} symbol={r.unit?.symbol} />}</td>
       <td className={`${cell} text-right`} style={colRule} title={scale}>{formatPerDay(r.data?.slope ?? r.configured.slope, dec)}</td>
       <td className={`${cell} text-right`} style={colRule} title={scale}>{r.available === null ? "?" : formatAmount(r.available, dec)}</td>
-      <td className={`${cell} text-center`} style={colRule} data-atlas-match={matches || undefined}>
-        {matches && <span role="img" aria-label="matches the atlas" title="every value the atlas states for this key matches the chain">✓</span>}
+      <td className={`${cell} text-center`} style={colRule} data-atlas-match={verdict?.mark}>
+        <AtlasMark verdict={verdict} />
       </td>
       <td className={`${cell} text-right whitespace-nowrap`} style={colRule}>
         <a href={explorerTxUrl(chain, r.setAt.tx)} target="_blank" rel="noopener" className="hover:underline" style={dim}>
@@ -110,7 +127,7 @@ function LimitRow({ r, chain, keyIndex, matches }: { r: LiveRateLimit; chain: st
 }
 
 /** Every rate-limit key the contract has been given: on-chain maximum, slope (refill per day), and what is available now. */
-export function PauRateLimits({ chain, limits, keyIndex, atlasMatched, anchor }: Props) {
+export function PauRateLimits({ chain, limits, keyIndex, verdicts, anchor }: Props) {
   if (limits.length === 0) return null;
   const a = sectionAnchor(anchor, "rate-limits");
   return (
@@ -120,16 +137,16 @@ export function PauRateLimits({ chain, limits, keyIndex, atlasMatched, anchor }:
         <thead>
           <tr className="mono text-[11px] uppercase tracking-wider" style={dim}>
             <th className={`${head} pl-0 pr-3 text-left max-w-[22rem]`}>Rate limits</th>
-            <th className={`${head} text-right`} style={colRule}>Max</th>
+            <th className={`${head} text-right normal-case`} style={colRule} title="the most the limit can hold">maxAmount</th>
             <th className={`${head} text-right`} style={colRule} title="how much the limit refills per day">Slope</th>
-            <th className={`${head} text-right`} style={colRule}>Available</th>
-            <th className={`${head} text-center max-w-[5rem]`} style={colRule} title="✓ when every value the atlas states for this key matches the chain">Matches Atlas</th>
+            <th className={`${head} text-right`} style={colRule} title="what can be used right now: the amount left after the last use, refilled at the slope since then, up to maxAmount">Available</th>
+            <th className={`${head} text-center max-w-[5rem]`} style={colRule} title="✓ matches, ✗ differs, ? cannot be told; each links to the Atlas document stating the value. Blank when no document states one.">Matches Atlas</th>
             <th className={`${head} text-right`} style={colRule}>Last updated</th>
           </tr>
         </thead>
         <tbody>
           {ordered(limits, keyIndex).map((r) => (
-            <LimitRow key={`${r.contract}:${r.key}`} r={r} chain={chain} keyIndex={keyIndex} matches={atlasMatched.has(matchId(r.contract, r.key))} />
+            <LimitRow key={`${r.contract}:${r.key}`} r={r} chain={chain} keyIndex={keyIndex} verdict={verdicts.get(matchId(r.contract, r.key))} />
           ))}
         </tbody>
       </table>

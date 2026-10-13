@@ -121,6 +121,8 @@ export const REPORT_DESCRIPTIONS: Record<string, string> = Object.fromEntries(RE
 // URL builders for SPA links. Use these with wouter's <Link to={...}> so back-button
 // restores the exact destination URL.
 export const atlasHref = (id: string) => `${ROUTES.ATLAS}?id=${id}`;
+/** The document with its right panel on the Onchain tab. */
+export const atlasOnchainHref = (id: string) => `${atlasHref(id)}&view=onchain`;
 // Local ambient shim: some *Index.ts modules that call atlasUrl (for CSV
 // building) are also imported by src/server/reports/*.ts, which type-checks
 // under tsconfig.server.json's DOM-free `lib` — a bare `window` reference

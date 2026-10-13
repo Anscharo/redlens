@@ -3,7 +3,7 @@ import { useLoaded } from "../../hooks/useAtlasData";
 import { useArrivalTarget } from "../../hooks/useArrivalTarget";
 import { loadGraph } from "../../lib/graph";
 import { checkAtlasValues, type ValueCheck } from "@/lib/pauAtlasValues";
-import { atlasMatchedKeys } from "@/lib/pauAtlasMatch";
+import { atlasVerdicts } from "@/lib/pauAtlasMatch";
 import { withCheckedKeys } from "@/lib/pauCheckKeys";
 import { graphPrimeSources } from "@/lib/pauDocSources";
 import { addressKeyIndex, instanceKeyIndex, loadPau, loadPauHistory, primeKeyedInstance, snapshotsForPrime, timelineFor, withAddressKeys, type KeyedInstance } from "../../lib/pau";
@@ -38,12 +38,12 @@ function usePauPage({ prime, instances }: Props) {
     () => withCheckedKeys(withAddressKeys(instanceKeyIndex([primeKeyedInstance(prime.m), ...instances]), addressKeyIndex(instances, snaps)), checks),
     [prime.m, instances, snaps, checks],
   );
-  const matched = useMemo(() => atlasMatchedKeys(checks), [checks]);
+  const verdicts = useMemo(() => atlasVerdicts(checks), [checks]);
   const history = useLoaded(loadPauHistory, { soft: true });
   const groups = useMemo(() => (history ? timelineFor(history, prime.id) : []), [history, prime.id]);
   const anchors = useMemo(() => deploymentAnchors(snaps), [snaps]);
   useArrivalTarget(`${prime.id}/pau`, `${snaps.length}:${groups.length}`);
-  return { loaded: !!res, snaps, keyIndex, matched, groups, anchors };
+  return { loaded: !!res, snaps, keyIndex, verdicts, groups, anchors };
 }
 
 /**
@@ -54,7 +54,7 @@ function usePauPage({ prime, instances }: Props) {
  * lands once both loads have rendered it.
  */
 export function ActorPau(props: Props) {
-  const { loaded, snaps, keyIndex, matched, groups, anchors } = usePauPage(props);
+  const { loaded, snaps, keyIndex, verdicts, groups, anchors } = usePauPage(props);
   if (snaps.length === 0) {
     return (
       <p className="mono text-[11px]" style={{ color: "var(--tan-3)" }}>
@@ -71,7 +71,7 @@ export function ActorPau(props: Props) {
         each confirmed live; a rate limit is named by the prime or instance whose parameters state its ID.
       </p>
       {snaps.map((s, i) => (
-        <PauDeployment key={s.deployment} snap={s} keyIndex={keyIndex} matched={matched} defaultOpen={i === 0} anchor={anchors.get(s.deployment)!} />
+        <PauDeployment key={s.deployment} snap={s} keyIndex={keyIndex} verdicts={verdicts} defaultOpen={i === 0} anchor={anchors.get(s.deployment)!} />
       ))}
       <ActorPauTimeline groups={groups} snaps={snaps} keyIndex={keyIndex} />
     </section>

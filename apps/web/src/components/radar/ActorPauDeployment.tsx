@@ -8,6 +8,7 @@ import { PauWiring } from "./PauWiring";
 import { anchorProps } from "./PauSectionHeading";
 import { CopyLink } from "../CopyLink";
 import type { Anchor } from "@/lib/pauAnchors";
+import type { AtlasVerdict } from "@/lib/pauAtlasMatch";
 
 const chainLabel = (chain: string) => chain.charAt(0).toUpperCase() + chain.slice(1);
 const dim = { color: "var(--tan-3)" };
@@ -15,14 +16,15 @@ const dim = { color: "var(--tan-3)" };
 interface Props {
   snap: StoredPauSnapshot;
   keyIndex: Map<string, AtlasKeyRef[]>;
-  matched: Set<string>;
+  /** Each key's Atlas verdict (pauAtlasMatch.ts). */
+  verdicts: Map<string, AtlasVerdict>;
   defaultOpen: boolean;
   /** Its fragment, `#<chain>` (pauAnchors.ts); its sections are named under it. */
   anchor: Anchor;
 }
 
 /** One deployment: a collapsible card with its contracts, holders, rate limits and parameters. */
-export function PauDeployment({ snap, keyIndex, matched, defaultOpen, anchor }: Props) {
+export function PauDeployment({ snap, keyIndex, verdicts, defaultOpen, anchor }: Props) {
   const limits = snap.contracts.flatMap((c) => (c.rateLimits ?? []).map((r) => ({ ...r, contract: c.address })));
   const loading = snap.contracts.some((c) => !c.historyComplete);
   const firstBeam = snap.contracts.find((c) => c.beam)?.address;
@@ -39,7 +41,7 @@ export function PauDeployment({ snap, keyIndex, matched, defaultOpen, anchor }: 
         </summary>
         <PauContracts snap={snap} />
         <PauHolders snap={snap} anchor={anchor} />
-        <PauRateLimits chain={snap.chain} limits={limits} keyIndex={keyIndex} atlasMatched={matched} anchor={anchor} />
+        <PauRateLimits chain={snap.chain} limits={limits} keyIndex={keyIndex} verdicts={verdicts} anchor={anchor} />
         {snap.contracts.map((c) => c.beam && <PauBeam key={c.address} beam={c.beam} chain={snap.chain} keyIndex={keyIndex} anchor={c.address === firstBeam ? anchor : undefined} />)}
         <PauParams snap={snap} anchor={anchor} />
         <p className="mono text-[11px] mt-2" style={dim}>read {snap.fetchedAt.slice(0, 16).replace("T", " ")} UTC</p>
