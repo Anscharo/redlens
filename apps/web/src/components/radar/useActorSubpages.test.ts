@@ -32,8 +32,8 @@ describe("useActorSubpages", () => {
   it("lists every Prime's subpages in nav order, each data-backed one only where it has data", async () => {
     const { result } = renderHook(() => useActorSubpages(groups));
     await waitFor(() => expect(result.current.get("grove")).toContain("pau"));
-    expect(result.current.get("spark")).toEqual(["settlements", "history", "instances"]);
-    expect(result.current.get("grove")).toEqual(["history", "instances", "pau"]);
+    expect(result.current.get("spark")).toEqual(["settlements", "history", "primitives"]);
+    expect(result.current.get("grove")).toEqual(["history", "primitives", "pau"]);
     expect(result.current.has("soter")).toBe(false);
   });
 });

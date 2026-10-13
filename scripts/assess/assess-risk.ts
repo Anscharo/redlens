@@ -1,18 +1,21 @@
 // Risk-rules assessment — LLM-drafted ratings for every atlas paragraph that
 // defines a risk rule/parameter/process, against docs/risk-assessment-rubric.md.
-// Two incremental stages: triage (in-scope / rule-vs-mention / description,
-// cheap model) and assess (preciseness 1-5 + enforcement weak/mid/strong,
-// reasoning model). A row is only (re)run when its quote or the rubric changed.
+// Two incremental stages: triage (in-scope / rule-vs-mention as Jev
+// probabilities, assess-risk-jev.ts) and assess (description + preciseness 1-5
+// + enforcement weak/mid/strong, a writing model). A row is only (re)run when
+// its quote or the rubric changed, so a new model needs --force.
 // Output is the committed, human-reviewed artifact public/risk-assessment.json.
 //
 //   pnpm risk:assess --dry-run             census + sample prompts, zero API calls
-//   pnpm risk:assess --bakeoff             calibration docs across 3 models, no writes
+//   pnpm risk:assess --bakeoff             calibration docs across the assess models, no writes
 //   pnpm risk:assess --stage triage        triage only (default: all)
 //   pnpm risk:assess --limit 5 | --only <uuid|key> | --force
-//   pnpm risk:assess --model <id>          assess model (default deepseek-v4-pro — bakeoff
-//                                          winner on reliability; nemotron ultra :free ties
-//                                          on quality but rate-limits hard)
-//   pnpm risk:assess --triage-model <id>   triage model (default gemma)
+//   pnpm risk:assess --width <n>           parallel assess calls (default 6; use 1 for :free models)
+//   pnpm risk:assess --model <id>          assess model (default claude-haiku-5.5: bakeoff winner
+//                                          on rubric adherence; luna broke the stub rule)
+//   pnpm risk:assess --triage-model <id>   System One triage model (default cloudflare/clef: 9/15 on a
+//                                          blind review vs jev-1.13 5/15 and gemma 7/15)
+//   pnpm risk:assess --rule-tau <p> --domain-tau <p>   triage thresholds, default 0.4 (pnpm risk:triage-compare)
 //   pnpm risk:assess --export              artifact → .cache/risk-assessment.md, no API
 //
 // Runs under bun (auto-loads OPENROUTER_API_KEY from .env.local). Requires
@@ -20,16 +23,17 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import crypto from "node:crypto";
 import type { AtlasNode } from "../../src/types";
 import { enumerateRiskCandidates, type RiskCandidate } from "../../src/lib/riskRules";
-import { normalizeAssessedText } from "../../src/lib/oeaTasks";
-import type { RiskAssessmentArtifact, RiskAssessmentEntry, RiskRating, RiskTriage, RiskTriageEntry } from "../../src/lib/riskAssessment";
+import type { RiskAssessmentArtifact, RiskAssessmentEntry, RiskRating, RiskTriage } from "../../src/lib/riskAssessment";
 import { getClient } from "../../src/server/chat/llm";
-import { loadRubric, MECHANISM_UUIDS, buildTriageSystemPrompt, buildTriageUserPrompt, buildAssessSystemPrompt, buildAssessUserPrompt } from "./assess-risk-prompt";
-import { validateTriage, validateRating, downgradeEnforcement } from "./assess-risk-validate";
-import { buildPrefixIndex, withRetry } from "./assess-common";
+import { mapPool } from "../../src/server/pool";
+import { loadRubric, MECHANISM_UUIDS, buildAssessSystemPrompt, buildAssessUserPrompt } from "./assess-risk-prompt";
+import { validateRating, downgradeEnforcement } from "./assess-risk-validate";
+import { buildPrefixIndex, hashOf, withRetry } from "./assess-common";
+import { askTriage, triageState, verdictAt } from "./assess-risk-jev";
 import { renderMarkdown } from "./assess-risk-export";
+import { runBakeoff } from "./assess-risk-bakeoff";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const ARTIFACT_PATH = path.join(ROOT, "public", "risk-assessment.json");
@@ -42,11 +46,10 @@ const FORCE = flag("force");
 const ONLY = opt("only");
 const LIMIT = opt("limit") ? Number(opt("limit")) : Infinity;
 const STAGE = opt("stage") ?? "all"; // triage | assess | all
-const TRIAGE_MODEL = opt("triage-model") ?? "google/gemma-4-26b-a4b-it";
-const ASSESS_MODEL = opt("model") ?? "deepseek/deepseek-v4-pro";
-
-const hashOf = (quote: string) =>
-  crypto.createHash("sha256").update(normalizeAssessedText(quote)).digest("hex").slice(0, 16);
+const TRIAGE_MODEL = opt("triage-model") ?? "cloudflare/clef";
+const ASSESS_MODEL = opt("model") ?? "anthropic/claude-haiku-5.5";
+const ASSESS_WIDTH = Number(opt("width") ?? 6);
+const TAU = { rule: Number(opt("rule-tau") ?? 0.4), domain: Number(opt("domain-tau") ?? 0.4) };
 
 // --- enumerate + load ------------------------------------------------------
 const docsFile = JSON.parse(fs.readFileSync(path.join(ROOT, "public/docs.json"), "utf8")) as
@@ -64,8 +67,9 @@ if (badCatalog.length) {
 
 const existing: RiskAssessmentArtifact = fs.existsSync(ARTIFACT_PATH)
   ? JSON.parse(fs.readFileSync(ARTIFACT_PATH, "utf8"))
-  : { rubricVersion: rubric.version, atlasCommit: null, triageModel: TRIAGE_MODEL, assessModel: ASSESS_MODEL, triage: [], assessments: [] };
-const triageByKey = new Map(existing.triage.map((t) => [t.taskKey, t]));
+  : { rubricVersion: rubric.version, atlasCommit: null, triageModel: TRIAGE_MODEL, triageTau: TAU, assessModel: ASSESS_MODEL, triage: [], assessments: [] };
+// Verdicts are re-cut from stored probabilities, so a threshold change costs no calls.
+const triageByKey = new Map(existing.triage.map((t) => [t.taskKey, { ...t, ...verdictAt(t.p, TAU) }]));
 const assessByKey = new Map(existing.assessments.map((a) => [a.taskKey, a]));
 
 const keys = new Set(candidates.map((c) => c.taskKey));
@@ -75,20 +79,28 @@ for (const map of [triageByKey, assessByKey] as Map<string, { taskKey: string }>
   }
 }
 
-const triageFresh = (c: RiskCandidate) => !FORCE && triageByKey.get(c.taskKey)?.quoteHash === hashOf(c.quote);
-const assessFresh = (c: RiskCandidate) => {
+// "Current" means the record matches today's quote (and rubric). --force is
+// applied once, where the queues are built, so the census and the assess gate
+// still see the verdicts a forced triage just wrote.
+const triageCurrent = (c: RiskCandidate) => triageByKey.get(c.taskKey)?.quoteHash === hashOf(c.quote);
+const assessCurrent = (c: RiskCandidate) => {
   const e = assessByKey.get(c.taskKey);
-  return !FORCE && !!e && e.quoteHash === hashOf(c.quote) && e.rubricVersion === rubric.version;
+  return !!e && e.quoteHash === hashOf(c.quote) && e.rubricVersion === rubric.version;
 };
-const inScopeRule = (c: RiskCandidate) => {
-  const t = triageByKey.get(c.taskKey);
+const ruleVerdict = (taskKey: string) => {
+  const t = triageByKey.get(taskKey);
   return !!t && t.inScope && t.isRule;
 };
+const inScopeRule = (c: RiskCandidate) => ruleVerdict(c.taskKey);
+// A rating survives only under an in-scope-rule verdict. Runs after every
+// change to the verdicts: the threshold re-cut at load and the triage stage.
+const pruneAssessments = () => { for (const [k] of assessByKey) if (!ruleVerdict(k)) assessByKey.delete(k); };
+pruneAssessments();
 
 const pick = (xs: RiskCandidate[]) =>
   (ONLY ? xs.filter((c) => c.uuid.startsWith(ONLY) || c.taskKey === ONLY) : xs).slice(0, LIMIT);
-const triageQueue = pick(candidates.filter((c) => !triageFresh(c)));
-const assessQueue = () => pick(candidates.filter((c) => triageFresh(c) && inScopeRule(c) && !assessFresh(c)));
+const triageQueue = pick(candidates.filter((c) => FORCE || !triageCurrent(c)));
+const assessQueue = () => pick(candidates.filter((c) => triageCurrent(c) && inScopeRule(c) && (FORCE || !assessCurrent(c))));
 
 // --- census (always printed; the whole story for --dry-run) ----------------
 const count = (xs: RiskCandidate[], f: (c: RiskCandidate) => string) =>
@@ -96,9 +108,9 @@ const count = (xs: RiskCandidate[], f: (c: RiskCandidate) => string) =>
 console.log(`candidates: ${candidates.length} · excluded: ${JSON.stringify(excluded)}`);
 console.log(`anchored: ${candidates.filter((c) => c.anchored).length} · residue: ${candidates.filter((c) => !c.anchored).length} · stubs: ${candidates.filter((c) => c.stub).length} · with metrics: ${candidates.filter((c) => c.hasMetrics).length}`);
 console.log(`by primary domain: ${JSON.stringify(Object.fromEntries(count(candidates, (c) => c.domains[0])))}`);
-const triaged = candidates.filter(triageFresh);
-console.log(`triage: ${triaged.length} fresh (${triaged.filter(inScopeRule).length} in-scope rules) · ${triageQueue.length} queued [${TRIAGE_MODEL}]`);
-console.log(`assess: ${candidates.filter(assessFresh).length} fresh · ${assessQueue().length} queued now [${ASSESS_MODEL}] · rubric ${rubric.version}`);
+const triaged = candidates.filter(triageCurrent);
+console.log(`triage: ${triaged.length} current (${triaged.filter(inScopeRule).length} in-scope rules) · ${triageQueue.length} queued [${TRIAGE_MODEL} τ rule ${TAU.rule} domain ${TAU.domain}]`);
+console.log(`assess: ${candidates.filter(assessCurrent).length} current · ${assessQueue().length} queued now [${ASSESS_MODEL}] · rubric ${rubric.version}`);
 
 if (flag("export")) {
   const out = path.join(ROOT, ".cache", "risk-assessment.md");
@@ -109,8 +121,8 @@ if (flag("export")) {
 }
 if (DRY) {
   const c = triageQueue[0] ?? candidates[0];
-  console.log(`\n— sample triage prompt (${c.docNo} ${c.title}) —\n${buildTriageUserPrompt(c, docs)}`);
-  console.log(`\n— assess system prompt: ${buildAssessSystemPrompt(rubric.text).length} chars · sample user prompt —\n${buildAssessUserPrompt(c, "(triage description)", docs)}`);
+  console.log(`\n— sample triage state (${c.docNo} ${c.title}) —\n${JSON.stringify(triageState(c, docs), null, 2)}`);
+  console.log(`\n— assess system prompt: ${buildAssessSystemPrompt(rubric.text).length} chars · sample user prompt —\n${buildAssessUserPrompt(c, docs)}`);
   process.exit(0);
 }
 if (!process.env.OPENROUTER_API_KEY) {
@@ -118,9 +130,11 @@ if (!process.env.OPENROUTER_API_KEY) {
   process.exit(1);
 }
 
-// --- LLM loops: sequential (the :free variants rate-limit hard), transport
-// retries with backoff, then up to 3 corrective retries on validation errors.
+// --- assess loop: --width parallel calls (default 6; use 1 for :free models,
+// which rate-limit hard), transport retries with backoff, then up to 3
+// corrective retries on validation errors.
 type Msg = { role: "system" | "user" | "assistant"; content: string };
+const spend = new Map<string, number>(); // dollars per model, from OpenRouter's usage.cost
 async function callValidated<T>(model: string, messages: Msg[], validate: (raw: string) => { ok: boolean; error?: string; value?: T }): Promise<{ value: T | null; last?: { error?: string; value?: T } }> {
   let last: { error?: string; value?: T } | undefined;
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -128,6 +142,7 @@ async function callValidated<T>(model: string, messages: Msg[], validate: (raw: 
     // :free rate limits) — throw inside withRetry so it backs off and retries.
     const raw = await withRetry(async () => {
       const res = await getClient().chat.completions.create({ model, messages, temperature: 0 });
+      spend.set(model, (spend.get(model) ?? 0) + ((res.usage as { cost?: number } | undefined)?.cost ?? 0));
       const content = res.choices?.[0]?.message?.content;
       if (!content) throw new Error(`no choices in response: ${JSON.stringify(res).slice(0, 200)}`);
       return content;
@@ -144,19 +159,12 @@ async function callValidated<T>(model: string, messages: Msg[], validate: (raw: 
 
 const docIds = new Set(Object.keys(docs));
 const byPrefix = buildPrefixIndex(docIds);
-const triageSystem = buildTriageSystemPrompt();
 const assessSystem = buildAssessSystemPrompt(rubric.text);
 
-const runTriage = (c: RiskCandidate) =>
-  callValidated<RiskTriage>(TRIAGE_MODEL, [
-    { role: "system", content: triageSystem },
-    { role: "user", content: buildTriageUserPrompt(c, docs) },
-  ], validateTriage);
-
-const runAssess = (c: RiskCandidate, description: string, model = ASSESS_MODEL) =>
+const runAssess = (c: RiskCandidate, model = ASSESS_MODEL) =>
   callValidated<RiskRating>(model, [
     { role: "system", content: assessSystem },
-    { role: "user", content: buildAssessUserPrompt(c, description, docs) },
+    { role: "user", content: buildAssessUserPrompt(c, docs) },
   ], (raw) => validateRating(raw, docIds, byPrefix));
 
 const writeArtifact = () => {
@@ -164,78 +172,54 @@ const writeArtifact = () => {
     (a.docNo ?? a.taskKey).localeCompare(b.docNo ?? b.taskKey, undefined, { numeric: true });
   const artifact: RiskAssessmentArtifact = {
     rubricVersion: rubric.version, atlasCommit: docsFile.atlasCommit,
-    triageModel: TRIAGE_MODEL, assessModel: ASSESS_MODEL,
+    triageModel: TRIAGE_MODEL, triageTau: TAU, assessModel: ASSESS_MODEL,
     triage: [...triageByKey.values()].sort((a, b) => a.taskKey.localeCompare(b.taskKey)),
     assessments: [...assessByKey.values()].sort(byDocNo),
   };
   fs.writeFileSync(ARTIFACT_PATH, `${JSON.stringify(artifact, null, 2)}\n`);
 };
 
-// --- bakeoff: calibration docs across models, printed side by side ---------
+// --- bakeoff: calibration docs across assess models, printed side by side --
 if (flag("bakeoff")) {
-  const MODELS = ["google/gemma-4-26b-a4b-it", "nvidia/nemotron-3-ultra-550b-a55b:free", "deepseek/deepseek-v4-pro"];
-  const CALIBRATION = [
-    "475fe222-9e4a-4e9d-9be6-a7a424ce02f8", // Minimum ASC — expect preciseness 5
-    "bce9331b-04ca-4c50-9783-098739fc72c8", // Liquidation Penalty — expect 3
-    "035ec13b-5676-45f0-a3b3-8b8e24a4adcf", // Legal/Regulatory Risk Monitoring — expect 2, weak
-    "a2df2b73-c1c5-40d6-b87e-43ba24f54870", // IJRC stub — expect 1
-    "39473e1a-63f8-433b-a850-08f53b2dcf02", // Lite PSM
-    "12b7d480-68a0-4493-9534-d6915f86c112", // Risk-Capital Incident Response
-    "5c3dd35a-0c67-44c2-b51b-d40bc865af85", // Conservatorship
-    "fd1f682c-2d8a-47c5-8c1d-d95a0a2f2021", // Risk-based insurance pricing
-  ];
-  for (const uuid of CALIBRATION) {
-    const c = candidates.find((x) => x.uuid === uuid);
-    if (!c) { console.warn(`bakeoff: ${uuid} not in candidates`); continue; }
-    const t = await runTriage(c);
-    const desc = t.value?.description ?? c.title;
-    console.log(`\n=== ${c.docNo} ${c.title} (stub=${c.stub})\n  triage[${TRIAGE_MODEL}]: ${JSON.stringify(t.value)}`);
-    for (const model of MODELS) {
-      const a = await runAssess(c, desc, model);
-      const v = a.value ?? a.last?.value;
-      console.log(`  ${model}: preciseness ${v?.preciseness} — ${v?.precisenessReasoning}\n    enforcement ${v?.enforcement} [${v?.mechanismUuids?.join(", ") ?? ""}] — ${v?.enforcementReasoning}`);
-    }
-  }
+  await runBakeoff(candidates, runAssess, spend);
   process.exit(0);
 }
 
-// --- stage 1: triage --------------------------------------------------------
+// --- stage 1: triage (parallel: Jev answers in ~0.3 s and does not rate-limit like :free models)
 if (STAGE !== "assess") {
-  let n = 0;
-  for (const c of triageQueue) {
-    n++;
-    const { value } = await runTriage(c);
-    if (!value) { console.warn(`[triage ${n}/${triageQueue.length}] ${c.docNo} ${c.title} — SKIPPED`); continue; }
-    const entry: RiskTriageEntry = { taskKey: c.taskKey, quoteHash: hashOf(c.quote), model: TRIAGE_MODEL, ...value };
-    triageByKey.set(c.taskKey, entry);
-    if (!value.inScope || !value.isRule) assessByKey.delete(c.taskKey); // verdict changed under an old rating
-    console.log(`[triage ${n}/${triageQueue.length}] ${c.docNo} ${c.title} → ${value.inScope ? value.domains.join("+") : "out-of-scope"}${value.isRule ? "" : " (not a rule)"}`);
-    if (n % 20 === 0) writeArtifact();
-  }
+  let n = 0, failed = 0;
+  await mapPool(triageQueue, 8, async (c) => {
+    let value: RiskTriage;
+    try { value = verdictAt(await askTriage(c, docs, TRIAGE_MODEL), TAU); }
+    catch (err) { failed++; console.warn(`[triage] ${c.docNo} ${c.title} — SKIPPED: ${(err as Error).message}`); return; }
+    triageByKey.set(c.taskKey, { taskKey: c.taskKey, quoteHash: hashOf(c.quote), model: TRIAGE_MODEL, ...value });
+    if (++n % 100 === 0) { writeArtifact(); console.log(`[triage ${n}/${triageQueue.length}]`); }
+  });
+  pruneAssessments();
   writeArtifact();
+  console.log(`triage: ${n} written, ${failed} skipped (stay queued)`);
 }
 
 // --- stage 2: assess --------------------------------------------------------
 if (STAGE !== "triage") {
   const queue = assessQueue();
   let n = 0, skipped = 0;
-  for (const c of queue) {
-    n++;
+  await mapPool(queue, ASSESS_WIDTH, async (c) => {
     const t = triageByKey.get(c.taskKey)!;
-    const { value, last } = await runAssess(c, t.description);
+    const { value, last } = await runAssess(c);
     const rating = value ?? (last?.value ? downgradeEnforcement(last.value) : null);
-    if (!rating) { skipped++; console.warn(`[assess ${n}/${queue.length}] ${c.docNo} ${c.title} — SKIPPED (stays queued)`); continue; }
+    if (!rating) { skipped++; console.warn(`[assess ${++n}/${queue.length}] ${c.docNo} ${c.title} — SKIPPED (stays queued)`); return; }
     const entry: RiskAssessmentEntry = {
       taskKey: c.taskKey, uuid: c.uuid, docNo: c.docNo, title: c.title,
       domains: t.domains.length ? t.domains : c.domains, agents: c.agents,
       anchored: c.anchored, stub: c.stub, hasMetrics: c.hasMetrics,
-      description: t.description, quote: c.quote, quoteHash: hashOf(c.quote),
+      quote: c.quote, quoteHash: hashOf(c.quote),
       model: ASSESS_MODEL, rubricVersion: rubric.version, ...rating,
     };
     assessByKey.set(c.taskKey, entry);
-    console.log(`[assess ${n}/${queue.length}] ${c.docNo} ${c.title} → preciseness:${rating.preciseness} enforcement:${rating.enforcement}`);
+    console.log(`[assess ${++n}/${queue.length}] ${c.docNo} ${c.title} → preciseness:${rating.preciseness} enforcement:${rating.enforcement}`);
     if (n % 10 === 0) writeArtifact();
-  }
+  });
   writeArtifact();
   console.log(`\nwrote ${ARTIFACT_PATH}: ${assessByKey.size} assessments, ${triageByKey.size} triage verdicts (${skipped} skipped)`);
 } else {

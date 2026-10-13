@@ -90,7 +90,7 @@ describe("actorHref / actorPageHref / settlementsHref", () => {
     expect(actorHref("spark")).toBe("/radar/spark");
     expect(actorHref("spark", "msc")).toBe("/radar/spark#msc");
     expect(settlementsHref("spark")).toBe("/radar/spark/settlements");
-    expect(actorPageHref("spark", "instances", "instance-x")).toBe("/radar/spark/instances#instance-x");
+    expect(actorPageHref("spark", "primitives", "instance-x")).toBe("/radar/spark/primitives#instance-x");
     expect(actorPageHref("spark", undefined, "notable")).toBe("/radar/spark#notable");
     expect(ROUTES.RADAR_ACTOR_PAGE).toBe("/radar/:slug/:page");
   });

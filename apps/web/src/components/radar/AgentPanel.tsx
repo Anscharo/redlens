@@ -3,7 +3,7 @@ import { Tooltip } from "../Tooltip";
 import type { AgentPrimitiveStat } from "../../lib/primitiveStats";
 import { actorHref } from "@/lib/routes";
 import { CategoryRows } from "./CategoryRows";
-import { HEADERS, thStyle } from "./primitiveTable";
+import { HEADERS, invocationLabel, thStyle } from "./primitiveTable";
 
 export function AgentPanel({ agent }: { agent: AgentPrimitiveStat }) {
   let rowCounter = 0;
@@ -19,6 +19,7 @@ export function AgentPanel({ agent }: { agent: AgentPrimitiveStat }) {
     },
     [0, 0, 0, 0],
   );
+  const invocationStatuses = agent.categories.flatMap((cat) => cat.primitives.flatMap((p) => p.invocationStatuses));
   const instanceTotal = totals[1] + totals[2] + totals[3];
   const agentTip = (
     <div>
@@ -41,7 +42,7 @@ export function AgentPanel({ agent }: { agent: AgentPrimitiveStat }) {
               </Tooltip>
             </th>
             {HEADERS.map((h, i) => (
-              <Tooltip key={h.key} content={`${totals[i]} ${h.label}`}>
+              <Tooltip key={h.key} content={`${totals[i]} ${h.group === "invocation" ? invocationLabel(invocationStatuses) : h.label}`}>
                 <th className="mono text-[10px] pb-2" style={thStyle(h)}>{h.key}</th>
               </Tooltip>
             ))}

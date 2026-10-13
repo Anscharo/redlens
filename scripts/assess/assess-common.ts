@@ -1,9 +1,16 @@
 // Shared plumbing for the assess-* scripts (OEA tasks, risk rules): JSON
-// fence-stripping, uuid prefix resolution for mechanism citations, the
+// fence-stripping, the quote hash, uuid prefix resolution for mechanism citations, the
 // transport retry loop, and prompt-building helpers. Bun-only (Bun.sleep),
 // like the scripts themselves.
 
+import crypto from "node:crypto";
 import type { AtlasNode } from "../../src/types";
+import { normalizeAssessedText } from "../../src/lib/oeaTasks";
+
+// The quote fingerprint stored as quoteHash. Every reader that compares against a
+// stored quoteHash must call this, or the comparison silently matches nothing.
+export const hashOf = (quote: string) =>
+  crypto.createHash("sha256").update(normalizeAssessedText(quote)).digest("hex").slice(0, 16);
 
 // Breadcrumb of ancestor titles above `node`, for prompt "Context:" lines.
 export function ancestorChain(node: AtlasNode, docs: Record<string, AtlasNode>): string {

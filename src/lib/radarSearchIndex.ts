@@ -89,7 +89,7 @@ function instanceRows(graph: GraphData, out: RadarSearchIndex): void {
     if (!found || !found.owner.slug) continue;
     const { owner, meta } = found;
     const anchor = instanceAnchor(inst.id);
-    const page: ActorPageKey | undefined = hasActorPages(owner) ? "instances" : undefined;
+    const page: ActorPageKey | undefined = hasActorPages(owner) ? "primitives" : undefined;
     out.instances.push({
       name: inst.name,
       hit: makeHit("instance", inst.name, `${owner.name} › ${words(inst.st ?? "")}`, owner.slug, anchor, page),

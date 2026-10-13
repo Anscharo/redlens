@@ -51,7 +51,7 @@ function makeRow(over: Partial<RiskRow["candidate"]>, triageOver: Partial<RiskRo
     inScope: true,
     domains: candidate.domains,
     isRule: true,
-    description: "Caps total exposure against risk capital.",
+    p: { isRule: 0.9, peg: 0.1, alloc: 0.9, sc: 0.1 },
     ...triageOver,
   };
   const entry = entryOver === null
@@ -65,7 +65,7 @@ function makeRow(over: Partial<RiskRow["candidate"]>, triageOver: Partial<RiskRo
         anchored: true,
         stub: false,
         hasMetrics: true,
-        description: triage.description,
+        description: "Caps total exposure against risk capital.",
         quote: candidate.quote,
         quoteHash: "h1",
         model: "gpt-assess",
@@ -90,7 +90,7 @@ const ROW_SC = makeRow({
   quote: "The emergency shutdown may be triggered by governance.",
   domains: ["sc"],
   stub: true,
-}, { domains: ["sc"], description: "Governance-triggered shutdown path." }, null);
+}, { domains: ["sc"] }, null);
 
 let mockJoin: RiskJoin = { rows: [ROW_ALLOC, ROW_SC], untriaged: 2, rejected: 1 };
 

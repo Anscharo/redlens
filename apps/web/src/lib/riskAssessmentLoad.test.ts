@@ -10,6 +10,7 @@ const ARTIFACT: RiskAssessmentArtifact = {
   rubricVersion: "rv1",
   atlasCommit: null,
   triageModel: "gpt-triage",
+  triageTau: { rule: 0.4, domain: 0.4 },
   assessModel: "gpt-assess",
   triage: [],
   assessments: [],

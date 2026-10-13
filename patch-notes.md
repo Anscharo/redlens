@@ -38,6 +38,7 @@
 - Flagged PAU rate limits no Atlas document is connected to: always when a spell set them, and after two months when the Configurator did
 - Showed the Atlas vs contract table on rate-limit documents listed under a chain's Rate Limits heading, such as Spark's Diamond PAU CCTP limits and the USDS mint maximum, and on the headings above them
 - Improved the PAU page: rate limits now have a Slope column, grouped rows and cleaner columns, each contract's role has a tooltip saying why it is listed, and role rows name the account (Controller, ALM proxy, Relayer, Freezer) holding each role, with a freezable ALM proxy told apart from the plain one, the Matches Atlas column now marks each limit ✓, ✗ or ? and links the mark to the Atlas document stating its value, the rate-limit table's "Set" column is now "Last updated" "Max" is now maxAmount, and the Available column is gone, and the Parameters section names each setting, its destination and the contract holding it
+- Reworked a Prime Agent's Primitives page: invocations and instances now sit together under each primitive with clearer status labels, each primitive's Global Activation Status links to the Atlas document that states it, and a short explainer quotes the Atlas on how primitives work
 
 ## 2026-10-12
 

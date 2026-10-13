@@ -23,15 +23,16 @@ export function EntityChip({ e }: { e: EntityRef }) {
 // Completed — those are operational, InProgress is pre-operational.
 const STATUS_STYLE: Record<string, string> = {
   Active: "bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-tan",
-  Completed: "bg-[var(--hover)] text-tan-3",
+  Completed: "bg-[var(--hover)] text-tan-3 border border-[var(--tan-3)]",
   Suspended: "bg-[color-mix(in_srgb,var(--red)_18%,transparent)] text-tan-2",
   InProgress: "bg-transparent text-accent border border-dashed border-[var(--accent)]",
   Inactive: "bg-transparent text-tan-3 opacity-60 border border-[var(--border)]",
 };
 
-export function StatusPill({ s }: { s: string }) {
+/** `label` replaces the status text; the style still follows `s`. */
+export function StatusPill({ s, label = s }: { s: string; label?: string }) {
   return (
-    <span className={`mono text-[10px] px-1.5 py-0.5 rounded ${STATUS_STYLE[s] ?? ""}`}>{s}</span>
+    <span className={`mono text-[10px] px-1.5 py-0.5 rounded ${STATUS_STYLE[s] ?? ""}`}>{label}</span>
   );
 }
 

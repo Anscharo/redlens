@@ -49,6 +49,7 @@
     "processes:bootstrap": "bun scripts/aux/processes-bootstrap.mjs",
     "oea:assess": "bun scripts/assess/assess-oea.ts",
     "risk:assess": "bun scripts/assess/assess-risk.ts",
+    "risk:triage-compare": "OPENROUTER_APP_KIND=eval bun scripts/assess/assess-risk-triage-compare.ts",
     "mistakes:status": "bun scripts/aux/mistakes-sweep.mjs status",
     "mistakes:bootstrap": "bun scripts/aux/mistakes-sweep.mjs bootstrap",
     "mistakes:plan": "bun scripts/aux/mistakes-sweep.mjs plan",

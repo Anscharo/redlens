@@ -3,7 +3,7 @@ import { ACTOR_PAGES, actorPageDef, hasActorPages, isActorPageKey } from "./rada
 
 describe("radarPages", () => {
   it("lists each subpage once, in nav order", () => {
-    expect(ACTOR_PAGES.map((p) => p.key)).toEqual(["settlements", "history", "instances", "pau"]);
+    expect(ACTOR_PAGES.map((p) => p.key)).toEqual(["settlements", "history", "primitives", "pau"]);
     expect(actorPageDef("pau").title).toBe("Parallelized Allocation Units");
   });
 
