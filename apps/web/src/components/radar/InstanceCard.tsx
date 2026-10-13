@@ -21,7 +21,7 @@ function measureKeyPx(key: string): number {
 }
 
 /** InProgress is the one Invocation status (atlas A.2.2.1.4); every other status belongs to an Instance. */
-function statusLabel(status: string): string {
+export function statusLabel(status: string): string {
   return status === "InProgress" ? "In Progress Invocation" : `${status} Instance`;
 }
 

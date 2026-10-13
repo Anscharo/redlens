@@ -42,6 +42,7 @@ describe("actor subpages", () => {
     render(<ActorInstancesPage profile={profile({ primitives: [{} as never] })} />);
     expect(screen.getByRole("heading", { level: 1, name: "Primitives" })).toBeInTheDocument();
     expect(screen.getByTestId("instances")).toHaveAttribute("data-prime", "spark");
+    expect(screen.getByRole("region", { name: "How primitives work" })).toBeInTheDocument();
     cleanup();
     render(<ActorInstancesPage profile={profile()} />);
     expect(screen.getByText("no primitives")).toBeInTheDocument();

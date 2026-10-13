@@ -37,6 +37,7 @@
 
 - Widened the Responsibilities table on Radar info pages to the full page width, renamed a Prime Agent's Primitive instances page to Primitives, and listed its invocations and instances together under each primitive with labels like In Progress Invocation and Active Instance
 - Named the invocation statuses in the Radar overview's Inv hover, and labelled each primitive's status as Global Activation Status with a link to the document that states it
+- Added a short "How primitives work" explainer at the top of a Prime Agent's Primitives page, quoting the Atlas on how a primitive is activated, invoked, made active and completed
 
 ## 2026-10-12
 
