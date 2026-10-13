@@ -1549,6 +1549,7 @@
     "chains": [
       "ethereum"
     ],
+    "chainlogId": "STUSDS_VALUE_REGISTRY",
     "etherscanName": "ValueRegistry",
     "isContract": true,
     "isProxy": false,
