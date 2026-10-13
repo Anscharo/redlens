@@ -36,8 +36,9 @@ function artifact(over: Partial<RiskAssessmentArtifact> = {}): RiskAssessmentArt
     rubricVersion: "rv1",
     atlasCommit: "test",
     triageModel: "gpt-triage",
+    triageTau: { rule: 0.4, domain: 0.4 },
     assessModel: "gpt-assess",
-    triage: [{ taskKey: "u:A", quoteHash: "irrelevant", model: "gpt-triage", inScope: true, domains: ["sc"], isRule: true, description: "Halts trading on a vol spike." }],
+    triage: [{ taskKey: "u:A", quoteHash: "irrelevant", model: "gpt-triage", inScope: true, domains: ["sc"], isRule: true, p: { isRule: 0.9, peg: 0.1, alloc: 0.9, sc: 0.1 } }],
     assessments: [
       {
         taskKey: "u:A",
