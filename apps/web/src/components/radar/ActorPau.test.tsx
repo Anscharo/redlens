@@ -136,7 +136,7 @@ describe("ActorPau", () => {
     const rows = within(table).getAllByRole("row").slice(1);
     expect(within(rows[0]).getByRole("link", { name: "Blackrock USDC · BUIDLI_DEPOSIT (matched by address)" })).toHaveAttribute("title", expect.stringContaining(`the atlas lists ${LISTED} for this instance`));
     expect(rows[0]).toHaveTextContent("7M PYUSD");
-    expect(within(rows[0]).getAllByTitle(`6 decimals, read from PYUSD ${VAULT}`)).toHaveLength(3);
+    expect(within(rows[0]).getAllByTitle(`6 decimals, read from PYUSD ${VAULT}`)).toHaveLength(2);
     expect(rows[1]).toHaveTextContent("SparkLend USDC · Inflow");
     expect(rows[1]).toHaveTextContent(/25M.*25M.*12M/);
     expect(within(rows[1]).getByRole("link", { name: "SparkLend USDC · Inflow" })).toBeInTheDocument();

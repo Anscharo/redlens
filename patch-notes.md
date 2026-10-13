@@ -36,7 +36,7 @@
 ## 2026-10-13
 
 - Showed the Atlas vs contract table on rate-limit documents listed under a chain's Rate Limits heading, such as Spark's Diamond PAU CCTP limits and the USDS mint maximum, and on the headings above them
-- Improved the PAU page: rate limits now have a Slope column, grouped rows and cleaner columns, each contract's role has a tooltip saying why it is listed, and role rows name the account (Controller, ALM proxy, Relayer, Freezer) holding each role, with a freezable ALM proxy told apart from the plain one, the Matches Atlas column now marks each limit ✓, ✗ or ? and links the mark to the Atlas document stating its value, the rate-limit table's "Set" column is now "Last updated" and "Max" is now maxAmount, and the Parameters section names each setting, its destination and the contract holding it
+- Improved the PAU page: rate limits now have a Slope column, grouped rows and cleaner columns, each contract's role has a tooltip saying why it is listed, and role rows name the account (Controller, ALM proxy, Relayer, Freezer) holding each role, with a freezable ALM proxy told apart from the plain one, the Matches Atlas column now marks each limit ✓, ✗ or ? and links the mark to the Atlas document stating its value, the rate-limit table's "Set" column is now "Last updated" "Max" is now maxAmount, and the Available column is gone, and the Parameters section names each setting, its destination and the contract holding it
 
 ## 2026-10-12
 

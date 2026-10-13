@@ -8,7 +8,7 @@ import { anchorProps } from "./PauSectionHeading";
 import { CopyLink } from "../CopyLink";
 import { sectionAnchor, type Anchor } from "@/lib/pauAnchors";
 import { matchId, type AtlasVerdict } from "@/lib/pauAtlasMatch";
-import { formatAmount, formatPerDay, labelOnChain, limitDecimals, unitNote, type AtlasKeyRef, type DerivedKey, type LiveRateLimit } from "../../lib/pau";
+import { formatPerDay, labelOnChain, limitDecimals, unitNote, type AtlasKeyRef, type DerivedKey, type LiveRateLimit } from "../../lib/pau";
 
 /** A limit with the RateLimits contract holding it: two contracts of one deployment can hold the same key. */
 export type ContractLimit = LiveRateLimit & { contract: string };
@@ -112,7 +112,6 @@ function LimitRow({ r, chain, keyIndex, verdict }: { r: LiveRateLimit; chain: st
       <td className="py-0.5 pr-3 align-top max-w-[22rem] break-words"><LimitName r={r} chain={chain} keyIndex={keyIndex} /></td>
       <td className={`${cell} text-right`} style={colRule} title={scale}>{isOff(r) ? "off" : <PauAmount raw={max} dec={dec} symbol={r.unit?.symbol} />}</td>
       <td className={`${cell} text-right`} style={colRule} title={scale}>{formatPerDay(r.data?.slope ?? r.configured.slope, dec)}</td>
-      <td className={`${cell} text-right`} style={colRule} title={scale}>{r.available === null ? "?" : formatAmount(r.available, dec)}</td>
       <td className={`${cell} text-center`} style={colRule} data-atlas-match={verdict?.mark}>
         <AtlasMark verdict={verdict} />
       </td>
@@ -126,7 +125,7 @@ function LimitRow({ r, chain, keyIndex, verdict }: { r: LiveRateLimit; chain: st
   );
 }
 
-/** Every rate-limit key the contract has been given: on-chain maximum, slope (refill per day), and what is available now. */
+/** Every rate-limit key the contract has been given: on-chain maxAmount and slope (refill per day). */
 export function PauRateLimits({ chain, limits, keyIndex, verdicts, anchor }: Props) {
   if (limits.length === 0) return null;
   const a = sectionAnchor(anchor, "rate-limits");
@@ -139,7 +138,6 @@ export function PauRateLimits({ chain, limits, keyIndex, verdicts, anchor }: Pro
             <th className={`${head} pl-0 pr-3 text-left max-w-[22rem]`}>Rate limits</th>
             <th className={`${head} text-right normal-case`} style={colRule} title="the most the limit can hold">maxAmount</th>
             <th className={`${head} text-right`} style={colRule} title="how much the limit refills per day">Slope</th>
-            <th className={`${head} text-right`} style={colRule} title="what can be used right now: the amount left after the last use, refilled at the slope since then, up to maxAmount">Available</th>
             <th className={`${head} text-center max-w-[5rem]`} style={colRule} title="✓ matches, ✗ differs, ? cannot be told; each links to the Atlas document stating the value. Blank when no document states one.">Matches Atlas</th>
             <th className={`${head} text-right`} style={colRule}>Last updated</th>
           </tr>

@@ -45,7 +45,7 @@ describe("PauRateLimits", () => {
       [matchId(RL2, KEY), { mark: "unsure" as const, docId: "doc-2" }],
     ]);
     const { container } = render(<PauRateLimits chain="ethereum" limits={[limit(RL1), limit(RL2), limit("0x" + "3".repeat(40))]} keyIndex={new Map()} verdicts={verdicts} anchor={{ id: "ethereum", aliases: [] }} />);
-    const cells = within(container).getAllByRole("row").slice(1).map((r) => within(r).getAllByRole("cell")[4]);
+    const cells = within(container).getAllByRole("row").slice(1).map((r) => within(r).getAllByRole("cell")[3]);
     expect(cells.map((c) => c.textContent)).toEqual(["✗", "?", ""]);
     expect(within(cells[0]).getByRole("link")).toHaveAttribute("href", "/atlas?id=doc-1&view=onchain");
     expect(within(cells[1]).getByRole("link")).toHaveAttribute("href", "/atlas?id=doc-2&view=onchain");
