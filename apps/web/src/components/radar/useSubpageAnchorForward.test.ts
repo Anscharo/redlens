@@ -9,12 +9,12 @@ describe("subpageForAnchor", () => {
   it("sends section anchors to their page without the fragment", () => {
     expect(subpageForAnchor("history", prims)).toEqual({ page: "history" });
     expect(subpageForAnchor("pau", prims)).toEqual({ page: "pau" });
-    expect(subpageForAnchor("primitives", prims)).toEqual({ page: "instances" });
+    expect(subpageForAnchor("primitives", prims)).toEqual({ page: "primitives" });
   });
 
   it("keeps instance, invocation, primitive and category anchors on the instances page", () => {
     for (const id of ["instance-i1", "invocations", "invocations-distribution-reward", "distribution-reward", "distribution-reward-active", "demand-side-stablecoin-primitives"]) {
-      expect(subpageForAnchor(id, prims)).toEqual({ page: "instances", fragment: id });
+      expect(subpageForAnchor(id, prims)).toEqual({ page: "primitives", fragment: id });
     }
   });
 

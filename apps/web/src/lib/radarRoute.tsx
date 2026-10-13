@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { Redirect } from "wouter";
-import { ROUTES, actorHref } from "@/lib/routes";
-import { isActorPageKey } from "@/lib/radarPages";
+import { ROUTES, actorHref, actorPageHref } from "@/lib/routes";
+import { isActorPageKey, legacyActorPageKey } from "@/lib/radarPages";
 import { Loading } from "../components/Loading";
 import { RadarPage } from "./lazyRoutes";
 
@@ -16,9 +16,12 @@ export interface RadarActorRouteProps {
   query: string;
 }
 
-/** An actor's page. A segment that names no subpage in src/lib/radarPages.ts
- *  redirects to the actor's Info page. */
+/** An actor's page. A retired segment redirects to the subpage that replaced
+ *  it, fragment kept; a segment that names no subpage in
+ *  src/lib/radarPages.ts redirects to the actor's Info page. */
 export function RadarActorRoute({ slug, page, query }: RadarActorRouteProps) {
+  const renamed = legacyActorPageKey(page);
+  if (renamed) return <Redirect to={actorPageHref(slug, renamed) + window.location.hash} replace />;
   if (page !== undefined && !isActorPageKey(page)) return <Redirect to={actorHref(slug)} replace />;
   return (
     <Suspense fallback={<Loading />}>

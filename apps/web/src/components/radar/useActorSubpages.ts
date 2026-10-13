@@ -19,7 +19,7 @@ export function useActorSubpages(groups: SidebarGroup[]): ReadonlyMap<string, re
         const offers: Record<ActorPageKey, boolean> = {
           settlements: !!settlements && reportsForPrime(settlements, a.slug).length > 0,
           history: true,
-          instances: true,
+          primitives: true,
           pau: !!pau && snapshotsForPrime(pau, a.id).length > 0,
         };
         out.set(a.slug, ACTOR_PAGES.map((p) => p.key).filter((k) => offers[k]));

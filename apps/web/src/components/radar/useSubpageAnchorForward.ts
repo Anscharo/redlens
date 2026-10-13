@@ -20,14 +20,14 @@ export function subpageForAnchor(
   if (id === RADAR_SECTION.history) return { page: "history" };
   if (id === RADAR_SECTION.pau) return { page: "pau" };
   if (isPauFragment(id)) return { page: "pau", fragment: id };
-  if (id === RADAR_SECTION.primitives) return { page: "instances" };
+  if (id === RADAR_SECTION.primitives) return { page: "primitives" };
   const onInstances =
     id.startsWith("instance-") ||
     id === "instances" ||
     id === "invocations" ||
     id.startsWith("invocations-") ||
     primitives.some((p) => id === p.st || id.startsWith(`${p.st}-`) || id === toAnchorId(p.category ?? "Other"));
-  return onInstances ? { page: "instances", fragment: id } : null;
+  return onInstances ? { page: "primitives", fragment: id } : null;
 }
 
 /** On a Prime's Info page, a link whose fragment names a section that lives on

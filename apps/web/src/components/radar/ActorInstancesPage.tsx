@@ -10,9 +10,9 @@ export interface ActorInstancesPageProps {
 /** The actor's primitives with their invocations and instances, grouped by category.
  *  Radar search and the primitive matrix link here by instance anchor. */
 export function ActorInstancesPage({ profile }: ActorInstancesPageProps) {
-  useArrivalTarget(`${profile.entity.id}/instances`);
+  useArrivalTarget(`${profile.entity.id}/primitives`);
   return (
-    <ActorPageShell profile={profile} page="instances">
+    <ActorPageShell profile={profile} page="primitives">
       {profile.primitives.length > 0 ? (
         <ActorInstances primitives={profile.primitives} prime={profile.entity} />
       ) : (

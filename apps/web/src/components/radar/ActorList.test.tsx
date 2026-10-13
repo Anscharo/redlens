@@ -78,8 +78,8 @@ describe("ActorList", () => {
       },
     ];
     const subpages = new Map([
-      ["spark", ["settlements", "history", "instances", "pau"] as const],
-      ["grove", ["history", "instances"] as const],
+      ["spark", ["settlements", "history", "primitives", "pau"] as const],
+      ["grove", ["history", "primitives"] as const],
     ]);
 
     it("makes an actor with subpages a disclosure linking Info then each subpage", () => {
@@ -92,7 +92,7 @@ describe("ActorList", () => {
         ["Info", "/radar/spark"],
         ["Settlements", "/radar/spark/settlements"],
         ["History", "/radar/spark/history"],
-        ["Primitives", "/radar/spark/instances"],
+        ["Primitives", "/radar/spark/primitives"],
         ["PAUs", "/radar/spark/pau"],
       ]);
       expect(sub.querySelector("a")).toHaveAttribute("data-active", "true");

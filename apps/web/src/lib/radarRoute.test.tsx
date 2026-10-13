@@ -39,6 +39,11 @@ describe("RadarActorRoute", () => {
     expect(screen.getByTestId("radar-page")).toHaveAttribute("data-slug", "spark");
   });
 
+  it("redirects the retired instances segment to primitives", () => {
+    const mem = at("/radar/spark/instances");
+    expect(mem.history.at(-1)).toBe("/radar/spark/primitives");
+  });
+
   it("redirects a segment that names no subpage to the Info page", () => {
     const mem = at("/radar/spark/nonsense");
     expect(mem.history.at(-1)).toBe("/radar/spark");
