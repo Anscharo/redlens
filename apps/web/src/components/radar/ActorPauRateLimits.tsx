@@ -1,6 +1,6 @@
 import { AtlasLink } from "../AtlasLink";
 import { Address } from "../Address";
-import { atlasHref, atlasOnchainHref } from "@/lib/routes";
+import { atlasHref } from "@/lib/routes";
 import { explorerTxUrl } from "@/lib/explorer";
 import { PauAmount } from "./PauAmount";
 import { PauOriginChip } from "./PauOriginChip";
@@ -8,6 +8,7 @@ import { anchorProps } from "./PauSectionHeading";
 import { CopyLink } from "../CopyLink";
 import { sectionAnchor, type Anchor } from "@/lib/pauAnchors";
 import { matchId, type AtlasVerdict } from "@/lib/pauAtlasMatch";
+import { PauAtlasMark } from "./PauAtlasMark";
 import { formatPerDay, labelOnChain, limitDecimals, unitNote, type AtlasKeyRef, type DerivedKey, type LiveRateLimit } from "../../lib/pau";
 
 /** A limit with the RateLimits contract holding it: two contracts of one deployment can hold the same key. */
@@ -86,34 +87,17 @@ export function LimitName({ r, chain, keyIndex }: { r: { key: string; derived?: 
   );
 }
 
-const MARK = {
-  match: { mark: "✓", text: "matches the atlas: every value the atlas states for this key matches the chain" },
-  mismatch: { mark: "✗", text: "differs from the atlas: a value the atlas states for this key is not what the chain holds" },
-  unsure: { mark: "?", text: "the atlas states a value for this key, but it cannot be told whether it matches" },
-};
-
-/** The Atlas column: the verdict's mark, linked to the document's Onchain tab; blank when no document states a value for the key. */
-function AtlasMark({ verdict }: { verdict?: AtlasVerdict }) {
-  if (!verdict) return null;
-  const { mark, text } = MARK[verdict.mark];
-  return (
-    <AtlasLink to={atlasOnchainHref(verdict.docId)} className="hover:underline" title={text} aria-label={text}>
-      {mark}
-    </AtlasLink>
-  );
-}
-
 function LimitRow({ r, chain, keyIndex, verdict }: { r: LiveRateLimit; chain: string; keyIndex: Map<string, AtlasKeyRef[]>; verdict?: AtlasVerdict }) {
   const max = r.data?.maxAmount ?? r.configured.maxAmount;
   const dec = limitDecimals(r.unit, max);
   const scale = unitNote(r.unit, max) + (r.data ? "" : "; live read failed, showing the last value its history set");
   return (
     <tr className="border-t border-[var(--border)] mono" data-off={isOff(r) || undefined} style={{ color: isOff(r) ? "var(--tan-3)" : "var(--tan-2)" }}>
-      <td className="py-0.5 pr-3 align-top max-w-[22rem] break-words"><LimitName r={r} chain={chain} keyIndex={keyIndex} /></td>
+      <td className="py-0.5 pr-3 align-top max-w-[40rem] break-words"><LimitName r={r} chain={chain} keyIndex={keyIndex} /></td>
       <td className={`${cell} text-right`} style={colRule} title={scale}>{isOff(r) ? "off" : <PauAmount raw={max} dec={dec} symbol={r.unit?.symbol} />}</td>
       <td className={`${cell} text-right`} style={colRule} title={scale}>{formatPerDay(r.data?.slope ?? r.configured.slope, dec)}</td>
       <td className={`${cell} text-center`} style={colRule} data-atlas-match={verdict?.mark}>
-        <AtlasMark verdict={verdict} />
+        <PauAtlasMark verdict={verdict} chain={chain} limit={r} />
       </td>
       <td className={`${cell} text-right whitespace-nowrap`} style={colRule}>
         <a href={explorerTxUrl(chain, r.setAt.tx)} target="_blank" rel="noopener" className="hover:underline" style={dim}>
@@ -132,10 +116,10 @@ export function PauRateLimits({ chain, limits, keyIndex, verdicts, anchor }: Pro
   return (
     <div className="relative mt-3">
       <CopyLink id={a.id} label={`${anchor.id} rate limits`} top={-2} />
-      <table {...anchorProps(a)} className="border-collapse text-[12px]">
+      <table {...anchorProps(a)} className="w-full border-collapse text-[12px]">
         <thead>
           <tr className="mono text-[11px] uppercase tracking-wider" style={dim}>
-            <th className={`${head} pl-0 pr-3 text-left max-w-[22rem]`}>Rate limits</th>
+            <th className={`${head} pl-0 pr-3 text-left max-w-[40rem]`}>Rate limits</th>
             <th className={`${head} text-right normal-case`} style={colRule} title="the most the limit can hold">maxAmount</th>
             <th className={`${head} text-right`} style={colRule} title="how much the limit refills per day">Slope</th>
             <th className={`${head} text-center max-w-[5rem]`} style={colRule} title="✓ matches, ✗ differs, ? cannot be told; each links to the Atlas document stating the value. Blank when no document states one.">Matches Atlas</th>
