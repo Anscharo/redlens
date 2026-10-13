@@ -23,6 +23,10 @@ export interface ValueSource {
   /** The instance's defining document; null for the prime's own params. */
   docId?: string | null;
   params: Record<string, [string, string | null, string?]>;
+  /** A document-stated source: the controller constant its text names, whose one argument-less key on the chain is the source's key when it states no hash (pauLimitDocs.ts). */
+  constant?: string;
+  /** The deployment kind a document-stated source is about; every kind when absent. */
+  kind?: "diamond" | "monolithic";
 }
 
 export interface InstanceKey {
@@ -63,6 +67,12 @@ function derivedKeys(src: ValueSource, snaps: StoredPauSnapshot[], shared: Set<s
   });
 }
 
+/** The keys of the source's constant that take no argument: one per deployment, so the constant alone names the key. */
+function constantKeys(src: ValueSource, snaps: StoredPauSnapshot[]): InstanceKey[] {
+  const keys = limitsOf(chainSnaps(snaps, src)).filter((r) => r.derived?.constant === src.constant && r.derived?.args.length === 0).map((r) => r.key.toLowerCase());
+  return [...new Set(keys)].map((key) => ({ side: "", key }));
+}
+
 /** Addresses more than one of the sources lists. */
 export function sharedAddresses(sources: ValueSource[]): Set<string> {
   const seen = new Map<string, number>();
@@ -75,7 +85,8 @@ export function instanceKeys(src: ValueSource, snaps: StoredPauSnapshot[], share
   const stated = Object.entries(src.params).flatMap(([name, [value]]) =>
     RATE_LIMIT_ID_RE.test(name) && HASH_RE.test(value.trim()) ? [withQualifier({ side: valueSide(name), key: value.trim().toLowerCase() }, paramQualifier(name))] : [],
   );
-  return stated.length ? [...stated, ...swapSides(stated, src, snaps)] : derivedKeys(src, snaps, shared);
+  if (stated.length) return [...stated, ...swapSides(stated, src, snaps)];
+  return src.constant ? constantKeys(src, snaps) : derivedKeys(src, snaps, shared);
 }
 
 const withQualifier = (k: InstanceKey, qualifier: string): InstanceKey => (qualifier ? { ...k, qualifier } : k);

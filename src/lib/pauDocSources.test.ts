@@ -3,6 +3,8 @@
 import { describe, expect, it } from "vitest";
 import type { GraphEntity } from "../types.ts";
 import type { GraphData } from "./graphData.ts";
+import type { AtlasNode } from "../types.ts";
+import type { LimitDocs } from "./pauLimitDocs.ts";
 import { docValueSources, graphPrimeSources } from "./pauDocSources.ts";
 
 const ent = (id: string, et: string, st: string | null, did: string, m: object): GraphEntity => ({ id, slug: id, name: id, et, st, did, m: JSON.stringify(m) });
@@ -47,5 +49,26 @@ describe("graphPrimeSources", () => {
   it("is null for an unknown prime, and before the graph loads", () => {
     expect(graphPrimeSources("nobody", graph)).toBeNull();
     expect(graphPrimeSources("prime", null)).toBeNull();
+  });
+});
+
+const node = (id: string, title: string, content = ""): AtlasNode => ({ id, doc_no: id, title, type: "Core", depth: 6, parentId: null, content, order: 0, addressRefs: [] });
+const tree: [string | null, AtlasNode[]][] = [
+  [null, [node("prime", "Prime")]],
+  ["prime", [node("limits", "Diamond PAU Rate Limits"), node("elsewhere-doc", "About")]],
+  ["limits", [node("arb", "Arbitrum")]],
+  ["arb", [node("leaf", "CCTP To Ethereum Limit", "- `maxAmount`: 5,000,000 USDC")]],
+];
+const docs: LimitDocs = { byParent: new Map(tree), docs: Object.fromEntries(tree.flatMap(([, kids]) => kids).map((n) => [n.id, n])) };
+
+describe("docValueSources over the atlas documents", () => {
+  it("brings the prime for a limit document, and the documents below a Rate Limits or chain heading", () => {
+    const leaf = docValueSources("leaf", graph, undefined, docs);
+    expect([leaf?.prime, leaf?.sources.map((s) => s.name)]).toEqual(["prime", ["prime", "i1", "i2", "Arbitrum - CCTP To Ethereum Limit"]]);
+    expect(docValueSources("limits", graph, { title: "Diamond PAU Rate Limits", children: ["arb"] }, docs)?.children.sort()).toEqual(["arb", "leaf"]);
+    expect(docValueSources("arb", graph, { title: "Arbitrum", children: ["leaf"] }, docs)?.children).toEqual(["leaf"]);
+  });
+  it("stays null for a document under the prime that states no limit", () => {
+    expect(docValueSources("elsewhere-doc", graph, { title: "About", children: [] }, docs)).toBeNull();
   });
 });

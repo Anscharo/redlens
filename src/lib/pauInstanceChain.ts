@@ -28,8 +28,8 @@ export function instanceChain(src: ValueSource): string | null {
   return byNetwork ?? byName;
 }
 
-/** The prime's deployments on the instance's chain; none when its chain is not known. */
+/** The prime's deployments on the instance's chain, of the source's kind when it names one; none when its chain is not known. */
 export function chainSnaps(snaps: StoredPauSnapshot[], src: ValueSource): StoredPauSnapshot[] {
   const chain = instanceChain(src);
-  return chain ? snaps.filter((s) => s.chain === chain) : [];
+  return chain ? snaps.filter((s) => s.chain === chain && (!src.kind || s.kind === src.kind)) : [];
 }
