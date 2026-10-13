@@ -108,21 +108,18 @@ export function ActorDashboard({ profile }: Props) {
           )}
         </aside>
 
-        {adRows.length > 0 && (
-          <div className="lg:col-span-2 min-w-0">
+        <div className="lg:col-span-2 min-w-0">
+          {adRows.length > 0 && (
             <Section title="Responsibilities" id={RADAR_SECTION.responsibilities}>
               <ActorResponsibilities rows={adRows} />
             </Section>
-          </div>
-        )}
-
-        {rewardsAgent && (
-          <div className="lg:col-span-2 min-w-0">
+          )}
+          {rewardsAgent && (
             <Section title="Rewards" id={RADAR_SECTION.rewards}>
               <ActorRewards agent={rewardsAgent} />
             </Section>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
