@@ -20,9 +20,9 @@ const limit = (tx: string, time: string, maxAmount = "1000000"): LiveRateLimit =
 });
 
 describe("PauAtlasMark", () => {
-  it("flags a spell-set limit with both explanations", async () => {
+  it("flags a spell-set limit with the two possible causes", async () => {
     render(<PauAtlasMark chain="ethereum" limit={limit("0xspell", day(1))} />);
-    expect(await screen.findByRole("img", { name: /failed to connect.*executed before the Atlas was updated/ })).toHaveAttribute("data-atlas-flag", "spell");
+    expect(await screen.findByRole("img", { name: /did not connect it.*Atlas does not state it/ })).toHaveAttribute("data-atlas-flag", "spell");
   });
   it("flags a cBEAM-set limit only past two months", async () => {
     const { container } = render(<><PauAtlasMark chain="ethereum" limit={limit("0xold", day(90))} /><PauAtlasMark chain="ethereum" limit={limit("0xnew", day(10))} /></>);
