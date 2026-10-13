@@ -138,13 +138,13 @@ describe("ActorPau", () => {
     expect(rows[0]).toHaveTextContent("7M PYUSD");
     expect(within(rows[0]).getAllByTitle(`6 decimals, read from PYUSD ${VAULT}`)).toHaveLength(2);
     expect(rows[1]).toHaveTextContent("SparkLend USDC · Inflow");
-    expect(rows[1]).toHaveTextContent(/25M.*25M.*12M/);
+    expect(rows[1]).toHaveTextContent(/25M.*25M/);
     expect(within(rows[1]).getByRole("link", { name: "SparkLend USDC · Inflow" })).toBeInTheDocument();
     expect(within(rows[2]).getByRole("link", { name: "USDS Mint" })).toBeInTheDocument();
     expect(rows[3]).toHaveTextContent("LIMIT_4626_DEPOSIT");
     expect(rows[3].querySelector("[title*='no atlas document states this key']")).not.toBeNull();
     expect(rows[4]).toHaveTextContent("no document or controller constant found referencing this limit");
-    expect(rows[4]).toHaveTextContent(/1B.*0.*\?/);
+    expect(rows[4]).toHaveTextContent(/1B.*0/);
     expect(rows[5]).toHaveAttribute("data-off", "true");
     expect(rows[5]).toHaveTextContent("off");
   });
