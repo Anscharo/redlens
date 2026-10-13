@@ -167,8 +167,7 @@ export function buildPrimitiveStats(
   }
 
   for (const invo of graph.invocations) {
-    if (!invo.m) continue;
-    const meta = parseMeta<InvocationMeta>(invo.m);
+    const meta = invo.m ? parseMeta<InvocationMeta>(invo.m) : null;
     if (!meta) continue;
     const stat = statFor(invo, meta);
     if (!stat) continue;

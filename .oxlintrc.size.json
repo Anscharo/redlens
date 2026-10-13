@@ -70,7 +70,7 @@
     { "files": ["apps/web/src/hooks/useSearch.ts"], "rules": { "max-lines-per-function": ["error", { "max": 66, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/hooks/useSearchInput.ts"], "rules": { "max-lines-per-function": ["error", { "max": 76, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/hooks/useTreeKeyboard.ts"], "rules": { "max-lines-per-function": ["error", { "max": 74, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/lib/actorIndex.ts"], "rules": { "max-lines": ["error", { "max": 390, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 251, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["apps/web/src/lib/actorIndex.ts"], "rules": { "max-lines": ["error", { "max": 353, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 228, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/lib/primitiveStats.ts"], "rules": { "max-lines-per-function": ["error", { "max": 107, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/lib/rehypeEthAddresses.ts"], "rules": { "max-lines-per-function": ["error", { "max": 80, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/lib/settlementSankey.ts"], "rules": { "max-lines-per-function": ["error", { "max": 74, "skipBlankLines": true, "skipComments": true }] } },

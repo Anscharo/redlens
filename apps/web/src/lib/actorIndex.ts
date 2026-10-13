@@ -10,12 +10,14 @@ import type { ActiveDataRow } from "@/lib/activeDataIndex";
 import {
   EXCLUDED_INSTANCE_TYPES,
   buildInstanceOfMap,
-  instanceSignalParams,
+  buildStatusDocMap,
   isRelationEdge,
   type InstanceParam,
 } from "@/lib/radarRules";
 
-export type { InstanceParam };
+import { toRadarInstance, type RadarInstance } from "./radarInstance";
+
+export type { InstanceParam, RadarInstance };
 
 export interface ChainNode {
   id: string;
@@ -38,22 +40,6 @@ export interface ActorRelation {
   otherId: string;
   otherSlug: string | null;
   otherEt: string | null;
-}
-export interface RadarInstance {
-  id: string;
-  slug: string;
-  rawName: string;
-  st: string;
-  displayName: string;
-  status: string | null;
-  docId: string | null;
-  docNo: string | null;
-  primitiveTitle: string | null;
-  primitiveDocId: string | null;
-  primitiveCategory: string | null;
-  primitiveCategoryDocId: string | null;
-  isUnknownPrimitive: boolean;
-  signalParams: InstanceParam[];
 }
 export interface RadarPrimitive {
   title: string;
@@ -281,36 +267,7 @@ export function buildActorProfile(
   // ICD doc ID → primitive doc ID. Both instance_of (operational instances)
   // and invocation_of (in-progress invocations) resolve to the parent primitive.
   const instanceOfMap = buildInstanceOfMap(graph.edges);
-  const statusDocOf = new Map<string, string>();
-  for (const e of graph.edges) {
-    if (e.e === "has_status" && e.ft === "doc" && e.tt === "doc") statusDocOf.set(e.f, e.t);
-  }
-
-  function toRadarInstance(
-    ent: GraphEntity,
-    meta: InstanceMeta | InvocationMeta,
-  ): RadarInstance {
-    const signalParams = instanceSignalParams(meta);
-    const instDoc = ent.did ? docs[ent.did] : null;
-    const primitiveDocId = ent.did ? (instanceOfMap.get(ent.did) ?? null) : null;
-    const primitiveDoc = primitiveDocId ? docs[primitiveDocId] : null;
-    return {
-      id: ent.id,
-      slug: ent.slug,
-      rawName: ent.name,
-      st: ent.st ?? "",
-      displayName: ent.name,
-      status: meta.status,
-      docId: ent.did,
-      docNo: instDoc?.doc_no ?? null,
-      primitiveTitle: primitiveDoc?.title ?? null,
-      primitiveDocId,
-      primitiveCategoryDocId: meta.primitive_category_doc_id ?? null,
-      primitiveCategory: meta.primitive_category_doc_id ? (docs[meta.primitive_category_doc_id]?.title ?? null) : null,
-      isUnknownPrimitive: meta.is_unknown_primitive ?? false,
-      signalParams,
-    };
-  }
+  const statusDocOf = buildStatusDocMap(graph.edges);
 
   const instances: RadarInstance[] = [];
   const invocations: RadarInstance[] = [];
@@ -319,13 +276,13 @@ export function buildActorProfile(
       if (!inst.m || !inst.st || EXCLUDED_INSTANCE_TYPES.has(inst.st)) continue;
       const meta = parseMeta<InstanceMeta>(inst.m);
       if (!meta || meta.agent_doc_id !== definingDoc.id) continue;
-      instances.push(toRadarInstance(inst, meta));
+      instances.push(toRadarInstance(inst, meta, docs, instanceOfMap));
     }
     for (const invo of graph.invocations) {
       if (!invo.m || !invo.st || EXCLUDED_INSTANCE_TYPES.has(invo.st)) continue;
       const meta = parseMeta<InvocationMeta>(invo.m);
       if (!meta || meta.agent_doc_id !== definingDoc.id) continue;
-      invocations.push(toRadarInstance(invo, meta));
+      invocations.push(toRadarInstance(invo, meta, docs, instanceOfMap));
     }
   }
 

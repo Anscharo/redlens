@@ -38,6 +38,15 @@ export function buildInstanceOfMap(edges: readonly RelationEdge[]): Map<string, 
   return out;
 }
 
+/** Primitive doc id → the Global Activation Status document that states its status (`has_status`). */
+export function buildStatusDocMap(edges: readonly RelationEdge[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const e of edges) {
+    if (e.e === "has_status" && e.ft === "doc" && e.tt === "doc") out.set(e.f, e.t);
+  }
+  return out;
+}
+
 /** The params an instance card shows, in meta order. */
 export function instanceSignalParams(meta: Pick<InstanceMeta, "params">): InstanceParam[] {
   return Object.entries(meta.params)
