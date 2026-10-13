@@ -29,4 +29,8 @@ describe("roleWhy", () => {
     expect(roleWhy(ctrl, snap(ctrl))).not.toContain("Live check");
     expect(roleWhy(c("relayer" as never), snap())).toBe("");
   });
+  it("says what a freezable proxy adds", () => {
+    const proxy = c("almProxy", { label: "freezable" });
+    expect(roleWhy(proxy, snap(proxy))).toContain("ALM proxy (freezable)");
+  });
 });

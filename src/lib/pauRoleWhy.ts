@@ -2,6 +2,7 @@
 // does, who says this contract fills it, and (for a controller) whether the
 // chain's role grants agree. Pure.
 import type { ContractState, PauSnapshot } from "./pau.ts";
+import { isFreezable } from "./pauHolderNames.ts";
 import { controllerWiring } from "./pauWiring.ts";
 
 const MEANING: Record<string, string> = {
@@ -11,6 +12,8 @@ const MEANING: Record<string, string> = {
   accessControls: "AccessControls: holds the roles of a diamond controller.",
   administeredAgent: "AdministeredAgent: a diamond controller's lists of actors, admins, grantors and revokers.",
 };
+
+const FREEZABLE = "ALM proxy (freezable): an ALM proxy that also lets its FREEZER role remove a CONTROLLER holder. Whoever holds CONTROLLER on a proxy can have it execute any call.";
 
 function source(c: ContractState): string {
   const docs = c.atlasDocs?.length ?? 0;
@@ -28,7 +31,7 @@ function liveCheck(c: ContractState, snap: PauSnapshot): string | null {
 
 /** The tooltip for a contract's role label; empty for a role this explains nothing about. */
 export function roleWhy(c: ContractState, snap: PauSnapshot): string {
-  const meaning = MEANING[c.role];
+  const meaning = isFreezable(c) ? FREEZABLE : MEANING[c.role];
   if (!meaning) return c.atlasDocs?.length ? "the atlas document stating this contract" : "";
   const evidence = (c.evidence ?? []).map((e) => `Evidence: ${e}`);
   return [meaning, source(c), ...evidence, liveCheck(c, snap)].filter(Boolean).join("\n");

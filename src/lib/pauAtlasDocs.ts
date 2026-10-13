@@ -30,16 +30,20 @@ export const atlasDocsByAddress = (reg: PauRegistry, snap: Snap) => byAddress(re
 /** Each address's non-atlas provenance notes for one snapshot, in registry order. */
 export const evidenceByAddress = (reg: PauRegistry, snap: Snap) => byAddress(reg, snap, evidence);
 
-/** The snapshots with each contract's `atlasDocs` set where the registry cites an atlas document for it, and its `evidence` where it holds other provenance notes. */
+const labelOf = (m: PauMember) => (m.label ? [m.label] : []);
+
+/** The snapshots with each contract's `atlasDocs` set where the registry cites an atlas document for it, its `evidence` where it holds other provenance notes, and the registry's current `label`. */
 export function withAtlasDocs<T extends PauSnapshot>(snaps: T[], reg: PauRegistry): T[] {
   return snaps.map((s) => {
     const docs = atlasDocsByAddress(reg, s);
     const notes = evidenceByAddress(reg, s);
+    const labels = byAddress(reg, s, labelOf);
     return {
       ...s,
       contracts: s.contracts.map((c) => {
         const k = c.address.toLowerCase();
-        return { ...c, ...(docs.has(k) ? { atlasDocs: docs.get(k) } : {}), ...(notes.has(k) ? { evidence: notes.get(k) } : {}) };
+        const label = labels.get(k)?.[0];
+        return { ...c, ...(docs.has(k) ? { atlasDocs: docs.get(k) } : {}), ...(notes.has(k) ? { evidence: notes.get(k) } : {}), ...(label ? { label } : {}) };
       }),
     };
   });

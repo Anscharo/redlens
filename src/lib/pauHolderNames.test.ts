@@ -2,7 +2,7 @@
 // part its own held grants prove; a denied grant names no one.
 import { describe, expect, it } from "vitest";
 import type { ContractState, PauSnapshot } from "./pau.ts";
-import { holderNames } from "./pauHolderNames.ts";
+import { contractLabel, holderNames } from "./pauHolderNames.ts";
 
 const at = { block: 1, time: "2026-01-01T00:00:00.000Z", tx: "0xt" };
 const [CTRL, PROXY, RELAYER, FROZEN, STRANGER, EX_RELAYER] = [1, 2, 3, 4, 5, 6].map((n) => "0x" + String(n).repeat(40));
@@ -25,5 +25,11 @@ describe("holderNames", () => {
     const names = holderNames(snap);
     expect(names.has(STRANGER)).toBe(false);
     expect(names.has(EX_RELAYER)).toBe(false);
+  });
+  it("tells a freezable ALM proxy from a plain one", () => {
+    const freezable = { ...c("almProxy", "0x" + "9".repeat(40)), label: "freezable" };
+    expect(contractLabel(freezable)).toBe("ALM proxy (freezable)");
+    expect(contractLabel(c("almProxy", PROXY))).toBe("ALM proxy");
+    expect(holderNames({ ...snap, contracts: [...snap.contracts, freezable] }).get(freezable.address)).toBe("ALM proxy (freezable)");
   });
 });

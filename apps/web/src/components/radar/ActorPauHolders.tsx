@@ -1,7 +1,7 @@
 import { Address } from "../Address";
 import { holderRows, type HolderStatus, type PauSnapshot } from "../../lib/pau";
 import type { Anchor } from "@/lib/pauAnchors";
-import { holderNames } from "@/lib/pauHolderNames";
+import { holderNames, isFreezable } from "@/lib/pauHolderNames";
 import { PauOriginChip } from "./PauOriginChip";
 import { PauSectionHeading } from "./PauSectionHeading";
 
@@ -26,6 +26,8 @@ export function PauHolders({ snap, anchor }: { snap: PauSnapshot; anchor: Anchor
   const rows = holderRows(snap);
   if (rows.length === 0) return null;
   const names = holderNames(snap);
+  const freezable = new Set(snap.contracts.filter(isFreezable).map((c) => c.address.toLowerCase()));
+  const onLabel = (on: string, contract: string) => (freezable.has(contract.toLowerCase()) ? "freezable proxy" : ON_LABEL[on] ?? on);
   return (
     <div className="mt-3">
       <PauSectionHeading deployment={anchor} section="roles">Roles</PauSectionHeading>
@@ -40,7 +42,7 @@ export function PauHolders({ snap, anchor }: { snap: PauSnapshot; anchor: Anchor
               <Address address={r.account} chain={snap.chain} />
               <span style={{ color: "var(--tan-3)" }}>{VERB[r.check][r.status === "denied" ? "denied" : "else"]}</span>
               <span style={{ color: "var(--tan-2)" }}>{r.name}</span>
-              <span style={{ color: "var(--tan-3)" }}>on {ON_LABEL[r.on] ?? r.on}</span>
+              <span style={{ color: "var(--tan-3)" }}>on {onLabel(r.on, r.contract)}</span>
               <span style={{ color: "var(--tan-3)" }}>{r.since ? `since ${r.since.time.slice(0, 10)}` : "not in the stored history"}</span>
               {r.since && <PauOriginChip chain={snap.chain} tx={r.since.tx} />}
             </li>

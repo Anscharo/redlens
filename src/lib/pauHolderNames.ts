@@ -3,7 +3,7 @@
 // account holding RELAYER on the controller, or an AdministeredAgent actor;
 // "Freezer" likewise), else nothing. A grant the chain denies names no one.
 // Pure.
-import type { PauSnapshot } from "./pau.ts";
+import type { ContractState, PauSnapshot } from "./pau.ts";
 import { holderRows } from "./pauView.ts";
 
 /** The label a contract carries in the deployment's contract list and as a holder. */
@@ -15,6 +15,12 @@ export const PAU_ROLE_LABEL: Record<string, string> = {
   administeredAgent: "AdministeredAgent",
 };
 
+/** An ALM proxy the registry marks `freezable` (ALMProxyFreezable); a deployment can hold it beside a plain one. */
+export const isFreezable = (c: Pick<ContractState, "role" | "label">) => c.role === "almProxy" && c.label === "freezable";
+
+/** The contract's name as the page shows it: its role's label, with a freezable proxy told apart from a plain one. */
+export const contractLabel = (c: Pick<ContractState, "role" | "label">) => (PAU_ROLE_LABEL[c.role] ?? c.role) + (isFreezable(c) ? " (freezable)" : "");
+
 const PART: Record<string, string> = { RELAYER: "Relayer", actor: "Relayer", FREEZER: "Freezer", revoker: "Freezer" };
 
 /** Lowercase account address to its name in this deployment; an unnamed account is absent. */
@@ -25,7 +31,7 @@ export function holderNames(snap: PauSnapshot): Map<string, string> {
     if (part && !out.has(r.account.toLowerCase())) out.set(r.account.toLowerCase(), part);
   }
   for (const c of snap.contracts) {
-    if (PAU_ROLE_LABEL[c.role]) out.set(c.address.toLowerCase(), PAU_ROLE_LABEL[c.role]);
+    if (PAU_ROLE_LABEL[c.role]) out.set(c.address.toLowerCase(), contractLabel(c));
   }
   return out;
 }
