@@ -40,4 +40,11 @@ describe("PauAtlasMark", () => {
     expect(within(container).getByRole("link", { name: /^differs from the atlas/ })).toHaveAttribute("href", "/atlas?id=doc-1&view=onchain");
     expect(container.querySelector("[data-atlas-flag]")).toBeNull();
   });
+  it("shows a ? linked to the document naming the key where none states a value, never a flag", async () => {
+    const { container } = render(<PauAtlasMark chain="ethereum" limit={limit("0xspell", day(1))} keyDocId="key-doc" />);
+    await new Promise((r) => setTimeout(r, 50));
+    const link = within(container).getByRole("link", { name: /names this limit's key/ });
+    expect([link.textContent, link.getAttribute("href")]).toEqual(["?", "/atlas?id=key-doc&view=onchain"]);
+    expect(container.querySelector("[data-atlas-flag]")).toBeNull();
+  });
 });

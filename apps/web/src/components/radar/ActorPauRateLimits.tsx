@@ -97,7 +97,7 @@ function LimitRow({ r, chain, keyIndex, verdict }: { r: LiveRateLimit; chain: st
       <td className={`${cell} text-right`} style={colRule} title={scale}>{isOff(r) ? "off" : <PauAmount raw={max} dec={dec} symbol={r.unit?.symbol} />}</td>
       <td className={`${cell} text-right`} style={colRule} title={scale}>{formatPerDay(r.data?.slope ?? r.configured.slope, dec)}</td>
       <td className={`${cell} text-center`} style={colRule} data-atlas-match={verdict?.mark}>
-        <PauAtlasMark verdict={verdict} chain={chain} limit={r} />
+        <PauAtlasMark verdict={verdict} keyDocId={keyIndex.get(r.key.toLowerCase())?.[0]?.docId} chain={chain} limit={r} />
       </td>
       <td className={`${cell} text-right whitespace-nowrap`} style={colRule}>
         <a href={explorerTxUrl(chain, r.setAt.tx)} target="_blank" rel="noopener" className="hover:underline" style={dim}>

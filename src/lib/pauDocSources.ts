@@ -62,8 +62,14 @@ export function docValueSources(id: string, graph: GraphData | null, heading?: D
   return { prime: primeEntity.id, sources: [...sources, ...extra], children: [...new Set([...direct, ...scope])] };
 }
 
-/** Every rate-limit source of one prime in the browser's graph, by its entity id; null before the graph loads or for an unknown prime. */
-export function graphPrimeSources(primeId: string, graph: GraphData | null): ValueSource[] | null {
+/**
+ * Every rate-limit source of one prime in the browser's graph, by its entity id,
+ * with the prime's documents that state limit values (pauLimitDocs.ts) when the
+ * atlas documents are given; null before the graph loads or for an unknown prime.
+ */
+export function graphPrimeSources(primeId: string, graph: GraphData | null, docs?: LimitDocs): ValueSource[] | null {
   const prime = graph?.participants.find((p) => p.id === primeId);
-  return graph && prime ? sourcesOf(prime, graph) : null;
+  if (!graph || !prime) return null;
+  const sources = sourcesOf(prime, graph);
+  return docs ? [...sources, ...limitDocSources(sources[0], prime.did, docs)] : sources;
 }

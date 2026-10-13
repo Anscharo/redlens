@@ -25,12 +25,19 @@ function UnmatchedFlag({ chain, limit }: { chain: string; limit: LiveRateLimit }
   );
 }
 
-/** The Atlas column: the verdict's mark linked to the document's Onchain tab, else a flag where no document is connected and how the limit was set calls for one. */
-export function PauAtlasMark({ verdict, chain, limit }: { verdict?: AtlasVerdict; chain: string; limit: LiveRateLimit }) {
-  if (!verdict) return <UnmatchedFlag chain={chain} limit={limit} />;
-  const { mark, text } = MARK[verdict.mark];
+const KEY_ONLY = "an Atlas document names this limit's key, but none states a value for it on this contract, so there is nothing to compare";
+
+/**
+ * The Atlas column: the verdict's mark linked to the document's Onchain tab; a ?
+ * linked to the document that names the limit's key where none states a value
+ * to compare; else a flag where no document is connected and how the limit was
+ * set calls for one.
+ */
+export function PauAtlasMark({ verdict, keyDocId, chain, limit }: { verdict?: AtlasVerdict; keyDocId?: string | null; chain: string; limit: LiveRateLimit }) {
+  if (!verdict && !keyDocId) return <UnmatchedFlag chain={chain} limit={limit} />;
+  const { mark, text } = verdict ? MARK[verdict.mark] : { mark: "?", text: KEY_ONLY };
   return (
-    <AtlasLink to={atlasOnchainHref(verdict.docId)} className="hover:underline" title={text} aria-label={text}>
+    <AtlasLink to={atlasOnchainHref(verdict?.docId ?? keyDocId!)} className="hover:underline" title={text} aria-label={text}>
       {mark}
     </AtlasLink>
   );

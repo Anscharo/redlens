@@ -72,3 +72,9 @@ describe("docValueSources over the atlas documents", () => {
     expect(docValueSources("elsewhere-doc", graph, { title: "About", children: [] }, docs)).toBeNull();
   });
 });
+
+describe("graphPrimeSources with the atlas documents", () => {
+  it("adds the prime's limit documents to its instance sources, the Radar page's view of the values", () => {
+    expect(graphPrimeSources("prime", graph, docs)?.map((s) => s.name)).toEqual(["prime", "i1", "i2", "Arbitrum - CCTP To Ethereum Limit"]);
+  });
+});

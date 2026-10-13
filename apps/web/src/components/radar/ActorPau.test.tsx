@@ -57,6 +57,7 @@ vi.mock("../../lib/pau", async (importOriginal) => {
   return { ...actual, loadPau: () => Promise.resolve(served), loadPauHistory: () => Promise.resolve(history) };
 });
 
+vi.mock("../../lib/docs", async (importOriginal) => ({ ...(await importOriginal<typeof import("../../lib/docs")>()), loadAtlas: () => new Promise(() => {}) }));
 vi.mock("../../lib/graph", () => ({ loadGraph: () => Promise.resolve({ participants: [{ id: PRIME, slug: "spark", name: "Spark", et: "agent", st: "prime", did: "p", m: "{}" }], instances: [], invocations: [], primitives: [], edges: [] }) }));
 vi.mock("@/lib/pauAtlasValues", () => ({
   checkAtlasValues: () => [
