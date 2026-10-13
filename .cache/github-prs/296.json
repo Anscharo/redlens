@@ -1,0 +1,10 @@
+{
+  "number": 296,
+  "title": "Remove the branch migration tool",
+  "body": "`sync/migrate_branch.py` was added in #294 to move in-flight edit branches from the atomized layout onto the consolidated one. That work is now complete — every open edit branch has been migrated, offered a migration, or is being handled directly with its author.\n\nIt's a single-use tool for an event that has passed, and it doesn't generalise. It re-expresses `split(head)` against `split(new-main)`, which carries a branch's whole tree rather than its change: a branch whose base is behind main migrates as a revert of everything main gained in the meantime. The round-trip check composes the migrated split against composing the branch's own `content/`, so it compares the branch to itself and reports that case as clean.\n\nNothing imports it, no tests cover it, no workflow calls it. The one prose reference in `partition.py` is updated here.\n",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/296",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

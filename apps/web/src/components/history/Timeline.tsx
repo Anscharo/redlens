@@ -4,14 +4,14 @@ import type { CSSProperties, ReactNode } from "react";
 // the interleaved disclaimers/toggles alike — renders as a TimelineRow, so the
 // rail in the left gutter runs unbroken from the top of the list to the bottom,
 // with a node dot on the rows that are actual changes.
-const RAIL_W = 18; // px — gutter width
-const GAP = 12; // px — gutter → content gap
-const PAD_Y = 10; // px — vertical padding of a dotted row's content (Tailwind py-2.5)
+export const RAIL_W = 18; // px — gutter width
+export const GAP = 12; // px — gutter → content gap
+export const PAD_Y = 10; // px — vertical padding of a dotted row's content (Tailwind py-2.5)
 /** Line-height of an entry's first line. The node dot centers on it, so EntryRow
  *  must set this as the line-1 line-height for the dot to line up with the date. */
 export const LINE1_H = 18;
 const NODE_TOP = PAD_Y + LINE1_H / 2; // px — vertical center of the node dot
-const NODE_D = 9; // px — node diameter
+export const NODE_D = 9; // px — node diameter
 // Bleed 1px past the row so the rail crosses the entry separator border below it
 // and the whole list reads as one line rather than per-row stubs.
 const BLEED = -1;
@@ -23,12 +23,17 @@ export const CONTENT_INDENT = RAIL_W + GAP;
 
 const CENTER: CSSProperties = { left: RAIL_W / 2, transform: "translateX(-50%)" };
 const LINE: CSSProperties = { ...CENTER, width: 1, background: "var(--border)" };
-// Preview (not-yet-cemented) entries dissolve the downward line into a fuzzy,
-// dashed break so it reads as "not committed into the timeline yet."
-const FUZZ_LINE: CSSProperties = {
+// A preview's own history is dashed, so it reads as "not committed into the
+// timeline yet". TimelineDashedSection fades it in and out; the overall entry
+// fades its downward line out (FUZZ_LINE).
+export const DASH_LINE: CSSProperties = {
   ...CENTER,
   width: 2,
   backgroundImage: "repeating-linear-gradient(var(--preview-add) 0 3px, transparent 3px 7px)",
+};
+// The preview's overall entry dissolves its downward dashes into a fuzzy break.
+const FUZZ_LINE: CSSProperties = {
+  ...DASH_LINE,
   WebkitMaskImage: "linear-gradient(to bottom, black, transparent 90%)",
   maskImage: "linear-gradient(to bottom, black, transparent 90%)",
 };

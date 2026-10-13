@@ -26,8 +26,8 @@ const COMMIT = process.argv[2] ?? "93f7f49";
 const { git, loadSnapshot } = atlasGit();
 // docs.json carries more fields than a snapshot does; the row planner reads
 // only id, doc_no, title, type and content, and the rest are filled in.
-const nodesOf = (hash: string) => [...snapshotNodes(loadSnapshot(hash) as Map<string, any>).values()].map((n, i) => ({ ...n, depth: 6, parentId: null, order: i, addressRefs: [] }));
-const headNodes = nodesOf(git(`rev-parse ${COMMIT}`)), baseNodes = nodesOf(git(`rev-parse ${COMMIT}^`));
+const nodesOf = async (hash: string) => [...snapshotNodes((await loadSnapshot(hash)) as Map<string, any>).values()].map((n, i) => ({ ...n, depth: 6, parentId: null, order: i, addressRefs: [] }));
+const headNodes = await nodesOf(git(`rev-parse ${COMMIT}`)), baseNodes = await nodesOf(git(`rev-parse ${COMMIT}^`));
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-preview-"));
 fs.writeFileSync(path.join(dir, "docs.json"), JSON.stringify({ nodes: Object.fromEntries(headNodes.map((n) => [n.id, n])) }));
 const live = (await sql`SELECT count(*)::int AS n FROM atlas_doc_embeddings`) as { n: number }[];

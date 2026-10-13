@@ -511,7 +511,8 @@ but main changed since the fork point. Clean fix = merge-base diff, which needs 
 Decided: **diff-as-history.** `atlas_history` is Postgres rows the worker writes by walking
 *merged* git history — an unmerged branch has none, and a tarball has no git log. So preview
 "history" = the list of docs this branch adds/changes vs main, straight from `diff.json`.
-Free, tarball-compatible. Real per-commit history (git-clone the branch) is P2.
+Free, tarball-compatible. Real per-commit history is planned in
+`preview-commit-history.md` (an isomorphic-git fetch, streamed over SSE behind `?history=by-commit`).
 
 ## Banner & disabled features
 

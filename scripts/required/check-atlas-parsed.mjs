@@ -33,7 +33,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { makeAtlasGitSource } from "../lib/atlas-git-source.mjs";
+import { makeAtlasGitSource } from "../lib/atlas-git-source.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
@@ -150,7 +150,7 @@ if (srcIds.size === 0) {
 // 3. Drop vs the atlas commit we are bumping FROM.
 if (AGAINST) {
   try {
-    const before = makeAtlasGitSource(SRC_DIR).loadSnapshot(AGAINST).size;
+    const before = (await makeAtlasGitSource(SRC_DIR).loadSnapshot(AGAINST)).size;
     const drop = before ? (before - parsedIds.size) / before : 0;
     console.log(
       `check:atlas — ${before} documents at ${AGAINST.slice(0, 7)} → ${parsedIds.size} now ` +

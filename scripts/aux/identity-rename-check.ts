@@ -23,7 +23,7 @@ const add = (group: string, a: SwapNode, b: SwapNode, note = "") => {
   pairs.push({ group, a, b, replaced: bodyWhollyReplaced(a.content, b.content), score: renameScore(a, b), note });
 };
 
-const latest = walkRetitles((c, before, after, ids) => {
+const latest = await walkRetitles((c, before, after, ids) => {
   for (const id of ids) add("real retitle", before.get(id)!, after.get(id)!, `${c.hash.slice(0, 7)} ${c.date.slice(0, 10)}`);
 });
 

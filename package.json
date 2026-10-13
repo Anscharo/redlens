@@ -129,6 +129,7 @@
     "@ternlight/base": "0.1.1",
     "arctic": "3.7.0",
     "graphology": "0.26.0",
+    "isomorphic-git": "1.44.1",
     "jose": "6.2.3",
     "minisearch": "7.2.0",
     "openai": "6.39.1",

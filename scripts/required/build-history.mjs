@@ -26,9 +26,9 @@ import {
   ATLAS_FILE,
   CONTENT_DIR,
   makeAtlasGitSource,
-} from "../lib/atlas-git-source.mjs";
+} from "../lib/atlas-git-source.ts";
+import { diffSnapshots, eventDiff, snapshotEvents } from "../lib/history-events.ts";
 import {
-  classifyDiff,
   classifyPrTitle,
   cleanDescription,
   matchBulletsToNodes,
@@ -41,7 +41,6 @@ import {
 } from "../lib/github-pr-cache.mjs";
 import { sql, waitForDb } from "../../src/server/db.ts";
 import { runMigrations } from "../../src/server/migrate.ts";
-import { lineDiff } from "../../src/lib/diffCore.ts";
 import {
   eventToRow,
   gitCommitSeq,
@@ -66,7 +65,7 @@ const OUT_DIR = path.join(ROOT, "public/history");
 // ---------------------------------------------------------------------------
 // Git helpers
 //
-// Layout detection and per-commit snapshot loading live in atlas-git-source.mjs
+// Layout detection and per-commit snapshot loading live in atlas-git-source.ts
 // — one seam covering all three layouts the atlas has shipped (monolithic,
 // atomized, consolidated), so nothing below needs to know which one a commit is in.
 // ---------------------------------------------------------------------------
@@ -79,47 +78,9 @@ const getCommits = () => atlasCommits();
 
 
 // ---------------------------------------------------------------------------
-// Line/word diff machinery lives in the shared core (src/lib/diffCore.ts),
-// also used by the preview diff path — one implementation, byte-identical
-// output. This script runs under Bun, which imports .ts directly.
+// Per-commit events and their diff bodies live in history-events.ts, shared
+// with a preview's commit history, so a commit row means the same on both.
 // ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Diff two snapshots → { added, modified, removed, moved }
-//
-// `moved` is independent of `modified` — a node that is renamed AND has its
-// content edited in the same commit appears in both lists, producing two
-// separate history entries. This makes "renumbered" / "atomized" events
-// visible even when the content didn't change.
-// ---------------------------------------------------------------------------
-
-function diffSnapshots(prev, curr) {
-  const added = [];
-  const modified = [];
-  const removed = [];
-  const moved = [];
-
-  for (const [id, node] of curr) {
-    const old = prev.get(id);
-    if (!old) {
-      added.push({ id, ...node });
-      continue;
-    }
-    if (old.contentHash !== node.contentHash || old.title !== node.title) {
-      modified.push({ id, ...node, prevTitle: old.title });
-    }
-    if (old.path && node.path && old.path !== node.path) {
-      moved.push({ id, ...node, movedFrom: old.path, movedTo: node.path });
-    }
-  }
-  for (const [id, node] of prev) {
-    if (!curr.has(id)) {
-      removed.push({ id, ...node });
-    }
-  }
-
-  return { added, modified, removed, moved };
-}
 
 // ---------------------------------------------------------------------------
 // Main
@@ -187,7 +148,7 @@ async function main() {
     if (idx >= 0) {
       startIndex = idx + 1;
       // Reconstruct prevSnapshot from the last processed commit so diffs are correct
-      prevSnapshot = loadSnapshot(allCommits[idx].hash);
+      prevSnapshot = await loadSnapshot(allCommits[idx].hash);
       console.error(
         `  skipping ${startIndex} already-processed commits, ${allCommits.length - startIndex} new`,
       );
@@ -220,20 +181,16 @@ async function main() {
     const pct = (((i + 1) / commits.length) * 100).toFixed(0);
     console.error(`[${pct}%] ${commit.hash.slice(0, 7)} ${commit.message.slice(0, 60)}`);
 
-    const snapshot = loadSnapshot(commit.hash);
+    const snapshot = await loadSnapshot(commit.hash);
 
     // On the very first atlas commit, prevSnapshot is empty so every node is "added".
     // This records the creation of all nodes that haven't changed since.
 
-    const { added, modified, removed, moved } = diffSnapshots(prevSnapshot, snapshot);
-    // Tag each changed node with its event type. A node can appear twice
-    // (once as "modified", once as "moved") — both entries are emitted.
-    const events = [
-      ...added.map((n) => ({ node: n, changeType: "added" })),
-      ...modified.map((n) => ({ node: n, changeType: "modified" })),
-      ...removed.map((n) => ({ node: n, changeType: "removed" })),
-      ...moved.map((n) => ({ node: n, changeType: "moved" })),
-    ];
+    const changed = diffSnapshots(prevSnapshot, snapshot);
+    const { added, modified, removed } = changed;
+    // A node can appear twice (once as "modified", once as "moved") — both
+    // entries are emitted.
+    const events = snapshotEvents(changed);
 
     // The HTML→Markdown migration commit (PR #117, "Migrate To Markdown File")
     // is the very first commit that touches Sky Atlas.md, so every doc shows
@@ -283,41 +240,15 @@ async function main() {
     }
 
     // Record history entries
-    for (const { node, changeType } of events) {
+    for (const ev of events) {
+      const { node, changeType } = ev;
       const entry = {
         date: commit.date.slice(0, 10),
         commitHash: commit.hash.slice(0, 7),
         commitSeq: 1000 + startIndex + i,
         changeType,
+        ...eventDiff(ev, prevSnapshot, snapshot, { midHistory: startIndex + i > 0, kindHint: prKindHint }),
       };
-
-      // Compute per-node content diff (skip for "added" on first commit — too noisy)
-      if (changeType === "modified") {
-        const prevContent = prevSnapshot.get(node.id)?.content ?? "";
-        const currContent = snapshot.get(node.id)?.content ?? "";
-        const diff = lineDiff(prevContent, currContent);
-        if (diff.length > 0) {
-          entry.diff = diff;
-          const kind = prKindHint ?? classifyDiff(diff);
-          if (kind) entry.changeKind = kind;
-        }
-      } else if (changeType === "added" && startIndex + i > 0) {
-        // Node newly introduced mid-history: show its full content as added lines
-        const currContent = snapshot.get(node.id)?.content ?? "";
-        if (currContent) {
-          const lines = currContent.split("\n").map((l) => ["+", l]);
-          entry.diff = lines.length > 20 ? [...lines.slice(0, 20), ["…"]] : lines;
-        }
-      } else if (changeType === "removed") {
-        const prevContent = prevSnapshot.get(node.id)?.content ?? "";
-        if (prevContent) {
-          const lines = prevContent.split("\n").map((l) => ["-", l]);
-          entry.diff = lines.length > 20 ? [...lines.slice(0, 20), ["…"]] : lines;
-        }
-      } else if (changeType === "moved") {
-        entry.movedFrom = node.movedFrom;
-        entry.movedTo = node.movedTo;
-      }
 
       if (pr) {
         entry.pr = pr.number;

@@ -49,6 +49,7 @@
     "reader_sidebar_toggle": { "props": { "node_id": "uuid", "action": "expand | collapse", "cascade": "bool (shift-click: unfolds 3 levels when closed, collapses the whole subtree when open)" } },
     "reader_copy_doc_no": { "props": { "node_id": "uuid", "doc_no": "string" } },
     "reader_copy_link": { "props": { "node_id": "uuid" } },
+    "reader_copy_sky_atlas_link": { "props": { "node_id": "uuid" } },
     "reader_atlas_link_out": { "props": { "node_id": "uuid" } },
     "reader_content_link": { "props": { "target_id": "uuid" } },
     "reader_annotation_nav": { "props": { "kind": "linked_doc | cited_by | relation | relation_source | glossary | glossary_source", "node_id": "uuid?", "doc_no": "string?" } },
