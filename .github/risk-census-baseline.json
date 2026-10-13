@@ -937,6 +937,12 @@
       "title": "Reference Implementation"
     },
     {
+      "taskKey": "u:ddb90fee-2851-4bf0-b924-f1d73e30ce7a",
+      "uuid": "ddb90fee-2851-4bf0-b924-f1d73e30ce7a",
+      "docNo": "A.3.5.2",
+      "title": "Smart Burn Engine Parameters"
+    },
+    {
       "taskKey": "u:f73dda95-0b1c-4bdc-b957-469253d27281",
       "uuid": "f73dda95-0b1c-4bdc-b957-469253d27281",
       "docNo": "A.3.5.3.2.1",
