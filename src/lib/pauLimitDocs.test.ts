@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { AtlasNode } from "../types.ts";
 import type { LiveRateLimit, StoredPauSnapshot } from "./pau.ts";
 import { checkAtlasValues } from "./pauAtlasValues.ts";
-import { limitDocSources, limitHeadingScope, type LimitDocs } from "./pauLimitDocs.ts";
+import { limitDocSources, limitHeadingScope, withInstanceLimitDocs, type LimitDocs } from "./pauLimitDocs.ts";
 import type { ValueSource } from "./pauInstanceKeys.ts";
 
 const node = (id: string, title: string, content = ""): AtlasNode => ({ id, doc_no: id, title, type: "Core", depth: 6, parentId: null, content, order: 0, addressRefs: [] });
@@ -69,5 +69,56 @@ describe("limitHeadingScope", () => {
     expect(limitHeadingScope("main", docs).sort()).toEqual(["mint", "plain"]);
     expect(limitHeadingScope("agg", docs)).toEqual([]);
     expect(limitHeadingScope("spark", docs)).toEqual([]);
+  });
+});
+
+describe("a group heading between the chain and the leaf", () => {
+  const nested: [string | null, AtlasNode[]][] = [
+    [null, [node("keel", "Keel")]],
+    ["keel", [node("rl", "Rate Limits")]],
+    ["rl", [node("kmain", "Ethereum Mainnet")]],
+    ["kmain", [node("kusds", "Ethereum Mainnet USDS"), node("ksusds", "Ethereum Mainnet sUSDS")]],
+    ["kusds", [node("kmint", "USDS Mint Maximum", "(`LIMIT_USDS_MINT`) is specified herein.\n\n- `maxAmount`: 1,000,000,000 USDS")]],
+    ["ksusds", [node("kdep", "sUSDS Deposit Maximum", "(`LIMIT_4626_DEPOSIT`) is specified herein.\n\n- `maxAmount`: 100,000,000 USDS"), node("kdom", "Bridged To Solana", "(`LIMIT_USDC_TO_DOMAIN`, hashed with Solana domain) is specified herein.\n\n- `maxAmount`: 5,000,000 USDC")]],
+  ];
+  const nestedDocs: LimitDocs = { byParent: new Map(nested), docs: Object.fromEntries(nested.flatMap(([, kids]) => kids).map((n) => [n.id, n])) };
+
+  it("reads the leaf, names its constant, and leaves a hashed constant unnamed", () => {
+    expect(limitDocSources({ name: "Keel", docId: null, params: {} }, "keel", nestedDocs).map((s) => [s.name, s.constant])).toEqual([
+      ["Ethereum Mainnet - USDS Mint Maximum", "LIMIT_USDS_MINT"],
+      ["Ethereum Mainnet - sUSDS Deposit Maximum", "LIMIT_4626_DEPOSIT"],
+      ["Ethereum Mainnet - Bridged To Solana", undefined],
+    ]);
+  });
+  it("keys a constant by the one key of it a deployment holds, and by none where it holds several", () => {
+    const one = lim("0x" + "5".repeat(64), "100000000000000000000000000", "0", { constant: "LIMIT_4626_DEPOSIT", args: ["0xvault"] });
+    const unit18 = { decimals: 18, symbol: "USDS", source: "token" as const };
+    const sources = limitDocSources({ name: "Keel", docId: null, params: {} }, "keel", nestedDocs).filter((s) => s.constant === "LIMIT_4626_DEPOSIT");
+    const held = (...limits: LiveRateLimit[]) => checkAtlasValues(sources, [snap("ethereum", "monolithic", limits.map((l) => ({ ...l, unit: unit18 })))]).map((c) => c.status);
+    expect(held(one)).toEqual(["match"]);
+    expect(held(one, lim("0x" + "6".repeat(64), "1", "0", { constant: "LIMIT_4626_DEPOSIT", args: ["0xother"] }))).toEqual(["no-key"]);
+  });
+});
+
+describe("withInstanceLimitDocs", () => {
+  const inst: [string | null, AtlasNode[]][] = [
+    [null, [node("inst", "Ethereum Mainnet - Spark Savings v2 USDC Instance Configuration Document")]],
+    ["inst", [node("risk", "Risk Parameters Current Configuration")]],
+    ["risk", [node("take", "Take Rate Limits", "The take rate limits are:\n\n- `maxAmount`: Unlimited"), node("other", "Spark Savings USDC Risk Parameters", "- Supply cap: 2,000,000,000 USDC")]],
+  ];
+  const instDocs: LimitDocs = { byParent: new Map(inst), docs: Object.fromEntries(inst.flatMap(([, kids]) => kids).map((n) => [n.id, n])) };
+  const VAULT = "0x28b3a8fb53b741a8fd78c0fb9a6b2393d896a43d";
+  const src: ValueSource = { name: "Ethereum Mainnet - Spark Savings v2 USDC instance", docId: "inst", params: { "Token Address": [VAULT, "tokenDoc"] } };
+
+  it("adds the values the instance's subtree states in a leaf titled '<X> Rate Limits', and nothing already carried", () => {
+    const out = withInstanceLimitDocs(src, instDocs);
+    expect(out.params["Take Rate Limits / maxAmount"]).toEqual(["Unlimited", "take"]);
+    expect(withInstanceLimitDocs(out, instDocs)).toBe(out);
+    expect(withInstanceLimitDocs({ ...src, docId: null }, instDocs).params).toBe(src.params);
+  });
+  it("compares a take limit with the vault's LIMIT_SPARK_VAULT_TAKE key the instance's token address derives", () => {
+    const key = lim("0x" + "7".repeat(64), UNL, "0", { constant: "LIMIT_SPARK_VAULT_TAKE", args: [VAULT] });
+    const checks = checkAtlasValues([withInstanceLimitDocs(src, instDocs)], [snap("ethereum", "monolithic", [key])]);
+    expect(checks.map((c) => [c.docId, c.label, c.status, c.via])).toEqual([["take", "Take maxAmount", "match", VAULT]]);
   });
 });

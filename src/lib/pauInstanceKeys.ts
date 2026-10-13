@@ -23,7 +23,7 @@ export interface ValueSource {
   /** The instance's defining document; null for the prime's own params. */
   docId?: string | null;
   params: Record<string, [string, string | null, string?]>;
-  /** A document-stated source: the controller constant its text names, whose one argument-less key on the chain is the source's key when it states no hash (pauLimitDocs.ts). */
+  /** A document-stated source: the controller constant its text names, whose one key on a deployment is the source's key there when it states no hash (pauLimitDocs.ts). */
   constant?: string;
   /** The deployment kind a document-stated source is about; every kind when absent. */
   kind?: "diamond" | "monolithic";
@@ -67,9 +67,12 @@ function derivedKeys(src: ValueSource, snaps: StoredPauSnapshot[], shared: Set<s
   });
 }
 
-/** The keys of the source's constant that take no argument: one per deployment, so the constant alone names the key. */
+/** The source's constant's key on each deployment of its chain that holds exactly one key of it: more than one (a constant hashed with a token or domain) leaves the text unable to say which. */
 function constantKeys(src: ValueSource, snaps: StoredPauSnapshot[]): InstanceKey[] {
-  const keys = limitsOf(chainSnaps(snaps, src)).filter((r) => r.derived?.constant === src.constant && r.derived?.args.length === 0).map((r) => r.key.toLowerCase());
+  const keys = chainSnaps(snaps, src).flatMap((s) => {
+    const held = [...new Set(limitsOf([s]).filter((r) => r.derived?.constant === src.constant).map((r) => r.key.toLowerCase()))];
+    return held.length === 1 ? held : [];
+  });
   return [...new Set(keys)].map((key) => ({ side: "", key }));
 }
 
