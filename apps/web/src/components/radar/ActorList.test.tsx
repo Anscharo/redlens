@@ -92,7 +92,7 @@ describe("ActorList", () => {
         ["Info", "/radar/spark"],
         ["Settlements", "/radar/spark/settlements"],
         ["History", "/radar/spark/history"],
-        ["Primitive instances", "/radar/spark/instances"],
+        ["Primitives", "/radar/spark/instances"],
         ["PAUs", "/radar/spark/pau"],
       ]);
       expect(sub.querySelector("a")).toHaveAttribute("data-active", "true");

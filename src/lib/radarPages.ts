@@ -15,7 +15,7 @@ export interface ActorPageDef {
 export const ACTOR_PAGES = [
   { key: "settlements", label: "Settlements", title: "Monthly settlements" },
   { key: "history", label: "History", title: "History of doc changes" },
-  { key: "instances", label: "Primitive instances", title: "Primitive instances" },
+  { key: "instances", label: "Primitives", title: "Primitives" },
   { key: "pau", label: "PAUs", title: "Parallelized Allocation Units" },
 ] as const satisfies readonly ActorPageDef[];
 

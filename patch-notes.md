@@ -35,7 +35,7 @@
 
 ## 2026-10-13
 
-- Widened the Responsibilities table on Radar info pages to the full page width, and listed a Prime Agent's invocations and instances together under each primitive with labels like In Progress Invocation and Active Instance
+- Widened the Responsibilities table on Radar info pages to the full page width, renamed a Prime Agent's Primitive instances page to Primitives, and listed its invocations and instances together under each primitive with labels like In Progress Invocation and Active Instance
 
 ## 2026-10-12
 

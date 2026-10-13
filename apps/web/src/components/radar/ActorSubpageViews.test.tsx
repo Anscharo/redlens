@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The History, Primitive instances and PAUs subpages: each in the shared
+// The History, Primitives and PAUs subpages: each in the shared
 // shell, handing the profile's data to the body it frames.
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
@@ -40,11 +40,11 @@ describe("actor subpages", () => {
 
   it("hands the Prime to its instances, or says it has none", () => {
     render(<ActorInstancesPage profile={profile({ primitives: [{} as never] })} />);
-    expect(screen.getByRole("heading", { level: 1, name: "Primitive instances" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Primitives" })).toBeInTheDocument();
     expect(screen.getByTestId("instances")).toHaveAttribute("data-prime", "spark");
     cleanup();
     render(<ActorInstancesPage profile={profile()} />);
-    expect(screen.getByText("no primitive instances")).toBeInTheDocument();
+    expect(screen.getByText("no primitives")).toBeInTheDocument();
   });
 
   it("hands the Prime to its PAUs", () => {
