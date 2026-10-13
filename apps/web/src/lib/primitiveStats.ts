@@ -23,6 +23,8 @@ export interface PrimitiveStat {
   suspendedNames: string[];
   completedNames: string[];
   invocationNames: string[];
+  // Each invocation's status (InProgress, Failed, …), parallel to invocationNames.
+  invocationStatuses: string[];
 }
 
 export interface CategoryStat {
@@ -124,7 +126,7 @@ export function buildPrimitiveStats(
       : prim.name.replace(/ Primitive$/i, "");
 
     if (!primMap.has(prim.st)) {
-      primMap.set(prim.st, { title: primitiveTitle, st: prim.st, docId: prim.did, invocations: 0, active: 0, suspended: 0, completed: 0, activeNames: [], suspendedNames: [], completedNames: [], invocationNames: [] });
+      primMap.set(prim.st, { title: primitiveTitle, st: prim.st, docId: prim.did, invocations: 0, active: 0, suspended: 0, completed: 0, activeNames: [], suspendedNames: [], completedNames: [], invocationNames: [], invocationStatuses: [] });
     }
   }
 
@@ -148,7 +150,7 @@ export function buildPrimitiveStats(
       : icd.st;
 
     if (!primMap.has(icd.st)) {
-      primMap.set(icd.st, { title: primitiveTitle, st: icd.st, docId: primitiveDocId, invocations: 0, active: 0, suspended: 0, completed: 0, activeNames: [], suspendedNames: [], completedNames: [], invocationNames: [] });
+      primMap.set(icd.st, { title: primitiveTitle, st: icd.st, docId: primitiveDocId, invocations: 0, active: 0, suspended: 0, completed: 0, activeNames: [], suspendedNames: [], completedNames: [], invocationNames: [], invocationStatuses: [] });
     }
     return primMap.get(icd.st)!;
   }
@@ -172,6 +174,7 @@ export function buildPrimitiveStats(
     if (!stat) continue;
     stat.invocations++;
     stat.invocationNames.push(invo.name);
+    stat.invocationStatuses.push(meta.status ?? "InProgress");
   }
 
   return [...agentMap.values()]

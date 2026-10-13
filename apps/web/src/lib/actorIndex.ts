@@ -63,6 +63,8 @@ export interface RadarPrimitive {
   categoryDocId: string | null;
   categoryOrder: number;
   status: string | null;
+  /** The Global Activation Status document that states `status` (the primitive's `has_status` target). */
+  statusDocId: string | null;
   isUnknown: boolean;
   instances: RadarInstance[];
   // Invocations share the RadarInstance shape (same ICD-derived fields) but
@@ -279,6 +281,10 @@ export function buildActorProfile(
   // ICD doc ID → primitive doc ID. Both instance_of (operational instances)
   // and invocation_of (in-progress invocations) resolve to the parent primitive.
   const instanceOfMap = buildInstanceOfMap(graph.edges);
+  const statusDocOf = new Map<string, string>();
+  for (const e of graph.edges) {
+    if (e.e === "has_status" && e.ft === "doc" && e.tt === "doc") statusDocOf.set(e.f, e.t);
+  }
 
   function toRadarInstance(
     ent: GraphEntity,
@@ -351,6 +357,7 @@ export function buildActorProfile(
         categoryDocId: catDoc?.id ?? null,
         categoryOrder: Number.parseInt(lastSeg, 10) || 0,
         status: meta.status,
+        statusDocId: p.did ? (statusDocOf.get(p.did) ?? null) : null,
         isUnknown: meta.is_unknown_primitive ?? false,
         instances: instancesBySt.get(p.st) ?? [],
         invocations: invocationsBySt.get(p.st) ?? [],

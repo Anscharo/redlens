@@ -49,6 +49,7 @@ function prim(overrides: Partial<RadarPrimitive> = {}): RadarPrimitive {
     categoryDocId: "cat-1",
     categoryOrder: 0,
     status: "Active",
+    statusDocId: "status-doc-1",
     isUnknown: false,
     instances: [],
     invocations: [],
@@ -78,6 +79,17 @@ describe("ActorInstances sections", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Genesis Primitives" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 3, name: "Distribution Reward" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 4, name: "Solo" })).toBeInTheDocument();
+  });
+
+  it("shows the full Global Activation Status, linked to the document that states it", () => {
+    render(<ActorInstances primitives={[prim({ status: "Completed", statusDocId: "status-doc-9", instances: [inst()] })]} />);
+    const pill = screen.getByText("Global Activation Status: Completed");
+    expect(pill.closest("a")).toHaveAttribute("href", expect.stringContaining("status-doc-9"));
+  });
+
+  it("leaves the Global Activation Status unlinked when no document states it", () => {
+    render(<ActorInstances primitives={[prim({ statusDocId: null, instances: [inst()] })]} />);
+    expect(screen.getByText("Global Activation Status: Active").closest("a")).toBeNull();
   });
 
   it("shows an 'unknown' badge and renders a title without a doc link", () => {

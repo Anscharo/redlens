@@ -11,6 +11,26 @@ export const HEADERS = [
   { key: "Com", full: "Completed",  label: "Completed Instances", group: "instance" as const, isGroupStart: false },
 ];
 
+const INVOCATION_STATUS_ORDER = ["InProgress", "Failed"];
+const INVOCATION_STATUS_LABEL: Record<string, string> = { InProgress: "In Progress", Failed: "Failed" };
+
+/** The invocation statuses present, in display order, each once. */
+export function invocationStatusesIn(statuses: readonly string[]): string[] {
+  const rank = (s: string) => {
+    const i = INVOCATION_STATUS_ORDER.indexOf(s);
+    return i === -1 ? INVOCATION_STATUS_ORDER.length : i;
+  };
+  return [...new Set(statuses)].sort((a, b) => rank(a) - rank(b));
+}
+
+/** What the Inv column counts, by the statuses actually in the count:
+ *  "In Progress Invocations", or "In Progress and Failed Invocations" when a
+ *  failed one is among them. */
+export function invocationLabel(statuses: readonly string[]): string {
+  const names = invocationStatusesIn(statuses).map((s) => INVOCATION_STATUS_LABEL[s] ?? s);
+  return names.length === 0 ? "Invocations" : `${names.join(" and ")} Invocations`;
+}
+
 export const BORDER = "1px solid var(--border)";
 // A visibly stronger divider than BORDER, for group boundaries — --tan-3 is
 // the same "stronger hairline" token index.css uses for the selected type
@@ -32,12 +52,11 @@ export function namesFor(p: PrimitiveStat, i: number): string[] {
   return [p.invocationNames, p.activeNames, p.suspendedNames, p.completedNames][i];
 }
 
-// Match the anchor scheme baked into ActorInstances: instance status cells
-// link to `<prim.st>-<status>` (first card of that status group); the
-// invocation cell links to `invocations-<prim.st>` (the primitive's
-// sub-section within the Invocations top-level section).
-export function anchorFor(h: typeof HEADERS[number], primSt: string): string {
-  if (h.group === "invocation") return `invocations-${primSt}`;
+// Match the anchor scheme baked into ActorInstances: a status cell links to
+// `<prim.st>-<status>`, the first card of that status group. The invocation
+// cell links to the first of the primitive's invocation statuses.
+export function anchorFor(h: typeof HEADERS[number], primSt: string, invocationStatuses: readonly string[] = []): string {
+  if (h.group === "invocation") return `${primSt}-${(invocationStatusesIn(invocationStatuses)[0] ?? "InProgress").toLowerCase()}`;
   return `${primSt}-${h.full.toLowerCase()}`;
 }
 

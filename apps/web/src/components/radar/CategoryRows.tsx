@@ -12,6 +12,7 @@ import {
   NameList,
   ROW_COLORS,
   anchorFor,
+  invocationLabel,
   namesFor,
   shortenCategoryTitle,
   tdStyle,
@@ -31,7 +32,8 @@ function PrimitiveRow({ p, rowIndex, agentSlug }: { p: PrimitiveStat; rowIndex: 
       {[p.invocations, p.active, p.suspended, p.completed].map((n, i) => {
         const h = HEADERS[i];
         const style = tdStyle(h, n === 0);
-        const tip = n === 0 ? `No ${h.label}` : <NameList names={namesFor(p, i)} />;
+        const label = h.group === "invocation" ? invocationLabel(p.invocationStatuses) : h.label;
+        const tip = n === 0 ? `No ${label}` : <NameList names={namesFor(p, i)} />;
         if (n === 0) {
           return (
             <Tooltip key={i} content={tip}>
@@ -42,7 +44,7 @@ function PrimitiveRow({ p, rowIndex, agentSlug }: { p: PrimitiveStat; rowIndex: 
         return (
           <Tooltip key={i} content={tip}>
             <td className="mono text-[10px] py-0.5" style={style}>
-              <Link to={actorPageHref(agentSlug, "primitives", anchorFor(h, p.st))} className="hover:underline" style={{ color: "inherit" }}>
+              <Link to={actorPageHref(agentSlug, "primitives", anchorFor(h, p.st, p.invocationStatuses))} className="hover:underline" style={{ color: "inherit" }}>
                 {n}
               </Link>
             </td>
@@ -80,8 +82,9 @@ export function CategoryRows({ cat, startIndex, agentSlug }: { cat: CategoryStat
           const groups: NameGroup[] = cat.primitives
             .map((p) => ({ primTitle: p.title, names: namesFor(p, i) }))
             .filter((g) => g.names.length > 0);
+          const label = h.group === "invocation" ? invocationLabel(cat.primitives.flatMap((p) => p.invocationStatuses)) : h.label;
           const tip = sum === 0
-            ? `No ${h.label} in ${cat.title}`
+            ? `No ${label} in ${cat.title}`
             : <GroupedNameList groups={groups} />;
           const cellStyle: React.CSSProperties = {
             textAlign: "center",

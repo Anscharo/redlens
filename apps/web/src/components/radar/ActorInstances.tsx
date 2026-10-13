@@ -38,7 +38,7 @@ function buildCategoryGroups(primitives: RadarPrimitive[]): CategoryGroup[] {
 }
 
 // Invocations (InProgress) lead; they sit in the same list as the instances.
-const INSTANCE_STATUS_ORDER = ["InProgress", "Active", "Suspended", "Completed"];
+const INSTANCE_STATUS_ORDER = ["InProgress", "Failed", "Active", "Suspended", "Completed"];
 
 function instanceStatusRank(s: string | null): number {
   const i = INSTANCE_STATUS_ORDER.indexOf(s ?? "");
@@ -64,6 +64,12 @@ function withStatusAnchors(
     seen.add(key);
     return { inst, anchorId: `${prim.st}-${key}` };
   });
+}
+
+/** A primitive's Global Activation Status, linked to the document that states it. */
+function ActivationPill({ status, docId }: { status: string; docId: string | null }) {
+  const pill = <StatusPill s={status} label={`Global Activation Status: ${status}`} />;
+  return docId ? <AtlasLink to={atlasHref(docId)} className="hover:underline">{pill}</AtlasLink> : pill;
 }
 
 interface SectionProps {
@@ -114,7 +120,7 @@ function ActorItemsSection({ groups, level, prime }: SectionProps) {
                         <span className="mono text-[11px]" style={{ color: "var(--accent)" }}>{prim.title}</span>
                       )}
                     </RadarHeading>
-                    {prim.status && <StatusPill s={prim.status} />}
+                    {prim.status && <ActivationPill status={prim.status} docId={prim.statusDocId} />}
                     <span className="mono text-[10px]" style={{ color: "var(--tan-3)", opacity: 0.6 }}>({items.length})</span>
                     {prim.isUnknown && (
                       <span className="mono text-[10px] px-1 rounded" style={{ color: "var(--error-text)", border: "1px solid var(--red)" }} title="Not listed in Current Primitives (A.2.2.1.5.1)">unknown</span>
