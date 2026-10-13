@@ -11,7 +11,7 @@ import { ActorPauPage } from "./ActorPauPage";
 const PAGE_VIEWS: Record<ActorPageKey, ComponentType<{ profile: ActorProfile }>> = {
   settlements: ActorSettlementsPage,
   history: ActorHistoryPage,
-  instances: ActorInstancesPage,
+  primitives: ActorInstancesPage,
   pau: ActorPauPage,
 };
 

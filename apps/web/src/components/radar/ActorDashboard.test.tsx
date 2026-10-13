@@ -266,7 +266,7 @@ describe("ActorDashboard for a Prime Agent (Info page)", () => {
   it("forwards a fragment that lives on a subpage to that subpage", async () => {
     window.history.replaceState(null, "", "/radar/spark#instance-i1");
     render(<ActorDashboard profile={profile()} />);
-    await waitFor(() => expect(window.location.pathname).toBe("/radar/spark/instances"));
+    await waitFor(() => expect(window.location.pathname).toBe("/radar/spark/primitives"));
     expect(window.location.hash).toBe("#instance-i1");
     window.history.replaceState(null, "", "/radar/spark#history");
     await waitFor(() => expect(window.location.pathname).toBe("/radar/spark/history"));

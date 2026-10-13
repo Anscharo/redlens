@@ -15,7 +15,7 @@ export interface ActorPageDef {
 export const ACTOR_PAGES = [
   { key: "settlements", label: "Settlements", title: "Monthly settlements" },
   { key: "history", label: "History", title: "History of doc changes" },
-  { key: "instances", label: "Primitive instances", title: "Primitive instances" },
+  { key: "primitives", label: "Primitives", title: "Primitives" },
   { key: "pau", label: "PAUs", title: "Parallelized Allocation Units" },
 ] as const satisfies readonly ActorPageDef[];
 
@@ -24,6 +24,13 @@ export type ActorPageKey = (typeof ACTOR_PAGES)[number]["key"];
 const BY_KEY = new Map<string, ActorPageDef>(ACTOR_PAGES.map((p) => [p.key, p]));
 
 export const isActorPageKey = (s: string | undefined): s is ActorPageKey => s !== undefined && BY_KEY.has(s);
+
+/** Retired path segments, each mapped to the subpage that replaced it, so old
+ *  links keep landing. */
+const LEGACY_PAGE_KEYS: Readonly<Record<string, ActorPageKey>> = { instances: "primitives" };
+
+export const legacyActorPageKey = (s: string | undefined): ActorPageKey | undefined =>
+  s === undefined ? undefined : LEGACY_PAGE_KEYS[s];
 
 export const actorPageDef = (key: ActorPageKey): ActorPageDef => BY_KEY.get(key)!;
 

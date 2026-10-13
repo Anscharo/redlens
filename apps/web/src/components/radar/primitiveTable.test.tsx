@@ -8,6 +8,7 @@ import {
   shortenCategoryTitle,
   namesFor,
   anchorFor,
+  invocationLabel,
   thStyle,
   tdStyle,
   NameList,
@@ -40,6 +41,7 @@ describe("namesFor", () => {
     suspendedNames: ["Suspended1"],
     completedNames: ["Completed1"],
     invocationNames: ["Invocation1"],
+    invocationStatuses: ["InProgress"],
   };
 
   it("returns invocationNames for index 0", () => {
@@ -59,9 +61,20 @@ describe("namesFor", () => {
   });
 });
 
+describe("invocationLabel", () => {
+  it("names the statuses in the count", () => {
+    expect(invocationLabel(["InProgress", "InProgress"])).toBe("In Progress Invocations");
+    expect(invocationLabel(["Failed", "InProgress"])).toBe("In Progress and Failed Invocations");
+    expect(invocationLabel(["Failed"])).toBe("Failed Invocations");
+    expect(invocationLabel([])).toBe("Invocations");
+  });
+});
+
 describe("anchorFor", () => {
-  it("routes invocation-group headers to invocations-<st>", () => {
-    expect(anchorFor(HEADERS[0], "dr")).toBe("invocations-dr");
+  it("routes invocation-group headers to the primitive's first invocation status", () => {
+    expect(anchorFor(HEADERS[0], "dr")).toBe("dr-inprogress");
+    expect(anchorFor(HEADERS[0], "dr", ["Failed", "InProgress"])).toBe("dr-inprogress");
+    expect(anchorFor(HEADERS[0], "dr", ["Failed"])).toBe("dr-failed");
   });
 
   it("routes instance-group headers to <st>-<full lowercase>", () => {
