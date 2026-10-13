@@ -124,7 +124,7 @@ export function PauRateLimits({ chain, limits, keyIndex, atlasMatched, anchor }:
             <th className={`${head} text-right`} style={colRule} title="how much the limit refills per day">Slope</th>
             <th className={`${head} text-right`} style={colRule}>Available</th>
             <th className={`${head} text-center max-w-[5rem]`} style={colRule} title="✓ when every value the atlas states for this key matches the chain">Matches Atlas</th>
-            <th className={`${head} text-right`} style={colRule}>Set</th>
+            <th className={`${head} text-right`} style={colRule}>Last updated</th>
           </tr>
         </thead>
         <tbody>

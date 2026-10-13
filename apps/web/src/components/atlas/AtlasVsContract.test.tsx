@@ -47,7 +47,7 @@ describe("AtlasVsContract", () => {
     render(<AtlasVsContract rows={result.current} />);
     expect(screen.getByText("Atlas vs contract · 3")).toBeInTheDocument();
     const table = screen.getByRole("table");
-    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Value", "Atlas", "Contract", "Status", "Set"]);
+    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Value", "Atlas", "Contract", "Status", "Last updated"]);
     const rows = within(table).getAllByRole("row").slice(1);
     expect(rows.map((r) => r.getAttribute("data-status"))).toEqual(["mismatch", "match", "not-stated"]);
     expect(rows[0]).toHaveTextContent(/Deposit maxAmount\s*0\s*20M USDC\s*✗\s*differs from the atlas\s*2025-12-15/);

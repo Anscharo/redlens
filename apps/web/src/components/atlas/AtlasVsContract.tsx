@@ -93,7 +93,7 @@ export function AtlasVsContract({ rows }: { rows: ValueCheck[] }) {
             <th className="font-normal pb-1">Atlas</th>
             <th className="font-normal pb-1">Contract</th>
             <th className="font-normal pb-1"><span className="sr-only">Status</span></th>
-            <th className="font-normal pb-1 text-right">Set</th>
+            <th className="font-normal pb-1 text-right">Last updated</th>
           </tr>
         </thead>
         <tbody>{rows.map((c, i) => <Row key={`${c.key ?? "none"}:${c.label}:${c.kind ?? ""}:${i}`} c={c} label={rowLabel(c, rows)} />)}</tbody>
