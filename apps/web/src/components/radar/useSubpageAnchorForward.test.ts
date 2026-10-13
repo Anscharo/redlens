@@ -12,10 +12,16 @@ describe("subpageForAnchor", () => {
     expect(subpageForAnchor("primitives", prims)).toEqual({ page: "primitives" });
   });
 
-  it("keeps instance, invocation, primitive and category anchors on the instances page", () => {
-    for (const id of ["instance-i1", "invocations", "invocations-distribution-reward", "distribution-reward", "distribution-reward-active", "demand-side-stablecoin-primitives"]) {
+  it("keeps instance, primitive and category anchors on the primitives page", () => {
+    for (const id of ["instance-i1", "distribution-reward", "distribution-reward-active", "demand-side-stablecoin-primitives"]) {
       expect(subpageForAnchor(id, prims)).toEqual({ page: "primitives", fragment: id });
     }
+  });
+
+  it("maps the retired invocation and instances anchors onto what replaced them", () => {
+    expect(subpageForAnchor("invocations-distribution-reward", prims)).toEqual({ page: "primitives", fragment: "distribution-reward" });
+    expect(subpageForAnchor("invocations", prims)).toEqual({ page: "primitives", fragment: "primitives" });
+    expect(subpageForAnchor("instances", prims)).toEqual({ page: "primitives", fragment: "primitives" });
   });
 
   it("sends a PAUs page fragment there with the fragment kept", () => {

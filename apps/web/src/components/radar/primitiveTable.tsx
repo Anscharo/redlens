@@ -1,4 +1,5 @@
 import type { PrimitiveStat } from "../../lib/primitiveStats";
+import { INVOCATION_STATUSES, INVOCATION_STATUS_LABEL } from "@/lib/radarRules";
 
 // Instances (A/S/C) and Invocations are atlas-distinct concepts (A.2.2.1.3 vs
 // A.2.2.1.4). Invocations sit in the leftmost column; the Active column carries
@@ -11,14 +12,11 @@ export const HEADERS = [
   { key: "Com", full: "Completed",  label: "Completed Instances", group: "instance" as const, isGroupStart: false },
 ];
 
-const INVOCATION_STATUS_ORDER = ["InProgress", "Failed"];
-const INVOCATION_STATUS_LABEL: Record<string, string> = { InProgress: "In Progress", Failed: "Failed" };
-
 /** The invocation statuses present, in display order, each once. */
 export function invocationStatusesIn(statuses: readonly string[]): string[] {
   const rank = (s: string) => {
-    const i = INVOCATION_STATUS_ORDER.indexOf(s);
-    return i === -1 ? INVOCATION_STATUS_ORDER.length : i;
+    const i = (INVOCATION_STATUSES as readonly string[]).indexOf(s);
+    return i === -1 ? INVOCATION_STATUSES.length : i;
   };
   return [...new Set(statuses)].sort((a, b) => rank(a) - rank(b));
 }

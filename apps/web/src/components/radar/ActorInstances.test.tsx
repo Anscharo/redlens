@@ -92,6 +92,12 @@ describe("ActorInstances sections", () => {
     expect(screen.getByText("Global Activation Status: Active").closest("a")).toBeNull();
   });
 
+  it("labels a failed invocation as an invocation, not an instance", () => {
+    render(<ActorInstances primitives={[prim({ invocations: [inst({ status: "Failed", displayName: "Broken" })] })]} />);
+    expect(screen.getByText("Failed Invocation")).toBeInTheDocument();
+    expect(screen.queryByText("Failed Instance")).not.toBeInTheDocument();
+  });
+
   it("shows an 'unknown' badge and renders a title without a doc link", () => {
     render(
       <ActorInstances
@@ -231,7 +237,7 @@ describe("ActorInstances parameter value rendering", () => {
 
   it("renders instance status pills", () => {
     render(<ActorInstances primitives={[prim({ instances: [inst({ status: "Suspended" })] })]} />);
-    const section = screen.getByRole("region", { name: "Instances" });
+    const section = screen.getByRole("region", { name: "Primitives" });
     expect(within(section).getByText("Suspended Instance")).toBeInTheDocument();
   });
 });
@@ -258,7 +264,7 @@ describe("ActorInstances layout", () => {
         ]}
       />,
     );
-    const grid = container.querySelector("#instances .radar-prim-grid")!;
+    const grid = container.querySelector("#primitives .radar-prim-grid")!;
     const cells = [...grid.children].map((c) => [c.id, c.getAttribute("data-span")]);
     expect(cells).toEqual([["fee", null], ["rebate", null], ["dr", "row"]]);
   });

@@ -44,6 +44,15 @@ describe("RadarActorRoute", () => {
     expect(mem.history.at(-1)).toBe("/radar/spark/primitives");
   });
 
+  it("keeps the fragment on the redirect, mapping a retired one onto what replaced it", () => {
+    window.location.hash = "#invocations-distribution-reward";
+    expect(at("/radar/spark/instances").history.at(-1)).toBe("/radar/spark/primitives#distribution-reward");
+    cleanup();
+    window.location.hash = "#instance-i1";
+    expect(at("/radar/spark/instances").history.at(-1)).toBe("/radar/spark/primitives#instance-i1");
+    window.location.hash = "";
+  });
+
   it("redirects a segment that names no subpage to the Info page", () => {
     const mem = at("/radar/spark/nonsense");
     expect(mem.history.at(-1)).toBe("/radar/spark");

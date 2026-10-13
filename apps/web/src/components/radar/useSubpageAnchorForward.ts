@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useLocationProperty } from "wouter/use-browser-location";
 import { actorPageHref } from "@/lib/routes";
-import { RADAR_SECTION } from "@/lib/radarAnchors";
+import { RADAR_SECTION, legacyAnchor } from "@/lib/radarAnchors";
 import { isPauFragment } from "@/lib/pauAnchors";
 import type { ActorPageKey } from "@/lib/radarPages";
 import type { RadarPrimitive } from "../../lib/actorIndex";
@@ -27,7 +27,7 @@ export function subpageForAnchor(
     id === "invocations" ||
     id.startsWith("invocations-") ||
     primitives.some((p) => id === p.st || id.startsWith(`${p.st}-`) || id === toAnchorId(p.category ?? "Other"));
-  return onInstances ? { page: "primitives", fragment: id } : null;
+  return onInstances ? { page: "primitives", fragment: legacyAnchor(id) } : null;
 }
 
 /** On a Prime's Info page, a link whose fragment names a section that lives on

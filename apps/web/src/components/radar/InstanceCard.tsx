@@ -7,6 +7,7 @@ import { ParamAddressKeys, type PauPrime } from "./ParamAddressKeys";
 import { listedAddress } from "../../lib/pau";
 import { atlasHref } from "@/lib/routes";
 import { instanceAnchor } from "@/lib/radarAnchors";
+import { INVOCATION_STATUS_LABEL, isInvocationStatus } from "@/lib/radarRules";
 import { useAddressMap } from "../../hooks/useAddressMap";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { StatusPill } from "../reports/RewardsCells";
@@ -20,9 +21,9 @@ function measureKeyPx(key: string): number {
   catch { return key.length * 6; }
 }
 
-/** InProgress is the one Invocation status (atlas A.2.2.1.4); every other status belongs to an Instance. */
+/** An invocation status reads "<Status> Invocation", every other status "<Status> Instance". */
 export function statusLabel(status: string): string {
-  return status === "InProgress" ? "In Progress Invocation" : `${status} Instance`;
+  return isInvocationStatus(status) ? `${INVOCATION_STATUS_LABEL[status]} Invocation` : `${status} Instance`;
 }
 
 /** A param line, with the on-chain keys derived from it when it lists an address where a RateLimitID belongs. */

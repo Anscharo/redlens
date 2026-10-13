@@ -2,6 +2,8 @@ import { AtlasLink } from "../AtlasLink";
 import type { RadarInstance, RadarPrimitive } from "../../lib/actorIndex";
 import { toAnchorId } from "../../lib/anchorId";
 import { atlasHref } from "@/lib/routes";
+import { RADAR_SECTION } from "@/lib/radarAnchors";
+import { INVOCATION_STATUSES } from "@/lib/radarRules";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { StatusPill } from "../reports/RewardsCells";
 import { InstanceCard } from "./InstanceCard";
@@ -37,8 +39,8 @@ function buildCategoryGroups(primitives: RadarPrimitive[]): CategoryGroup[] {
   return groups;
 }
 
-// Invocations (InProgress) lead; they sit in the same list as the instances.
-const INSTANCE_STATUS_ORDER = ["InProgress", "Failed", "Active", "Suspended", "Completed"];
+// Invocations lead; they sit in the same list as the instances.
+const INSTANCE_STATUS_ORDER: readonly string[] = [...INVOCATION_STATUSES, "Active", "Suspended", "Completed"];
 
 function instanceStatusRank(s: string | null): number {
   const i = INSTANCE_STATUS_ORDER.indexOf(s ?? "");
@@ -154,7 +156,7 @@ export function ActorInstances({ primitives, prime }: Props) {
   const groups = buildCategoryGroups(primitives);
 
   return (
-    <section id="instances" aria-label="Instances" style={{ scrollMarginTop: HEADER_OFFSET }}>
+    <section id={RADAR_SECTION.primitives} aria-label="Primitives" style={{ scrollMarginTop: HEADER_OFFSET }}>
       <ActorItemsSection groups={groups} level={2} prime={prime} />
     </section>
   );

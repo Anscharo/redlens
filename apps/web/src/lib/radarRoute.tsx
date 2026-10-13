@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { Redirect } from "wouter";
 import { ROUTES, actorHref, actorPageHref } from "@/lib/routes";
 import { isActorPageKey, legacyActorPageKey } from "@/lib/radarPages";
+import { legacyAnchor } from "@/lib/radarAnchors";
 import { Loading } from "../components/Loading";
 import { RadarPage } from "./lazyRoutes";
 
@@ -21,7 +22,10 @@ export interface RadarActorRouteProps {
  *  src/lib/radarPages.ts redirects to the actor's Info page. */
 export function RadarActorRoute({ slug, page, query }: RadarActorRouteProps) {
   const renamed = legacyActorPageKey(page);
-  if (renamed) return <Redirect to={actorPageHref(slug, renamed) + window.location.hash} replace />;
+  if (renamed) {
+    const fragment = window.location.hash.slice(1);
+    return <Redirect to={actorPageHref(slug, renamed, fragment ? legacyAnchor(fragment) : undefined)} replace />;
+  }
   if (page !== undefined && !isActorPageKey(page)) return <Redirect to={actorHref(slug)} replace />;
   return (
     <Suspense fallback={<Loading />}>
