@@ -208,7 +208,9 @@ describe("ActorPau", () => {
     expect(screen.getAllByLabelText("the AdministeredAgent lists it")).toHaveLength(2);
     expect(screen.getByLabelText("membership could not be read")).toBeInTheDocument();
     expect(screen.getByText("not in the stored history")).toBeInTheDocument();
-    expect(screen.getByText("Max slippage")).toBeInTheDocument();
+    const param = document.querySelector("section[data-contract] li") as HTMLElement;
+    expect(param).toHaveTextContent(/^Max slippage .* → /);
+    expect(within(param.closest("section") as HTMLElement).getByRole("heading", { level: 5 })).toBeInTheDocument();
   });
 
   it("shows under an instance's address-valued RateLimitID the on-chain key derived from it, linked to the PAUs page", async () => {

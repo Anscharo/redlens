@@ -1,3 +1,4 @@
+import { Address } from "../Address";
 import type { PauParam, StoredPauSnapshot } from "../../lib/pau";
 import type { Anchor } from "@/lib/pauAnchors";
 import { contractLabel } from "@/lib/pauHolderNames";
@@ -27,29 +28,36 @@ function Values({ p }: { p: PauParam }) {
 
 /**
  * The latest value of each per-pool, per-token or per-destination setting a PAU
- * contract holds (max slippage, recipients, tick bounds). Each row is the last
- * admin event that set it on that contract: what it is, what it is for, which
- * contract holds it, and when and from where it was set.
+ * contract holds (max slippage, recipients, tick bounds), grouped by the contract
+ * holding it. Each row is the last admin event that set it: the setting and what
+ * it is for, its value, and when and from where it was set.
  */
 export function PauParams({ snap, anchor }: { snap: StoredPauSnapshot; anchor: Anchor }) {
-  const params = snap.contracts.flatMap((c) => (c.params ?? []).map((p) => ({ ...p, contract: c })));
-  if (params.length === 0) return null;
+  const held = snap.contracts.filter((c) => (c.params ?? []).length > 0);
+  if (held.length === 0) return null;
   return (
     <div className="mt-3">
       <PauSectionHeading deployment={anchor} section="parameters">Parameters</PauSectionHeading>
       <p className="text-[12px] mb-1" style={{ color: "var(--tan-2)" }}>
-        Settings the contracts above hold for each pool, token or destination, as the last admin event that set each one says.
+        Settings each contract holds for a pool, token or destination, as the last admin event that set each one says.
       </p>
-      <ul className="space-y-0.5">
-        {params.map((p) => (
-          <li key={`${p.contract.address}:${p.event}:${p.subject}`} className="mono text-[11px] break-words" style={{ color: "var(--tan-2)" }} title={`${p.event} on ${p.contract.address}`}>
-            {paramTitle(p.event)}{" "}
-            <span title={p.subject}>{paramTarget(p.event, p.subject) ?? clip(p.subject)}</span>{" "}
-            <span style={dim}><Values p={p} /> · on {contractLabel(p.contract)} · set {p.setAt.time.slice(0, 10)}</span>{" "}
-            <PauOriginChip chain={snap.chain} tx={p.setAt.tx} />
-          </li>
-        ))}
-      </ul>
+      {held.map((c) => (
+        <section key={c.address} className="mb-2" data-contract={c.address}>
+          <h5 className="mono text-[11px] flex items-baseline gap-2" style={{ color: "var(--tan)" }}>
+            {contractLabel(c)} <Address address={c.address} chain={snap.chain} noBalance />
+          </h5>
+          <ul className="space-y-0.5 pl-3">
+            {(c.params ?? []).map((p) => (
+              <li key={`${p.event}:${p.subject}`} className="mono text-[11px] break-words" style={{ color: "var(--tan-2)" }} title={p.event}>
+                {paramTitle(p.event)} <span title={p.subject}>{paramTarget(p.event, p.subject) ?? clip(p.subject)}</span>
+                {" → "}
+                <Values p={p} />{" "}
+                <span style={dim}>set {p.setAt.time.slice(0, 10)}</span> <PauOriginChip chain={snap.chain} tx={p.setAt.tx} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
     </div>
   );
 }
