@@ -33,9 +33,13 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-10-12
+## 2026-10-13
 
 - Improved the PAU page: rate limits now have a Slope column, grouped rows and cleaner columns, each contract's role has a tooltip saying why it is listed, and role rows name the account (Controller, ALM proxy, Relayer, Freezer) holding each role
+
+## 2026-10-12
+
+- Added a button on each document to copy its sky-atlas.io link
 - Showed the Atlas vs contract rate-limit table on a Rate Limits heading as well as on its Inflow and Outflow pages, and read rate limits the Atlas lists one asset at a time
 - Added a By commit switch to a preview's history tab, listing each commit on the branch that changed the document, with its diff
 
