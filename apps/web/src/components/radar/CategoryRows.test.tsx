@@ -20,6 +20,7 @@ function makePrimitive(overrides: Partial<PrimitiveStat> = {}): PrimitiveStat {
     suspendedNames: [],
     completedNames: [],
     invocationNames: ["I1", "I2", "I3"],
+    invocationStatuses: ["InProgress", "InProgress", "InProgress"],
     ...overrides,
   };
 }
@@ -75,6 +76,7 @@ describe("CategoryRows", () => {
             suspended: 0,
             completed: 0,
             invocationNames: ["I1"],
+            invocationStatuses: ["InProgress"],
             activeNames: [],
             suspendedNames: [],
             completedNames: [],
@@ -99,8 +101,8 @@ describe("CategoryRows", () => {
     renderInTable(
       makeCategory({
         primitives: [
-          makePrimitive({ st: "P1", title: "Primitive One", invocations: 2, active: 1, suspended: 0, completed: 0, invocationNames: ["I1", "I2"], activeNames: ["A1"], suspendedNames: [], completedNames: [] }),
-          makePrimitive({ st: "P2", title: "Primitive Two", invocations: 3, active: 0, suspended: 1, completed: 0, invocationNames: ["I3", "I4", "I5"], activeNames: [], suspendedNames: ["S1"], completedNames: [] }),
+          makePrimitive({ st: "P1", title: "Primitive One", invocations: 2, active: 1, suspended: 0, completed: 0, invocationNames: ["I1", "I2"], invocationStatuses: ["InProgress", "InProgress"], activeNames: ["A1"], suspendedNames: [], completedNames: [] }),
+          makePrimitive({ st: "P2", title: "Primitive Two", invocations: 3, active: 0, suspended: 1, completed: 0, invocationNames: ["I3", "I4", "I5"], invocationStatuses: ["InProgress", "InProgress", "InProgress"], activeNames: [], suspendedNames: ["S1"], completedNames: [] }),
         ],
       }),
     );

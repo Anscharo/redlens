@@ -124,7 +124,7 @@ const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
 // fragile: doc_no prefix
 const AGENT_ROOT_RE = /^A\.6\.1\.1\.\d+$/;
 
-const DOMAIN_ORDER: RiskDomain[] = ["peg", "alloc", "sc"];
+export const RISK_DOMAINS: RiskDomain[] = ["peg", "alloc", "sc"];
 
 function agentNameFor(node: AtlasNode, docs: Record<string, AtlasNode>): string | null {
   for (let p: string | null = node.parentId; p; p = docs[p]?.parentId ?? null) {
@@ -164,7 +164,7 @@ export function enumerateRiskCandidates(bundle: AtlasBundle): RiskEnumeration {
   for (const node of all) {
     const anchoredSet = anchorDomains.get(node.id);
     const haystack = `${node.title}\n${node.content}`;
-    const domains = DOMAIN_ORDER.filter(
+    const domains = RISK_DOMAINS.filter(
       (dom) => anchoredSet?.has(dom) || KEYWORDS[dom].test(haystack),
     );
     if (!domains.length) continue; // unrelated to risk

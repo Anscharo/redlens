@@ -95,7 +95,7 @@ describe("risk / oea / icd field shapes", () => {
   it("riskSearchFields hides the source paragraph and owning-agent fields", () => {
     const row = {
       candidate: { docNo: "A.6.1", title: "Rule", quote: "The rule text.", agents: ["Spark", "Grove"] },
-      triage: { description: "summary" },
+      entry: { description: "summary" },
     } as unknown as RiskRow;
     const f = riskSearchFields(row);
     expect(f.map((x) => x.label)).toEqual(["doc no", "title", "summary", "source paragraph", "doc is owned by agent matching"]);

@@ -16,8 +16,7 @@ import { applyReportFilter } from "./report-filter.ts";
 import { readPublicJson, rowsEnvelope } from "./util.ts";
 import { defineReportTool } from "./report-tool.ts";
 
-// The reasoning strings + full triage description are the provenance layer
-// here. Drop them for the leaner (include_provenance:false) rollup; the
+// The reasoning strings are the provenance layer here. Drop them for the leaner (include_provenance:false) rollup; the
 // resolved rating/status and the rated paragraph stay.
 function stripRowProvenance(r: RiskRow): RiskRow {
   return r.entry

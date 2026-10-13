@@ -20,6 +20,7 @@ function makePrimitive(overrides: Partial<PrimitiveStat> = {}): PrimitiveStat {
     suspendedNames: ["S"],
     completedNames: ["C"],
     invocationNames: ["I1", "I2"],
+    invocationStatuses: ["InProgress", "InProgress"],
     ...overrides,
   };
 }
@@ -99,7 +100,7 @@ describe("AgentPanel", () => {
           title: "Governance Primitives",
           docId: "doc-cat-2",
           primitives: [
-            makePrimitive({ st: "P2", title: "Primitive Two", invocations: 0, active: 0, suspended: 0, completed: 0, activeNames: [], suspendedNames: [], completedNames: [], invocationNames: [] }),
+            makePrimitive({ st: "P2", title: "Primitive Two", invocations: 0, active: 0, suspended: 0, completed: 0, activeNames: [], suspendedNames: [], completedNames: [], invocationNames: [], invocationStatuses: [] }),
           ],
         },
       ],

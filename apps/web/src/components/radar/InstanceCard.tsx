@@ -7,6 +7,7 @@ import { ParamAddressKeys, type PauPrime } from "./ParamAddressKeys";
 import { listedAddress } from "../../lib/pau";
 import { atlasHref } from "@/lib/routes";
 import { instanceAnchor } from "@/lib/radarAnchors";
+import { INVOCATION_STATUS_LABEL, isInvocationStatus } from "@/lib/radarRules";
 import { useAddressMap } from "../../hooks/useAddressMap";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { StatusPill } from "../reports/RewardsCells";
@@ -18,6 +19,11 @@ const MIN_DOTS_PX = 30;
 function measureKeyPx(key: string): number {
   try { return measureNaturalWidth(prepareWithSegments(key, PARAM_FONT)); }
   catch { return key.length * 6; }
+}
+
+/** An invocation status reads "<Status> Invocation", every other status "<Status> Instance". */
+export function statusLabel(status: string): string {
+  return isInvocationStatus(status) ? `${INVOCATION_STATUS_LABEL[status]} Invocation` : `${status} Instance`;
 }
 
 /** A param line, with the on-chain keys derived from it when it lists an address where a RateLimitID belongs. */
@@ -59,7 +65,7 @@ export function InstanceCard({ inst, prime, headingLevel = 4 }: { inst: RadarIns
             <span className="text-sm" style={{ color: "var(--tan)" }}>{inst.displayName}</span>
           )}
         </RadarHeading>
-        {inst.status && <StatusPill s={inst.status} />}
+        {inst.status && <StatusPill s={inst.status} label={statusLabel(inst.status)} />}
       </div>
       {inst.signalParams.length > 0 && (
         <div>

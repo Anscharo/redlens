@@ -129,7 +129,7 @@ export function riskRowsToCSV(rows: readonly RiskRow[]): string {
       r.entry?.enforcement ?? "",
       r.entry?.enforcementReasoning ?? "",
       r.entry?.metrics.join("; ") ?? "",
-      r.triage.description,
+      r.entry?.description ?? "",
       // The quote the ratings actually describe: for assessed (incl. stale)
       // rows that's the assessed text, which for stale rows differs from the
       // current Atlas paragraph (r.candidate.quote). Expanded agent-copy rows
@@ -148,7 +148,7 @@ export function riskRowsToCSV(rows: readonly RiskRow[]): string {
 export const riskSearchFields = (r: RiskRow): SearchField[] => [
   { label: "doc no", value: r.candidate.docNo },
   { label: "title", value: r.candidate.title },
-  { label: "summary", value: r.triage.description ?? "" },
+  { label: "summary", value: r.entry?.description ?? "" },
   { label: "source paragraph", value: r.candidate.quote, hidden: true },
   { label: "doc is owned by agent matching", value: (r.candidate.agents ?? []).join(", "), hidden: true, despace: true },
 ];

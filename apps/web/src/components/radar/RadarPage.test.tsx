@@ -110,7 +110,7 @@ vi.mock("./ActorDashboard", () => ({
   ),
 }));
 vi.mock("./useActorSubpages", () => ({
-  useActorSubpages: () => new Map([["spark", ["history", "instances"]]]),
+  useActorSubpages: () => new Map([["spark", ["history", "primitives"]]]),
 }));
 vi.mock("./ActorHistoryPage", () => ({
   ActorHistoryPage: ({ profile }: { profile: { entity: { name: string } } }) => (
@@ -188,7 +188,7 @@ describe("RadarPage actor page", () => {
     expect(await screen.findByTestId("history-page")).toHaveTextContent("Spark Radar Entity history");
     const nav = screen.getByTestId("actor-list");
     expect(nav).toHaveAttribute("data-page", "history");
-    expect(nav).toHaveAttribute("data-subpages", "spark:history,instances");
+    expect(nav).toHaveAttribute("data-subpages", "spark:history,primitives");
     await waitFor(() => expect(recordVisit).toHaveBeenCalledTimes(1));
     expect(recordVisit).toHaveBeenCalledWith(
       expect.objectContaining({ path: "/radar/spark/history", label: "Spark Radar Entity · History of doc changes" }),

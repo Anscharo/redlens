@@ -13,6 +13,12 @@ export interface InstanceParam {
   srcDocId: string | null;
 }
 
+/** The statuses an invocation can carry, in display order; any other status belongs to an instance. */
+export const INVOCATION_STATUSES = ["InProgress", "Failed"] as const;
+export const INVOCATION_STATUS_LABEL: Readonly<Record<string, string>> = { InProgress: "In Progress", Failed: "Failed" };
+export const isInvocationStatus = (status: string | null): boolean =>
+  status !== null && (INVOCATION_STATUSES as readonly string[]).includes(status);
+
 export const EXCLUDED_INSTANCE_TYPES = new Set(["root-edit"]);
 
 // Params whose values are purely forward references to other docs — no displayable content.
@@ -28,6 +34,15 @@ export function buildInstanceOfMap(edges: readonly RelationEdge[]): Map<string, 
   const out = new Map<string, string>();
   for (const e of edges) {
     if ((e.e === "instance_of" || e.e === "invocation_of") && e.ft === "doc" && e.tt === "doc") out.set(e.f, e.t);
+  }
+  return out;
+}
+
+/** Primitive doc id → the Global Activation Status document that states its status (`has_status`). */
+export function buildStatusDocMap(edges: readonly RelationEdge[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const e of edges) {
+    if (e.e === "has_status" && e.ft === "doc" && e.tt === "doc") out.set(e.f, e.t);
   }
   return out;
 }
