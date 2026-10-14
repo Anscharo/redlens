@@ -4,8 +4,9 @@ import { entryOf, loadPauHistory, type LiveRateLimit } from "../../lib/pau";
 import { unmatchedFlag } from "@/lib/pauAtlasFlag";
 import type { AtlasVerdict } from "@/lib/pauAtlasMatch";
 import { atlasOnchainHref } from "@/lib/routes";
+import { PAU_KIND_LABEL } from "@/lib/pau";
 
-const MARK = {
+const MARK: Record<Exclude<AtlasVerdict["mark"], "elsewhere">, { mark: string; text: string }> = {
   match: { mark: "✓", text: "matches the atlas: every value the atlas states for this key matches the chain" },
   mismatch: { mark: "✗", text: "differs from the atlas: a value the atlas states for this key is not what the chain holds" },
   unsure: { mark: "?", text: "the atlas states a value for this key, but it cannot be told whether it matches" },
@@ -25,6 +26,14 @@ function UnmatchedFlag({ chain, limit }: { chain: string; limit: LiveRateLimit }
   );
 }
 
+/** "arbitrum diamond" → "the Arbitrum Diamond PAU". */
+function deploymentName(where: string): string {
+  const [chain, kind] = where.split(" ");
+  return `the ${chain[0].toUpperCase()}${chain.slice(1)} ${PAU_KIND_LABEL[kind as keyof typeof PAU_KIND_LABEL] ?? kind}`;
+}
+
+const elsewhereText = (on: string[]) => `the Atlas states a value for this key only for ${on.map(deploymentName).join(" and ")}, not for this contract, so there is nothing to compare`;
+
 const KEY_ONLY = "an Atlas document names this limit's key, but none states a value for it on this contract, so there is nothing to compare";
 
 /**
@@ -35,7 +44,7 @@ const KEY_ONLY = "an Atlas document names this limit's key, but none states a va
  */
 export function PauAtlasMark({ verdict, keyDocId, chain, limit }: { verdict?: AtlasVerdict; keyDocId?: string | null; chain: string; limit: LiveRateLimit }) {
   if (!verdict && !keyDocId) return <UnmatchedFlag chain={chain} limit={limit} />;
-  const { mark, text } = verdict ? MARK[verdict.mark] : { mark: "?", text: KEY_ONLY };
+  const { mark, text } = verdict?.mark === "elsewhere" ? { mark: "?", text: elsewhereText(verdict.on ?? []) } : verdict ? MARK[verdict.mark] : { mark: "?", text: KEY_ONLY };
   return (
     <AtlasLink to={atlasOnchainHref(verdict?.docId ?? keyDocId!)} className="hover:underline" title={text} aria-label={text}>
       {mark}

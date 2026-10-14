@@ -2,7 +2,7 @@
 // match, a mismatch when any certainly differs, otherwise unsure; each links to
 // the first document stating a value for it.
 import { describe, expect, it } from "vitest";
-import { atlasVerdicts, matchId } from "./pauAtlasMatch.ts";
+import { atlasVerdicts, elsewhereId, matchId } from "./pauAtlasMatch.ts";
 import type { ValueCheck, ValueStatus } from "./pauAtlasValues.ts";
 
 const check = (contract: string | null, key: string | null, status: ValueStatus, docId = "doc"): ValueCheck =>
@@ -23,5 +23,10 @@ describe("atlasVerdicts", () => {
   });
   it("gives nothing to checks with no contract or key", () => {
     expect(atlasVerdicts([check(null, "0xk1", "match"), check("0xaa", null, "match")]).size).toBe(0);
+  });
+  it("names the deployments a key's value is stated for, under the key alone", () => {
+    const on = (chain: string, kind: "diamond" | "monolithic") => ({ ...check("0xaa", "0xK1", "match", "d1"), chain, kind }) as ValueCheck;
+    const out = atlasVerdicts([on("arbitrum", "diamond"), on("arbitrum", "diamond"), on("base", "monolithic")]);
+    expect(out.get(elsewhereId("0xk1"))).toEqual({ mark: "elsewhere", docId: "d1", on: ["arbitrum diamond", "base monolithic"] });
   });
 });

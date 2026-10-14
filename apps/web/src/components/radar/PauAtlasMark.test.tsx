@@ -47,4 +47,11 @@ describe("PauAtlasMark", () => {
     expect([link.textContent, link.getAttribute("href")]).toEqual(["?", "/atlas?id=key-doc&view=onchain"]);
     expect(container.querySelector("[data-atlas-flag]")).toBeNull();
   });
+  it("says where the Atlas does state a value for a key it states nothing for on this contract", async () => {
+    const { container } = render(<PauAtlasMark chain="ethereum" limit={limit("0xspell", day(1))} keyDocId="key-doc" verdict={{ mark: "elsewhere", docId: "value-doc", on: ["arbitrum diamond"] }} />);
+    await new Promise((r) => setTimeout(r, 50));
+    const link = within(container).getByRole("link", { name: /only for the Arbitrum Diamond PAU, not for this contract/ });
+    expect([link.textContent, link.getAttribute("href")]).toEqual(["?", "/atlas?id=value-doc&view=onchain"]);
+    expect(container.querySelector("[data-atlas-flag]")).toBeNull();
+  });
 });

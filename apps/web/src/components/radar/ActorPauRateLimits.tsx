@@ -7,7 +7,7 @@ import { PauOriginChip } from "./PauOriginChip";
 import { anchorProps } from "./PauSectionHeading";
 import { CopyLink } from "../CopyLink";
 import { sectionAnchor, type Anchor } from "@/lib/pauAnchors";
-import { matchId, type AtlasVerdict } from "@/lib/pauAtlasMatch";
+import { elsewhereId, matchId, type AtlasVerdict } from "@/lib/pauAtlasMatch";
 import { PauAtlasMark } from "./PauAtlasMark";
 import { formatPerDay, labelOnChain, limitDecimals, unitNote, type AtlasKeyRef, type DerivedKey, type LiveRateLimit } from "../../lib/pau";
 
@@ -120,13 +120,13 @@ export function PauRateLimits({ chain, limits, keyIndex, verdicts, anchor }: Pro
             <th className={`${head} pl-0 pr-3 text-left max-w-[40rem]`}>Rate limits</th>
             <th className={`${head} text-right normal-case`} style={colRule} title="the most the limit can hold">maxAmount</th>
             <th className={`${head} text-right`} style={colRule} title="how much the limit refills per day">Slope</th>
-            <th className={`${head} text-center max-w-[5rem]`} style={colRule} title="✓ matches, ✗ differs, ? cannot be told; each links to the Atlas document stating the value. Blank when no document states one.">Matches Atlas</th>
+            <th className={`${head} text-center max-w-[5rem]`} style={colRule} title="✓ matches, ✗ differs, ? cannot be told, or the Atlas states the value only for another deployment; each links to the Atlas document stating the value. Blank when no document states one.">Matches Atlas</th>
             <th className={`${head} text-right`} style={colRule}>Last updated</th>
           </tr>
         </thead>
         <tbody>
           {ordered(limits, keyIndex, isOff).map((r) => (
-            <LimitRow key={`${r.contract}:${r.key}`} r={r} chain={chain} keyIndex={keyIndex} verdict={verdicts.get(matchId(r.contract, r.key))} />
+            <LimitRow key={`${r.contract}:${r.key}`} r={r} chain={chain} keyIndex={keyIndex} verdict={verdicts.get(matchId(r.contract, r.key)) ?? verdicts.get(elsewhereId(r.key))} />
           ))}
         </tbody>
       </table>
