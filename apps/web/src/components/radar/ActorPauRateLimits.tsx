@@ -1,6 +1,3 @@
-import { AtlasLink } from "../AtlasLink";
-import { Address } from "../Address";
-import { atlasHref } from "@/lib/routes";
 import { explorerTxUrl } from "@/lib/explorer";
 import { PauAmount } from "./PauAmount";
 import { PauOriginChip } from "./PauOriginChip";
@@ -9,8 +6,10 @@ import { CopyLink } from "../CopyLink";
 import { sectionAnchor, type Anchor } from "@/lib/pauAnchors";
 import { elsewhereId, matchId, type AtlasVerdict } from "@/lib/pauAtlasMatch";
 import { PauAtlasMark } from "./PauAtlasMark";
-import { refsOnChain } from "@/lib/pauKeyChains";
-import { formatPerDay, labelOnChain, limitDecimals, unitNote, type AtlasKeyRef, type DerivedKey, type LiveRateLimit } from "../../lib/pau";
+import { rowMark } from "@/lib/pauAtlasMatch";
+import { isOff, orderedLimits } from "@/lib/pauLimitOrder";
+import { PauLimitName } from "./PauLimitName";
+import { formatPerDay, limitDecimals, unitNote, type AtlasKeyRef, type LiveRateLimit } from "../../lib/pau";
 
 /** A limit with the RateLimits contract holding it: two contracts of one deployment can hold the same key. */
 export type ContractLimit = LiveRateLimit & { contract: string };
@@ -30,86 +29,19 @@ const dim = { color: "var(--tan-3)" };
 const colRule = { borderLeft: "1px solid color-mix(in srgb, var(--border) 45%, transparent)" };
 const cell = "px-3 py-0.5 align-top";
 const head = "px-3 pb-1 align-bottom font-normal leading-tight";
-const isOff = (r: LiveRateLimit) => (r.data?.maxAmount ?? r.configured.maxAmount) === "0";
-
-/**
- * Rows grouped by how the key is named, so siblings sit together: keys an atlas document states (linked), keys the
- * atlas names without a document, keys named by their controller constant, then unnamed keys. Within a group by name,
- * so `LIMIT_4626_DEPOSIT` across every vault is one run, then by derivation arguments; a switched-off key follows its
- * live siblings rather than leaving the group.
- */
-export function ordered<T extends { key: string; derived?: DerivedKey }>(limits: T[], keyIndex: Map<string, AtlasKeyRef[]>, off: (r: T) => boolean): T[] {
-  const ref = (r: T) => keyIndex.get(r.key.toLowerCase())?.[0];
-  const tier = (r: T) => (ref(r)?.docId ? 0 : ref(r) ? 1 : r.derived ? 2 : 3);
-  const name = (r: T) => ref(r)?.label ?? r.derived?.constant ?? r.key;
-  const args = (r: T) => r.derived?.args.join(" ") ?? "";
-  return [...limits].sort((a, b) => tier(a) - tier(b) || name(a).localeCompare(name(b)) || args(a).localeCompare(args(b)) || Number(off(a)) - Number(off(b)) || a.key.localeCompare(b.key));
-}
-
-const derivation = (d: DerivedKey) => [d.constant, ...d.args].join(" · ");
-
-/** A key no atlas doc states, named by the controller constant and arguments that derive it. */
-function DerivedName({ k, d, chain }: { k: string; d: DerivedKey; chain: string }) {
-  return (
-    <span title={`${k}\nderived from ${derivation(d)}; no atlas document states this key`}>
-      {d.constant}
-      {d.args.map((a) => (
-        <span key={a}>
-          {" · "}
-          {a.startsWith("0x") ? <Address address={a} chain={chain} noBalance /> : a}
-        </span>
-      ))}
-    </span>
-  );
-}
-
-const chainLabel = (chain: string) => chain.charAt(0).toUpperCase() + chain.slice(1);
-
-/** A key's name: the atlas param that states it, else its derivation, else a note that nothing names it. */
-export function LimitName({ r, chain, keyIndex }: { r: { key: string; derived?: DerivedKey }; chain: string; keyIndex: Map<string, AtlasKeyRef[]> }) {
-  const named = keyIndex.get(r.key.toLowerCase()) ?? [];
-  const refs = refsOnChain(named, chain);
-  const ref = refs[0];
-  if (!ref && named.length > 0) {
-    const title = `${r.key}\nnamed by the Atlas for ${chainLabel(named[0].chain!)} only`;
-    return <span title={title}>{labelOnChain(named[0].label, chain)}</span>;
-  }
-  if (!ref && r.derived) return <DerivedName k={r.key} d={r.derived} chain={chain} />;
-  if (!ref) {
-    return (
-      <span title={r.key} style={dim}>
-        {r.key.slice(0, 10)}… <span style={{ color: "var(--accent)" }}>no document or controller constant found referencing this limit</span>
-      </span>
-    );
-  }
-  const label = labelOnChain(ref.label, chain) + (ref.via ? " (matched by address)" : "");
-  const viaNote = ref.via ? [`the atlas lists ${ref.via} for this instance, and this key is derived from that address`] : [];
-  const title = [r.key, ...viaNote, ...(r.derived ? [`derived from ${derivation(r.derived)}`] : []), ...refs.slice(1).map((x) => `also ${x.label}`)].join("\n");
-  if (!ref.docId) return <span title={title}>{label}</span>;
-  return (
-    <AtlasLink to={atlasHref(ref.docId)} className="text-accent hover:underline" title={title}>
-      {label}
-    </AtlasLink>
-  );
-}
-
-/** Whether a key's value is stated for a deployment on this chain (an "elsewhere" verdict's `on` entries are "<chain> <kind>"). */
-const statedOnChain = (v: AtlasVerdict, chain: string) => v.on?.some((w) => w.split(" ")[0] === chain) ?? false;
 
 function LimitRow({ r, chain, keyIndex, verdict, elsewhere }: { r: LiveRateLimit; chain: string; keyIndex: Map<string, AtlasKeyRef[]>; verdict?: AtlasVerdict; elsewhere?: AtlasVerdict }) {
-  // A value the Atlas states only for another chain's deployment says nothing here: no mark and no link into that chain's document.
-  const otherChain = !verdict && !!elsewhere && !statedOnChain(elsewhere, chain);
-  const shown = verdict ?? (elsewhere && !otherChain ? elsewhere : undefined);
+  const { shown, keyDocId } = rowMark(verdict, elsewhere, chain, keyIndex.get(r.key.toLowerCase()) ?? []);
   const max = r.data?.maxAmount ?? r.configured.maxAmount;
   const dec = limitDecimals(r.unit, max);
   const scale = unitNote(r.unit, max) + (r.data ? "" : "; live read failed, showing the last value its history set");
   return (
     <tr className="border-t border-[var(--border)] mono" data-off={isOff(r) || undefined} style={{ color: isOff(r) ? "var(--tan-3)" : "var(--tan-2)" }}>
-      <td className="py-0.5 pr-3 align-top max-w-[40rem] break-words"><LimitName r={r} chain={chain} keyIndex={keyIndex} /></td>
+      <td className="py-0.5 pr-3 align-top max-w-[40rem] break-words"><PauLimitName r={r} chain={chain} keyIndex={keyIndex} /></td>
       <td className={`${cell} text-right`} style={colRule} title={scale}>{isOff(r) ? "off" : <PauAmount raw={max} dec={dec} symbol={r.unit?.symbol} />}</td>
       <td className={`${cell} text-right`} style={colRule} title={scale}>{formatPerDay(r.data?.slope ?? r.configured.slope, dec)}</td>
       <td className={`${cell} text-center`} style={colRule} data-atlas-match={shown?.mark}>
-        <PauAtlasMark verdict={shown} keyDocId={otherChain ? null : refsOnChain(keyIndex.get(r.key.toLowerCase()) ?? [], chain)[0]?.docId} chain={chain} limit={r} />
+        <PauAtlasMark verdict={shown} keyDocId={keyDocId} chain={chain} limit={r} />
       </td>
       <td className={`${cell} text-right whitespace-nowrap`} style={colRule}>
         <a href={explorerTxUrl(chain, r.setAt.tx)} target="_blank" rel="noopener" className="hover:underline" style={dim}>
@@ -139,7 +71,7 @@ export function PauRateLimits({ chain, limits, keyIndex, verdicts, anchor }: Pro
           </tr>
         </thead>
         <tbody>
-          {ordered(limits, keyIndex, isOff).map((r) => (
+          {orderedLimits(limits, keyIndex, isOff).map((r) => (
             <LimitRow key={`${r.contract}:${r.key}`} r={r} chain={chain} keyIndex={keyIndex} verdict={verdicts.get(matchId(r.contract, r.key))} elsewhere={verdicts.get(elsewhereId(r.key))} />
           ))}
         </tbody>

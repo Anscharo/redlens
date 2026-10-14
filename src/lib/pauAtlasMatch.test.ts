@@ -2,7 +2,7 @@
 // match, a mismatch when any certainly differs, otherwise unsure; each links to
 // the first document stating a value for it.
 import { describe, expect, it } from "vitest";
-import { atlasVerdicts, elsewhereId, matchId } from "./pauAtlasMatch.ts";
+import { atlasVerdicts, elsewhereId, matchId, rowMark } from "./pauAtlasMatch.ts";
 import type { ValueCheck, ValueStatus } from "./pauAtlasValues.ts";
 
 const check = (contract: string | null, key: string | null, status: ValueStatus, docId = "doc"): ValueCheck =>
@@ -28,5 +28,23 @@ describe("atlasVerdicts", () => {
     const on = (chain: string, kind: "diamond" | "monolithic") => ({ ...check("0xaa", "0xK1", "match", "d1"), chain, kind }) as ValueCheck;
     const out = atlasVerdicts([on("arbitrum", "diamond"), on("arbitrum", "diamond"), on("base", "monolithic")]);
     expect(out.get(elsewhereId("0xk1"))).toEqual({ mark: "elsewhere", docId: "d1", on: ["arbitrum diamond", "base monolithic"] });
+  });
+});
+
+describe("rowMark", () => {
+  const elsewhere = { mark: "elsewhere" as const, docId: "value-doc", on: ["arbitrum diamond"] };
+  const refs = [{ docId: "key-doc", label: "Aggregate CCTP", chain: "arbitrum" }];
+  it("prefers the row's own verdict", () => {
+    const own = { mark: "match" as const, docId: "d" };
+    expect(rowMark(own, elsewhere, "arbitrum", refs)).toEqual({ shown: own, keyDocId: "key-doc" });
+  });
+  it("shows the elsewhere verdict where the value is stated on this chain's other deployment", () => {
+    expect(rowMark(undefined, elsewhere, "arbitrum", refs)).toEqual({ shown: elsewhere, keyDocId: "key-doc" });
+  });
+  it("shows no mark and no key link where the value is stated only on other chains", () => {
+    expect(rowMark(undefined, elsewhere, "ethereum", refs)).toEqual({ shown: undefined, keyDocId: null });
+  });
+  it("falls back to the key's document where nothing states a value", () => {
+    expect(rowMark(undefined, undefined, "ethereum", [{ docId: "k", label: "x" }])).toEqual({ shown: undefined, keyDocId: "k" });
   });
 });

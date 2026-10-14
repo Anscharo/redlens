@@ -8,6 +8,8 @@
 // no verdict; one stated only for other deployments has an "elsewhere" entry
 // (`elsewhereId`) naming them.
 import type { ValueCheck } from "./pauAtlasValues.ts";
+import { refsOnChain } from "./pauKeyChains.ts";
+import type { AtlasKeyRef } from "./pauView.ts";
 
 /** The `contract|key` id the verdicts use, both lowercased. */
 export const matchId = (contract: string, key: string) => `${contract.toLowerCase()}|${key.toLowerCase()}`;
@@ -46,4 +48,14 @@ export function atlasVerdicts(checks: ValueCheck[]): Map<string, AtlasVerdict> {
     else if (!held.on!.includes(where)) held.on!.push(where);
   }
   return out;
+}
+
+/**
+ * What a row's Atlas cell shows: its own verdict, else the "elsewhere" one where
+ * the Atlas states the value for another deployment on this chain. A value stated
+ * only on other chains says nothing here: no mark, and no link into their document.
+ */
+export function rowMark(own: AtlasVerdict | undefined, elsewhere: AtlasVerdict | undefined, chain: string, refs: AtlasKeyRef[]): { shown?: AtlasVerdict; keyDocId?: string | null } {
+  const otherChain = !own && !!elsewhere && !elsewhere.on?.some((w) => w.split(" ")[0] === chain);
+  return { shown: own ?? (otherChain ? undefined : elsewhere), keyDocId: otherChain ? null : refsOnChain(refs, chain)[0]?.docId };
 }

@@ -252,10 +252,10 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         note: "Ratings are AI-drafted and human-reviewed — treat them as a starting point, not a verdict.",
       },
       {
-        name: "PAU Values Needing Audit",
+        name: "Diamond PAU and Monolithic Controller to Review",
         what: "Every Prime Agent PAU value, controller and Atlas role claim an expert should look at, grouped by why: the Atlas is probably out of date, a spell may not have executed yet, the Atlas lacks the detail to check, a registry conflict, or ambiguous.",
         how: [
-          "Open it from Reports, or click `N PAU values needing audit` at the top of a Prime Agent's Liquidity Layer Arch. (PAUs) page to see only that Prime's.",
+          "Open it from Reports, or click `N values to review` at the top of a Prime Agent's Liquidity Layer Arch. (PAUs) page to see only that Prime's.",
           "Filter with the Group and Prime pills; each row shows what the Atlas states, what the chain holds, why it is listed, and the Atlas document stating it.",
           "Where a value is placed by which side moved last, the row shows both dates: when the chain last set it and when its Atlas document last changed.",
         ],

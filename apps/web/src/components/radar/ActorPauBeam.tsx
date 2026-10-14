@@ -1,6 +1,7 @@
 import { Address } from "../Address";
 import { exactAmount, formatPerDay, limitDecimals, unitNote, type AtlasKeyRef, type BeamDefault, type BeamLimits } from "../../lib/pau";
-import { LimitName, ordered } from "./ActorPauRateLimits";
+import { orderedLimits } from "@/lib/pauLimitOrder";
+import { PauLimitName } from "./PauLimitName";
 import { PauAmount } from "./PauAmount";
 import type { Anchor } from "@/lib/pauAnchors";
 import { PauSectionHeading } from "./PauSectionHeading";
@@ -13,7 +14,7 @@ function DefaultRow({ d, chain, keyIndex }: { d: BeamDefault; chain: string; key
   const dec = limitDecimals(d.unit, d.maxAmount);
   return (
     <tr className="border-t border-[var(--border)] mono" style={{ color: "var(--tan-2)" }}>
-      <td className="py-0.5 pr-3"><LimitName r={d} chain={chain} keyIndex={keyIndex} /></td>
+      <td className="py-0.5 pr-3"><PauLimitName r={d} chain={chain} keyIndex={keyIndex} /></td>
       <td className="py-0.5 text-right" title={unitNote(d.unit, d.maxAmount)}><PauAmount raw={d.maxAmount} dec={dec} symbol={d.unit?.symbol} /></td>
       <td className="py-0.5 text-right">{formatPerDay(d.slope, dec)}</td>
       <td className="py-0.5 text-right" style={dim}>{d.scope === "general" ? "all" : "this"}</td>
@@ -41,7 +42,7 @@ export function PauBeam({ beam, chain, keyIndex, anchor }: { beam: BeamLimits; c
               <th className="text-right font-normal pb-1" title="this RateLimits only, or every RateLimits BeamState manages">For</th>
             </tr>
           </thead>
-          <tbody>{ordered(beam.defaults, keyIndex, (d) => d.maxAmount === "0").map((d) => <DefaultRow key={d.key} d={d} chain={chain} keyIndex={keyIndex} />)}</tbody>
+          <tbody>{orderedLimits(beam.defaults, keyIndex, (d) => d.maxAmount === "0").map((d) => <DefaultRow key={d.key} d={d} chain={chain} keyIndex={keyIndex} />)}</tbody>
         </table>
       )}
     </div>

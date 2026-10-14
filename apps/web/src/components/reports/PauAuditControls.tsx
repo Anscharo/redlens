@@ -1,4 +1,4 @@
-// Group/Prime pill groups and the CSV export for the PAU Values Needing Audit report.
+// Group/Prime pill groups and the CSV export for the Diamond PAU and Monolithic Controller to Review report.
 import { AUDIT_GROUPS, auditRowsToCSV, type AuditGroup, type AuditRow } from "../../lib/pauAudit";
 import type { ReportId } from "@/types";
 import { CategoryPills } from "./CategoryPills";
