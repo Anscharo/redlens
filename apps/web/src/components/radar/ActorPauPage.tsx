@@ -5,9 +5,6 @@ import { ActorPageShell } from "./ActorPageShell";
 import { ActorPau } from "./ActorPau";
 import { PauAuditLink } from "./PauAuditLink";
 
-/** The atlas document defining the Diamond PAU (A.2.2.10.1.1.1.2), linked at the top of every PAUs page. */
-const DIAMOND_PAU_DOC = "d5cfb5ed-20a9-42a0-9838-ef21e1115648";
-
 export interface ActorPauPageProps {
   profile: ActorProfile;
 }
@@ -25,9 +22,6 @@ export function ActorPauPage({ profile }: ActorPauPageProps) {
         parameters of its controllers on each chain. On a chain, a Prime Agent runs a monolithic ALM Controller, a Diamond PAU (a controller that dispatches to facets), or both.
       </p>
       <p className="text-[12px] mb-6 flex flex-wrap gap-x-4 gap-y-1" style={{ color: "var(--tan-3)" }}>
-        <span>
-          Defined in the Atlas: <AtlasLink to={atlasHref(DIAMOND_PAU_DOC)} className="text-accent hover:underline">Diamond PAU</AtlasLink>
-        </span>
         <PauAuditLink primeId={profile.entity.id} primeName={profile.entity.name} />
       </p>
       <ActorPau prime={profile.entity} instances={profile.instances} />
