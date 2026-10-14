@@ -37,14 +37,12 @@ const isOff = (r: LiveRateLimit) => (r.data?.maxAmount ?? r.configured.maxAmount
  * so `LIMIT_4626_DEPOSIT` across every vault is one run, then by derivation arguments; a switched-off key follows its
  * live siblings rather than leaving the group.
  */
-function ordered<T extends LiveRateLimit>(limits: T[], keyIndex: Map<string, AtlasKeyRef[]>): T[] {
-  const ref = (r: LiveRateLimit) => keyIndex.get(r.key.toLowerCase())?.[0];
-  const tier = (r: LiveRateLimit) => (ref(r)?.docId ? 0 : ref(r) ? 1 : r.derived ? 2 : 3);
-  const name = (r: LiveRateLimit) => ref(r)?.label ?? r.derived?.constant ?? r.key;
-  const args = (r: LiveRateLimit) => r.derived?.args.join(" ") ?? "";
-  return [...limits].sort(
-    (a, b) => tier(a) - tier(b) || name(a).localeCompare(name(b)) || args(a).localeCompare(args(b)) || Number(isOff(a)) - Number(isOff(b)) || a.key.localeCompare(b.key),
-  );
+export function ordered<T extends { key: string; derived?: DerivedKey }>(limits: T[], keyIndex: Map<string, AtlasKeyRef[]>, off: (r: T) => boolean): T[] {
+  const ref = (r: T) => keyIndex.get(r.key.toLowerCase())?.[0];
+  const tier = (r: T) => (ref(r)?.docId ? 0 : ref(r) ? 1 : r.derived ? 2 : 3);
+  const name = (r: T) => ref(r)?.label ?? r.derived?.constant ?? r.key;
+  const args = (r: T) => r.derived?.args.join(" ") ?? "";
+  return [...limits].sort((a, b) => tier(a) - tier(b) || name(a).localeCompare(name(b)) || args(a).localeCompare(args(b)) || Number(off(a)) - Number(off(b)) || a.key.localeCompare(b.key));
 }
 
 const derivation = (d: DerivedKey) => [d.constant, ...d.args].join(" · ");
@@ -127,7 +125,7 @@ export function PauRateLimits({ chain, limits, keyIndex, verdicts, anchor }: Pro
           </tr>
         </thead>
         <tbody>
-          {ordered(limits, keyIndex).map((r) => (
+          {ordered(limits, keyIndex, isOff).map((r) => (
             <LimitRow key={`${r.contract}:${r.key}`} r={r} chain={chain} keyIndex={keyIndex} verdict={verdicts.get(matchId(r.contract, r.key))} />
           ))}
         </tbody>

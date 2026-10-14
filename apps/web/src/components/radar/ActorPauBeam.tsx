@@ -1,6 +1,6 @@
 import { Address } from "../Address";
 import { exactAmount, formatPerDay, limitDecimals, unitNote, type AtlasKeyRef, type BeamDefault, type BeamLimits } from "../../lib/pau";
-import { LimitName } from "./ActorPauRateLimits";
+import { LimitName, ordered } from "./ActorPauRateLimits";
 import { PauAmount } from "./PauAmount";
 import type { Anchor } from "@/lib/pauAnchors";
 import { PauSectionHeading } from "./PauSectionHeading";
@@ -41,7 +41,7 @@ export function PauBeam({ beam, chain, keyIndex, anchor }: { beam: BeamLimits; c
               <th className="text-right font-normal pb-1" title="this RateLimits only, or every RateLimits BeamState manages">For</th>
             </tr>
           </thead>
-          <tbody>{beam.defaults.map((d) => <DefaultRow key={d.key} d={d} chain={chain} keyIndex={keyIndex} />)}</tbody>
+          <tbody>{ordered(beam.defaults, keyIndex, (d) => d.maxAmount === "0").map((d) => <DefaultRow key={d.key} d={d} chain={chain} keyIndex={keyIndex} />)}</tbody>
         </table>
       )}
     </div>

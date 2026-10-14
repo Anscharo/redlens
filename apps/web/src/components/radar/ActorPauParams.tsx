@@ -26,6 +26,11 @@ function Values({ p }: { p: PauParam }) {
   );
 }
 
+const rowName = (p: PauParam) => `${paramTitle(p.event)} ${paramTarget(p.event, p.subject) ?? p.subject}`;
+
+/** A contract's settings by what they are called and what they are for. */
+const paramsByName = (params: PauParam[]) => [...params].sort((a, b) => rowName(a).localeCompare(rowName(b), "en", { numeric: true }) || a.subject.localeCompare(b.subject));
+
 /**
  * The latest value of each per-pool, per-token or per-destination setting a PAU
  * contract holds (max slippage, recipients, tick bounds), grouped by the contract
@@ -33,7 +38,7 @@ function Values({ p }: { p: PauParam }) {
  * it is for, its value, and when and from where it was set.
  */
 export function PauParams({ snap, anchor }: { snap: StoredPauSnapshot; anchor: Anchor }) {
-  const held = snap.contracts.filter((c) => (c.params ?? []).length > 0);
+  const held = snap.contracts.filter((c) => (c.params ?? []).length > 0).sort((a, b) => contractLabel(a).localeCompare(contractLabel(b)) || a.address.localeCompare(b.address));
   if (held.length === 0) return null;
   return (
     <div className="mt-3">
@@ -47,7 +52,7 @@ export function PauParams({ snap, anchor }: { snap: StoredPauSnapshot; anchor: A
             {contractLabel(c)} <Address address={c.address} chain={snap.chain} noBalance />
           </h5>
           <ul className="space-y-0.5 pl-3">
-            {(c.params ?? []).map((p) => (
+            {paramsByName(c.params ?? []).map((p) => (
               <li key={`${p.event}:${p.subject}`} className="mono text-[11px] break-words" style={{ color: "var(--tan-2)" }} title={p.event}>
                 {paramTitle(p.event)} <span title={p.subject}>{paramTarget(p.event, p.subject) ?? clip(p.subject)}</span>
                 {" → "}
