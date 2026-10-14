@@ -1,4 +1,4 @@
-// The PAU Values Needing Audit report's body: one section per group, each a
+// The Diamond PAU and Monolithic Controller to Review report's body: one section per group, each a
 // table of its rows with the atlas document that states the value.
 import { AtlasLink } from "../AtlasLink";
 import { Address } from "../Address";

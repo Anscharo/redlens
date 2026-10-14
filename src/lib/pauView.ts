@@ -75,6 +75,8 @@ export interface AtlasKeyRef {
   label: string;
   /** Set when the atlas lists an address where the RateLimitID belongs and the key was found by its derivation from it. */
   via?: string;
+  /** The chain heading the naming document sits under (pauKeyChains.ts); the key is named for that chain's deployments. */
+  chain?: string;
 }
 
 /** The slice of a Radar instance the key index reads: its name and its extracted parameters. */

@@ -44,7 +44,7 @@ export interface PauMember {
   role: PauRole;
   /** Lowercase 0x address. */
   address: string;
-  /** Free-text label, e.g. the facet name. */
+  /** Free-text label, e.g. the facet name; `freezable` on an ALM proxy that is an ALMProxyFreezable (its FREEZER can remove a controller). */
   label?: string;
   provenance: PauProvenance[];
 }

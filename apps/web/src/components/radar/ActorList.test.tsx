@@ -93,7 +93,7 @@ describe("ActorList", () => {
         ["Settlements", "/radar/spark/settlements"],
         ["History", "/radar/spark/history"],
         ["Primitives", "/radar/spark/primitives"],
-        ["PAUs", "/radar/spark/pau"],
+        ["Liquidity Layer Arch. (PAUs)", "/radar/spark/pau"],
       ]);
       expect(sub.querySelector("a")).toHaveAttribute("data-active", "true");
       // An actor with no subpages stays a plain link.

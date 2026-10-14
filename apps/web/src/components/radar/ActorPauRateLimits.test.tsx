@@ -5,7 +5,7 @@
 import { render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
-import { matchId } from "@/lib/pauAtlasMatch";
+import { elsewhereId, matchId } from "@/lib/pauAtlasMatch";
 import { PauRateLimits, type ContractLimit } from "./ActorPauRateLimits";
 
 vi.mock("../../lib/pau", async (orig) => ({ ...(await orig<typeof import("../../lib/pau")>()), loadPauHistory: () => new Promise(() => {}) }));
@@ -19,11 +19,59 @@ const limit = (contract: string): ContractLimit => ({
 describe("PauRateLimits", () => {
   it("marks only the contract whose values match when two hold the same key", () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
-    render(<PauRateLimits chain="ethereum" limits={[limit(RL1), limit(RL2)]} keyIndex={new Map()} atlasMatched={new Set([matchId(RL2, KEY)])} anchor={{ id: "ethereum", aliases: [] }} />);
+    render(<PauRateLimits chain="ethereum" limits={[limit(RL1), limit(RL2)]} keyIndex={new Map()} verdicts={new Map([[matchId(RL2, KEY), { mark: "match" as const, docId: "doc-2" }]])} anchor={{ id: "ethereum", aliases: [] }} />);
     const rows = within(screen.getByRole("table")).getAllByRole("row").slice(1);
     expect(rows).toHaveLength(2);
-    expect(rows.filter((r) => within(r).queryByRole("img", { name: "matches the atlas" }))).toHaveLength(1);
+    expect(rows.filter((r) => within(r).queryByRole("link", { name: /^matches the atlas/ }))).toHaveLength(1);
     expect(errors.mock.calls.flat().join(" ")).not.toMatch(/same key/);
     errors.mockRestore();
+  });
+
+  it("groups linked atlas keys first, then constant-named keys with same-name siblings together, a switched-off key staying in its run", () => {
+    const k = (n: number) => "0x" + String(n).repeat(64);
+    const mk = (key: string, constant?: string, args: string[] = [], maxAmount = "1000000"): ContractLimit => ({
+      ...limit(RL1), key, configured: { maxAmount, slope: "0" }, ...(constant ? { derived: { constant, args } } : {}),
+    });
+    const limits = [mk(k(1), "LIMIT_4626_DEPOSIT", ["a"], "0"), mk(k(2), "LIMIT_USDS_MINT"), mk(k(3), "LIMIT_4626_DEPOSIT", ["b"]), mk(k(4)), mk(k(5), "LIMIT_4626_DEPOSIT", ["c"])];
+    const keyIndex = new Map([[k(4), [{ docId: "doc", label: "Linked param" }]]]);
+    const { container } = render(<PauRateLimits chain="ethereum" limits={limits} keyIndex={keyIndex} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} />);
+    const names = within(container).getAllByRole("row").slice(1).map((r) => within(r).getAllByRole("cell")[0].textContent);
+    expect(names).toEqual(["Linked param", "LIMIT_4626_DEPOSIT · a", "LIMIT_4626_DEPOSIT · b", "LIMIT_4626_DEPOSIT · c", "LIMIT_USDS_MINT"]);
+  });
+
+  it("links each verdict's mark to the document's Onchain tab: ✓ match, ✗ mismatch, ? unsure, and nothing without a verdict", () => {
+    const verdicts = new Map([
+      [matchId(RL1, KEY), { mark: "mismatch" as const, docId: "doc-1" }],
+      [matchId(RL2, KEY), { mark: "unsure" as const, docId: "doc-2" }],
+    ]);
+    const { container } = render(<PauRateLimits chain="ethereum" limits={[limit(RL1), limit(RL2), limit("0x" + "3".repeat(40))]} keyIndex={new Map()} verdicts={verdicts} anchor={{ id: "ethereum", aliases: [] }} />);
+    const cells = within(container).getAllByRole("row").slice(1).map((r) => within(r).getAllByRole("cell")[3]);
+    expect(cells.map((c) => c.textContent)).toEqual(["✗", "?", ""]);
+    expect(within(cells[0]).getByRole("link")).toHaveAttribute("href", "/atlas?id=doc-1&view=onchain");
+    expect(within(cells[1]).getByRole("link")).toHaveAttribute("href", "/atlas?id=doc-2&view=onchain");
+    expect(within(cells[2]).queryByRole("link")).toBeNull();
+  });
+
+  it("marks a key the Atlas values for another deployment on the same chain only, never linking into another chain's document", () => {
+    const keyIndex = new Map([[KEY, [{ docId: "key-doc", label: "Aggregate CCTP" }]]]);
+    const verdicts = new Map([[elsewhereId(KEY), { mark: "elsewhere" as const, docId: "value-doc", on: ["arbitrum diamond"] }]]);
+    const cell = (chain: string) => {
+      const { container } = render(<PauRateLimits chain={chain} limits={[limit(RL1)]} keyIndex={keyIndex} verdicts={verdicts} anchor={{ id: chain, aliases: [] }} />);
+      return within(container).getAllByRole("row")[1].querySelectorAll("td")[3];
+    };
+    const sameChain = cell("arbitrum");
+    expect([sameChain.textContent, within(sameChain).getByRole("link").getAttribute("href")]).toEqual(["?", "/atlas?id=value-doc&view=onchain"]);
+    expect(within(cell("ethereum")).queryByRole("link")).toBeNull();
+  });
+
+  it("shows a key's name without a link on a chain its naming document is not under", () => {
+    const keyIndex = new Map([[KEY, [{ docId: "key-doc", label: "Aggregate CCTP", chain: "arbitrum" }]]]);
+    const name = (chain: string) => {
+      const { container } = render(<PauRateLimits chain={chain} limits={[limit(RL1)]} keyIndex={keyIndex} verdicts={new Map()} anchor={{ id: chain, aliases: [] }} />);
+      return within(container).getAllByRole("row")[1].querySelectorAll("td")[0];
+    };
+    expect(within(name("arbitrum")).getByRole("link", { name: "Aggregate CCTP" })).toHaveAttribute("href", "/atlas?id=key-doc");
+    const other = name("ethereum");
+    expect([other.textContent, within(other).queryByRole("link")]).toEqual(["Aggregate CCTP", null]);
   });
 });

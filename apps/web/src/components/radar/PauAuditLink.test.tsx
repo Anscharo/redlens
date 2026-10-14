@@ -16,7 +16,7 @@ afterEach(cleanup);
 describe("PauAuditLink", () => {
   it("counts this Prime's items once each and links to the report filtered to it", async () => {
     render(<PauAuditLink primeId="p1" primeName="Spark Prime" />);
-    expect(await screen.findByRole("link", { name: "2 PAU values needing audit" })).toHaveAttribute("href", "/reports/pau-audit?prime=Spark%20Prime");
+    expect(await screen.findByRole("link", { name: "2 values to review" })).toHaveAttribute("href", "/reports/pau-audit?prime=Spark%20Prime");
   });
   it("shows nothing for a Prime with none", async () => {
     const { container } = render(<PauAuditLink primeId="p3" primeName="Keel" />);

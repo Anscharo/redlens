@@ -1,6 +1,6 @@
 import { Address } from "../Address";
 import { formatAmount, formatPerDay, limitDecimals, type AtlasKeyRef, type DerivedKey, type PauChange } from "../../lib/pau";
-import { LimitName } from "./ActorPauRateLimits";
+import { PauLimitName } from "./PauLimitName";
 
 const dim = { color: "var(--tan-3)" };
 
@@ -37,7 +37,7 @@ export function PauChangeLine({ c, chain, names }: { c: PauChange; chain: string
   if (c.event === "RateLimitDataSet") {
     return (
       <li className="mono text-[11px] break-words" data-event={c.event} style={{ color: "var(--tan-2)" }}>
-        <LimitName r={{ key: String(c.subject), derived: names.derived.get(String(c.subject).toLowerCase()) }} chain={chain} keyIndex={names.keyIndex} /> <LimitValue c={c} />
+        <PauLimitName r={{ key: String(c.subject), derived: names.derived.get(String(c.subject).toLowerCase()) }} chain={chain} keyIndex={names.keyIndex} /> <LimitValue c={c} />
       </li>
     );
   }

@@ -57,6 +57,7 @@ vi.mock("../../lib/pau", async (importOriginal) => {
   return { ...actual, loadPau: () => Promise.resolve(served), loadPauHistory: () => Promise.resolve(history) };
 });
 
+vi.mock("../../lib/docs", async (importOriginal) => ({ ...(await importOriginal<typeof import("../../lib/docs")>()), loadAtlas: () => new Promise(() => {}) }));
 vi.mock("../../lib/graph", () => ({ loadGraph: () => Promise.resolve({ participants: [{ id: PRIME, slug: "spark", name: "Spark", et: "agent", st: "prime", did: "p", m: "{}" }], instances: [], invocations: [], primitives: [], edges: [] }) }));
 vi.mock("@/lib/pauAtlasValues", () => ({
   checkAtlasValues: () => [
@@ -134,17 +135,17 @@ describe("ActorPau", () => {
     render(<ActorPau prime={prime} instances={instances} />);
     const [table] = await screen.findAllByRole("table");
     const rows = within(table).getAllByRole("row").slice(1);
-    expect(within(rows[0]).getByRole("link", { name: "Blackrock USDC · BUIDLI_DEPOSIT (matched by address)" })).toHaveAttribute("title", expect.stringContaining(`the atlas lists ${LISTED} here`));
+    expect(within(rows[0]).getByRole("link", { name: "Blackrock USDC · BUIDLI_DEPOSIT (matched by address)" })).toHaveAttribute("title", expect.stringContaining(`the atlas lists ${LISTED} for this instance`));
     expect(rows[0]).toHaveTextContent("7M PYUSD");
-    expect(within(rows[0]).getAllByTitle(`6 decimals, read from PYUSD ${VAULT}`)).toHaveLength(3);
+    expect(within(rows[0]).getAllByTitle(`6 decimals, read from PYUSD ${VAULT}`)).toHaveLength(2);
     expect(rows[1]).toHaveTextContent("SparkLend USDC · Inflow");
-    expect(rows[1]).toHaveTextContent(/25M.*25M.*12M/);
+    expect(rows[1]).toHaveTextContent(/25M.*25M/);
     expect(within(rows[1]).getByRole("link", { name: "SparkLend USDC · Inflow" })).toBeInTheDocument();
     expect(within(rows[2]).getByRole("link", { name: "USDS Mint" })).toBeInTheDocument();
     expect(rows[3]).toHaveTextContent("LIMIT_4626_DEPOSIT");
     expect(rows[3].querySelector("[title*='no atlas document states this key']")).not.toBeNull();
     expect(rows[4]).toHaveTextContent("no document or controller constant found referencing this limit");
-    expect(rows[4]).toHaveTextContent(/1B.*0.*\?/);
+    expect(rows[4]).toHaveTextContent(/1B.*0/);
     expect(rows[5]).toHaveAttribute("data-off", "true");
     expect(rows[5]).toHaveTextContent("off");
   });
@@ -175,17 +176,19 @@ describe("ActorPau", () => {
     expect(within(card).queryByRole("link", { name: "AdministeredAgent" })).toBeNull();
     const base = document.querySelector(`details[data-deployment="${BASE.deployment}"]`) as HTMLElement;
     expect(within(base).queryByRole("link", { name: "monolithic" })).toBeNull();
+    expect(within(card).getByText("monolithic ALM Controller")).toBeInTheDocument();
   });
 
-  it("titles the table Rate limits and checks only keys whose every atlas value matches the chain", async () => {
+  it("titles the table Rate limits and ticks only keys whose every atlas value matches the chain", async () => {
     render(<ActorPau prime={prime} instances={instances} />);
     const [table] = await screen.findAllByRole("table");
     expect(within(table).getByRole("columnheader", { name: "Rate limits" })).toBeInTheDocument();
     expect(within(table).getByRole("columnheader", { name: "Matches Atlas" })).toBeInTheDocument();
-    await waitFor(() => expect(table.querySelectorAll("[data-atlas-match]")).toHaveLength(1));
-    const row = table.querySelector("[data-atlas-match]")!.closest("tr") as HTMLElement;
+    await waitFor(() => expect(table.querySelectorAll("[data-atlas-match]").length).toBeGreaterThan(0));
+    const row = table.querySelector("[data-atlas-match=match]")!.closest("tr") as HTMLElement;
     expect(within(row).getByRole("link", { name: "SparkLend USDC · Inflow" })).toBeInTheDocument();
-    expect(within(row).getByRole("img", { name: "matches the atlas" })).toHaveTextContent("✓");
+    expect(within(row).getByRole("link", { name: /^matches the atlas/ })).toHaveTextContent("✓");
+    expect(table.querySelectorAll("[data-atlas-match=match]")).toHaveLength(1);
   });
 
   it("says what the Configurator may do without a spell, and lists the default limits by name", async () => {
@@ -207,7 +210,9 @@ describe("ActorPau", () => {
     expect(screen.getAllByLabelText("the AdministeredAgent lists it")).toHaveLength(2);
     expect(screen.getByLabelText("membership could not be read")).toBeInTheDocument();
     expect(screen.getByText("not in the stored history")).toBeInTheDocument();
-    expect(screen.getByText("MaxSlippageSet")).toBeInTheDocument();
+    const param = document.querySelector("section[data-contract] li") as HTMLElement;
+    expect(param).toHaveTextContent(/^Max slippage .* → /);
+    expect(within(param.closest("section") as HTMLElement).getByRole("heading", { level: 5 })).toBeInTheDocument();
   });
 
   it("shows under an instance's address-valued RateLimitID the on-chain key derived from it, linked to the PAUs page", async () => {

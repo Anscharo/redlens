@@ -23,6 +23,10 @@ export interface ValueSource {
   /** The instance's defining document; null for the prime's own params. */
   docId?: string | null;
   params: Record<string, [string, string | null, string?]>;
+  /** A document-stated source: the controller constant its text names, whose one key on a deployment is the source's key there when it states no hash (pauLimitDocs.ts). */
+  constant?: string;
+  /** The deployment kind a document-stated source is about; every kind when absent. */
+  kind?: "diamond" | "monolithic";
 }
 
 export interface InstanceKey {
@@ -63,6 +67,15 @@ function derivedKeys(src: ValueSource, snaps: StoredPauSnapshot[], shared: Set<s
   });
 }
 
+/** The source's constant's key on each deployment of its chain that holds exactly one key of it: more than one (a constant hashed with a token or domain) leaves the text unable to say which. */
+function constantKeys(src: ValueSource, snaps: StoredPauSnapshot[]): InstanceKey[] {
+  const keys = chainSnaps(snaps, src).flatMap((s) => {
+    const held = [...new Set(limitsOf([s]).filter((r) => r.derived?.constant === src.constant).map((r) => r.key.toLowerCase()))];
+    return held.length === 1 ? held : [];
+  });
+  return [...new Set(keys)].map((key) => ({ side: "", key }));
+}
+
 /** Addresses more than one of the sources lists. */
 export function sharedAddresses(sources: ValueSource[]): Set<string> {
   const seen = new Map<string, number>();
@@ -75,7 +88,8 @@ export function instanceKeys(src: ValueSource, snaps: StoredPauSnapshot[], share
   const stated = Object.entries(src.params).flatMap(([name, [value]]) =>
     RATE_LIMIT_ID_RE.test(name) && HASH_RE.test(value.trim()) ? [withQualifier({ side: valueSide(name), key: value.trim().toLowerCase() }, paramQualifier(name))] : [],
   );
-  return stated.length ? [...stated, ...swapSides(stated, src, snaps)] : derivedKeys(src, snaps, shared);
+  if (stated.length) return [...stated, ...swapSides(stated, src, snaps)];
+  return src.constant ? constantKeys(src, snaps) : derivedKeys(src, snaps, shared);
 }
 
 const withQualifier = (k: InstanceKey, qualifier: string): InstanceKey => (qualifier ? { ...k, qualifier } : k);

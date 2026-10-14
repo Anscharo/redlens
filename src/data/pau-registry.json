@@ -1547,6 +1547,7 @@
         {
           "role": "almProxy",
           "address": "0x45d91340b3b7b96985a72b5c678f7d9e8d664b62",
+          "label": "freezable",
           "provenance": [
             {
               "source": "atlas",
@@ -1645,6 +1646,7 @@
         {
           "role": "almProxy",
           "address": "0xcba0c0a2a0b6bb11233ec4ea85c5bffea33e724d",
+          "label": "freezable",
           "provenance": [
             {
               "source": "atlas",
@@ -1723,6 +1725,7 @@
         {
           "role": "almProxy",
           "address": "0x9ad87668d49ab69eea0af091de970ef52b0d5178",
+          "label": "freezable",
           "provenance": [
             {
               "source": "atlas",

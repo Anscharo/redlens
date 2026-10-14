@@ -1,19 +1,61 @@
-// Which on-chain rate-limit keys the atlas agrees with, for the Radar PAUs
-// table's Atlas column. A key earns the mark only when every value the atlas
-// states for it, on that RateLimits contract, is a certain match
-// (pauAtlasValues.ts); one mismatch, ambiguity or unconfirmed unit withholds it.
+// How the atlas stands against each on-chain rate-limit key, for the Radar PAUs
+// table's Atlas column: "match" when every value the atlas states for the key,
+// on that RateLimits contract, is a certain match (pauAtlasValues.ts);
+// "mismatch" when any is a certain difference; "unsure" when a document states
+// a value for it but none differs for certain and not all certainly agree
+// (an ambiguous key, unconfirmed units, an unread contract). Each verdict
+// carries the document to read it in. A key no document states a value for has
+// no verdict; one stated only for other deployments has an "elsewhere" entry
+// (`elsewhereId`) naming them.
 import type { ValueCheck } from "./pauAtlasValues.ts";
+import { refsOnChain } from "./pauKeyChains.ts";
+import type { AtlasKeyRef } from "./pauView.ts";
 
-/** The `contract|key` id the matched set uses, both lowercased. */
+/** The `contract|key` id the verdicts use, both lowercased. */
 export const matchId = (contract: string, key: string) => `${contract.toLowerCase()}|${key.toLowerCase()}`;
 
-/** Every contract-held key whose stated values all match the chain. */
-export function atlasMatchedKeys(checks: ValueCheck[]): Set<string> {
-  const verdicts = new Map<string, boolean>();
+export interface AtlasVerdict {
+  mark: "match" | "mismatch" | "unsure" | "elsewhere";
+  /** The first document stating a value for the key, whose Onchain tab shows the comparison. */
+  docId: string;
+  /** For "elsewhere": the deployments the key's value is stated for, as "<chain> <kind>". */
+  on?: string[];
+}
+
+/** The id of a key's "elsewhere" entry: the key, whichever contract holds it. */
+export const elsewhereId = (key: string) => `|${key.toLowerCase()}`;
+
+/** The verdict of every contract-held key some document states a value for. */
+export function atlasVerdicts(checks: ValueCheck[]): Map<string, AtlasVerdict> {
+  const byKey = new Map<string, ValueCheck[]>();
   for (const c of checks) {
     if (!c.contract || !c.key) continue;
     const id = matchId(c.contract, c.key);
-    verdicts.set(id, (verdicts.get(id) ?? true) && c.status === "match");
+    byKey.set(id, [...(byKey.get(id) ?? []), c]);
   }
-  return new Set([...verdicts].filter(([, ok]) => ok).map(([id]) => id));
+  const out = new Map<string, AtlasVerdict>(
+    [...byKey].map(([id, cs]) => {
+      const mark = cs.some((c) => c.status === "mismatch") ? "mismatch" : cs.every((c) => c.status === "match") ? "match" : "unsure";
+      return [id, { mark, docId: cs[0].docId }] as const;
+    }),
+  );
+  for (const c of checks) {
+    if (!c.contract || !c.key || !c.chain || !c.kind) continue;
+    const id = elsewhereId(c.key);
+    const held = out.get(id);
+    const where = `${c.chain} ${c.kind}`;
+    if (!held) out.set(id, { mark: "elsewhere", docId: c.docId, on: [where] });
+    else if (!held.on!.includes(where)) held.on!.push(where);
+  }
+  return out;
+}
+
+/**
+ * What a row's Atlas cell shows: its own verdict, else the "elsewhere" one where
+ * the Atlas states the value for another deployment on this chain. A value stated
+ * only on other chains says nothing here: no mark, and no link into their document.
+ */
+export function rowMark(own: AtlasVerdict | undefined, elsewhere: AtlasVerdict | undefined, chain: string, refs: AtlasKeyRef[]): { shown?: AtlasVerdict; keyDocId?: string | null } {
+  const otherChain = !own && !!elsewhere && !elsewhere.on?.some((w) => w.split(" ")[0] === chain);
+  return { shown: own ?? (otherChain ? undefined : elsewhere), keyDocId: otherChain ? null : refsOnChain(refs, chain)[0]?.docId };
 }

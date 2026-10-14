@@ -14,7 +14,7 @@ export const VALUE_PARAM_RE = /^(.*?)\s*Rate\s*Limits?\s*\/\s*(maxAmount|slope)\
 /** A heading whose children each state one operation's rate limits ("Rate Limits", "Deposit Rate Limits"). */
 export const RATE_LIMITS_TITLE_RE = /Rate\s*Limits?$/i;
 
-const SIDE: Record<string, string> = { inflow: "in", deposit: "in", supply: "in", outflow: "out", withdraw: "out", withdrawal: "out", redeem: "out" };
+const SIDE: Record<string, string> = { inflow: "in", deposit: "in", supply: "in", outflow: "out", withdraw: "out", withdrawal: "out", redeem: "out", take: "out" };
 
 /** The operation a param name is about ("Aggregate Deposit RateLimitID" and "Inflow Rate Limits" both "in"), or "" for none. */
 export function paramSide(name: string): string {

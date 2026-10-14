@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-14
+
+- Renamed the PAUs page to Liquidity Layer Arch., since PAU only describes the Diamond design and Liquidity Layer Architecture is the Atlas's term, with better data matching and UI fixes
+
 ## 2026-10-13
 
 - Reworked a Prime Agent's Primitives page: invocations and instances now sit together under each primitive with clearer status labels, each primitive's Global Activation Status links to the Atlas document that states it, and a short explainer quotes the Atlas on how primitives work

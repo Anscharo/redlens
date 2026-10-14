@@ -13,7 +13,7 @@ const reg: PauRegistry = {
   deployments: [
     { prime: "p", primeName: "P", chain: "ethereum", kind: "diamond", members: [
       { role: "controller", address: CTRL.toUpperCase().replace("0X", "0x"), provenance: [{ source: "atlas", doc: "doc-ctrl" }, { source: "onchain", note: "wiring" }, { source: "atlas", doc: "doc-ctrl-2" }] },
-      { role: "rateLimits", address: RL, provenance: [{ source: "onchain" }] },
+      { role: "rateLimits", address: RL, label: "freezable", provenance: [{ source: "onchain" }] },
     ] },
     { prime: "p", primeName: "P", chain: "ethereum", kind: "monolithic", members: [{ role: "controller", address: CTRL, provenance: [{ source: "atlas", doc: "doc-mono" }] }] },
   ],
@@ -35,5 +35,13 @@ describe("atlas docs per contract", () => {
     const [out] = withAtlasDocs([snap("diamond")], reg);
     expect(out.contracts.map((c) => c.atlasDocs)).toEqual([["doc-ctrl", "doc-ctrl-2"], undefined, ["doc-facet"]]);
     expect("atlasDocs" in out.contracts[1]).toBe(false);
+  });
+  it("carries the other provenance notes as evidence, and nothing for a source with no note", () => {
+    const [out] = withAtlasDocs([snap("diamond")], reg);
+    expect(out.contracts.map((c) => c.evidence)).toEqual([["wiring"], undefined, undefined]);
+  });
+  it("serves the registry's current label, so a registry edit shows without a re-read", () => {
+    const [out] = withAtlasDocs([snap("diamond")], reg);
+    expect(out.contracts.map((c) => c.label)).toEqual([undefined, "freezable", undefined]);
   });
 });
