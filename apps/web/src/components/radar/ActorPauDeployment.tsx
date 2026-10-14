@@ -1,5 +1,6 @@
 import { PAU_KIND_LABEL, type AtlasKeyRef, type StoredPauSnapshot } from "../../lib/pau";
 import { PauBeam } from "./ActorPauBeam";
+import { PauFacets } from "./ActorPauFacets";
 import { PauHolders } from "./ActorPauHolders";
 import { PauRateLimits } from "./ActorPauRateLimits";
 import { PauContracts } from "./PauContracts";
@@ -23,7 +24,7 @@ interface Props {
   anchor: Anchor;
 }
 
-/** One deployment: a collapsible card with its contracts, holders, rate limits and parameters. */
+/** One deployment: a collapsible card with its contracts, facets, holders, rate limits and parameters. */
 export function PauDeployment({ snap, keyIndex, verdicts, defaultOpen, anchor }: Props) {
   const limits = snap.contracts.flatMap((c) => (c.rateLimits ?? []).map((r) => ({ ...r, contract: c.address })));
   const loading = snap.contracts.some((c) => !c.historyComplete);
@@ -40,6 +41,7 @@ export function PauDeployment({ snap, keyIndex, verdicts, defaultOpen, anchor }:
           {loading && <span className="text-[11px]" style={{ color: "var(--accent)" }}>history still being read</span>}
         </summary>
         <PauContracts snap={snap} />
+        <PauFacets snap={snap} anchor={anchor} />
         <PauHolders snap={snap} anchor={anchor} />
         <PauRateLimits chain={snap.chain} limits={limits} keyIndex={keyIndex} verdicts={verdicts} anchor={anchor} />
         {snap.contracts.map((c) => c.beam && <PauBeam key={c.address} beam={c.beam} chain={snap.chain} keyIndex={keyIndex} anchor={c.address === firstBeam ? anchor : undefined} />)}

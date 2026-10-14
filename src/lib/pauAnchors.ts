@@ -11,14 +11,14 @@ import type { TimelineGroup } from "./pauTimeline.ts";
 
 export const PAU_ANCHOR = { currentState: "current-state", changeHistory: "change-history" } as const;
 
-export type PauSection = "roles" | "rate-limits" | "configurator-limits" | "parameters";
+export type PauSection = "roles" | "facets" | "rate-limits" | "configurator-limits" | "parameters";
 
 export interface Anchor {
   id: string;
   aliases: string[];
 }
 
-const PAU_FRAGMENT = /^(?:current-state|change-history|pau-history|roles|rate-limits|configurator-limits|parameters|exec-vote-\d{4}-\d{2}-\d{2}(?:-\d+)?|spell-0x[0-9a-f]{40})$/;
+const PAU_FRAGMENT = /^(?:current-state|change-history|pau-history|roles|facets|rate-limits|configurator-limits|parameters|exec-vote-\d{4}-\d{2}-\d{2}(?:-\d+)?|spell-0x[0-9a-f]{40})$/;
 
 /** Whether a fragment names a part of the PAUs page that a Prime's other pages do not have, so a link to it there can be forwarded. */
 export const isPauFragment = (id: string): boolean => PAU_FRAGMENT.test(id.toLowerCase());
