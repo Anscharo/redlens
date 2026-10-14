@@ -50,8 +50,10 @@ describe("actor subpages", () => {
 
   it("hands the Prime to its PAUs", () => {
     render(<ActorPauPage profile={profile()} />);
-    expect(screen.getByRole("heading", { level: 1, name: "Parallelized Allocation Units" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Liquidity Layer Architecture" })).toBeInTheDocument();
     expect(screen.getByTestId("pau")).toHaveAttribute("data-prime", "e1");
+    expect(screen.getByText(/Liquidity Layer Architecture is part of Spark's/)).toHaveTextContent(/Allocation System Primitive\. It lists the contracts, rate limits and on-chain parameters.*monolithic ALM Controller, a Diamond PAU .*or both/);
+    expect(screen.getByRole("link", { name: "Allocation System Primitive" })).toHaveAttribute("href", expect.stringContaining("9db14ab7-bb4b-4751-8084-843bd4359f2a"));
     expect(screen.getByRole("link", { name: "Diamond PAU" })).toHaveAttribute("href", expect.stringContaining("d5cfb5ed-20a9-42a0-9838-ef21e1115648"));
   });
 });

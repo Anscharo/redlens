@@ -16,7 +16,7 @@ export const ACTOR_PAGES = [
   { key: "settlements", label: "Settlements", title: "Monthly settlements" },
   { key: "history", label: "History", title: "History of doc changes" },
   { key: "primitives", label: "Primitives", title: "Primitives" },
-  { key: "pau", label: "PAUs", title: "Parallelized Allocation Units" },
+  { key: "pau", label: "Liquidity Layer Arch. (PAUs)", title: "Liquidity Layer Architecture" },
 ] as const satisfies readonly ActorPageDef[];
 
 export type ActorPageKey = (typeof ACTOR_PAGES)[number]["key"];

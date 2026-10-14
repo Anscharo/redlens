@@ -159,3 +159,6 @@ export interface PauResponse {
 }
 
 export const EMPTY_PAU: PauResponse = { deployments: [] };
+
+/** How a deployment's controller design reads on the page: the Atlas calls the single-contract controller "monolithic" and the facet-based one the Diamond PAU. */
+export const PAU_KIND_LABEL: Record<PauKind, string> = { monolithic: "monolithic ALM Controller", diamond: "Diamond PAU" };

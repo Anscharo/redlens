@@ -176,6 +176,7 @@ describe("ActorPau", () => {
     expect(within(card).queryByRole("link", { name: "AdministeredAgent" })).toBeNull();
     const base = document.querySelector(`details[data-deployment="${BASE.deployment}"]`) as HTMLElement;
     expect(within(base).queryByRole("link", { name: "monolithic" })).toBeNull();
+    expect(within(card).getByText("monolithic ALM Controller")).toBeInTheDocument();
   });
 
   it("titles the table Rate limits and ticks only keys whose every atlas value matches the chain", async () => {
