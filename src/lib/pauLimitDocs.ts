@@ -2,10 +2,12 @@
 // instance's params: a leaf under "<name> Rate Limits" > "<Chain>" (with at most
 // one group heading between, "Ethereum Mainnet sUSDS") whose text
 // lists `maxAmount` / `slope` bullets ("CCTP To Ethereum Limit" under Spark's
-// "Diamond PAU Rate Limits" > "Arbitrum"). Each such leaf becomes a value
+// "Diamond PAU Rate Limits" > "Arbitrum"; "USDS Mint Maximum" directly under
+// Osero's "Diamond PAU Rate Limits", whose text names Ethereum Mainnet). Each such leaf becomes a value
 // source the atlas-vs-chain check reads like an instance:
-//  - its chain is the chain heading's, its deployment kind the heading's
-//    ("Diamond PAU", "Monolithic"), when one is named;
+//  - its chain is the chain heading's, else the one the "Rate Limits" heading's
+//    own text names ("…the Osero Diamond PAU on Ethereum Mainnet"), its
+//    deployment kind the heading's ("Diamond PAU", "Monolithic"), when one is named;
 //  - its key is a hash the prime states under the same name ("CCTP To Ethereum
 //    Rate Limit ID"), else the one on-chain key a controller constant the text
 //    names (`LIMIT_USDS_MINT`) derives to, else none ("no rate-limit key").
@@ -19,7 +21,7 @@ import { RATE_LIMIT_ID_RE } from "./atlasHashes.ts";
 
 export type LimitDocs = Pick<AtlasBundle, "docs" | "byParent">;
 
-const BULLET_RE = /^- `(maxAmount|slope)`:\s*(.+?)\s*$/gm;
+export const BULLET_RE = /^- `(maxAmount|slope)`:\s*(.+?)\s*$/gm;
 const CONSTANT_RE = /`(LIMIT_[A-Z0-9_]+)`/g;
 /** A constant "hashed with" a domain, token or pool names one of several keys; the text alone cannot say which. */
 const HASHED_RE = /hashed with/i;
@@ -50,24 +52,38 @@ function statedKeys(prime: ValueSource): Map<string, [name: string, value: [stri
   return out;
 }
 
-/** The chain heading and the "<…> Rate Limits" heading above a leaf: the chain directly above it, or one group heading ("Ethereum Mainnet sUSDS") higher. */
-function headingsOf(leaf: AtlasNode, d: LimitDocs): { chain: AtlasNode; limits: AtlasNode } | null {
+const STATED_CHAIN_RE = /\bon\s+((?:[A-Z][\w-]*\s?){1,3})/g;
+
+/** The chain a "Rate Limits" heading's own text names ("…for the Osero Diamond PAU on Ethereum Mainnet."), when it names exactly one. */
+function statedChain(limits: AtlasNode): string | null {
+  const labels = new Map<string, string>();
+  for (const m of limits.content.matchAll(STATED_CHAIN_RE)) {
+    const label = m[1].trim();
+    const chain = chainOfLabel(label);
+    if (chain) labels.set(chain, label);
+  }
+  return labels.size === 1 ? [...labels.values()][0] : null;
+}
+
+/** The chain label and the "<…> Rate Limits" heading above a leaf: the chain heading directly above it, or one group heading ("Ethereum Mainnet sUSDS") higher; else the chain the Rate Limits heading's text names, for a leaf directly under it. */
+function headingsOf(leaf: AtlasNode, d: LimitDocs): { chain: string; limits: AtlasNode } | null {
   const parents = parentsOf(d);
   const isLimits = (n?: AtlasNode) => !!n && RATE_LIMITS_TITLE_RE.test(n.title.trim());
   const p1 = parents.get(leaf.id);
   const p2 = p1 && parents.get(p1.id);
   const p3 = p2 && parents.get(p2.id);
-  if (p1 && chainOfLabel(p1.title) && isLimits(p2)) return { chain: p1, limits: p2! };
-  if (p2 && chainOfLabel(p2.title) && isLimits(p3)) return { chain: p2, limits: p3! };
-  return null;
+  if (p1 && chainOfLabel(p1.title) && isLimits(p2)) return { chain: p1.title, limits: p2! };
+  if (p2 && chainOfLabel(p2.title) && isLimits(p3)) return { chain: p2.title, limits: p3! };
+  const stated = isLimits(p1) ? statedChain(p1!) : null;
+  return stated ? { chain: stated, limits: p1! } : null;
 }
 
-/** The leaf as a value source, or null when it does not follow the "<…> Rate Limits" > chain > leaf shape (one group heading allowed between) with value bullets. */
+/** The leaf as a value source, or null when it does not follow the "<…> Rate Limits" > chain > leaf shape (one group heading allowed between, or the chain named by the Rate Limits text) with value bullets. */
 function leafSource(leaf: AtlasNode, d: LimitDocs, keys: ReturnType<typeof statedKeys>): ValueSource | null {
   const bullets = [...leaf.content.matchAll(BULLET_RE)];
   const heads = bullets.length > 0 ? headingsOf(leaf, d) : null;
   if (!heads) return null;
-  const { chain: chainHeading, limits: limitsHeading } = heads;
+  const { chain, limits: limitsHeading } = heads;
   const label = leaf.title.replace(LIMIT_WORD_RE, "").trim();
   const params: ValueSource["params"] = Object.fromEntries(bullets.map((b) => [`${label} Rate Limits / ${b[1]}`, [b[2], leaf.id]]));
   const stated = keys.get(norm(leaf.title));
@@ -76,7 +92,7 @@ function leafSource(leaf: AtlasNode, d: LimitDocs, keys: ReturnType<typeof state
   const titles = `${limitsHeading.title} ${parentsOf(d).get(limitsHeading.id)?.title ?? ""}`;
   const kind = /diamond/i.test(titles) ? "diamond" : /monolith/i.test(titles) ? "monolithic" : undefined;
   const constant = constants.length === 1 && !stated && !HASHED_RE.test(leaf.content) ? constants[0] : undefined;
-  return { name: `${chainHeading.title} - ${leaf.title}`, docId: leaf.id, params, ...(constant ? { constant } : {}), ...(kind ? { kind } : {}) } satisfies ValueSource;
+  return { name: `${chain} - ${leaf.title}`, docId: leaf.id, params, ...(constant ? { constant } : {}), ...(kind ? { kind } : {}) } satisfies ValueSource;
 }
 
 const sourcesCache = new WeakMap<LimitDocs["byParent"], Map<string, ValueSource[]>>();
@@ -126,36 +142,4 @@ export function limitHeadingScope(id: string, d: LimitDocs): string[] {
   const isLimits = RATE_LIMITS_TITLE_RE.test(doc.title.trim());
   const isChainUnder = !!parent && !!chainOfLabel(doc.title) && RATE_LIMITS_TITLE_RE.test(parent.title.trim());
   return isLimits || isChainUnder ? subtreeIds(id, d).slice(1) : [];
-}
-
-const INSTANCE_LIMITS_RE = /^(.+?)\s+Rate\s*Limits$/i;
-const instanceParams = new WeakMap<LimitDocs["byParent"], Map<string, ValueSource["params"]>>();
-
-/** The limit values the documents below an instance's own state, in leaves titled "<X> Rate Limits" ("Take Rate Limits" under its Risk Parameters), as "<X> Rate Limits / <field>" params. */
-function instanceLimitParams(docId: string, d: LimitDocs): ValueSource["params"] {
-  const cache = instanceParams.get(d.byParent) ?? instanceParams.set(d.byParent, new Map()).get(d.byParent)!;
-  const known = cache.get(docId);
-  if (known) return known;
-  const out: ValueSource["params"] = {};
-  const walk = (id: string) => {
-    for (const kid of d.byParent.get(id) ?? []) {
-      if (INSTANCE_LIMITS_RE.test(kid.title.trim())) for (const b of kid.content.matchAll(BULLET_RE)) out[`${kid.title.trim()} / ${b[1]}`] ??= [b[2], kid.id];
-      walk(kid.id);
-    }
-  };
-  walk(docId);
-  cache.set(docId, out);
-  return out;
-}
-
-/**
- * The instance's source with the limit values its own subtree states that its
- * params do not already carry. The instance's listed addresses then key them
- * the way they key its params' values.
- */
-export function withInstanceLimitDocs(src: ValueSource, d: LimitDocs): ValueSource {
-  if (!src.docId || !d.docs[src.docId]) return src;
-  const own = new Set(Object.values(src.params).map((v) => v[1]));
-  const extra = Object.fromEntries(Object.entries(instanceLimitParams(src.docId, d)).filter(([name, v]) => !(name in src.params) && !own.has(v[1])));
-  return Object.keys(extra).length > 0 ? { ...src, params: { ...src.params, ...extra } } : src;
 }

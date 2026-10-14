@@ -6,7 +6,8 @@ import { describe, expect, it } from "vitest";
 import type { AtlasNode } from "../types.ts";
 import type { LiveRateLimit, StoredPauSnapshot } from "./pau.ts";
 import { checkAtlasValues } from "./pauAtlasValues.ts";
-import { limitDocSources, limitHeadingScope, withInstanceLimitDocs, type LimitDocs } from "./pauLimitDocs.ts";
+import { withInstanceLimitDocs } from "./pauInstanceLimitDocs.ts";
+import { limitDocSources, limitHeadingScope, type LimitDocs } from "./pauLimitDocs.ts";
 import type { ValueSource } from "./pauInstanceKeys.ts";
 
 const node = (id: string, title: string, content = ""): AtlasNode => ({ id, doc_no: id, title, type: "Core", depth: 6, parentId: null, content, order: 0, addressRefs: [] });
@@ -59,6 +60,26 @@ describe("limitDocSources", () => {
   it("reads only the deployment kind the heading names", () => {
     const snaps = [snap("arbitrum", "monolithic", [lim(K_ETH, "5000000000000", "57870370")])];
     expect(checkAtlasValues(limitDocSources(prime, "spark", docs), snaps).filter((c) => c.docId === "eth").map((c) => c.status)).toEqual(["no-deployment", "no-deployment"]);
+  });
+});
+
+describe("a Rate Limits heading whose text names the chain", () => {
+  const stated = (text: string) => {
+    const kids: [string | null, AtlasNode[]][] = [
+      [null, [node("osero", "Osero")]],
+      ["osero", [node("dl", "Diamond PAU Rate Limits", text)]],
+      ["dl", [node("burn", "USDS Burn Maximum", "The maximum (`LIMIT_USDS_BURN`) is specified herein.\n\n- `maxAmount`: 50,000,000 USDS\n- `slope`: 50,000,000 USDS per day")]],
+    ];
+    return { byParent: new Map(kids), docs: Object.fromEntries(kids.flatMap(([, k]) => k).map((n) => [n.id, n])) } satisfies LimitDocs;
+  };
+  const os: ValueSource = { name: "Osero", docId: null, params: {} };
+  it("takes that chain and the heading's deployment kind for a leaf directly under the heading", () => {
+    const d = stated("The documents herein list the controller-wide rate limits for the Osero Diamond PAU on Ethereum Mainnet. Values are set via a cBEAM; the on-chain value can be queried.");
+    expect(limitDocSources(os, "osero", d).map((s) => [s.name, s.kind, s.constant])).toEqual([["Ethereum Mainnet - USDS Burn Maximum", "diamond", "LIMIT_USDS_BURN"]]);
+  });
+  it("reads no chain when the text names none, or names two", () => {
+    expect(limitDocSources(os, "osero", stated("The documents herein list the rate limits."))).toEqual([]);
+    expect(limitDocSources(os, "osero", stated("Limits on Ethereum Mainnet and on Base."))).toEqual([]);
   });
 });
 

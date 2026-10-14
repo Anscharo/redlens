@@ -11,7 +11,8 @@ import type { GraphData } from "./graphData.ts";
 import type { ValueSource } from "./pauInstanceKeys.ts";
 import { graphView, primeValueSources } from "./pauPrimeSources.ts";
 import { RATE_LIMITS_TITLE_RE } from "./pauParams.ts";
-import { ancestorsOf, limitDocSources, limitHeadingScope, withInstanceLimitDocs, type LimitDocs } from "./pauLimitDocs.ts";
+import { withInstanceLimitDocs } from "./pauInstanceLimitDocs.ts";
+import { ancestorsOf, limitDocSources, limitHeadingScope, type LimitDocs } from "./pauLimitDocs.ts";
 
 export interface DocValueSources {
   /** The prime entity id. */
