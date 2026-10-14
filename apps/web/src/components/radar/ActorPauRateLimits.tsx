@@ -9,6 +9,7 @@ import { CopyLink } from "../CopyLink";
 import { sectionAnchor, type Anchor } from "@/lib/pauAnchors";
 import { elsewhereId, matchId, type AtlasVerdict } from "@/lib/pauAtlasMatch";
 import { PauAtlasMark } from "./PauAtlasMark";
+import { refsOnChain } from "@/lib/pauKeyChains";
 import { formatPerDay, labelOnChain, limitDecimals, unitNote, type AtlasKeyRef, type DerivedKey, type LiveRateLimit } from "../../lib/pau";
 
 /** A limit with the RateLimits contract holding it: two contracts of one deployment can hold the same key. */
@@ -62,10 +63,17 @@ function DerivedName({ k, d, chain }: { k: string; d: DerivedKey; chain: string 
   );
 }
 
+const chainLabel = (chain: string) => chain.charAt(0).toUpperCase() + chain.slice(1);
+
 /** A key's name: the atlas param that states it, else its derivation, else a note that nothing names it. */
 export function LimitName({ r, chain, keyIndex }: { r: { key: string; derived?: DerivedKey }; chain: string; keyIndex: Map<string, AtlasKeyRef[]> }) {
-  const refs = keyIndex.get(r.key.toLowerCase()) ?? [];
+  const named = keyIndex.get(r.key.toLowerCase()) ?? [];
+  const refs = refsOnChain(named, chain);
   const ref = refs[0];
+  if (!ref && named.length > 0) {
+    const title = `${r.key}\nnamed by the Atlas for ${chainLabel(named[0].chain!)} only`;
+    return <span title={title}>{labelOnChain(named[0].label, chain)}</span>;
+  }
   if (!ref && r.derived) return <DerivedName k={r.key} d={r.derived} chain={chain} />;
   if (!ref) {
     return (
@@ -85,7 +93,13 @@ export function LimitName({ r, chain, keyIndex }: { r: { key: string; derived?: 
   );
 }
 
-function LimitRow({ r, chain, keyIndex, verdict }: { r: LiveRateLimit; chain: string; keyIndex: Map<string, AtlasKeyRef[]>; verdict?: AtlasVerdict }) {
+/** Whether a key's value is stated for a deployment on this chain (an "elsewhere" verdict's `on` entries are "<chain> <kind>"). */
+const statedOnChain = (v: AtlasVerdict, chain: string) => v.on?.some((w) => w.split(" ")[0] === chain) ?? false;
+
+function LimitRow({ r, chain, keyIndex, verdict, elsewhere }: { r: LiveRateLimit; chain: string; keyIndex: Map<string, AtlasKeyRef[]>; verdict?: AtlasVerdict; elsewhere?: AtlasVerdict }) {
+  // A value the Atlas states only for another chain's deployment says nothing here: no mark and no link into that chain's document.
+  const otherChain = !verdict && !!elsewhere && !statedOnChain(elsewhere, chain);
+  const shown = verdict ?? (elsewhere && !otherChain ? elsewhere : undefined);
   const max = r.data?.maxAmount ?? r.configured.maxAmount;
   const dec = limitDecimals(r.unit, max);
   const scale = unitNote(r.unit, max) + (r.data ? "" : "; live read failed, showing the last value its history set");
@@ -94,8 +108,8 @@ function LimitRow({ r, chain, keyIndex, verdict }: { r: LiveRateLimit; chain: st
       <td className="py-0.5 pr-3 align-top max-w-[40rem] break-words"><LimitName r={r} chain={chain} keyIndex={keyIndex} /></td>
       <td className={`${cell} text-right`} style={colRule} title={scale}>{isOff(r) ? "off" : <PauAmount raw={max} dec={dec} symbol={r.unit?.symbol} />}</td>
       <td className={`${cell} text-right`} style={colRule} title={scale}>{formatPerDay(r.data?.slope ?? r.configured.slope, dec)}</td>
-      <td className={`${cell} text-center`} style={colRule} data-atlas-match={verdict?.mark}>
-        <PauAtlasMark verdict={verdict} keyDocId={keyIndex.get(r.key.toLowerCase())?.[0]?.docId} chain={chain} limit={r} />
+      <td className={`${cell} text-center`} style={colRule} data-atlas-match={shown?.mark}>
+        <PauAtlasMark verdict={shown} keyDocId={otherChain ? null : refsOnChain(keyIndex.get(r.key.toLowerCase()) ?? [], chain)[0]?.docId} chain={chain} limit={r} />
       </td>
       <td className={`${cell} text-right whitespace-nowrap`} style={colRule}>
         <a href={explorerTxUrl(chain, r.setAt.tx)} target="_blank" rel="noopener" className="hover:underline" style={dim}>
@@ -126,7 +140,7 @@ export function PauRateLimits({ chain, limits, keyIndex, verdicts, anchor }: Pro
         </thead>
         <tbody>
           {ordered(limits, keyIndex, isOff).map((r) => (
-            <LimitRow key={`${r.contract}:${r.key}`} r={r} chain={chain} keyIndex={keyIndex} verdict={verdicts.get(matchId(r.contract, r.key)) ?? verdicts.get(elsewhereId(r.key))} />
+            <LimitRow key={`${r.contract}:${r.key}`} r={r} chain={chain} keyIndex={keyIndex} verdict={verdicts.get(matchId(r.contract, r.key))} elsewhere={verdicts.get(elsewhereId(r.key))} />
           ))}
         </tbody>
       </table>

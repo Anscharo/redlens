@@ -5,7 +5,7 @@
 import { render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
-import { matchId } from "@/lib/pauAtlasMatch";
+import { elsewhereId, matchId } from "@/lib/pauAtlasMatch";
 import { PauRateLimits, type ContractLimit } from "./ActorPauRateLimits";
 
 vi.mock("../../lib/pau", async (orig) => ({ ...(await orig<typeof import("../../lib/pau")>()), loadPauHistory: () => new Promise(() => {}) }));
@@ -50,5 +50,28 @@ describe("PauRateLimits", () => {
     expect(within(cells[0]).getByRole("link")).toHaveAttribute("href", "/atlas?id=doc-1&view=onchain");
     expect(within(cells[1]).getByRole("link")).toHaveAttribute("href", "/atlas?id=doc-2&view=onchain");
     expect(within(cells[2]).queryByRole("link")).toBeNull();
+  });
+
+  it("marks a key the Atlas values for another deployment on the same chain only, never linking into another chain's document", () => {
+    const keyIndex = new Map([[KEY, [{ docId: "key-doc", label: "Aggregate CCTP" }]]]);
+    const verdicts = new Map([[elsewhereId(KEY), { mark: "elsewhere" as const, docId: "value-doc", on: ["arbitrum diamond"] }]]);
+    const cell = (chain: string) => {
+      const { container } = render(<PauRateLimits chain={chain} limits={[limit(RL1)]} keyIndex={keyIndex} verdicts={verdicts} anchor={{ id: chain, aliases: [] }} />);
+      return within(container).getAllByRole("row")[1].querySelectorAll("td")[3];
+    };
+    const sameChain = cell("arbitrum");
+    expect([sameChain.textContent, within(sameChain).getByRole("link").getAttribute("href")]).toEqual(["?", "/atlas?id=value-doc&view=onchain"]);
+    expect(within(cell("ethereum")).queryByRole("link")).toBeNull();
+  });
+
+  it("shows a key's name without a link on a chain its naming document is not under", () => {
+    const keyIndex = new Map([[KEY, [{ docId: "key-doc", label: "Aggregate CCTP", chain: "arbitrum" }]]]);
+    const name = (chain: string) => {
+      const { container } = render(<PauRateLimits chain={chain} limits={[limit(RL1)]} keyIndex={keyIndex} verdicts={new Map()} anchor={{ id: chain, aliases: [] }} />);
+      return within(container).getAllByRole("row")[1].querySelectorAll("td")[0];
+    };
+    expect(within(name("arbitrum")).getByRole("link", { name: "Aggregate CCTP" })).toHaveAttribute("href", "/atlas?id=key-doc");
+    const other = name("ethereum");
+    expect([other.textContent, within(other).queryByRole("link")]).toEqual(["Aggregate CCTP", null]);
   });
 });

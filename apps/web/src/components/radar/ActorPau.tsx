@@ -6,6 +6,7 @@ import { loadAtlas } from "../../lib/docs";
 import { checkAtlasValues, type ValueCheck } from "@/lib/pauAtlasValues";
 import { atlasVerdicts } from "@/lib/pauAtlasMatch";
 import { withCheckedKeys } from "@/lib/pauCheckKeys";
+import { withRefChains } from "@/lib/pauKeyChains";
 import { graphPrimeSources } from "@/lib/pauDocSources";
 import { addressKeyIndex, instanceKeyIndex, loadPau, loadPauHistory, primeKeyedInstance, snapshotsForPrime, timelineFor, withAddressKeys, type KeyedInstance } from "../../lib/pau";
 import { deploymentAnchors, PAU_ANCHOR } from "@/lib/pauAnchors";
@@ -36,9 +37,10 @@ function usePauPage({ prime, instances }: Props) {
   const res = useLoaded(loadPau, { soft: true });
   const snaps = useMemo(() => (res ? snapshotsForPrime(res, prime.id) : []), [res, prime.id]);
   const checks = useAtlasChecks(prime.id, snaps);
+  const atlas = useLoaded(loadAtlas, { soft: true });
   const keyIndex = useMemo(
-    () => withCheckedKeys(withAddressKeys(instanceKeyIndex([primeKeyedInstance(prime.m), ...instances]), addressKeyIndex(instances, snaps)), checks),
-    [prime.m, instances, snaps, checks],
+    () => withRefChains(withCheckedKeys(withAddressKeys(instanceKeyIndex([primeKeyedInstance(prime.m), ...instances]), addressKeyIndex(instances, snaps)), checks), atlas),
+    [prime.m, instances, snaps, checks, atlas],
   );
   const verdicts = useMemo(() => atlasVerdicts(checks), [checks]);
   const history = useLoaded(loadPauHistory, { soft: true });
