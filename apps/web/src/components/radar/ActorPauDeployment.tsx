@@ -10,6 +10,7 @@ import { anchorProps } from "./PauSectionHeading";
 import { CopyLink } from "../CopyLink";
 import type { Anchor } from "@/lib/pauAnchors";
 import type { AtlasVerdict } from "@/lib/pauAtlasMatch";
+import type { NamedIn } from "@/lib/pauConstantDocs";
 
 const chainLabel = (chain: string) => chain.charAt(0).toUpperCase() + chain.slice(1);
 const dim = { color: "var(--tan-3)" };
@@ -17,6 +18,8 @@ const dim = { color: "var(--tan-3)" };
 interface Props {
   snap: StoredPauSnapshot;
   keyIndex: Map<string, AtlasKeyRef[]>;
+  /** The document a limit's controller constant is named in, for rows the Atlas states no value for (pauConstantDocs.ts). */
+  namedIn?: NamedIn;
   /** Each key's Atlas verdict (pauAtlasMatch.ts). */
   verdicts: Map<string, AtlasVerdict>;
   defaultOpen: boolean;
@@ -25,7 +28,7 @@ interface Props {
 }
 
 /** One deployment: a collapsible card with its contracts, facets, holders, rate limits and parameters. */
-export function PauDeployment({ snap, keyIndex, verdicts, defaultOpen, anchor }: Props) {
+export function PauDeployment({ snap, keyIndex, namedIn, verdicts, defaultOpen, anchor }: Props) {
   const limits = snap.contracts.flatMap((c) => (c.rateLimits ?? []).map((r) => ({ ...r, contract: c.address })));
   const loading = snap.contracts.some((c) => !c.historyComplete);
   const firstBeam = snap.contracts.find((c) => c.beam)?.address;
@@ -43,7 +46,7 @@ export function PauDeployment({ snap, keyIndex, verdicts, defaultOpen, anchor }:
         <PauContracts snap={snap} />
         <PauFacets snap={snap} anchor={anchor} />
         <PauHolders snap={snap} anchor={anchor} />
-        <PauRateLimits chain={snap.chain} limits={limits} keyIndex={keyIndex} verdicts={verdicts} anchor={anchor} />
+        <PauRateLimits chain={snap.chain} limits={limits} keyIndex={keyIndex} namedIn={namedIn} verdicts={verdicts} anchor={anchor} />
         {snap.contracts.map((c) => c.beam && <PauBeam key={c.address} beam={c.beam} chain={snap.chain} keyIndex={keyIndex} anchor={c.address === firstBeam ? anchor : undefined} />)}
         <PauParams snap={snap} anchor={anchor} />
         <p className="mono text-[11px] mt-2" style={dim}>read {snap.fetchedAt.slice(0, 16).replace("T", " ")} UTC</p>
