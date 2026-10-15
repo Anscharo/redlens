@@ -19,34 +19,22 @@
       "title": "PASMom Exception"
     },
     {
-      "taskKey": "u:583c1a98-b63a-42fa-b29e-ce0688dcdaf6",
-      "uuid": "583c1a98-b63a-42fa-b29e-ce0688dcdaf6",
-      "docNo": "A.1.10.5.3.1.1.1",
-      "title": "Deployment Of Emergency Drop Spells"
-    },
-    {
-      "taskKey": "u:e4e3c3d9-939d-43ef-9f7a-64f5d4cfe7d6",
-      "uuid": "e4e3c3d9-939d-43ef-9f7a-64f5d4cfe7d6",
-      "docNo": "A.1.10.5.3.1.2.1",
-      "title": "Permissionless Cancellation Of Single Planned Governance Action"
-    },
-    {
-      "taskKey": "u:6022623f-e7cd-4a04-a8ab-e5b61c11a9da",
-      "uuid": "6022623f-e7cd-4a04-a8ab-e5b61c11a9da",
-      "docNo": "A.1.10.5.3.1.2.2",
-      "title": "Permissionless Cancellation Of Multiple Planned Governance Actions"
-    },
-    {
-      "taskKey": "u:4a154956-88d7-4b90-a9b0-3a96871087a7",
-      "uuid": "4a154956-88d7-4b90-a9b0-3a96871087a7",
-      "docNo": "A.1.10.5.3.1.3.5",
-      "title": "Plans Parameter Definition"
-    },
-    {
       "taskKey": "u:7648bf12-d600-4e0d-807b-5eb18e8d0f4f",
       "uuid": "7648bf12-d600-4e0d-807b-5eb18e8d0f4f",
       "docNo": "A.1.11.1.5.1.1",
       "title": "Definition Of Housekeeping Items"
+    },
+    {
+      "taskKey": "u:92beb324-1782-444d-a520-7956987c2a51",
+      "uuid": "92beb324-1782-444d-a520-7956987c2a51",
+      "docNo": "A.2.2.9.1.2.1.1.2.4",
+      "title": "Arbitrum Tracking Methodology"
+    },
+    {
+      "taskKey": "u:4a02722d-91a1-43df-8657-7b9356f79550",
+      "uuid": "4a02722d-91a1-43df-8657-7b9356f79550",
+      "docNo": "A.2.2.9.1.2.1.1.2.5",
+      "title": "Optimism Tracking Methodology"
     },
     {
       "taskKey": "u:b76195f2-7494-43a4-919e-fa823303ad06",
@@ -119,12 +107,6 @@
       "uuid": "e0cb8fc5-6852-4ae1-ac0a-4cf6847396b5",
       "docNo": "A.2.2.10.1.1.1.2.3.1.2.6.1",
       "title": "Highest Production Rate Limit For DAI-USDS Facet"
-    },
-    {
-      "taskKey": "u:05f5d939-712b-4204-8f77-4ef5ea598dcc",
-      "uuid": "05f5d939-712b-4204-8f77-4ef5ea598dcc",
-      "docNo": "A.2.2.10.1.1.1.2.3.1.2.7",
-      "title": "ERC-4626 Facet"
     },
     {
       "taskKey": "u:24faa338-1e0b-41fb-b21c-82b12f0d01e4",
@@ -391,12 +373,6 @@
       "title": "Timelock"
     },
     {
-      "taskKey": "u:4a388764-7469-4efb-84f0-6b91278428fb",
-      "uuid": "4a388764-7469-4efb-84f0-6b91278428fb",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.3.3",
-      "title": "Delayed Function Calls"
-    },
-    {
       "taskKey": "u:8ead8771-c769-48d0-af2a-802099c61d42",
       "uuid": "8ead8771-c769-48d0-af2a-802099c61d42",
       "docNo": "A.2.2.10.1.1.1.2.4.1.3.3.1",
@@ -415,28 +391,10 @@
       "title": "Add Init Rate Limits Function Call"
     },
     {
-      "taskKey": "u:010a904e-e0e0-4c1d-8460-b8e3118b680f",
-      "uuid": "010a904e-e0e0-4c1d-8460-b8e3118b680f",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.3.3.6",
-      "title": "Add Init Controller Actions Function Call"
-    },
-    {
-      "taskKey": "u:2c82cfd0-7a9a-464f-844d-ebc43b31c2a6",
-      "uuid": "2c82cfd0-7a9a-464f-844d-ebc43b31c2a6",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.3.4",
-      "title": "Immediate Function Calls"
-    },
-    {
       "taskKey": "u:623fe784-cca1-423d-b207-1990e903126d",
       "uuid": "623fe784-cca1-423d-b207-1990e903126d",
       "docNo": "A.2.2.10.1.1.1.2.4.1.3.4.3",
       "title": "Del Init Rate Limits Function Call"
-    },
-    {
-      "taskKey": "u:88c0c2dd-f974-4690-8477-06e22d6dcd08",
-      "uuid": "88c0c2dd-f974-4690-8477-06e22d6dcd08",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.3.4.4",
-      "title": "Del Init Controller Actions Function Call"
     },
     {
       "taskKey": "u:03280c06-8cab-47e0-acb7-9c7a30a5bf6a",
@@ -469,70 +427,16 @@
       "title": "Operator Execution"
     },
     {
-      "taskKey": "u:da8d9885-3b28-478c-bbaa-ec88bdde91a9",
-      "uuid": "da8d9885-3b28-478c-bbaa-ec88bdde91a9",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.4.3.1",
-      "title": "Operator For The Grove Diamond PAU"
-    },
-    {
-      "taskKey": "u:776677da-0601-4b25-97f0-619cb8978415",
-      "uuid": "776677da-0601-4b25-97f0-619cb8978415",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.4.3.1.3",
-      "title": "Grove Operator Multisig Signers"
-    },
-    {
       "taskKey": "u:6618063e-89c7-4ff0-806a-d46b32029dc6",
       "uuid": "6618063e-89c7-4ff0-806a-d46b32029dc6",
       "docNo": "A.2.2.10.1.1.1.2.4.1.4.3.1.4",
       "title": "Grove Operator Multisig Usage Standards"
     },
     {
-      "taskKey": "u:e896c546-06e1-4bf7-83a1-d91fc5cfa71a",
-      "uuid": "e896c546-06e1-4bf7-83a1-d91fc5cfa71a",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.4.3.2",
-      "title": "Operator For The Osero Diamond PAU"
-    },
-    {
-      "taskKey": "u:9c59a5c5-300a-4694-99ed-46a43dfc7a67",
-      "uuid": "9c59a5c5-300a-4694-99ed-46a43dfc7a67",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.4.3.2.1",
-      "title": "Osero Operator Multisig Address"
-    },
-    {
-      "taskKey": "u:95aa5811-78f3-4c71-b037-fa81d95e166d",
-      "uuid": "95aa5811-78f3-4c71-b037-fa81d95e166d",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.4.3.2.2",
-      "title": "Osero Operator Multisig Required Number Of Signers"
-    },
-    {
-      "taskKey": "u:9882bb18-4f6b-4fa3-8d7f-d8dfbf9f25dc",
-      "uuid": "9882bb18-4f6b-4fa3-8d7f-d8dfbf9f25dc",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.4.3.2.3",
-      "title": "Osero Operator Multisig Signers"
-    },
-    {
       "taskKey": "u:212ba83e-6552-4130-bc0e-c0b687601b4e",
       "uuid": "212ba83e-6552-4130-bc0e-c0b687601b4e",
       "docNo": "A.2.2.10.1.1.1.2.4.1.4.3.2.4",
       "title": "Osero Operator Multisig Usage Standards"
-    },
-    {
-      "taskKey": "u:3375bcc9-aca7-47be-b243-bee6d4126d7c",
-      "uuid": "3375bcc9-aca7-47be-b243-bee6d4126d7c",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.4.3.2.5",
-      "title": "Osero Operator Multisig Modification"
-    },
-    {
-      "taskKey": "u:301e33b9-545f-4150-a14b-b0775096c2ea",
-      "uuid": "301e33b9-545f-4150-a14b-b0775096c2ea",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.4.4",
-      "title": "Registered Controllers"
-    },
-    {
-      "taskKey": "u:d60d9a19-5661-42ac-9d52-11e3283e3740",
-      "uuid": "d60d9a19-5661-42ac-9d52-11e3283e3740",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.4.4.1",
-      "title": "Controller For The Grove Diamond PAU"
     },
     {
       "taskKey": "u:ee79ef13-d1ae-4fc7-9784-a5293c57bfe9",
@@ -703,6 +607,12 @@
       "title": "Transitional Measures"
     },
     {
+      "taskKey": "u:3b387169-c279-4d0f-918c-e6c424c6ea2c",
+      "uuid": "3b387169-c279-4d0f-918c-e6c424c6ea2c",
+      "docNo": "A.2.2.10.1.1.1.2.5",
+      "title": "Liquidity Layer Operational Processes"
+    },
+    {
       "taskKey": "u:5e941add-bf8d-4623-95a1-69795e7f7034",
       "uuid": "5e941add-bf8d-4623-95a1-69795e7f7034",
       "docNo": "A.2.2.10.1.1.1.2.5.2",
@@ -713,12 +623,6 @@
       "uuid": "417edcc0-3d50-48ba-8fc2-38b361dbc297",
       "docNo": "A.2.2.10.1.1.1.2.5.2.5",
       "title": "Uniswap v3 Facet"
-    },
-    {
-      "taskKey": "u:b8f6a3c8-91db-4f25-b8c1-9872deb4040a",
-      "uuid": "b8f6a3c8-91db-4f25-b8c1-9872deb4040a",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.6.1.1",
-      "title": "Allocator Role"
     },
     {
       "taskKey": "u:5ad1a8cc-4a0a-43da-bab0-3fc087c84184",
@@ -733,40 +637,16 @@
       "title": "Deposit Asset Into ERC-4626 Vault"
     },
     {
-      "taskKey": "u:a0a495e3-7cc1-4ccc-bc03-969a9a6a1f35",
-      "uuid": "a0a495e3-7cc1-4ccc-bc03-969a9a6a1f35",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.6.2.1",
-      "title": "Allocator Role"
-    },
-    {
       "taskKey": "u:45751856-0a7a-451e-bd01-4bb3cf1e9b33",
       "uuid": "45751856-0a7a-451e-bd01-4bb3cf1e9b33",
       "docNo": "A.2.2.10.1.1.1.2.5.2.6.2.2",
       "title": "Rate Limit"
     },
     {
-      "taskKey": "u:3ed97ddc-8198-4b8b-98aa-28c31c068de0",
-      "uuid": "3ed97ddc-8198-4b8b-98aa-28c31c068de0",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.6.2.3",
-      "title": "Withdraw Asset From ERC-4626 Vault"
-    },
-    {
-      "taskKey": "u:cdcc232f-f2d4-431e-a434-d0e3ba461784",
-      "uuid": "cdcc232f-f2d4-431e-a434-d0e3ba461784",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.6.3.1",
-      "title": "Allocator Role"
-    },
-    {
       "taskKey": "u:47a492dd-f4e6-4381-b432-d12bd3111c37",
       "uuid": "47a492dd-f4e6-4381-b432-d12bd3111c37",
       "docNo": "A.2.2.10.1.1.1.2.5.2.6.3.2",
       "title": "Rate Limit"
-    },
-    {
-      "taskKey": "u:99ab3862-8eb2-4cbe-b67b-c8fbb5c2133f",
-      "uuid": "99ab3862-8eb2-4cbe-b67b-c8fbb5c2133f",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.6.3.3",
-      "title": "Redeem Shares From ERC-4626 Vault"
     },
     {
       "taskKey": "u:8515b078-799a-4653-b320-5e4dee14249a",
@@ -781,40 +661,58 @@
       "title": "Record Maximum Exchange Rate For ERC-4626 Vault"
     },
     {
-      "taskKey": "u:1cb17b82-a294-4942-8183-4d90b224a79d",
-      "uuid": "1cb17b82-a294-4942-8183-4d90b224a79d",
-      "docNo": "A.2.2.10.1.1.1.2.5.3.1",
-      "title": "RateLimits Query"
+      "taskKey": "u:7ba1cc79-9a9f-460c-85b8-72181788397f",
+      "uuid": "7ba1cc79-9a9f-460c-85b8-72181788397f",
+      "docNo": "A.2.2.10.1.1.1.2.5.4.2.1",
+      "title": "Withdraw All Positions From Aave v3 Facet"
     },
     {
-      "taskKey": "u:f671061e-11a0-4d3b-bb6e-9f4ee9a012a9",
-      "uuid": "f671061e-11a0-4d3b-bb6e-9f4ee9a012a9",
-      "docNo": "A.2.2.10.1.1.1.2.5.3.2",
-      "title": "Set RateLimit"
+      "taskKey": "u:1dd13ef2-ee4a-4487-8fc3-0e9d83a3bbd1",
+      "uuid": "1dd13ef2-ee4a-4487-8fc3-0e9d83a3bbd1",
+      "docNo": "A.2.2.10.1.1.1.2.5.4.2.2",
+      "title": "Withdraw All Positions From ERC-4626 Facet"
     },
     {
-      "taskKey": "u:a85b7e8b-c4e9-44de-b717-efa4c8268d3b",
-      "uuid": "a85b7e8b-c4e9-44de-b717-efa4c8268d3b",
-      "docNo": "A.2.2.10.1.1.1.2.5.3.3",
-      "title": "Set Unlimited RateLimit"
+      "taskKey": "u:5938897f-e639-4568-8e84-556850a95867",
+      "uuid": "5938897f-e639-4568-8e84-556850a95867",
+      "docNo": "A.2.2.10.1.1.1.2.5.4.2.3",
+      "title": "Withdraw All Positions From Basin Facet"
     },
     {
-      "taskKey": "u:39217368-efa1-4168-a231-b010d6e23dfa",
-      "uuid": "39217368-efa1-4168-a231-b010d6e23dfa",
-      "docNo": "A.2.2.10.1.1.1.2.5.3.4",
-      "title": "Set Trigger For RateLimit Decrease"
+      "taskKey": "u:fa303993-b430-45d4-a284-b8fce6b239b3",
+      "uuid": "fa303993-b430-45d4-a284-b8fce6b239b3",
+      "docNo": "A.2.2.10.1.1.1.2.5.4.2.4",
+      "title": "Withdraw All Positions From Uniswap v3 Facet"
     },
     {
-      "taskKey": "u:ee55aa72-1405-49cb-a7fe-3e8adc9ee64c",
-      "uuid": "ee55aa72-1405-49cb-a7fe-3e8adc9ee64c",
-      "docNo": "A.2.2.10.1.1.1.2.5.3.5",
-      "title": "Set Trigger For RateLimit Increase"
+      "taskKey": "u:be4f3bc0-70e4-478c-8c86-e889846198e3",
+      "uuid": "be4f3bc0-70e4-478c-8c86-e889846198e3",
+      "docNo": "A.2.2.10.1.1.1.3.2.3",
+      "title": "Oracle Requirements"
     },
     {
-      "taskKey": "u:14aba6cb-eb34-4780-84c1-908666835569",
-      "uuid": "14aba6cb-eb34-4780-84c1-908666835569",
-      "docNo": "A.2.2.10.1.1.1.3.3.1",
-      "title": "Vault Timelock Requirements"
+      "taskKey": "u:191fbabc-d4e1-4ec4-9ea8-35b80eb809b0",
+      "uuid": "191fbabc-d4e1-4ec4-9ea8-35b80eb809b0",
+      "docNo": "A.2.2.10.1.1.1.3.2.3.1",
+      "title": "Multi-Source Oracle Methodology"
+    },
+    {
+      "taskKey": "u:079d2e2c-fa22-4f3c-a929-82d45af38097",
+      "uuid": "079d2e2c-fa22-4f3c-a929-82d45af38097",
+      "docNo": "A.2.2.10.1.1.1.3.2.3.1.1",
+      "title": "Temporary Single-Source Oracle Exception"
+    },
+    {
+      "taskKey": "u:fe7c0ccf-c570-471a-815a-6b4b9cda5e29",
+      "uuid": "fe7c0ccf-c570-471a-815a-6b4b9cda5e29",
+      "docNo": "A.2.2.10.1.1.1.3.2.3.2",
+      "title": "Eligible Collateral Oracle Methodologies"
+    },
+    {
+      "taskKey": "u:8394d47c-af13-4d20-af8e-6441b944c895",
+      "uuid": "8394d47c-af13-4d20-af8e-6441b944c895",
+      "docNo": "A.2.2.10.1.1.1.3.2.3.4",
+      "title": "Morpho Oracle Contract Requirements"
     },
     {
       "taskKey": "u:41824fb1-a4e0-4f58-9095-0b3e646fb42c",
@@ -829,82 +727,40 @@
       "title": "Grove Exception"
     },
     {
+      "taskKey": "u:33e0e235-0031-4b44-9f56-c19df46daa02",
+      "uuid": "33e0e235-0031-4b44-9f56-c19df46daa02",
+      "docNo": "A.2.2.10.1.1.1.3.5.2",
+      "title": "Spark Exception"
+    },
+    {
       "taskKey": "u:4887e971-be6c-4f98-9137-7cdec3ed0fa0",
       "uuid": "4887e971-be6c-4f98-9137-7cdec3ed0fa0",
       "docNo": "A.2.2.10.1.1.3.2.1.2.3.2",
       "title": "TRC Report Contents"
     },
     {
-      "taskKey": "u:bf609e8f-a9ef-4787-846e-96a43028a216",
-      "uuid": "bf609e8f-a9ef-4787-846e-96a43028a216",
-      "docNo": "A.2.8.2.2.2.4.5.2.1.1",
-      "title": "Transfer Of USDS To Grove Foundation Multisig"
+      "taskKey": "u:adbe704f-9c50-4ee1-b632-398cdd87598a",
+      "uuid": "adbe704f-9c50-4ee1-b632-398cdd87598a",
+      "docNo": "A.2.4.2.1.2",
+      "title": "Calculation Of Applicable Balance"
     },
     {
-      "taskKey": "u:61625749-4df9-411e-b4dd-15c9e4b059d3",
-      "uuid": "61625749-4df9-411e-b4dd-15c9e4b059d3",
-      "docNo": "A.2.8.2.2.2.4.5.2.2.1",
-      "title": "Transfer Of USDS To Grove Foundation Multisig"
+      "taskKey": "u:2ffbf166-edd8-4544-810c-d512fd784c8b",
+      "uuid": "2ffbf166-edd8-4544-810c-d512fd784c8b",
+      "docNo": "A.2.8.2.2.2.4.5.2.5",
+      "title": "Grove Foundation Grant Authorization: October 2026"
     },
     {
-      "taskKey": "u:b5ab118c-b968-4e8b-ba13-7d745b1f4860",
-      "uuid": "b5ab118c-b968-4e8b-ba13-7d745b1f4860",
-      "docNo": "A.2.8.2.2.2.4.5.2.3.1",
-      "title": "Transfer Of USDS To Grove Foundation Multisig"
+      "taskKey": "u:07f4faa6-f900-46e6-87d4-137fe2e5cb99",
+      "uuid": "07f4faa6-f900-46e6-87d4-137fe2e5cb99",
+      "docNo": "A.2.11.1.1.3.3.2",
+      "title": "Rewards Payout Process"
     },
     {
-      "taskKey": "u:e3ec99ec-54c9-4fe7-8104-aee20c57ec57",
-      "uuid": "e3ec99ec-54c9-4fe7-8104-aee20c57ec57",
-      "docNo": "A.2.8.2.2.2.7.2.1",
-      "title": "Transfer Of Genesis Capital Allocation To Spark SubProxy"
-    },
-    {
-      "taskKey": "u:c7a49d2a-72c2-438e-ab04-8ae284b811e0",
-      "uuid": "c7a49d2a-72c2-438e-ab04-8ae284b811e0",
-      "docNo": "A.2.8.2.2.2.7.2.2",
-      "title": "Transfer Of Genesis Capital Allocation To Grove SubProxy"
-    },
-    {
-      "taskKey": "u:c39702fb-bb6a-43c7-b208-18ddd279b1d3",
-      "uuid": "c39702fb-bb6a-43c7-b208-18ddd279b1d3",
-      "docNo": "A.2.8.2.4.2.1.2.1",
-      "title": "Transfer Of Genesis Capital Allocation To Obex SubProxy"
-    },
-    {
-      "taskKey": "u:2deb96b0-c985-49cd-a46e-7d1fa38c53b5",
-      "uuid": "2deb96b0-c985-49cd-a46e-7d1fa38c53b5",
-      "docNo": "A.2.8.2.5.2.2.3",
-      "title": "Transfer Of Genesis Capital Allocation To Core Council Executor Agent 1 SubProxy"
-    },
-    {
-      "taskKey": "u:2f9fb868-f137-4110-90ec-8ab8d75ebcaa",
-      "uuid": "2f9fb868-f137-4110-90ec-8ab8d75ebcaa",
-      "docNo": "A.2.8.2.5.2.2.4",
-      "title": "Transfer Of Genesis Capital Allocation To Core Council Buffer"
-    },
-    {
-      "taskKey": "u:65638659-eb0d-4e5c-87e8-50705e3595b8",
-      "uuid": "65638659-eb0d-4e5c-87e8-50705e3595b8",
-      "docNo": "A.2.8.2.6.2.2.2.2",
-      "title": "Transfer Of Genesis Capital Allocation To Osero SubProxy"
-    },
-    {
-      "taskKey": "u:36556509-d2b6-4932-8781-9bf4ecc90987",
-      "uuid": "36556509-d2b6-4932-8781-9bf4ecc90987",
-      "docNo": "A.2.8.2.7.2.2.2.1",
-      "title": "Transfer Of Genesis Capital Allocation To Skybase SubProxy"
-    },
-    {
-      "taskKey": "u:be600bf6-c0f2-42c5-ad5c-fd0cb429b628",
-      "uuid": "be600bf6-c0f2-42c5-ad5c-fd0cb429b628",
-      "docNo": "A.2.8.2.7.2.2.2.2",
-      "title": "Transfer Of Genesis Capital Allocation To USDS Demand Multisig"
-    },
-    {
-      "taskKey": "u:c6541e3b-628b-47a6-9f2b-b7b27df7913d",
-      "uuid": "c6541e3b-628b-47a6-9f2b-b7b27df7913d",
-      "docNo": "A.2.8.2.7.2.2.3.1.1",
-      "title": "Transfer Of USDS To Skybase Foundation Operational Multisig"
+      "taskKey": "u:97359514-045c-4699-8b1e-e68fe13f8840",
+      "uuid": "97359514-045c-4699-8b1e-e68fe13f8840",
+      "docNo": "A.2.11.1.1.3.3.3",
+      "title": "Rewards Budget"
     },
     {
       "taskKey": "u:56e44cdc-1ba5-4254-9308-c4cfe189394a",
@@ -925,16 +781,10 @@
       "title": "Noncompliant Morpho Vault Allocations"
     },
     {
-      "taskKey": "u:e96da090-34ff-4445-a1d3-22cc69be2e51",
-      "uuid": "e96da090-34ff-4445-a1d3-22cc69be2e51",
-      "docNo": "A.3.2.2.1.1.1.1.5",
-      "title": "Reference Implementation"
-    },
-    {
-      "taskKey": "u:35ec7382-0613-4e74-b5ba-d86c647b1d73",
-      "uuid": "35ec7382-0613-4e74-b5ba-d86c647b1d73",
-      "docNo": "A.3.2.2.1.2.3.4",
-      "title": "Reference Implementation"
+      "taskKey": "u:8694e11a-6acd-43f1-90fd-67eb7e7d98d6",
+      "uuid": "8694e11a-6acd-43f1-90fd-67eb7e7d98d6",
+      "docNo": "A.3.3.2.7.1.1.2",
+      "title": "Lite Peg Stability Module Parameter Values"
     },
     {
       "taskKey": "u:ddb90fee-2851-4bf0-b924-f1d73e30ce7a",
@@ -971,12 +821,6 @@
       "uuid": "5ecdf33d-c8df-439c-98ac-892e62284797",
       "docNo": "A.3.7.1.2.1.3",
       "title": "ALLOCATOR-GROVE-A Parameters"
-    },
-    {
-      "taskKey": "u:418d496b-2e2e-4ee2-b37a-8178de5d656c",
-      "uuid": "418d496b-2e2e-4ee2-b37a-8178de5d656c",
-      "docNo": "A.4.1.1.1.1.1",
-      "title": "Transfer Of USDS To Gnosis"
     },
     {
       "taskKey": "u:f7c00726-64a0-4ba5-8c0d-231d0e27e54c",
@@ -1057,42 +901,6 @@
       "title": "ValueRegistry Multisig Modification"
     },
     {
-      "taskKey": "u:3afc0502-e0ba-45a1-ae05-fe539053cf07",
-      "uuid": "3afc0502-e0ba-45a1-ae05-fe539053cf07",
-      "docNo": "A.6.1.1.1.2.6.1.2.1.1.1.3.1.5",
-      "title": "AdministeredAgent Contract"
-    },
-    {
-      "taskKey": "u:fc3f9328-6fdc-4571-a515-5a193acacd0a",
-      "uuid": "fc3f9328-6fdc-4571-a515-5a193acacd0a",
-      "docNo": "A.6.1.1.1.2.6.1.2.2.1.1.5.1.3",
-      "title": "Allocator Role"
-    },
-    {
-      "taskKey": "u:bd20f786-b4af-4d5b-b29a-d84050a8fa2d",
-      "uuid": "bd20f786-b4af-4d5b-b29a-d84050a8fa2d",
-      "docNo": "A.6.1.1.1.2.6.1.2.2.1.1.5.1.4",
-      "title": "Freezer Role"
-    },
-    {
-      "taskKey": "u:64f794c9-db5f-4875-a800-3da12f4c5bec",
-      "uuid": "64f794c9-db5f-4875-a800-3da12f4c5bec",
-      "docNo": "A.6.1.1.1.2.6.1.2.2.1.1.5.1.5",
-      "title": "Grantor"
-    },
-    {
-      "taskKey": "u:173f0dbd-7c3b-4435-8a8d-04d76478a9df",
-      "uuid": "173f0dbd-7c3b-4435-8a8d-04d76478a9df",
-      "docNo": "A.6.1.1.1.2.6.1.3.6.1.2.4.2.1",
-      "title": "Spark Savings USDC Risk Parameters"
-    },
-    {
-      "taskKey": "u:a51aef25-bf7e-4467-9678-0b1ea59fb47e",
-      "uuid": "a51aef25-bf7e-4467-9678-0b1ea59fb47e",
-      "docNo": "A.6.1.1.1.3.7.2.5.2",
-      "title": "Unapproved Products"
-    },
-    {
       "taskKey": "u:3e8ed24b-da4a-4c3f-9a74-c3dd6a557abf",
       "uuid": "3e8ed24b-da4a-4c3f-9a74-c3dd6a557abf",
       "docNo": "A.6.1.1.1.3.9.7.2.1",
@@ -1123,40 +931,10 @@
       "title": "Sentora RLUSD Morpho Vault - Ethereum Mainnet"
     },
     {
-      "taskKey": "u:6823cc5a-6667-4754-a030-9ac7126b006e",
-      "uuid": "6823cc5a-6667-4754-a030-9ac7126b006e",
-      "docNo": "A.6.1.1.2.2.6.1.2.1.1.4.2",
-      "title": "Whitelisting Of ALM Proxy"
-    },
-    {
       "taskKey": "u:0cf2ffe0-cb0b-4c3c-bd11-349cad3d4c98",
       "uuid": "0cf2ffe0-cb0b-4c3c-bd11-349cad3d4c98",
       "docNo": "A.6.1.1.2.2.6.1.2.2.1.2.2.3",
       "title": "PSM Facet"
-    },
-    {
-      "taskKey": "u:810671ff-8674-4178-a7ce-dd98c112688d",
-      "uuid": "810671ff-8674-4178-a7ce-dd98c112688d",
-      "docNo": "A.6.1.1.3.2.6.1.2.1.1.4.2",
-      "title": "Whitelisting Of ALM Proxy"
-    },
-    {
-      "taskKey": "u:5c795414-020c-432d-91b6-a7d72495452e",
-      "uuid": "5c795414-020c-432d-91b6-a7d72495452e",
-      "docNo": "A.6.1.1.5.2.6.1.2.1.1.4.2",
-      "title": "Whitelisting Of ALM Proxy"
-    },
-    {
-      "taskKey": "u:a8094362-4ca8-4bf0-a1d8-bbed3c80d61c",
-      "uuid": "a8094362-4ca8-4bf0-a1d8-bbed3c80d61c",
-      "docNo": "A.6.1.1.6.2.6.1.2.1.1.4.2",
-      "title": "Whitelisting Of ALM Proxy"
-    },
-    {
-      "taskKey": "u:817fabeb-fcd9-42f4-bcdb-863c67105ccf",
-      "uuid": "817fabeb-fcd9-42f4-bcdb-863c67105ccf",
-      "docNo": "A.6.1.1.7.2.6.1.2.1.1.3.2",
-      "title": "Whitelisting Of ALM Proxy"
     },
     {
       "taskKey": "u:aae0e1ba-4ed0-4484-9187-3e53f3695ae8",
@@ -1169,24 +947,6 @@
       "uuid": "b762ae11-c8fa-465d-a8a0-4909257551dd",
       "docNo": "A.6.1.1.7.2.6.1.2.2.1.2.4",
       "title": "PSM Facet"
-    },
-    {
-      "taskKey": "u:1dd13ef2-ee4a-4487-8fc3-0e9d83a3bbd1",
-      "uuid": "1dd13ef2-ee4a-4487-8fc3-0e9d83a3bbd1",
-      "docNo": "A.6.1.1.7.2.6.1.2.2.3.4",
-      "title": "Withdraw All ERC-4626 Vault Positions"
-    },
-    {
-      "taskKey": "u:b0b73201-d985-4a71-84d9-05ae9f9320be",
-      "uuid": "b0b73201-d985-4a71-84d9-05ae9f9320be",
-      "docNo": "A.6.1.1.7.2.6.1.3.1.2.1.4.1.3",
-      "title": "Allocator Role Address"
-    },
-    {
-      "taskKey": "u:c2390e13-50af-4008-9474-ed4e99eac308",
-      "uuid": "c2390e13-50af-4008-9474-ed4e99eac308",
-      "docNo": "A.6.1.1.7.2.6.1.3.1.2.1.4.1.4",
-      "title": "Sentinel Role Address"
     }
   ]
 }

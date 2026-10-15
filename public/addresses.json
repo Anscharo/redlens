@@ -1337,6 +1337,114 @@
       "ethereum"
     ]
   },
+  "0x1601843c5e9bc251a3272907010afa41fa18347e": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "ALMProxy",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x491edfb0b8b608044e227225c715981a30f3a44e": {
+    "chain": "base",
+    "chains": [
+      "base",
+      "ethereum"
+    ],
+    "etherscanName": "Executor",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true,
+      "base": true
+    },
+    "presentOnChains": [
+      "base",
+      "ethereum"
+    ]
+  },
+  "0x0dcd9298e163dfd3c0b5b00f0d9093c36e40a153": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "ALMProxy",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0xa5139956ec99ae2e51ea39d0b57c42b6d8db0758": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "ALMProxy",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0xb6dd7ae22c9922afee0642f9ac13e58633f715a2": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "ALMProxy",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0xba43325e91c79e500486a23e953ab3d8c46f169f": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "ALMProxy",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x6d370e359e9cbd0fd35bb38faf705d84238cb884": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "ALMProxy",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
   "0xa950524441892a31ebddf91d3ceefa04bf454466": {
     "chain": "ethereum",
     "chains": [
@@ -1822,21 +1930,6 @@
       "ethereum"
     ],
     "etherscanName": "MainnetController",
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0x1601843c5e9bc251a3272907010afa41fa18347e": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "ALMProxy",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -3992,24 +4085,6 @@
       "ethereum"
     ]
   },
-  "0x491edfb0b8b608044e227225c715981a30f3a44e": {
-    "chain": "base",
-    "chains": [
-      "base",
-      "ethereum"
-    ],
-    "etherscanName": "Executor",
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true,
-      "base": true
-    },
-    "presentOnChains": [
-      "base",
-      "ethereum"
-    ]
-  },
   "0x5f5cfcb8a463868e37ab27b5eff3ba02112df19a": {
     "chain": "base",
     "chains": [
@@ -4466,21 +4541,6 @@
     ],
     "chainlogId": "WRAPPER_USDS_LITE_PSM_USDC_A",
     "etherscanName": "UsdsPsmWrapper",
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0x0dcd9298e163dfd3c0b5b00f0d9093c36e40a153": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "ALMProxy",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -5594,21 +5654,6 @@
       "ethereum"
     ]
   },
-  "0xa5139956ec99ae2e51ea39d0b57c42b6d8db0758": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "ALMProxy",
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
   "0x65e7b39e508944f7c4278d3e4580f84eb20b26a7": {
     "chain": "ethereum",
     "chains": [
@@ -6139,21 +6184,6 @@
       "ethereum"
     ]
   },
-  "0xb6dd7ae22c9922afee0642f9ac13e58633f715a2": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "ALMProxy",
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
   "0x81f8f5306cf80655edff78f89860a8d89118e150": {
     "chain": "ethereum",
     "chains": [
@@ -6293,21 +6323,6 @@
       "ethereum"
     ]
   },
-  "0xba43325e91c79e500486a23e953ab3d8c46f169f": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "ALMProxy",
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
   "0xa77f69f90646a4c0e44cee1d44fab08beb4ea204": {
     "chain": "ethereum",
     "chains": [
@@ -6355,6 +6370,21 @@
       "ethereum"
     ]
   },
+  "0xfd2cb7ebbb339b9aa4e9c60e5afa460f4888320f": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "SemiModularAccount7702",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
   "0xbfa2d1da838e55a74c61699e164cdff8cf0cf0e2": {
     "chain": "ethereum",
     "chains": [
@@ -6394,21 +6424,6 @@
     ],
     "chainlogId": "ALLOCATOR_PRYSM_A_VAULT",
     "etherscanName": "AllocatorVault",
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0x6d370e359e9cbd0fd35bb38faf705d84238cb884": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "ALMProxy",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
