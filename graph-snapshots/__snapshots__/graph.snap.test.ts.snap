@@ -12374,7 +12374,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "invoked_by": 226,
   "listed_in": 49,
   "located_at": 219,
-  "mentions": 776,
+  "mentions": 775,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
