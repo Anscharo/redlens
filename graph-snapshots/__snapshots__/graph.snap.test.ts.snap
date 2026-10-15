@@ -5986,6 +5986,14 @@ exports[`allocation-system sub-doc content > Osero > Ethereum Mainnet - Gauntlet
     "title": "Deposit Rate Limits",
   },
   {
+    "content": "The default registered in [A.2.2.10.1.1.1.2.3.1.7 - BeamState](2e36bb4f-91db-4dca-bdb1-e4aa385b1129) via [A.2.2.10.1.1.1.2.4.1.3.3.5 - Add Init Rate Limits Function Call](bbdf1e6a-821b-43ec-aabf-e43a3bd6e113) for this Instance's inflow \`RateLimitID\` ([A.6.1.1.7.2.6.1.3.1.2.1.2.3.1 - Inflow RateLimitID](25e71c76-9cc0-4e2f-bf7a-8b1a27586b9b)) is:
+- \`maxAmount\`: 5,000,000 USDC
+- \`slope\`: 650,000 USDC per day
+
+A paired cBEAM may raise the live deposit rate limit's \`maxAmount\` or \`slope\` up to the higher of this registered default or the current value multiplied by \`maxChange\`, without a Spell, as specified in [A.2.2.10.1.1.1.2.4.1.1.2.1 - Max Change Definition](942d6607-b92c-4779-8012-ea3b259ebf2b) and [A.2.2.10.1.1.1.2.4 - PAS](989171ed-5424-42ee-83f4-199e1149699c). Each such raise may be made only after the \`hop\` interval set by [A.2.2.10.1.1.1.2.4.1.1.1.1 - Hop Definition](dc0e3a84-b542-4985-a41b-7ae2a3921cf3) has passed since the last raise to this rate limit.",
+    "title": "Deposit Rate Limit Default",
+  },
+  {
     "content": "The withdrawal rate limits are:
 - \`maxAmount\`: Unlimited",
     "title": "Withdrawal Rate Limits",
@@ -6245,6 +6253,62 @@ The function signature is as follows:
 function cancelMapleRedemption(address mapleToken, uint256 shares) external
 \`\`\`",
     "title": "cancelMapleRedemption Function",
+  },
+]
+`;
+
+exports[`allocation-system sub-doc content > Pattern > Ethereum Mainnet - River I (River SPV II) 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation Coverage",
+  },
+  {
+    "content": "The documents herein define the parameters of the River I (River SPV II) Instance of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "River",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "USDC",
+    "title": "Asset Supplied By Pattern Liquidity Layer",
+  },
+  {
+    "content": "The River SPV II Offramp address is \`0xfD2cB7Ebbb339B9AA4E9C60e5aFa460F4888320F\`, an externally owned account with an EIP-7702 delegation rather than a deployed contract.",
+    "title": "Destination Address",
+  },
+  {
+    "content": "The Transfer RateLimitID is: \`0x9e89eef868db62cc103dac9e8428957603e3ff835526132d10b5f1f327fc7605\`.",
+    "title": "Transfer RateLimitID",
+  },
+  {
+    "content": "The transfer rate limits are:
+
+- \`maxAmount\`: 35,000,000 USDC
+- \`slope\`: 10,000,000 USDC per day",
+    "title": "Transfer Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The Maximum Exposure for this Instance is 70,000,000 USDC.",
+    "title": "Maximum Exposure",
+  },
+  {
+    "content": "The CRR for this Instance will be specified in a future iteration of the Atlas.",
+    "title": "Capital Ratio Requirement",
   },
 ]
 `;
@@ -12286,16 +12350,16 @@ exports[`allocation-system sub-doc content > Spark > X Layer - Spark Savings v2 
 
 exports[`edge type counts > all edge types and their counts 1`] = `
 {
-  "active_data_for": 85,
+  "active_data_for": 93,
   "aligned_delegate_for": 9,
   "annotates": 101,
   "can_modify_signers_of": 35,
-  "cites": 2343,
+  "cites": 2409,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
-  "defines_entity": 429,
-  "duty_for": 871,
+  "defines_entity": 438,
+  "duty_for": 879,
   "ecosystem_accord": 20,
   "emergency_response": 16,
   "erg_member_for": 9,
@@ -12304,13 +12368,13 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "has_status": 136,
   "holds_role_for": 5,
   "implements": 188,
-  "instance_of": 212,
+  "instance_of": 221,
   "integration_partner_of": 10,
   "invocation_of": 5,
-  "invoked_by": 217,
+  "invoked_by": 226,
   "listed_in": 49,
-  "located_at": 210,
-  "mentions": 766,
+  "located_at": 219,
+  "mentions": 776,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
@@ -12320,7 +12384,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "provides_services_to": 6,
   "proxies_to": 93,
   "ranked_delegate_for": 3,
-  "responsible_party_for": 70,
+  "responsible_party_for": 78,
   "signer_of": 71,
   "validator_of": 27,
 }
@@ -12586,6 +12650,14 @@ exports[`governance edges > active_data_for — AD doc → ADC doc 1`] = `
   "A.6.1.1.4.2.5.2.4.1.4.4.0.6.1 → A.6.1.1.4.2.5.2.4.1.4.4",
   "A.6.1.1.4.2.7.1.2.1.2.1.0.6.1 → A.6.1.1.4.2.7.1.2.1.2.1",
   "A.6.1.1.4.2.7.1.2.1.2.1.0.6.2 → A.6.1.1.4.2.7.1.2.1.2.1",
+  "A.6.1.1.7.2.5.1.2.1.3.4.0.6.1 → A.6.1.1.7.2.5.1.2.1.3.4",
+  "A.6.1.1.7.2.5.1.2.2.3.4.0.6.1 → A.6.1.1.7.2.5.1.2.2.3.4",
+  "A.6.1.1.7.2.5.1.2.3.3.4.0.6.1 → A.6.1.1.7.2.5.1.2.3.3.4",
+  "A.6.1.1.7.2.5.1.2.4.3.4.0.6.1 → A.6.1.1.7.2.5.1.2.4.3.4",
+  "A.6.1.1.7.2.5.1.2.5.3.4.0.6.1 → A.6.1.1.7.2.5.1.2.5.3.4",
+  "A.6.1.1.7.2.5.1.2.6.3.4.0.6.1 → A.6.1.1.7.2.5.1.2.6.3.4",
+  "A.6.1.1.7.2.5.1.2.7.3.4.0.6.1 → A.6.1.1.7.2.5.1.2.7.3.4",
+  "A.6.1.1.7.2.5.1.2.8.3.4.0.6.1 → A.6.1.1.7.2.5.1.2.8.3.4",
 ]
 `;
 
@@ -12977,6 +13049,46 @@ exports[`governance edges > responsible_party_for — entity → ADC doc 1`] = `
   },
   {
     "adc": "A.6.1.1.4.2.7.1.2.1.2.1",
+    "declared": "Operational GovOps",
+    "party": "Soter Labs",
+  },
+  {
+    "adc": "A.6.1.1.7.2.5.1.2.1.3.4",
+    "declared": "Operational GovOps",
+    "party": "Soter Labs",
+  },
+  {
+    "adc": "A.6.1.1.7.2.5.1.2.2.3.4",
+    "declared": "Operational GovOps",
+    "party": "Soter Labs",
+  },
+  {
+    "adc": "A.6.1.1.7.2.5.1.2.3.3.4",
+    "declared": "Operational GovOps",
+    "party": "Soter Labs",
+  },
+  {
+    "adc": "A.6.1.1.7.2.5.1.2.4.3.4",
+    "declared": "Operational GovOps",
+    "party": "Soter Labs",
+  },
+  {
+    "adc": "A.6.1.1.7.2.5.1.2.5.3.4",
+    "declared": "Operational GovOps",
+    "party": "Soter Labs",
+  },
+  {
+    "adc": "A.6.1.1.7.2.5.1.2.6.3.4",
+    "declared": "Operational GovOps",
+    "party": "Soter Labs",
+  },
+  {
+    "adc": "A.6.1.1.7.2.5.1.2.7.3.4",
+    "declared": "Operational GovOps",
+    "party": "Soter Labs",
+  },
+  {
+    "adc": "A.6.1.1.7.2.5.1.2.8.3.4",
     "declared": "Operational GovOps",
     "party": "Soter Labs",
   },
@@ -15645,13 +15757,30 @@ exports[`instances > allocation-system instances 1`] = `
     "status": "Active",
   },
   {
+    "agent": "A.6.1.1.6",
+    "name": "Ethereum Mainnet - River I (River SPV II)",
+    "params": {
+      "Asset Supplied By Pattern Liquidity Layer": "USDC",
+      "Capital Ratio Requirement": "The CRR for this Instance will be specified in a future iteration of the Atlas.",
+      "Destination Address": "The River SPV II Offramp address is \`0xfD2cB7Ebbb339B9AA4E9C60e5aFa460F4888320F\`, an externally owned account with an EIP-7702 delegation rather than a deployed contract.",
+      "Maximum Exposure": "The Maximum Exposure for this Instance is 70,000,000 USDC.",
+      "Network": "Ethereum Mainnet",
+      "Target Protocol": "River",
+      "Transfer Rate Limits / maxAmount": "35,000,000 USDC",
+      "Transfer Rate Limits / slope": "10,000,000 USDC per day",
+      "Transfer RateLimitID": "0x9e89eef868db62cc103dac9e8428957603e3ff835526132d10b5f1f327fc7605",
+    },
+    "slug": "pattern-allocation-system-ethereum-mainnet-river-i-river-spv-ii",
+    "status": "Active",
+  },
+  {
     "agent": "A.6.1.1.7",
     "name": "Ethereum Mainnet - Gauntlet USDC Prime Morpho Vault V2",
     "params": {
       "Asset Supplied By Osero Liquidity Layer": "USDC",
       "Capital Ratio Requirement": "The Capital Ratio Requirement for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 100%.",
-      "Deposit Rate Limits / maxAmount": "5,000,000 USDC",
-      "Deposit Rate Limits / slope": "0 USDC per day",
+      "Deposit Rate Limit Default / maxAmount": "5,000,000 USDC",
+      "Deposit Rate Limit Default / slope": "650,000 USDC per day",
       "Inflow RateLimitID": "0xfc26a91cf7b79b531d45dcc431ee59e4f2504f51cb33e2b67960808a104c92ef",
       "Max Slippage": "The \`maxSlippage\` for this Instance will be specified in a future iteration of the Osero Artifact.",
       "Maximum Exposure": "The Maximum Exposure for this Instance is 5,000,000 USDC.",
@@ -15860,6 +15989,86 @@ exports[`instances > distribution-reward instances 1`] = `
     "slug": "skybase-distribution-reward-yearn-gimme",
     "status": "Active",
   },
+  {
+    "agent": "A.6.1.1.7",
+    "name": "Anoma Pay",
+    "params": {
+      "Reward Code": "3003",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
+    },
+    "slug": "osero-distribution-reward-anoma-pay",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.7",
+    "name": "Gauntlet",
+    "params": {
+      "Reward Code": "3009",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
+    },
+    "slug": "osero-distribution-reward-gauntlet",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.7",
+    "name": "LiFi",
+    "params": {
+      "Reward Code": "3006",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
+    },
+    "slug": "osero-distribution-reward-lifi",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.7",
+    "name": "Multiliquid",
+    "params": {
+      "Reward Code": "3002",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
+    },
+    "slug": "osero-distribution-reward-multiliquid",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.7",
+    "name": "Nightly",
+    "params": {
+      "Reward Code": "3001",
+      "Tracking Methodology": "This Instance uses the Tracking Methodologies specified in [A.2.2.9.1.2.1.1.2.3 - Base Tracking Methodology](f710bddf-dc1d-483c-9503-483574cb6333), [A.2.2.9.1.2.1.1.2.4 - Arbitrum Tracking Methodology](92beb324-1782-444d-a520-7956987c2a51) and [A.2.2.9.1.2.1.1.2.5 - Optimism Tracking Methodology](4a02722d-91a1-43df-8657-7b9356f79550).",
+    },
+    "slug": "osero-distribution-reward-nightly",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.7",
+    "name": "Osero",
+    "params": {
+      "Reward Code": "3000",
+      "Tracking Methodology": "This Instance uses the Tracking Methodologies specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2), [A.2.2.9.1.2.1.1.2.4 - Arbitrum Tracking Methodology](92beb324-1782-444d-a520-7956987c2a51) and [A.2.2.9.1.2.1.1.2.5 - Optimism Tracking Methodology](4a02722d-91a1-43df-8657-7b9356f79550).",
+    },
+    "slug": "osero-distribution-reward-osero",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.7",
+    "name": "Portals.fi",
+    "params": {
+      "Reward Code": "3007",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
+    },
+    "slug": "osero-distribution-reward-portals-fi",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.7",
+    "name": "Utila",
+    "params": {
+      "Reward Code": "3008",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
+    },
+    "slug": "osero-distribution-reward-utila",
+    "status": "Active",
+  },
 ]
 `;
 
@@ -15944,9 +16153,9 @@ exports[`instances > instance counts by type 1`] = `
 {
   "agent-creation": 8,
   "agent-token": 8,
-  "allocation-system": 128,
+  "allocation-system": 129,
   "core-governance-reward": 1,
-  "distribution-reward": 15,
+  "distribution-reward": 23,
   "ecosystem-upkeep-fee": 8,
   "executor-accord": 8,
   "integration-boost": 9,
