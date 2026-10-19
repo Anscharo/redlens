@@ -4,6 +4,7 @@
 
 import { RATE_LIMIT_ID_RE } from "../../src/lib/atlasHashes.ts";
 import { expandPerToken } from "./rate-limit-per-token.ts";
+import { RATE_LIMITS_TITLE_RE } from "../../src/lib/pauParams.ts";
 import {
   ETH_ADDR_EXACT_RE,
   ETH_ADDR_FIRST_RE,
@@ -272,6 +273,13 @@ export function extractParamsFromRoot(rootDoc, childrenByDocNo) {
       // Skip the "Custom Instance Parameters" subtree at any depth — it's a
       // reserved extension slot, almost always empty/placeholder in practice.
       if (/^custom instance parameters$/i.test(doc.title)) continue;
+      // A "Rate Limits" doc keeps its own bullet values when it also has
+      // children (a registered-default child beside the live limit).
+      if (RATE_LIMITS_TITLE_RE.test(doc.title.trim())) {
+        for (const [key, value] of expandBulletList(content, doc.title) ?? []) {
+          params[key in params ? `${parents[parents.length - 1] ?? ""} / ${key}`.trim() : key] = [value, doc.id, doc.doc_no];
+        }
+      }
       for (const c of kids) pending.push({ doc: c, parents: [...parents, doc.title] });
     }
   }
