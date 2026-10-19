@@ -249,6 +249,12 @@ export function extractParamsFromRoot(rootDoc, childrenByDocNo) {
   if (!rootDoc) return {};
   const params = {};
   const pending = [{ doc: rootDoc, parents: [] }];
+  // A key already taken is prefixed with the parent title to stay distinct.
+  const put = (entries, doc, parents) => {
+    for (const [key, value] of entries) {
+      params[key in params ? `${parents[parents.length - 1] ?? ""} / ${key}`.trim() : key] = [value, doc.id, doc.doc_no];
+    }
+  };
   while (pending.length) {
     const { doc, parents } = pending.shift();
     const kids = childrenByDocNo.get(doc.doc_no) ?? [];
@@ -258,28 +264,15 @@ export function extractParamsFromRoot(rootDoc, childrenByDocNo) {
       if (!content || DIRECTORY_RE.test(content)) continue;
       // Expansion order: per-title expander → generic bullet-list → formatter.
       const expanded =
-        PARAM_EXPANDERS[doc.title]?.(content) ?? expandBulletList(content, doc.title);
-      if (expanded) {
-        for (const [key, value] of expanded) {
-          const finalKey = key in params ? `${parents[parents.length - 1] ?? ""} / ${key}`.trim() : key;
-          params[finalKey] = [value, doc.id, doc.doc_no];
-        }
-      } else {
-        const baseKey = doc.title;
-        const key = baseKey in params ? `${parents[parents.length - 1] ?? ""} / ${baseKey}`.trim() : baseKey;
-        params[key] = [formatParam(doc.title, content), doc.id, doc.doc_no];
-      }
+        PARAM_EXPANDERS[doc.title]?.(content) ?? expandBulletList(content, doc.title) ?? [[doc.title, formatParam(doc.title, content)]];
+      put(expanded, doc, parents);
     } else {
       // Skip the "Custom Instance Parameters" subtree at any depth — it's a
       // reserved extension slot, almost always empty/placeholder in practice.
       if (/^custom instance parameters$/i.test(doc.title)) continue;
       // A "Rate Limits" doc keeps its own bullet values when it also has
       // children (a registered-default child beside the live limit).
-      if (RATE_LIMITS_TITLE_RE.test(doc.title.trim())) {
-        for (const [key, value] of expandBulletList(content, doc.title) ?? []) {
-          params[key in params ? `${parents[parents.length - 1] ?? ""} / ${key}`.trim() : key] = [value, doc.id, doc.doc_no];
-        }
-      }
+      if (RATE_LIMITS_TITLE_RE.test(doc.title.trim())) put(expandBulletList(content, doc.title) ?? [], doc, parents);
       for (const c of kids) pending.push({ doc: c, parents: [...parents, doc.title] });
     }
   }
