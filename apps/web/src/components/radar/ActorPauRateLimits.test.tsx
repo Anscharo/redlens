@@ -74,4 +74,17 @@ describe("PauRateLimits", () => {
     const other = name("ethereum");
     expect([other.textContent, within(other).queryByRole("link")]).toEqual(["Aggregate CCTP", null]);
   });
+
+  it("names the one document that names a constant-named limit's controller constant, beside it", () => {
+    const row: ContractLimit = { ...limit(RL1), derived: { constant: "LIMIT_USDS_MINT", args: [] } };
+    const doc = { id: "check-doc", title: "Check RateLimits", doc_no: "A.6.1" } as never;
+    const render1 = (namedIn: (c: string, chain: string) => unknown) =>
+      render(<PauRateLimits chain="ethereum" limits={[row]} keyIndex={new Map()} namedIn={namedIn as never} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} />);
+    const { container, unmount } = render1((c, chain) => (c === "LIMIT_USDS_MINT" && chain === "ethereum" ? doc : null));
+    const link = within(container).getByRole("link", { name: "Check RateLimits" });
+    expect([link.getAttribute("href"), link.closest("td")?.textContent]).toEqual(["/atlas?id=check-doc", "LIMIT_USDS_MINT · named in Check RateLimits"]);
+    unmount();
+    const none = render1(() => null);
+    expect(within(none.container.querySelector("td")!).queryByRole("link")).toBeNull();
+  });
 });
