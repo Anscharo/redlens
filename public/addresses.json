@@ -2793,6 +2793,21 @@
       "ethereum"
     ]
   },
+  "0xe5c6318456a7cb6f74f93b4eee4616db5fcef699": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "ALMProxyFreezable",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
   "0x0f963a8a8c01042b69054e787e5763abbb0646a3": {
     "chain": "ethereum",
     "chains": [
@@ -2803,6 +2818,44 @@
     "isContract": true,
     "isProxy": true,
     "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
+    "codeByChain": {
+      "ethereum": true,
+      "base": true
+    },
+    "presentOnChains": [
+      "ethereum",
+      "base"
+    ]
+  },
+  "0xab5710211458fc8d7e0be628202f47ddbd3f38eb": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum",
+      "base"
+    ],
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
+    "codeByChain": {
+      "ethereum": true,
+      "base": true
+    },
+    "presentOnChains": [
+      "ethereum",
+      "base"
+    ]
+  },
+  "0x50c770e6dc6cfdee33509273fa9a215bfafff9b2": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum",
+      "base"
+    ],
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x29fcb43b46531bca003ddc8fcb67ffe91900c762",
     "codeByChain": {
       "ethereum": true,
       "base": true
@@ -2846,21 +2899,6 @@
       "ethereum"
     ]
   },
-  "0xe5c6318456a7cb6f74f93b4eee4616db5fcef699": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "ALMProxyFreezable",
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
   "0xfc8c624b6080a0a780583799f2a862de936f6e22": {
     "chain": "ethereum",
     "chains": [
@@ -2892,7 +2930,37 @@
       "ethereum"
     ]
   },
+  "0xc4ba4e822c420452fe2bab93211208d3ccbd79d3": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "isContract": false,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": false
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
   "0xff070333654aae76a0a77465e4f0fd101c57c03f": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0xb5bfd4883256089dc58d962b80ab7068e71e7c80": {
     "chain": "ethereum",
     "chains": [
       "ethereum"
@@ -3105,6 +3173,36 @@
     "isContract": true,
     "isProxy": true,
     "implementation": "0x2ce6311ddae708829bc0784c967b7d77d19fd779",
+    "codeByChain": {
+      "base": true
+    },
+    "presentOnChains": [
+      "base"
+    ]
+  },
+  "0x92d7b06e5844e67174ae9e86bdcb06428482ddf9": {
+    "chain": "base",
+    "chains": [
+      "base"
+    ],
+    "etherscanName": "ALMProxyFreezable",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "base": true
+    },
+    "presentOnChains": [
+      "base"
+    ]
+  },
+  "0xf93b7122450a50af3e5a76e1d546e95ac1d0f579": {
+    "chain": "base",
+    "chains": [
+      "base"
+    ],
+    "etherscanName": "Executor",
+    "isContract": true,
+    "isProxy": false,
     "codeByChain": {
       "base": true
     },
@@ -3913,36 +4011,6 @@
     ]
   },
   "0xd5ff8bdef23fc3c8ff6815c6b4051f9809c877a5": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "isContract": false,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": false
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0xb5bfd4883256089dc58d962b80ab7068e71e7c80": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "SafeProxy",
-    "isContract": true,
-    "isProxy": true,
-    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0xc4ba4e822c420452fe2bab93211208d3ccbd79d3": {
     "chain": "ethereum",
     "chains": [
       "ethereum"
@@ -4802,12 +4870,103 @@
   "0x622e19d6903bd4507cfc70b31d5b99535114c0fc": {
     "chain": "ethereum",
     "chains": [
-      "ethereum"
+      "ethereum",
+      "base"
     ],
     "etherscanName": "SafeProxy",
     "isContract": true,
     "isProxy": true,
     "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
+    "codeByChain": {
+      "ethereum": true,
+      "base": true
+    },
+    "presentOnChains": [
+      "ethereum",
+      "base"
+    ]
+  },
+  "0xbcc126c3b6e2ebf0c895bb38c96d8afbec126ab3": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum",
+      "base"
+    ],
+    "isContract": false,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": false,
+      "base": false
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x827e86072b06674a077f592a531dce4590adecdb": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum",
+      "base"
+    ],
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
+    "codeByChain": {
+      "ethereum": true,
+      "base": true
+    },
+    "presentOnChains": [
+      "ethereum",
+      "base"
+    ]
+  },
+  "0xb597026150552bb3f6092ac685a2241c5fa77ed0": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum",
+      "base"
+    ],
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
+    "codeByChain": {
+      "ethereum": true,
+      "base": true
+    },
+    "presentOnChains": [
+      "ethereum",
+      "base"
+    ]
+  },
+  "0x0000aeb716a0df7a9a1aad119b772644bc089da8": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum",
+      "base"
+    ],
+    "etherscanName": "GnosisSafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0xfb1bffc9d739b8d520daf37df666da4c687191ea",
+    "codeByChain": {
+      "ethereum": true,
+      "base": true
+    },
+    "presentOnChains": [
+      "ethereum",
+      "base"
+    ]
+  },
+  "0x00b8e1509398ed692c3f326cbaf1694f9a881e27": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "BluePublicAllocator",
+    "isContract": true,
+    "isProxy": false,
     "codeByChain": {
       "ethereum": true
     },
@@ -4815,20 +4974,73 @@
       "ethereum"
     ]
   },
-  "0xb597026150552bb3f6092ac685a2241c5fa77ed0": {
+  "0xbbf1ad10455eed600cd78a1702f7aca41c9abceb": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum",
+      "base"
+    ],
+    "etherscanName": "BatchExecutor",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true,
+      "base": true
+    },
+    "presentOnChains": [
+      "ethereum",
+      "base"
+    ]
+  },
+  "0xaad84c80b013c34d70e54fb343d0c2f309f635e7": {
     "chain": "ethereum",
     "chains": [
       "ethereum"
     ],
-    "etherscanName": "SafeProxy",
+    "etherscanName": "VaultV2AllocatorProxy",
     "isContract": true,
     "isProxy": true,
-    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
+    "implementation": "0xfcdc2271c352be8ae8a8fdad93f67d4f7622ca95",
     "codeByChain": {
       "ethereum": true
     },
     "presentOnChains": [
       "ethereum"
+    ]
+  },
+  "0xfc580f2a77e85f1f47b60f096d36fdc97ce2d827": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum",
+      "base"
+    ],
+    "etherscanName": "BatchExecutor",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true,
+      "base": true
+    },
+    "presentOnChains": [
+      "ethereum",
+      "base"
+    ]
+  },
+  "0xfeed46c11f57b7126a773eec6ae9ca7ae1c03c9a": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum",
+      "base"
+    ],
+    "isContract": false,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": false,
+      "base": false
+    },
+    "presentOnChains": [
+      "ethereum",
+      "base"
     ]
   },
   "0xbeeff0d672ab7f5018dfb614c93981045d4aa98a": {
@@ -5282,6 +5494,37 @@
       "base"
     ],
     "etherscanName": "VaultV2",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "base": true
+    },
+    "presentOnChains": [
+      "base"
+    ]
+  },
+  "0x1be9b8c406120b2c2b8990d0522cd226a3d60e36": {
+    "chain": "base",
+    "chains": [
+      "base"
+    ],
+    "etherscanName": "VaultV2AllocatorProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0xc5a845985bdf088f44e3ddf2bd1a79b08dbe9611",
+    "codeByChain": {
+      "base": true
+    },
+    "presentOnChains": [
+      "base"
+    ]
+  },
+  "0xaed282b8ad9257bb1272e93ae63a32a53621e412": {
+    "chain": "base",
+    "chains": [
+      "base"
+    ],
+    "etherscanName": "BluePublicAllocator",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -6542,6 +6785,38 @@
     ]
   },
   "0x256dac8fad2788f4182a42ce8f26029f0ded7cf9": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x037a8456fb92db66590c0060ee4174cc6812f518": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x9e33faae38ff641094fa68c65c2ce600b3410585": {
     "chain": "ethereum",
     "chains": [
       "ethereum"

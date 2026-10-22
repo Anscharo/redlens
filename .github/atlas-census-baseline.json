@@ -82,7 +82,7 @@
       ]
     },
     "Core|addr": {
-      "total": 451,
+      "total": 421,
       "uncovered": 0,
       "samples": []
     },
@@ -112,7 +112,12 @@
       "samples": []
     },
     "Core|addr,s:role-held-by": {
-      "total": 3,
+      "total": 24,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|addr,s:role-held-by,table": {
+      "total": 10,
       "uncovered": 0,
       "samples": []
     },
@@ -126,8 +131,13 @@
       "uncovered": 0,
       "samples": []
     },
+    "Core|addr,table": {
+      "total": 11,
+      "uncovered": 0,
+      "samples": []
+    },
     "Core|addr,uuid-link": {
-      "total": 20,
+      "total": 24,
       "uncovered": 0,
       "samples": []
     },
@@ -148,8 +158,8 @@
       "samples": []
     },
     "Core|plain": {
-      "total": 8419,
-      "uncovered": 6455,
+      "total": 8413,
+      "uncovered": 6450,
       "samples": [
         "A.0.1.1.1",
         "A.0.1.1.10",
@@ -217,9 +227,10 @@
       "samples": []
     },
     "Core|s:role-held-by": {
-      "total": 5,
-      "uncovered": 2,
+      "total": 6,
+      "uncovered": 3,
       "samples": [
+        "A.2.2.10.1.1.1.3.1.1",
         "A.6.1.1.1.2.6.1.2.2.1.1.5.1.2",
         "A.6.1.1.2.2.6.1.2.2.1.1.3.2"
       ]
@@ -288,7 +299,7 @@
       "samples": []
     },
     "Core|uuid-link": {
-      "total": 1669,
+      "total": 1682,
       "uncovered": 0,
       "samples": []
     },
