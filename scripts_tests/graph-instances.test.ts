@@ -362,3 +362,19 @@ describe("extractInstanceParams — address values", () => {
     expect(res["Integration Partner Reward Address"][0]).toBe(ADDR);
   });
 });
+
+describe("extractInstanceParams — Rate Limits doc with children", () => {
+  const ICD_NO = "A.6.1.1.9.2.1.2.1";
+  const docs = [
+    mkDoc("icd", ICD_NO, "Instance"),
+    mkDoc("params", `${ICD_NO}.1`, "Parameters"),
+    mkDoc("rl", `${ICD_NO}.1.1`, "Deposit Rate Limits", { content: "The deposit rate limits are:\n- `maxAmount`: 5,000,000 USDC\n- `slope`: 0 USDC per day" }),
+    mkDoc("def", `${ICD_NO}.1.1.1`, "Deposit Rate Limit Default", { content: "The default is:\n- `maxAmount`: 5,000,000 USDC\n- `slope`: 650,000 USDC per day" }),
+  ];
+  const res = extractInstanceParams(docs[0], buildChildrenIndex(docs));
+
+  it("keeps the live limit's own bullets beside its child's", () => {
+    expect(res["Deposit Rate Limits / slope"]).toEqual(["0 USDC per day", "rl", `${ICD_NO}.1.1`]);
+    expect(res["Deposit Rate Limit Default / slope"][0]).toBe("650,000 USDC per day");
+  });
+});
