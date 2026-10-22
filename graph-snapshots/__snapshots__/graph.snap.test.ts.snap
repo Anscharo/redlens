@@ -373,6 +373,40 @@ exports[`allocation-system sub-doc content > Grove > Base - Grove x Steakhouse U
     "title": "Underlying Asset Address",
   },
   {
+    "content": "The Owner role is held by Grove through its Executor at \`0x491EDFB0B8b608044e227225C715981a30F3A44E\`.",
+    "title": "Owner Role Address",
+  },
+  {
+    "content": "The Curator role is held jointly by Soter Labs and Steakhouse Financial through the Curator Multisig at \`0x622E19d6903BD4507cfc70b31d5B99535114C0FC\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0xbCc126c3b6E2EbF0C895bb38c96D8afbEC126Ab3\` |
+| Steakhouse Financial | \`0x827e86072B06674a077f592A531dcE4590aDeCdB\` |",
+    "title": "Curator Role Address",
+  },
+  {
+    "content": "The Sentinel role is held by Soter Labs at \`0xB597026150552bB3F6092aC685A2241C5FA77Ed0\`.",
+    "title": "Sentinel Role Address",
+  },
+  {
+    "content": "The Allocator role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Steakhouse Financial | \`0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8\` |
+| Steakhouse Financial | \`0x1be9b8C406120B2c2b8990d0522cD226A3D60e36\` |
+| Morpho Blue Public Allocator | \`0xAED282B8aD9257BB1272e93aE63A32A53621e412\` |
+| Steakhouse Financial | \`0xBBF1ad10455EeD600Cd78A1702F7AcA41C9aBceb\` |
+| Steakhouse Financial | \`0xfC580f2a77e85f1F47b60F096D36fDc97cE2d827\` |
+| Steakhouse Financial | \`0xfeed46c11F57B7126a773EeC6ae9cA7aE1C03C9a\` |
+
+The Morpho Blue Public Allocator is a permissionless contract. Public allocation calls are subject to the vault caps and the settings configured by the vault's Allocators.",
+    "title": "Allocator Role Addresses",
+  },
+  {
     "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow are defined in the subdocuments herein.",
     "title": "Rate Limit IDs",
   },
@@ -2925,16 +2959,38 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Grove x 
     "title": "Underlying Asset Address",
   },
   {
-    "content": "\`0x1369f7b2b38c76B6478c0f0E66D94923421891Ba\`",
+    "content": "The Owner role is held by Grove through its SubProxy at \`0x1369f7b2b38c76B6478c0f0E66D94923421891Ba\`.",
     "title": "Owner Role Address",
   },
   {
-    "content": "\`0x622E19d6903BD4507cfc70b31d5B99535114C0FC\`",
+    "content": "The Curator role is held jointly by Soter Labs and Steakhouse Financial through the Curator Multisig at \`0x622E19d6903BD4507cfc70b31d5B99535114C0FC\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0xbCc126c3b6E2EbF0C895bb38c96D8afbEC126Ab3\` |
+| Steakhouse Financial | \`0x827e86072B06674a077f592A531dcE4590aDeCdB\` |",
     "title": "Curator Role Address",
   },
   {
-    "content": "\`0xB597026150552bB3F6092aC685A2241C5FA77Ed0\`",
+    "content": "The Sentinel role is held by Soter Labs at \`0xB597026150552bB3F6092aC685A2241C5FA77Ed0\`.",
     "title": "Sentinel Role Address",
+  },
+  {
+    "content": "The Allocator role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Steakhouse Financial | \`0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8\` |
+| Morpho Blue Public Allocator | \`0x00b8e1509398ED692C3F326CbAf1694F9A881e27\` |
+| Steakhouse Financial | \`0xBBF1ad10455EeD600Cd78A1702F7AcA41C9aBceb\` |
+| Steakhouse Financial | \`0xaaD84c80b013c34D70E54fB343D0C2f309F635E7\` |
+| Steakhouse Financial | \`0xfC580f2a77e85f1F47b60F096D36fDc97cE2d827\` |
+| Steakhouse Financial | \`0xfeed46c11F57B7126a773EeC6ae9cA7aE1C03C9a\` |
+
+The Morpho Blue Public Allocator is a permissionless contract. Public allocation calls are subject to the vault caps and the settings configured by the vault's Allocators.",
+    "title": "Allocator Role Addresses",
   },
   {
     "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow are defined in the subdocuments herein.",
@@ -3029,12 +3085,37 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Grove x 
     "title": "Underlying Asset Address",
   },
   {
-    "content": "\`0x622E19d6903BD4507cfc70b31d5B99535114C0FC\`",
+    "content": "The Curator role is held jointly by Soter Labs and Steakhouse Financial through the Curator Multisig at \`0x622E19d6903BD4507cfc70b31d5B99535114C0FC\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0xbCc126c3b6E2EbF0C895bb38c96D8afbEC126Ab3\` |
+| Steakhouse Financial | \`0x827e86072B06674a077f592A531dcE4590aDeCdB\` |",
     "title": "Curator Role Address",
   },
   {
-    "content": "\`0xB597026150552bB3F6092aC685A2241C5FA77Ed0\`",
+    "content": "The Sentinel role is held by Soter Labs at \`0xB597026150552bB3F6092aC685A2241C5FA77Ed0\`.",
     "title": "Sentinel Role Address",
+  },
+  {
+    "content": "The Owner role is held by Grove through its SubProxy at \`0x1369f7b2b38c76B6478c0f0E66D94923421891Ba\`.",
+    "title": "Owner Role Address",
+  },
+  {
+    "content": "The Allocator role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Steakhouse Financial | \`0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8\` |
+| Morpho Blue Public Allocator | \`0x00b8e1509398ED692C3F326CbAf1694F9A881e27\` |
+| Steakhouse Financial | \`0xBBF1ad10455EeD600Cd78A1702F7AcA41C9aBceb\` |
+| Steakhouse Financial | \`0xaaD84c80b013c34D70E54fB343D0C2f309F635E7\` |
+| Steakhouse Financial | \`0xfC580f2a77e85f1F47b60F096D36fDc97cE2d827\` |
+
+The Morpho Blue Public Allocator is a permissionless contract. Public allocation calls are subject to the vault caps and the settings configured by the vault's Allocators.",
+    "title": "Allocator Role Addresses",
   },
   {
     "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow are defined in the subdocuments herein.",
@@ -3129,16 +3210,38 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Grove x 
     "title": "Underlying Asset Address",
   },
   {
-    "content": "\`0x1369f7b2b38c76B6478c0f0E66D94923421891Ba\`",
+    "content": "The Owner role is held by Grove through its SubProxy at \`0x1369f7b2b38c76B6478c0f0E66D94923421891Ba\`.",
     "title": "Owner Role Address",
   },
   {
-    "content": "\`0x622E19d6903BD4507cfc70b31d5B99535114C0FC\`",
+    "content": "The Curator role is held jointly by Soter Labs and Steakhouse Financial through the Curator Multisig at \`0x622E19d6903BD4507cfc70b31d5B99535114C0FC\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0xbCc126c3b6E2EbF0C895bb38c96D8afbEC126Ab3\` |
+| Steakhouse Financial | \`0x827e86072B06674a077f592A531dcE4590aDeCdB\` |",
     "title": "Curator Role Address",
   },
   {
-    "content": "\`0xB597026150552bB3F6092aC685A2241C5FA77Ed0\`",
+    "content": "The Sentinel role is held by Soter Labs at \`0xB597026150552bB3F6092aC685A2241C5FA77Ed0\`.",
     "title": "Sentinel Role Address",
+  },
+  {
+    "content": "The Allocator role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Steakhouse Financial | \`0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8\` |
+| Morpho Blue Public Allocator | \`0x00b8e1509398ED692C3F326CbAf1694F9A881e27\` |
+| Steakhouse Financial | \`0xBBF1ad10455EeD600Cd78A1702F7AcA41C9aBceb\` |
+| Steakhouse Financial | \`0xaaD84c80b013c34D70E54fB343D0C2f309F635E7\` |
+| Steakhouse Financial | \`0xfC580f2a77e85f1F47b60F096D36fDc97cE2d827\` |
+| Steakhouse Financial | \`0xfeed46c11F57B7126a773EeC6ae9cA7aE1C03C9a\` |
+
+The Morpho Blue Public Allocator is a permissionless contract. Public allocation calls are subject to the vault caps and the settings configured by the vault's Allocators.",
+    "title": "Allocator Role Addresses",
   },
   {
     "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow are defined in the subdocuments herein.",
@@ -3233,16 +3336,38 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Grove x 
     "title": "Underlying Asset Address",
   },
   {
-    "content": "\`0x1369f7b2b38c76B6478c0f0E66D94923421891Ba\`",
+    "content": "The Owner role is held by Grove through its SubProxy at \`0x1369f7b2b38c76B6478c0f0E66D94923421891Ba\`.",
     "title": "Owner Role Address",
   },
   {
-    "content": "\`0x622E19d6903BD4507cfc70b31d5B99535114C0FC\`",
+    "content": "The Curator role is held jointly by Soter Labs and Steakhouse Financial through the Curator Multisig at \`0x622E19d6903BD4507cfc70b31d5B99535114C0FC\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0xbCc126c3b6E2EbF0C895bb38c96D8afbEC126Ab3\` |
+| Steakhouse Financial | \`0x827e86072B06674a077f592A531dcE4590aDeCdB\` |",
     "title": "Curator Role Address",
   },
   {
-    "content": "\`0xB597026150552bB3F6092aC685A2241C5FA77Ed0\`",
+    "content": "The Sentinel role is held by Soter Labs at \`0xB597026150552bB3F6092aC685A2241C5FA77Ed0\`.",
     "title": "Sentinel Role Address",
+  },
+  {
+    "content": "The Allocator role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Steakhouse Financial | \`0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8\` |
+| Morpho Blue Public Allocator | \`0x00b8e1509398ED692C3F326CbAf1694F9A881e27\` |
+| Steakhouse Financial | \`0xBBF1ad10455EeD600Cd78A1702F7AcA41C9aBceb\` |
+| Steakhouse Financial | \`0xaaD84c80b013c34D70E54fB343D0C2f309F635E7\` |
+| Steakhouse Financial | \`0xfC580f2a77e85f1F47b60F096D36fDc97cE2d827\` |
+| Steakhouse Financial | \`0xfeed46c11F57B7126a773EeC6ae9cA7aE1C03C9a\` |
+
+The Morpho Blue Public Allocator is a permissionless contract. Public allocation calls are subject to the vault caps and the settings configured by the vault's Allocators.",
+    "title": "Allocator Role Addresses",
   },
   {
     "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow are defined in the subdocuments herein.",
@@ -3331,6 +3456,40 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Grove x 
   {
     "content": "\`0xe343167631d89B6Ffc58B88d6b7fB0228795491D\`",
     "title": "Underlying Asset Address",
+  },
+  {
+    "content": "The Owner role is held by Grove through its SubProxy at \`0x1369f7b2b38c76B6478c0f0E66D94923421891Ba\`.",
+    "title": "Owner Role Address",
+  },
+  {
+    "content": "The Curator role is held jointly by Soter Labs and Steakhouse Financial through the Curator Multisig at \`0x622E19d6903BD4507cfc70b31d5B99535114C0FC\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0xbCc126c3b6E2EbF0C895bb38c96D8afbEC126Ab3\` |
+| Steakhouse Financial | \`0x827e86072B06674a077f592A531dcE4590aDeCdB\` |",
+    "title": "Curator Role Address",
+  },
+  {
+    "content": "The Sentinel role is held by Soter Labs at \`0xB597026150552bB3F6092aC685A2241C5FA77Ed0\`.",
+    "title": "Sentinel Role Address",
+  },
+  {
+    "content": "The Allocator role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Steakhouse Financial | \`0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8\` |
+| Morpho Blue Public Allocator | \`0x00b8e1509398ED692C3F326CbAf1694F9A881e27\` |
+| Steakhouse Financial | \`0xBBF1ad10455EeD600Cd78A1702F7AcA41C9aBceb\` |
+| Steakhouse Financial | \`0xaaD84c80b013c34D70E54fB343D0C2f309F635E7\` |
+| Steakhouse Financial | \`0xfC580f2a77e85f1F47b60F096D36fDc97cE2d827\` |
+| Steakhouse Financial | \`0xfeed46c11F57B7126a773EeC6ae9cA7aE1C03C9a\` |
+
+The Morpho Blue Public Allocator is a permissionless contract. Public allocation calls are subject to the vault caps and the settings configured by the vault's Allocators.",
+    "title": "Allocator Role Addresses",
   },
   {
     "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow are defined in the subdocuments herein.",
@@ -5850,7 +6009,7 @@ exports[`allocation-system sub-doc content > Obex > Ethereum Mainnet - Maple USD
     "title": "Underlying Asset Address",
   },
   {
-    "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Obex Artifact.",
+    "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow are defined in the subdocuments herein.",
     "title": "RateLimitIDs",
   },
   {
@@ -5982,7 +6141,7 @@ exports[`allocation-system sub-doc content > Osero > Ethereum Mainnet - Gauntlet
   {
     "content": "The deposit rate limits are:
 - \`maxAmount\`: 5,000,000 USDC
-- \`slope\`: 0 USDC per day",
+- \`slope\`: 650,000 USDC per day",
     "title": "Deposit Rate Limits",
   },
   {
@@ -6027,20 +6186,37 @@ A paired cBEAM may raise the live deposit rate limit's \`maxAmount\` or \`slope\
     "title": "Contract Addresses",
   },
   {
-    "content": "\`0x24fdcd3bFA5C2553e05B2f9AD0365EBC296278D3\`",
+    "content": "The Owner role is held by Osero through its SubProxy at \`0x24fdcd3bFA5C2553e05B2f9AD0365EBC296278D3\`.",
     "title": "Owner Role Address",
   },
   {
-    "content": "\`0x256DaC8fad2788F4182A42cE8F26029F0DEd7cf9\`",
+    "content": "The Curator role is held jointly by Soter Labs and Gauntlet through the Curator Multisig at \`0x256DaC8fad2788F4182A42cE8F26029F0DEd7cf9\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0x037A8456FB92dB66590C0060eE4174cC6812f518\` |
+| Gauntlet | \`0x9E33faAE38ff641094fa68c65c2cE600b3410585\` |",
     "title": "Curator Role Address",
   },
   {
-    "content": "The Allocator role is held by the Gauntlet Allocator address \`0x6939A35d32E9bE623e08aA0bceD96D4baC170bB3\` and the Vault Curator Multisig \`0x256DaC8fad2788F4182A42cE8F26029F0DEd7cf9\`.",
-    "title": "Allocator Role Address",
+    "content": "The Allocator role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Gauntlet | \`0x6939A35d32E9bE623e08aA0bceD96D4baC170bB3\` |
+| Soter Labs and Gauntlet, through the Curator Multisig | \`0x256DaC8fad2788F4182A42cE8F26029F0DEd7cf9\` |",
+    "title": "Allocator Role Addresses",
   },
   {
-    "content": "The Sentinel role is held by the Gauntlet Sentinel address \`0x6a0dC94d80429dd4B03E8838CE8d6BEE725bE39B\` and the Soter Labs Vault Sentinel Multisig \`0xf51A112fB2cB63E3CB3eeB7feA8c7c58625868C7\`.",
-    "title": "Sentinel Role Address",
+    "content": "The Sentinel role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Gauntlet | \`0x6a0dC94d80429dd4B03E8838CE8d6BEE725bE39B\` |
+| Soter Labs | \`0xf51A112fB2cB63E3CB3eeB7feA8c7c58625868C7\` |",
+    "title": "Sentinel Role Addresses",
   },
   {
     "content": "The maximum exchange rate for this Instance is two (2) USDC per whole vault share, set by calling the \`erc4626_setMaxExchangeRate\` function on the Diamond PAU Controller, as specified in [A.2.2.10.1.1.1.2.5.2.6.4 - Set Maximum Exchange Rate For ERC-4626 Vault](3cbc5171-858d-4e36-bc81-da1b323052de).
@@ -6307,7 +6483,7 @@ exports[`allocation-system sub-doc content > Pattern > Ethereum Mainnet - River 
     "title": "Maximum Exposure",
   },
   {
-    "content": "The CRR for this Instance will be specified in a future iteration of the Atlas.",
+    "content": "The Capital Ratio Requirement for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 7%, applied to the full amount transferred to the River SPV II Offramp address, including funds that have not yet been drawn by the underlying borrower.",
     "title": "Capital Ratio Requirement",
   },
 ]
@@ -6896,7 +7072,7 @@ exports[`allocation-system sub-doc content > Spark > Base - Morpho Blue USDC ERC
     "title": "Underlying Asset Address",
   },
   {
-    "content": "\`0xCBA0C0a2a0B6Bb11233ec4EA85C5bFfea33e724d\`",
+    "content": "The Allocator role is held by Spark at \`0x92d7B06e5844e67174AE9E86bdCb06428482DDF9\`.",
     "title": "Allocator Role Address",
   },
   {
@@ -6952,12 +7128,23 @@ exports[`allocation-system sub-doc content > Spark > Base - Morpho Blue USDC ERC
     "title": "Contract Addresses",
   },
   {
-    "content": "\`0x0f963A8A8c01042B69054e787E5763ABbB0646A3\`",
+    "content": "The Curator role is held jointly by Soter Labs and Spark through the Curator Multisig at \`0x0f963A8A8c01042B69054e787E5763ABbB0646A3\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0xAB5710211458FC8d7E0Be628202F47DdbD3F38Eb\` |
+| Spark | \`0x50c770E6dC6CfdEE33509273FA9a215bfAffF9B2\` |",
     "title": "Curator Role Address",
   },
   {
-    "content": "\`0xf5748bBeFa17505b2F7222B23ae11584932C908B\`",
+    "content": "The Guardian role is held by Operational GovOps Soter Labs through a multisig at \`0xf5748bBeFa17505b2F7222B23ae11584932C908B\`.",
     "title": "Guardian Role Address",
+  },
+  {
+    "content": "The Owner role is held by Spark through its Executor at \`0xF93B7122450A50AF3e5A76E1d546e95Ac1d0F579\`.",
+    "title": "Owner Role Address",
   },
   {
     "content": "Timelock: 240 hours (10 days)",
@@ -9510,7 +9697,7 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Morpho U
     "title": "Underlying Asset Address",
   },
   {
-    "content": "\`0x9Ad87668d49ab69EEa0AF091de970EF52b0D5178\`",
+    "content": "The Allocator role is held by Spark at \`0xe5c6318456a7Cb6f74f93B4eee4616dB5fcef699\`.",
     "title": "Allocator Role Address",
   },
   {
@@ -9552,12 +9739,23 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Morpho U
     "title": "Contract Addresses",
   },
   {
-    "content": "\`0x0f963A8A8c01042B69054e787E5763ABbB0646A3\`",
+    "content": "The Curator role is held jointly by Soter Labs and Spark through the Curator Multisig at \`0x0f963A8A8c01042B69054e787E5763ABbB0646A3\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0xAB5710211458FC8d7E0Be628202F47DdbD3F38Eb\` |
+| Spark | \`0x50c770E6dC6CfdEE33509273FA9a215bfAffF9B2\` |",
     "title": "Curator Role Address",
   },
   {
-    "content": "\`0xf5748bBeFa17505b2F7222B23ae11584932C908B\`",
+    "content": "The Guardian role is held by Operational GovOps Soter Labs through a multisig at \`0xf5748bBeFa17505b2F7222B23ae11584932C908B\`.",
     "title": "Guardian Role Address",
+  },
+  {
+    "content": "The Owner role is held by Spark through its SubProxy at \`0x3300f198988e4C9C63F75dF86De36421f06af8c4\`.",
+    "title": "Owner Role Address",
   },
   {
     "content": "Timelock: 240 hours (10 days)",
@@ -9979,8 +10177,13 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Sentora 
     "title": "Underlying Asset Address",
   },
   {
-    "content": "\`0x9e396dE3312D373b87F9BD8763fb48184b42aac0\`",
-    "title": "Allocator Role Address",
+    "content": "The Allocator role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Sentora | \`0x9e396dE3312D373b87F9BD8763fb48184b42aac0\` |
+| Sentora | \`0xC4Ba4e822C420452fe2BAB93211208D3CcBd79D3\` |",
+    "title": "Allocator Role Addresses",
   },
   {
     "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow are defined in the subdocuments herein.",
@@ -10028,12 +10231,29 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Sentora 
     "title": "Contract Addresses",
   },
   {
-    "content": "\`0xff070333654aaE76A0A77465E4F0fd101C57c03F\`",
+    "content": "The Curator role is held jointly by Soter Labs and Sentora through the Curator Multisig at \`0xff070333654aaE76A0A77465E4F0fd101C57c03F\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0xAB5710211458FC8d7E0Be628202F47DdbD3F38Eb\` |
+| Sentora | \`0x9e396dE3312D373b87F9BD8763fb48184b42aac0\` |",
     "title": "Curator Role Address",
   },
   {
-    "content": "\`0xf5748bBeFa17505b2F7222B23ae11584932C908B\`",
-    "title": "Guardian Role Address",
+    "content": "The Sentinel role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Operational GovOps Soter Labs | \`0xf5748bBeFa17505b2F7222B23ae11584932C908B\` |
+| Soter Labs | \`0xb5bFd4883256089Dc58D962b80ab7068e71E7c80\` |
+| Sentora | \`0x9e396dE3312D373b87F9BD8763fb48184b42aac0\` |",
+    "title": "Sentinel Role Addresses",
+  },
+  {
+    "content": "The Owner role is held by Spark through its SubProxy at \`0x3300f198988e4C9C63F75dF86De36421f06af8c4\`.",
+    "title": "Owner Role Address",
   },
   {
     "content": "The timelocks for this Instance are defined in the subdocuments herein.",
@@ -10052,8 +10272,12 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Sentora 
     "title": "abdicate Timelock",
   },
   {
-    "content": "Timelock: 72 hours (3 days)",
+    "content": "Timelock: 0 hours (no delay)",
     "title": "setIsAllocator Timelock",
+  },
+  {
+    "content": "Timelock: 0 hours (no delay)",
+    "title": "setForceDeallocatePenalty Timelock",
   },
   {
     "content": "Controllers now have protections that require a \`maxExchangeRate\` to be set for deposits. The following ensures 1 share can represent at most 3 RLUSD:
@@ -10121,7 +10345,7 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Spark Bl
     "title": "Underlying Asset Address",
   },
   {
-    "content": "\`0xe5c6318456a7Cb6f74f93B4eee4616dB5fcef699\`",
+    "content": "The Allocator role is held by Spark at \`0xe5c6318456a7Cb6f74f93B4eee4616dB5fcef699\`.",
     "title": "Allocator Role Address",
   },
   {
@@ -10163,15 +10387,26 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Spark Bl
     "title": "Contract Addresses",
   },
   {
-    "content": "\`0x0f963A8A8c01042B69054e787E5763ABbB0646A3\`",
+    "content": "The Curator role is held jointly by Soter Labs and Spark through the Curator Multisig at \`0x0f963A8A8c01042B69054e787E5763ABbB0646A3\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0xAB5710211458FC8d7E0Be628202F47DdbD3F38Eb\` |
+| Spark | \`0x50c770E6dC6CfdEE33509273FA9a215bfAffF9B2\` |",
     "title": "Curator Role Address",
   },
   {
-    "content": "\`0xf5748bBeFa17505b2F7222B23ae11584932C908B\`",
-    "title": "Guardian Role Address",
+    "content": "The Sentinel role is held by Operational GovOps Soter Labs through a multisig at \`0xf5748bBeFa17505b2F7222B23ae11584932C908B\`.",
+    "title": "Sentinel Role Address",
   },
   {
-    "content": "Timelock: 240 hours (10 days)",
+    "content": "The Owner role is held by Spark through its SubProxy at \`0x3300f198988e4C9C63F75dF86De36421f06af8c4\`.",
+    "title": "Owner Role Address",
+  },
+  {
+    "content": "Timelock: 240 hours (10 days), except for \`setIsAllocator\` and \`setForceDeallocatePenalty\`, which have a timelock of 0 hours (no delay).",
     "title": "Timelock",
   },
 ]
@@ -12354,17 +12589,17 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "aligned_delegate_for": 9,
   "annotates": 101,
   "can_modify_signers_of": 35,
-  "cites": 2409,
+  "cites": 2434,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
   "defines_entity": 438,
-  "duty_for": 879,
+  "duty_for": 898,
   "ecosystem_accord": 20,
   "emergency_response": 16,
   "erg_member_for": 9,
   "governance_channel": 10,
-  "has_address": 303,
+  "has_address": 308,
   "has_status": 136,
   "holds_role_for": 5,
   "implements": 188,
@@ -12374,7 +12609,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "invoked_by": 226,
   "listed_in": 49,
   "located_at": 219,
-  "mentions": 775,
+  "mentions": 843,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
@@ -12382,7 +12617,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "prime_foundation_of": 5,
   "process_step_responsible_party_for": 32,
   "provides_services_to": 6,
-  "proxies_to": 93,
+  "proxies_to": 101,
   "ranked_delegate_for": 3,
   "responsible_party_for": 78,
   "signer_of": 71,
@@ -13329,7 +13564,7 @@ exports[`instances > allocation-system instances 1`] = `
     "agent": "A.6.1.1.1",
     "name": "Base - Morpho Blue USDC ERC4626 Vault",
     "params": {
-      "Allocator Role Address": "0xCBA0C0a2a0B6Bb11233ec4EA85C5bFfea33e724d",
+      "Allocator Role Address": "0x92d7B06e5844e67174AE9E86bdCb06428482DDF9",
       "Asset Supplied By Spark Liquidity Layer": "USDC",
       "Inflow Rate Limits / maxAmount": "100,000,00 USDC",
       "Inflow Rate Limits / slope": "50,000,00 USDC per day",
@@ -13832,7 +14067,7 @@ exports[`instances > allocation-system instances 1`] = `
     "agent": "A.6.1.1.1",
     "name": "Ethereum Mainnet - Morpho USDC",
     "params": {
-      "Allocator Role Address": "0x9Ad87668d49ab69EEa0AF091de970EF52b0D5178",
+      "Allocator Role Address": "0xe5c6318456a7Cb6f74f93B4eee4616dB5fcef699",
       "Asset Supplied By Spark Liquidity Layer": "USDC",
       "Inflow Rate Limits / maxAmount": "50,000,000 USDC",
       "Inflow Rate Limits / slope": "25,000,000 USDC per day",
@@ -13928,7 +14163,12 @@ exports[`instances > allocation-system instances 1`] = `
     "agent": "A.6.1.1.1",
     "name": "Ethereum Mainnet - Sentora RLUSD Morpho Vault V2",
     "params": {
-      "Allocator Role Address": "0x9e396dE3312D373b87F9BD8763fb48184b42aac0",
+      "Allocator Role Addresses": "The Allocator role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Sentora | \`0x9e396dE3312D373b87F9BD8763fb48184b42aac0\` |
+| Sentora | \`0xC4Ba4e822C420452fe2BAB93211208D3CcBd79D3\` |",
       "Asset Supplied By Spark Liquidity Layer": "RLUSD",
       "Inflow Rate Limit ID": "0x691ad49e27e69925e77760c0b0a78a8f01f21e1b1223c2e21ba82acb0fa17ea5",
       "Inflow Rate Limits / maxAmount": "10,000,000 RLUSD",
@@ -14508,7 +14748,27 @@ exports[`instances > allocation-system instances 1`] = `
     "agent": "A.6.1.1.2",
     "name": "Base - Grove x Steakhouse USDC Morpho Vault V2",
     "params": {
+      "Allocator Role Addresses": "The Allocator role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Steakhouse Financial | \`0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8\` |
+| Steakhouse Financial | \`0x1be9b8C406120B2c2b8990d0522cD226A3D60e36\` |
+| Morpho Blue Public Allocator | \`0xAED282B8aD9257BB1272e93aE63A32A53621e412\` |
+| Steakhouse Financial | \`0xBBF1ad10455EeD600Cd78A1702F7AcA41C9aBceb\` |
+| Steakhouse Financial | \`0xfC580f2a77e85f1F47b60F096D36fDc97cE2d827\` |
+| Steakhouse Financial | \`0xfeed46c11F57B7126a773EeC6ae9cA7aE1C03C9a\` |
+
+The Morpho Blue Public Allocator is a permissionless contract. Public allocation calls are subject to the vault caps and the settings configured by the vault's Allocators.",
       "Asset Supplied By Grove Liquidity Layer": "USDC",
+      "Curator Role Address": "The Curator role is held jointly by Soter Labs and Steakhouse Financial through the Curator Multisig at \`0x622E19d6903BD4507cfc70b31d5B99535114C0FC\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0xbCc126c3b6E2EbF0C895bb38c96D8afbEC126Ab3\` |
+| Steakhouse Financial | \`0x827e86072B06674a077f592A531dcE4590aDeCdB\` |",
       "Deposit Rate Limits / maxAmount": "20,000,000 USDC",
       "Deposit Rate Limits / slope": "20,000,000 USDC per day",
       "Inflow RateLimitID": "0x75df43c10c790bf60cc8db589d93ba979a8711aab94a828290155f0f9cb7e6ac",
@@ -14517,6 +14777,8 @@ exports[`instances > allocation-system instances 1`] = `
 - \`setMaxExchangeRate(GROVE_X_STEAKHOUSE_USDC_V2_BASE, 1e18, 1.15e6)\`",
       "Network": "Base",
       "Outflow RateLimitID": "0x44630fb26e1343e99745c4ae29b1587eeb182f2a1da8b0cbe543a46f677766b9",
+      "Owner Role Address": "The Owner role is held by Grove through its Executor at \`0x491EDFB0B8b608044e227225C715981a30F3A44E\`.",
+      "Sentinel Role Address": "The Sentinel role is held by Soter Labs at \`0xB597026150552bB3F6092aC685A2241C5FA77Ed0\`.",
       "Target Protocol": "Morpho",
       "Token": "grove-steakUSDC",
       "Token Address": "0xbeef0786756810478b88982DE00F3CD7fdB8e7c7",
@@ -15065,15 +15327,34 @@ exports[`instances > allocation-system instances 1`] = `
     "agent": "A.6.1.1.2",
     "name": "Ethereum Mainnet - Grove x Steakhouse AUSD Morpho Vault V2",
     "params": {
+      "Allocator Role Addresses": "The Allocator role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Steakhouse Financial | \`0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8\` |
+| Morpho Blue Public Allocator | \`0x00b8e1509398ED692C3F326CbAf1694F9A881e27\` |
+| Steakhouse Financial | \`0xBBF1ad10455EeD600Cd78A1702F7AcA41C9aBceb\` |
+| Steakhouse Financial | \`0xaaD84c80b013c34D70E54fB343D0C2f309F635E7\` |
+| Steakhouse Financial | \`0xfC580f2a77e85f1F47b60F096D36fDc97cE2d827\` |
+| Steakhouse Financial | \`0xfeed46c11F57B7126a773EeC6ae9cA7aE1C03C9a\` |
+
+The Morpho Blue Public Allocator is a permissionless contract. Public allocation calls are subject to the vault caps and the settings configured by the vault's Allocators.",
       "Asset Supplied By Grove Liquidity Layer": "AUSD",
-      "Curator Role Address": "0x622E19d6903BD4507cfc70b31d5B99535114C0FC",
+      "Curator Role Address": "The Curator role is held jointly by Soter Labs and Steakhouse Financial through the Curator Multisig at \`0x622E19d6903BD4507cfc70b31d5B99535114C0FC\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0xbCc126c3b6E2EbF0C895bb38c96D8afbEC126Ab3\` |
+| Steakhouse Financial | \`0x827e86072B06674a077f592A531dcE4590aDeCdB\` |",
       "Deposit Rate Limits / maxAmount": "20,000,000 AUSD",
       "Deposit Rate Limits / slope": "20,000,000 AUSD per day",
       "Inflow RateLimitID": "0x09b5f924263c1b33d619ff1c9c794ddf57bc2eb0f618e2cf5cfd838abecb541d",
       "Network": "Ethereum Mainnet",
       "Outflow RateLimitID": "0xdd975e5dc9904260242e80bbe7035784e9108c619e23f21b62342fae3226e0fe",
-      "Owner Role Address": "0x1369f7b2b38c76B6478c0f0E66D94923421891Ba",
-      "Sentinel Role Address": "0xB597026150552bB3F6092aC685A2241C5FA77Ed0",
+      "Owner Role Address": "The Owner role is held by Grove through its SubProxy at \`0x1369f7b2b38c76B6478c0f0E66D94923421891Ba\`.",
+      "Sentinel Role Address": "The Sentinel role is held by Soter Labs at \`0xB597026150552bB3F6092aC685A2241C5FA77Ed0\`.",
       "Target Protocol": "Grove x Steakhouse AUSD Morpho Vault",
       "Token": "grove-bbqAUSD",
       "Token Address": "0xBEEfF0d672ab7F5018dFB614c93981045D4aA98a",
@@ -15087,14 +15368,33 @@ exports[`instances > allocation-system instances 1`] = `
     "agent": "A.6.1.1.2",
     "name": "Ethereum Mainnet - Grove x Steakhouse PYUSD Morpho Vault V2",
     "params": {
+      "Allocator Role Addresses": "The Allocator role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Steakhouse Financial | \`0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8\` |
+| Morpho Blue Public Allocator | \`0x00b8e1509398ED692C3F326CbAf1694F9A881e27\` |
+| Steakhouse Financial | \`0xBBF1ad10455EeD600Cd78A1702F7AcA41C9aBceb\` |
+| Steakhouse Financial | \`0xaaD84c80b013c34D70E54fB343D0C2f309F635E7\` |
+| Steakhouse Financial | \`0xfC580f2a77e85f1F47b60F096D36fDc97cE2d827\` |
+
+The Morpho Blue Public Allocator is a permissionless contract. Public allocation calls are subject to the vault caps and the settings configured by the vault's Allocators.",
       "Asset Supplied By Grove Liquidity Layer": "PYUSD",
-      "Curator Role Address": "0x622E19d6903BD4507cfc70b31d5B99535114C0FC",
+      "Curator Role Address": "The Curator role is held jointly by Soter Labs and Steakhouse Financial through the Curator Multisig at \`0x622E19d6903BD4507cfc70b31d5B99535114C0FC\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0xbCc126c3b6E2EbF0C895bb38c96D8afbEC126Ab3\` |
+| Steakhouse Financial | \`0x827e86072B06674a077f592A531dcE4590aDeCdB\` |",
       "Deposit Rate Limits / maxAmount": "20,000,000 PYUSD",
       "Deposit Rate Limits / slope": "20,000,000 PYUSD per day",
       "Inflow RateLimitID": "0x5055017d78017ff48f8ba3814b1f94ee8ffcd3a635469612902eeec0bc37e498",
       "Network": "Ethereum Mainnet",
       "Outflow RateLimitID": "0xf5f57f4862971202d26fc6e1104f819c66667ef0329d7d0418390f8831aa51a1",
-      "Sentinel Role Address": "0xB597026150552bB3F6092aC685A2241C5FA77Ed0",
+      "Owner Role Address": "The Owner role is held by Grove through its SubProxy at \`0x1369f7b2b38c76B6478c0f0E66D94923421891Ba\`.",
+      "Sentinel Role Address": "The Sentinel role is held by Soter Labs at \`0xB597026150552bB3F6092aC685A2241C5FA77Ed0\`.",
       "Target Protocol": "Grove x Steakhouse PYUSD Morpho Vault V2",
       "Token": "grove-steakPYUSD",
       "Token Address": "0xbeef08Db223ad823164A4B13CBD6bd8b5d507b41",
@@ -15108,15 +15408,34 @@ exports[`instances > allocation-system instances 1`] = `
     "agent": "A.6.1.1.2",
     "name": "Ethereum Mainnet - Grove x Steakhouse RLUSD Morpho Vault V2",
     "params": {
+      "Allocator Role Addresses": "The Allocator role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Steakhouse Financial | \`0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8\` |
+| Morpho Blue Public Allocator | \`0x00b8e1509398ED692C3F326CbAf1694F9A881e27\` |
+| Steakhouse Financial | \`0xBBF1ad10455EeD600Cd78A1702F7AcA41C9aBceb\` |
+| Steakhouse Financial | \`0xaaD84c80b013c34D70E54fB343D0C2f309F635E7\` |
+| Steakhouse Financial | \`0xfC580f2a77e85f1F47b60F096D36fDc97cE2d827\` |
+| Steakhouse Financial | \`0xfeed46c11F57B7126a773EeC6ae9cA7aE1C03C9a\` |
+
+The Morpho Blue Public Allocator is a permissionless contract. Public allocation calls are subject to the vault caps and the settings configured by the vault's Allocators.",
       "Asset Supplied By Grove Liquidity Layer": "RLUSD",
-      "Curator Role Address": "0x622E19d6903BD4507cfc70b31d5B99535114C0FC",
+      "Curator Role Address": "The Curator role is held jointly by Soter Labs and Steakhouse Financial through the Curator Multisig at \`0x622E19d6903BD4507cfc70b31d5B99535114C0FC\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0xbCc126c3b6E2EbF0C895bb38c96D8afbEC126Ab3\` |
+| Steakhouse Financial | \`0x827e86072B06674a077f592A531dcE4590aDeCdB\` |",
       "Deposit Rate Limits / maxAmount": "100,000,000 RLUSD",
       "Deposit Rate Limits / slope": "100,000,000 RLUSD per day",
       "Inflow RateLimitID": "0xf655bc101a615fbcb591acce756dacae96cb119ff1beec548d9cc5d4558ea53a",
       "Network": "Ethereum Mainnet",
       "Outflow RateLimitID": "0xa6e68f8214d2fb32e0deb2888ef4644c36401d18605447843e4f936529f6a3cb",
-      "Owner Role Address": "0x1369f7b2b38c76B6478c0f0E66D94923421891Ba",
-      "Sentinel Role Address": "0xB597026150552bB3F6092aC685A2241C5FA77Ed0",
+      "Owner Role Address": "The Owner role is held by Grove through its SubProxy at \`0x1369f7b2b38c76B6478c0f0E66D94923421891Ba\`.",
+      "Sentinel Role Address": "The Sentinel role is held by Soter Labs at \`0xB597026150552bB3F6092aC685A2241C5FA77Ed0\`.",
       "Target Protocol": "Grove x Steakhouse RLUSD Morpho Vault V2",
       "Token": "grove-bbqRLUSD",
       "Token Address": "0xBeEff4fD39F8e48b6a6e475445D650cb11e9599F",
@@ -15130,8 +15449,27 @@ exports[`instances > allocation-system instances 1`] = `
     "agent": "A.6.1.1.2",
     "name": "Ethereum Mainnet - Grove x Steakhouse USDC Morpho Vault v2",
     "params": {
+      "Allocator Role Addresses": "The Allocator role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Steakhouse Financial | \`0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8\` |
+| Morpho Blue Public Allocator | \`0x00b8e1509398ED692C3F326CbAf1694F9A881e27\` |
+| Steakhouse Financial | \`0xBBF1ad10455EeD600Cd78A1702F7AcA41C9aBceb\` |
+| Steakhouse Financial | \`0xaaD84c80b013c34D70E54fB343D0C2f309F635E7\` |
+| Steakhouse Financial | \`0xfC580f2a77e85f1F47b60F096D36fDc97cE2d827\` |
+| Steakhouse Financial | \`0xfeed46c11F57B7126a773EeC6ae9cA7aE1C03C9a\` |
+
+The Morpho Blue Public Allocator is a permissionless contract. Public allocation calls are subject to the vault caps and the settings configured by the vault's Allocators.",
       "Asset Supplied By Grove Liquidity Layer": "USDC",
-      "Curator Role Address": "0x622E19d6903BD4507cfc70b31d5B99535114C0FC",
+      "Curator Role Address": "The Curator role is held jointly by Soter Labs and Steakhouse Financial through the Curator Multisig at \`0x622E19d6903BD4507cfc70b31d5B99535114C0FC\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0xbCc126c3b6E2EbF0C895bb38c96D8afbEC126Ab3\` |
+| Steakhouse Financial | \`0x827e86072B06674a077f592A531dcE4590aDeCdB\` |",
       "Deposit Rate Limits / maxAmount": "20,000,000 USDC",
       "Deposit Rate Limits / slope": "20,000,000 USDC per day",
       "Inflow RateLimitID": "0xe9ff67ad8829919752eee93c75433e7e23f3460ca6b1d9576fae94f669fbc4d6",
@@ -15140,8 +15478,8 @@ exports[`instances > allocation-system instances 1`] = `
 - \`setMaxExchangeRate(GROVE_X_STEAKHOUSE_USDC_V2, 1e18, 2e6)\`",
       "Network": "Ethereum Mainnet",
       "Outflow RateLimitID": "0xb6204f88cd26e1d2b5c27fe0beb10cc2c6a33aac17f228baffcb5cc3c8429a7b",
-      "Owner Role Address": "0x1369f7b2b38c76B6478c0f0E66D94923421891Ba",
-      "Sentinel Role Address": "0xB597026150552bB3F6092aC685A2241C5FA77Ed0",
+      "Owner Role Address": "The Owner role is held by Grove through its SubProxy at \`0x1369f7b2b38c76B6478c0f0E66D94923421891Ba\`.",
+      "Sentinel Role Address": "The Sentinel role is held by Soter Labs at \`0xB597026150552bB3F6092aC685A2241C5FA77Ed0\`.",
       "Target Protocol": "Grove x Steakhouse USDC High Yield Vault V2",
       "Token": "grove-bbqUSDC",
       "Token Address": "0xBeefF08dF54897e7544aB01d0e86f013DA354111",
@@ -15155,12 +15493,34 @@ exports[`instances > allocation-system instances 1`] = `
     "agent": "A.6.1.1.2",
     "name": "Ethereum Mainnet - Grove x Steakhouse USDG Morpho Vault V2",
     "params": {
+      "Allocator Role Addresses": "The Allocator role is held by the following entities at the corresponding addresses:
+
+| Entity | Address |
+| --- | --- |
+| Steakhouse Financial | \`0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8\` |
+| Morpho Blue Public Allocator | \`0x00b8e1509398ED692C3F326CbAf1694F9A881e27\` |
+| Steakhouse Financial | \`0xBBF1ad10455EeD600Cd78A1702F7AcA41C9aBceb\` |
+| Steakhouse Financial | \`0xaaD84c80b013c34D70E54fB343D0C2f309F635E7\` |
+| Steakhouse Financial | \`0xfC580f2a77e85f1F47b60F096D36fDc97cE2d827\` |
+| Steakhouse Financial | \`0xfeed46c11F57B7126a773EeC6ae9cA7aE1C03C9a\` |
+
+The Morpho Blue Public Allocator is a permissionless contract. Public allocation calls are subject to the vault caps and the settings configured by the vault's Allocators.",
       "Asset Supplied By Grove Liquidity Layer": "USDG",
+      "Curator Role Address": "The Curator role is held jointly by Soter Labs and Steakhouse Financial through the Curator Multisig at \`0x622E19d6903BD4507cfc70b31d5B99535114C0FC\`.
+
+The co-curator addresses are:
+
+| Entity | Address |
+| --- | --- |
+| Soter Labs | \`0xbCc126c3b6E2EbF0C895bb38c96D8afbEC126Ab3\` |
+| Steakhouse Financial | \`0x827e86072B06674a077f592A531dcE4590aDeCdB\` |",
       "Deposit Rate Limits / maxAmount": "50,000,000 USDG",
       "Deposit Rate Limits / slope": "50,000,000 USDG per day",
       "Inflow RateLimitID": "0x96c916a067daaa7b0861108a6239e40f33bb9fe1be08e2813fb9fc2344e19ef7",
       "Network": "Ethereum Mainnet",
       "Outflow RateLimitID": "0x0fceada3d6963c0045d4b0394172af9c863234669e35625191cb3372558bf596",
+      "Owner Role Address": "The Owner role is held by Grove through its SubProxy at \`0x1369f7b2b38c76B6478c0f0E66D94923421891Ba\`.",
+      "Sentinel Role Address": "The Sentinel role is held by Soter Labs at \`0xB597026150552bB3F6092aC685A2241C5FA77Ed0\`.",
       "Target Protocol": "Grove x Steakhouse USDG Morpho Vault V2",
       "Token": "grove-steakUSDG",
       "Token Address": "0xbeef05061FE51eA482BD1b68041353490b3a5934",
@@ -15761,7 +16121,7 @@ exports[`instances > allocation-system instances 1`] = `
     "name": "Ethereum Mainnet - River I (River SPV II)",
     "params": {
       "Asset Supplied By Pattern Liquidity Layer": "USDC",
-      "Capital Ratio Requirement": "The CRR for this Instance will be specified in a future iteration of the Atlas.",
+      "Capital Ratio Requirement": "The Capital Ratio Requirement for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 7%, applied to the full amount transferred to the River SPV II Offramp address, including funds that have not yet been drawn by the underlying borrower.",
       "Destination Address": "The River SPV II Offramp address is \`0xfD2cB7Ebbb339B9AA4E9C60e5aFa460F4888320F\`, an externally owned account with an EIP-7702 delegation rather than a deployed contract.",
       "Maximum Exposure": "The Maximum Exposure for this Instance is 70,000,000 USDC.",
       "Network": "Ethereum Mainnet",

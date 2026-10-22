@@ -1,6 +1,60 @@
 {
   "backlog": [
     {
+      "taskKey": "u:38057336-8638-49b6-85f6-cabcc27a74c4",
+      "uuid": "38057336-8638-49b6-85f6-cabcc27a74c4",
+      "docNo": "A.1.10.1.3",
+      "title": "Standards For Audits Not Commissioned By Sky"
+    },
+    {
+      "taskKey": "u:c4258c16-c199-4d5b-86f8-9acb74b7e40c",
+      "uuid": "c4258c16-c199-4d5b-86f8-9acb74b7e40c",
+      "docNo": "A.1.10.1.3.1",
+      "title": "Audit Recognition Requirements"
+    },
+    {
+      "taskKey": "u:95669d2d-ef50-4109-b592-40a1d0bac8bb",
+      "uuid": "95669d2d-ef50-4109-b592-40a1d0bac8bb",
+      "docNo": "A.1.10.1.3.2",
+      "title": "Audit Coverage Requirements"
+    },
+    {
+      "taskKey": "u:4a6e09e6-9e9d-45f0-923a-9c842faa7708",
+      "uuid": "4a6e09e6-9e9d-45f0-923a-9c842faa7708",
+      "docNo": "A.1.10.1.3.3",
+      "title": "Recognized Audit Firms"
+    },
+    {
+      "taskKey": "u:97eee131-b5d6-4246-8631-fb077616b671",
+      "uuid": "97eee131-b5d6-4246-8631-fb077616b671",
+      "docNo": "A.1.10.1.3.3.1",
+      "title": "Audit Firm Tiers"
+    },
+    {
+      "taskKey": "u:6ada67c6-0cf1-4456-b280-57e8ae7edc13",
+      "uuid": "6ada67c6-0cf1-4456-b280-57e8ae7edc13",
+      "docNo": "A.1.10.1.3.3.2.1",
+      "title": "List Of Top-Tier Audit Firms"
+    },
+    {
+      "taskKey": "u:dea3a182-4b89-4fda-9eed-232562e5f057",
+      "uuid": "dea3a182-4b89-4fda-9eed-232562e5f057",
+      "docNo": "A.1.10.1.3.3.2.2",
+      "title": "List Of Mid-Tier Audit Firms"
+    },
+    {
+      "taskKey": "u:19f5f5b9-be0d-4a91-a5aa-3888c1c9b7e8",
+      "uuid": "19f5f5b9-be0d-4a91-a5aa-3888c1c9b7e8",
+      "docNo": "A.1.10.1.3.4",
+      "title": "Short-Term Transitionary Measures"
+    },
+    {
+      "taskKey": "u:0dbdbcca-5c94-448c-9ac4-03b53c58065d",
+      "uuid": "0dbdbcca-5c94-448c-9ac4-03b53c58065d",
+      "docNo": "A.1.10.2.3.2.2.3.3.7",
+      "title": "Prime Spell Recorded In Executive Sheet"
+    },
+    {
       "taskKey": "u:ae05e069-0626-45f5-82d2-dbf39a5b2598",
       "uuid": "ae05e069-0626-45f5-82d2-dbf39a5b2598",
       "docNo": "A.1.10.3.2.10.5",
@@ -367,6 +421,12 @@
       "title": "Core Council Multisig Usage Standards"
     },
     {
+      "taskKey": "u:61f08711-db44-4c9f-98ad-f330e729398f",
+      "uuid": "61f08711-db44-4c9f-98ad-f330e729398f",
+      "docNo": "A.2.2.10.1.1.1.2.4.1.3.1.5",
+      "title": "Core Council Multisig Modification"
+    },
+    {
       "taskKey": "u:a824d088-be58-4163-b382-54a95a728103",
       "uuid": "a824d088-be58-4163-b382-54a95a728103",
       "docNo": "A.2.2.10.1.1.1.2.4.1.3.2",
@@ -619,6 +679,18 @@
       "title": "Diamond PAU Controller Functions"
     },
     {
+      "taskKey": "u:b900fd43-5f7c-438f-a1dd-0e89db98f4db",
+      "uuid": "b900fd43-5f7c-438f-a1dd-0e89db98f4db",
+      "docNo": "A.2.2.10.1.1.1.2.5.2.1.2.2",
+      "title": "Rate Limit"
+    },
+    {
+      "taskKey": "u:b489a966-f631-429d-85da-cb6258f001c9",
+      "uuid": "b489a966-f631-429d-85da-cb6258f001c9",
+      "docNo": "A.2.2.10.1.1.1.2.5.2.4.2.2",
+      "title": "Rate Limit"
+    },
+    {
       "taskKey": "u:417edcc0-3d50-48ba-8fc2-38b361dbc297",
       "uuid": "417edcc0-3d50-48ba-8fc2-38b361dbc297",
       "docNo": "A.2.2.10.1.1.1.2.5.2.5",
@@ -683,6 +755,18 @@
       "uuid": "fa303993-b430-45d4-a284-b8fce6b239b3",
       "docNo": "A.2.2.10.1.1.1.2.5.4.2.4",
       "title": "Withdraw All Positions From Uniswap v3 Facet"
+    },
+    {
+      "taskKey": "u:686b81a9-450d-4340-a25a-5a069cbe8788",
+      "uuid": "686b81a9-450d-4340-a25a-5a069cbe8788",
+      "docNo": "A.2.2.10.1.1.1.3.1",
+      "title": "Role Configuration"
+    },
+    {
+      "taskKey": "u:d1d1ee0e-4d57-4c01-8fad-ea360b5bee03",
+      "uuid": "d1d1ee0e-4d57-4c01-8fad-ea360b5bee03",
+      "docNo": "A.2.2.10.1.1.1.3.1.1",
+      "title": "Permissioned Role Records"
     },
     {
       "taskKey": "u:be4f3bc0-70e4-478c-8c86-e889846198e3",
@@ -779,6 +863,12 @@
       "uuid": "20aa9663-214b-46f5-8b37-53be387b996b",
       "docNo": "A.3.2.2.1.1.1.1.3.8.2",
       "title": "Noncompliant Morpho Vault Allocations"
+    },
+    {
+      "taskKey": "u:d281c572-ff98-43ba-a01d-e54657b50ab9",
+      "uuid": "d281c572-ff98-43ba-a01d-e54657b50ab9",
+      "docNo": "A.3.2.2.1.2.2.5.1.2",
+      "title": "Effectiveness Coefficient"
     },
     {
       "taskKey": "u:8694e11a-6acd-43f1-90fd-67eb7e7d98d6",
@@ -901,33 +991,99 @@
       "title": "ValueRegistry Multisig Modification"
     },
     {
-      "taskKey": "u:3e8ed24b-da4a-4c3f-9a74-c3dd6a557abf",
-      "uuid": "3e8ed24b-da4a-4c3f-9a74-c3dd6a557abf",
-      "docNo": "A.6.1.1.1.3.9.7.2.1",
-      "title": "Spark USDS Morpho Vault - Ethereum Mainnet"
+      "taskKey": "u:ac41be8b-f6c9-4df2-9fac-c543c77e0166",
+      "uuid": "ac41be8b-f6c9-4df2-9fac-c543c77e0166",
+      "docNo": "A.6.1.1.1.2.6.1.3.1.5.1.4.1.1",
+      "title": "Curator Role Address"
+    },
+    {
+      "taskKey": "t:guardian role address|risk",
+      "uuid": "b7d0b9a8-4dba-4fba-8aab-b5afd645a6d0",
+      "docNo": "A.6.1.1.1.2.6.1.3.1.5.1.4.1.2",
+      "title": "Guardian Role Address"
+    },
+    {
+      "taskKey": "u:f9605664-b8e2-4efb-b4ef-c60d5d85ec8a",
+      "uuid": "f9605664-b8e2-4efb-b4ef-c60d5d85ec8a",
+      "docNo": "A.6.1.1.1.2.6.1.3.1.5.2.4.1.1",
+      "title": "Curator Role Address"
+    },
+    {
+      "taskKey": "u:9eeee40f-fb34-4ca0-922a-ad54fb4d30c1",
+      "uuid": "9eeee40f-fb34-4ca0-922a-ad54fb4d30c1",
+      "docNo": "A.6.1.1.1.2.6.1.3.1.5.2.4.1.2",
+      "title": "Sentinel Role Address"
+    },
+    {
+      "taskKey": "u:f44940e3-fda2-444c-a2ae-bd91d00b411c",
+      "uuid": "f44940e3-fda2-444c-a2ae-bd91d00b411c",
+      "docNo": "A.6.1.1.1.2.6.1.3.1.5.2.4.2",
+      "title": "Timelock"
+    },
+    {
+      "taskKey": "u:072ceda6-e5cd-4cce-b589-02d553bf5fee",
+      "uuid": "072ceda6-e5cd-4cce-b589-02d553bf5fee",
+      "docNo": "A.6.1.1.1.2.6.1.3.1.5.3.4.1.1",
+      "title": "Curator Role Address"
+    },
+    {
+      "taskKey": "u:921d59d4-baaf-45a8-b6ff-93aa879e0e41",
+      "uuid": "921d59d4-baaf-45a8-b6ff-93aa879e0e41",
+      "docNo": "A.6.1.1.1.2.6.1.3.2.1.1.4.2.1",
+      "title": "Curator Role Address"
+    },
+    {
+      "taskKey": "u:6f64ac9e-daf1-4339-8046-3894e57f4383",
+      "uuid": "6f64ac9e-daf1-4339-8046-3894e57f4383",
+      "docNo": "A.6.1.1.1.3.9.3.3",
+      "title": "Reporting of Curator Actions"
+    },
+    {
+      "taskKey": "u:218f889f-6a5d-46a8-b8a3-cb0a075825c2",
+      "uuid": "218f889f-6a5d-46a8-b8a3-cb0a075825c2",
+      "docNo": "A.6.1.1.1.3.9.4.1",
+      "title": "Polling Requirement"
+    },
+    {
+      "taskKey": "u:9cb30c4c-ecbb-4874-a931-b900b868b888",
+      "uuid": "9cb30c4c-ecbb-4874-a931-b900b868b888",
+      "docNo": "A.6.1.1.1.3.9.5.1",
+      "title": "Timelock Requirement"
+    },
+    {
+      "taskKey": "u:86153ff2-e3f2-44af-b19b-678cbbac27f5",
+      "uuid": "86153ff2-e3f2-44af-b19b-678cbbac27f5",
+      "docNo": "A.6.1.1.1.3.9.6",
+      "title": "Cancellation Authorities"
+    },
+    {
+      "taskKey": "u:900c4a0d-ed93-41ad-b914-f84d50d6940e",
+      "uuid": "900c4a0d-ed93-41ad-b914-f84d50d6940e",
+      "docNo": "A.6.1.1.1.3.9.6.3",
+      "title": "Cancellation Authority"
     },
     {
       "taskKey": "u:603cf96e-5819-4e3d-942e-5290dd000847",
       "uuid": "603cf96e-5819-4e3d-942e-5290dd000847",
-      "docNo": "A.6.1.1.1.3.9.7.2.2",
+      "docNo": "A.6.1.1.1.3.9.7.2.1",
       "title": "Spark Blue Chip USDC Morpho Vault - Ethereum Mainnet"
     },
     {
       "taskKey": "u:5ef1e78f-e1d2-4b09-b00c-618e36ccb2d8",
       "uuid": "5ef1e78f-e1d2-4b09-b00c-618e36ccb2d8",
-      "docNo": "A.6.1.1.1.3.9.7.2.3",
+      "docNo": "A.6.1.1.1.3.9.7.2.2",
       "title": "Spark Blue Chip USDT Morpho Vault - Ethereum Mainnet"
     },
     {
       "taskKey": "u:85722a93-ec30-4e7f-883c-adde12b0ac6b",
       "uuid": "85722a93-ec30-4e7f-883c-adde12b0ac6b",
-      "docNo": "A.6.1.1.1.3.9.7.2.4",
+      "docNo": "A.6.1.1.1.3.9.7.2.3",
       "title": "Spark USDC Morpho Vault - Base"
     },
     {
       "taskKey": "u:67d8abe9-a398-4c7c-9e0d-ee48e97489e1",
       "uuid": "67d8abe9-a398-4c7c-9e0d-ee48e97489e1",
-      "docNo": "A.6.1.1.1.3.9.7.2.5",
+      "docNo": "A.6.1.1.1.3.9.7.2.4",
       "title": "Sentora RLUSD Morpho Vault - Ethereum Mainnet"
     },
     {
@@ -935,6 +1091,48 @@
       "uuid": "0cf2ffe0-cb0b-4c3c-bd11-349cad3d4c98",
       "docNo": "A.6.1.1.2.2.6.1.2.2.1.2.2.3",
       "title": "PSM Facet"
+    },
+    {
+      "taskKey": "u:dfd3a988-328e-4710-8049-fe1f5592fdcc",
+      "uuid": "dfd3a988-328e-4710-8049-fe1f5592fdcc",
+      "docNo": "A.6.1.1.2.2.6.1.3.1.7.1.2.2.4",
+      "title": "Curator Role Address"
+    },
+    {
+      "taskKey": "u:a66421cd-3c15-4f43-a817-7b5262063361",
+      "uuid": "a66421cd-3c15-4f43-a817-7b5262063361",
+      "docNo": "A.6.1.1.2.2.6.1.3.1.7.2.2.2.4",
+      "title": "Curator Role Address"
+    },
+    {
+      "taskKey": "u:e37ccf22-627f-4c05-8861-63ff9c198ea6",
+      "uuid": "e37ccf22-627f-4c05-8861-63ff9c198ea6",
+      "docNo": "A.6.1.1.2.2.6.1.3.1.7.3.2.2.4",
+      "title": "Curator Role Address"
+    },
+    {
+      "taskKey": "u:bbdcbffb-6116-48fd-a504-a280fa8a1344",
+      "uuid": "bbdcbffb-6116-48fd-a504-a280fa8a1344",
+      "docNo": "A.6.1.1.2.2.6.1.3.1.7.4.2.2.4",
+      "title": "Curator Role Address"
+    },
+    {
+      "taskKey": "u:edc42fd3-d4f2-4ff1-9e1f-789ce3c0d74a",
+      "uuid": "edc42fd3-d4f2-4ff1-9e1f-789ce3c0d74a",
+      "docNo": "A.6.1.1.2.2.6.1.3.1.7.5.2.2.3",
+      "title": "Curator Role Address"
+    },
+    {
+      "taskKey": "u:fe0cc850-6315-4673-804d-27d2b419a3f7",
+      "uuid": "fe0cc850-6315-4673-804d-27d2b419a3f7",
+      "docNo": "A.6.1.1.2.2.6.1.3.3.1.1.2.2.4",
+      "title": "Curator Role Address"
+    },
+    {
+      "taskKey": "u:86586cb8-ccbb-4ab7-8244-add51cca65fe",
+      "uuid": "86586cb8-ccbb-4ab7-8244-add51cca65fe",
+      "docNo": "A.6.1.1.5.2.6.1.2.1.1.1.2.5",
+      "title": "ALM Relayer Multisig Addresses"
     },
     {
       "taskKey": "u:aae0e1ba-4ed0-4484-9187-3e53f3695ae8",
@@ -947,6 +1145,18 @@
       "uuid": "b762ae11-c8fa-465d-a8a0-4909257551dd",
       "docNo": "A.6.1.1.7.2.6.1.2.2.1.2.4",
       "title": "PSM Facet"
+    },
+    {
+      "taskKey": "u:d13f341a-5471-42a2-ab00-a3148cd38917",
+      "uuid": "d13f341a-5471-42a2-ab00-a3148cd38917",
+      "docNo": "A.6.1.1.7.2.6.1.3.1.2.1.4.1.2",
+      "title": "Curator Role Address"
+    },
+    {
+      "taskKey": "u:b0b73201-d985-4a71-84d9-05ae9f9320be",
+      "uuid": "b0b73201-d985-4a71-84d9-05ae9f9320be",
+      "docNo": "A.6.1.1.7.2.6.1.3.1.2.1.4.1.3",
+      "title": "Allocator Role Addresses"
     }
   ]
 }

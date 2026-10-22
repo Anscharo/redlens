@@ -1,0 +1,10 @@
+{
+  "number": 360,
+  "title": "Atlas Edit Proposal — 2026-10-19",
+  "body": "## Summary\n\nThis proposal includes the following edits:\n\n- **Add Standards For Audits Not Commissioned By Sky And Revise Recognized Audit Firms** - Sets audit standards and coverage requirements for audits not commissioned by Sky, and updates the recognized audit firm lists.\n- **Executive Process Liaison Confirms Prime Spell Actions Are Authorized In The Atlas** - Requires the Executive Process Liaison to check that each Prime Spell action is authorized in the Atlas before confirming the Prime Spell address.\n- **Clarify Core Council Multisig Is Deployed Separately On Arbitrum** - Clarifies that the Core Council Multisig on Arbitrum is a separate deployment, and requires its signer requirements and signer changes to apply on every network on which it is deployed.\n- **Record Permissioned Role Holders For Morpho Vaults** - Requires the records for each Prime Agent's Morpho vaults to specify every permissioned role, its holder and address, and brings the Spark, Grove and Osero Morpho vault records up to date with the current role holders.\n- **Clarify Burn USDS And USDC Swap Rate Limit Restoration Is Capped At maxAmount** - Clarifies that the rate limit capacity restored by burning USDS or swapping USDC to USDS is capped at the rate limit's `maxAmount`.\n- **Set River I Instance Capital Ratio Requirement To 7%** - Sets the Capital Ratio Requirement for Pattern's River I Instance to 7%.\n- **Increase Osero Gauntlet Vault Deposit Slope To 650,000 USDC Per Day** - Increases the deposit rate limit slope for Osero's Gauntlet USDC Prime Morpho Vault V2 Instance from zero to 650,000 USDC per day.\n- **Housekeeping Updates** - Corrects wording in the Obex Relayer Multisig and `RateLimitID` documents.\n",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/360",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

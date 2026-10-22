@@ -31,6 +31,18 @@
         "bucket": "live"
       },
       {
+        "uuid": "6ada67c6-0cf1-4456-b280-57e8ae7edc13",
+        "doc_no": "A.1.10.1.3.3.2.1",
+        "title": "List Of Top-Tier Audit Firms",
+        "bucket": "live"
+      },
+      {
+        "uuid": "dea3a182-4b89-4fda-9eed-232562e5f057",
+        "doc_no": "A.1.10.1.3.3.2.2",
+        "title": "List Of Mid-Tier Audit Firms",
+        "bucket": "live"
+      },
+      {
         "uuid": "a5fa4c7d-f17b-4547-97dd-920a2b67b97d",
         "doc_no": "A.1.10.2.5.1.3.2",
         "title": "List Of Registered Spell Checklists",
@@ -94,18 +106,6 @@
         "uuid": "e063a7c5-eb41-489e-8334-b095b785af62",
         "doc_no": "A.2.11.1.3.4.2",
         "title": "List Of Registered Multisigs",
-        "bucket": "live"
-      },
-      {
-        "uuid": "6ada67c6-0cf1-4456-b280-57e8ae7edc13",
-        "doc_no": "A.3.2.2.1.2.2.5.1.2.2.1",
-        "title": "List Of Top-Tier Audit Firms",
-        "bucket": "live"
-      },
-      {
-        "uuid": "dea3a182-4b89-4fda-9eed-232562e5f057",
-        "doc_no": "A.3.2.2.1.2.2.5.1.2.2.2",
-        "title": "List Of Mid-Tier Audit Firms",
         "bucket": "live"
       },
       {
@@ -7090,9 +7090,14 @@
   },
   "transitionary-measures": {
     "counts": {
-      "total": 21
+      "total": 22
     },
     "members": [
+      {
+        "uuid": "19f5f5b9-be0d-4a91-a5aa-3888c1c9b7e8",
+        "doc_no": "A.1.10.1.3.4",
+        "title": "Short-Term Transitionary Measures"
+      },
       {
         "uuid": "4fce0fd5-cfba-48b6-9af5-bbb0b5e917a6",
         "doc_no": "A.1.14.4.7",
@@ -7936,9 +7941,9 @@
         "title": "Restrictions On Investments On Plume"
       },
       {
-        "uuid": "5b542b65-2ef1-49e9-8995-122373f1b312",
-        "doc_no": "A.3.2.2.1.2.2.5.1.2.2",
-        "title": "Audit Firms By Tier"
+        "uuid": "d281c572-ff98-43ba-a01d-e54657b50ab9",
+        "doc_no": "A.3.2.2.1.2.2.5.1.2",
+        "title": "Effectiveness Coefficient"
       },
       {
         "uuid": "5e300cdb-b221-4b6f-9c4a-11502133a1f9",
