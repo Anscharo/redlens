@@ -25,4 +25,10 @@ describe("unmatchedFlag", () => {
     expect(unmatchedFlag("spell", "2026-10-12T00:00:00Z", true, NOW)).toBeNull();
     for (const origin of ["deployment", "direct", "unknown", null, undefined] as const) expect(unmatchedFlag(origin, "2026-01-01T00:00:00Z", false, NOW)).toBeNull();
   });
+
+  it("says a document names the constant, not that none was found, when one is shown beside the name", () => {
+    const f = unmatchedFlag("spell", "2026-10-12T14:00:00Z", false, NOW, true);
+    expect(f?.text).toMatch(/^No Atlas value is connected.*only names its controller constant/);
+    expect(f?.text).not.toMatch(/No Atlas document found/);
+  });
 });

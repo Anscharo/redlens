@@ -54,4 +54,9 @@ describe("PauAtlasMark", () => {
     expect([link.textContent, link.getAttribute("href")]).toEqual(["?", "/atlas?id=value-doc&view=onchain"]);
     expect(container.querySelector("[data-atlas-flag]")).toBeNull();
   });
+
+  it("words the flag for a limit whose controller constant a document names", async () => {
+    render(<PauAtlasMark chain="ethereum" limit={limit("0xspell", day(1))} named />);
+    expect(await screen.findByRole("img", { name: /only names its controller constant/ })).toHaveAttribute("data-atlas-flag", "spell");
+  });
 });

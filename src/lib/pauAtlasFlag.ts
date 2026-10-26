@@ -22,14 +22,17 @@ export interface AtlasFlag {
 const DAY = 86_400_000;
 
 /** The flag for a limit with no Atlas document, or null when it earns none. `origin` is null while the history loads or holds no row. */
-export function unmatchedFlag(origin: OriginKind | null | undefined, setTime: string, off: boolean, now: number): AtlasFlag | null {
+export function unmatchedFlag(origin: OriginKind | null | undefined, setTime: string, off: boolean, now: number, named = false): AtlasFlag | null {
   if (off || !origin) return null;
   const date = setTime.slice(0, 10);
+  // With a document naming the limit's controller constant beside the name, the limit does have a document, just none whose value was connected.
+  const lead = named ? "No Atlas value is connected to this limit (the document linked in its name only names its controller constant)" : "No Atlas document found for this limit";
+  const cause = named ? "Either Redline Portal could not connect a value in it to this limit, or the Atlas does not state one." : "Either Redline Portal did not connect it to a document, or the Atlas does not state it.";
   if (origin === "spell" || origin === "relayed") {
-    return { kind: "spell", text: `No Atlas document found for this limit, set by a spell on ${date}. Either Redline Portal did not connect it to a document, or the Atlas does not state it. A Prime Spell's changes are ratified into the Atlas before the spell goes to an Executive Vote (A.1.10.2.3.2.2.3.3.5).` };
+    return { kind: "spell", text: `${lead}, set by a spell on ${date}. ${cause} A Prime Spell's changes are ratified into the Atlas before the spell goes to an Executive Vote (A.1.10.2.3.2.2.3.3.5).` };
   }
   if (origin === "operator" && now - Date.parse(setTime) > CBEAM_LAG_DAYS * DAY) {
-    return { kind: "cbeam", text: `No Atlas document found for this limit, set through the Configurator (a cBEAM) on ${date}, more than 2 months ago. A cBEAM change does not wait for an Executive Vote (A.1.10.3.2.10.5), so the Atlas may be behind, may not state this limit, or Redline Portal may not have connected it.` };
+    return { kind: "cbeam", text: `${lead}, set through the Configurator (a cBEAM) on ${date}, more than 2 months ago. A cBEAM change does not wait for an Executive Vote (A.1.10.3.2.10.5), so the Atlas may be behind, may not state this limit, or Redline Portal may not have connected it.` };
   }
   return null;
 }
