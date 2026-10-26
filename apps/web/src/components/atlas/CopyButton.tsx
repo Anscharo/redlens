@@ -9,11 +9,13 @@ type CopyButtonProps = Omit<ComponentProps<"button">, "onClick" | "title" | "chi
   /** Resolved at click time so it can read `window` or router state. */
   text: string | (() => string);
   onCopy?: () => void;
+  /** Float "copied" over whatever follows instead of reserving its width. */
+  overlayCopied?: boolean;
 };
 
 // A copy-to-clipboard button that owns its click handling, clipboard write and
 // "copied" flip. Clicks never reach the row behind it.
-export function CopyButton({ icon, label, title, text, onCopy, ...rest }: CopyButtonProps) {
+export function CopyButton({ icon, label, title, text, onCopy, overlayCopied, ...rest }: CopyButtonProps) {
   const { copied, copy } = useCopyState();
 
   const handleClick = (e: MouseEvent) => {
@@ -32,7 +34,11 @@ export function CopyButton({ icon, label, title, text, onCopy, ...rest }: CopyBu
       data-copied={copied ? "true" : undefined}
     >
       {icon}
-      <span className="atlas-copy-flip" data-flipped={copied ? "true" : undefined}>
+      <span
+        className="atlas-copy-flip"
+        data-flipped={copied ? "true" : undefined}
+        data-overlay={overlayCopied ? "true" : undefined}
+      >
         <span className="label">{label}</span>
         <span className="flipped">copied</span>
       </span>

@@ -1648,6 +1648,20 @@ button.atlas-node-expand-all:focus-visible {
 
 .atlas-copy-flip {
   display: inline-grid;
+  position: relative;
+}
+/* An overlaid "copied" reserves no width; it sits on a chip over the label and
+   whatever follows the button. */
+.atlas-copy-flip[data-overlay="true"] > .flipped {
+  position: absolute;
+  left: -3px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--surface);
+  white-space: nowrap;
 }
 .atlas-copy-flip > * {
   grid-area: 1 / 1;
