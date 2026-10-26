@@ -252,8 +252,7 @@ export function extractParamsFromRoot(rootDoc, childrenByDocNo) {
     const { doc, parents } = pending.shift();
     const kids = childrenByDocNo.get(doc.doc_no) ?? [];
     const content = (doc.content ?? "").trim();
-    const isLeaf = kids.length === 0;
-    if (isLeaf) {
+    if (kids.length === 0) {
       if (!content || DIRECTORY_RE.test(content)) continue;
       // Expansion order: per-title expander → generic bullet-list → formatter.
       const expanded =
@@ -272,6 +271,11 @@ export function extractParamsFromRoot(rootDoc, childrenByDocNo) {
       // Skip the "Custom Instance Parameters" subtree at any depth — it's a
       // reserved extension slot, almost always empty/placeholder in practice.
       if (/^custom instance parameters$/i.test(doc.title)) continue;
+      // A group that states its own `key`: value bullets and also has children
+      // (a "Deposit Rate Limits" leaf with a "Deposit Rate Limit Default" child)
+      // still states those values; the walk must not drop them.
+      if (content && !DIRECTORY_RE.test(content) && !PARAM_EXPANDERS[doc.title])
+        for (const [k, v] of expandBulletList(content, doc.title) ?? []) params[k] ??= [v, doc.id, doc.doc_no];
       for (const c of kids) pending.push({ doc: c, parents: [...parents, doc.title] });
     }
   }

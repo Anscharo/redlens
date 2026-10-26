@@ -362,3 +362,19 @@ describe("extractInstanceParams — address values", () => {
     expect(res["Integration Partner Reward Address"][0]).toBe(ADDR);
   });
 });
+
+describe("extractInstanceParams: a limits group that also has a child", () => {
+  it("keeps the group's own bullets beside the child's", () => {
+    const docs = [
+      mkDoc("p", "A.6.1.1.7.2.6.1.3.1.2.1.2", "Parameters"),
+      mkDoc("rl", "A.6.1.1.7.2.6.1.3.1.2.1.2.4", "Rate Limits", { content: "Defined in the subdocuments herein." }),
+      mkDoc("dep", "A.6.1.1.7.2.6.1.3.1.2.1.2.4.1", "Deposit Rate Limits", { content: "The deposit rate limits are:\n- `maxAmount`: 5,000,000 USDC\n- `slope`: 650,000 USDC per day" }),
+      mkDoc("def", "A.6.1.1.7.2.6.1.3.1.2.1.2.4.1.1", "Deposit Rate Limit Default", { content: "The default is:\n- `maxAmount`: 5,000,000 USDC" }),
+    ];
+    const icd = mkDoc("icd", "A.6.1.1.7.2.6.1.3.1.2.1", "Instance");
+    const params = extractInstanceParams(icd, buildChildrenIndex([icd, ...docs]));
+    expect(params["Deposit Rate Limits / maxAmount"]).toEqual(["5,000,000 USDC", "dep", "A.6.1.1.7.2.6.1.3.1.2.1.2.4.1"]);
+    expect(params["Deposit Rate Limits / slope"][0]).toBe("650,000 USDC per day");
+    expect(params["Deposit Rate Limit Default / maxAmount"][1]).toBe("def");
+  });
+});
