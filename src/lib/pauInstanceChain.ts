@@ -19,6 +19,22 @@ export function chainOfLabel(label: string): string | null {
   return hits.length === 1 ? hits[0].chain : null;
 }
 
+const WORDS = NAMES.flatMap((c) => c.names.map((n) => ({ chain: c.chain, name: n }))).sort((a, b) => b.name.length - a.name.length);
+
+/** The one registry chain a text names as a whole word anywhere in it ("Monolithic Mainnet Controller Contract Functions" → "ethereum"), else null. A longer name takes its words first ("OP Mainnet" is Optimism, not Ethereum). */
+export function chainInText(text: string): string | null {
+  let rest = ` ${text.toLowerCase()} `;
+  const found = new Set<string>();
+  for (const { chain, name } of WORDS) {
+    const word = new RegExp(`(?<![\\w-])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`, "g");
+    const masked = rest.replace(word, (m) => " ".repeat(m.length));
+    if (masked === rest) continue;
+    found.add(chain);
+    rest = masked;
+  }
+  return found.size === 1 ? [...found][0] : null;
+}
+
 export function instanceChain(src: ValueSource): string | null {
   const network = src.params.Network?.[0];
   const prefix = src.name.includes(" - ") ? src.name.split(" - ")[0] : null;

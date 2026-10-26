@@ -34,4 +34,16 @@ describe("namedIn", () => {
     expect(namedIn("prime", null)("LIMIT_USDS_MINT", "ethereum")).toBeNull();
     expect(namedIn(null, docs)("LIMIT_USDS_MINT", "ethereum")).toBeNull();
   });
+
+  it("scopes a document by a chain named anywhere in an ancestor's title, as one whole word", () => {
+    const mono = node("mono", "Monolithic Mainnet Controller Contract Functions");
+    const step = node("step", "Decrease Withdraw Rate Limit", "Decrease `LIMIT_4626_WITHDRAW`.");
+    const tree = {
+      docs: Object.fromEntries([prime, mono, step].map((n) => [n.id, n])),
+      byParent: new Map([["prime", [mono]], ["mono", [step]], [null, [prime]]]),
+    };
+    const find = namedIn("prime", tree);
+    expect(find("LIMIT_4626_WITHDRAW", "ethereum")?.id).toBe("step");
+    for (const chain of ["robinhood", "base", "arbitrum", "optimism"]) expect(find("LIMIT_4626_WITHDRAW", chain)).toBeNull();
+  });
 });

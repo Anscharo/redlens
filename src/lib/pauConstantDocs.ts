@@ -6,7 +6,7 @@
 // arbitrary; a document under another chain's heading is not on this chain. The
 // tree is walked by parent edges, never by doc_no. Pure.
 import type { AtlasNode } from "../types.ts";
-import { chainOfLabel } from "./pauInstanceChain.ts";
+import { chainInText, chainOfLabel } from "./pauInstanceChain.ts";
 import { ancestorsOf, type LimitDocs } from "./pauLimitDocs.ts";
 
 const CONSTANT_RE = /`(LIMIT_[A-Z0-9_]+)`/g;
@@ -20,6 +20,10 @@ interface Naming {
 /** The document a row's constant is named in; null when none or several do. */
 export type NamedIn = (constant: string, chain: string) => AtlasNode | null;
 
+/** The document shown beside a row's name: only for a row derived from a constant that no Atlas ref names (`named` is the key index's refs for it). */
+export const rowNamedIn = (r: { derived?: { constant: string } }, chain: string, named: unknown[], find?: NamedIn): AtlasNode | null =>
+  r.derived && named.length === 0 ? find?.(r.derived.constant, chain) ?? null : null;
+
 const cache = new WeakMap<LimitDocs["byParent"], Map<string, Map<string, Naming[]>>>();
 
 function namings(primeDocId: string, d: LimitDocs): Map<string, Naming[]> {
@@ -28,7 +32,7 @@ function namings(primeDocId: string, d: LimitDocs): Map<string, Naming[]> {
     for (const kid of d.byParent.get(id) ?? []) {
       const constants = new Set([...kid.content.matchAll(CONSTANT_RE)].map((m) => m[1]));
       if (constants.size > 0) {
-        const chain = ancestorsOf(kid.id, d).map((a) => chainOfLabel(a.title)).find((c) => c !== null) ?? null;
+        const chain = ancestorsOf(kid.id, d).map((a) => chainOfLabel(a.title) ?? chainInText(a.title)).find((c) => c !== null) ?? null;
         for (const c of constants) out.set(c, [...(out.get(c) ?? []), { doc: kid, chain }]);
       }
       walk(kid.id);

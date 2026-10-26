@@ -24,7 +24,7 @@ function DerivedName({ k, d, chain, namedIn }: { k: string; d: DerivedKey; chain
       {doc && (
         <span style={dim}>
           {" · named in "}
-          <AtlasLink to={atlasHref(doc.id)} className="text-accent hover:underline" title={`${doc.doc_no}: the one document in this Prime's artifact that names ${d.constant} on this chain; it states no value to compare`}>
+          <AtlasLink to={atlasHref(doc.id)} className="text-accent hover:underline" title={`${doc.doc_no}: the one document in this Prime's artifact that names ${d.constant} on this chain; this link does not compare a value`}>
             {doc.title}
           </AtlasLink>
         </span>

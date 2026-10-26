@@ -8,7 +8,7 @@ import { elsewhereId, matchId, type AtlasVerdict } from "@/lib/pauAtlasMatch";
 import { PauAtlasMark } from "./PauAtlasMark";
 import { rowMark } from "@/lib/pauAtlasMatch";
 import { isOff, orderedLimits } from "@/lib/pauLimitOrder";
-import type { NamedIn } from "@/lib/pauConstantDocs";
+import { rowNamedIn, type NamedIn } from "@/lib/pauConstantDocs";
 import { PauLimitName } from "./PauLimitName";
 import { formatPerDay, limitDecimals, unitNote, type AtlasKeyRef, type LiveRateLimit } from "../../lib/pau";
 
@@ -34,7 +34,9 @@ const cell = "px-3 py-0.5 align-top";
 const head = "px-3 pb-1 align-bottom font-normal leading-tight";
 
 function LimitRow({ r, chain, keyIndex, namedIn, verdict, elsewhere }: { r: LiveRateLimit; chain: string; keyIndex: Map<string, AtlasKeyRef[]>; namedIn?: NamedIn; verdict?: AtlasVerdict; elsewhere?: AtlasVerdict }) {
-  const { shown, keyDocId } = rowMark(verdict, elsewhere, chain, keyIndex.get(r.key.toLowerCase()) ?? []);
+  const refs = keyIndex.get(r.key.toLowerCase()) ?? [];
+  const { shown, keyDocId } = rowMark(verdict, elsewhere, chain, refs);
+  const namedInDoc = rowNamedIn(r, chain, refs, namedIn);
   const max = r.data?.maxAmount ?? r.configured.maxAmount;
   const dec = limitDecimals(r.unit, max);
   const scale = unitNote(r.unit, max) + (r.data ? "" : "; live read failed, showing the last value its history set");
@@ -44,7 +46,7 @@ function LimitRow({ r, chain, keyIndex, namedIn, verdict, elsewhere }: { r: Live
       <td className={`${cell} text-right`} style={colRule} title={scale}>{isOff(r) ? "off" : <PauAmount raw={max} dec={dec} symbol={r.unit?.symbol} />}</td>
       <td className={`${cell} text-right`} style={colRule} title={scale}>{formatPerDay(r.data?.slope ?? r.configured.slope, dec)}</td>
       <td className={`${cell} text-center`} style={colRule} data-atlas-match={shown?.mark}>
-        <PauAtlasMark verdict={shown} keyDocId={keyDocId} chain={chain} limit={r} />
+        <PauAtlasMark verdict={shown} keyDocId={keyDocId} chain={chain} limit={r} named={!!namedInDoc} />
       </td>
       <td className={`${cell} text-right whitespace-nowrap`} style={colRule}>
         <a href={explorerTxUrl(chain, r.setAt.tx)} target="_blank" rel="noopener" className="hover:underline" style={dim}>
