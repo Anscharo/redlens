@@ -16141,6 +16141,8 @@ The co-curator addresses are:
       "Capital Ratio Requirement": "The Capital Ratio Requirement for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 100%.",
       "Deposit Rate Limit Default / maxAmount": "5,000,000 USDC",
       "Deposit Rate Limit Default / slope": "650,000 USDC per day",
+      "Deposit Rate Limits / maxAmount": "5,000,000 USDC",
+      "Deposit Rate Limits / slope": "650,000 USDC per day",
       "Inflow RateLimitID": "0xfc26a91cf7b79b531d45dcc431ee59e4f2504f51cb33e2b67960808a104c92ef",
       "Max Slippage": "The \`maxSlippage\` for this Instance will be specified in a future iteration of the Osero Artifact.",
       "Maximum Exposure": "The Maximum Exposure for this Instance is 5,000,000 USDC.",
