@@ -46,4 +46,16 @@ describe("namedIn", () => {
     expect(find("LIMIT_4626_WITHDRAW", "ethereum")?.id).toBe("step");
     for (const chain of ["robinhood", "base", "arbitrum", "optimism"]) expect(find("LIMIT_4626_WITHDRAW", chain)).toBeNull();
   });
+  it("scopes a document by a chain-named ancestor above its parent, as Grove's mainnet section sits above its steps", () => {
+    const mono = node("mono", "Monolithic Mainnet Controller Contract Functions");
+    const group = node("group", "Redeem From ERC-4626 Vault");
+    const step = node("step", "Decrease Withdraw Rate Limit", "Decrease `LIMIT_4626_WITHDRAW`.");
+    const tree = {
+      docs: Object.fromEntries([prime, mono, group, step].map((n) => [n.id, n])),
+      byParent: new Map([["prime", [mono]], ["mono", [group]], ["group", [step]], [null, [prime]]]),
+    };
+    const find = namedIn("prime", tree);
+    expect(find("LIMIT_4626_WITHDRAW", "ethereum")?.id).toBe("step");
+    expect(find("LIMIT_4626_WITHDRAW", "robinhood")).toBeNull();
+  });
 });
