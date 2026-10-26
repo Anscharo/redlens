@@ -1566,14 +1566,12 @@ button.atlas-node-expand-all:focus-visible {
   color: var(--accent);
 }
 
-/* The Sky logo turns a quarter-turn when its button or link is hovered or focused. */
+/* The Sky logo turns a quarter-turn when its button is hovered or focused. */
 .atlas-sky-logo {
   transition: transform 0.2s ease-out;
 }
 .atlas-copy-btn:hover .atlas-sky-logo,
-.atlas-copy-btn:focus-visible .atlas-sky-logo,
-.atlas-external-link:hover .atlas-sky-logo,
-.atlas-external-link:focus-visible .atlas-sky-logo {
+.atlas-copy-btn:focus-visible .atlas-sky-logo {
   transform: rotate(90deg);
 }
 @media (prefers-reduced-motion: reduce) {

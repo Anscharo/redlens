@@ -29,11 +29,7 @@ export function NodeMeta({ node }: { node: AtlasNode }) {
       />
       <CopyButton
         icon={<CopyIcon />}
-        label={
-          <span className="pl-0.5">
-            <SkyLogo />
-          </span>
-        }
+        label={<SkyLogo />}
         title="Copy link to Sky Atlas"
         aria-label="Copy link to Sky Atlas"
         text={skyAtlasUrl}
@@ -44,13 +40,12 @@ export function NodeMeta({ node }: { node: AtlasNode }) {
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Open on Sky Atlas"
-        className="atlas-external-link shrink-0 inline-flex items-center gap-1"
+        className="atlas-external-link shrink-0 inline-flex items-center"
         onClick={(e) => {
           e.stopPropagation();
           track("reader_atlas_link_out", { node_id: node.id });
         }}
       >
-        <SkyLogo />
         <LinkOutIcon />
       </a>
     </div>
