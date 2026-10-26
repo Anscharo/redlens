@@ -5,7 +5,6 @@ import { CopyButton } from "./CopyButton";
 import { ChainLinkIcon, CopyIcon, LinkOutIcon, SkyLogo } from "./NodeMetaIcons";
 
 export function NodeMeta({ node }: { node: AtlasNode }) {
-  const skyAtlasUrl = `https://sky-atlas.io/#${node.id}`;
   // Router base is "" on the live atlas and "/preview/<id>" in preview mode, so
   // the copied link stays within the same source the user is viewing.
   const { base } = useRouter();
@@ -27,32 +26,39 @@ export function NodeMeta({ node }: { node: AtlasNode }) {
         text={() => `${window.location.origin}${base}/atlas?id=${node.id}`}
         onCopy={() => track("reader_copy_link", { node_id: node.id })}
       />
+      <SkyAtlasLinks nodeId={node.id} />
+    </div>
+  );
+}
+
+// Copy and open the sky-atlas.io link, kept tight together as one pair; the
+// copy button's "copied" floats over the arrow rather than pushing it away.
+function SkyAtlasLinks({ nodeId }: { nodeId: string }) {
+  const skyAtlasUrl = `https://sky-atlas.io/#${nodeId}`;
+  return (
+    <span className="inline-flex items-center gap-0.5 shrink-0">
       <CopyButton
         icon={<CopyIcon />}
-        label={
-          <span className="pl-0.5">
-            <SkyLogo />
-          </span>
-        }
+        label={<SkyLogo />}
         title="Copy link to Sky Atlas"
         aria-label="Copy link to Sky Atlas"
         text={skyAtlasUrl}
-        onCopy={() => track("reader_copy_sky_atlas_link", { node_id: node.id })}
+        overlayCopied
+        onCopy={() => track("reader_copy_sky_atlas_link", { node_id: nodeId })}
       />
       <a
         href={skyAtlasUrl}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Open on Sky Atlas"
-        className="atlas-external-link shrink-0 inline-flex items-center gap-1"
+        className="atlas-external-link shrink-0 inline-flex items-center"
         onClick={(e) => {
           e.stopPropagation();
-          track("reader_atlas_link_out", { node_id: node.id });
+          track("reader_atlas_link_out", { node_id: nodeId });
         }}
       >
-        <SkyLogo />
         <LinkOutIcon />
       </a>
-    </div>
+    </span>
   );
 }

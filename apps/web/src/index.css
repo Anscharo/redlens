@@ -1323,7 +1323,7 @@ mark {
   display: none;
   position: absolute;
   bottom: 6px;
-  right: 4px;
+  right: 8px;
   z-index: 1;
   padding: 2px 6px;
   border-radius: 4px;
@@ -1333,7 +1333,7 @@ mark {
   align-items: center;
 }
 .atlas-node.is-selected[data-has-hidden="true"] .atlas-node-meta {
-  right: 92px;
+  right: 96px;
 }
 .atlas-node.is-selected .atlas-node-meta {
   background-color: var(--bg);
@@ -1566,14 +1566,12 @@ button.atlas-node-expand-all:focus-visible {
   color: var(--accent);
 }
 
-/* The Sky logo turns a quarter-turn when its button or link is hovered or focused. */
+/* The Sky logo turns a quarter-turn when its button is hovered or focused. */
 .atlas-sky-logo {
   transition: transform 0.2s ease-out;
 }
 .atlas-copy-btn:hover .atlas-sky-logo,
-.atlas-copy-btn:focus-visible .atlas-sky-logo,
-.atlas-external-link:hover .atlas-sky-logo,
-.atlas-external-link:focus-visible .atlas-sky-logo {
+.atlas-copy-btn:focus-visible .atlas-sky-logo {
   transform: rotate(90deg);
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1650,6 +1648,20 @@ button.atlas-node-expand-all:focus-visible {
 
 .atlas-copy-flip {
   display: inline-grid;
+  position: relative;
+}
+/* An overlaid "copied" reserves no width; it sits on a chip over the label and
+   whatever follows the button. */
+.atlas-copy-flip[data-overlay="true"] > .flipped {
+  position: absolute;
+  left: -3px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--surface);
+  white-space: nowrap;
 }
 .atlas-copy-flip > * {
   grid-area: 1 / 1;
