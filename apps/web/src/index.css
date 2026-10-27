@@ -1991,6 +1991,16 @@ a.atlas-annotates:focus-visible {
   border-color: var(--border);
   background: var(--surface);
 }
+/* Phones: the links and the help / scheme / profile chips share one row with
+   the home icon, so the chips drop to a tighter pad. */
+@media (max-width: 639px) {
+  .nav-bar .nav-link {
+    letter-spacing: 0;
+  }
+  .nav-bar .rlc-signin {
+    padding: 6px 7px;
+  }
+}
 
 /* ─── Radar actor list ─── */
 .actor-list-item {

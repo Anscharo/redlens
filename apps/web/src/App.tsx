@@ -82,6 +82,7 @@ export default function App() {
         scopeCfg={reportScopeCfg}
         showModes={scope === "atlas" || !!reportScopeCfg}
         modesDisabledReason={search.lane === "semantic" ? MEANING_LANE_MODES_OFF : undefined}
+        inScope={scope === "atlas" ? search.inScope : undefined}
         recentSearches={search.recentSearches}
         onRecentSelect={search.selectRecent}
         onSubmit={() => search.searchAnyway() || focusFirstResult()}

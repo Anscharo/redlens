@@ -4,14 +4,15 @@
 // the navigation shortcuts, URL-param writes, mode wrapping, and the search()
 // side effect that feeds the results worker.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, cleanup, act } from "@testing-library/react";
+import { render, cleanup, act, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { useRef } from "react";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import type { SearchScope } from "@/lib/routes";
 
-const { search, track, searchState } = vi.hoisted(() => ({
+const { search, track, searchState, nodeId } = vi.hoisted(() => ({
+  nodeId: { current: null as string | null },
   search: vi.fn(),
   track: vi.fn(),
   searchState: { current: { status: "idle", query: "", hits: [] } as Record<string, unknown> },
@@ -20,6 +21,12 @@ vi.mock("./useSearch", () => ({
   useSearch: () => ({ state: searchState.current, search, ready: true }),
 }));
 vi.mock("../lib/analytics", () => ({ track }));
+// The open document comes from the reader's ?id=; docs come from the atlas
+// worker, which jsdom cannot spawn.
+vi.mock("./useAtlasNodeId", () => ({ useAtlasNodeId: () => nodeId.current }));
+vi.mock("../lib/docs", () => ({
+  loadDocs: () => Promise.resolve({ u1: { doc_no: "A.1.2", title: "Atlas Documents" } }),
+}));
 vi.mock("../lib/recentSearches", () => ({
   useRecentSearches: () => [],
   useRecordRecentSearch: () => {},
@@ -54,6 +61,7 @@ function setup(path: string, location: string, scope: SearchScope = "atlas") {
 }
 
 beforeEach(() => {
+  nodeId.current = null;
   searchState.current = { status: "idle", query: "", hits: [] };
   search.mockClear();
   track.mockClear();
@@ -130,6 +138,32 @@ describe("useSearchInput (rendered)", () => {
     const { navigate } = setup("/atlas?id=x", "/atlas", "atlas");
     act(() => api.handleChange({ target: { value: "delegate" } } as never));
     expect(navigate).toHaveBeenCalledWith("/?q=delegate");
+  });
+
+  it("the in: button, pressed in the reader, carries the scoped query HOME", async () => {
+    nodeId.current = "u1";
+    const { navigate } = setup("/atlas?id=u1", "/atlas", "atlas");
+    await waitFor(() => expect(api.inScope.scopeDoc?.docNo).toBe("A.1.2"));
+    act(() => api.inScope.toggleScope());
+    expect(navigate).toHaveBeenCalledWith("/?q=in%3AA.1.2+");
+  });
+
+  it("the in: button on HOME scopes the typed query, then lifts the scope", async () => {
+    nodeId.current = "u1";
+    setup("/?q=fees", "/", "atlas");
+    await waitFor(() => expect(api.inScope.scopeDoc).not.toBeNull());
+    act(() => api.inScope.toggleScope());
+    expect(api.query).toBe("fees in:A.1.2 ");
+    expect(api.inScope.scoped).toBe("A.1.2");
+    act(() => api.inScope.toggleScope());
+    expect(api.query).toBe("fees");
+  });
+
+  it("the in: button lifts an arrived-with scope even with no document opened", () => {
+    setup("/?q=fees%20in%3AA.6", "/", "atlas");
+    expect(api.inScope.scopeDoc).toBeNull();
+    act(() => api.inScope.toggleScope());
+    expect(api.query).toBe("fees");
   });
 
   it("handleChange on HOME writes the query into the URL (?q)", () => {

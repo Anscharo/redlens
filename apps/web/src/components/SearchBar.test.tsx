@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // SearchBar header: the broad/phrase/strict mode pills (atlas scope only), the
-// scope chip (non-atlas scopes), and the clear button. NavBar and Tooltip are
+// phone's mode-cycle button, the `in:` scope button, the scope chip (non-atlas
+// scopes), and the clear button. NavBar and Tooltip are
 // stubbed so the test stays focused on SearchBar's own controls.
 
 import { describe, it, expect, afterEach, vi } from "vitest";
@@ -36,13 +37,18 @@ function setup(over: Partial<Parameters<typeof SearchBar>[0]> = {}) {
   return { onChange, onClear, onSetMode };
 }
 
+// The wide-screen pill showing `symbol`; the phone's cycle button (data-mode)
+// shows the current mode's symbol too.
+const pill = (symbol: string) => screen.getAllByText(symbol).find((b) => !b.hasAttribute("data-mode"))!;
+const cycleButton = () => document.querySelector<HTMLButtonElement>("button[data-mode]")!;
+
 describe("SearchBar mode pills", () => {
   it("renders all three pills in atlas scope and presses the active one", () => {
     setup({ mode: "phrase" });
-    const pills = screen.getAllByRole("button").filter((b) => b.classList.contains("mode-pill"));
+    const pills = screen.getAllByRole("button").filter((b) => b.classList.contains("mode-pill") && !b.hasAttribute("data-mode"));
     expect(pills).toHaveLength(3);
-    expect(screen.getByText('"a"')).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("a*")).toHaveAttribute("aria-pressed", "false");
+    expect(pill('"a"')).toHaveAttribute("aria-pressed", "true");
+    expect(pill("a*")).toHaveAttribute("aria-pressed", "false");
   });
 
   it("calls onSetMode with the clicked mode", () => {
@@ -53,7 +59,7 @@ describe("SearchBar mode pills", () => {
 
   it("disables the pills and clears the pressed state when the query is mixed", () => {
     setup({ mode: "broad", isMixed: true });
-    const broad = screen.getByText("a*");
+    const broad = pill("a*");
     expect(broad).toBeDisabled();
     expect(broad).toHaveAttribute("aria-pressed", "false");
   });
@@ -68,11 +74,62 @@ describe("SearchBar mode pills", () => {
     // reason, where a vanished control would just look like a missing feature.
     setup({ mode: "phrase", modesDisabledReason: "not on this lane" });
     for (const symbol of ["a*", '"a"', "Aa"]) {
-      const pill = screen.getByText(symbol);
-      expect(pill).toBeDisabled();
-      expect(pill).toHaveAttribute("aria-pressed", "false");
-      expect(pill).toHaveAttribute("aria-label", "not on this lane");
+      const p = pill(symbol);
+      expect(p).toBeDisabled();
+      expect(p).toHaveAttribute("aria-pressed", "false");
+      expect(p).toHaveAttribute("aria-label", "not on this lane");
     }
+    expect(cycleButton()).toBeDisabled();
+    expect(cycleButton()).toHaveAttribute("aria-label", "not on this lane");
+  });
+});
+
+describe("SearchBar mode-cycle button (phones)", () => {
+  it("shows the current mode and steps broad → phrase → strict → broad", () => {
+    for (const [mode, next] of [["broad", "phrase"], ["phrase", "strict"], ["strict", "broad"]] as const) {
+      const { onSetMode } = setup({ mode });
+      fireEvent.click(cycleButton());
+      expect(onSetMode).toHaveBeenCalledWith(next);
+      cleanup();
+    }
+  });
+
+  it("is disabled when the query has mixed quotes", () => {
+    setup({ mode: "broad", isMixed: true });
+    expect(cycleButton()).toBeDisabled();
+  });
+});
+
+describe("SearchBar in: scope button", () => {
+  const doc = { id: "u1", docNo: "A.1.2", title: "Atlas Documents" };
+  const scopeButton = () => screen.getByText("in:");
+
+  it("is absent unless the shell passes it", () => {
+    setup();
+    expect(screen.queryByText("in:")).toBeNull();
+  });
+
+  it("offers the open document, unpressed, and calls toggleScope", () => {
+    const toggleScope = vi.fn();
+    setup({ inScope: { scopeDoc: doc, scoped: null, toggleScope } });
+    expect(scopeButton()).toHaveAttribute("aria-pressed", "false");
+    expect(scopeButton()).toHaveAttribute("aria-label", expect.stringContaining("A.1.2 Atlas Documents"));
+    fireEvent.click(scopeButton());
+    expect(toggleScope).toHaveBeenCalled();
+  });
+
+  it("reads as pressed while the query is scoped", () => {
+    setup({ inScope: { scopeDoc: doc, scoped: "A.1.2", toggleScope: vi.fn() } });
+    expect(scopeButton()).toHaveAttribute("aria-pressed", "true");
+    expect(scopeButton()).toHaveAttribute("aria-label", expect.stringContaining("whole atlas"));
+  });
+
+  it("stays usable to lift a scope with no document open, and is disabled with neither", () => {
+    setup({ inScope: { scopeDoc: null, scoped: "A.6", toggleScope: vi.fn() } });
+    expect(scopeButton()).toBeEnabled();
+    cleanup();
+    setup({ inScope: { scopeDoc: null, scoped: null, toggleScope: vi.fn() } });
+    expect(scopeButton()).toBeDisabled();
   });
 });
 

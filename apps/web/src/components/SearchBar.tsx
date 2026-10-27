@@ -1,10 +1,12 @@
-import { Link } from "./Link";
+import { HomeLink } from "./HomeLink";
 import { NavBar, type NavBarProps } from "./NavBar";
 import { SearchModePills } from "./SearchModePills";
+import { SearchScopeButton } from "./SearchScopeButton";
 import { RecentSearches } from "./RecentSearches";
 import { useRecentDropdown } from "../hooks/useRecentDropdown";
 import { SCOPE_CONFIG, type ScopeConfig, type SearchScope } from "@/lib/routes";
 import type { SearchMode } from "../hooks/useSearchInput";
+import type { ScopeDoc } from "../hooks/useSearchScope";
 import type { RecentSuggestion } from "../lib/recentSearches";
 import type { RefObject } from "react";
 
@@ -31,6 +33,9 @@ interface Props extends NavBarProps {
   // strings disables them rather than offering a setting with no effect; the
   // text becomes their tooltip, so it has to say why.
   modesDisabledReason?: string;
+  // The `in:` scope button; omitted where the bar filters something that has
+  // no doc_no subtree (report rows, Radar).
+  inScope?: { scopeDoc: ScopeDoc | null; scoped: string | null; toggleScope: () => void };
   recentSearches?: RecentSuggestion[];
   onRecentSelect?: (query: string, rank: number) => void;
   // Pressing Enter on a typed query (not while picking a recent) calls this;
@@ -51,6 +56,7 @@ export function SearchBar({
   scopeCfg,
   showModes,
   modesDisabledReason,
+  inScope,
   recentSearches = [],
   onRecentSelect,
   onSubmit,
@@ -86,33 +92,11 @@ export function SearchBar({
 
   return (
     <header
-      className="search-header shrink-0 px-4 pt-3 pb-2 border-b sticky top-0 z-20"
+      className="search-header shrink-0 px-3 sm:px-4 pt-3 pb-2 border-b sticky top-0 z-20"
       style={{ background: "var(--bg)" }}
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-        <Link
-          to="/"
-          className="order-1 shrink-0 flex items-center justify-center w-7 h-7"
-          title="Home"
-          aria-label="Home"
-          style={{ color: "var(--accent)" }}
-        >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M3 10.5 12 3l9 7.5" />
-            <path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5" />
-            <path d="M9.5 21v-6h5v6" />
-          </svg>
-        </Link>
+        <HomeLink />
         <NavBar activePage={activePage} />
 
         <div className="order-3 sm:order-2 w-full sm:flex-1 sm:max-w-[680px] flex items-stretch gap-2 min-w-0">
@@ -205,6 +189,9 @@ export function SearchBar({
               onSetMode={onSetMode}
               disabledReason={modesDisabledReason}
             />
+          )}
+          {inScope && (
+            <SearchScopeButton scopeDoc={inScope.scopeDoc} scoped={inScope.scoped} onToggle={inScope.toggleScope} />
           )}
         </div>
       </div>

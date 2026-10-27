@@ -2,6 +2,8 @@ import { useEffect, useRef, useCallback, useDeferredValue } from "react";
 import { useSearch } from "./useSearch";
 import { useDataSource } from "../lib/dataSource";
 import { useSearchAnyway } from "./useSearchAnyway";
+import { useSearchScope } from "./useSearchScope";
+import { focusInputAt } from "../lib/focusInput";
 import { useUrlState, urlString, urlEnum } from "./useUrlState";
 import { SEARCH_LANES, type SearchLane } from "@/lib/searchSemantic";
 import { semanticLaneUsable } from "../lib/semanticSearchConfig";
@@ -80,6 +82,7 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
   const query = queryParam ?? "";
   const deferredQuery = useDeferredValue(query);
   const inputRef = useRef<HTMLInputElement>(null);
+  const inScope = useSearchScope({ query, location, navigate, setQuery: setQueryParam, inputRef });
 
   const isMixed = isMixedQuotes(query);
   const effMode = effectiveMode(query);
@@ -152,13 +155,7 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
     track("search_mode_change", { mode: newMode });
     const { newQuery, cursorPos } = modePillClick(query, mode, newMode);
     setQueryParam(newQuery || null);
-
-    requestAnimationFrame(() => {
-      if (inputRef.current) {
-        inputRef.current.focus();
-        inputRef.current.setSelectionRange(cursorPos, cursorPos);
-      }
-    });
+    focusInputAt(inputRef, cursorPos);
   }, [query, mode, setQueryParam, inputRef]);
 
   return {
@@ -168,6 +165,7 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
     state, ready, handleHintClick,
     recentSearches, selectRecent,
     lane, selectLane, searchAnyway,
+    inScope,
   };
 }
 

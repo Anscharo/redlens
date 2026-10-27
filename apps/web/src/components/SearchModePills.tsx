@@ -1,4 +1,5 @@
 import { Tooltip } from "./Tooltip";
+import { SEARCH_PILL_CLASS, searchPillStyle } from "./searchPill";
 import type { SearchMode } from "../hooks/useSearchInput";
 
 const MODES: SearchMode[] = ["broad", "phrase", "strict"];
@@ -25,38 +26,66 @@ interface Props {
   disabledReason?: string;
 }
 
-/** The broad / phrase / strict match-mode pills beside the search field. */
+/**
+ * The broad / phrase / strict match-mode controls beside the search field:
+ * three pills on wide screens, one button that steps through the modes on
+ * phones, where three pills crowd the field.
+ */
 export function SearchModePills({ mode, isMixed, onSetMode, disabledReason }: Props) {
   const disabled = isMixed || disabledReason !== undefined;
   return (
-    <div className="flex gap-2 shrink-0">
-      {MODES.map((m) => {
-        // Nothing reads as active while they are off: a lit pill would assert a
-        // match rule that is not being applied.
-        const active = !disabled && mode === m;
-        const tooltip = disabledReason ?? (isMixed ? MIXED_TOOLTIP : MODE_CONFIG[m].title);
-        return (
-          <Tooltip key={m} content={tooltip}>
-            <span className="flex">
-              <button
-                type="button"
-                onClick={() => onSetMode(m)}
-                aria-label={tooltip}
-                aria-pressed={active}
-                disabled={disabled}
-                className="mode-pill mono w-8 flex items-center justify-center text-[11px] rounded-sm border disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{
-                  color: active ? "var(--tan)" : "var(--gray)",
-                  borderColor: active ? "var(--accent)" : "var(--border)",
-                  background: active ? "var(--hover)" : "transparent",
-                }}
-              >
-                {MODE_CONFIG[m].symbol}
-              </button>
-            </span>
-          </Tooltip>
-        );
-      })}
-    </div>
+    <>
+      <div className="hidden sm:flex gap-2 shrink-0">
+        {MODES.map((m) => {
+          // Nothing reads as active while they are off: a lit pill would assert a
+          // match rule that is not being applied.
+          const active = !disabled && mode === m;
+          const tooltip = disabledReason ?? (isMixed ? MIXED_TOOLTIP : MODE_CONFIG[m].title);
+          return (
+            <Tooltip key={m} content={tooltip}>
+              <span className="flex">
+                <button
+                  type="button"
+                  onClick={() => onSetMode(m)}
+                  aria-label={tooltip}
+                  aria-pressed={active}
+                  disabled={disabled}
+                  className={SEARCH_PILL_CLASS}
+                  style={searchPillStyle(active)}
+                >
+                  {MODE_CONFIG[m].symbol}
+                </button>
+              </span>
+            </Tooltip>
+          );
+        })}
+      </div>
+      <ModeCycleButton mode={mode} disabled={disabled} reason={disabledReason ?? (isMixed ? MIXED_TOOLTIP : undefined)} onSetMode={onSetMode} />
+    </>
+  );
+}
+
+/** Phones only: shows the current mode; each tap moves to the next one. */
+function ModeCycleButton({ mode, disabled, reason, onSetMode }: {
+  mode: SearchMode;
+  disabled: boolean;
+  reason: string | undefined;
+  onSetMode: (mode: SearchMode) => void;
+}) {
+  const next = MODES[(MODES.indexOf(mode) + 1) % MODES.length];
+  const label = reason ?? `${MODE_CONFIG[mode].title}. Tap for ${next}.`;
+  return (
+    <button
+      type="button"
+      onClick={() => onSetMode(next)}
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      data-mode={mode}
+      className={`${SEARCH_PILL_CLASS} sm:hidden shrink-0`}
+      style={searchPillStyle(!disabled)}
+    >
+      {MODE_CONFIG[mode].symbol}
+    </button>
   );
 }

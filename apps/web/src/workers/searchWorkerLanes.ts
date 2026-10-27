@@ -11,6 +11,7 @@ import type { SearchLane, SemanticSearchResponse } from "@/lib/searchSemantic";
 import { buildSnippet } from "@/lib/searchHighlight";
 import { MINISEARCH_SEARCH_OPTIONS } from "@/lib/searchOptions";
 import { heldWords } from "@/lib/wordShape";
+import { scopeOf, withoutScope } from "../lib/searchScope";
 import {
   answerFromCache,
   runSemanticLeg,
@@ -95,19 +96,23 @@ export function didYouMean(
   search: (q: string) => SearchHit[],
 ): string | undefined {
   if (!idx) return undefined;
-  const trimmed = q.trim();
-  const words = trimmed.split(/\s+/).filter(Boolean);
+  // An `in:` scope is not a word to correct: only the free text goes to
+  // autoSuggest, and each candidate is re-run under the same scope.
+  const scope = scopeOf(q);
+  const free = withoutScope(q);
+  const words = free.split(/\s+/).filter(Boolean);
   if (words.length === 0) return undefined;
   let suggestions: { suggestion: string }[];
   try {
-    suggestions = idx.autoSuggest(trimmed, { fuzzy: 0.2, prefix: false }).slice(0, 3);
+    suggestions = idx.autoSuggest(free, { fuzzy: 0.2, prefix: false }).slice(0, 3);
   } catch {
     return undefined; // a query shape autoSuggest can't parse is not an error here
   }
   for (const s of suggestions) {
     const parts = s.suggestion.split(/\s+/).filter(Boolean);
-    for (const cand of [parts.slice(0, words.length).join(" "), s.suggestion]) {
-      if (!cand || cand.toLowerCase() === trimmed.toLowerCase()) continue;
+    for (const fix of [parts.slice(0, words.length).join(" "), s.suggestion]) {
+      if (!fix || fix.toLowerCase() === free.toLowerCase()) continue;
+      const cand = scope ? `${fix} in:${scope}` : fix;
       if (search(cand).length > 0) return cand;
     }
   }

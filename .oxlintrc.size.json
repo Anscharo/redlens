@@ -28,9 +28,9 @@
     { "files": ["apps/web/src/components/Drawer.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 81, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/FeaturesPage.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 79, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/Footer.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 77, "skipBlankLines": true, "skipComments": true }] } },
-    // max-lines entry dropped: the mode pills moved to SearchModePills.tsx and the
-    // file is back inside the 180 limit. The function pin drops 167 -> 146 with it.
-    { "files": ["apps/web/src/components/SearchBar.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 146, "skipBlankLines": true, "skipComments": true }] } },
+    // No max-lines entry: the mode pills live in SearchModePills.tsx and the home
+    // icon in HomeLink.tsx, which keeps the file inside the 180 limit.
+    { "files": ["apps/web/src/components/SearchBar.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 128, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/Tooltip.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 149, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/atlas/AtlasReader.tsx"], "rules": { "max-lines": ["error", { "max": 449, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 407, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/atlas/CollapsibleNode.tsx"], "rules": { "max-lines": ["error", { "max": 370, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 328, "skipBlankLines": true, "skipComments": true }] } },
@@ -68,7 +68,7 @@
     { "files": ["apps/web/src/hooks/useRevealFlash.ts"], "rules": { "max-lines-per-function": ["error", { "max": 69, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/hooks/useSWUpdate.ts"], "rules": { "max-lines-per-function": ["error", { "max": 59, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/hooks/useSearch.ts"], "rules": { "max-lines-per-function": ["error", { "max": 66, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/hooks/useSearchInput.ts"], "rules": { "max-lines-per-function": ["error", { "max": 76, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["apps/web/src/hooks/useSearchInput.ts"], "rules": { "max-lines-per-function": ["error", { "max": 73, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/hooks/useTreeKeyboard.ts"], "rules": { "max-lines-per-function": ["error", { "max": 74, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/lib/actorIndex.ts"], "rules": { "max-lines": ["error", { "max": 353, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 228, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/lib/primitiveStats.ts"], "rules": { "max-lines-per-function": ["error", { "max": 107, "skipBlankLines": true, "skipComments": true }] } },
@@ -148,7 +148,7 @@
     // user-visible feature is described here (a Prime's subpages, each report,
     // the PAU Values Needing Audit report among them). It is data with no seam to
     // split along, so the pin rises by exactly what a new entry needs.
-    { "files": ["src/lib/featuresData.ts"], "rules": { "max-lines": ["error", { "max": 424, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["src/lib/featuresData.ts"], "rules": { "max-lines": ["error", { "max": 426, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/oeaTasks.ts"], "rules": { "max-lines-per-function": ["error", { "max": 97, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/onchainAddressesIndex.ts"], "rules": { "max-lines": ["error", { "max": 345, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 57, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/rewardsIndex.ts"], "rules": { "max-lines": ["error", { "max": 299, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }] } },
