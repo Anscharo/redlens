@@ -21,6 +21,11 @@ function DerivedName({ k, d, chain, namedIn }: { k: string; d: DerivedKey; chain
           {a.startsWith("0x") ? <Address address={a} chain={chain} noBalance /> : a}
         </span>
       ))}
+      {d.retired && (
+        <span style={dim} title={`the Atlas listed ${d.retired.address} until commit ${d.retired.commit.slice(0, 8)}`}>
+          {` · dropped from the Atlas ${d.retired.removedAt.slice(0, 10)}`}
+        </span>
+      )}
       {doc && (
         <span style={dim}>
           {" · named in "}

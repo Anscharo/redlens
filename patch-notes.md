@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-28
+
+- Named more Liquidity Layer rate limits and hid switched-off limits for integrations the Atlas has dropped
+
 ## 2026-10-14
 
 - Renamed the PAUs page to Liquidity Layer Arch., since PAU only describes the Diamond design and Liquidity Layer Architecture is the Atlas's term, with better data matching and UI fixes

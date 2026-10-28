@@ -98,6 +98,18 @@ describe("keyNamer", () => {
     const onDiamond = named(await name(diamond([FACET.usds], [mono4626]), read));
     expect(onDiamond[mono4626]).toBeNull();
   });
+  it("names a key from an address constant of a cached source the atlas never lists (Spark's Optimism PSM3 USDC deposit)", async () => {
+    const key = "0xbfe451288f23aad57bdf741c22373c1453e013f9f1e8176f6bec0346449b82ca";
+    const out = named(await keyNamer([], {}, CACHE)({ ...diamond([], [key]), kind: "monolithic", chain: "optimism" }, read));
+    expect(out[key]).toEqual({ constant: "LIMIT_PSM_DEPOSIT", args: ["0x0b2c639c533813f4aa9d7837caf62653d097ff85"] });
+  });
+  it("names a key from an address the atlas retired, and marks it so (Grove's Centrifuge JAAA deposit)", async () => {
+    const key = "0xe222ddefbb558b8f274329ffffa98deabf91ec8b75768088b27a0eb2cdd02aa6";
+    const jaaa = "0xe9d1f733f406d4bbbdfac6d4cfcd2e13a6ee1d01";
+    const gone = { address: jaaa, removedAt: "2025-08-25T14:36:55Z", commit: "dd131566" };
+    const out = named(await keyNamer([], {}, CACHE, () => new Map([[jaaa, gone]]))({ ...diamond([], [key]), kind: "monolithic" }, read));
+    expect(out[key]).toEqual({ constant: "LIMIT_7540_DEPOSIT", args: [jaaa], retired: gone });
+  });
   it("leaves a facet's keys unnamed when the parser refuses its source, instead of failing the snapshot", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "facets-"));
     fs.mkdirSync(path.join(dir, "1"));

@@ -49,6 +49,16 @@ export interface DerivedKey {
   getter?: string;
   /** The argument that says which contract the key is for (a pool, a vault, a transfer's destination). */
   via?: string;
+  /** Set when an address argument is one an earlier atlas commit lists and the current one does not: the limit is for an integration the atlas dropped. */
+  retired?: RetiredAddress;
+}
+
+/** An address the atlas's git history lists and its current commit does not, with the commit that removed it. */
+export interface RetiredAddress {
+  address: string;
+  /** The removing commit's date, ISO 8601. */
+  removedAt: string;
+  commit: string;
 }
 
 /**
@@ -147,6 +157,8 @@ export interface PauSnapshot {
   chain: string;
   kind: PauKind;
   contracts: ContractState[];
+  /** The stamp of what its keys were named from (src/server/pau/key-memo.ts), so the next rebuild reuses what it settled. */
+  keysNamedWith?: string;
 }
 
 export type StoredPauSnapshot = PauSnapshot & { fetchedAt: string };

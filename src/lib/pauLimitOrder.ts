@@ -4,6 +4,9 @@ import type { AtlasKeyRef } from "./pauView.ts";
 
 export const isOff = (r: LiveRateLimit) => (r.data?.maxAmount ?? r.configured.maxAmount) === "0";
 
+/** A switched-off key derived from an address the atlas dropped: an offboarded integration, left out of the tables. A retired key still on stays, since it can still move funds. */
+export const isRetiredOff = (r: LiveRateLimit) => !!r.derived?.retired && isOff(r);
+
 /**
  * Rows grouped by how the key is named, so siblings sit together: keys an atlas document states (linked), keys the
  * atlas names without a document, keys named by their controller constant, then unnamed keys. Within a group by name,

@@ -11,6 +11,7 @@ import { CopyLink } from "../CopyLink";
 import type { Anchor } from "@/lib/pauAnchors";
 import type { AtlasVerdict } from "@/lib/pauAtlasMatch";
 import type { NamedIn } from "@/lib/pauConstantDocs";
+import { isRetiredOff } from "@/lib/pauLimitOrder";
 
 const chainLabel = (chain: string) => chain.charAt(0).toUpperCase() + chain.slice(1);
 const dim = { color: "var(--tan-3)" };
@@ -29,7 +30,9 @@ interface Props {
 
 /** One deployment: a collapsible card with its contracts, facets, holders, rate limits and parameters. */
 export function PauDeployment({ snap, keyIndex, namedIn, verdicts, defaultOpen, anchor }: Props) {
-  const limits = snap.contracts.flatMap((c) => (c.rateLimits ?? []).map((r) => ({ ...r, contract: c.address })));
+  const all = snap.contracts.flatMap((c) => (c.rateLimits ?? []).map((r) => ({ ...r, contract: c.address })));
+  const limits = all.filter((r) => !isRetiredOff(r));
+  const hidden = all.length - limits.length;
   const loading = snap.contracts.some((c) => !c.historyComplete);
   const firstBeam = snap.contracts.find((c) => c.beam)?.address;
   return (
@@ -40,7 +43,7 @@ export function PauDeployment({ snap, keyIndex, namedIn, verdicts, defaultOpen, 
           <h3 className="inline">{chainLabel(snap.chain)}</h3>
           <span className="text-[11px] px-1.5 rounded" style={{ border: "1px solid var(--border)", color: "var(--tan-2)" }}>{PAU_KIND_LABEL[snap.kind]}</span>
           <PauWiring snap={snap} />
-          <span className="text-[11px]" style={dim}>{limits.length} rate limits</span>
+          <span className="text-[11px]" style={dim} title={hidden ? `${hidden} more, switched off and derived from an address the Atlas no longer lists, are not shown` : undefined}>{limits.length} rate limits</span>
           {loading && <span className="text-[11px]" style={{ color: "var(--accent)" }}>history still being read</span>}
         </summary>
         <PauContracts snap={snap} />
