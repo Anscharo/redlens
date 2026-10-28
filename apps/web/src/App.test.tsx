@@ -34,8 +34,11 @@ vi.mock("./hooks/useNavigation", () => ({
 }));
 vi.mock("./hooks/usePageAnalytics", () => ({ usePageAnalytics: vi.fn() }));
 vi.mock("./hooks/usePageVisitTracking", () => ({ usePageVisitTracking: vi.fn() }));
-vi.mock("./components/SearchBar", () => ({
-  SearchBar: ({ onSubmit }: { onSubmit: () => void }) => (
+// The header's nav is a sibling of the search now; its buttons read page
+// context that needs the atlas, which this suite does not load.
+vi.mock("./components/NavBar", () => ({ NavBar: () => <nav data-testid="navbar" /> }));
+vi.mock("./components/ShellSearch", () => ({
+  ShellSearch: ({ onSubmit }: { onSubmit: () => void }) => (
     <button type="button" data-testid="search-bar" onClick={onSubmit}>submit</button>
   ),
 }));

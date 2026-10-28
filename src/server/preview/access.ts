@@ -42,7 +42,11 @@ function cacheKey(providerId: string, repo: string): string {
 const cacheGet = (key: string): CacheableDecision | null => accessCache.get(key) ?? null;
 const cacheSet = (key: string, decision: CacheableDecision): void => accessCache.set(key, decision);
 
-/** Test-only: clears the in-process decision cache. Production code never needs this. */
+/**
+ * Test-only: clears the in-process decision cache. Production code never needs this.
+ * access.test.ts reaches it through a query-suffixed import knip cannot follow.
+ * @lintignore
+ */
 export function __resetAccessCacheForTest(): void {
   accessCache.clear();
 }

@@ -550,6 +550,24 @@ describe("did you mean", () => {
     expect(msg.didYouMean).toBeUndefined();
   });
 
+  it("corrects the words of a scoped query and keeps its in: scope", async () => {
+    const msg = await ask("quorem in:A.1.2");
+    expect(msg.hits).toEqual([]);
+    expect(msg.didYouMean).toBe("quorum in:A.1.2");
+  });
+
+  it("reads an in: token typed against a closing quote as the scope, as the button does", async () => {
+    // "quorum in:A.1.2" quoted whole: the scope stops at the quote, so the
+    // query is scoped to A.1.2 rather than to the doc_no-less `A.1.2"`.
+    const msg = await ask('"quorum in:A.1.2"');
+    expect(msg.hits.length).toBeGreaterThan(0);
+  });
+
+  it("offers nothing when the correction finds nothing inside the scope", async () => {
+    const msg = await ask("quorem in:A.9");
+    expect(msg.didYouMean).toBeUndefined();
+  });
+
   it("stays on the wording lane — a spelling fix says nothing about meaning", async () => {
     const msg = await ask("quorem", { lane: "semantic" });
     expect(msg.didYouMean).toBeUndefined();

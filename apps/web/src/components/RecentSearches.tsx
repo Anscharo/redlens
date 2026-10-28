@@ -1,7 +1,7 @@
 import type { RecentSuggestion } from "../lib/recentSearches";
 
 // Floating dropdown of recent searches, anchored under the search input. Shown
-// while the input is focused (see SearchBar). Focus stays on the input (ARIA
+// while the input is focused (see SearchCombobox). Focus stays on the input (ARIA
 // combobox + aria-activedescendant), so options are highlighted via activeIndex
 // rather than DOM focus. onMouseDown is preventDefault'd so clicking a row
 // doesn't blur the input before the click lands. Each row shows the query and

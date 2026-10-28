@@ -33,6 +33,11 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-28
+
+- Added an in: button beside the search box that limits search to the document you're reading
+- Fit the phone header's links and buttons on one row, with a single tap-to-switch search mode button
+
 ## 2026-10-14
 
 - Renamed the PAUs page to Liquidity Layer Arch., since PAU only describes the Diamond design and Liquidity Layer Architecture is the Atlas's term, with better data matching and UI fixes

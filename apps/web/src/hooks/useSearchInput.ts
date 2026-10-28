@@ -2,7 +2,9 @@ import { useEffect, useRef, useCallback, useDeferredValue } from "react";
 import { useSearch } from "./useSearch";
 import { useDataSource } from "../lib/dataSource";
 import { useSearchAnyway } from "./useSearchAnyway";
-import { useUrlState, urlString, urlEnum } from "./useUrlState";
+import { useSearchScope } from "./useSearchScope";
+import { focusInputAt } from "../lib/focusInput";
+import { useUrlPatch, useUrlState, urlString, urlEnum } from "./useUrlState";
 import { SEARCH_LANES, type SearchLane } from "@/lib/searchSemantic";
 import { semanticLaneUsable } from "../lib/semanticSearchConfig";
 import { ROUTES, PREVIEW_INDEX_PATH, homeSearchHref, type SearchScope } from "@/lib/routes";
@@ -24,6 +26,9 @@ const queryCodec = urlString(null);
 
 const modeCodec = urlEnum<SearchMode>("broad", SEARCH_MODES);
 const laneCodec = urlEnum<SearchLane>("lexical", SEARCH_LANES);
+
+/** The URL change that runs `q` as a broad search: the query and a cleared `?mode=`, in one write. */
+const broadPatch = (q: string | null) => ({ q: queryCodec.encode(q || null), mode: modeCodec.encode("broad") });
 
 // Slash shortcuts, resolved for BOTH entry points (typing an exact command and
 // clicking a row on the `/` cheat sheet) so the two can never disagree.
@@ -74,17 +79,18 @@ function useSearchLane(): { lane: SearchLane; selectLane: (next: SearchLane) => 
 export function useSearchInput(location: string, navigate: (to: string) => void, scope: SearchScope) {
   const { state, search, ready } = useSearch();
   const [queryParam, setQueryParam] = useUrlState("q", queryCodec);
-  const [mode, setMode] = useUrlState("mode", modeCodec);
+  const [mode] = useUrlState("mode", modeCodec);
+  const patchUrl = useUrlPatch();
   const { lane, selectLane } = useSearchLane();
   const searchAnyway = useSearchAnyway(state, lane, search);
   const query = queryParam ?? "";
   const deferredQuery = useDeferredValue(query);
   const inputRef = useRef<HTMLInputElement>(null);
+  const inScope = useSearchScope({ query, location, navigate, setQuery: setQueryParam, inputRef });
 
   const isMixed = isMixedQuotes(query);
-  const effMode = effectiveMode(query);
   // Active mode: prefer what's visible in the query; fall back to URL param.
-  const activeMode: SearchMode = !isMixed && effMode !== "broad" ? effMode : mode;
+  const activeMode: SearchMode = !isMixed && effectiveMode(query) !== "broad" ? effectiveMode(query) : mode;
 
   // Recent-search history: record the current settled search, expose the list.
   useRecordRecentSearch(state, query);
@@ -121,10 +127,10 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
   const handleHintClick = useCallback(
     (q: string) => {
       if (runSlashCommand(q, navigate)) return;
-      if (/~\d/.test(q)) setMode("broad");
-      setQueryParam(q || null);
+      if (/~\d/.test(q)) patchUrl(broadPatch(q));
+      else setQueryParam(q || null);
     },
-    [navigate, setQueryParam, setMode],
+    [navigate, setQueryParam, patchUrl],
   );
 
   const clearQuery = useCallback(() => {
@@ -132,10 +138,7 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
     inputRef.current?.focus();
   }, [setQueryParam]);
 
-  const broadSearch = useCallback((q: string) => {
-    setMode("broad");
-    setQueryParam(q || null);
-  }, [setMode, setQueryParam]);
+  const broadSearch = useCallback((q: string) => patchUrl(broadPatch(q)), [patchUrl]);
 
   // Picking a recent search re-runs it on the results page (works from any
   // route — e.g. focusing the bar on /radar), then refocuses the input so the
@@ -150,16 +153,11 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
   // the cursor before the closing quote so typing extends the phrase naturally.
   const wrapModeClick = useCallback((newMode: SearchMode) => {
     track("search_mode_change", { mode: newMode });
-    const { newQuery, cursorPos } = modePillClick(query, mode, newMode);
-    setQueryParam(newQuery || null);
-
-    requestAnimationFrame(() => {
-      if (inputRef.current) {
-        inputRef.current.focus();
-        inputRef.current.setSelectionRange(cursorPos, cursorPos);
-      }
-    });
-  }, [query, mode, setQueryParam, inputRef]);
+    const { newQuery, cursorPos, toBroad } = modePillClick(query, mode, newMode);
+    // An unwrap clears ?mode= too, in the same write as the query (see useUrlPatch).
+    patchUrl(toBroad ? broadPatch(newQuery) : { q: queryCodec.encode(newQuery || null) });
+    focusInputAt(inputRef, cursorPos);
+  }, [query, mode, patchUrl, inputRef]);
 
   return {
     query, activeMode, isMixed,
@@ -168,6 +166,7 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
     state, ready, handleHintClick,
     recentSearches, selectRecent,
     lane, selectLane, searchAnyway,
+    inScope,
   };
 }
 

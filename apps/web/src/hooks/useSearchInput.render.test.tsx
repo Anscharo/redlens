@@ -4,14 +4,15 @@
 // the navigation shortcuts, URL-param writes, mode wrapping, and the search()
 // side effect that feeds the results worker.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, cleanup, act } from "@testing-library/react";
+import { render, cleanup, act, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { useRef } from "react";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import type { SearchScope } from "@/lib/routes";
 
-const { search, track, searchState } = vi.hoisted(() => ({
+const { search, track, searchState, nodeId } = vi.hoisted(() => ({
+  nodeId: { current: null as string | null },
   search: vi.fn(),
   track: vi.fn(),
   searchState: { current: { status: "idle", query: "", hits: [] } as Record<string, unknown> },
@@ -20,6 +21,12 @@ vi.mock("./useSearch", () => ({
   useSearch: () => ({ state: searchState.current, search, ready: true }),
 }));
 vi.mock("../lib/analytics", () => ({ track }));
+// The open document comes from the reader's ?id=; docs come from the atlas
+// worker, which jsdom cannot spawn.
+vi.mock("./useAtlasNodeId", () => ({ useAtlasNodeId: () => nodeId.current }));
+vi.mock("../lib/docs", () => ({
+  loadDocs: () => Promise.resolve({ u1: { doc_no: "A.1.2", title: "Atlas Documents" } }),
+}));
 vi.mock("../lib/recentSearches", () => ({
   useRecentSearches: () => [],
   useRecordRecentSearch: () => {},
@@ -49,11 +56,13 @@ function setup(path: string, location: string, scope: SearchScope = "atlas") {
   const navigate = vi.fn();
   const { hook } = memoryLocation({ path, record: true });
   const wrapper = ({ children }: { children: ReactNode }) => <Router hook={hook}>{children}</Router>;
-  render(<Harness location={location} navigate={navigate} scope={scope} />, { wrapper });
-  return { navigate };
+  const view = render(<Harness location={location} navigate={navigate} scope={scope} />, { wrapper });
+  const rerender = () => view.rerender(<Harness location={location} navigate={navigate} scope={scope} />);
+  return { navigate, rerender };
 }
 
 beforeEach(() => {
+  nodeId.current = null;
   searchState.current = { status: "idle", query: "", hits: [] };
   search.mockClear();
   track.mockClear();
@@ -132,6 +141,58 @@ describe("useSearchInput (rendered)", () => {
     expect(navigate).toHaveBeenCalledWith("/?q=delegate");
   });
 
+  it("the in: button, pressed in the reader, carries the scoped query HOME", async () => {
+    nodeId.current = "u1";
+    const { navigate } = setup("/atlas?id=u1", "/atlas", "atlas");
+    await waitFor(() => expect(api.inScope.scopeDoc?.docNo).toBe("A.1.2"));
+    act(() => api.inScope.toggleScope());
+    expect(navigate).toHaveBeenCalledWith("/?q=in%3AA.1.2+");
+  });
+
+  it("the in: button on HOME scopes the typed query, then lifts the scope", async () => {
+    nodeId.current = "u1";
+    setup("/?q=fees", "/", "atlas");
+    await waitFor(() => expect(api.inScope.scopeDoc).not.toBeNull());
+    act(() => api.inScope.toggleScope());
+    expect(api.query).toBe("fees in:A.1.2 ");
+    expect(api.inScope.scoped).toBe("A.1.2");
+    act(() => api.inScope.toggleScope());
+    expect(api.query).toBe("fees");
+  });
+
+  it("the in: button forgets the document when the opened id names none", async () => {
+    nodeId.current = "u1";
+    const { rerender } = setup("/atlas?id=u1", "/atlas", "atlas");
+    await waitFor(() => expect(api.inScope.scopeDoc?.docNo).toBe("A.1.2"));
+    nodeId.current = "missing";
+    rerender();
+    await waitFor(() => expect(api.inScope.scopeDoc).toBeNull());
+  });
+
+  it("a mode press that unwraps also resets a ?mode= the text has no quotes for", () => {
+    // A shared /?q=foo&mode=strict link: strict comes from the URL, not from
+    // quotes, so unwrapping alone would leave the search strict.
+    setup("/?q=foo&mode=strict", "/", "atlas");
+    expect(api.activeMode).toBe("strict");
+    act(() => api.wrapModeClick("broad"));
+    expect(api.query).toBe("foo");
+    expect(api.activeMode).toBe("broad");
+  });
+
+  it("pressing the active mode again returns to broad", () => {
+    setup("/?q=foo&mode=strict", "/", "atlas");
+    act(() => api.wrapModeClick("strict"));
+    expect(api.activeMode).toBe("broad");
+  });
+
+  it("the in: button lifts an arrived-with scope even with no document opened", () => {
+    setup("/?q=fees%20in%3AA.6", "/", "atlas");
+    expect(api.inScope.scopeDoc).toBeNull();
+    act(() => api.inScope.toggleScope());
+    expect(api.query).toBe("fees");
+    expect(track).toHaveBeenCalledWith("search_scope_toggle", { product: "search", doc_no: "A.6", scoped: false });
+  });
+
   it("handleChange on HOME writes the query into the URL (?q)", () => {
     setup("/", "/", "atlas");
     act(() => api.handleChange({ target: { value: "risk" } } as never));
@@ -148,6 +209,30 @@ describe("useSearchInput (rendered)", () => {
     setup("/?q='exact'", "/", "atlas");
     act(() => api.broadSearch("plain text"));
     expect(api.query).toBe("plain text");
+    expect(api.activeMode).toBe("broad");
+  });
+
+  it("broadSearch clears a ?mode= from a shared link along with setting the query", () => {
+    // Two URL writes in one event would each start from the same snapshot,
+    // and the query write would put mode=strict back.
+    setup("/?q=foo&mode=strict", "/", "atlas");
+    act(() => api.broadSearch("bar"));
+    expect(api.query).toBe("bar");
+    expect(api.activeMode).toBe("broad");
+  });
+
+  it("a ~N hint click clears a ?mode= along with setting the query", () => {
+    setup("/?q=foo&mode=phrase", "/", "atlas");
+    act(() => api.handleHintClick("fuzzy~2"));
+    expect(api.query).toBe("fuzzy~2");
+    expect(api.activeMode).toBe("broad");
+  });
+
+  it("unwrapping quoted text also clears a ?mode= the URL carries", () => {
+    // The text and the URL both say strict; one press must undo both.
+    setup("/?q=%27foo%27&mode=strict", "/", "atlas");
+    act(() => api.wrapModeClick("broad"));
+    expect(api.query).toBe("foo");
     expect(api.activeMode).toBe("broad");
   });
 

@@ -11,6 +11,7 @@ import { fetchText } from "@/lib/verify";
 import { buildSnippet, highlightTerms, extractPhrases } from "@/lib/searchHighlight";
 import { UUID_RE } from "@/lib/patterns";
 import { isUuidPrefix, matchUuidPrefix } from "../lib/uuidSearch";
+import { scopeOf, withoutScope } from "../lib/searchScope";
 import { CHAINLOG_RE, DOC_NO_RE, cancelSemanticLeg } from "./searchSemanticLeg";
 import { answerQuery, createLexicalMemo, hydrateSemantic, type QueryDeps } from "./searchWorkerLanes";
 import { MINISEARCH_OPTIONS, MINISEARCH_SEARCH_OPTIONS } from "@/lib/searchOptions";
@@ -128,15 +129,10 @@ function search(q: string): SearchHit[] {
     if (doc) return [docToHit(doc, 10, undefined, [trimmed], "doc number")];
   }
 
-  // Extract in:DOCNUMBER scope filter
-  const IN_RE = /\bin:(\S+)/gi;
-  let inPrefix: string | null = null;
-  const qWithoutIn = q
-    .replace(IN_RE, (_, prefix: string) => {
-      inPrefix = prefix.toUpperCase();
-      return " ";
-    })
-    .trim();
+  // Extract the in:DOCNUMBER scope filter with the same rule the scope button
+  // and the spelling correction read it by (lib/searchScope.ts).
+  const inPrefix = scopeOf(q)?.toUpperCase() ?? null;
+  const qWithoutIn = withoutScope(q);
 
   // Extract type:VALUE filters
   const TYPE_RE = /\btype:\s*(?:"([^"]+)"|([A-Za-z][A-Za-z0-9_-]*))/gi;

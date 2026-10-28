@@ -109,3 +109,31 @@ export function useUrlState<T>(
 
   return [value, set] as const;
 }
+
+/**
+ * A setter that writes several search params in ONE URL update. Two
+ * `useUrlState` setters called in the same event each rewrite the whole URL
+ * from the params they rendered with (wouter keeps its pending params per hook
+ * instance), so the second undoes the first; a change to two keys belongs
+ * here instead. Values arrive encoded (`codec.encode(…)`), and `null` deletes
+ * the key. Replaces the history entry unless `{ push: true }`.
+ */
+export function useUrlPatch(opts: { push?: boolean } = {}): (patch: Record<string, string | null>) => void {
+  const [, setParams] = useSearchParams();
+  return useCallback(
+    (patch: Record<string, string | null>) => {
+      setParams(
+        (prev) => {
+          const np = new URLSearchParams(prev);
+          for (const [key, value] of Object.entries(patch)) {
+            if (value === null) np.delete(key);
+            else np.set(key, value);
+          }
+          return np;
+        },
+        { replace: !opts.push },
+      );
+    },
+    [setParams, opts.push],
+  );
+}
