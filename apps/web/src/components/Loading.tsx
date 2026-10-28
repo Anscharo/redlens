@@ -2,7 +2,7 @@
 // fetches. Twinkling ✦ in mono/tan-3. Default copy "searching the stars"
 // can be overridden with children for contextual messages.
 //
-// Not used for: the SearchBar input placeholder (visual context differs)
+// Not used for: the search input placeholder (visual context differs)
 // and NodeContentSkeleton (layout skeleton, different purpose).
 
 import type { ReactNode } from "react";

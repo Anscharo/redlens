@@ -6,7 +6,7 @@ import { FeedbackModal } from "./FeedbackModal";
 
 // Nav "?" button: opens the feedback modal. Also bound to a global "?"
 // keypress, mirroring ChatWidget's ⌘K handler (ChatWidget.tsx ~L73-84).
-// Note: SearchBar's input has autoFocus, so "?" only fires once focus has
+// Note: the search input (SearchComboboxInput) has autoFocus, so "?" only fires once focus has
 // left it — accepted, the button is the primary affordance.
 //
 // data-feedback-ui marks this out of the interaction trail

@@ -73,7 +73,16 @@ mock.module("../db.ts", () => ({
   fromUuidArray,
 }));
 
-const { authorizePreviewAccess, authorizeUserRepoAccess, __resetAccessCacheForTest } = await import("./access.ts");
+// handler.test.ts stubs ./access.ts with mock.module, which is process-global
+// and survives mock.restore(), so a plain import here resolves to that stub
+// whenever handler.test.ts loads first. The query string is a distinct
+// specifier bun resolves fresh, past any registered mock (db.test.ts uses the
+// same trick); its own imports still resolve normally, so the ../db.ts mock
+// above applies.
+const REAL_ACCESS = "./access.ts?realaccess";
+const { authorizePreviewAccess, authorizeUserRepoAccess, __resetAccessCacheForTest } = (await import(
+  REAL_ACCESS
+)) as typeof import("./access.ts");
 const { signSession, SESSION_COOKIE } = await import("../session.ts");
 
 const REPO = "sky-ecosystem/next-gen-atlas";

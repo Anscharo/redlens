@@ -6,7 +6,7 @@ import { readJson, writeJson } from "./safeStorage";
 // localStorage), so it lives only for the tab/session and never leaks across
 // visits, and each entry is timestamped and forgotten after an hour. Synced
 // across components (the recording site in useSearchInput, the dropdown in
-// SearchBar) via a same-tab custom event — sessionStorage is per-tab, so the
+// SearchCombobox) via a same-tab custom event — sessionStorage is per-tab, so the
 // cross-tab `storage` event never applies here.
 //
 // What counts as a "recent query"? Searching on every keystroke means a naive

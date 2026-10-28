@@ -18,7 +18,7 @@ export function NavBar({ activePage }: NavBarProps) {
   // when someone wants to report it, and theme is per-browser, not account data.
   const { preview } = useDataSource();
   return (
-    <div className="order-2 sm:order-3 flex-1 flex items-center justify-end gap-2">
+    <div className="nav-bar order-2 sm:order-3 flex-1 flex items-center justify-end gap-1 sm:gap-2">
       <NavLink page="atlas" active={activePage === "atlas"}>
         Reader
       </NavLink>
@@ -57,7 +57,7 @@ function NavLink({
   return (
     <Link
       to={NAV_PAGE_ROUTES[page]}
-      className="nav-link shrink-0 px-3 py-1.5 rounded text-sm"
+      className="nav-link shrink-0 px-1.5 sm:px-3 py-1.5 rounded text-[13px] sm:text-sm"
       data-active={active ? "true" : undefined}
     >
       {children}
