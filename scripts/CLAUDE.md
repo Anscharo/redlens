@@ -220,7 +220,7 @@ Railway forks one environment per pull request (`redlens-pr-<n>`) from the base 
   ```sql
   CREATE ROLE pr_env_reader LOGIN PASSWORD '<generated>';
   GRANT USAGE ON SCHEMA public TO pr_env_reader;
-  GRANT SELECT ON pau_state, pau_events, pau_cursor, pau_rpc_cursor, chain_state, spell_casts, pau_tx_origin, executive_archive, atlas_addresses TO pr_env_reader;
+  GRANT SELECT ON pau_state, pau_events, pau_cursor, pau_rpc_cursor, chain_state, spell_casts, pau_tx_origin, executive_archive, pau_spell_sources, atlas_addresses TO pr_env_reader;
   ```
 
   A table the role cannot read reads as missing on the source and is skipped.

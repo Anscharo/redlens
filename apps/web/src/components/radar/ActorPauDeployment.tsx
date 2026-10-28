@@ -31,7 +31,7 @@ interface Props {
 /** One deployment: a collapsible card with its contracts, facets, holders, rate limits and parameters. */
 export function PauDeployment({ snap, keyIndex, namedIn, verdicts, defaultOpen, anchor }: Props) {
   const all = snap.contracts.flatMap((c) => (c.rateLimits ?? []).map((r) => ({ ...r, contract: c.address })));
-  const limits = all.filter((r) => !isRetiredOff(r));
+  const limits = all.filter((r) => !isRetiredOff(r, keyIndex));
   const hidden = all.length - limits.length;
   const loading = snap.contracts.some((c) => !c.historyComplete);
   const firstBeam = snap.contracts.find((c) => c.beam)?.address;

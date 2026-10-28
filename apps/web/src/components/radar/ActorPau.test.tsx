@@ -89,6 +89,7 @@ describe("ActorPau change history", () => {
     const changes = groups[0].querySelector("details.pau-changes")!;
     expect(changes).not.toHaveAttribute("open");
     expect(changes.querySelector("summary")).toHaveTextContent("ethereum · 1 change in 1 tx · 2026-09-01");
+    expect(changes.querySelector("summary")).toHaveAccessibleName("Changes of Executive Vote 2026-08-27: ethereum · 1 change in 1 tx · 2026-09-01");
     expect(groups[1].querySelector("details")).not.toHaveAttribute("open");
     const chips = await screen.findAllByText("exec 2026-08-27");
     expect(chips[0]).toHaveAttribute("href", `#pau-tx-ethereum-${at.tx}`);

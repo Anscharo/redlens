@@ -26,6 +26,9 @@ const ADDRESS_RE = new RegExp(String.raw`address\s+${VISIBILITY}(\w+)\s*=\s*(0x[
 const WORD_RE = new RegExp(String.raw`bytes32\s+${VISIBILITY}\w+\s*=\s*(0x[0-9a-fA-F]{64})(?![0-9a-fA-F])`, "g");
 const SPELL_NAME = /(?:SPELL|PAYLOAD)/;
 
+/** Raise when materialOf would read a source differently, so every stored spell is read again (spell-sources.ts). */
+export const MATERIAL_VERSION = 1;
+
 const sorted = (xs: Iterable<string>) => [...new Set(xs)].sort();
 
 /** The naming material of one source, addresses and words lowercased. */

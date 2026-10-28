@@ -86,6 +86,17 @@ describe("withDiamondKeys", () => {
   });
 });
 
+describe("withDiamondKeys without a facet source", () => {
+  it("keeps what an earlier snapshot settled, so a missing source never blanks the names", async () => {
+    const burn = { constant: "LIMIT_USDS_BURN", args: [], facet: FACET.usds };
+    const settled = (k: string) => (k === KEY.usdsBurn ? burn : undefined);
+    const noSource = () => [];
+    const noRead = async (_c: string, calls: ChainCall[]) => calls.map(() => null);
+    const out = named(await withDiamondKeys(diamond([FACET.usds], [KEY.usdsBurn, KEY.usdcToUsds]), noRead, { addresses: [], shapesOf: noSource, settled }));
+    expect([out[KEY.usdsBurn], out[KEY.usdcToUsds]]).toEqual([burn, null]);
+  });
+});
+
 describe("keyNamer", () => {
   const vault = UNI_POOL;
   const mono4626 = keccak256(encodeAbiParameters([{ type: "bytes32" }, { type: "address" }], [keccak256(toHex("LIMIT_4626_DEPOSIT")), vault]));

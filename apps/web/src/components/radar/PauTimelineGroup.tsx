@@ -56,7 +56,7 @@ export function PauTimelineGroup({ g, anchor, names, beamOf }: Props) {
         <CopyLink id={anchor.id} label={label(g)} top={10} />
         <PauTimelineHeader g={g} />
         <details className="pau-changes mt-1">
-          <summary className="cursor-pointer mono text-[11px]" style={dim}>{holds(g)}</summary>
+          <summary className="cursor-pointer mono text-[11px]" style={dim} aria-label={`Changes of ${label(g)}: ${holds(g)}`}>{holds(g)}</summary>
           {entries}
         </details>
       </li>

@@ -56,10 +56,14 @@ export interface DiamondSources {
   settled?: (key: string) => DerivedKey | null | undefined;
 }
 
-/** A diamond snapshot with each key a facet it integrates derives named. */
+/**
+ * A diamond snapshot with each key a facet it integrates derives named. With
+ * no shape to hash (no cached or parsable facet source), what an earlier
+ * snapshot settled still names its keys, so a missing source never blanks them.
+ */
 export async function withDiamondKeys(snap: PauSnapshot, read: ChainReader, src: DiamondSources): Promise<PauSnapshot> {
   const shapes = integratedFacets(snap).flatMap((f) => src.shapesOf(snap.chain, f));
-  if (!shapes.length) return snap;
+  if (!shapes.length) return withDerivedKeys(snap, (k) => src.settled?.(k) ?? null);
   const bound = new Map<string, Bound[]>();
   for (const h of HOOKS.filter((x) => shapes.some((s) => s.facet === x.facet))) bound.set(h.facet, [...(bound.get(h.facet) ?? []), ...(await hookBound(snap, read, h))]);
   const own = JSON.stringify(params(snap)).match(ADDRESS_RE) ?? [];
