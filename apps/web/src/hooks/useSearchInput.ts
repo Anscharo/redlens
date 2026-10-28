@@ -4,7 +4,7 @@ import { useDataSource } from "../lib/dataSource";
 import { useSearchAnyway } from "./useSearchAnyway";
 import { useSearchScope } from "./useSearchScope";
 import { focusInputAt } from "../lib/focusInput";
-import { useUrlState, urlString, urlEnum } from "./useUrlState";
+import { useUrlPatch, useUrlState, urlString, urlEnum } from "./useUrlState";
 import { SEARCH_LANES, type SearchLane } from "@/lib/searchSemantic";
 import { semanticLaneUsable } from "../lib/semanticSearchConfig";
 import { ROUTES, PREVIEW_INDEX_PATH, homeSearchHref, type SearchScope } from "@/lib/routes";
@@ -26,6 +26,9 @@ const queryCodec = urlString(null);
 
 const modeCodec = urlEnum<SearchMode>("broad", SEARCH_MODES);
 const laneCodec = urlEnum<SearchLane>("lexical", SEARCH_LANES);
+
+/** The URL change that runs `q` as a broad search: the query and a cleared `?mode=`, in one write. */
+const broadPatch = (q: string | null) => ({ q: queryCodec.encode(q || null), mode: modeCodec.encode("broad") });
 
 // Slash shortcuts, resolved for BOTH entry points (typing an exact command and
 // clicking a row on the `/` cheat sheet) so the two can never disagree.
@@ -76,7 +79,8 @@ function useSearchLane(): { lane: SearchLane; selectLane: (next: SearchLane) => 
 export function useSearchInput(location: string, navigate: (to: string) => void, scope: SearchScope) {
   const { state, search, ready } = useSearch();
   const [queryParam, setQueryParam] = useUrlState("q", queryCodec);
-  const [mode, setMode] = useUrlState("mode", modeCodec);
+  const [mode] = useUrlState("mode", modeCodec);
+  const patchUrl = useUrlPatch();
   const { lane, selectLane } = useSearchLane();
   const searchAnyway = useSearchAnyway(state, lane, search);
   const query = queryParam ?? "";
@@ -123,10 +127,10 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
   const handleHintClick = useCallback(
     (q: string) => {
       if (runSlashCommand(q, navigate)) return;
-      if (/~\d/.test(q)) setMode("broad");
-      setQueryParam(q || null);
+      if (/~\d/.test(q)) patchUrl(broadPatch(q));
+      else setQueryParam(q || null);
     },
-    [navigate, setQueryParam, setMode],
+    [navigate, setQueryParam, patchUrl],
   );
 
   const clearQuery = useCallback(() => {
@@ -134,10 +138,7 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
     inputRef.current?.focus();
   }, [setQueryParam]);
 
-  const broadSearch = useCallback((q: string) => {
-    setMode("broad");
-    setQueryParam(q || null);
-  }, [setMode, setQueryParam]);
+  const broadSearch = useCallback((q: string) => patchUrl(broadPatch(q)), [patchUrl]);
 
   // Picking a recent search re-runs it on the results page (works from any
   // route — e.g. focusing the bar on /radar), then refocuses the input so the
@@ -153,12 +154,10 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
   const wrapModeClick = useCallback((newMode: SearchMode) => {
     track("search_mode_change", { mode: newMode });
     const { newQuery, cursorPos, toBroad } = modePillClick(query, mode, newMode);
-    // One URL write per press: two setters in one event each rewrite the whole
-    // URL from the same snapshot, so the second would undo the first.
-    if (toBroad && newQuery === query) setMode("broad");
-    else setQueryParam(newQuery || null);
+    // An unwrap clears ?mode= too, in the same write as the query (see useUrlPatch).
+    patchUrl(toBroad ? broadPatch(newQuery) : { q: queryCodec.encode(newQuery || null) });
     focusInputAt(inputRef, cursorPos);
-  }, [query, mode, setQueryParam, setMode, inputRef]);
+  }, [query, mode, patchUrl, inputRef]);
 
   return {
     query, activeMode, isMixed,

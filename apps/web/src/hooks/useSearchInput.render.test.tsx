@@ -211,6 +211,30 @@ describe("useSearchInput (rendered)", () => {
     expect(api.activeMode).toBe("broad");
   });
 
+  it("broadSearch clears a ?mode= from a shared link along with setting the query", () => {
+    // Two URL writes in one event would each start from the same snapshot,
+    // and the query write would put mode=strict back.
+    setup("/?q=foo&mode=strict", "/", "atlas");
+    act(() => api.broadSearch("bar"));
+    expect(api.query).toBe("bar");
+    expect(api.activeMode).toBe("broad");
+  });
+
+  it("a ~N hint click clears a ?mode= along with setting the query", () => {
+    setup("/?q=foo&mode=phrase", "/", "atlas");
+    act(() => api.handleHintClick("fuzzy~2"));
+    expect(api.query).toBe("fuzzy~2");
+    expect(api.activeMode).toBe("broad");
+  });
+
+  it("unwrapping quoted text also clears a ?mode= the URL carries", () => {
+    // The text and the URL both say strict; one press must undo both.
+    setup("/?q=%27foo%27&mode=strict", "/", "atlas");
+    act(() => api.wrapModeClick("broad"));
+    expect(api.query).toBe("foo");
+    expect(api.activeMode).toBe("broad");
+  });
+
   it("handleHintClick navigates shortcuts and otherwise sets the query", () => {
     const { navigate } = setup("/", "/", "atlas");
     act(() => api.handleHintClick("/reports"));

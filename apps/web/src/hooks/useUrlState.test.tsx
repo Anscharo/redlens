@@ -4,7 +4,7 @@ import { renderHook, act, cleanup } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import { useUrlState, urlString, urlInt, urlBool, urlEnum, urlEnumList, urlStringSet, urlTagged } from "./useUrlState";
+import { useUrlPatch, useUrlState, urlString, urlInt, urlBool, urlEnum, urlEnumList, urlStringSet, urlTagged } from "./useUrlState";
 
 afterEach(() => cleanup());
 
@@ -81,3 +81,27 @@ describe("useUrlState codecs", () => {
     expect(codec.encode(null)).toBeNull();
   });
 });
+
+describe("useUrlPatch", () => {
+  const modeCodec = urlEnum("broad", ["broad", "phrase", "strict"] as const);
+
+  it("changes several keys in one write, which two useUrlState setters cannot", () => {
+    const { result } = renderHook(
+      () => ({ q: useUrlState("q", urlString(null)), mode: useUrlState("mode", modeCodec), patch: useUrlPatch() }),
+      { wrapper: wrapperFor("/?q=foo&mode=strict") },
+    );
+    // Two setters in one event: each starts from the same snapshot, so the
+    // query write puts mode=strict back.
+    act(() => {
+      result.current.mode[1]("broad");
+      result.current.q[1]("bar");
+    });
+    expect(result.current.q[0]).toBe("bar");
+    expect(result.current.mode[0]).toBe("strict");
+    // The patch sets one key, deletes the other and leaves the rest alone.
+    act(() => result.current.patch({ q: "baz", mode: null }));
+    expect(result.current.q[0]).toBe("baz");
+    expect(result.current.mode[0]).toBe("broad");
+  });
+});
+
