@@ -1,103 +1,77 @@
 // @vitest-environment jsdom
-// SearchBar header: the broad/phrase/strict mode pills (atlas scope only), the
-// scope chip (non-atlas scopes), and the clear button. NavBar and Tooltip are
-// stubbed so the test stays focused on SearchBar's own controls.
+// The search field's combobox parts: the input, the recent-searches dropdown
+// and its keyboard map, and the clear button, composed the way ShellSearch
+// composes them.
 
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { createRef } from "react";
-import { SearchBar } from "./SearchBar";
-import type { SearchScope } from "@/lib/routes";
-
-vi.mock("./NavBar", () => ({ NavBar: () => <nav data-testid="navbar" /> }));
-vi.mock("./Tooltip", () => ({ Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
+import { SearchField } from "./SearchBar";
+import { SearchCombobox, SearchComboboxInput } from "./SearchCombobox";
+import { SearchComboboxSuggestions } from "./SearchComboboxSuggestions";
+import { SearchClear } from "./SearchClear";
+import type { RecentSuggestion } from "../lib/recentSearches";
 
 afterEach(cleanup);
 
-function setup(over: Partial<Parameters<typeof SearchBar>[0]> = {}) {
-  const onChange = vi.fn();
-  const onClear = vi.fn();
-  const onSetMode = vi.fn();
-  render(
-    <SearchBar
-      inputRef={createRef<HTMLInputElement>()}
-      query=""
-      mode="broad"
-      isMixed={false}
-      onChange={onChange}
-      onClear={onClear}
-      onSetMode={onSetMode}
-      activePage="atlas"
-      scope={"atlas" as SearchScope}
-      {...over}
-    />,
-  );
-  return { onChange, onClear, onSetMode };
+interface ComboOver {
+  query: string;
+  recentSearches: RecentSuggestion[];
+  onSubmit: () => boolean;
 }
 
-describe("SearchBar mode pills", () => {
-  it("renders all three pills in atlas scope and presses the active one", () => {
-    setup({ mode: "phrase" });
-    const pills = screen.getAllByRole("button").filter((b) => b.classList.contains("mode-pill"));
-    expect(pills).toHaveLength(3);
-    expect(screen.getByText('"a"')).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("a*")).toHaveAttribute("aria-pressed", "false");
-  });
+function setup(over: Partial<ComboOver> = {}) {
+  const onRecentSelect = vi.fn();
+  const onClear = vi.fn();
+  const query = over.query ?? "";
+  render(
+    <SearchCombobox query={query} recentSearches={over.recentSearches ?? []} onRecentSelect={onRecentSelect} onSubmit={over.onSubmit}>
+      <SearchField>
+        <SearchComboboxInput value={query} onChange={vi.fn()} aria-label="Filter the Atlas" />
+        <SearchClear onClick={onClear} />
+      </SearchField>
+      <SearchComboboxSuggestions />
+    </SearchCombobox>,
+  );
+  return { onRecentSelect, onClear };
+}
 
-  it("calls onSetMode with the clicked mode", () => {
-    const { onSetMode } = setup({ mode: "broad" });
-    fireEvent.click(screen.getByText("Aa"));
-    expect(onSetMode).toHaveBeenCalledWith("strict");
-  });
-
-  it("disables the pills and clears the pressed state when the query is mixed", () => {
-    setup({ mode: "broad", isMixed: true });
-    const broad = screen.getByText("a*");
-    expect(broad).toBeDisabled();
-    expect(broad).toHaveAttribute("aria-pressed", "false");
-  });
-
-  it("hides the mode pills outside the atlas scope", () => {
-    setup({ scope: "radar" as SearchScope });
-    expect(screen.queryByText("a*")).toBeNull();
-  });
-
-  it("disables all three, unpressed, when a lane cannot honour them — and says why", () => {
-    // Disabled rather than hidden: the reader who reaches for a pill gets the
-    // reason, where a vanished control would just look like a missing feature.
-    setup({ mode: "phrase", modesDisabledReason: "not on this lane" });
-    for (const symbol of ["a*", '"a"', "Aa"]) {
-      const pill = screen.getByText(symbol);
-      expect(pill).toBeDisabled();
-      expect(pill).toHaveAttribute("aria-pressed", "false");
-      expect(pill).toHaveAttribute("aria-label", "not on this lane");
-    }
-  });
-});
-
-describe("SearchBar input controls", () => {
-  it("hides the clear button when the query is empty and shows it when filled", () => {
+describe("SearchClear", () => {
+  it("keeps its place but hides while the field is empty", () => {
     setup({ query: "" });
-    expect(screen.getByLabelText("Clear search").className).toContain("invisible");
+    expect(screen.getByLabelText("Clear search")).toHaveAttribute("data-state", "hidden");
     cleanup();
     setup({ query: "vat" });
-    expect(screen.getByLabelText("Clear search").className).not.toContain("invisible");
+    expect(screen.getByLabelText("Clear search")).toHaveAttribute("data-state", "visible");
   });
 
-  it("calls onClear when the clear button is clicked", () => {
+  it("calls its onClick when pressed", () => {
     const { onClear } = setup({ query: "vat" });
     fireEvent.click(screen.getByLabelText("Clear search"));
     expect(onClear).toHaveBeenCalledTimes(1);
   });
+});
 
-  it("shows the scope chip for non-atlas scopes", () => {
-    setup({ scope: "reports" as SearchScope });
-    expect(screen.getByText("reports")).toBeTruthy();
+describe("SearchCombobox parts", () => {
+  it("throw outside a SearchCombobox", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => render(<SearchClear />)).toThrow(/inside <SearchCombobox>/);
+    spy.mockRestore();
+  });
+
+  it("run a caller's onKeyDown after the dropdown's own", () => {
+    const onKeyDown = vi.fn();
+    render(
+      <SearchCombobox query="">
+        <SearchComboboxInput value="" onChange={vi.fn()} onKeyDown={onKeyDown} />
+      </SearchCombobox>,
+    );
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "a" });
+    expect(onKeyDown).toHaveBeenCalledTimes(1);
   });
 });
 
-describe("SearchBar recent searches dropdown", () => {
+describe("SearchCombobox recent searches", () => {
   // Recent suggestions are { q, n } objects; this helper attaches an arbitrary
   // result count to each query so tests can pass plain strings.
   const R = (...queries: string[]) => queries.map((q, i) => ({ q, n: (i + 1) * 10 }));
@@ -106,25 +80,8 @@ describe("SearchBar recent searches dropdown", () => {
   const optionQueries = () =>
     screen.getAllByRole("option").map((o) => o.querySelector("span")?.textContent);
 
-  function setupRecent(over: Partial<Parameters<typeof SearchBar>[0]> = {}) {
-    const onRecentSelect = vi.fn();
-    render(
-      <SearchBar
-        inputRef={createRef<HTMLInputElement>()}
-        query=""
-        mode="broad"
-        isMixed={false}
-        onChange={vi.fn()}
-        onClear={vi.fn()}
-        onSetMode={vi.fn()}
-        activePage="atlas"
-        scope={"atlas" as SearchScope}
-        recentSearches={R("vat", "jug", "pot", "dai")}
-        onRecentSelect={onRecentSelect}
-        {...over}
-      />,
-    );
-    return { onRecentSelect };
+  function setupRecent(over: Partial<ComboOver> = {}) {
+    return setup({ recentSearches: R("vat", "jug", "pot", "dai"), ...over });
   }
 
   it("stays closed on the mount autofocus and opens on interaction", () => {
