@@ -36,6 +36,7 @@
 ## 2026-10-28
 
 - Named more Liquidity Layer rate limits and hid switched-off limits for integrations the Atlas has dropped
+- Set the Liquidity Layer page's explanations apart and collapsed each vote's list of changes
 
 ## 2026-10-14
 

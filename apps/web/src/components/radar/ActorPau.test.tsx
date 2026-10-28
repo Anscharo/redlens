@@ -86,6 +86,9 @@ describe("ActorPau change history", () => {
     expect(within(groups[0] as HTMLElement).getByRole("link", { name: "Executive Vote 2026-08-27" })).toHaveAttribute("href", "https://vote.example/x");
     expect(groups[0]).toHaveTextContent("through the StarGuard");
     expect(groups[0]).toHaveTextContent("max 25M (was 10M)");
+    const changes = groups[0].querySelector("details.pau-changes")!;
+    expect(changes).not.toHaveAttribute("open");
+    expect(changes.querySelector("summary")).toHaveTextContent("ethereum · 1 change in 1 tx · 2026-09-01");
     expect(groups[1].querySelector("details")).not.toHaveAttribute("open");
     const chips = await screen.findAllByText("exec 2026-08-27");
     expect(chips[0]).toHaveAttribute("href", `#pau-tx-ethereum-${at.tx}`);
@@ -301,6 +304,11 @@ describe("ActorPau fragments", () => {
     const group = await arrive("#deployment-ethereum");
     expect(group.tagName).toBe("DETAILS");
     expect(group).toHaveAttribute("open");
+  });
+
+  it("opens an executive's collapsed change list when a link lands on one of its transactions", async () => {
+    const tx = await arrive(`#pau-tx-ethereum-${at.tx}`);
+    expect(tx.closest("details.pau-changes")).toHaveAttribute("open");
   });
 
   it("lands on an executive's group by its spell address", async () => {

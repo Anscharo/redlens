@@ -13,6 +13,7 @@ import { graphPrimeSources } from "@/lib/pauDocSources";
 import { addressKeyIndex, instanceKeyIndex, loadPau, loadPauHistory, primeKeyedInstance, snapshotsForPrime, timelineFor, withAddressKeys, type KeyedInstance } from "../../lib/pau";
 import { deploymentAnchors, PAU_ANCHOR } from "@/lib/pauAnchors";
 import { PauPartHeading } from "./PauSectionHeading";
+import { Callout } from "../Callout";
 import type { GraphEntity } from "@/types";
 import { PauDeployment } from "./ActorPauDeployment";
 import { ActorPauTimeline } from "./ActorPauTimeline";
@@ -74,10 +75,10 @@ export function ActorPau(props: Props) {
   return (
     <section aria-labelledby={PAU_ANCHOR.currentState}>
       <PauPartHeading anchor={{ id: PAU_ANCHOR.currentState, aliases: [] }}>Current state</PauPartHeading>
-      <p className="text-[12px] mb-3" style={{ color: "var(--tan-3)" }}>
+      <Callout className="mb-3">
         Read from the chain for each contract in the PAU registry. Role holders come from the contracts&apos; grant history,
         each confirmed live; a rate limit is named by the prime or instance whose parameters state its ID.
-      </p>
+      </Callout>
       {snaps.map((s, i) => (
         <PauDeployment key={s.deployment} snap={s} keyIndex={keyIndex} namedIn={named} verdicts={verdicts} defaultOpen={i === 0} anchor={anchors.get(s.deployment)!} />
       ))}

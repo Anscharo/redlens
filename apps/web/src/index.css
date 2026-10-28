@@ -1869,6 +1869,23 @@ a.atlas-annotates:focus-visible {
   user-select: none;
 }
 
+/* ─── Callout ───
+   An explanation of what a section shows, set apart from the data it explains:
+   a --surface fill and a --tan-3 bar. Its text is --tan-2, and --tan-3 inside
+   it; both are audited on --surface in every theme. */
+.callout {
+  background: var(--surface);
+  border-left: 3px solid var(--tan-3);
+  border-radius: 0 6px 6px 0;
+  padding: 6px 12px;
+  color: var(--tan-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.callout > * + * {
+  margin-top: 6px;
+}
+
 /* ─── Report filter summary callout ───
    Explains what the search box is doing on a report page. Deliberately
    inverted against the dark theme — cream fill, accent border, charcoal

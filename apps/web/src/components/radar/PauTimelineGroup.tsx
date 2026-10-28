@@ -30,11 +30,17 @@ const label = (g: TimelineGroup) =>
 const COLLAPSED = new Set<TimelineGroup["kind"]>(["deployment", "operator", "unknown"]);
 const LABEL: Partial<Record<TimelineGroup["kind"], string>> = { deployment: "Deployment", unknown: "Not yet attributed" };
 
+/** What a group holds, for its collapsed summary. */
+const holds = (g: TimelineGroup) => {
+  const n = count(g);
+  return `${chains(g)} · ${n} change${n === 1 ? "" : "s"} in ${g.entries.length} tx · ${span(g)}`;
+};
+
 /**
  * One group of the change history. A deployment's group, an operator's day of
  * Configurator changes and a chain's changes not attributed yet start
- * collapsed, their summary saying what they hold; an executive's changes are
- * shown.
+ * collapsed whole, their summary saying what they hold; any other group shows
+ * its heading, with its list of changes collapsed under a summary of it.
  */
 export function PauTimelineGroup({ g, anchor, names, beamOf }: Props) {
   const entries = (
@@ -49,7 +55,10 @@ export function PauTimelineGroup({ g, anchor, names, beamOf }: Props) {
       <li {...anchorProps(anchor)} className="pau-timeline-group relative border-t border-[var(--border)] pt-2" data-kind={g.kind} data-spell={g.spell ?? undefined}>
         <CopyLink id={anchor.id} label={label(g)} top={10} />
         <PauTimelineHeader g={g} />
-        {entries}
+        <details className="pau-changes mt-1">
+          <summary className="cursor-pointer mono text-[11px]" style={dim}>{holds(g)}</summary>
+          {entries}
+        </details>
       </li>
     );
   }
@@ -59,14 +68,13 @@ export function PauTimelineGroup({ g, anchor, names, beamOf }: Props) {
 
 /** A group that starts collapsed, its summary saying what it holds; the fragment is on its `<details>`, so arriving opens it. */
 function CollapsedGroup({ g, anchor, beam, children }: { g: TimelineGroup; anchor: Anchor; beam?: BeamLimits; children: ReactNode }) {
-  const n = count(g);
   return (
     <li className="pau-timeline-group relative border-t border-[var(--border)] pt-2" data-kind={g.kind}>
       <CopyLink id={anchor.id} label={label(g)} top={10} />
       <details {...anchorProps(anchor)}>
         <summary className="cursor-pointer text-[13px]" style={{ color: "var(--tan-2)" }}>
           <h3 className="inline">{LABEL[g.kind] ?? <PauTimelineHeader g={g} beam={beam} />}</h3>
-          <span className="mono text-[11px]" style={dim}> · {chains(g)} · {n} change{n === 1 ? "" : "s"} in {g.entries.length} tx · {span(g)}</span>
+          <span className="mono text-[11px]" style={dim}> · {holds(g)}</span>
         </summary>
         {children}
       </details>
