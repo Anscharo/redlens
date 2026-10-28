@@ -190,6 +190,7 @@ describe("useSearchInput (rendered)", () => {
     expect(api.inScope.scopeDoc).toBeNull();
     act(() => api.inScope.toggleScope());
     expect(api.query).toBe("fees");
+    expect(track).toHaveBeenCalledWith("search_scope_toggle", { product: "search", doc_no: "A.6", scoped: false });
   });
 
   it("handleChange on HOME writes the query into the URL (?q)", () => {

@@ -65,7 +65,8 @@ export function useSearchScope({ query, location, navigate, setQuery, inputRef }
     const toggled = scopeDoc ? toggleScope(query, scopeDoc.docNo) : withoutScope(query);
     // A trailing space after an added token, so the reader types straight on.
     const next = scopeOf(toggled) ? `${toggled} ` : toggled;
-    track("search_scope_toggle", { product: "search", doc_no: scopeDoc?.docNo ?? scoped, scoped: scopeOf(next) !== null });
+    // doc_no is the scope the press acts on: the one it adds, or the one it lifts.
+    track("search_scope_toggle", { product: "search", doc_no: scopeOf(next) ?? scoped, scoped: scopeOf(next) !== null });
     if (location === ROUTES.HOME) setQuery(next || null);
     else navigate(homeSearchHref(next, new URLSearchParams(window.location.search).get("split")));
     focusInputAt(inputRef);

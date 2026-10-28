@@ -26,7 +26,7 @@ function scopeTooltip(scopeDoc: ScopeDoc | null, scoped: string | null): string 
   }
   if (scopeDoc && scoped) return `Search within ${scopeDoc.title} and children instead of ${scoped}`;
   if (scopeDoc) return `Search within ${scopeDoc.title} and children (adds in:${scopeDoc.docNo})`;
-  return "in: open a document to search within it";
+  return "Open a document to search within it";
 }
 
 /**
@@ -42,7 +42,8 @@ export function SearchScopeButton({ scopeDoc, scoped, onToggle }: Props) {
   const pressed = liftsScope(scopeDoc, scoped);
   const target = pressed ? scoped : (scopeDoc?.docNo ?? null);
   // The name opens with the label as wide screens show it, which holds the
-  // phone's "in:" too, so a voice-control user can say either.
+  // phone's "in:" too, so a voice-control user can say either; the hover text
+  // follows it and never repeats it.
   const label = target ? `in:${target}*` : "in:";
   return (
     <Tooltip content={tooltip}>
@@ -50,7 +51,7 @@ export function SearchScopeButton({ scopeDoc, scoped, onToggle }: Props) {
         <button
           type="button"
           onClick={onToggle}
-          aria-label={tooltip.startsWith("in:") ? tooltip : `${label} ${tooltip}`}
+          aria-label={`${label} ${tooltip}`}
           aria-pressed={pressed}
           disabled={!scopeDoc && !scoped}
           className={`${SEARCH_PILL_CLASS} sm:w-auto sm:px-2 whitespace-nowrap`}

@@ -168,7 +168,7 @@ describe("ShellSearch in: scope button", () => {
     cleanup();
     setup({ inScope: { scopeDoc: null, scoped: null, toggleScope: vi.fn() } });
     expect(scopeButton()).toBeDisabled();
-    expect(scopeButton()).toHaveAttribute("aria-label", "in: open a document to search within it");
+    expect(scopeButton()).toHaveAttribute("aria-label", "in: Open a document to search within it");
   });
 });
 
