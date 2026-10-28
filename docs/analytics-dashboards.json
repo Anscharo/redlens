@@ -75,6 +75,7 @@
     "preview_submit": { "props": { "input": "string", "parsed_id": "string|null", "parsed": "bool" } },
     "preview_view_toggle": { "props": { "view": "all | changed_only", "changed_count": "number" } },
     "search_mode_change": { "props": { "mode": "broad | phrase | strict" } },
+    "search_scope_toggle": { "props": { "product": "search", "doc_no": "string (the doc_no the press added or lifted)", "scoped": "bool (true when the press left the query scoped)" } },
     "report_export": { "props": { "report": "active-data | processes", "format": "csv | json", "method": "download | copy (json only)" } },
     "chat_starter_click": { "props": { "product": "chat", "starter": "number (starter index 0-2)" } },
     "chat_signin_click": { "props": { "product": "chat", "provider": "github | google" } },
@@ -180,7 +181,8 @@
         { "name": "Time-to-click (ms)", "type": "trends", "viz": "line", "series": [{ "event": "search_result_click", "math": "median", "math_property": "ms_to_click", "label": "p50" }, { "event": "search_result_click", "math": "p90", "math_property": "ms_to_click", "label": "p90" }] },
         { "name": "Search clicks by result kind (entity clicks are the radar_search_result_click event, product radar)", "type": "trends", "viz": "bar", "series": [{ "event": "search_result_click", "math": "total" }], "breakdown": { "property": "result_kind", "type": "event" } },
         { "name": "Search mode usage (at search time)", "type": "trends", "viz": "bar", "series": [{ "event": "atlas_search", "math": "total" }], "breakdown": { "property": "mode", "type": "event" } },
-        { "name": "Search mode pill clicks", "type": "trends", "viz": "bar", "question": "How often users explicitly switch broad/phrase/strict via the pills (vs. typing quotes).", "series": [{ "event": "search_mode_change", "math": "total" }], "breakdown": { "property": "mode", "type": "event" } }
+        { "name": "Search mode pill clicks", "type": "trends", "viz": "bar", "question": "How often users explicitly switch broad/phrase/strict via the pills (vs. typing quotes).", "series": [{ "event": "search_mode_change", "math": "total" }], "breakdown": { "property": "mode", "type": "event" } },
+        { "name": "in: scope button presses", "type": "trends", "viz": "bar", "question": "How often readers scope a search to the document they are reading, and how often they lift it again.", "series": [{ "event": "search_scope_toggle", "math": "total" }], "breakdown": { "property": "scoped", "type": "event" } }
       ]
     },
     {

@@ -56,8 +56,9 @@ function setup(path: string, location: string, scope: SearchScope = "atlas") {
   const navigate = vi.fn();
   const { hook } = memoryLocation({ path, record: true });
   const wrapper = ({ children }: { children: ReactNode }) => <Router hook={hook}>{children}</Router>;
-  render(<Harness location={location} navigate={navigate} scope={scope} />, { wrapper });
-  return { navigate };
+  const view = render(<Harness location={location} navigate={navigate} scope={scope} />, { wrapper });
+  const rerender = () => view.rerender(<Harness location={location} navigate={navigate} scope={scope} />);
+  return { navigate, rerender };
 }
 
 beforeEach(() => {
@@ -157,6 +158,31 @@ describe("useSearchInput (rendered)", () => {
     expect(api.inScope.scoped).toBe("A.1.2");
     act(() => api.inScope.toggleScope());
     expect(api.query).toBe("fees");
+  });
+
+  it("the in: button forgets the document when the opened id names none", async () => {
+    nodeId.current = "u1";
+    const { rerender } = setup("/atlas?id=u1", "/atlas", "atlas");
+    await waitFor(() => expect(api.inScope.scopeDoc?.docNo).toBe("A.1.2"));
+    nodeId.current = "missing";
+    rerender();
+    await waitFor(() => expect(api.inScope.scopeDoc).toBeNull());
+  });
+
+  it("a mode press that unwraps also resets a ?mode= the text has no quotes for", () => {
+    // A shared /?q=foo&mode=strict link: strict comes from the URL, not from
+    // quotes, so unwrapping alone would leave the search strict.
+    setup("/?q=foo&mode=strict", "/", "atlas");
+    expect(api.activeMode).toBe("strict");
+    act(() => api.wrapModeClick("broad"));
+    expect(api.query).toBe("foo");
+    expect(api.activeMode).toBe("broad");
+  });
+
+  it("pressing the active mode again returns to broad", () => {
+    setup("/?q=foo&mode=strict", "/", "atlas");
+    act(() => api.wrapModeClick("strict"));
+    expect(api.activeMode).toBe("broad");
   });
 
   it("the in: button lifts an arrived-with scope even with no document opened", () => {

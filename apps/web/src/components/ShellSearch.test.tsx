@@ -9,7 +9,7 @@ import "@testing-library/jest-dom/vitest";
 import { createRef } from "react";
 import { ShellSearch } from "./ShellSearch";
 import type { SearchInput } from "../hooks/useSearchInput";
-import type { SearchScope } from "@/lib/routes";
+import type { ScopeConfig, SearchScope } from "@/lib/routes";
 
 vi.mock("./Tooltip", () => ({ Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 
@@ -17,6 +17,7 @@ afterEach(cleanup);
 
 interface Over {
   scope: SearchScope;
+  reportScopeCfg: ScopeConfig;
   query: string;
   mode: SearchInput["activeMode"];
   isMixed: boolean;
@@ -40,7 +41,7 @@ function setup(over: Partial<Over> = {}) {
     recentSearches: [],
     selectRecent: vi.fn(),
   } as unknown as SearchInput;
-  render(<ShellSearch search={search} scope={over.scope ?? "atlas"} onSubmit={() => false} />);
+  render(<ShellSearch search={search} scope={over.scope ?? "atlas"} reportScopeCfg={over.reportScopeCfg} onSubmit={() => false} />);
   return { onSetMode };
 }
 
@@ -86,7 +87,8 @@ describe("ShellSearch mode pills", () => {
       const p = pill(symbol);
       expect(p).toBeDisabled();
       expect(p).toHaveAttribute("aria-pressed", "false");
-      expect(p).toHaveAttribute("aria-label", MEANING_OFF);
+      // Opens with the visible symbol (label in name).
+      expect(p).toHaveAttribute("aria-label", `${symbol} ${MEANING_OFF}`);
     }
     expect(cycleButton()).toBeDisabled();
     expect(cycleButton()).toHaveAttribute("aria-label", `"a" ${MEANING_OFF}`);
@@ -129,7 +131,7 @@ describe("ShellSearch in: scope button", () => {
     const toggleScope = vi.fn();
     setup({ inScope: { scopeDoc: doc, scoped: null, toggleScope } });
     expect(scopeButton()).toHaveAttribute("aria-pressed", "false");
-    expect(scopeButton()).toHaveAttribute("aria-label", "Search within A.1.2 and children (adds in:A.1.2)");
+    expect(scopeButton()).toHaveAttribute("aria-label", "in: Search within A.1.2 and children (adds in:A.1.2)");
     fireEvent.click(scopeButton());
     expect(toggleScope).toHaveBeenCalled();
   });
@@ -137,12 +139,12 @@ describe("ShellSearch in: scope button", () => {
   it("reads as pressed while the query is scoped", () => {
     setup({ inScope: { scopeDoc: doc, scoped: "A.1.2", toggleScope: vi.fn() } });
     expect(scopeButton()).toHaveAttribute("aria-pressed", "true");
-    expect(scopeButton()).toHaveAttribute("aria-label", "Searching within A.1.2 and children — press to search the whole atlas");
+    expect(scopeButton()).toHaveAttribute("aria-label", "in: Searching within A.1.2 and children — press to search the whole atlas");
   });
 
   it("names the replacement when scoped to a different document", () => {
     setup({ inScope: { scopeDoc: doc, scoped: "A.6", toggleScope: vi.fn() } });
-    expect(scopeButton()).toHaveAttribute("aria-label", "Search within A.1.2 and children instead of A.6");
+    expect(scopeButton()).toHaveAttribute("aria-label", "in: Search within A.1.2 and children instead of A.6");
     // A press switches the scope rather than lifting it, so it does not read as pressed.
     expect(scopeButton()).toHaveAttribute("aria-pressed", "false");
   });
@@ -163,6 +165,14 @@ describe("ShellSearch field", () => {
     setup({ scope: "reports" });
     expect(screen.getByText("reports")).toBeTruthy();
     expect(screen.getByRole("combobox")).toHaveAttribute("aria-label", "Filter reports");
+  });
+
+  it("on a report page, names the report and offers the mode pills but not in:", () => {
+    setup({ scope: "reports", reportScopeCfg: { label: "stale dates", placeholder: "Filter stale dates" } });
+    expect(screen.getByText("stale dates")).toBeTruthy();
+    expect(screen.getByRole("combobox")).toHaveAttribute("placeholder", "Filter stale dates");
+    expect(pill("a*")).toBeTruthy();
+    expect(screen.queryByText("in:")).toBeNull();
   });
 
   it("shows no chip in the atlas scope", () => {

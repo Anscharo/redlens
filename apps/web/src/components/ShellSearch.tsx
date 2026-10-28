@@ -1,11 +1,11 @@
-import { useLocation } from "wouter";
 import { SearchBar, SearchField, SearchScopeChip } from "./SearchBar";
-import { SearchCombobox, SearchComboboxInput, SearchComboboxSuggestions } from "./SearchCombobox";
+import { SearchCombobox, SearchComboboxInput } from "./SearchCombobox";
+import { SearchComboboxSuggestions } from "./SearchComboboxSuggestions";
 import { SearchClear } from "./SearchClear";
 import { SearchIcon } from "./SearchIcon";
 import { SearchModePills } from "./SearchModePills";
 import { SearchScopeButton } from "./SearchScopeButton";
-import { REPORT_SCOPE_CONFIG, SCOPE_CONFIG, type SearchScope } from "@/lib/routes";
+import { SCOPE_CONFIG, type ScopeConfig, type SearchScope } from "@/lib/routes";
 import type { SearchInput } from "../hooks/useSearchInput";
 
 // All three mode pills describe how a STRING is matched, and the meaning lane
@@ -18,6 +18,8 @@ interface ShellSearchProps {
   search: SearchInput;
   /** What the box searches on this route: the atlas, or a page's own rows. */
   scope: SearchScope;
+  /** On a report page, that report's chip label and placeholder; its rows are matched like the atlas. */
+  reportScopeCfg?: ScopeConfig;
   /** Enter on a typed query; true when it was handled. */
   onSubmit: () => boolean;
 }
@@ -28,10 +30,8 @@ interface ShellSearchProps {
  * rows; the mode pills show where the box matches strings (the atlas and the
  * reports), and the `in:` button where there is a doc_no subtree to scope to.
  */
-export function ShellSearch({ search, scope, onSubmit }: ShellSearchProps) {
-  const [location] = useLocation();
-  const reportCfg = REPORT_SCOPE_CONFIG[location];
-  const cfg = reportCfg ?? SCOPE_CONFIG[scope];
+export function ShellSearch({ search, scope, reportScopeCfg, onSubmit }: ShellSearchProps) {
+  const cfg = reportScopeCfg ?? SCOPE_CONFIG[scope];
   return (
     <SearchBar>
       <SearchCombobox query={search.query} recentSearches={search.recentSearches} onRecentSelect={search.selectRecent} onSubmit={onSubmit}>
@@ -43,7 +43,7 @@ export function ShellSearch({ search, scope, onSubmit }: ShellSearchProps) {
         </SearchField>
         <SearchComboboxSuggestions />
       </SearchCombobox>
-      {(scope === "atlas" || !!reportCfg) && (
+      {(scope === "atlas" || !!reportScopeCfg) && (
         <SearchModePills
           mode={search.activeMode}
           isMixed={search.isMixed}

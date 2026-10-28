@@ -47,7 +47,8 @@ export function SearchModePills({ mode, isMixed, onSetMode, disabledReason }: Pr
                 <button
                   type="button"
                   onClick={() => onSetMode(m)}
-                  aria-label={tooltip}
+                  // Opens with the visible symbol, so a voice-control user can say it.
+                  aria-label={`${MODE_CONFIG[m].symbol} ${tooltip}`}
                   aria-pressed={active}
                   disabled={disabled}
                   className={SEARCH_PILL_CLASS}

@@ -15,12 +15,14 @@ export interface ScopeDoc {
 /**
  * The document open in the reader, or — once the reader has been left for the
  * results page — the last one opened there, so the scope button can still put
- * back a scope it just removed. Null until a document has been opened.
+ * back a scope it just removed. Null until a document has been opened, when the
+ * opened id names no document (a stale link), and under a data source other
+ * than the one the document was read from, whose doc_nos may differ.
  */
 function useScopeDoc(): ScopeDoc | null {
   const nodeId = useAtlasNodeId();
   const { base } = useDataSource();
-  const [doc, setDoc] = useState<ScopeDoc | null>(null);
+  const [doc, setDoc] = useState<(ScopeDoc & { base: string }) | null>(null);
   useEffect(() => {
     if (!nodeId) return;
     let live = true;
@@ -28,13 +30,13 @@ function useScopeDoc(): ScopeDoc | null {
     loadDocs(base).then(
       (docs) => {
         const node = docs[nodeId];
-        if (live && node) setDoc({ docNo: node.doc_no });
+        if (live) setDoc(node ? { docNo: node.doc_no, base } : null);
       },
-      () => {},
+      () => { if (live) setDoc(null); },
     );
     return () => { live = false; };
   }, [nodeId, base]);
-  return doc;
+  return doc && doc.base === base ? { docNo: doc.docNo } : null;
 }
 
 interface Args {

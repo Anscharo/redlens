@@ -36,7 +36,8 @@ export function SearchScopeButton({ scopeDoc, scoped, onToggle }: Props) {
         <button
           type="button"
           onClick={onToggle}
-          aria-label={tooltip}
+          // The name opens with the visible "in:", so a voice-control user can say it.
+          aria-label={tooltip.startsWith("in:") ? tooltip : `in: ${tooltip}`}
           aria-pressed={pressed}
           disabled={!scopeDoc && !scoped}
           className={SEARCH_PILL_CLASS}

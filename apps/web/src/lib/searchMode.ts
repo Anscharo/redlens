@@ -67,22 +67,26 @@ export function applyMode(query: string, mode: SearchMode): string {
  * active pill (or `broad`) unwraps to the bare text, and clicking another wraps
  * it — inserting an empty quote pair when there is no free text to wrap, so the
  * reader can type inside it.
+ *
+ * `toBroad` is set on an unwrap. A mode can come from `?mode=` rather than from
+ * quotes in the text, and unwrapping text that has none leaves it as it was, so
+ * the caller must also reset `?mode=` or the click changes nothing.
  */
 export function modePillClick(
   query: string,
   mode: SearchMode,
   newMode: SearchMode,
-): { newQuery: string; cursorPos: number } {
+): { newQuery: string; cursorPos: number; toBroad: boolean } {
   const currEffMode = effectiveMode(query);
   const mixed = isMixedQuotes(query);
   const currMode = !mixed && currEffMode !== "broad" ? currEffMode : mode;
   const bareQuery = currEffMode !== "broad" ? stripModeWrap(query) : query;
 
-  if (newMode === "broad" || newMode === currMode) return { newQuery: bareQuery, cursorPos: bareQuery.length };
+  if (newMode === "broad" || newMode === currMode) return { newQuery: bareQuery, cursorPos: bareQuery.length, toBroad: true };
 
   const wrapped = applyMode(bareQuery, newMode);
-  if (wrapped !== bareQuery) return { newQuery: wrapped, cursorPos: wrapped.length - 1 }; // before the closing quote
+  if (wrapped !== bareQuery) return { newQuery: wrapped, cursorPos: wrapped.length - 1, toBroad: false }; // before the closing quote
   const pair = newMode === "phrase" ? '""' : "''";
   const newQuery = bareQuery.trim() ? `${bareQuery.trim()} ${pair}` : pair;
-  return { newQuery, cursorPos: newQuery.length - 1 }; // between the quotes
+  return { newQuery, cursorPos: newQuery.length - 1, toBroad: false }; // between the quotes
 }

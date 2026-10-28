@@ -7,7 +7,8 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { SearchField } from "./SearchBar";
-import { SearchCombobox, SearchComboboxInput, SearchComboboxSuggestions } from "./SearchCombobox";
+import { SearchCombobox, SearchComboboxInput } from "./SearchCombobox";
+import { SearchComboboxSuggestions } from "./SearchComboboxSuggestions";
 import { SearchClear } from "./SearchClear";
 import type { RecentSuggestion } from "../lib/recentSearches";
 

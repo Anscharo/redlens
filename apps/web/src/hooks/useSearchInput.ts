@@ -85,9 +85,8 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
   const inScope = useSearchScope({ query, location, navigate, setQuery: setQueryParam, inputRef });
 
   const isMixed = isMixedQuotes(query);
-  const effMode = effectiveMode(query);
   // Active mode: prefer what's visible in the query; fall back to URL param.
-  const activeMode: SearchMode = !isMixed && effMode !== "broad" ? effMode : mode;
+  const activeMode: SearchMode = !isMixed && effectiveMode(query) !== "broad" ? effectiveMode(query) : mode;
 
   // Recent-search history: record the current settled search, expose the list.
   useRecordRecentSearch(state, query);
@@ -153,10 +152,13 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
   // the cursor before the closing quote so typing extends the phrase naturally.
   const wrapModeClick = useCallback((newMode: SearchMode) => {
     track("search_mode_change", { mode: newMode });
-    const { newQuery, cursorPos } = modePillClick(query, mode, newMode);
-    setQueryParam(newQuery || null);
+    const { newQuery, cursorPos, toBroad } = modePillClick(query, mode, newMode);
+    // One URL write per press: two setters in one event each rewrite the whole
+    // URL from the same snapshot, so the second would undo the first.
+    if (toBroad && newQuery === query) setMode("broad");
+    else setQueryParam(newQuery || null);
     focusInputAt(inputRef, cursorPos);
-  }, [query, mode, setQueryParam, inputRef]);
+  }, [query, mode, setQueryParam, setMode, inputRef]);
 
   return {
     query, activeMode, isMixed,

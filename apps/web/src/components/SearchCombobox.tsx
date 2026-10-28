@@ -1,5 +1,4 @@
 import { useMemo, type ComponentProps } from "react";
-import { RecentSearches } from "./RecentSearches";
 import { useRecentDropdown } from "../hooks/useRecentDropdown";
 import { matchingRecents } from "../lib/recentSuggestions";
 import type { RecentSuggestion } from "../lib/recentSearches";
@@ -25,10 +24,9 @@ export function SearchCombobox({ query, recentSearches = [], onRecentSelect, onS
   const suggestions = useMemo(() => matchingRecents(recentSearches, query), [recentSearches, query]);
   const dropdown = useRecentDropdown({ suggestions: suggestions.map((s) => s.q), query, onSelect: onRecentSelect });
   const showRecent = dropdown.visible && !!onRecentSelect;
-  const state = useMemo(
-    () => ({ query, suggestions, dropdown, showRecent, onSubmit }),
-    [query, suggestions, dropdown, showRecent, onSubmit],
-  );
+  // Not memoized: the dropdown's state object is new on every render, so a
+  // memo here would never hold; the parts re-render with the field anyway.
+  const state = { query, suggestions, dropdown, showRecent, onSubmit };
   return (
     <SearchComboboxContext.Provider value={state}>
       <div className="relative flex-1 min-w-0" {...props} />
@@ -72,21 +70,6 @@ export function SearchComboboxInput({ onKeyDown, ...props }: SearchComboboxInput
       // atlas_search event records searches instead.
       className="search-input ph-no-capture flex-1 min-w-0 px-2 py-2 text-sm"
       {...props}
-    />
-  );
-}
-
-/** The recent-searches listbox under the field, rendered while the combobox is open. */
-export function SearchComboboxSuggestions() {
-  const { suggestions, dropdown, showRecent } = useSearchCombobox();
-  if (!showRecent) return null;
-  return (
-    <RecentSearches
-      id={RECENT_LISTBOX_ID}
-      items={suggestions}
-      activeIndex={dropdown.active}
-      onSelect={(_q, rank) => dropdown.select(rank)}
-      onHover={dropdown.onOptionHover}
     />
   );
 }

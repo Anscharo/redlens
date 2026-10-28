@@ -7,7 +7,7 @@ import { usePreviewShell } from "./hooks/usePreviewShell";
 import { useTreeDrawer } from "./hooks/useTreeDrawer";
 import { useModifierKeyAttrs } from "./hooks/useModifierKeyAttrs";
 import { useContextHints } from "./hooks/useContextHints";
-import { activeNavPageFor, usesWindowScroll, type SearchScope } from "@/lib/routes";
+import { REPORT_SCOPE_CONFIG, activeNavPageFor, usesWindowScroll, type SearchScope } from "@/lib/routes";
 import { AppHeader } from "./components/AppHeader";
 import { HomeLink } from "./components/HomeLink";
 import { NavBar } from "./components/NavBar";
@@ -67,7 +67,12 @@ export default function App() {
       <AppHeader>
         <HomeLink />
         <NavBar activePage={activeNavPage} />
-        <ShellSearch search={search} scope={scope} onSubmit={() => search.searchAnyway() || focusFirstResult()} />
+        <ShellSearch
+          search={search}
+          scope={scope}
+          reportScopeCfg={REPORT_SCOPE_CONFIG[location]}
+          onSubmit={() => search.searchAnyway() || focusFirstResult()}
+        />
       </AppHeader>
       <div className={`flex-1 flex ${windowScroll ? "" : "overflow-hidden"}`}>
         <TreeDrawer open={tree.open} onClose={tree.closeTree} />
