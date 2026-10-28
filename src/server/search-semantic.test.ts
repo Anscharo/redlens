@@ -306,19 +306,19 @@ describe("with indexes loaded", () => {
         }),
       );
     }) as unknown as typeof fetch;
-    const spy = spyOn(sql, "unsafe").mockImplementation(((text: string) =>
+    const restoreSql = stubSqlUnsafe((text) =>
       Promise.resolve(
         text.includes("atlas_doc_briefings")
           ? [{ id: "d2", score: 0.9 }]
           : [{ id: "d1", type: "Core", score: 0.7, member_ids: null }],
-      )) as unknown as typeof sql.unsafe);
+      ));
     try {
       const body = await semanticDocSearch("which quorum applies", { k: 5 });
       expect(body.skipped).toBeNull();
       expect(body.hits.map((h) => h.id).sort()).toEqual(["d1", "d2"]);
       expect(body.hits.find((h) => h.id === "d2")!.score).toBe(0.9);
     } finally {
-      spy.mockRestore();
+      restoreSql();
       _clearQueryEmbedCache();
     }
   });
@@ -336,22 +336,38 @@ describe("with indexes loaded", () => {
       );
     }) as unknown as typeof fetch;
     const below = config.semanticMinScore - 0.01;
-    const spy = spyOn(sql, "unsafe").mockImplementation(((text: string) =>
+    const restoreSql = stubSqlUnsafe((text) =>
       Promise.resolve(
         text.includes("atlas_doc_briefings")
           ? [{ id: "d2", score: below }]
           : [{ id: "d1", type: "Core", score: below, member_ids: null }],
-      )) as unknown as typeof sql.unsafe);
+      ));
     try {
       const body = await semanticDocSearch("best pizza in naples", { k: 5 });
       expect(body.skipped).toBeNull();
       expect(body.hits).toEqual([]);
     } finally {
-      spy.mockRestore();
+      restoreSql();
       _clearQueryEmbedCache();
     }
   });
 });
+
+// Stubs `sql.unsafe` on whatever `db.ts` instance this process holds, and
+// returns the restore. Assigned directly rather than through spyOn: bun's
+// module mocks are process-global, so `sql` can be another file's stub with no
+// `unsafe` method at all, and spyOn on a missing method does not route the
+// call's arguments to the implementation.
+function stubSqlUnsafe(impl: (text: string) => Promise<unknown[]>): () => void {
+  const target = sql as unknown as { unsafe?: unknown };
+  const own = Object.prototype.hasOwnProperty.call(target, "unsafe");
+  const orig = target.unsafe;
+  target.unsafe = impl;
+  return () => {
+    if (own) target.unsafe = orig;
+    else delete target.unsafe;
+  };
+}
 
 describe("the shared budget", () => {
   // Installed here rather than inherited: whether `getIndexes()` throws decides

@@ -33,7 +33,7 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-10-27
+## 2026-10-28
 
 - Added an in: button beside the search box that limits search to the document you're reading
 - Fit the phone header's links and buttons on one row, with a single tap-to-switch search mode button
