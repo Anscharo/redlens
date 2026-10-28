@@ -11,8 +11,9 @@ import type { DerivedKey, PauSnapshot } from "../../lib/pau.ts";
 export const NAMER_VERSION = 1;
 
 /** The stamp of a monolithic namer's inputs, stored as the snapshot's `keysNamedWith`. */
-export function namingInputs(constants: string[], addresses: string[]): string {
-  const sorted = [[...new Set(constants)].sort(), [...new Set(addresses.map((a) => a.toLowerCase()))].sort()];
+export function namingInputs(constants: string[], addresses: string[], words: string[] = []): string {
+  const lower = (xs: string[]) => [...new Set(xs.map((x) => x.toLowerCase()))].sort();
+  const sorted = [[...new Set(constants)].sort(), lower(addresses), lower(words)];
   return `${NAMER_VERSION}:${createHash("sha256").update(JSON.stringify(sorted)).digest("hex").slice(0, 16)}`;
 }
 

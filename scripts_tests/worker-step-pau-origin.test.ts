@@ -65,3 +65,21 @@ describe("vote-archive step", () => {
     expect(await voteArchive.run({ db })).toBe("vote archive: 3 checked, 3 verified, 0 pending");
   });
 });
+
+const syncSpellSources = vi.fn();
+const fetchSourceCode = vi.fn(async () => ({ contractName: "Spell", sourceCode: "" }));
+vi.mock("../src/server/pau/spell-sources.ts", () => ({ syncSpellSources }));
+vi.mock("../scripts/lib/explorer-source.ts", () => ({ fetchSourceCode }));
+const { default: pauSpellSources } = await import("../scripts/lib/worker-steps/pau-spell-sources.ts");
+
+describe("pau-spell-sources step", () => {
+  it("reads Ethereum spell sources within its budget and says what it did, and why it stopped", async () => {
+    syncSpellSources.mockImplementationOnce(async (_db, fetch, opts) => {
+      await fetch("0xspell");
+      expect([opts.max, opts.deadline > Date.now()]).toEqual([30, true]);
+      return { read: 3, pending: 2, error: "etherscan rate limit" };
+    });
+    expect(await pauSpellSources.run({ db })).toBe("pau spell sources: 3 read, 2 pending; stopped: etherscan rate limit");
+    expect(fetchSourceCode.mock.calls[0].slice(0, 3)).toEqual(["ethereum", 1, "0xspell"]);
+  });
+});
