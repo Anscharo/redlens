@@ -80,7 +80,7 @@ describe("SearchBar mode pills", () => {
       expect(p).toHaveAttribute("aria-label", "not on this lane");
     }
     expect(cycleButton()).toBeDisabled();
-    expect(cycleButton()).toHaveAttribute("aria-label", "not on this lane");
+    expect(cycleButton()).toHaveAttribute("aria-label", '"a" not on this lane');
   });
 });
 
@@ -96,7 +96,8 @@ describe("SearchBar mode-cycle button (phones)", () => {
 
   it("names the next mode in its label, without a duplicate title", () => {
     setup({ mode: "broad" });
-    expect(cycleButton()).toHaveAttribute("aria-label", expect.stringMatching(/Press for Phrase \("a"\)\.$/));
+    // Opens with the visible symbol (WCAG 2.5.3, label in name) and names the next mode.
+    expect(cycleButton()).toHaveAttribute("aria-label", expect.stringMatching(/^a\* Broad .*Press for Phrase \("a"\)\.$/));
     expect(cycleButton()).not.toHaveAttribute("title");
   });
 
@@ -107,7 +108,7 @@ describe("SearchBar mode-cycle button (phones)", () => {
 });
 
 describe("SearchBar in: scope button", () => {
-  const doc = { id: "u1", docNo: "A.1.2" };
+  const doc = { docNo: "A.1.2" };
   const scopeButton = () => screen.getByText("in:");
 
   it("is absent unless the shell passes it", () => {
@@ -144,6 +145,7 @@ describe("SearchBar in: scope button", () => {
     cleanup();
     setup({ inScope: { scopeDoc: null, scoped: null, toggleScope: vi.fn() } });
     expect(scopeButton()).toBeDisabled();
+    expect(scopeButton()).toHaveAttribute("aria-label", "in: open a document to search within it");
   });
 });
 

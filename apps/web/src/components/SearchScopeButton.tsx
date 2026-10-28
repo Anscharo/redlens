@@ -21,7 +21,7 @@ function scopeTooltip(scopeDoc: ScopeDoc | null, scoped: string | null): string 
   }
   if (scopeDoc && scoped) return `Search within ${scopeDoc.docNo} and children instead of ${scoped}`;
   if (scopeDoc) return `Search within ${scopeDoc.docNo} and children (adds in:${scopeDoc.docNo})`;
-  return "Open a document to search within it";
+  return "in: open a document to search within it";
 }
 
 /** The `in:` button beside the search field: scopes the query to the open document's subtree, or lifts the scope. */

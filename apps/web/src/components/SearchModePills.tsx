@@ -73,7 +73,9 @@ function ModeCycleButton({ mode, disabled, reason, onSetMode }: {
   onSetMode: (mode: SearchMode) => void;
 }) {
   const next = MODES[(MODES.indexOf(mode) + 1) % MODES.length];
-  const label = reason ?? `${MODE_CONFIG[mode].title}. Press for ${MODE_CONFIG[next].name} (${MODE_CONFIG[next].symbol}).`;
+  // The name opens with the symbol the button shows, so a voice-control user
+  // can say what they see.
+  const label = `${MODE_CONFIG[mode].symbol} ${reason ?? `${MODE_CONFIG[mode].title}. Press for ${MODE_CONFIG[next].name} (${MODE_CONFIG[next].symbol}).`}`;
   return (
     <button
       type="button"

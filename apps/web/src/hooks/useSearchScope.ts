@@ -9,7 +9,6 @@ import { ROUTES, homeSearchHref } from "@/lib/routes";
 
 /** The document an `in:` press scopes the search to. */
 export interface ScopeDoc {
-  id: string;
   docNo: string;
 }
 
@@ -29,7 +28,7 @@ function useScopeDoc(): ScopeDoc | null {
     loadDocs(base).then(
       (docs) => {
         const node = docs[nodeId];
-        if (live && node) setDoc({ id: nodeId, docNo: node.doc_no });
+        if (live && node) setDoc({ docNo: node.doc_no });
       },
       () => {},
     );
