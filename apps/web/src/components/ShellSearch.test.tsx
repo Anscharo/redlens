@@ -55,7 +55,7 @@ const cycleButton = () => document.querySelector<HTMLButtonElement>("button[data
 describe("ShellSearch mode pills", () => {
   it("renders all three pills in atlas scope and presses the active one", () => {
     setup({ mode: "phrase" });
-    const pills = screen.getAllByRole("button").filter((b) => b.classList.contains("mode-pill") && !b.hasAttribute("data-mode") && b.textContent !== "in:");
+    const pills = screen.getAllByRole("button").filter((b) => b.classList.contains("mode-pill") && !b.hasAttribute("data-mode") && !b.textContent?.startsWith("in:"));
     expect(pills).toHaveLength(3);
     expect(pill('"a"')).toHaveAttribute("aria-pressed", "true");
     expect(pill("a*")).toHaveAttribute("aria-pressed", "false");
@@ -119,7 +119,7 @@ describe("ShellSearch mode-cycle button (phones)", () => {
 });
 
 describe("ShellSearch in: scope button", () => {
-  const doc = { docNo: "A.1.2" };
+  const doc = { docNo: "A.1.2", title: "Atlas Documents" };
   const scopeButton = () => screen.getByText("in:");
 
   it("is absent outside the atlas scope, where there is no doc_no subtree", () => {
@@ -131,7 +131,7 @@ describe("ShellSearch in: scope button", () => {
     const toggleScope = vi.fn();
     setup({ inScope: { scopeDoc: doc, scoped: null, toggleScope } });
     expect(scopeButton()).toHaveAttribute("aria-pressed", "false");
-    expect(scopeButton()).toHaveAttribute("aria-label", "in: Search within A.1.2 and children (adds in:A.1.2)");
+    expect(scopeButton()).toHaveAttribute("aria-label", "in:A.1.2* Search within Atlas Documents and children (adds in:A.1.2)");
     fireEvent.click(scopeButton());
     expect(toggleScope).toHaveBeenCalled();
   });
@@ -139,12 +139,22 @@ describe("ShellSearch in: scope button", () => {
   it("reads as pressed while the query is scoped", () => {
     setup({ inScope: { scopeDoc: doc, scoped: "A.1.2", toggleScope: vi.fn() } });
     expect(scopeButton()).toHaveAttribute("aria-pressed", "true");
-    expect(scopeButton()).toHaveAttribute("aria-label", "in: Searching within A.1.2 and children — press to search the whole atlas");
+    expect(scopeButton()).toHaveAttribute("aria-label", "in:A.1.2* Searching within Atlas Documents and children — press to search the whole atlas");
+  });
+
+  it("shows the doc_no it acts on, starred, from sm up, and in: alone on phones", () => {
+    setup({ inScope: { scopeDoc: doc, scoped: null, toggleScope: vi.fn() } });
+    const wide = scopeButton().querySelector("span")!;
+    expect(wide).toHaveTextContent("A.1.2*");
+    expect(wide.className).toContain("hidden sm:inline-block");
+    cleanup();
+    setup();
+    expect(scopeButton().querySelector("span")).toBeNull();
   });
 
   it("names the replacement when scoped to a different document", () => {
     setup({ inScope: { scopeDoc: doc, scoped: "A.6", toggleScope: vi.fn() } });
-    expect(scopeButton()).toHaveAttribute("aria-label", "in: Search within A.1.2 and children instead of A.6");
+    expect(scopeButton()).toHaveAttribute("aria-label", "in:A.1.2* Search within Atlas Documents and children instead of A.6");
     // A press switches the scope rather than lifting it, so it does not read as pressed.
     expect(scopeButton()).toHaveAttribute("aria-pressed", "false");
   });
@@ -152,6 +162,8 @@ describe("ShellSearch in: scope button", () => {
   it("stays usable to lift a scope with no document open, and is disabled with neither", () => {
     setup({ inScope: { scopeDoc: null, scoped: "A.6", toggleScope: vi.fn() } });
     expect(scopeButton()).toBeEnabled();
+    // No open document to take a title from, so the hover text keeps the doc_no.
+    expect(scopeButton()).toHaveAttribute("aria-label", "in:A.6* Searching within A.6 and children — press to search the whole atlas");
     expect(scopeButton()).toHaveAttribute("aria-pressed", "true");
     cleanup();
     setup({ inScope: { scopeDoc: null, scoped: null, toggleScope: vi.fn() } });

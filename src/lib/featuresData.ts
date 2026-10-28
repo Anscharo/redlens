@@ -134,7 +134,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Broad search also matches the singular or plural of each word; documents that use your exact word rank first.",
           "Add ~N to a term to allow N character edits — misaligment~1. You rarely need it: a search that finds nothing offers a spelling correction you can click.",
           "Filter with title:, type:, and in:<doc number>; drop a term with a leading -.",
-          "While reading a document, press the in: button beside the search box to search only that document and everything under it; press it again to search the whole Atlas. The scope stays outside any quotes the a* / \"a\" / Aa buttons add.",
+          "While reading a document, press the in: button beside the search box (on wider screens it reads in:<doc number>*, and hovering it names the document) to search only that document and everything under it; press it again to search the whole Atlas. The scope stays outside any quotes the a* / \"a\" / Aa buttons add.",
           "On a phone the three mode buttons fold into one: tap it to step through a* (broad), \"a\" (phrase) and Aa (strict).",
           "Type / for slash commands, or /h for the full query-syntax reference.",
         ],

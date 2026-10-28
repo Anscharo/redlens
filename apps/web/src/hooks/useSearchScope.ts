@@ -10,6 +10,8 @@ import { ROUTES, homeSearchHref } from "@/lib/routes";
 /** The document an `in:` press scopes the search to. */
 export interface ScopeDoc {
   docNo: string;
+  /** The document's title, which the button's hover text names it by. */
+  title: string;
 }
 
 /**
@@ -30,13 +32,13 @@ function useScopeDoc(): ScopeDoc | null {
     loadDocs(base).then(
       (docs) => {
         const node = docs[nodeId];
-        if (live) setDoc(node ? { docNo: node.doc_no, base } : null);
+        if (live) setDoc(node ? { docNo: node.doc_no, title: node.title, base } : null);
       },
       () => { if (live) setDoc(null); },
     );
     return () => { live = false; };
   }, [nodeId, base]);
-  return doc && doc.base === base ? { docNo: doc.docNo } : null;
+  return doc && doc.base === base ? doc : null;
 }
 
 interface Args {
