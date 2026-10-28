@@ -94,6 +94,12 @@ describe("SearchBar mode-cycle button (phones)", () => {
     }
   });
 
+  it("names the next mode in its label, without a duplicate title", () => {
+    setup({ mode: "broad" });
+    expect(cycleButton()).toHaveAttribute("aria-label", expect.stringMatching(/Press for Phrase \("a"\)\.$/));
+    expect(cycleButton()).not.toHaveAttribute("title");
+  });
+
   it("is disabled when the query has mixed quotes", () => {
     setup({ mode: "broad", isMixed: true });
     expect(cycleButton()).toBeDisabled();
@@ -127,11 +133,14 @@ describe("SearchBar in: scope button", () => {
   it("names the replacement when scoped to a different document", () => {
     setup({ inScope: { scopeDoc: doc, scoped: "A.6", toggleScope: vi.fn() } });
     expect(scopeButton()).toHaveAttribute("aria-label", "Search within A.1.2 and children instead of A.6");
+    // A press switches the scope rather than lifting it, so it does not read as pressed.
+    expect(scopeButton()).toHaveAttribute("aria-pressed", "false");
   });
 
   it("stays usable to lift a scope with no document open, and is disabled with neither", () => {
     setup({ inScope: { scopeDoc: null, scoped: "A.6", toggleScope: vi.fn() } });
     expect(scopeButton()).toBeEnabled();
+    expect(scopeButton()).toHaveAttribute("aria-pressed", "true");
     cleanup();
     setup({ inScope: { scopeDoc: null, scoped: null, toggleScope: vi.fn() } });
     expect(scopeButton()).toBeDisabled();

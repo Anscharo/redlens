@@ -4,10 +4,10 @@ import type { SearchMode } from "../hooks/useSearchInput";
 
 const MODES: SearchMode[] = ["broad", "phrase", "strict"];
 
-const MODE_CONFIG: Record<SearchMode, { symbol: string; title: string }> = {
-  broad:  { symbol: "a*",  title: "Broad — prefix match on each word, case-insensitive" },
-  phrase: { symbol: '"a"', title: "Phrase — literal substring, case-insensitive" },
-  strict: { symbol: "Aa",  title: "Strict — literal substring, case-sensitive" },
+const MODE_CONFIG: Record<SearchMode, { symbol: string; name: string; title: string }> = {
+  broad:  { symbol: "a*",  name: "Broad",  title: "Broad — prefix match on each word, case-insensitive" },
+  phrase: { symbol: '"a"', name: "Phrase", title: "Phrase — literal substring, case-insensitive" },
+  strict: { symbol: "Aa",  name: "Strict", title: "Strict — literal substring, case-sensitive" },
 };
 
 const MIXED_TOOLTIP = "Advanced mode enabled due to mixed use of quoted and unquoted terms";
@@ -73,13 +73,12 @@ function ModeCycleButton({ mode, disabled, reason, onSetMode }: {
   onSetMode: (mode: SearchMode) => void;
 }) {
   const next = MODES[(MODES.indexOf(mode) + 1) % MODES.length];
-  const label = reason ?? `${MODE_CONFIG[mode].title}. Tap for ${next}.`;
+  const label = reason ?? `${MODE_CONFIG[mode].title}. Press for ${MODE_CONFIG[next].name} (${MODE_CONFIG[next].symbol}).`;
   return (
     <button
       type="button"
       onClick={() => onSetMode(next)}
       aria-label={label}
-      title={label}
       disabled={disabled}
       data-mode={mode}
       className={`${SEARCH_PILL_CLASS} sm:hidden shrink-0`}

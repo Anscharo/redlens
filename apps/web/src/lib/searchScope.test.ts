@@ -19,14 +19,28 @@ describe("scopeOf", () => {
 });
 
 describe("withoutScope", () => {
-  it("drops every token and tidies the spaces", () => {
-    expect(withoutScope('in:A.1 "foo bar"  in:A.6 baz')).toBe('"foo bar" baz');
+  it("drops every token, closing up only the space each one leaves", () => {
+    expect(withoutScope('in:A.1 "foo bar" in:A.6 baz')).toBe('"foo bar" baz');
+    expect(withoutScope("fees in:A.1.2")).toBe("fees");
+  });
+
+  it("keeps the reader's own spacing, which a quoted phrase matches literally", () => {
+    expect(withoutScope('"foo  bar" in:A.1.2')).toBe('"foo  bar"');
+  });
+
+  it("never takes a closing quote typed against the token", () => {
+    expect(withoutScope('"fees in:A.1.2"')).toBe('"fees"');
+    expect(scopeOf('"fees in:A.1.2"')).toBe("A.1.2");
   });
 });
 
 describe("toggleScope", () => {
   it("scopes an empty query", () => {
     expect(toggleScope("", "A.1.2")).toBe("in:A.1.2");
+  });
+
+  it("leaves a phrase's inner spacing alone", () => {
+    expect(toggleScope('"foo  bar"', "A.1.2")).toBe('"foo  bar" in:A.1.2');
   });
 
   it("appends after the reader's own terms, quotes untouched", () => {

@@ -10,8 +10,13 @@ interface Props {
   onToggle: () => void;
 }
 
+/** True when a press lifts the scope: it is the open document's, or no document is open to switch to. */
+function liftsScope(scopeDoc: ScopeDoc | null, scoped: string | null): boolean {
+  return scoped !== null && (!scopeDoc || scoped.toUpperCase() === scopeDoc.docNo.toUpperCase());
+}
+
 function scopeTooltip(scopeDoc: ScopeDoc | null, scoped: string | null): string {
-  if (scoped && (!scopeDoc || scoped.toUpperCase() === scopeDoc.docNo.toUpperCase())) {
+  if (scoped && liftsScope(scopeDoc, scoped)) {
     return `Searching within ${scoped} and children — press to search the whole atlas`;
   }
   if (scopeDoc && scoped) return `Search within ${scopeDoc.docNo} and children instead of ${scoped}`;
@@ -22,6 +27,9 @@ function scopeTooltip(scopeDoc: ScopeDoc | null, scoped: string | null): string 
 /** The `in:` button beside the search field: scopes the query to the open document's subtree, or lifts the scope. */
 export function SearchScopeButton({ scopeDoc, scoped, onToggle }: Props) {
   const tooltip = scopeTooltip(scopeDoc, scoped);
+  // Lit only when a press would lift the scope; a scope to some other document
+  // reads as unpressed, since a press switches it rather than turning it off.
+  const pressed = liftsScope(scopeDoc, scoped);
   return (
     <Tooltip content={tooltip}>
       <span className="flex shrink-0">
@@ -29,10 +37,10 @@ export function SearchScopeButton({ scopeDoc, scoped, onToggle }: Props) {
           type="button"
           onClick={onToggle}
           aria-label={tooltip}
-          aria-pressed={scoped !== null}
+          aria-pressed={pressed}
           disabled={!scopeDoc && !scoped}
           className={SEARCH_PILL_CLASS}
-          style={searchPillStyle(scoped !== null)}
+          style={searchPillStyle(pressed)}
         >
           in:
         </button>

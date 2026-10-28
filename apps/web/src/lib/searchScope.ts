@@ -2,7 +2,10 @@
 // query text. No React, no URL state. The worker's parser (search.worker.ts)
 // honours the LAST `in:` token, so the rewrite keeps at most one.
 
-const IN_TOKEN_RE = /\bin:(\S+)/gi;
+// The value stops at a quote, so a token typed against a closing quote never
+// takes that quote with it when the button removes or replaces the token.
+const IN_TOKEN_RE = /\bin:([^\s"']+)/gi;
+const IN_TOKEN_WITH_SPACE_RE = /(\s?)\bin:[^\s"']+(\s?)/gi;
 
 /** The doc_no the query is scoped to, or null when it carries no `in:` token. */
 export function scopeOf(query: string): string | null {
@@ -11,9 +14,13 @@ export function scopeOf(query: string): string | null {
   return last;
 }
 
-/** The query with every `in:` token removed and whitespace collapsed. */
+/**
+ * The query with every `in:` token removed. Only the space a token leaves
+ * behind is closed up: the reader's own spacing stays as typed, because a
+ * quoted phrase matches its spaces literally.
+ */
 export function withoutScope(query: string): string {
-  return query.replace(IN_TOKEN_RE, " ").replace(/\s+/g, " ").trim();
+  return query.replace(IN_TOKEN_WITH_SPACE_RE, (_m, before: string, after: string) => (before && after ? " " : "")).trim();
 }
 
 /**
