@@ -101,7 +101,7 @@ describe("SearchBar mode-cycle button (phones)", () => {
 });
 
 describe("SearchBar in: scope button", () => {
-  const doc = { id: "u1", docNo: "A.1.2", title: "Atlas Documents" };
+  const doc = { id: "u1", docNo: "A.1.2" };
   const scopeButton = () => screen.getByText("in:");
 
   it("is absent unless the shell passes it", () => {
@@ -113,7 +113,7 @@ describe("SearchBar in: scope button", () => {
     const toggleScope = vi.fn();
     setup({ inScope: { scopeDoc: doc, scoped: null, toggleScope } });
     expect(scopeButton()).toHaveAttribute("aria-pressed", "false");
-    expect(scopeButton()).toHaveAttribute("aria-label", expect.stringContaining("A.1.2 Atlas Documents"));
+    expect(scopeButton()).toHaveAttribute("aria-label", "Search within A.1.2 and children (adds in:A.1.2)");
     fireEvent.click(scopeButton());
     expect(toggleScope).toHaveBeenCalled();
   });
@@ -121,7 +121,12 @@ describe("SearchBar in: scope button", () => {
   it("reads as pressed while the query is scoped", () => {
     setup({ inScope: { scopeDoc: doc, scoped: "A.1.2", toggleScope: vi.fn() } });
     expect(scopeButton()).toHaveAttribute("aria-pressed", "true");
-    expect(scopeButton()).toHaveAttribute("aria-label", expect.stringContaining("whole atlas"));
+    expect(scopeButton()).toHaveAttribute("aria-label", "Searching within A.1.2 and children — press to search the whole atlas");
+  });
+
+  it("names the replacement when scoped to a different document", () => {
+    setup({ inScope: { scopeDoc: doc, scoped: "A.6", toggleScope: vi.fn() } });
+    expect(scopeButton()).toHaveAttribute("aria-label", "Search within A.1.2 and children instead of A.6");
   });
 
   it("stays usable to lift a scope with no document open, and is disabled with neither", () => {

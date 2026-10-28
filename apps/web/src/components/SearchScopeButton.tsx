@@ -11,12 +11,11 @@ interface Props {
 }
 
 function scopeTooltip(scopeDoc: ScopeDoc | null, scoped: string | null): string {
-  const target = scopeDoc && `${scopeDoc.docNo} ${scopeDoc.title}`;
   if (scoped && (!scopeDoc || scoped.toUpperCase() === scopeDoc.docNo.toUpperCase())) {
-    return `Searching within in:${scoped} — press to search the whole atlas`;
+    return `Searching within ${scoped} and children — press to search the whole atlas`;
   }
-  if (target && scoped) return `Search within ${target} instead of ${scoped}`;
-  if (target) return `Search within ${target} (adds in:${scopeDoc.docNo})`;
+  if (scopeDoc && scoped) return `Search within ${scopeDoc.docNo} and children instead of ${scoped}`;
+  if (scopeDoc) return `Search within ${scopeDoc.docNo} and children (adds in:${scopeDoc.docNo})`;
   return "Open a document to search within it";
 }
 

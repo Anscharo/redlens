@@ -11,7 +11,6 @@ import { ROUTES, homeSearchHref } from "@/lib/routes";
 export interface ScopeDoc {
   id: string;
   docNo: string;
-  title: string;
 }
 
 /**
@@ -30,7 +29,7 @@ function useScopeDoc(): ScopeDoc | null {
     loadDocs(base).then(
       (docs) => {
         const node = docs[nodeId];
-        if (live && node) setDoc({ id: nodeId, docNo: node.doc_no, title: node.title });
+        if (live && node) setDoc({ id: nodeId, docNo: node.doc_no });
       },
       () => {},
     );
