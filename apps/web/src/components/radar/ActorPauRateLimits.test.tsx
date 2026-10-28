@@ -75,6 +75,25 @@ describe("PauRateLimits", () => {
     expect([other.textContent, within(other).queryByRole("link")]).toEqual(["Aggregate CCTP", null]);
   });
 
+  it("adds the controller constant to an address-matched name that another key also carries", () => {
+    const vault = "0x" + "7".repeat(40);
+    const mk = (key: string, constant: string): ContractLimit => ({ ...limit(RL1), key, derived: { constant, args: [vault] } });
+    const [withdraw, redeem, deposit] = ["0x" + "b".repeat(64), "0x" + "c".repeat(64), "0x" + "d".repeat(64)];
+    const keyIndex = new Map([
+      [withdraw, [{ docId: "maple", label: "Maple USDC · Outflow", via: vault, shared: true }]],
+      [redeem, [{ docId: "maple", label: "Maple USDC · Outflow", via: vault, shared: true }]],
+      [deposit, [{ docId: "maple", label: "Maple USDC · Inflow", via: vault }]],
+    ]);
+    const limits = [mk(withdraw, "LIMIT_4626_WITHDRAW"), mk(redeem, "LIMIT_MAPLE_REDEEM"), mk(deposit, "LIMIT_4626_DEPOSIT")];
+    const { container } = render(<PauRateLimits chain="ethereum" limits={limits} keyIndex={keyIndex} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} />);
+    const names = within(container).getAllByRole("row").slice(1).map((r) => within(r).getAllByRole("cell")[0].textContent);
+    expect(names.sort()).toEqual([
+      "Maple USDC · Inflow (matched by address)",
+      "Maple USDC · Outflow · LIMIT_4626_WITHDRAW (matched by address)",
+      "Maple USDC · Outflow · LIMIT_MAPLE_REDEEM (matched by address)",
+    ]);
+  });
+
   it("names the one document that names a constant-named limit's controller constant, beside it", () => {
     const row: ContractLimit = { ...limit(RL1), derived: { constant: "LIMIT_USDS_MINT", args: [] } };
     const doc = { id: "check-doc", title: "Check RateLimits", doc_no: "A.6.1" } as never;

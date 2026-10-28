@@ -7,6 +7,7 @@ import { checkAtlasValues, type ValueCheck } from "@/lib/pauAtlasValues";
 import { atlasVerdicts } from "@/lib/pauAtlasMatch";
 import { withCheckedKeys } from "@/lib/pauCheckKeys";
 import { withRefChains } from "@/lib/pauKeyChains";
+import { withSharedLabels } from "@/lib/pauSharedLabels";
 import { namedIn } from "@/lib/pauConstantDocs";
 import { graphPrimeSources } from "@/lib/pauDocSources";
 import { addressKeyIndex, instanceKeyIndex, loadPau, loadPauHistory, primeKeyedInstance, snapshotsForPrime, timelineFor, withAddressKeys, type KeyedInstance } from "../../lib/pau";
@@ -42,7 +43,7 @@ function usePauPage({ prime, instances }: Props) {
   const graph = useLoaded(loadGraph, { soft: true });
   const named = useMemo(() => namedIn(graph?.participants.find((p) => p.id === prime.id)?.did, atlas), [graph, atlas, prime.id]);
   const keyIndex = useMemo(
-    () => withRefChains(withCheckedKeys(withAddressKeys(instanceKeyIndex([primeKeyedInstance(prime.m), ...instances]), addressKeyIndex(instances, snaps)), checks), atlas),
+    () => withSharedLabels(withRefChains(withCheckedKeys(withAddressKeys(instanceKeyIndex([primeKeyedInstance(prime.m), ...instances]), addressKeyIndex(instances, snaps)), checks), atlas)),
     [prime.m, instances, snaps, checks, atlas],
   );
   const verdicts = useMemo(() => atlasVerdicts(checks), [checks]);

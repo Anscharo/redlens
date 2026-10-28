@@ -52,7 +52,8 @@ export function PauLimitName({ r, chain, keyIndex, namedIn }: { r: { key: string
       </span>
     );
   }
-  const label = labelOnChain(ref.label, chain) + (ref.via ? " (matched by address)" : "");
+  const constant = ref.shared && r.derived ? ` · ${r.derived.constant}` : "";
+  const label = labelOnChain(ref.label, chain) + constant + (ref.via ? " (matched by address)" : "");
   const viaNote = ref.via ? [`the atlas lists ${ref.via} for this instance, and this key is derived from that address`] : [];
   const title = [r.key, ...viaNote, ...(r.derived ? [`derived from ${derivation(r.derived)}`] : []), ...refs.slice(1).map((x) => `also ${x.label}`)].join("\n");
   if (!ref.docId) return <span title={title}>{label}</span>;
