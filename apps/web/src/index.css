@@ -1810,6 +1810,11 @@ a.atlas-annotates:focus-visible {
   border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 
+/* The clear button keeps its place while the field is empty. */
+.search-clear[data-state="hidden"] {
+  visibility: hidden;
+}
+
 /* ─── Search input ─── */
 .search-input {
   background: transparent;

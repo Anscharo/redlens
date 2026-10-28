@@ -28,9 +28,6 @@
     { "files": ["apps/web/src/components/Drawer.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 81, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/FeaturesPage.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 79, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/Footer.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 77, "skipBlankLines": true, "skipComments": true }] } },
-    // No max-lines entry: the mode pills live in SearchModePills.tsx and the home
-    // icon in HomeLink.tsx, which keeps the file inside the 180 limit.
-    { "files": ["apps/web/src/components/SearchBar.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 128, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/Tooltip.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 149, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/atlas/AtlasReader.tsx"], "rules": { "max-lines": ["error", { "max": 449, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 407, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/atlas/CollapsibleNode.tsx"], "rules": { "max-lines": ["error", { "max": 370, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 328, "skipBlankLines": true, "skipComments": true }] } },
