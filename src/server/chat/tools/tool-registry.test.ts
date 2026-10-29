@@ -435,13 +435,15 @@ test("invokeTool hands the caller's context to the handler, defaulting to anonym
   expect(seen).toEqual([{ surface: "mcp" }, { surface: "chat", userId: "u1" }]);
 });
 
-test("execToolDetailed forwards the chat context to the tool", async () => {
+test("execToolDetailed forwards the chat context to the tool, with the cut it will apply", async () => {
   const original = TOOLS_BY_NAME.get("atlas_describe")!;
   let seen: unknown;
   TOOLS_BY_NAME.set("atlas_describe", { ...original, handler: (_ix, _a, ctx) => ((seen = ctx), {}) });
   try {
     await execToolDetailed(makeIx(), "atlas_describe", "{}", undefined, { surface: "chat", userId: "u2" });
-    expect(seen).toEqual({ surface: "chat", userId: "u2" });
+    expect(seen).toEqual({ surface: "chat", userId: "u2", resultChars: config.chatToolResultMaxChars });
+    await execToolDetailed(makeIx(), "atlas_describe", "{}");
+    expect(seen).toEqual({ surface: "mcp", resultChars: config.chatToolResultMaxChars });
   } finally {
     TOOLS_BY_NAME.set("atlas_describe", original);
   }

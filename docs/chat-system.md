@@ -493,7 +493,15 @@ live chat context. `fitToBudget` greedily keeps items under the byte budget,
 always keeps at least one item (a lone oversized item beats an empty result),
 and reports `truncated` so the caller pages or narrows instead of blowing up.
 
-Tools marked `largeResult` (`atlas_preview_diff`, `atlas_preview_get`) may go
+The ranked tools (`atlas_search`, `atlas_query`) take `k` up to 200 and an
+`offset`, and cut whole rows to the caller's budget rather than leaving the
+transport to slice their JSON: `execToolDetailed` passes the chat cut down as
+`resultChars`, a page that hits it returns `truncated` and `next_offset`, and
+MCP callers get the MCP budget (`retrieval/result-page.ts`). On an ordinary turn
+that is about 70 lean rows or 30 enriched ones.
+
+Tools marked `largeResult` (`atlas_preview_diff`, `atlas_preview_get`,
+`atlas_search`, `atlas_query`) may go
 past the chat budget on a turn whose whole model chain is listed in
 `CHAT_LARGE_CONTEXT_MODELS` (`chat/large-read.ts`): up to
 `CHAT_LARGE_RESULT_MAX_CHARS` (300k) per result and `CHAT_LARGE_READ_MAX_CHARS`

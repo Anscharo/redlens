@@ -3,6 +3,7 @@
 // converted to JSON Schema for the OpenAI tool-calling API). Keep descriptions
 // terse-but-complete — the model reads them to decide how to call the tool.
 import { z } from "zod";
+import { pageShape } from "./result-page.ts";
 
 export const atlasQueryShape = {
   query: z.string().optional().describe("Keyword/semantic search terms (hybrid by default)."),
@@ -34,7 +35,7 @@ export const atlasQueryShape = {
     .enum(["out", "in", "both"])
     .optional()
     .describe("Entity edge direction (default 'both' — many relationships, e.g. active_data_for, are doc→entity)."),
-  k: z.number().int().min(1).max(50).default(10),
+  ...pageShape,
   enrich: z
     .boolean()
     .default(false)

@@ -360,3 +360,33 @@ describe("zero results with filters applied", () => {
     expect(out).not.toHaveProperty("hint");
   });
 });
+
+describe("atlasQuery — paging", () => {
+  it("pages a type_list with offset and next_offset, ending without one", async () => {
+    const { ix } = buildFixture();
+    const first = (await atlasQuery(ix, { target_type: "Core", k: 2, enrich: false })) as { results: { id: string }[]; next_offset?: number };
+    expect(first.results).toHaveLength(2);
+    expect(first.next_offset).toBe(2);
+    const rest = (await atlasQuery(ix, { target_type: "Core", k: 2, offset: 2, enrich: false })) as { results: { id: string }[]; next_offset?: number };
+    expect(rest.results).toHaveLength(2);
+    expect(rest.next_offset).toBeUndefined();
+    expect(new Set([...first.results, ...rest.results].map((r) => r.id)).size).toBe(4);
+  });
+
+  it("cuts whole rows to the caller's budget and returns where to resume", async () => {
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, { target_type: "Core", k: 10, enrich: false }, 2_300)) as Record<string, unknown>;
+    const results = out.results as unknown[];
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.length).toBeLessThan(4);
+    expect(out.truncated).toBe(true);
+    expect(out.next_offset).toBe(results.length);
+  });
+
+  it("does not blame the filters for an empty page past the end", async () => {
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, { target_type: "Core", status: "Active", k: 10, offset: 10, enrich: false })) as Record<string, unknown>;
+    expect(out.count).toBe(0);
+    expect(out.filters_applied).toBeUndefined();
+  });
+});

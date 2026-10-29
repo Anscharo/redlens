@@ -6,7 +6,7 @@ import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type OpenAI from "openai";
 import { ATLAS_TOOLS, TOOLS_BY_NAME, invokeTool, omitEmptyArgs, toolDescription } from "./tool-registry.ts";
-import type { ToolCallContext } from "./tool-context.ts";
+import { ANON_MCP_CTX, type ToolCallContext } from "./tool-context.ts";
 import { chargeLargeRead, resultBudget } from "../large-read.ts";
 import { EXPORT_TOOL_NAME, EXPORT_TOOL_SHAPE, EXPORT_TOOL_DESCRIPTION } from "./export-tool.ts";
 import {
@@ -160,8 +160,10 @@ export async function execToolDetailed(
   const strippedKeys = Object.keys(raw).filter((k) => !(k in tool.shape));
   if (strippedKeys.length) captureEvent("chat_tool_arg_stripped", obs, { tool: name, keys: strippedKeys });
   try {
-    const json = JSON.stringify(await invokeTool(ix, tool, parsed.data as Record<string, unknown>, ctx));
-    const out = applyChatToolBudget(json, resultBudget(tool.largeResult, ctx?.largeRead));
+    // The handler learns the cut below, so a paging tool can drop whole rows to fit it.
+    const budget = resultBudget(tool.largeResult, ctx?.largeRead);
+    const json = JSON.stringify(await invokeTool(ix, tool, parsed.data as Record<string, unknown>, { ...(ctx ?? ANON_MCP_CTX), resultChars: budget }));
+    const out = applyChatToolBudget(json, budget);
     chargeLargeRead(tool.largeResult, ctx?.largeRead, out.returnedChars);
     return out;
   } catch (e) {

@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-29
+
+- Raised the search limit for the chat's in-depth answers and the MCP search tools from 50 to 200 results
+
 ## 2026-10-28
 
 - Added an in: button beside the search box that limits search to the document you're reading

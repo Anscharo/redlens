@@ -8,7 +8,8 @@ import { runLexical, runSemantic, rrfMerge, filterByType, buildAgentSnippet, ext
 import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "./leaf-attribution.ts";
 import { resolveEntity } from "./entity-resolve.ts";
 import { resolveTargetType } from "./doc-types.ts";
-import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
+import { MAX_RESULT_CHARS, TRUNCATION_HINT } from "../chat/output-budget.ts";
+import { fitWithExtra, pageOf, poolSize } from "./result-page.ts";
 import { sql } from "../db.ts";
 import { livenessOf, withLivenessHint, type ToolResult } from "../chat/tools/tools.ts";
 import { pgType } from "../history/change-type.ts";
@@ -28,6 +29,7 @@ export interface QueryArgs {
   include_params?: boolean;
   direction?: "out" | "in" | "both";
   k: number;
+  offset?: number;
   enrich: boolean;
   /** @deprecated alias of `query` */
   q?: string;
@@ -156,20 +158,15 @@ function chainEntityIds(ix: Indexes, entityId: string, viaType: string, edgeType
 // repeat the same scope/article chain ten times. Null when no row is enriched.
 function collectAncestors(ix: Indexes, rows: unknown[]): Record<string, unknown> | null {
   const map: Record<string, { doc_no: string; title: string; type: string; depth: number }> = {};
-  let any = false;
   for (const r of rows) {
     const ids = (r as { ancestor_ids?: unknown }).ancestor_ids;
     if (!Array.isArray(ids)) continue;
     for (const id of ids as string[]) {
-      if (map[id]) continue;
-      const n = ix.docMap.get(id);
-      if (n) {
-        map[id] = { doc_no: n.doc_no, title: n.title, type: n.type, depth: n.depth };
-        any = true;
-      }
+      const n = map[id] ? undefined : ix.docMap.get(id);
+      if (n) map[id] = { doc_no: n.doc_no, title: n.title, type: n.type, depth: n.depth };
     }
   }
-  return any ? map : null;
+  return Object.keys(map).length ? map : null;
 }
 
 function enrichNode(ix: Indexes, n: AtlasNode, enrich: boolean, includeParams: boolean) {
@@ -189,7 +186,8 @@ function enrichNode(ix: Indexes, n: AtlasNode, enrich: boolean, includeParams: b
   return base;
 }
 
-export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult> {
+// `budget` is the caller's whole-result budget (result-page.ts `resultChars`).
+export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_CHARS): Promise<ToolResult> {
   const query = a.query ?? a.q;
   if (!query && !a.entity && !a.target_type) {
     return { error: "at least one of query, entity, or target_type is required" };
@@ -270,11 +268,11 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
     a.edge_types?.length ? `edge_types=${a.edge_types.join("|")}` : "",
     a.via_entity_type ? `via_entity_type=${a.via_entity_type}` : "",
   ].filter(Boolean);
-  const enrich = (nodes: AtlasNode[]) => nodes.map((n) => enrichNode(ix, n, a.enrich, !!a.include_params));
-  // Cap any content-bearing result array to the output budget so a single call
-  // can't overflow the caller's context; `truncated` tells them to page/narrow.
-  const withBudget = (rows: unknown[], rest: Record<string, unknown>): ToolResult => {
-    const { kept, truncated } = fitToBudget(rows);
+  const row = (n: AtlasNode) => enrichNode(ix, n, a.enrich, !!a.include_params);
+  // One page of `all`, cut whole to the caller's budget so a single call can't
+  // overflow its context; `next_offset` tells it where the next page starts.
+  const withBudget = <T,>(all: T[], toRow: (t: T) => unknown, rest: Record<string, unknown>): ToolResult => {
+    const { rows: kept, fields } = pageOf(all, { offset: a.offset ?? 0, k: a.k }, budget, toRow, (r) => collectAncestors(ix, r));
     const ancestors = collectAncestors(ix, kept);
     // Zero results WITH filters active is a recoverable state, not an answer.
     // Say so, name the arguments to drop, and report how many candidates they
@@ -282,11 +280,11 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
     // the toolset uses. Silence here costs a whole turn: the model cites what
     // it knows anyway, citation repair strips the un-retrieved uuid, and the
     // deterministic checks hard-fail an answer that was actually correct.
-    const emptyByFilters = kept.length === 0 && activeFilters.length > 0;
+    const emptyByFilters = kept.length === 0 && activeFilters.length > 0 && !a.offset;
     const envelope = {
       ...rest,
       count: kept.length,
-      ...(truncated ? { truncated: true, hint: TRUNCATION_HINT } : {}),
+      ...fields,
       ...(targetType.resolvedFrom ? { resolved_target_type: { from: targetType.resolvedFrom, to: targetType.type } } : {}),
       ...(unknownFilterValues.length && !emptyByFilters
         ? { invalid_filter_values: unknownFilterValues, hint: `${unknownFilterValues.join("; ")}. That argument was IGNORED for this call — these results are unfiltered by it.` }
@@ -317,8 +315,8 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
     const chain = chainEntityIds(ix, entityId, a.via_entity_type, a.edge_types, dir);
     const docs = new Map<string, AtlasNode>();
     for (const cid of chain) for (const { doc } of entityDocs(ix, cid, undefined, a.target_type, dir)) docs.set(doc.id, doc);
-    const kept = constrain([...docs.keys()]).slice(0, a.k).map((id) => docs.get(id)!);
-    return withBudget(enrich(kept), { entity: a.entity, resolved_entity: resolvedEntity, via_entity_type: a.via_entity_type, mode: "entity_chain" });
+    const all = constrain([...docs.keys()]).map((id) => docs.get(id)!);
+    return withBudget(all, row, { entity: a.entity, resolved_entity: resolvedEntity, via_entity_type: a.via_entity_type, mode: "entity_chain" });
   }
 
   // ── entity_broad ──────────────────────────────────────────────────────────────
@@ -331,12 +329,12 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
       const docs = grouped[rel] as AtlasNode[];
       const kept = constrain(docs.map((d) => d.id)).map((id) => docs.find((d) => d.id === id)!);
       if (kept.length === 0) delete grouped[rel];
-      else grouped[rel] = enrich(kept);
+      else grouped[rel] = kept.map(row);
     }
     // Budget across all groups together, preserving grouping.
     const flat: Array<[string, unknown]> = [];
     for (const rel of Object.keys(grouped)) for (const row of grouped[rel]) flat.push([rel, row]);
-    const { kept, truncated } = fitToBudget(flat);
+    const { kept, truncated } = fitWithExtra(flat, budget, (ks) => collectAncestors(ix, ks.map(([, r]) => r)));
     const by_relationship: Record<string, unknown[]> = {};
     for (const [rel, row] of kept) (by_relationship[rel] ??= []).push(row);
     const ancestors = collectAncestors(ix, kept.map(([, row]) => row));
@@ -354,8 +352,8 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   // ── type_list ────────────────────────────────────────────────────────────────
   if (!a.entity && !query && a.target_type) {
     const rows = [...ix.docMap.values()].filter((d) => d.type === a.target_type);
-    const kept = constrain(rows.map((r) => r.id)).slice(0, a.k).map((id) => ix.docMap.get(id)!);
-    return withBudget(enrich(kept), { mode: "type_list", type: a.target_type });
+    const all = constrain(rows.map((r) => r.id)).map((id) => ix.docMap.get(id)!);
+    return withBudget(all, row, { mode: "type_list", type: a.target_type });
   }
 
   // ── entity doc set (for narrow / intersection) ───────────────────────────────
@@ -372,7 +370,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   let semSkipped: string | null = null;
   if (query) {
     const { phrases, casePhrases } = extractPhrases(query);
-    const fetchK = Math.min(a.k * 4, 200);
+    const fetchK = poolSize((a.offset ?? 0) + a.k, false);
     // Sequential rather than a Promise.all, and it costs nothing: the lexical
     // leg is synchronous in-memory MiniSearch, and running it first is
     // what lets leaf attribution's residual be embedded in the query's own round
@@ -401,16 +399,15 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
 
   // ── intersect / narrow ────────────────────────────────────────────────────────
   if (!query && entityDocIds) {
-    const ids = [...entityDocIds].slice(0, a.k);
-    const nodes = ids.map((id) => ix.docMap.get(id)!).filter(Boolean);
-    return withBudget(enrich(nodes), { entity: a.entity, resolved_entity: resolvedEntity, mode: "entity_narrow" });
+    const nodes = [...entityDocIds].map((id) => ix.docMap.get(id)!).filter(Boolean);
+    return withBudget(nodes, row, { entity: a.entity, resolved_entity: resolvedEntity, mode: "entity_narrow" });
   }
 
   let hits = query && entityDocIds ? searchHits.filter((h) => entityDocIds!.has(h.id)) : searchHits;
   const constrained = new Set(constrain(hits.map((h) => h.id)));
-  hits = hits.filter((h) => constrained.has(h.id)).slice(0, a.k);
+  hits = hits.filter((h) => constrained.has(h.id));
   const mode = query && entityDocIds ? "hybrid_graph" : "search";
-  const results = hits.map((h) => {
+  const toRow = (h: (typeof hits)[number]) => {
     const n = ix.docMap.get(h.id)!;
     // `sources` lets the caller tell agreed hits (lexical ∩ semantic) apart from
     // single-source ones — the former are the more trustworthy matches. Skip the
@@ -423,8 +420,8 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
       sources: h.sources,
       ...(h.via ? { via: h.via } : {}),
     };
-  });
-  return withBudget(results, {
+  };
+  return withBudget(hits, toRow, {
     ...(resolvedEntity ? { entity: a.entity, resolved_entity: resolvedEntity } : {}),
     mode,
     ...(semSkipped ? { semantic_skipped: semSkipped } : {}),

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { atlasQuery, type QueryArgs } from "../../retrieval/query.ts";
 import { atlasQueryShape } from "../../retrieval/query-schema.ts";
+import { resultChars } from "../../retrieval/result-page.ts";
 import { atlasFirstSeen } from "../../history/first-seen.ts";
 import { readOnlyAtlasTool, type AtlasTool } from "./tool-types.ts";
 
@@ -53,6 +54,7 @@ export const QUERY_TOOLS: AtlasTool[] = [
       "Lean results by default — see `enrich`.",
     shape: atlasQueryShape,
     emptyArgsAbsent: true,
-    handler: (ix, a) => atlasQuery(ix, a as unknown as QueryArgs),
+    largeResult: true,
+    handler: (ix, a, ctx) => atlasQuery(ix, a as unknown as QueryArgs, resultChars(ctx)),
   },
 ];

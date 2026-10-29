@@ -3,6 +3,7 @@ import { z } from "zod";
 import { atlasDescribe, atlasGet, atlasSearch, atlasGetAddress, type SearchArgs } from "./tools.ts";
 import { readOnlyAtlasTool, type AtlasTool } from "./tool-types.ts";
 import { withOnchain } from "../../onchain/enrich.ts";
+import { pageShape, resultChars } from "../../retrieval/result-page.ts";
 
 export const CORE_TOOLS: AtlasTool[] = [
   {
@@ -54,11 +55,12 @@ export const CORE_TOOLS: AtlasTool[] = [
       "post-filtered to require an exact substring match in title or content.",
     shape: {
       query: z.string().describe('Query. Quote phrases for exact-substring match: foo "USDS PSM" bar'),
-      k: z.number().int().min(1).max(50).default(10),
+      ...pageShape,
       type: z.string().optional().describe("Optional Atlas document type filter."),
       mode: z.enum(["lexical", "semantic", "hybrid"]).default("hybrid"),
     },
-    handler: (ix, a) => atlasSearch(ix, a as unknown as SearchArgs),
+    largeResult: true,
+    handler: (ix, a, ctx) => atlasSearch(ix, a as unknown as SearchArgs, resultChars(ctx)),
   },
   {
     name: "atlas_get_address",

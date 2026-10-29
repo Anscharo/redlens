@@ -47,5 +47,6 @@ export function previewCaps(read: LargeRead | null | undefined): PreviewCaps {
 
 /** The system-prompt line that tells the model it may ask for large pages. */
 export const LARGE_READ_PROMPT =
-  "This turn can read large PR previews. To review a PR, call atlas_preview_diff with a high `limit` (up to 1000) and " +
+  "This turn can read large results. atlas_search and atlas_query return up to 200 rows a call (`k`), so a question " +
+  "about a whole class of documents can read all of it in one call. To review a PR, call atlas_preview_diff with a high `limit` (up to 1000) and " +
   "`patch_lines` (up to 400) to read the whole change in one or two calls, and atlas_preview_get with up to 50 ids.";
