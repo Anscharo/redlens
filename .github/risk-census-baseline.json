@@ -49,10 +49,76 @@
       "title": "Short-Term Transitionary Measures"
     },
     {
+      "taskKey": "u:3d031b7c-1b1f-4f84-8668-1cdf43cb2ab2",
+      "uuid": "3d031b7c-1b1f-4f84-8668-1cdf43cb2ab2",
+      "docNo": "A.1.10.2.3.2.1.2.1.2.1",
+      "title": "Requirements For Forum Post"
+    },
+    {
       "taskKey": "u:0dbdbcca-5c94-448c-9ac4-03b53c58065d",
       "uuid": "0dbdbcca-5c94-448c-9ac4-03b53c58065d",
       "docNo": "A.1.10.2.3.2.2.3.3.7",
       "title": "Prime Spell Recorded In Executive Sheet"
+    },
+    {
+      "taskKey": "u:b8c7abd2-863c-46a0-9136-66cf7932bea3",
+      "uuid": "b8c7abd2-863c-46a0-9136-66cf7932bea3",
+      "docNo": "A.1.10.2.7.1.1",
+      "title": "Authoring Team Definition"
+    },
+    {
+      "taskKey": "u:61d93d59-9975-402b-96a7-b61c3968d8a5",
+      "uuid": "61d93d59-9975-402b-96a7-b61c3968d8a5",
+      "docNo": "A.1.10.2.7.1.2",
+      "title": "Maintaining Team Definition"
+    },
+    {
+      "taskKey": "u:b84bdcd2-ad19-4467-a93c-3f8158a80b2f",
+      "uuid": "b84bdcd2-ad19-4467-a93c-3f8158a80b2f",
+      "docNo": "A.1.10.2.7.1.3",
+      "title": "External Maintaining Team Definition"
+    },
+    {
+      "taskKey": "u:696b13e9-d35b-407b-b436-aea7b77eecf6",
+      "uuid": "696b13e9-d35b-407b-b436-aea7b77eecf6",
+      "docNo": "A.1.10.2.7.2",
+      "title": "Audit Triggers"
+    },
+    {
+      "taskKey": "u:fcc17c4e-b1cd-4e62-bb2b-0aea02ee72d5",
+      "uuid": "fcc17c4e-b1cd-4e62-bb2b-0aea02ee72d5",
+      "docNo": "A.1.10.2.7.3",
+      "title": "Audit Request And Intake"
+    },
+    {
+      "taskKey": "u:4bead31b-adee-4121-a966-d0e1c31f91e2",
+      "uuid": "4bead31b-adee-4121-a966-d0e1c31f91e2",
+      "docNo": "A.1.10.2.7.3.1",
+      "title": "Code Review Requirement"
+    },
+    {
+      "taskKey": "u:555cfce5-ffb6-4466-8a9e-ff0ef1c78802",
+      "uuid": "555cfce5-ffb6-4466-8a9e-ff0ef1c78802",
+      "docNo": "A.1.10.2.7.3.1.1",
+      "title": "Review Of Changes To Codebases Maintained By Other Teams"
+    },
+    {
+      "taskKey": "u:252e0d85-55ca-4fb5-8f44-a38b6ac65e81",
+      "uuid": "252e0d85-55ca-4fb5-8f44-a38b6ac65e81",
+      "docNo": "A.1.10.2.7.5",
+      "title": "Report Review And Acceptance"
+    },
+    {
+      "taskKey": "u:80eab9dd-3833-4418-9845-b648e19fb72f",
+      "uuid": "80eab9dd-3833-4418-9845-b648e19fb72f",
+      "docNo": "A.1.10.2.7.6",
+      "title": "Findings Remediation"
+    },
+    {
+      "taskKey": "u:610c8780-178b-4055-9387-373e014c8202",
+      "uuid": "610c8780-178b-4055-9387-373e014c8202",
+      "docNo": "A.1.10.2.7.7",
+      "title": "Audit Recordkeeping"
     },
     {
       "taskKey": "u:ae05e069-0626-45f5-82d2-dbf39a5b2598",
@@ -352,6 +418,60 @@
       "taskKey": "u:c0642bfe-493c-489d-9f9f-9171dbb99d99",
       "uuid": "c0642bfe-493c-489d-9f9f-9171dbb99d99",
       "docNo": "A.2.2.10.1.1.1.2.3.2.7",
+      "title": "Timelock"
+    },
+    {
+      "taskKey": "u:d3fc5cd9-6aca-439a-847a-a440ee6bb2ba",
+      "uuid": "d3fc5cd9-6aca-439a-847a-a440ee6bb2ba",
+      "docNo": "A.2.2.10.1.1.1.2.3.3",
+      "title": "Base"
+    },
+    {
+      "taskKey": "u:eb4e8e2e-2a55-4c67-aa11-d26b07a481d9",
+      "uuid": "eb4e8e2e-2a55-4c67-aa11-d26b07a481d9",
+      "docNo": "A.2.2.10.1.1.1.2.3.3.1",
+      "title": "Beacon"
+    },
+    {
+      "taskKey": "u:2f52b12c-4e4e-46cf-9682-6e5f219666b2",
+      "uuid": "2f52b12c-4e4e-46cf-9682-6e5f219666b2",
+      "docNo": "A.2.2.10.1.1.1.2.3.3.2",
+      "title": "Facets"
+    },
+    {
+      "taskKey": "u:9bbe1ce3-06fc-46f2-8012-c1d612d1e182",
+      "uuid": "9bbe1ce3-06fc-46f2-8012-c1d612d1e182",
+      "docNo": "A.2.2.10.1.1.1.2.3.3.2.1",
+      "title": "CCTP Facet"
+    },
+    {
+      "taskKey": "u:5eaf6c6c-52c0-416d-94e7-b467fe533f73",
+      "uuid": "5eaf6c6c-52c0-416d-94e7-b467fe533f73",
+      "docNo": "A.2.2.10.1.1.1.2.3.3.3",
+      "title": "PAU Factory"
+    },
+    {
+      "taskKey": "u:102b7264-c4ae-4f36-ad22-bbfc11707e92",
+      "uuid": "102b7264-c4ae-4f36-ad22-bbfc11707e92",
+      "docNo": "A.2.2.10.1.1.1.2.3.3.4",
+      "title": "Administered Agent Factory"
+    },
+    {
+      "taskKey": "u:e5cf7362-7ea2-4a33-8373-565d56c7da67",
+      "uuid": "e5cf7362-7ea2-4a33-8373-565d56c7da67",
+      "docNo": "A.2.2.10.1.1.1.2.3.3.5",
+      "title": "Configurator"
+    },
+    {
+      "taskKey": "u:ee66bdd5-5344-41e6-8063-c899d22e7f42",
+      "uuid": "ee66bdd5-5344-41e6-8063-c899d22e7f42",
+      "docNo": "A.2.2.10.1.1.1.2.3.3.6",
+      "title": "BeamState"
+    },
+    {
+      "taskKey": "u:72b0384e-0151-44f8-bd0f-c5d90d0fb037",
+      "uuid": "72b0384e-0151-44f8-bd0f-c5d90d0fb037",
+      "docNo": "A.2.2.10.1.1.1.2.3.3.7",
       "title": "Timelock"
     },
     {
@@ -667,6 +787,162 @@
       "title": "Transitional Measures"
     },
     {
+      "taskKey": "u:2b4706b4-a37f-43bb-a9ed-339c744f20a2",
+      "uuid": "2b4706b4-a37f-43bb-a9ed-339c744f20a2",
+      "docNo": "A.2.2.10.1.1.1.2.4.3",
+      "title": "Base"
+    },
+    {
+      "taskKey": "u:818dfc44-503d-4f25-820d-9df5d8e8fe82",
+      "uuid": "818dfc44-503d-4f25-820d-9df5d8e8fe82",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.1",
+      "title": "Parameters"
+    },
+    {
+      "taskKey": "u:eec7a3cd-ec19-421e-9cc5-e4b1d0e051d4",
+      "uuid": "eec7a3cd-ec19-421e-9cc5-e4b1d0e051d4",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.1.1",
+      "title": "Hop Default Value"
+    },
+    {
+      "taskKey": "u:ee33adfa-ad78-4161-b1bd-0703073c0ef4",
+      "uuid": "ee33adfa-ad78-4161-b1bd-0703073c0ef4",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.1.2",
+      "title": "Max Change Default Value"
+    },
+    {
+      "taskKey": "u:91731ccf-8a71-4c3f-a5d5-107dbf690478",
+      "uuid": "91731ccf-8a71-4c3f-a5d5-107dbf690478",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.2",
+      "title": "Enabled Diamond PAUs"
+    },
+    {
+      "taskKey": "u:e30ab84f-80f9-4933-b7f1-98c1adb8a001",
+      "uuid": "e30ab84f-80f9-4933-b7f1-98c1adb8a001",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.2.1",
+      "title": "Spark Diamond PAU"
+    },
+    {
+      "taskKey": "u:36e7a9f1-1561-47b7-9478-e68c8c0a2d5a",
+      "uuid": "36e7a9f1-1561-47b7-9478-e68c8c0a2d5a",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.3",
+      "title": "BeamState"
+    },
+    {
+      "taskKey": "u:b696d4cd-c52b-4748-b76f-179f7a164ceb",
+      "uuid": "b696d4cd-c52b-4748-b76f-179f7a164ceb",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.3.1",
+      "title": "Core Council Multisig"
+    },
+    {
+      "taskKey": "u:c4666cda-ec0d-4353-b3a1-42b74670bdcb",
+      "uuid": "c4666cda-ec0d-4353-b3a1-42b74670bdcb",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.3.1.1",
+      "title": "Core Council Multisig Usage Standards"
+    },
+    {
+      "taskKey": "u:f890a7c2-17c0-4db4-9f73-f7c078a1061f",
+      "uuid": "f890a7c2-17c0-4db4-9f73-f7c078a1061f",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.3.2",
+      "title": "Timelock"
+    },
+    {
+      "taskKey": "u:57e8561a-110b-472b-82ec-161f444a3543",
+      "uuid": "57e8561a-110b-472b-82ec-161f444a3543",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.3.3",
+      "title": "Delayed Function Calls"
+    },
+    {
+      "taskKey": "u:ac24b08e-fa8d-4522-a5e7-bad37c6fd115",
+      "uuid": "ac24b08e-fa8d-4522-a5e7-bad37c6fd115",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.3.4",
+      "title": "Immediate Function Calls"
+    },
+    {
+      "taskKey": "u:c349e09d-56ef-4993-8b9e-cd573056ef57",
+      "uuid": "c349e09d-56ef-4993-8b9e-cd573056ef57",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.3.5",
+      "title": "Restart After Halt"
+    },
+    {
+      "taskKey": "u:b8929202-92c3-4bbb-89c4-7dc73e557105",
+      "uuid": "b8929202-92c3-4bbb-89c4-7dc73e557105",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4",
+      "title": "Configurator"
+    },
+    {
+      "taskKey": "u:56da9559-54be-4fb5-b39d-8c31c4aeed67",
+      "uuid": "56da9559-54be-4fb5-b39d-8c31c4aeed67",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.1",
+      "title": "Operator Execution"
+    },
+    {
+      "taskKey": "u:564d45c1-f02d-4c37-a5fe-76bfc91d44fe",
+      "uuid": "564d45c1-f02d-4c37-a5fe-76bfc91d44fe",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.2",
+      "title": "Public Communication"
+    },
+    {
+      "taskKey": "u:aa5f4ab8-55dc-4d9e-982f-dd349cdf19c7",
+      "uuid": "aa5f4ab8-55dc-4d9e-982f-dd349cdf19c7",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.3",
+      "title": "Registered Operators"
+    },
+    {
+      "taskKey": "u:085bf98e-d355-45b9-abc7-eb5ea50a29a4",
+      "uuid": "085bf98e-d355-45b9-abc7-eb5ea50a29a4",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.3.1",
+      "title": "Operator For The Spark Diamond PAU"
+    },
+    {
+      "taskKey": "u:d4539884-c7e3-44ee-b487-fc6523762218",
+      "uuid": "d4539884-c7e3-44ee-b487-fc6523762218",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.3.1.1",
+      "title": "Spark Operator Multisig Address"
+    },
+    {
+      "taskKey": "u:23ae088d-52b0-4321-bc54-dadac65afdf1",
+      "uuid": "23ae088d-52b0-4321-bc54-dadac65afdf1",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.3.1.2",
+      "title": "Spark Operator Multisig Required Number Of Signers"
+    },
+    {
+      "taskKey": "u:6a4be9f0-7e59-4a0a-a416-c86817aa7424",
+      "uuid": "6a4be9f0-7e59-4a0a-a416-c86817aa7424",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.3.1.3",
+      "title": "Spark Operator Multisig Signers"
+    },
+    {
+      "taskKey": "u:2a837abe-b271-49cc-b4dc-397b26f1a950",
+      "uuid": "2a837abe-b271-49cc-b4dc-397b26f1a950",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.3.1.4",
+      "title": "Spark Operator Multisig Usage Standards"
+    },
+    {
+      "taskKey": "u:e865b4b0-5f2e-4d9c-8960-4828ba3b4973",
+      "uuid": "e865b4b0-5f2e-4d9c-8960-4828ba3b4973",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.3.1.5",
+      "title": "Spark Operator Multisig Modification"
+    },
+    {
+      "taskKey": "u:62d63bd5-ffa8-427e-b2d4-fca4306dc091",
+      "uuid": "62d63bd5-ffa8-427e-b2d4-fca4306dc091",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.4",
+      "title": "Registered Controllers"
+    },
+    {
+      "taskKey": "u:e8c51802-a127-419f-a36d-b5435bcd1004",
+      "uuid": "e8c51802-a127-419f-a36d-b5435bcd1004",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.4.1",
+      "title": "Controller For The Spark Diamond PAU"
+    },
+    {
+      "taskKey": "u:9f398df8-0484-4c16-8cb9-8d7b04a8b531",
+      "uuid": "9f398df8-0484-4c16-8cb9-8d7b04a8b531",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.5",
+      "title": "Transitional Measures"
+    },
+    {
       "taskKey": "u:3b387169-c279-4d0f-918c-e6c424c6ea2c",
       "uuid": "3b387169-c279-4d0f-918c-e6c424c6ea2c",
       "docNo": "A.2.2.10.1.1.1.2.5",
@@ -835,6 +1111,18 @@
       "title": "Grove Foundation Grant Authorization: October 2026"
     },
     {
+      "taskKey": "u:c929aef7-1b81-4693-8fd8-3d75e62882af",
+      "uuid": "c929aef7-1b81-4693-8fd8-3d75e62882af",
+      "docNo": "A.2.8.2.3.2.1",
+      "title": "Pioneer Incentive Pool"
+    },
+    {
+      "taskKey": "u:6567f1e3-7c28-44ee-b46c-723f958b1817",
+      "uuid": "6567f1e3-7c28-44ee-b46c-723f958b1817",
+      "docNo": "A.2.8.2.7.2.2.3.2",
+      "title": "Skybase Foundation Grant Authorization: November 2026"
+    },
+    {
       "taskKey": "u:07f4faa6-f900-46e6-87d4-137fe2e5cb99",
       "uuid": "07f4faa6-f900-46e6-87d4-137fe2e5cb99",
       "docNo": "A.2.11.1.1.3.3.2",
@@ -991,6 +1279,78 @@
       "title": "ValueRegistry Multisig Modification"
     },
     {
+      "taskKey": "u:abe7f425-65fd-4a3a-b70c-55a8f30e708d",
+      "uuid": "abe7f425-65fd-4a3a-b70c-55a8f30e708d",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.1.2.6.3",
+      "title": "ALM Freezer Multisig (Avalanche) Address"
+    },
+    {
+      "taskKey": "u:229a9ce0-30bd-4069-a8a9-2ff911185b66",
+      "uuid": "229a9ce0-30bd-4069-a8a9-2ff911185b66",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.1.2.6.4",
+      "title": "ALM Relayer Multisig (Avalanche) Address"
+    },
+    {
+      "taskKey": "u:ed5c698b-cca9-43b8-965f-1dacd3ec46b3",
+      "uuid": "ed5c698b-cca9-43b8-965f-1dacd3ec46b3",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.1.2.8.3",
+      "title": "ALM Freezer Multisig (X Layer) Address"
+    },
+    {
+      "taskKey": "u:7248a5ae-a45e-46a1-9cee-a8cb0b391ff8",
+      "uuid": "7248a5ae-a45e-46a1-9cee-a8cb0b391ff8",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.1.2.8.4",
+      "title": "ALM Relayer Multisig (X Layer) Address"
+    },
+    {
+      "taskKey": "u:a1b86c45-97a0-4b3c-94aa-73ecfa2333ab",
+      "uuid": "a1b86c45-97a0-4b3c-94aa-73ecfa2333ab",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.1.3.2.5",
+      "title": "AdministeredAgent Contract"
+    },
+    {
+      "taskKey": "u:67bf2799-8d57-44be-82e4-827912ff30df",
+      "uuid": "67bf2799-8d57-44be-82e4-827912ff30df",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.2.2.1.1",
+      "title": "Address"
+    },
+    {
+      "taskKey": "u:567e4905-2b05-493e-95ac-8a4d20afed2b",
+      "uuid": "567e4905-2b05-493e-95ac-8a4d20afed2b",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.2.2.2.1",
+      "title": "Address"
+    },
+    {
+      "taskKey": "u:51777bdd-df5f-4a6e-93f5-8163d981f595",
+      "uuid": "51777bdd-df5f-4a6e-93f5-8163d981f595",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.2.2.3.1",
+      "title": "Address"
+    },
+    {
+      "taskKey": "u:ea73f176-0b94-4e93-b1ee-ca498ac5a6c6",
+      "uuid": "ea73f176-0b94-4e93-b1ee-ca498ac5a6c6",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.2.3",
+      "title": "Token Claim Authorization"
+    },
+    {
+      "taskKey": "u:53e4265a-19f9-4fb8-8f9d-4c6dcc2be66b",
+      "uuid": "53e4265a-19f9-4fb8-8f9d-4c6dcc2be66b",
+      "docNo": "A.6.1.1.1.2.6.1.2.2.1.1.5.2.3",
+      "title": "Allocator Role"
+    },
+    {
+      "taskKey": "u:21a91aa1-3a54-4616-8ebe-540676ddc48f",
+      "uuid": "21a91aa1-3a54-4616-8ebe-540676ddc48f",
+      "docNo": "A.6.1.1.1.2.6.1.2.2.1.1.5.2.4",
+      "title": "Freezer Role"
+    },
+    {
+      "taskKey": "u:d5a4a7c7-24ad-490e-b057-710d3259a04a",
+      "uuid": "d5a4a7c7-24ad-490e-b057-710d3259a04a",
+      "docNo": "A.6.1.1.1.2.6.1.2.2.1.1.5.2.5",
+      "title": "Grantor"
+    },
+    {
       "taskKey": "u:ac41be8b-f6c9-4df2-9fac-c543c77e0166",
       "uuid": "ac41be8b-f6c9-4df2-9fac-c543c77e0166",
       "docNo": "A.6.1.1.1.2.6.1.3.1.5.1.4.1.1",
@@ -1031,6 +1391,54 @@
       "uuid": "921d59d4-baaf-45a8-b6ff-93aa879e0e41",
       "docNo": "A.6.1.1.1.2.6.1.3.2.1.1.4.2.1",
       "title": "Curator Role Address"
+    },
+    {
+      "taskKey": "u:b1a1fb8a-29d7-4bbd-8204-25c74263c25d",
+      "uuid": "b1a1fb8a-29d7-4bbd-8204-25c74263c25d",
+      "docNo": "A.6.1.1.1.3.2.1.1.2.1.4",
+      "title": "WETH Risk Parameters"
+    },
+    {
+      "taskKey": "u:5e05e5d8-8477-460f-a197-4b49bfa8652f",
+      "uuid": "5e05e5d8-8477-460f-a197-4b49bfa8652f",
+      "docNo": "A.6.1.1.1.3.2.1.1.2.1.18",
+      "title": "pyUSD Risk Parameters"
+    },
+    {
+      "taskKey": "u:119a4bbf-9a37-4a2c-bac9-11e969244bfe",
+      "uuid": "119a4bbf-9a37-4a2c-bac9-11e969244bfe",
+      "docNo": "A.6.1.1.1.3.2.1.1.2.1.19",
+      "title": "USDG Risk Parameters"
+    },
+    {
+      "taskKey": "u:8002fcc5-0e0d-4b4c-9b62-41b20503f448",
+      "uuid": "8002fcc5-0e0d-4b4c-9b62-41b20503f448",
+      "docNo": "A.6.1.1.1.3.2.1.1.2.1.20",
+      "title": "RLUSD Risk Parameters"
+    },
+    {
+      "taskKey": "u:6e832698-c71b-441c-9132-4df8d0357351",
+      "uuid": "6e832698-c71b-441c-9132-4df8d0357351",
+      "docNo": "A.6.1.1.1.3.4.2.2.1.2",
+      "title": "RRC Lookback Period Definition"
+    },
+    {
+      "taskKey": "u:ac10196b-18b2-4bc4-8627-0cacac8a3524",
+      "uuid": "ac10196b-18b2-4bc4-8627-0cacac8a3524",
+      "docNo": "A.6.1.1.1.3.4.2.2.1.3",
+      "title": "Spark Product Backstop Definition"
+    },
+    {
+      "taskKey": "u:99d4b8da-fa5c-49ce-b93c-70d07334d7aa",
+      "uuid": "99d4b8da-fa5c-49ce-b93c-70d07334d7aa",
+      "docNo": "A.6.1.1.1.3.4.2.2.2",
+      "title": "Evaluation Method"
+    },
+    {
+      "taskKey": "u:d6be588d-e76e-4413-8a3e-c1b59e5bd106",
+      "uuid": "d6be588d-e76e-4413-8a3e-c1b59e5bd106",
+      "docNo": "A.6.1.1.1.3.4.2.3.1.5",
+      "title": "Buyback Executor"
     },
     {
       "taskKey": "u:6f64ac9e-daf1-4339-8046-3894e57f4383",
@@ -1087,6 +1495,18 @@
       "title": "Sentora RLUSD Morpho Vault - Ethereum Mainnet"
     },
     {
+      "taskKey": "u:8f0b88bf-0fcd-4103-a4c2-e03b61a2e8a7",
+      "uuid": "8f0b88bf-0fcd-4103-a4c2-e03b61a2e8a7",
+      "docNo": "A.6.1.1.2.2.6.1.2.1.2.2.2.2",
+      "title": "Required Number Of Signers"
+    },
+    {
+      "taskKey": "u:2ff0395a-f47a-478a-8621-28bae36bc2f7",
+      "uuid": "2ff0395a-f47a-478a-8621-28bae36bc2f7",
+      "docNo": "A.6.1.1.2.2.6.1.2.1.2.2.2.3",
+      "title": "Signers"
+    },
+    {
       "taskKey": "u:0cf2ffe0-cb0b-4c3c-bd11-349cad3d4c98",
       "uuid": "0cf2ffe0-cb0b-4c3c-bd11-349cad3d4c98",
       "docNo": "A.6.1.1.2.2.6.1.2.2.1.2.2.3",
@@ -1127,6 +1547,12 @@
       "uuid": "fe0cc850-6315-4673-804d-27d2b419a3f7",
       "docNo": "A.6.1.1.2.2.6.1.3.3.1.1.2.2.4",
       "title": "Curator Role Address"
+    },
+    {
+      "taskKey": "u:615835d8-475b-48f6-9e0f-bcaf041a63ff",
+      "uuid": "615835d8-475b-48f6-9e0f-bcaf041a63ff",
+      "docNo": "A.6.1.1.4.3.4.2.1",
+      "title": "Address"
     },
     {
       "taskKey": "u:86586cb8-ccbb-4ab7-8244-add51cca65fe",
