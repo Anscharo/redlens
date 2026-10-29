@@ -107,8 +107,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "On-chain addresses in context",
         what: "Every address the Atlas mentions is resolved, labelled, and linked to the right explorer for its chain — the same way everywhere it appears.",
         how: [
-          "Hover any address — in a document, a report, or a dashboard — to see its name and the token balances it holds.",
-          "Hover a rate limit ID (a `0x…` key) in a document to see what each PAU contract holding it has it set to on chain: its maxAmount and its slope (refill per day), in the limit's token where it is known. A hash no PAU contract holds stays plain text.",
+          "Hover any address — in a document, a report, or a dashboard — to see its name and the token balances it holds. Hover a rate limit ID (a `0x…` key) in a document to see what each PAU contract holding it has it set to on chain: its maxAmount and its slope (refill per day), in the limit's token where it is known; a hash no PAU contract holds stays plain text.",
           "Open a document's Onchain section in the right-hand panel: each address it mentions, whether by hex or by its chainlog name, shows as a card with its name, owner, roles, balances, and a chain-correct explorer link.",
         ],
       },
