@@ -36,6 +36,7 @@
 ## 2026-10-29
 
 - Raised the search limit for the chat's in-depth answers and the MCP search tools from 50 to 200 results
+- Added a hover card to rate limit IDs in documents showing the limit's on-chain maxAmount and slope
 - Named more Liquidity Layer rate limits and hid switched-off limits for integrations the Atlas has dropped
 - Set the Liquidity Layer page's explanations apart and collapsed each vote's list of changes
 - Gave each chain's rate-limit table a Rate limits heading with its values to review under it, made the table sortable by any column, and explained each ✓ ✗ ? ⚑ mark in a tooltip

@@ -5,6 +5,7 @@ import type { Components } from "react-markdown";
 import type { AnchorHTMLAttributes } from "react";
 import type { Element } from "hast";
 import { ethAddressesPlugin, rehypeEthAddresses } from "../lib/rehypeEthAddresses";
+import { hashCodesPlugin } from "../lib/rehypeHashCodes";
 import { MATH_RE, loadMathPlugins, mathRemarkPlugins, mathRehypePlugin } from "../lib/markdownMath";
 import { UUID_RE } from "@/lib/patterns";
 import { atlasHref } from "@/lib/routes";
@@ -13,6 +14,7 @@ import { useDataSource } from "../lib/dataSource";
 import { track } from "../lib/analytics";
 import { rehypeHighlightMarks } from "../lib/rehypeHighlightMarks";
 import { Address } from "./Address";
+import { MarkdownCode } from "./RateLimitKey";
 import type { ReportQuery } from "@/lib/reportFilter";
 
 interface Props {
@@ -101,6 +103,7 @@ function MarkdownLink({
 
 const components: Components = {
   a: MarkdownLink,
+  code: MarkdownCode,
   table({ children }) {
     return (
       <div className="overflow-x-auto mb-3">
@@ -110,7 +113,8 @@ const components: Components = {
   },
 };
 
-const rehypePluginsBase = [ethAddressesPlugin];
+// hashCodesPlugin follows the address pass, which links transaction-hash code spans first.
+const rehypePluginsBase = [ethAddressesPlugin, hashCodesPlugin];
 
 let remarkPluginsMath: any[] | null = null;
 let rehypePluginsMath: any[] | null = null;
@@ -125,7 +129,7 @@ function loadKatex(): Promise<void> {
     katexReadyPromise = loadMathPlugins()
       .then(({ remarkMath, rehypeKatex }) => {
         remarkPluginsMath = [remarkGfm, ...mathRemarkPlugins(remarkMath)];
-        rehypePluginsMath = [mathRehypePlugin(rehypeKatex), rehypeEthAddresses()];
+        rehypePluginsMath = [mathRehypePlugin(rehypeKatex), rehypeEthAddresses(), hashCodesPlugin];
       })
       .catch((err) => {
         // A rejected dynamic import (e.g. a stale chunk URL after a redeploy)
