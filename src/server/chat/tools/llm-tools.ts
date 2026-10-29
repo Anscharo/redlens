@@ -6,8 +6,8 @@ import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type OpenAI from "openai";
 import { ATLAS_TOOLS, TOOLS_BY_NAME, invokeTool, omitEmptyArgs, toolDescription } from "./tool-registry.ts";
-import type { ToolCallContext } from "./tool-context.ts";
-import { chargeLargeRead, resultBudget } from "../large-read.ts";
+import { ANON_MCP_CTX, type ToolCallContext } from "./tool-context.ts";
+import { reserveLargeRead, settleLargeRead } from "../large-read.ts";
 import { EXPORT_TOOL_NAME, EXPORT_TOOL_SHAPE, EXPORT_TOOL_DESCRIPTION } from "./export-tool.ts";
 import {
   ASK_EXTERNAL_MSC,
@@ -159,15 +159,20 @@ export async function execToolDetailed(
   // hard tool-call failure. Still worth knowing about, so it doesn't go dark.
   const strippedKeys = Object.keys(raw).filter((k) => !(k in tool.shape));
   if (strippedKeys.length) captureEvent("chat_tool_arg_stripped", obs, { tool: name, keys: strippedKeys });
+  // The handler learns the cut below, so a paging tool can drop whole rows to fit it.
+  const grant = reserveLargeRead(tool.largeResult, ctx?.largeRead);
+  let used = 0;
   try {
-    const json = JSON.stringify(await invokeTool(ix, tool, parsed.data as Record<string, unknown>, ctx));
-    const out = applyChatToolBudget(json, resultBudget(tool.largeResult, ctx?.largeRead));
-    chargeLargeRead(tool.largeResult, ctx?.largeRead, out.returnedChars);
+    const json = JSON.stringify(await invokeTool(ix, tool, parsed.data as Record<string, unknown>, { ...(ctx ?? ANON_MCP_CTX), resultChars: grant.chars }));
+    const out = applyChatToolBudget(json, grant.chars);
+    used = out.returnedChars;
     return out;
   } catch (e) {
     // The model still gets a usable {error} tool result (never breaks the turn),
     // but a tool handler throwing is a real bug worth alerting on, not silent.
     captureError(e, obs, { tool: name });
     return applyChatToolBudget(JSON.stringify({ error: (e as Error).message }));
+  } finally {
+    settleLargeRead(ctx?.largeRead, grant, used);
   }
 }

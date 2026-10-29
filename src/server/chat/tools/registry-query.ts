@@ -53,6 +53,7 @@ export const QUERY_TOOLS: AtlasTool[] = [
       "Lean results by default — see `enrich`.",
     shape: atlasQueryShape,
     emptyArgsAbsent: true,
-    handler: (ix, a) => atlasQuery(ix, a as unknown as QueryArgs),
+    largeResult: true,
+    handler: (ix, a, ctx) => atlasQuery(ix, a as unknown as QueryArgs, ctx?.resultChars),
   },
 ];

@@ -44,12 +44,20 @@ describe("atlasQueryShape", () => {
     expect(() => schema.parse({ direction: "sideways" })).toThrow();
   });
 
-  it("enforces k bounds (1..50, integer)", () => {
+  it("enforces k bounds (1..200, integer)", () => {
     expect(() => schema.parse({ k: 0 })).toThrow();
-    expect(() => schema.parse({ k: 51 })).toThrow();
+    expect(() => schema.parse({ k: 201 })).toThrow();
     expect(() => schema.parse({ k: 1.5 })).toThrow();
     expect(schema.parse({ k: 1 }).k).toBe(1);
-    expect(schema.parse({ k: 50 }).k).toBe(50);
+    expect(schema.parse({ k: 200 }).k).toBe(200);
+  });
+
+  it("defaults offset to 0 and accepts any non-negative integer, so every next_offset is a valid call", () => {
+    expect(schema.parse({}).offset).toBe(0);
+    expect(() => schema.parse({ offset: -1 })).toThrow();
+    expect(() => schema.parse({ offset: 1.5 })).toThrow();
+    expect(schema.parse({ offset: 5_000 }).offset).toBe(5_000);
+    expect(schema.parse({ offset: 40 }).offset).toBe(40);
   });
 
   it("enforces recent_commits bounds (1..500, integer) when provided", () => {

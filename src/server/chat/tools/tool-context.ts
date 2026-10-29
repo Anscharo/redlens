@@ -17,6 +17,9 @@ export interface ToolCallContext {
   onPrivateAccess?: (repo: string) => Promise<void>;
   /** Chat only: the turn's large-read allowance (chat/large-read.ts). Absent ⇒ ordinary budget. */
   largeRead?: LargeRead | null;
+  /** Chat only: the chars this result may take before the transport cuts it.
+   *  Paging tools fit whole rows to it (retrieval/result-page.ts). */
+  resultChars?: number;
 }
 
 export const ANON_MCP_CTX: ToolCallContext = Object.freeze({ surface: "mcp" });

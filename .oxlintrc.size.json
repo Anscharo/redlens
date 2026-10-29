@@ -189,7 +189,7 @@
     // Raised by 3: `_clearIndexes` resets this module's own `state`, so it cannot live
     // anywhere else.
     { "files": ["src/server/retrieval/indexes.ts"], "rules": { "max-lines": ["error", { "max": 273, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["src/server/retrieval/query.ts"], "rules": { "max-lines": ["error", { "max": 314, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 170, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["src/server/retrieval/query.ts"], "rules": { "max-lines": ["error", { "max": 310, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 170, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/sync-embeddings.ts"], "rules": { "max-lines": ["error", { "max": 216, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 98, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/sync.ts"], "rules": { "max-lines-per-function": ["error", { "max": 122, "skipBlankLines": true, "skipComments": true }] } }
   ]

@@ -25,14 +25,32 @@ export function resultBudget(largeResult: boolean | undefined, read: LargeRead |
   return Math.min(read.perResult, read.left);
 }
 
-/** Charges a returned large result against the turn's total. */
-export function chargeLargeRead(largeResult: boolean | undefined, read: LargeRead | null | undefined, chars: number): void {
-  if (largeResult && read) read.left = Math.max(0, read.left - chars);
+/** One result's budget and the part of the turn's total set aside for it. */
+export interface LargeGrant {
+  chars: number;
+  taken: number;
 }
 
-/** Preview-tool page sizes. The large ones apply only to a large-read chat
- *  turn. Every other caller, MCP included, keeps the small ones, because the
- *  preview tools have no other bound on their output. */
+/** Grants one result its budget and takes that from the turn's total at once,
+ *  so the calls of one round, which run in parallel (runToolRound), cannot each
+ *  be granted the whole remainder. settleLargeRead returns what went unused. */
+export function reserveLargeRead(largeResult: boolean | undefined, read: LargeRead | null | undefined): LargeGrant {
+  const chars = resultBudget(largeResult, read);
+  if (!largeResult || !read) return { chars, taken: 0 };
+  const taken = Math.min(chars, read.left);
+  read.left -= taken;
+  return { chars, taken };
+}
+
+/** Gives back the part of a grant the returned result did not use. */
+export function settleLargeRead(read: LargeRead | null | undefined, grant: LargeGrant, used: number): void {
+  if (read) read.left += Math.max(0, grant.taken - used);
+}
+
+/** Preview-tool page sizes. The large ones apply only to a result granted more
+ *  than the ordinary budget (`resultChars`, from reserveLargeRead). Every other
+ *  caller, MCP included, keeps the small ones, because the preview tools have
+ *  no other bound on their output. */
 export interface PreviewCaps {
   limit: number;
   patchLines: number;
@@ -41,11 +59,12 @@ export interface PreviewCaps {
 const SMALL_CAPS: PreviewCaps = { limit: 100, patchLines: 40, ids: 5 };
 const LARGE_CAPS: PreviewCaps = { limit: 1000, patchLines: 400, ids: 50 };
 
-export function previewCaps(read: LargeRead | null | undefined): PreviewCaps {
-  return read && read.left > config.chatToolResultMaxChars ? LARGE_CAPS : SMALL_CAPS;
+export function previewCaps(resultChars: number | undefined): PreviewCaps {
+  return resultChars !== undefined && resultChars > config.chatToolResultMaxChars ? LARGE_CAPS : SMALL_CAPS;
 }
 
 /** The system-prompt line that tells the model it may ask for large pages. */
 export const LARGE_READ_PROMPT =
-  "This turn can read large PR previews. To review a PR, call atlas_preview_diff with a high `limit` (up to 1000) and " +
+  "This turn can read large results. atlas_search (hybrid or lexical) and atlas_query return up to 200 rows a call (`k`); " +
+  "page past that with `offset`. To review a PR, call atlas_preview_diff with a high `limit` (up to 1000) and " +
   "`patch_lines` (up to 400) to read the whole change in one or two calls, and atlas_preview_get with up to 50 ids.";

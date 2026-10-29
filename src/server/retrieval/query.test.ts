@@ -360,3 +360,74 @@ describe("zero results with filters applied", () => {
     expect(out).not.toHaveProperty("hint");
   });
 });
+
+describe("atlasQuery — paging", () => {
+  it("pages a type_list with offset and next_offset, ending without one", async () => {
+    const { ix } = buildFixture();
+    const first = (await atlasQuery(ix, { target_type: "Core", k: 2, enrich: false })) as { results: { id: string }[]; next_offset?: number };
+    expect(first.results).toHaveLength(2);
+    expect(first.next_offset).toBe(2);
+    const rest = (await atlasQuery(ix, { target_type: "Core", k: 2, offset: 2, enrich: false })) as { results: { id: string }[]; next_offset?: number };
+    expect(rest.results).toHaveLength(2);
+    expect(rest.next_offset).toBeUndefined();
+    expect(new Set([...first.results, ...rest.results].map((r) => r.id)).size).toBe(4);
+  });
+
+  it("cuts whole rows to the caller's budget and returns where to resume", async () => {
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, { target_type: "Core", k: 10, enrich: false }, 2_300)) as Record<string, unknown>;
+    const results = out.results as unknown[];
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.length).toBeLessThan(4);
+    expect(out.truncated).toBe(true);
+    expect(out.next_offset).toBe(results.length);
+  });
+
+  it("does not blame the filters for an empty page past the end", async () => {
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, { target_type: "Core", status: "Active", k: 10, offset: 10, enrich: false })) as Record<string, unknown>;
+    expect(out.count).toBe(0);
+    expect(out.filters_applied).toBeUndefined();
+  });
+});
+
+describe("atlasQuery — entity_broad budget cut", () => {
+  it("names the narrowers it honors instead of offset, which this mode ignores", async () => {
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, { entity: "keeper-network", k: 10, enrich: false }, 2_050)) as Record<string, unknown>;
+    expect(out.mode).toBe("entity_broad");
+    expect(out.truncated).toBe(true);
+    expect(out.hint).toContain("does not page with offset");
+    expect(out).not.toHaveProperty("next_offset");
+  });
+});
+
+describe("atlasQuery — hints that share the envelope", () => {
+  it("keeps the paging hint when an ignored filter value adds its own", async () => {
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, { query: "spark keeper network root", target_type: "Instance", k: 10, enrich: false }, 2_300)) as Record<string, unknown>;
+    expect(out.invalid_filter_values).toBeDefined();
+    expect(out.truncated).toBe(true);
+    expect(out.hint).toContain("IGNORED");
+    expect(out.hint).toContain("next_offset");
+  });
+});
+
+describe("atlasQuery — envelopes that must not contradict themselves", () => {
+  it("drops ranking_cut when the filters emptied the page, so the filter hint stands alone", async () => {
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, { query: "spark keeper network root primitive child", status: "Suspended", k: 1, enrich: false })) as Record<string, unknown>;
+    expect(out.count).toBe(0);
+    expect(out.filters_applied).toBeDefined();
+    expect(out).not.toHaveProperty("ranking_cut");
+  });
+
+  it("tells an entity_broad call asked for an offset that the listing starts at its first row", async () => {
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, { entity: "keeper-network", k: 10, offset: 20, enrich: false })) as Record<string, unknown>;
+    expect(out.mode).toBe("entity_broad");
+    expect(out).not.toHaveProperty("truncated");
+    expect(out.hint).toContain("does not page with offset");
+  });
+});
+

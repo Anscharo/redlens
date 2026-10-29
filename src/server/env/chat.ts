@@ -36,7 +36,7 @@ export const chatModels: EnvGroup = {
     },
     {
       name: "CHAT_LARGE_CONTEXT_MODELS",
-      doc: "Models with a window of about 1M tokens. A turn whose whole chain is in this list may read large PR preview results. \"\" turns large reads off.",
+      doc: "Models with a window of about 1M tokens. A turn whose whole chain is in this list may read large search and PR preview results. \"\" turns large reads off.",
       default: "openai/gpt-6-luna,openai/gpt-5.6-luna",
     },
     {

@@ -8,7 +8,8 @@
 import { type Indexes, ancestorChain, resolveNode, type AtlasNode } from "../../retrieval/indexes.ts";
 import { runLexical, runSemantic, mergeForMode, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type MergedHit, type SemanticResult } from "../../retrieval/search.ts";
 import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "../../retrieval/leaf-attribution.ts";
-import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
+import { fitToBudget, MAX_RESULT_CHARS, TRUNCATION_HINT } from "../output-budget.ts";
+import { pageOf, poolSize } from "../../retrieval/result-page.ts";
 import { statsSection } from "./tools-stats.ts";
 import { countBy } from "../../../lib/collections.ts";
 import { byDocNo } from "../../../lib/docNo.ts";
@@ -17,9 +18,7 @@ import { sql } from "../../db.ts";
 import { normalizeAddress } from "../../../../scripts/lib/address-chains.mjs";
 import type { Liveness } from "../../../lib/liveness.ts";
 
-export interface ToolResult {
-  [k: string]: unknown;
-}
+export type ToolResult = Record<string, unknown>;
 
 // ── liveness tagging (docs/research/synlang-wiki.md §3.2) ──────────────────
 // Every call site that emits doc rows decorates them via this one lookup, so
@@ -50,8 +49,7 @@ const ALL_SECTIONS = ["doc_types", "edge_types", "entity_types", "entity_type_gr
 
 export function atlasDescribe(ix: Indexes, sections?: string[]): ToolResult {
   // Provided sections → exactly those (or everything for 'all'); omitted → defaults.
-  const want = (s: string) =>
-    sections && sections.length ? sections.includes(s) || sections.includes("all") : DEFAULT_SECTIONS.has(s);
+  const want = (s: string) => (sections && sections.length ? sections.includes(s) || sections.includes("all") : DEFAULT_SECTIONS.has(s));
 
   const docTypeCounts = countBy(ix.docMap.values(), (d) => d.type);
   const typeSpecs: { id: string; doc_no: string; title: string }[] = [];
@@ -138,14 +136,16 @@ export function atlasGet(ix: Indexes, id: string | string[]): ToolResult {
 export interface SearchArgs {
   query: string;
   k: number;
+  offset?: number;
   type?: string;
   mode: "lexical" | "semantic" | "hybrid";
 }
 
-export async function atlasSearch(ix: Indexes, { query, k, type, mode }: SearchArgs): Promise<ToolResult> {
+// `budget` is the caller's whole-result budget (`ToolCallContext.resultChars`; the MCP budget when absent).
+export async function atlasSearch(ix: Indexes, { query, k, offset = 0, type, mode }: SearchArgs, budget = MAX_RESULT_CHARS): Promise<ToolResult> {
   const { phrases, casePhrases } = extractPhrases(query);
   const hasPhrases = phrases.length > 0 || casePhrases.length > 0;
-  const fetchK = mode === "lexical" && !hasPhrases ? k : Math.min(k * 4, 200);
+  const fetchK = poolSize(offset, k, mode === "lexical" && !hasPhrases);
 
   // The lexical leg is synchronous in-memory MiniSearch, so nothing is lost by
   // running it first — and leaf attribution's residual, built from its titles,
@@ -175,7 +175,10 @@ export async function atlasSearch(ix: Indexes, { query, k, type, mode }: SearchA
     ? resolved
     : resolved.filter(({ n }) => matchesPhrases(n.title, n.content, phrases, casePhrases));
 
-  const results = filtered.slice(0, k).map(({ m, n }) => ({
+  // poolCut: the lexical leg filled its pool. Semantic mode reports no cut: its
+  // legs stop at hnsw.ef_search whatever the pool, so a larger k ranks no
+  // deeper; the tool description says so instead.
+  const { rows: results, fields } = pageOf(filtered, { offset, k }, budget, ({ m, n }) => ({
     id: n.id,
     doc_no: n.doc_no,
     title: n.title,
@@ -187,12 +190,13 @@ export async function atlasSearch(ix: Indexes, { query, k, type, mode }: SearchA
     sources: m.sources,
     ...(m.via ? { via: m.via } : {}),
     ...livenessOf(ix, n.id),
-  }));
+  }), { poolCut: mode !== "semantic" && lexAll.length >= fetchK });
   // Only present when the requested mode actually wanted a semantic leg (a
   // pure lexical search never runs one, so there's nothing to report skipping).
   const wantedSemantic = mode === "semantic" || mode === "hybrid";
   const envelope = {
     count: results.length,
+    ...fields,
     mode,
     phrase_filter: [...phrases, ...casePhrases],
     ...(wantedSemantic && semResult.skipped ? { semantic_skipped: semResult.skipped } : {}),

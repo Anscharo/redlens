@@ -367,7 +367,7 @@ export const config = {
   // a single broad tool call from eating the live chat context.
   chatToolResultMaxChars: Number(process.env.CHAT_TOOL_RESULT_MAX_CHARS ?? 30_000),
   // Large reads (chat/large-read.ts): a turn whose WHOLE model chain has a ~1M
-  // window may read tools marked `largeResult` (the PR preview tools) past the
+  // window may read tools marked `largeResult` (the PR preview and ranked search tools) past the
   // budget above, up to a per-result and a per-turn total. A failover inherits
   // the context, so one small-window model in the chain turns this off. The
   // per-turn total keeps a turn's input under the 272k-token step where
