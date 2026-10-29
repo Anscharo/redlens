@@ -52,10 +52,11 @@ describe("atlasQueryShape", () => {
     expect(schema.parse({ k: 200 }).k).toBe(200);
   });
 
-  it("defaults offset to 0 and bounds it (0..1000, integer)", () => {
+  it("defaults offset to 0 and accepts any non-negative integer, so every next_offset is a valid call", () => {
     expect(schema.parse({}).offset).toBe(0);
     expect(() => schema.parse({ offset: -1 })).toThrow();
-    expect(() => schema.parse({ offset: 1001 })).toThrow();
+    expect(() => schema.parse({ offset: 1.5 })).toThrow();
+    expect(schema.parse({ offset: 5_000 }).offset).toBe(5_000);
     expect(schema.parse({ offset: 40 }).offset).toBe(40);
   });
 

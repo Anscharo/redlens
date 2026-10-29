@@ -19,11 +19,12 @@ export const pageShape = {
     .max(PAGE_K_MAX)
     .default(10)
     .describe("Rows to return. A page that would not fit this caller's result budget stops early and returns next_offset."),
+  // No upper bound: next_offset may point anywhere in a long list, and a
+  // deep offset costs nothing (MiniSearch scores every match before slicing).
   offset: z
     .number()
     .int()
     .min(0)
-    .max(1000)
     .default(0)
     .describe("Ranked rows to skip. Pass a previous result's next_offset, with the same k, to read the next page."),
 };
