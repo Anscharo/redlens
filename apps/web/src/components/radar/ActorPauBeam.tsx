@@ -1,4 +1,5 @@
 import { Address } from "../Address";
+import { Callout } from "../Callout";
 import { exactAmount, formatPerDay, limitDecimals, unitNote, type AtlasKeyRef, type BeamDefault, type BeamLimits } from "../../lib/pau";
 import { orderedLimits } from "@/lib/pauLimitOrder";
 import { PauLimitName } from "./PauLimitName";
@@ -27,11 +28,11 @@ export function PauBeam({ beam, chain, keyIndex, anchor }: { beam: BeamLimits; c
   return (
     <div className="mt-3 pau-beam">
       {anchor ? <PauSectionHeading deployment={anchor} section="configurator-limits">Configurator limits</PauSectionHeading> : <h4 className="mono text-[11px] uppercase tracking-wider mb-1" style={dim}>Configurator limits</h4>}
-      <p className="text-[12px]" style={{ color: "var(--tan-2)" }}>
+      <Callout>
         <span className="mono text-[11px]" style={dim}>BeamState <Address address={beam.beamState} chain={chain} noBalance /> · </span>
         Without a spell the Configurator may raise a limit to its default or by up to {factor(beam.maxChange)}, once every {hours(beam.hop)} per key, and lower one at any time.{" "}
         {beam.defaults.length === 0 && <span style={dim}>No default limits are set{beam.historyComplete ? "" : " for the keys held here"}.</span>}
-      </p>
+      </Callout>
       {beam.defaults.length > 0 && (
         <table className="w-full border-collapse mt-1 text-[12px]">
           <thead>

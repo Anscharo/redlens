@@ -23,6 +23,7 @@ describe("verdict", () => {
   it("needs no units for zero and unlimited, and judges a switched-off limit's slope on its own", () => {
     expect([v("0", "maxAmount", lim("0", "0")), v("0", "maxAmount", lim("20000000000000", "0"))]).toEqual(["match", "mismatch"]);
     expect([v("Unlimited", "maxAmount", lim(UNL, "0")), v("Unlimited", "maxAmount", lim("1", "0")), v("1", "maxAmount", lim(UNL, "0"))]).toEqual(["match", "mismatch", "mismatch"]);
+    expect([v("0", "slope", lim(UNL, "0")), v("5,000,000 USDC per day", "slope", lim(UNL, "0", usdc))]).toEqual(["match", "mismatch"]);
     expect([v("Unlimited", "slope", lim("0", "0")), v("0", "slope", lim("0", "0")), v("0", "slope", lim("0", "578703703"))]).toEqual(["mismatch", "match", "mismatch"]);
   });
   it("with units unknown, matches only at the inferred scale the named token agrees with, and mismatches only when wrong at every scale", () => {

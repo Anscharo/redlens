@@ -9,7 +9,8 @@
 // (ae05e069-0626-45f5-82d2-dbf39a5b2598, A.1.10.3.2.10.5), so it is flagged only
 // once the lag passes two months. A switched-off limit and any other origin are
 // not flagged. Pure.
-import type { OriginKind } from "./pauHistory.ts";
+import type { LiveRateLimit } from "./pau.ts";
+import { entryOf, type OriginKind, type PauHistoryResponse } from "./pauHistory.ts";
 
 /** How long a cBEAM-set limit may go without an Atlas document before it is flagged. */
 export const CBEAM_LAG_DAYS = 60;
@@ -35,4 +36,11 @@ export function unmatchedFlag(origin: OriginKind | null | undefined, setTime: st
     return { kind: "cbeam", text: `${lead}, set through the Configurator (a cBEAM) on ${date}, more than 2 months ago. A cBEAM change does not wait for an Executive Vote (A.1.10.3.2.10.5), so the Atlas may be behind, may not state this limit, or Redline Portal may not have connected it.` };
   }
   return null;
+}
+
+/** A limit's flag, by what its change history says set its latest value; none while the history loads. */
+export function limitFlag(history: PauHistoryResponse | null, chain: string, limit: LiveRateLimit, now: number, named = false): AtlasFlag | null {
+  const origin = history ? entryOf(history, chain, limit.setAt.tx)?.origin?.kind : null;
+  const off = (limit.data?.maxAmount ?? limit.configured.maxAmount) === "0";
+  return unmatchedFlag(origin, limit.setAt.time, off, now, named);
 }

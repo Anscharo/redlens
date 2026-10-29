@@ -1,12 +1,16 @@
 // A prime's rate-limit value sources: the prime's own params, then every
-// instance and invocation naming it as its agent, in the entities' order. This
-// is the one rule for which values are a prime's. The chat's atlas-vs-contract
+// instance and invocation naming it as its agent, in the entities' order, and,
+// given the atlas documents, the limit values they state in each instance's
+// subtree and under the prime (pauLimitDocs.ts). This is the one rule for
+// which values are a prime's. The chat's atlas-vs-contract
 // facts (src/server/onchain/pau-value-facts.ts), the weekly PAU census
 // (src/lib/pauCensus.ts), the reader's panel, the Radar PAUs page and the audit
 // report all read it, through the adapter for their entity shape, so every one
 // of them compares the same values.
 import type { GraphEntity } from "../types.ts";
 import type { ValueSource } from "./pauInstanceKeys.ts";
+import { withInstanceLimitDocs } from "./pauInstanceLimitDocs.ts";
+import { limitDocSources, type LimitDocs } from "./pauLimitDocs.ts";
 import { VALUE_PARAM_RE } from "./pauParams.ts";
 
 /** The graph entity fields as graph.json and the server's indexes carry them. */
@@ -57,10 +61,12 @@ export const graphView = memo((e: GraphEntity): SourceView => ({ id: e.id, name:
 
 const source = (e: SourceView | undefined, docId: string | null): ValueSource => ({ name: e?.name ?? "", docId, params: e?.meta.params ?? {} });
 
-/** The prime's own params and every instance's, as the check reads them; `primeView` saves the lookup when the caller has it. */
-export function primeValueSources(views: SourceView[], prime: string, primeView?: SourceView): ValueSource[] {
+/** The prime's own params and every instance's, as the check reads them, with the values `docs` state; `primeView` saves the lookup when the caller has it. */
+export function primeValueSources(views: SourceView[], prime: string, primeView?: SourceView, docs?: LimitDocs): ValueSource[] {
+  const view = primeView ?? views.find((e) => e.id === prime);
   const own = views.filter((e) => e.instance && e.meta.agent_doc_id === prime);
-  return [source(primeView ?? views.find((e) => e.id === prime), null), ...own.map((e) => source(e, e.docId))];
+  const sources = [source(view, null), ...own.map((e) => source(e, e.docId))];
+  return docs ? [...sources.map((s) => withInstanceLimitDocs(s, docs)), ...limitDocSources(sources[0], view?.docId ?? null, docs)] : sources;
 }
 
 /** Every prime an instance stating a maxAmount or slope belongs to. */

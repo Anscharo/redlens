@@ -7,6 +7,7 @@ const loadHistoryBatch = vi.fn(async () => new Map());
 const loadPau = vi.fn();
 vi.mock("@/lib/history", () => ({ loadHistoryBatch }));
 vi.mock("./graph", () => ({ loadGraph: async () => ({ participants: [] }) }));
+vi.mock("./docs", () => ({ loadAtlas: async () => ({ docs: {}, byParent: new Map() }) }));
 vi.mock("./pau", async (orig) => ({ ...(await orig<typeof import("./pau")>()), loadPau }));
 
 const claim = { prime: "p1", chain: "ethereum", role: "relayer", address: "0x" + "1".repeat(40), reason: "not a relayer", docs: ["d1"] };

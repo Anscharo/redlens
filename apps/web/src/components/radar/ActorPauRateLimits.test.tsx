@@ -2,7 +2,7 @@
 // The rate-limit table keys each row and its "Matches Atlas" mark by contract
 // and key, so two RateLimits of one deployment holding the same key are two
 // rows, each marked only when its own values match the atlas.
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
 import { elsewhereId, matchId } from "@/lib/pauAtlasMatch";
@@ -75,6 +75,32 @@ describe("PauRateLimits", () => {
     expect([other.textContent, within(other).queryByRole("link")]).toEqual(["Aggregate CCTP", null]);
   });
 
+  it("adds the controller constant to an address-matched name that another key also carries", () => {
+    const vault = "0x" + "7".repeat(40);
+    const mk = (key: string, constant: string): ContractLimit => ({ ...limit(RL1), key, derived: { constant, args: [vault] } });
+    const [withdraw, redeem, deposit] = ["0x" + "b".repeat(64), "0x" + "c".repeat(64), "0x" + "d".repeat(64)];
+    const keyIndex = new Map([
+      [withdraw, [{ docId: "maple", label: "Maple USDC · Outflow", via: vault, shared: true }]],
+      [redeem, [{ docId: "maple", label: "Maple USDC · Outflow", via: vault, shared: true }]],
+      [deposit, [{ docId: "maple", label: "Maple USDC · Inflow", via: vault }]],
+    ]);
+    const limits = [mk(withdraw, "LIMIT_4626_WITHDRAW"), mk(redeem, "LIMIT_MAPLE_REDEEM"), mk(deposit, "LIMIT_4626_DEPOSIT")];
+    const { container } = render(<PauRateLimits chain="ethereum" limits={limits} keyIndex={keyIndex} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} />);
+    const names = within(container).getAllByRole("row").slice(1).map((r) => within(r).getAllByRole("cell")[0].textContent);
+    expect(names.sort()).toEqual([
+      "Maple USDC · Inflow (matched by address)",
+      "Maple USDC · Outflow · LIMIT_4626_WITHDRAW (matched by address)",
+      "Maple USDC · Outflow · LIMIT_MAPLE_REDEEM (matched by address)",
+    ]);
+  });
+
+  it("says when a constant-named limit's address was dropped from the Atlas", () => {
+    const retired = { address: "0x" + "e9".repeat(20), removedAt: "2025-08-25T14:36:55Z", commit: "dd131566aa" };
+    const row: ContractLimit = { ...limit(RL1), derived: { constant: "LIMIT_7540_DEPOSIT", args: [] }, retired };
+    const { container } = render(<PauRateLimits chain="ethereum" limits={[row]} keyIndex={new Map()} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} />);
+    expect(container.querySelector("td")?.textContent).toBe("LIMIT_7540_DEPOSIT · dropped from the Atlas 2025-08-25");
+  });
+
   it("names the one document that names a constant-named limit's controller constant, beside it", () => {
     const row: ContractLimit = { ...limit(RL1), derived: { constant: "LIMIT_USDS_MINT", args: [] } };
     const doc = { id: "check-doc", title: "Check RateLimits", doc_no: "A.6.1" } as never;
@@ -86,5 +112,45 @@ describe("PauRateLimits", () => {
     unmount();
     const none = render1(() => null);
     expect(within(none.container.querySelector("td")!).queryByRole("link")).toBeNull();
+  });
+
+  it("sorts by a column when its header is clicked, the other way on a second click, and says so with aria-sort", () => {
+    const k = (n: number) => "0x" + String(n).repeat(64);
+    const mk = (key: string, constant: string, maxAmount: string): ContractLimit => ({ ...limit(RL1), key, configured: { maxAmount, slope: "0" }, derived: { constant, args: [] } });
+    const limits = [mk(k(1), "LIMIT_B", "3000000"), mk(k(2), "LIMIT_A", "1000000"), mk(k(3), "LIMIT_C", "2000000")];
+    const { container } = render(<PauRateLimits chain="ethereum" limits={limits} keyIndex={new Map()} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} />);
+    const names = () => within(container).getAllByRole("row").slice(1).map((r) => within(r).getAllByRole("cell")[0].textContent);
+    expect(names()).toEqual(["LIMIT_A", "LIMIT_B", "LIMIT_C"]);
+    fireEvent.click(within(container).getByRole("button", { name: "maxAmount" }));
+    expect(names()).toEqual(["LIMIT_A", "LIMIT_C", "LIMIT_B"]);
+    expect(within(container).getByRole("columnheader", { name: /maxAmount/ })).toHaveAttribute("aria-sort", "ascending");
+    fireEvent.click(within(container).getByRole("button", { name: "maxAmount" }));
+    expect(names()).toEqual(["LIMIT_B", "LIMIT_C", "LIMIT_A"]);
+    expect(within(container).getByRole("columnheader", { name: /maxAmount/ })).toHaveAttribute("aria-sort", "descending");
+    expect(within(container).getByRole("columnheader", { name: "Name" })).toHaveAttribute("aria-sort", "none");
+  });
+
+  it("heads the section Rate limits with the values to review under it, and keeps both when the deployment has no limit", () => {
+    const review = <a href="/reports/pau-audit">2 values to review</a>;
+    const { container, unmount } = render(<PauRateLimits chain="ethereum" limits={[limit(RL1)]} keyIndex={new Map()} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} review={review} />);
+    const heading = within(container).getByRole("heading", { name: "Rate limits" });
+    expect(heading).toHaveAttribute("id", "ethereum-rate-limits");
+    expect(heading.compareDocumentPosition(within(container).getByRole("link", { name: "2 values to review" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(container).getByRole("link", { name: "2 values to review" }).compareDocumentPosition(within(container).getByRole("table")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    unmount();
+    const empty = render(<PauRateLimits chain="ethereum" limits={[]} keyIndex={new Map()} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} review={review} />).container;
+    expect([within(empty).queryByRole("table"), within(empty).getByText("No rate-limit key read for this deployment.")]).toEqual([null, expect.anything()]);
+    expect(within(empty).getByRole("link", { name: "2 values to review" })).toBeInTheDocument();
+    const hidden = render(<PauRateLimits chain="ethereum" limits={[]} keyIndex={new Map()} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} hidden={2} />).container;
+    expect(within(hidden).getByText(/^All 2 rate-limit keys are switched off/)).toBeInTheDocument();
+  });
+
+  it("links an address argument of a constant-named limit and shows any other argument as text", () => {
+    const [vault, id] = ["0x" + "7".repeat(40), "0x" + "ab".repeat(32)];
+    const row: ContractLimit = { ...limit(RL1), derived: { constant: "LIMIT_CCTP", args: [vault, id] } };
+    const { container } = render(<PauRateLimits chain="ethereum" limits={[row]} keyIndex={new Map()} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} />);
+    const cell = container.querySelector("td")!;
+    expect(cell.textContent).toContain(id);
+    expect(within(cell).getAllByRole("link").map((a) => a.getAttribute("href") ?? "").some((h) => h.includes(id))).toBe(false);
   });
 });

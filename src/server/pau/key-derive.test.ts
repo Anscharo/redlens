@@ -33,6 +33,12 @@ describe("keyDeriver", () => {
     // UniswapV3Lib: makeAssetDestinationKey(LIMIT_UNISWAP_V3_SWAP, tokenIn, pool).
     expect(derive(enc(["bytes32", "address", "address"], [base("LIMIT_UNISWAP_V3_SWAP"), VAULT, DEST]))).toEqual({ constant: "LIMIT_UNISWAP_V3_SWAP", args: [VAULT, DEST], via: DEST });
   });
+  it("names UniswapV4Lib's pool-id key from the candidate words, and tries no word it was not given", () => {
+    const pool = "0x" + "e6".repeat(32);
+    const key = enc(["bytes32", "bytes32"], [base("LIMIT_UNISWAP_V4_SWAP"), pool]);
+    expect(keyDeriver(["LIMIT_UNISWAP_V4_SWAP"], [], [pool.toUpperCase().replace("0X", "0x")])(key)).toEqual({ constant: "LIMIT_UNISWAP_V4_SWAP", args: [pool] });
+    expect(keyDeriver(["LIMIT_UNISWAP_V4_SWAP"], [VAULT])(key)).toBeNull();
+  });
   it("tries an address pair only for the transfer and Uniswap V3 constants, and returns null for a key nothing derives", () => {
     expect(derive(enc(["bytes32", "address", "address"], [base("LIMIT_4626_DEPOSIT"), VAULT, DEST]))).toBeNull();
     expect(derive("0x" + "9".repeat(64))).toBeNull();

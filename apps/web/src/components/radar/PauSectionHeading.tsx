@@ -10,9 +10,9 @@ export const anchorProps = (a: Anchor) => ({ id: a.id, "data-anchor-alias": alia
 /** One of the page's two parts' h2, `#current-state` or `#change-history`, with its copy link. */
 export function PauPartHeading({ anchor, children }: { anchor: Anchor; children: string }) {
   return (
-    <div className="relative mb-1">
-      <CopyLink id={anchor.id} label={children} top={1} />
-      <h2 {...anchorProps(anchor)} className="mono text-[14px] uppercase tracking-wider" style={{ ...anchorProps(anchor).style, color: "var(--tan-2)" }}>
+    <div className="relative mb-2">
+      <CopyLink id={anchor.id} label={children} top={6} />
+      <h2 {...anchorProps(anchor)} className="mono text-[20px] uppercase tracking-wider" style={{ ...anchorProps(anchor).style, color: "var(--tan)" }}>
         {children}
       </h2>
     </div>

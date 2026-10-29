@@ -1,8 +1,32 @@
 // The order of a deployment's rate-limit rows, for the Radar PAUs tables. Pure.
 import type { DerivedKey, LiveRateLimit } from "./pau.ts";
-import type { AtlasKeyRef } from "./pauView.ts";
+import { refsOnChain } from "./pauKeyChains.ts";
+import { labelOnChain, type AtlasKeyRef } from "./pauView.ts";
 
 export const isOff = (r: LiveRateLimit) => (r.data?.maxAmount ?? r.configured.maxAmount) === "0";
+
+/**
+ * A switched-off key derived from an address the atlas dropped, which no atlas
+ * document names any more: an offboarded integration, left out of the tables.
+ * A retired key still on stays, since it can still move funds, and so does one
+ * the atlas still names.
+ */
+export const isRetiredOff = (r: LiveRateLimit, keyIndex: Map<string, AtlasKeyRef[]>) =>
+  !!r.retired && isOff(r) && !keyIndex.get(r.key.toLowerCase())?.length;
+
+/**
+ * The name a row shows (PauLimitName.tsx), which the table also sorts by: its
+ * first Atlas reference on this chain, with the controller constant when that
+ * name is shared by several keys, else its first on another chain, else its
+ * derivation, else its key.
+ */
+export function limitName(r: { key: string; derived?: DerivedKey }, keyIndex: Map<string, AtlasKeyRef[]>, chain: string): string {
+  const named = keyIndex.get(r.key.toLowerCase()) ?? [];
+  const ref = refsOnChain(named, chain)[0];
+  if (ref) return labelOnChain(ref.label, chain) + (ref.shared && r.derived ? ` · ${r.derived.constant}` : "");
+  if (named.length > 0) return labelOnChain(named[0].label, chain);
+  return r.derived ? [r.derived.constant, ...r.derived.args].join(" · ") : r.key;
+}
 
 /**
  * Rows grouped by how the key is named, so siblings sit together: keys an atlas document states (linked), keys the

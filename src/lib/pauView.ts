@@ -75,6 +75,8 @@ export interface AtlasKeyRef {
   label: string;
   /** Set when the atlas lists an address where the RateLimitID belongs and the key was found by its derivation from it. */
   via?: string;
+  /** Set on a `via` ref whose name another key also carries (pauSharedLabels.ts); the reader adds the key's controller constant. */
+  shared?: boolean;
   /** The chain heading the naming document sits under (pauKeyChains.ts); the key is named for that chain's deployments. */
   chain?: string;
 }
