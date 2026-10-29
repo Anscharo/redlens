@@ -1,14 +1,15 @@
-// Every PAU contract that has a rate-limit key, for the hover card on a 64-hex
-// value in atlas prose (apps/web/src/components/RateLimitKey.tsx). A hash no
-// contract holds or was probed for is not a key the PAUs know, so it gets no card. Pure.
+// Every PAU contract whose RateLimits holds a rate-limit key, for the hover card
+// on a 64-hex value in atlas prose (apps/web/src/components/RateLimitKey.tsx). A
+// contract that lists the key only in `unsetKeys` (probed, never set) does not
+// hold it, and a hash no contract holds gets no card. Pure.
 import type { LiveRateLimit, PauResponse, StoredPauSnapshot } from "./pau.ts";
 
 export interface KeyHolder {
   snap: StoredPauSnapshot;
   /** The RateLimits contract. */
   contract: string;
-  /** The key's limit on that contract; null when a live read found the key never set there (`unsetKeys`). */
-  limit: LiveRateLimit | null;
+  /** The key's limit on that contract. */
+  limit: LiveRateLimit;
 }
 
 const CHAIN_FIRST = "ethereum";
@@ -21,7 +22,6 @@ export function keyHolders(res: PauResponse, key: string): KeyHolder[] {
     for (const c of snap.contracts) {
       const limit = c.rateLimits?.find((r) => r.key.toLowerCase() === k);
       if (limit) out.push({ snap, contract: c.address, limit });
-      else if (c.unsetKeys?.some((u) => u.toLowerCase() === k)) out.push({ snap, contract: c.address, limit: null });
     }
   }
   return out.sort(
