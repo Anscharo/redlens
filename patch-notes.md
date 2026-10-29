@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-29
+
+- Added a hover card to rate limit IDs in documents showing the limit's on-chain maxAmount and slope
+
 ## 2026-10-28
 
 - Added an in: button beside the search box that limits search to the document you're reading
