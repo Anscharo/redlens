@@ -50,7 +50,7 @@ export const CORE_TOOLS: AtlasTool[] = [
     annotations: readOnlyAtlasTool("Atlas Search"),
     description:
       'Search the Sky Atlas. mode="lexical" uses minisearch BM25 (good for exact terms, IDs, addresses). ' +
-      'mode="semantic" uses Qwen3 embeddings via pgvector (paraphrase / concept queries). ' +
+      'mode="semantic" uses Qwen3 embeddings via pgvector (paraphrase / concept queries; it ranks at most ~80 docs, so list a whole class with hybrid or lexical). ' +
       'mode="hybrid" (default) merges both via reciprocal rank fusion. Quoted phrases ("...") are ' +
       "post-filtered to require an exact substring match in title or content.",
     shape: {

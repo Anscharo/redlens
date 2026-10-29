@@ -269,11 +269,11 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_
     a.via_entity_type ? `via_entity_type=${a.via_entity_type}` : "",
   ].filter(Boolean);
   const row = (n: AtlasNode) => enrichNode(ix, n, a.enrich, !!a.include_params);
+  let lexCut = false; // the search leg's lexical ranking filled its pool (result-page.ts PageOpts)
   // One page of `all`, cut whole to the caller's budget so a single call can't
   // overflow its context; `next_offset` tells it where the next page starts.
   const withBudget = <T,>(all: T[], toRow: (t: T) => unknown, rest: Record<string, unknown>): ToolResult => {
-    const { rows: kept, fields } = pageOf(all, { offset: a.offset ?? 0, k: a.k }, budget, toRow, (r) => collectAncestors(ix, r));
-    const ancestors = collectAncestors(ix, kept);
+    const { rows: kept, fields, extra: ancestors } = pageOf(all, { offset: a.offset ?? 0, k: a.k }, budget, toRow, { extra: (r) => collectAncestors(ix, r), poolCut: lexCut });
     // Zero results WITH filters active is a recoverable state, not an answer.
     // Say so, name the arguments to drop, and report how many candidates they
     // removed — the same "hand back what you need to retry" shape the rest of
@@ -287,7 +287,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_
       ...fields,
       ...(targetType.resolvedFrom ? { resolved_target_type: { from: targetType.resolvedFrom, to: targetType.type } } : {}),
       ...(unknownFilterValues.length && !emptyByFilters
-        ? { invalid_filter_values: unknownFilterValues, hint: `${unknownFilterValues.join("; ")}. That argument was IGNORED for this call — these results are unfiltered by it.` }
+        ? { invalid_filter_values: unknownFilterValues, hint: `${unknownFilterValues.join("; ")}. That argument was IGNORED for this call — these results are unfiltered by it.${fields.hint ? ` ${fields.hint}` : ""}` }
         : {}),
       ...(emptyByFilters
         ? {
@@ -334,10 +334,9 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_
     // Budget across all groups together, preserving grouping.
     const flat: Array<[string, unknown]> = [];
     for (const rel of Object.keys(grouped)) for (const row of grouped[rel]) flat.push([rel, row]);
-    const { kept, truncated } = fitWithExtra(flat, budget, (ks) => collectAncestors(ix, ks.map(([, r]) => r)));
+    const { kept, truncated, extra: ancestors } = fitWithExtra(flat, budget, (ks) => collectAncestors(ix, ks.map(([, r]) => r)));
     const by_relationship: Record<string, unknown[]> = {};
     for (const [rel, row] of kept) (by_relationship[rel] ??= []).push(row);
-    const ancestors = collectAncestors(ix, kept.map(([, row]) => row));
     const envelope = {
       entity: a.entity,
       resolved_entity: resolvedEntity,
@@ -376,6 +375,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_
     // what lets leaf attribution's residual be embedded in the query's own round
     // trip instead of a second one (see `lexicalResidual`).
     const lex = runLexical(ix, query, a.target_type, fetchK);
+    lexCut = lex.length >= fetchK;
     const semResult = await runSemantic(
       ix, query, a.target_type, fetchK, undefined, lexicalResidual(query, lex, ix.docMap),
       // runSemantic no longer throws on a normal degraded-leg failure; this

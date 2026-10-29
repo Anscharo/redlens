@@ -187,7 +187,7 @@ export async function atlasSearch(ix: Indexes, { query, k, offset = 0, type, mod
     sources: m.sources,
     ...(m.via ? { via: m.via } : {}),
     ...livenessOf(ix, n.id),
-  }));
+  }), { poolCut: mode !== "semantic" && lexAll.length >= fetchK });
   // Only present when the requested mode actually wanted a semantic leg (a
   // pure lexical search never runs one, so there's nothing to report skipping).
   const wantedSemantic = mode === "semantic" || mode === "hybrid";

@@ -110,7 +110,7 @@ export const PREVIEW_TOOLS: AtlasTool[] = [
     handler: async (ix, a, ctx) => {
       const o = await openForTool(a.preview_id, ctx);
       if ("result" in o) return o.result;
-      const r = buildPreviewDiff(ix, o.open, a as unknown as PreviewDiffArgs, ctx?.largeRead);
+      const r = buildPreviewDiff(ix, o.open, a as unknown as PreviewDiffArgs, ctx?.resultChars);
       return withPrDescription(r, a.offset ? null : await prContext(metaPrNumber(o.open.meta)));
     },
   },
@@ -132,7 +132,7 @@ export const PREVIEW_TOOLS: AtlasTool[] = [
     largeResult: true,
     handler: async (ix, a, ctx) => {
       const o = await openForTool(a.preview_id, ctx);
-      return "result" in o ? o.result : buildPreviewGet(ix, o.open, a as unknown as PreviewGetArgs, ctx?.largeRead);
+      return "result" in o ? o.result : buildPreviewGet(ix, o.open, a as unknown as PreviewGetArgs, ctx?.resultChars);
     },
   },
 ];

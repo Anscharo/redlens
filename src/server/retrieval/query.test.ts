@@ -401,3 +401,14 @@ describe("atlasQuery — entity_broad budget cut", () => {
     expect(out).not.toHaveProperty("next_offset");
   });
 });
+
+describe("atlasQuery — hints that share the envelope", () => {
+  it("keeps the paging hint when an ignored filter value adds its own", async () => {
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, { query: "spark keeper network root", target_type: "Instance", k: 10, enrich: false }, 2_300)) as Record<string, unknown>;
+    expect(out.invalid_filter_values).toBeDefined();
+    expect(out.truncated).toBe(true);
+    expect(out.hint).toContain("IGNORED");
+    expect(out.hint).toContain("next_offset");
+  });
+});

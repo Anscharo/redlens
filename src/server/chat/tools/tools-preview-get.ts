@@ -7,7 +7,7 @@ import type { ToolResult } from "./tools.ts";
 import type { ToolOpen } from "../../preview/tool-access.ts";
 import { loadPreviewDocs, previewCite, readPreviewDiff, readPreviewPatches, renderPatch, type PreviewDocs } from "../../preview/bundle-read.ts";
 import { CITATION_NOTE, PREVIEW_SOURCE_CLASS, previewHeader } from "./tools-preview-common.ts";
-import { previewCaps, type LargeRead } from "../large-read.ts";
+import { previewCaps } from "../large-read.ts";
 
 export interface PreviewGetArgs {
   ids: string[];
@@ -77,10 +77,10 @@ const STYLE_HINT =
   "To check conformance, compare against live documents of the same type under the same parent: atlas_filter " +
   "({ type, ancestor_id: <parent's live id or doc_no> }) or atlas_search, then atlas_get on two or three of them.";
 
-/** `read` is the chat turn's large-read state: only a turn with room left may ask for more than 5 ids (large-read.ts). */
-export function buildPreviewGet(ix: Indexes, open: Extract<ToolOpen, { status: "ready" }>, a: PreviewGetArgs, read?: LargeRead | null): ToolResult {
+/** `resultChars` is this result's granted budget: only a large one may ask for more than 5 ids (large-read.ts). */
+export function buildPreviewGet(ix: Indexes, open: Extract<ToolOpen, { status: "ready" }>, a: PreviewGetArgs, resultChars?: number): ToolResult {
   const c = getCtx(ix, open.sha, a);
-  const max = previewCaps(read).ids;
+  const max = previewCaps(resultChars).ids;
   const refs = a.ids.slice(0, max).map((ref) => ({ ref, node: resolveDoc(c.docs, ref) }));
   const missing = refs.filter((r) => !r.node).map((r) => r.ref);
   return {

@@ -31,8 +31,25 @@ describe("pageOf", () => {
     expect(built).toBe(5);
   });
 
-  it("returns nothing and no paging fields past the end", () => {
-    expect(pageOf(rows(3), { offset: 10, k: 10 }, MAX_RESULT_CHARS, (r) => r)).toEqual({ rows: [], fields: {} });
+  it("says so when offset is past the end of the ranking", () => {
+    const page = pageOf(rows(3), { offset: 10, k: 10 }, MAX_RESULT_CHARS, (r) => r);
+    expect(page.rows).toEqual([]);
+    expect(page.fields).toEqual({ hint: "offset 10 is past the end of this ranking, which holds 3 rows at this k." });
+  });
+
+  it("tells a ranking cut at its pool from one that ran out of matches", () => {
+    const cut = pageOf(rows(40), { offset: 30, k: 10 }, MAX_RESULT_CHARS, (r) => r, { poolCut: true });
+    expect(cut.fields.ranking_cut).toBe(true);
+    expect(cut.fields.hint).toContain("larger k");
+    expect(cut.fields).not.toHaveProperty("next_offset");
+    const widest = pageOf(rows(5), { offset: 0, k: 200 }, MAX_RESULT_CHARS, (r) => r, { poolCut: true });
+    expect(widest.fields.hint).toContain("narrow with a type or filter");
+    expect(pageOf(rows(40), { offset: 30, k: 10 }, MAX_RESULT_CHARS, (r) => r).fields).toEqual({});
+  });
+
+  it("returns what extra derived from the kept rows", () => {
+    const page = pageOf(rows(3), { offset: 0, k: 10 }, MAX_RESULT_CHARS, (r) => r, { extra: (kept) => kept.length });
+    expect(page.extra).toBe(3);
   });
 });
 
@@ -40,9 +57,10 @@ describe("fitWithExtra", () => {
   it("leaves room for what the envelope derives from the kept rows", () => {
     const all = rows(100);
     const extra = (kept: unknown[]) => ({ ancestors: "y".repeat(kept.length * 100) });
-    const { kept, truncated } = fitWithExtra(all, 30_000, extra);
-    expect(truncated).toBe(true);
-    expect(JSON.stringify(kept).length + JSON.stringify(extra(kept)).length).toBeLessThanOrEqual(30_000);
+    const fit = fitWithExtra(all, 30_000, extra);
+    expect(fit.truncated).toBe(true);
+    expect(fit.extra).toEqual(extra(fit.kept));
+    expect(JSON.stringify(fit.kept).length + JSON.stringify(fit.extra).length).toBeLessThanOrEqual(30_000);
   });
 });
 

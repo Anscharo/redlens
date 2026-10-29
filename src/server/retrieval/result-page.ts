@@ -26,7 +26,7 @@ export const pageShape = {
     .min(0)
     .max(1000)
     .default(0)
-    .describe("Ranked rows to skip. Pass a previous result's next_offset, with the same k, to read the next page; no next_offset means this k has no further page."),
+    .describe("Ranked rows to skip. Pass a previous result's next_offset, with the same k, to read the next page."),
 };
 
 /** The whole-result budget for this caller: the chat transport's cut, which
@@ -56,21 +56,31 @@ export const PAGE_HINT =
   "This page stopped at the result budget before reaching k rows. Call again with offset set to next_offset for the rest, or narrow with a type or filter.";
 
 /** Keeps a prefix of `rows` that fits `budget` together with the envelope and
- *  `extra(kept)` (atlas_query's ancestors map). `extra` of a prefix is never
- *  larger than of the whole, so one refit is enough. */
-export function fitWithExtra<R>(rows: R[], budget: number, extra?: (kept: R[]) => unknown): { kept: R[]; truncated: boolean } {
+ *  `extra(kept)` (atlas_query's ancestors map), and returns that `extra`.
+ *  `extra` of a prefix is never larger than of the whole, so one refit is enough. */
+export function fitWithExtra<R>(rows: R[], budget: number, extra?: (kept: R[]) => unknown): { kept: R[]; truncated: boolean; extra: unknown } {
   const room = Math.max(0, budget - ENVELOPE_CHARS);
   const fit = fitToBudget(rows, room);
-  const x = extra?.(fit.kept);
-  if (x == null) return fit;
+  const x = extra?.(fit.kept) ?? null;
+  if (x === null) return { ...fit, extra: null };
   const refit = fitToBudget(fit.kept, Math.max(0, room - JSON.stringify(x).length));
-  return { kept: refit.kept, truncated: fit.truncated || refit.truncated };
+  if (refit.kept.length === fit.kept.length) return { ...fit, extra: x };
+  return { kept: refit.kept, truncated: true, extra: extra!(refit.kept) };
 }
 
 export interface PageFields {
   next_offset?: number;
   truncated?: true;
+  /** The ranking stopped at its candidate pool, not at the last match. */
+  ranking_cut?: true;
   hint?: string;
+}
+
+export interface PageOpts<R> {
+  /** What the envelope derives from the kept rows; sized by fitWithExtra. */
+  extra?: (kept: R[]) => unknown;
+  /** A leg of the ranking filled its pool, so matches exist past `all`. */
+  poolCut?: boolean;
 }
 
 /** Rows [offset, offset + k) of `all`, built by `toRow` and cut whole to
@@ -81,10 +91,19 @@ export function pageOf<T, R>(
   window: { offset: number; k: number },
   budget: number,
   toRow: (t: T) => R,
-  extra?: (kept: R[]) => unknown,
-): { rows: R[]; fields: PageFields } {
+  opts: PageOpts<R> = {},
+): { rows: R[]; fields: PageFields; extra: unknown } {
   const { offset, k } = window;
-  const { kept, truncated } = fitWithExtra(all.slice(offset, offset + k).map(toRow), budget, extra);
-  if (!truncated && all.length <= offset + k) return { rows: kept, fields: {} };
-  return { rows: kept, fields: { next_offset: offset + kept.length, ...(truncated ? { truncated: true, hint: PAGE_HINT } : {}) } };
+  const { kept, truncated, extra } = fitWithExtra(all.slice(offset, offset + k).map(toRow), budget, opts.extra);
+  if (!truncated && all.length <= offset + k) return { rows: kept, extra, fields: endFields(offset, k, all.length, !!opts.poolCut) };
+  return { rows: kept, extra, fields: { next_offset: offset + kept.length, ...(truncated ? { truncated: true, hint: PAGE_HINT } : {}) } };
+}
+
+/** The paging fields of a page that reached the end of its ranking: whether
+ *  that end is the pool's rather than the last match's, and an offset past it. */
+function endFields(offset: number, k: number, total: number, poolCut: boolean): PageFields {
+  const past = offset > 0 && offset >= total ? `offset ${offset} is past the end of this ranking, which holds ${total} rows at this k. ` : "";
+  if (!poolCut) return past ? { hint: past.trim() } : {};
+  const deeper = k < PAGE_K_MAX ? `call again with a larger k (up to ${PAGE_K_MAX}) to rank deeper` : "narrow with a type or filter";
+  return { ranking_cut: true, hint: `${past}This ranking stopped at its candidate pool, not at the last match: ${deeper}.` };
 }
