@@ -145,7 +145,7 @@ export interface SearchArgs {
 export async function atlasSearch(ix: Indexes, { query, k, offset = 0, type, mode }: SearchArgs, budget = MAX_RESULT_CHARS): Promise<ToolResult> {
   const { phrases, casePhrases } = extractPhrases(query);
   const hasPhrases = phrases.length > 0 || casePhrases.length > 0;
-  const fetchK = poolSize(offset + k, mode === "lexical" && !hasPhrases);
+  const fetchK = poolSize(offset, k, mode === "lexical" && !hasPhrases);
 
   // The lexical leg is synchronous in-memory MiniSearch, so nothing is lost by
   // running it first — and leaf attribution's residual, built from its titles,

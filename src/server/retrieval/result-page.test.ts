@@ -47,11 +47,16 @@ describe("fitWithExtra", () => {
 });
 
 describe("poolSize and resultChars", () => {
-  it("fetches one past the window so a full page knows more exist", () => {
-    expect(poolSize(10, true)).toBe(11);
-    expect(poolSize(10, false)).toBe(40);
-    expect(poolSize(50, false)).toBe(200);
-    expect(poolSize(400, false)).toBe(401);
+  it("fetches an exact ranking one past the window so a full page knows more exist", () => {
+    expect(poolSize(0, 10, true)).toBe(11);
+    expect(poolSize(30, 10, true)).toBe(41);
+  });
+
+  it("fetches a fused ranking by k alone, so every page of one k reads the same ranking", () => {
+    expect(poolSize(0, 10, false)).toBe(40);
+    expect(poolSize(30, 10, false)).toBe(40);
+    expect(poolSize(0, 50, false)).toBe(200);
+    expect(poolSize(78, 200, false)).toBe(800);
   });
 
   it("uses the chat cut when the transport passes one, else the MCP budget", () => {

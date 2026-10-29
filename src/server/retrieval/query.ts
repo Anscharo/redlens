@@ -8,8 +8,8 @@ import { runLexical, runSemantic, rrfMerge, filterByType, buildAgentSnippet, ext
 import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "./leaf-attribution.ts";
 import { resolveEntity } from "./entity-resolve.ts";
 import { resolveTargetType } from "./doc-types.ts";
-import { MAX_RESULT_CHARS, TRUNCATION_HINT } from "../chat/output-budget.ts";
-import { fitWithExtra, pageOf, poolSize } from "./result-page.ts";
+import { MAX_RESULT_CHARS } from "../chat/output-budget.ts";
+import { fitWithExtra, pageOf, poolSize, unpagedHint } from "./result-page.ts";
 import { sql } from "../db.ts";
 import { livenessOf, withLivenessHint, type ToolResult } from "../chat/tools/tools.ts";
 import { pgType } from "../history/change-type.ts";
@@ -342,7 +342,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_
       entity: a.entity,
       resolved_entity: resolvedEntity,
       mode: "entity_broad",
-      ...(truncated ? { truncated: true, hint: TRUNCATION_HINT } : {}),
+      ...(truncated ? { truncated: true, hint: unpagedHint("edge_types, target_type or a query") } : {}),
       ...(ancestors ? { ancestors } : {}),
       by_relationship,
     };
@@ -370,7 +370,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_
   let semSkipped: string | null = null;
   if (query) {
     const { phrases, casePhrases } = extractPhrases(query);
-    const fetchK = poolSize((a.offset ?? 0) + a.k, false);
+    const fetchK = poolSize(a.offset ?? 0, a.k, false);
     // Sequential rather than a Promise.all, and it costs nothing: the lexical
     // leg is synchronous in-memory MiniSearch, and running it first is
     // what lets leaf attribution's residual be embedded in the query's own round

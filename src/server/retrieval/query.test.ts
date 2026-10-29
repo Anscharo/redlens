@@ -390,3 +390,14 @@ describe("atlasQuery — paging", () => {
     expect(out.filters_applied).toBeUndefined();
   });
 });
+
+describe("atlasQuery — entity_broad budget cut", () => {
+  it("names the narrowers it honors instead of offset, which this mode ignores", async () => {
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, { entity: "keeper-network", k: 10, enrich: false }, 2_050)) as Record<string, unknown>;
+    expect(out.mode).toBe("entity_broad");
+    expect(out.truncated).toBe(true);
+    expect(out.hint).toContain("does not page with offset");
+    expect(out).not.toHaveProperty("next_offset");
+  });
+});
