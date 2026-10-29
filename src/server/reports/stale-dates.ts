@@ -5,7 +5,7 @@
 // never defines (this is SAbR's own computed report, not atlas text).
 import type { Indexes } from "../retrieval/indexes.ts";
 import type { ToolResult } from "../chat/tools/tools.ts";
-import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
+import { fitEachToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import { buildStaleDatesReport, type DateClaim } from "../../lib/staleDates.ts";
 import { staleSearchFields } from "../../lib/staleDatesSearch.ts";
 import { applyOverlay, type VoteEvidenceOverlay } from "../../lib/votes/overlay.ts";
@@ -33,10 +33,11 @@ interface Bucket {
   truncated: boolean;
 }
 
-function bucket(claims: DateClaim[], opts: ReportArgs): Bucket {
-  const matched = applyReportFilter(claims, opts.filter, staleSearchFields);
-  const { kept, truncated } = fitToBudget(matched.map((c) => toRow(c, opts)));
-  return { matchedTotal: matched.length, kept, truncated };
+// The buckets share the call's budget, in this order: each gets what the ones before it left.
+function buckets(lists: Record<string, DateClaim[]>, opts: ReportArgs): Record<string, Bucket> {
+  const matched = Object.values(lists).map((claims) => applyReportFilter(claims, opts.filter, staleSearchFields));
+  const fits = fitEachToBudget(matched.map((m) => m.map((c) => toRow(c, opts))));
+  return Object.fromEntries(Object.keys(lists).map((k, i) => [k, { matchedTotal: matched[i].length, ...fits[i] }]));
 }
 
 export function buildStaleDatesReportTool(
@@ -47,13 +48,8 @@ export function buildStaleDatesReportTool(
   overlay: VoteEvidenceOverlay | null = currentVoteEvidence(),
 ): ToolResult {
   const report = applyOverlay(buildStaleDatesReport(indexesToDocs(ix), today, votes), overlay);
-  const buckets = {
-    stale: bucket(report.stale, opts),
-    due_soon: bucket(report.dueSoon, opts),
-    upcoming: bucket(report.upcoming, opts),
-    recorded: bucket(report.recorded, opts),
-  };
-  const all = Object.values(buckets);
+  const bucketed = buckets({ stale: report.stale, due_soon: report.dueSoon, upcoming: report.upcoming, recorded: report.recorded }, opts);
+  const all = Object.values(bucketed);
   const truncated = all.some((b) => b.truncated);
   const result: ToolResult = {
     report: "stale_dates",
@@ -63,7 +59,7 @@ export function buildStaleDatesReportTool(
     total_date_mentions: report.totalDateMentions,
     vote_record: votes ? `Executive Votes ${votes.first} → ${votes.last}` : "unavailable — no voteEvidence on rows",
     judged_at: overlay?.computedAt ?? null,
-    ...Object.fromEntries(Object.entries(buckets).map(([k, b]) => [k, b.kept])),
+    ...Object.fromEntries(Object.entries(bucketed).map(([k, b]) => [k, b.kept])),
   };
   if (truncated) result.note = TRUNCATION_HINT;
   return result;

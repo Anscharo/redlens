@@ -8,7 +8,6 @@ import { runLexical, runSemantic, rrfMerge, filterByType, buildAgentSnippet, ext
 import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "./leaf-attribution.ts";
 import { resolveEntity } from "./entity-resolve.ts";
 import { resolveTargetType } from "./doc-types.ts";
-import { MAX_RESULT_CHARS } from "../chat/output-budget.ts";
 import { fitWithExtra, pageOf, poolSize, UNPAGED_HINT } from "./result-page.ts";
 import { sql } from "../db.ts";
 import { livenessOf, withLivenessHint, type ToolResult } from "../chat/tools/tools.ts";
@@ -186,8 +185,8 @@ function enrichNode(ix: Indexes, n: AtlasNode, enrich: boolean, includeParams: b
   return base;
 }
 
-// `budget` is the caller's whole-result budget (`ToolCallContext.resultChars`; the MCP budget when absent).
-export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_CHARS): Promise<ToolResult> {
+// Pages are cut whole to the call's result budget (output-budget.ts resultBudget).
+export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult> {
   const query = a.query ?? a.q;
   if (!query && !a.entity && !a.target_type) {
     return { error: "at least one of query, entity, or target_type is required" };
@@ -273,7 +272,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_
   // overflow its context; `next_offset` tells it where the next page starts.
   // `poolCut`: the ranking behind `all` filled its candidate pool (result-page.ts PageOpts).
   const withBudget = <T,>(all: T[], toRow: (t: T) => unknown, rest: Record<string, unknown>, poolCut = false): ToolResult => {
-    const { rows: kept, fields, extra: ancestors } = pageOf(all, { offset: a.offset ?? 0, k: a.k }, budget, toRow, { extra: (r) => collectAncestors(ix, r), poolCut });
+    const { rows: kept, fields, extra: ancestors } = pageOf(all, { offset: a.offset ?? 0, k: a.k }, toRow, { extra: (r) => collectAncestors(ix, r), poolCut });
     // Zero results WITH filters active is a recoverable state, not an answer.
     // Say so, name the arguments to drop, and report how many candidates they
     // removed — the same "hand back what you need to retry" shape the rest of
@@ -334,7 +333,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_
     // Budget across all groups together, preserving grouping.
     const flat: Array<[string, unknown]> = [];
     for (const rel of Object.keys(grouped)) for (const row of grouped[rel]) flat.push([rel, row]);
-    const { kept, truncated, extra: ancestors } = fitWithExtra(flat, budget, (ks) => collectAncestors(ix, ks.map(([, r]) => r)));
+    const { kept, truncated, extra: ancestors } = fitWithExtra(flat, (ks) => collectAncestors(ix, ks.map(([, r]) => r)));
     const by_relationship: Record<string, unknown[]> = {};
     for (const [rel, row] of kept) (by_relationship[rel] ??= []).push(row);
     const envelope = {

@@ -9,6 +9,7 @@ import type { Indexes } from "../../retrieval/indexes.ts";
 import type { ToolResult } from "./tools.ts";
 import type { AtlasHandler, AtlasTool, DescribedTool } from "./tool-types.ts";
 import { ANON_MCP_CTX, type ToolCallContext } from "./tool-context.ts";
+import { withResultBudget } from "../output-budget.ts";
 import { PREVIEW_TOOLS } from "./tools-preview.ts";
 import { CORE_TOOLS } from "./registry-core.ts";
 import { GRAPH_TOOLS } from "./registry-graph.ts";
@@ -61,13 +62,24 @@ export function omitEmptyArgs(args: Record<string, unknown>): Record<string, unk
  * declares no `emptyArgsAbsent`, so its args are handed over untouched.
  *
  * `ctx` says who is calling (tool-context.ts). Omitted, it is the anonymous MCP
- * caller, so a call site that forgets it gets the least privilege.
+ * caller, so a call site that forgets it gets the least privilege. Its
+ * `resultChars` becomes the handler's result budget (output-budget.ts), so every
+ * fitToBudget inside drops whole rows to the cut this call faces.
  */
 export function invokeTool<T extends { emptyArgsAbsent?: boolean; shape: z.ZodRawShape; handler: AtlasHandler }>(
   ix: Indexes,
   tool: T,
   args: Record<string, unknown>,
   ctx: ToolCallContext = ANON_MCP_CTX,
+): ToolResult | Promise<ToolResult> {
+  return withResultBudget(ctx.resultChars, () => runHandler(ix, tool, args, ctx));
+}
+
+function runHandler<T extends { emptyArgsAbsent?: boolean; shape: z.ZodRawShape; handler: AtlasHandler }>(
+  ix: Indexes,
+  tool: T,
+  args: Record<string, unknown>,
+  ctx: ToolCallContext,
 ): ToolResult | Promise<ToolResult> {
   if (!tool.emptyArgsAbsent) return tool.handler(ix, args, ctx);
   const stripped = omitEmptyArgs(args);

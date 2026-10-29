@@ -2,7 +2,7 @@
 // No DB access — all data comes from the Indexes (docs, entities, edges).
 import { type Indexes, resolveNode, descendantIds, type AtlasNode, type Entity } from "../../retrieval/indexes.ts";
 import { type ToolResult, livenessOf, withLivenessHint } from "./tools.ts";
-import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
+import { fitToBudget, rowBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { matchEntities, resolveEntity } from "../../retrieval/entity-resolve.ts";
 import { entityAddresses } from "./tools-entity-addresses.ts";
 import { parseDocNos } from "../../../lib/meta.ts";
@@ -201,38 +201,18 @@ export function atlasEntity(
     ...(include_content ? { ...docRow(n), content: n.content } : docRow(n)),
     ...livenessOf(ix, n.id),
   }));
-  const { kept: nodes, truncated } = fitToBudget(rows);
-
-  const responsibilities = ix.edges
-    .filter(
-      (e) =>
-        e.from_id === entityId &&
-        ["responsible_party_for", "process_step_responsible_party_for", "duty_for"].includes(e.edge_type),
-    )
-    .map((e) => ix.docMap.get(e.to_id))
-    .filter((n): n is AtlasNode => !!n)
-    .map(docRow);
-
-  const activeData = ix.edges
-    .filter(
-      (e) =>
-        e.from_id === entityId &&
-        ["Active Data Controller", "Active Data"].includes(ix.docMap.get(e.to_id)?.type ?? ""),
-    )
-    .map((e) => {
-      const n = ix.docMap.get(e.to_id);
-      return n ? { ...docRow(n), edge_type: e.edge_type } : null;
-    })
-    .filter(Boolean);
+  const { responsibilities, activeData } = linkedDocs(ix, entityId);
+  // The address block answers "what addresses does X have" outright, so it is
+  // never the section a budget trim eats: nodes get what it and the rest leave.
+  const addresses = entityAddresses(ix, entityId);
+  const { kept: nodes, truncated } = fitToBudget(rows, rowBudget({ alternatives, addresses, node_types, responsibilities, activeData }));
 
   const envelope = {
     entity: name,
     resolved: { slug: entity.slug, name: entity.name, entity_type: entity.entity_type, subtype: entity.subtype },
     alternatives,
     entityId,
-    // Before `nodes` on purpose: the address block answers "what addresses does
-    // X have" outright, and must never be the section a budget trim eats.
-    addresses: entityAddresses(ix, entityId),
+    addresses,
     node_count: filtered.length,
     node_types,
     offset,
@@ -244,6 +224,21 @@ export function atlasEntity(
     activeData,
   };
   return withLivenessHint(envelope, nodes);
+}
+
+// The docs an entity is responsible for, and the Active Data it controls.
+function linkedDocs(ix: Indexes, entityId: string) {
+  const out = ix.edges.filter((e) => e.from_id === entityId);
+  const responsibilities = out
+    .filter((e) => ["responsible_party_for", "process_step_responsible_party_for", "duty_for"].includes(e.edge_type))
+    .map((e) => ix.docMap.get(e.to_id))
+    .filter((n): n is AtlasNode => !!n)
+    .map(docRow);
+  const activeData = out.flatMap((e) => {
+    const n = ix.docMap.get(e.to_id);
+    return n && ["Active Data Controller", "Active Data"].includes(n.type) ? [{ ...docRow(n), edge_type: e.edge_type }] : [];
+  });
+  return { responsibilities, activeData };
 }
 
 // ── atlas_entities (discovery / resolution) ──────────────────────────────────
@@ -491,7 +486,7 @@ export function atlasEntityParams(
     return { id: inst.id, doc_no: inst.doc_no, title: inst.title, type: inst.type, params };
   }).filter(Boolean);
 
-  const { kept, truncated } = fitToBudget(instances);
+  const { kept, truncated } = fitToBudget(instances, rowBudget(available_subtypes));
   const trunc = truncated ? { truncated: true, hint: TRUNCATION_HINT } : {};
   return entity ? { instances: kept, available_subtypes, ...trunc } : { instances: kept, ...trunc };
 }

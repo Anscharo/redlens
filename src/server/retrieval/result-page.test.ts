@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { MAX_RESULT_CHARS } from "../chat/output-budget.ts";
+import { withResultBudget } from "../chat/output-budget.ts";
 import { rrfFuse } from "../../lib/searchSemantic.ts";
 import { fitWithExtra, PAGE_HINT, pageOf, poolSize } from "./result-page.ts";
 
@@ -7,19 +7,19 @@ const rows = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `doc-${i}
 
 describe("pageOf", () => {
   it("returns the window with no paging fields when nothing lies past it", () => {
-    const page = pageOf(rows(5), { offset: 0, k: 10 }, MAX_RESULT_CHARS, (r) => r);
+    const page = pageOf(rows(5), { offset: 0, k: 10 }, (r) => r);
     expect(page.rows.map((r) => r.id)).toEqual(["doc-0", "doc-1", "doc-2", "doc-3", "doc-4"]);
     expect(page.fields).toEqual({});
   });
 
   it("points at the next page when k, not the budget, ended this one", () => {
-    const page = pageOf(rows(30), { offset: 10, k: 10 }, MAX_RESULT_CHARS, (r) => r);
+    const page = pageOf(rows(30), { offset: 10, k: 10 }, (r) => r);
     expect(page.rows[0].id).toBe("doc-10");
     expect(page.fields).toEqual({ next_offset: 20 });
   });
 
   it("drops whole rows at the budget and says the budget ended the page", () => {
-    const page = pageOf(rows(200), { offset: 0, k: 200 }, 30_000, (r) => r);
+    const page = withResultBudget(30_000, () => pageOf(rows(200), { offset: 0, k: 200 }, (r) => r));
     expect(page.rows.length).toBeGreaterThan(50);
     expect(page.rows.length).toBeLessThan(200);
     expect(JSON.stringify(page.rows).length).toBeLessThanOrEqual(30_000);
@@ -28,28 +28,28 @@ describe("pageOf", () => {
 
   it("builds rows only for the window", () => {
     let built = 0;
-    pageOf(rows(100), { offset: 20, k: 5 }, MAX_RESULT_CHARS, (r) => (built++, r));
+    pageOf(rows(100), { offset: 20, k: 5 }, (r) => (built++, r));
     expect(built).toBe(5);
   });
 
   it("says so when offset is past the end of the ranking", () => {
-    const page = pageOf(rows(3), { offset: 10, k: 10 }, MAX_RESULT_CHARS, (r) => r);
+    const page = pageOf(rows(3), { offset: 10, k: 10 }, (r) => r);
     expect(page.rows).toEqual([]);
     expect(page.fields).toEqual({ hint: "offset 10 is past the end of this ranking, which holds 3 rows at this k." });
   });
 
   it("tells a ranking cut at its pool from one that ran out of matches", () => {
-    const cut = pageOf(rows(40), { offset: 30, k: 10 }, MAX_RESULT_CHARS, (r) => r, { poolCut: true });
+    const cut = pageOf(rows(40), { offset: 30, k: 10 }, (r) => r, { poolCut: true });
     expect(cut.fields.ranking_cut).toBe(true);
     expect(cut.fields.hint).toContain("larger k");
     expect(cut.fields).not.toHaveProperty("next_offset");
-    const widest = pageOf(rows(5), { offset: 0, k: 200 }, MAX_RESULT_CHARS, (r) => r, { poolCut: true });
+    const widest = pageOf(rows(5), { offset: 0, k: 200 }, (r) => r, { poolCut: true });
     expect(widest.fields.hint).toContain("narrow with a type or filter");
-    expect(pageOf(rows(40), { offset: 30, k: 10 }, MAX_RESULT_CHARS, (r) => r).fields).toEqual({});
+    expect(pageOf(rows(40), { offset: 30, k: 10 }, (r) => r).fields).toEqual({});
   });
 
   it("returns what extra derived from the kept rows", () => {
-    const page = pageOf(rows(3), { offset: 0, k: 10 }, MAX_RESULT_CHARS, (r) => r, { extra: (kept) => kept.length });
+    const page = pageOf(rows(3), { offset: 0, k: 10 }, (r) => r, { extra: (kept) => kept.length });
     expect(page.extra).toBe(3);
   });
 });
@@ -58,7 +58,7 @@ describe("fitWithExtra", () => {
   it("leaves room for what the envelope derives from the kept rows", () => {
     const all = rows(100);
     const extra = (kept: unknown[]) => ({ ancestors: "y".repeat(kept.length * 100) });
-    const fit = fitWithExtra(all, 30_000, extra);
+    const fit = withResultBudget(30_000, () => fitWithExtra(all, extra));
     expect(fit.truncated).toBe(true);
     expect(fit.extra).toEqual(extra(fit.kept));
     expect(JSON.stringify(fit.kept).length + JSON.stringify(fit.extra).length).toBeLessThanOrEqual(30_000);
@@ -95,10 +95,10 @@ describe("paging a fused ranking", () => {
 
   it("reads one ranking across pages: no row repeats and none is skipped", () => {
     for (const k of [10, 200]) {
-      const budget = k === 200 ? 4_000 : MAX_RESULT_CHARS;
-      const first = pageOf(fused(0, k), { offset: 0, k }, budget, (id) => ({ id, pad: "x".repeat(30) }));
+      const page = (offset: number) => pageOf(fused(offset, k), { offset, k }, (id) => ({ id, pad: "x".repeat(30) }));
+      const first = k === 200 ? withResultBudget(4_000, () => page(0)) : page(0);
       const next = first.fields.next_offset!;
-      const second = pageOf(fused(next, k), { offset: next, k }, budget, (id) => ({ id, pad: "x".repeat(30) }));
+      const second = k === 200 ? withResultBudget(4_000, () => page(next)) : page(next);
       const read = [...first.rows, ...second.rows].map((r) => r.id);
       expect(new Set(read).size).toBe(read.length);
       expect(read).toEqual(fused(0, k).slice(0, read.length));

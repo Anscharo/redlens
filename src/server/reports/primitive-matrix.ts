@@ -12,7 +12,7 @@
 // meta { agent_doc_id, primitive_category_doc_id, status }. agent_doc_id === the
 // Prime Agent entity's defining_doc_id. Denominator = all Prime Agents.
 import type { Indexes } from "../retrieval/indexes.ts";
-import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
+import { fitToBudget, rowBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import type { ToolResult } from "../chat/tools/tools.ts";
 import { primeAgents, collectStatuses, type Activation } from "./primitive-activation.ts";
 import { defineReportTool } from "./report-tool.ts";
@@ -80,7 +80,7 @@ const UNKNOWN_STATUS_WARNING =
   "Primitives carried globalActivation value(s) this report doesn't recognize; they were counted as not-engaged (Inactive) and may be misclassified as dormant/optional.";
 
 function matrixEnvelope(agentNames: string[], rows: SubtypeRow[], unknownStatuses: Set<string>): ToolResult {
-  const { kept, truncated } = fitToBudget(rows);
+  const { kept, truncated } = fitToBudget(rows, rowBudget(agentNames));
   const count = (c: SubtypeRow["classification"]) => rows.filter((r) => r.classification === c).length;
   const result: ToolResult = {
     report: "primitive_matrix",

@@ -7,7 +7,7 @@
 // stitching it together from instance entities + active_data_for edges by hand.
 import type { Indexes } from "../retrieval/indexes.ts";
 import type { ToolResult } from "../chat/tools/tools.ts";
-import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
+import { fitToBudget, rowBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import { buildRewardsIndex } from "../../lib/rewardsIndex.ts";
 import type { AgentPrimitive, RewardsAgent, RewardsIcd } from "../../lib/rewardsTypes.ts";
 import { filterRewardsAgents } from "../../lib/rewardsSearch.ts";
@@ -44,7 +44,7 @@ export function buildRewardsReport(ix: Indexes, opts: { include_provenance: bool
   const matched = filterRewardsAgents(allAgents, parseReportQuery(opts.filter ?? ""));
   const agents = opts.include_provenance ? matched : matched.map(stripAgentParams);
 
-  const { kept, truncated } = fitToBudget(agents);
+  const { kept, truncated } = fitToBudget(agents, rowBudget(ecosystem));
   const result: ToolResult = {
     report: "rewards",
     total: matched.length,
@@ -52,7 +52,7 @@ export function buildRewardsReport(ix: Indexes, opts: { include_provenance: bool
     truncated,
     agents: kept,
     // Ecosystem anchor docs (stUsdsDr, srUsdsDr, dr/ibPrimitive) + the demand-side
-    // buffer address — scalar context that always fits, kept outside the budget.
+    // buffer address — scalar context that is never cut; the agents fit what it leaves.
     ecosystem,
   };
   if (truncated) result.note = TRUNCATION_HINT;

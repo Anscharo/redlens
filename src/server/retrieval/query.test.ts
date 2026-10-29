@@ -19,6 +19,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import { buildIndexes, type AtlasNode, type Entity, type Edge } from "./indexes.ts";
 import { atlasQuery } from "./query.ts";
+import { withResultBudget } from "../chat/output-budget.ts";
 import { config } from "../config.ts";
 
 let prevKey: string;
@@ -375,7 +376,7 @@ describe("atlasQuery — paging", () => {
 
   it("cuts whole rows to the caller's budget and returns where to resume", async () => {
     const { ix } = buildFixture();
-    const out = (await atlasQuery(ix, { target_type: "Core", k: 10, enrich: false }, 2_300)) as Record<string, unknown>;
+    const out = (await withResultBudget(2_300, () => atlasQuery(ix, { target_type: "Core", k: 10, enrich: false }))) as Record<string, unknown>;
     const results = out.results as unknown[];
     expect(results.length).toBeGreaterThan(0);
     expect(results.length).toBeLessThan(4);
@@ -394,7 +395,7 @@ describe("atlasQuery — paging", () => {
 describe("atlasQuery — entity_broad budget cut", () => {
   it("names the narrowers it honors instead of offset, which this mode ignores", async () => {
     const { ix } = buildFixture();
-    const out = (await atlasQuery(ix, { entity: "keeper-network", k: 10, enrich: false }, 2_050)) as Record<string, unknown>;
+    const out = (await withResultBudget(2_050, () => atlasQuery(ix, { entity: "keeper-network", k: 10, enrich: false }))) as Record<string, unknown>;
     expect(out.mode).toBe("entity_broad");
     expect(out.truncated).toBe(true);
     expect(out.hint).toContain("does not page with offset");
@@ -405,7 +406,7 @@ describe("atlasQuery — entity_broad budget cut", () => {
 describe("atlasQuery — hints that share the envelope", () => {
   it("keeps the paging hint when an ignored filter value adds its own", async () => {
     const { ix } = buildFixture();
-    const out = (await atlasQuery(ix, { query: "spark keeper network root", target_type: "Instance", k: 10, enrich: false }, 2_300)) as Record<string, unknown>;
+    const out = (await withResultBudget(2_300, () => atlasQuery(ix, { query: "spark keeper network root", target_type: "Instance", k: 10, enrich: false }))) as Record<string, unknown>;
     expect(out.invalid_filter_values).toBeDefined();
     expect(out.truncated).toBe(true);
     expect(out.hint).toContain("IGNORED");

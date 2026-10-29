@@ -11,7 +11,7 @@
 // (outbound) while `invoked_by` runs instance→agent (inbound), and an
 // outbound-only walk silently drops every instance address.
 import type { Indexes, Edge } from "../../retrieval/indexes.ts";
-import { fitToBudget } from "../output-budget.ts";
+import { fitToBudget, rowBudget } from "../output-budget.ts";
 
 export interface AddressRef {
   address: string;
@@ -51,11 +51,11 @@ function parseDocNos(raw: string | null): string[] {
   }
 }
 
-// A dedicated slice of the caller's budget (MAX_RESULT_CHARS is 200k): the
-// address block must never crowd out the documents, but it must fit the worst
-// real case whole — the two densest Prime Agents carry 88 and 109 addresses
-// (~26k and ~32k chars), and truncating those is exactly the question this
-// block exists to answer.
+// A dedicated slice of the call's budget (200k on MCP): the address block must
+// never crowd out the documents, but it must fit the worst real case whole —
+// the two densest Prime Agents carry 88 and 109 addresses (~26k and ~32k
+// chars), and truncating those is exactly the question this block exists to
+// answer. A smaller call budget (chat's 30k) caps it, so it is cut by whole groups.
 const ADDRESS_BUDGET = 40_000;
 
 export function entityAddresses(ix: Indexes, entityId: string): EntityAddresses {
@@ -101,6 +101,6 @@ export function entityAddresses(ix: Indexes, entityId: string): EntityAddresses 
   groups.sort((a, b) => (a.direction === "self" ? -1 : b.direction === "self" ? 1 : a.owner.localeCompare(b.owner)));
 
   const count = groups.reduce((n, g) => n + g.addresses.length, 0);
-  const { kept, truncated } = fitToBudget(groups, ADDRESS_BUDGET);
+  const { kept, truncated } = fitToBudget(groups, Math.min(ADDRESS_BUDGET, rowBudget()));
   return { count, groups: kept, ...(truncated ? { truncated: true as const } : {}) };
 }
