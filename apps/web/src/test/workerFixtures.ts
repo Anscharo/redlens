@@ -152,7 +152,7 @@ export function makeDocsRecord(): Record<string, AtlasNode> {
       type: "Core",
       depth: 3,
       parentId: null,
-      content: "This subsidy is paid monthly.",
+      content: "This subsidy is paid monthly, 30 days in arrears.",
       order: 10,
       addressRefs: [],
     },

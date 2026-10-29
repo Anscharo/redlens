@@ -5,6 +5,7 @@
 // worker global and without MiniSearch. Everything the leg needs from the
 // worker (the doc map, the hit builder, `postMessage`) is passed in.
 import type { SearchHit, SemanticLegStatus, SemanticLimit, WorkerOutMessage } from "@/types";
+import { docNoKey } from "@/lib/docNo";
 import { UUID_RE } from "@/lib/patterns";
 import { isUuidPrefix } from "../lib/uuidSearch";
 import {
@@ -19,10 +20,8 @@ import {
 // list is worth scrolling — but not unbounded: every id costs a pgvector row.
 export const SEMANTIC_K = 60;
 
-// Sky chainlog id shape, e.g. MCD_VAT. A doc number for the fast exact-lookup
-// path, e.g. "A.1.2", "A.1.2.3.4", "NR-12".
+// Sky chainlog id shape, e.g. MCD_VAT.
 export const CHAINLOG_RE = /^[A-Z][A-Z0-9_]{2,}$/;
-export const DOC_NO_RE = /^[A-Z][A-Z0-9]*(?:\.\w+)+$|^NR-\d+$/i;
 
 /**
  * Identifier queries never get a semantic leg. A UUID, a doc number or a
@@ -34,7 +33,7 @@ export function isIdentifierQuery(trimmed: string, isKnownChainlog: (s: string) 
   return (
     UUID_RE.test(trimmed) ||
     isUuidPrefix(trimmed) ||
-    DOC_NO_RE.test(trimmed) ||
+    docNoKey(trimmed) !== null ||
     (CHAINLOG_RE.test(trimmed) && isKnownChainlog(trimmed))
   );
 }
