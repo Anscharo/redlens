@@ -2,7 +2,9 @@
 // spell set it, only past two months when a cBEAM did, never when switched off
 // or set another way.
 import { describe, expect, it } from "vitest";
-import { unmatchedFlag } from "./pauAtlasFlag.ts";
+import type { LiveRateLimit } from "./pau.ts";
+import type { PauHistoryResponse } from "./pauHistory.ts";
+import { limitFlag, unmatchedFlag } from "./pauAtlasFlag.ts";
 
 const NOW = Date.parse("2026-10-13T12:00:00Z");
 
@@ -30,5 +32,24 @@ describe("unmatchedFlag", () => {
     const f = unmatchedFlag("spell", "2026-10-12T14:00:00Z", false, NOW, true);
     expect(f?.text).toMatch(/^No Atlas value is connected.*only names its controller constant/);
     expect(f?.text).not.toMatch(/No Atlas document found/);
+  });
+});
+
+describe("limitFlag", () => {
+  const entry = (tx: string, kind: string) => ({ chain: "ethereum", tx, block: 1, time: "t", primes: [], origin: { kind }, executive: null, changes: [] });
+  const history = { entries: [entry("0xspell", "spell"), entry("0xold", "operator"), entry("0xdirect", "direct")] } as unknown as PauHistoryResponse;
+  const limit = (tx: string, time: string, maxAmount = "1000000"): LiveRateLimit => ({
+    key: "0x" + "a".repeat(64), configured: { maxAmount, slope: "0" }, setAt: { block: 1, time, tx }, changes: 1, data: null, available: null,
+  });
+  it("judges a limit by what its history says set it, worded for a named constant when asked", () => {
+    expect(limitFlag(history, "ethereum", limit("0xspell", "2026-10-12T00:00:00Z"), NOW)?.kind).toBe("spell");
+    expect(limitFlag(history, "ethereum", limit("0xold", "2026-07-01T00:00:00Z"), NOW)?.kind).toBe("cbeam");
+    expect(limitFlag(history, "ethereum", limit("0xspell", "2026-10-12T00:00:00Z"), NOW, true)?.text).toMatch(/only names its controller constant/);
+  });
+  it("flags nothing while the history loads, for a switched-off limit, another origin, or a transaction on another chain", () => {
+    expect(limitFlag(null, "ethereum", limit("0xspell", "2026-10-12T00:00:00Z"), NOW)).toBeNull();
+    expect(limitFlag(history, "ethereum", limit("0xspell", "2026-10-12T00:00:00Z", "0"), NOW)).toBeNull();
+    expect(limitFlag(history, "ethereum", limit("0xdirect", "2026-10-12T00:00:00Z"), NOW)).toBeNull();
+    expect(limitFlag(history, "base", limit("0xspell", "2026-10-12T00:00:00Z"), NOW)).toBeNull();
   });
 });

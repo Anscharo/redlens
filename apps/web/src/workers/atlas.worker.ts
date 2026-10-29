@@ -1,6 +1,6 @@
 import type { AtlasNode } from "@/types";
 import { fetchJson } from "@/lib/verify";
-import { pushTo } from "@/lib/collections";
+import { docTree } from "@/lib/atlasTree";
 
 // loadAtlas(base) passes a preview's data-source base via the worker `name`
 // option (e.g. /api/preview/<sha>/); default is the live atlas under the sha-keyed
@@ -10,52 +10,9 @@ const BASE = self.name || import.meta.env.BASE_URL;
 
 // Build the parent/doc_no lookup maps from whatever node set is passed (shallow on
 // the `tree` message, full on `ready`), so the tree can be posted the instant
-// docs-shallow.json lands. See docs-split.md.
+// docs-shallow.json lands. See docs-split.md; the tree rule is atlasTree.ts.
 function buildMaps(docs: Record<string, AtlasNode>) {
-  const docNoToId = new Map<string, string>();
-  for (const node of Object.values(docs)) {
-    docNoToId.set(node.doc_no, node.id);
-  }
-
-  function resolveParentId(node: AtlasNode): string | null {
-    const dn = node.doc_no;
-    if (dn.startsWith("NR-")) return node.parentId;
-
-    const parts = dn.split(".");
-    if (parts.length <= 2) return null;
-
-    const last = parts[parts.length - 1];
-
-    if (last.startsWith("var")) {
-      return docNoToId.get(parts.slice(0, -1).join(".")) ?? node.parentId;
-    }
-
-    if (parts.length >= 4) {
-      const m2 = parts[parts.length - 3];
-      const m1 = parts[parts.length - 2];
-      if (m2 === "0" && (m1 === "3" || m1 === "4" || m1 === "6")) {
-        const parentDocNo = parts.slice(0, -3).join(".");
-        return docNoToId.get(parentDocNo) ?? node.parentId;
-      }
-    }
-
-    if (parts.length >= 3 && parts[parts.length - 2] === "1") {
-      const candidateParent = parts.slice(0, -2).join(".");
-      if (docNoToId.has(candidateParent) && /\.0\.4\.\d+$/.test(candidateParent)) {
-        return docNoToId.get(candidateParent)!;
-      }
-    }
-
-    const parentDocNo = parts.slice(0, -1).join(".");
-    return docNoToId.get(parentDocNo) ?? node.parentId;
-  }
-
-  const byParent = new Map<string | null, AtlasNode[]>();
-  for (const node of Object.values(docs)) {
-    pushTo(byParent, resolveParentId(node), node);
-  }
-  for (const bucket of byParent.values()) bucket.sort((a, b) => a.order - b.order);
-
+  const { byParent, docNoToId } = docTree(docs);
   return {
     byParentEntries: Array.from(byParent.entries()),
     docNoToIdEntries: Array.from(docNoToId.entries()),

@@ -11,8 +11,7 @@ import type { GraphData } from "./graphData.ts";
 import type { ValueSource } from "./pauInstanceKeys.ts";
 import { graphView, primeValueSources } from "./pauPrimeSources.ts";
 import { RATE_LIMITS_TITLE_RE } from "./pauParams.ts";
-import { withInstanceLimitDocs } from "./pauInstanceLimitDocs.ts";
-import { ancestorsOf, limitDocSources, limitHeadingScope, type LimitDocs } from "./pauLimitDocs.ts";
+import { ancestorsOf, limitHeadingScope, type LimitDocs } from "./pauLimitDocs.ts";
 
 export interface DocValueSources {
   /** The prime entity id. */
@@ -30,13 +29,7 @@ export interface DocHeading {
 
 const states = (e: GraphEntity, id: string) => e.did === id || Object.values(graphView(e).meta.params ?? {}).some(([, src]) => src === id);
 const instancesOf = (graph: GraphData) => [...graph.instances, ...graph.invocations];
-const sourcesOf = (prime: GraphEntity, graph: GraphData) => primeValueSources(instancesOf(graph).map(graphView), prime.id, graphView(prime));
-
-/** The prime's sources with the limit values the atlas documents state: in each instance's own subtree, and in the prime's limit documents (pauLimitDocs.ts). */
-const withLimitDocs = (sources: ValueSource[], prime: GraphEntity, docs: LimitDocs): ValueSource[] => [
-  ...sources.map((s) => withInstanceLimitDocs(s, docs)),
-  ...limitDocSources(sources[0], prime.did, docs),
-];
+const sourcesOf = (prime: GraphEntity, graph: GraphData, docs?: LimitDocs) => primeValueSources(instancesOf(graph).map(graphView), prime.id, graphView(prime), docs);
 
 const stateValuesIn = (sources: ValueSource[], id: string) => sources.some((s) => s.docId === id || Object.values(s.params).some((v) => v[1] === id));
 
@@ -65,8 +58,7 @@ export function docValueSources(id: string, graph: GraphData | null, heading?: D
   const above = !stating && docs ? primeAbove(id, graph, docs) : undefined;
   const primeEntity = stating ?? above;
   if (!primeEntity) return null;
-  const base = sourcesOf(primeEntity, graph);
-  const sources = docs ? withLimitDocs(base, primeEntity, docs) : base;
+  const sources = sourcesOf(primeEntity, graph, docs);
   if (!stating && scope.length === 0 && !stateValuesIn(sources, id)) return null;
   return { prime: primeEntity.id, sources, children: [...new Set([...direct, ...scope])] };
 }
@@ -79,6 +71,5 @@ export function docValueSources(id: string, graph: GraphData | null, heading?: D
 export function graphPrimeSources(primeId: string, graph: GraphData | null, docs?: LimitDocs): ValueSource[] | null {
   const prime = graph?.participants.find((p) => p.id === primeId);
   if (!graph || !prime) return null;
-  const sources = sourcesOf(prime, graph);
-  return docs ? withLimitDocs(sources, prime, docs) : sources;
+  return sourcesOf(prime, graph, docs);
 }

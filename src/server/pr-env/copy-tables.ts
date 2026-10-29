@@ -21,6 +21,8 @@ export const PR_ENV_COPY_TABLES: CopyTable[] = [
   { table: "spell_casts" },
   { table: "pau_tx_origin" },
   { table: "executive_archive" },
+  // The spells' naming material (src/server/pau/spell-sources.ts).
+  { table: "pau_spell_sources" },
   // Balances, the bytecode check and the joined contract state live on the
   // address rows sync.ts owns, so they are copied onto those rows.
   {

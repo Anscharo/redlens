@@ -8,6 +8,7 @@
 // and a formatted copy to read.
 import type { StoredPauSnapshot } from "./pau.ts";
 import { checkAtlasValues, type ValueCheck, type ValueStatus } from "./pauAtlasValues.ts";
+import type { LimitDocs } from "./pauLimitDocs.ts";
 import { primesStatingValues, primeValueSources, rowView, type SourceEntity } from "./pauPrimeSources.ts";
 import { exactAmount, limitDecimals, wholeAmount } from "./pauView.ts";
 
@@ -49,14 +50,14 @@ function addCheck(values: Record<string, CensusValue>, c: ValueCheck, prime: str
   v.at[`${c.chain ?? "-"}/${c.kind ?? "-"}/${c.key ?? "-"}`] = DISAGREE.has(c.status) ? [c.status, ...chainValue(c)] : c.status;
 }
 
-/** The census of every prime that states values or has a deployment. */
-export function pauCensus(entities: SourceEntity[], docNoOf: (id: string) => string | null, snaps: StoredPauSnapshot[]): PauCensus {
+/** The census of every prime that states values or has a deployment, with the values the atlas documents `docs` state. */
+export function pauCensus(entities: SourceEntity[], docNoOf: (id: string) => string | null, snaps: StoredPauSnapshot[], docs?: LimitDocs): PauCensus {
   const values: Record<string, CensusValue> = {};
   const counts: Record<string, number> = {};
   const views = entities.map(rowView);
   const primes = new Set([...snaps.map((s) => s.prime), ...primesStatingValues(views)]);
   for (const prime of [...primes].sort()) {
-    for (const c of checkAtlasValues(primeValueSources(views, prime), snaps.filter((s) => s.prime === prime))) {
+    for (const c of checkAtlasValues(primeValueSources(views, prime, undefined, docs), snaps.filter((s) => s.prime === prime))) {
       addCheck(values, c, prime, docNoOf);
       counts[c.status] = (counts[c.status] ?? 0) + 1;
     }

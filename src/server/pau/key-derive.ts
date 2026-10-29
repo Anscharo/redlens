@@ -17,7 +17,8 @@ export type ArgType = "address" | "uint" | "bytes32";
  * One way a key is encoded: keccak256(abi.encode(keccak256(constant), ...args)).
  * `tuples` are argument lists to hash as given (values read from the chain);
  * besides them, a shape of at most two address or integer arguments is
- * enumerated over the candidate addresses and IDS.
+ * enumerated over the candidate addresses and IDS, and a shape of one bytes32
+ * over the candidate words (a Uniswap v4 pool id).
  */
 export interface KeyShape {
   constant: string;
@@ -33,26 +34,34 @@ const IDS = [...Array.from({ length: 32 }, (_, i) => i), ...Array.from({ length:
 const word = (t: ArgType, v: string) => (t === "uint" ? BigInt(v).toString(16) : v.slice(2).toLowerCase()).padStart(64, "0");
 
 const enumerable = (types: ArgType[]) => types.length <= 2 && !types.includes("bytes32");
+const oneWord = (types: ArgType[]) => types.length === 1 && types[0] === "bytes32";
 
-function argLists(s: KeyShape, addresses: string[]): string[][] {
-  const listed = enumerable(s.types) ? s.types.reduce<string[][]>((acc, t) => acc.flatMap((xs) => (t === "address" ? addresses : IDS).map((v) => [...xs, v])), [[]]) : [];
-  return [...(s.tuples ?? []), ...listed];
+/** The candidates the deriver enumerates arguments from. */
+interface Candidates {
+  addresses: string[];
+  words: string[];
 }
 
-const cost = (s: KeyShape, n: number) => (s.tuples?.length ?? 0) + (enumerable(s.types) ? s.types.reduce((p, t) => p * (t === "address" ? n : IDS.length), 1) : 0);
+function argLists(s: KeyShape, c: Candidates): string[][] {
+  const listed = enumerable(s.types) ? s.types.reduce<string[][]>((acc, t) => acc.flatMap((xs) => (t === "address" ? c.addresses : IDS).map((v) => [...xs, v])), [[]]) : [];
+  return [...(s.tuples ?? []), ...listed, ...(oneWord(s.types) ? c.words.map((w) => [w]) : [])];
+}
+
+const cost = (s: KeyShape, c: Candidates) =>
+  (s.tuples?.length ?? 0) + (enumerable(s.types) ? s.types.reduce((p, t) => p * (t === "address" ? c.addresses.length : IDS.length), 1) : 0) + (oneWord(s.types) ? c.words.length : 0);
 
 /**
  * A lookup from key to the derivation that reproduces it, or null. Shapes are
  * hashed lazily, cheapest first, so a deployment whose keys are all found
  * early never pays for the address pairs.
  */
-export function shapeDeriver(shapes: KeyShape[], addresses: string[]): (key: string) => DerivedKey | null {
+export function shapeDeriver(shapes: KeyShape[], addresses: string[], words: string[] = []): (key: string) => DerivedKey | null {
   const found = new Map<string, DerivedKey>();
-  const addrs = [...new Set(addresses.map((a) => a.toLowerCase()))];
-  const queue = [...shapes].sort((a, b) => cost(a, addrs.length) - cost(b, addrs.length));
+  const c = { addresses: [...new Set(addresses.map((a) => a.toLowerCase()))], words: [...new Set(words.map((w) => w.toLowerCase()))] };
+  const queue = [...shapes].sort((a, b) => cost(a, c) - cost(b, c));
   const fill = (s: KeyShape) => {
     const base = keccak256(toHex(s.constant));
-    for (const args of argLists(s, addrs)) {
+    for (const args of argLists(s, c)) {
       const key = s.types.length ? keccak256(`${base}${s.types.map((t, i) => word(t, args[i])).join("")}` as Hex) : base;
       if (!found.has(key)) found.set(key, s.name(args));
     }
@@ -66,31 +75,42 @@ export function shapeDeriver(shapes: KeyShape[], addresses: string[]): (key: str
 }
 
 /**
- * The monolithic controllers' shapes: every constant bare, with one address
- * and with one id; makeAssetDestinationKey pairs, identified by the second
+ * The monolithic controllers' shapes: every constant bare, with one address,
+ * with one id and with one word (UniswapV4Lib's pool id); makeAssetDestinationKey pairs, identified by the second
  * argument, for an asset transfer (asset, destination) and for UniswapV3Lib
  * (token, pool); and (address, id) for LayerZero and Centrifuge transfers.
  */
 function monolithicShapes(constant: string): KeyShape[] {
   const plain = (types: ArgType[]): KeyShape => ({ constant, types, name: (args) => ({ constant, args }) });
-  const shapes = [plain([]), plain(["address"]), plain(["uint"])];
+  const shapes = [plain([]), plain(["address"]), plain(["uint"]), plain(["bytes32"])];
   if (/^LIMIT_(ASSET_TRANSFER|UNISWAP_V3_\w+)$/.test(constant)) shapes.push({ constant, types: ["address", "address"], name: (args) => ({ constant, args, via: args[1] }) });
   if (/^LIMIT_(LAYERZERO|CENTRIFUGE)_TRANSFER$/.test(constant)) shapes.push(plain(["address", "uint"]));
   return shapes;
 }
 
 /** A lookup from key to the monolithic constant and arguments that derive it, or null. */
-export function keyDeriver(constants: string[], addresses: string[]): (key: string) => DerivedKey | null {
-  return shapeDeriver(constants.flatMap(monolithicShapes), addresses);
+export function keyDeriver(constants: string[], addresses: string[], words: string[] = []): (key: string) => DerivedKey | null {
+  return shapeDeriver(constants.flatMap(monolithicShapes), addresses, words);
 }
 
 type AbiItem = { type?: string; name?: string; inputs?: unknown[] };
 
-/** A cached explorer entry's ABI; an unreadable or truncated cache file reads as none. */
-function cachedAbi(file: string): AbiItem[] {
+/** Every entry of the explorer cache in `dir` (`<chainId>/<address>.json`); an unreadable or truncated file is left out. */
+export function cachedEntries(dir: string): Record<string, unknown>[] {
+  const files = (fs.existsSync(dir) ? fs.readdirSync(dir) : []).flatMap((chain) => fs.readdirSync(path.join(dir, chain)).map((f) => path.join(dir, chain, f)));
+  return files.flatMap((f) => {
+    try {
+      return [JSON.parse(fs.readFileSync(f, "utf8")) as Record<string, unknown>];
+    } catch {
+      return [];
+    }
+  });
+}
+
+/** A cached explorer entry's ABI; an unparsable one reads as none. */
+function abiOf(entry: Record<string, unknown>): AbiItem[] {
   try {
-    const j = JSON.parse(fs.readFileSync(file, "utf8")) as { abi?: unknown };
-    const abi = typeof j.abi === "string" ? JSON.parse(j.abi) : j.abi;
+    const abi = typeof entry.abi === "string" ? JSON.parse(entry.abi) : entry.abi;
     return Array.isArray(abi) ? abi : [];
   } catch {
     return [];
@@ -100,11 +120,7 @@ function cachedAbi(file: string): AbiItem[] {
 /** Every zero-argument LIMIT_* view in the cached contract ABIs. */
 export function limitConstants(dir = ".cache/etherscan"): string[] {
   const names = new Set<string>();
-  for (const chain of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
-    for (const f of fs.readdirSync(path.join(dir, chain))) {
-      for (const x of cachedAbi(path.join(dir, chain, f))) if (x.type === "function" && /^LIMIT_/.test(x.name ?? "") && !x.inputs?.length) names.add(x.name!);
-    }
-  }
+  for (const x of cachedEntries(dir).flatMap(abiOf)) if (x.type === "function" && /^LIMIT_/.test(x.name ?? "") && !x.inputs?.length) names.add(x.name!);
   return [...names].sort();
 }
 

@@ -10,9 +10,10 @@
 // rule's role names, else the first address. A key no rule covers keeps
 // decimals inferred from its size (pauView.ts), and says so.
 import type { AmountUnit, DerivedKey, PauSnapshot } from "../../lib/pau.ts";
+import { EVM_ADDRESS_EXACT_RE } from "../../lib/patterns.ts";
 import type { PauKind } from "../../lib/pauRegistry.ts";
 import { argAt, facetKeyRule } from "./facet-keys.ts";
-import { mapLimits, type ChainCall, type ChainReader } from "./snapshot.ts";
+import { allLimits, mapLimits, type ChainCall, type ChainReader } from "./snapshot.ts";
 
 type Via = "asset" | "token" | "self" | "underlying";
 type Rule = { fixed: number; symbol: string | null } | { via: Via; role?: string };
@@ -37,7 +38,7 @@ const unitRule = (d: DerivedKey | undefined, kind: PauKind): Rule | null => {
   if (kind === "diamond") return facetKeyRule(d)?.unit ?? null;
   return MONOLITHIC.find(([re]) => re.test(d.constant))?.[1] ?? null;
 };
-const ruleAddress = (d: DerivedKey, r: { role?: string }) => (r.role ? argAt(d, r.role) : d.args.find((a) => a.startsWith("0x")))?.toLowerCase() ?? null;
+const ruleAddress = (d: DerivedKey, r: { role?: string }) => (r.role ? argAt(d, r.role) : d.args.find((a) => EVM_ADDRESS_EXACT_RE.test(a)))?.toLowerCase() ?? null;
 const viaKey = (d: DerivedKey | undefined, kind: PauKind): string | null => {
   const r = unitRule(d, kind);
   const a = d && r && "via" in r ? ruleAddress(d, r) : null;
@@ -71,7 +72,7 @@ async function tokenUnits(read: ChainReader, chain: string, tokens: string[]): P
 
 /** The snapshot with each rate limit's and BeamState default's unit attached where a rule finds one. */
 export async function withUnits(snap: PauSnapshot, read: ChainReader): Promise<PauSnapshot> {
-  const derived = snap.contracts.flatMap((c) => [...(c.rateLimits ?? []), ...(c.beam?.defaults ?? [])].map((x) => x.derived));
+  const derived = allLimits(snap).map((x) => x.derived);
   const wanted = [...new Set(derived.map((d) => viaKey(d, snap.kind)).filter((w): w is string => !!w))];
   const tokens = wanted.length ? await tokensOf(read, snap.chain, wanted) : new Map<string, string | null>();
   const tokenList = [...new Set([...tokens.values()].filter((t): t is string => !!t))];
