@@ -2,8 +2,10 @@ import { buildPauAudit, docsToDate, type AuditInput, type AuditRow, type PrimeCh
 import { lastContentChange } from "@/lib/pauAudit";
 import { checkAtlasValues } from "@/lib/pauAtlasValues";
 import { graphPrimeSources } from "@/lib/pauDocSources";
+import type { LimitDocs } from "@/lib/pauLimitDocs";
 import { loadHistoryBatch } from "@/lib/history";
 import type { GraphData } from "@/lib/graphData";
+import { loadAtlas } from "./docs";
 import { loadGraph } from "./graph";
 import { loadPau, snapshotsForPrime, type PauResponse } from "./pau";
 
@@ -11,12 +13,12 @@ export * from "@/lib/pauAudit";
 export * from "@/lib/pauAuditIndex";
 export * from "@/lib/pauAuditCsv";
 
-/** Every prime's checked values: each Prime Agent the graph lists, against its own snapshots. */
-function primeChecks(graph: GraphData, res: PauResponse): PrimeChecks[] {
+/** Every prime's checked values: each Prime Agent the graph lists, with the values its documents state, against its own snapshots, as its PAUs page checks them. */
+function primeChecks(graph: GraphData, docs: LimitDocs, res: PauResponse): PrimeChecks[] {
   return graph.participants
     .filter((p) => p.st === "prime")
     .flatMap((p) => {
-      const sources = graphPrimeSources(p.id, graph);
+      const sources = graphPrimeSources(p.id, graph, docs);
       return sources ? [{ primeId: p.id, prime: p.name, checks: checkAtlasValues(sources, snapshotsForPrime(res, p.id)) }] : [];
     });
 }
@@ -40,10 +42,10 @@ function once<T>(load: () => Promise<{ value: T; keep: boolean }>): () => Promis
   };
 }
 
-/** Every prime's checked values, the snapshots and the registry's rejected claims, from the graph and GET /api/pau; kept once the worker has stored a snapshot. */
+/** Every prime's checked values, the snapshots and the registry's rejected claims, from the graph, the atlas documents and GET /api/pau; kept once the worker has stored a snapshot. */
 const loadBase = once(async () => {
-  const [graph, res] = await Promise.all([loadGraph(), loadPau()]);
-  const base: AuditBase = { primes: primeChecks(graph, res), snaps: res.deployments, claims: res.rejectedClaims ?? [] };
+  const [graph, docs, res] = await Promise.all([loadGraph(), loadAtlas(), loadPau()]);
+  const base: AuditBase = { primes: primeChecks(graph, docs, res), snaps: res.deployments, claims: res.rejectedClaims ?? [] };
   return { value: base, keep: base.snaps.length > 0 };
 });
 

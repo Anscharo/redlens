@@ -51,6 +51,14 @@ export interface DerivedKey {
   via?: string;
 }
 
+/** An address the atlas's git history lists and its current commit does not, with the commit that removed it. */
+export interface RetiredAddress {
+  address: string;
+  /** The removing commit's date, ISO 8601. */
+  removedAt: string;
+  commit: string;
+}
+
 /**
  * The token a key's amounts are counted in. "token": read from the token the
  * key's derivation names (a vault's asset(), an OFT's token(), else the address
@@ -73,6 +81,8 @@ export interface LiveRateLimit extends RateLimitKey {
   available: string | null;
   /** How the key is derived, when a controller constant reproduces it. */
   derived?: DerivedKey;
+  /** Set when an address `derived` takes is one an earlier atlas commit lists and the current one does not: the limit is for an integration the atlas dropped. */
+  retired?: RetiredAddress;
   unit?: AmountUnit;
 }
 
@@ -86,6 +96,7 @@ export interface BeamDefault {
   /** The AddInitRateLimits that set it; null when its history is not read. */
   setAt: SetAt | null;
   derived?: DerivedKey;
+  retired?: RetiredAddress;
   unit?: AmountUnit;
 }
 
@@ -147,6 +158,8 @@ export interface PauSnapshot {
   chain: string;
   kind: PauKind;
   contracts: ContractState[];
+  /** The stamp of what its keys were named from (src/server/pau/key-memo.ts), so the next rebuild reuses what it settled. */
+  keysNamedWith?: string;
 }
 
 export type StoredPauSnapshot = PauSnapshot & { fetchedAt: string };

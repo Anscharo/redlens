@@ -1,4 +1,5 @@
 import { Address } from "../Address";
+import { Callout } from "../Callout";
 import type { PauParam, StoredPauSnapshot } from "../../lib/pau";
 import type { Anchor } from "@/lib/pauAnchors";
 import { contractLabel } from "@/lib/pauHolderNames";
@@ -43,9 +44,7 @@ export function PauParams({ snap, anchor }: { snap: StoredPauSnapshot; anchor: A
   return (
     <div className="mt-3">
       <PauSectionHeading deployment={anchor} section="parameters">Parameters</PauSectionHeading>
-      <p className="text-[12px] mb-1" style={{ color: "var(--tan-2)" }}>
-        Settings each contract holds for a pool, token or destination, as the last admin event that set each one says.
-      </p>
+      <Callout className="mb-2">Settings each contract holds for a pool, token or destination, as the last admin event that set each one says.</Callout>
       {held.map((c) => (
         <section key={c.address} className="mb-2" data-contract={c.address}>
           <h5 className="mono text-[11px] flex items-baseline gap-2" style={{ color: "var(--tan)" }}>

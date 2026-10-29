@@ -86,6 +86,10 @@ describe("ActorPau change history", () => {
     expect(within(groups[0] as HTMLElement).getByRole("link", { name: "Executive Vote 2026-08-27" })).toHaveAttribute("href", "https://vote.example/x");
     expect(groups[0]).toHaveTextContent("through the StarGuard");
     expect(groups[0]).toHaveTextContent("max 25M (was 10M)");
+    const changes = groups[0].querySelector("details.pau-changes")!;
+    expect(changes).not.toHaveAttribute("open");
+    expect(changes.querySelector("summary")).toHaveTextContent("ethereum · 1 change in 1 tx · 2026-09-01");
+    expect(changes.querySelector("summary")).toHaveAccessibleName("Changes of Executive Vote 2026-08-27: ethereum · 1 change in 1 tx · 2026-09-01");
     expect(groups[1].querySelector("details")).not.toHaveAttribute("open");
     const chips = await screen.findAllByText("exec 2026-08-27");
     expect(chips[0]).toHaveAttribute("href", `#pau-tx-ethereum-${at.tx}`);
@@ -129,6 +133,25 @@ describe("ActorPau", () => {
     expect(cards[0]).toHaveAttribute("open");
     expect(cards[1]).not.toHaveAttribute("open");
     expect(within(cards[1] as HTMLElement).getByText("history still being read")).toBeInTheDocument();
+  });
+
+  it("leaves out a switched-off key derived from an address the Atlas dropped, and says so on the count", async () => {
+    const saved = served;
+    const retired = { address: "0x" + "e9".repeat(20), removedAt: "2025-08-25T14:36:55Z", commit: "dd131566" };
+    const gone = { ...limit("0x" + "9a".repeat(32), "0", "0", "0"), derived: { constant: "LIMIT_7540_DEPOSIT", args: [retired.address] }, retired };
+    const live = { ...limit("0x" + "9b".repeat(32), "5", "0", null), derived: { constant: "LIMIT_7540_REDEEM", args: [retired.address] }, retired };
+    const [ctrl, rl, ...rest] = ETH.contracts;
+    served = { deployments: [{ ...ETH, contracts: [ctrl, { ...rl, rateLimits: [...rl.rateLimits!, gone, live] }, ...rest] }] };
+    try {
+      render(<ActorPau prime={prime} instances={instances} />);
+      const [table] = await screen.findAllByRole("table");
+      expect(table).not.toHaveTextContent("LIMIT_7540_DEPOSIT");
+      expect(table).toHaveTextContent("LIMIT_7540_REDEEM");
+      const count = screen.getByText(`${rl.rateLimits!.length + 1} rate limits`);
+      expect(count).toHaveAttribute("title", "1 more, switched off and derived from an address the Atlas no longer lists, are not shown");
+    } finally {
+      served = saved;
+    }
   });
 
   it("names a rate limit by its instance or the prime, else by its derivation, flags an unnamed key, and sorts switched-off keys last", async () => {
@@ -179,10 +202,11 @@ describe("ActorPau", () => {
     expect(within(card).getByText("monolithic ALM Controller")).toBeInTheDocument();
   });
 
-  it("titles the table Rate limits and ticks only keys whose every atlas value matches the chain", async () => {
+  it("heads the table Rate limits, names its first column Name, and ticks only keys whose every atlas value matches the chain", async () => {
     render(<ActorPau prime={prime} instances={instances} />);
     const [table] = await screen.findAllByRole("table");
-    expect(within(table).getByRole("columnheader", { name: "Rate limits" })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "Rate limits" }).length).toBeGreaterThan(0);
+    expect(within(table).getByRole("columnheader", { name: "Name" })).toBeInTheDocument();
     expect(within(table).getByRole("columnheader", { name: "Matches Atlas" })).toBeInTheDocument();
     await waitFor(() => expect(table.querySelectorAll("[data-atlas-match]").length).toBeGreaterThan(0));
     const row = table.querySelector("[data-atlas-match=match]")!.closest("tr") as HTMLElement;
@@ -282,6 +306,11 @@ describe("ActorPau fragments", () => {
     const group = await arrive("#deployment-ethereum");
     expect(group.tagName).toBe("DETAILS");
     expect(group).toHaveAttribute("open");
+  });
+
+  it("opens an executive's collapsed change list when a link lands on one of its transactions", async () => {
+    const tx = await arrive(`#pau-tx-ethereum-${at.tx}`);
+    expect(tx.closest("details.pau-changes")).toHaveAttribute("open");
   });
 
   it("lands on an executive's group by its spell address", async () => {

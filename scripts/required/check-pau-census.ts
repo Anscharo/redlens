@@ -4,7 +4,8 @@
  * PAU census, drift detector for the atlas against the Prime agents' PAU
  * contracts.
  *
- * Checks every rate-limit value the atlas states (public/graph.json) against
+ * Checks every rate-limit value the atlas states (the instances in
+ * public/graph.json and the limit documents in public/docs.json) against
  * the PAU snapshots (production GET /api/pau unless --snapshots names another
  * source; scripts/lib/pau-census-source.ts) and compares the result with the
  * committed baseline (.github/pau-census-baseline.json). The census is
@@ -26,6 +27,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { formatCensus, pauCensus, type PauCensus } from "../../src/lib/pauCensus.ts";
 import { diffPauCensus } from "../../src/lib/pauCensusDiff.ts";
+import { docTree } from "../../src/lib/atlasTree.ts";
+import type { AtlasNode } from "../../src/types.ts";
 import type { SourceEntity } from "../../src/lib/pauPrimeSources.ts";
 import { atlasSkew, PRODUCTION_PAU, readSnapshots } from "../lib/pau-census-source.ts";
 
@@ -54,7 +57,7 @@ function readBaseline(): PauCensus | null {
 }
 
 const entities = readArtifact<{ entities: SourceEntity[] }>("public/graph.json").entities;
-const docs = readArtifact<{ nodes: Record<string, { doc_no?: string }> }>("public/docs.json").nodes;
+const docs = readArtifact<{ nodes: Record<string, AtlasNode> }>("public/docs.json").nodes;
 const names = new Map(entities.map((e) => [e.id, e.name]));
 
 const { snaps, problem } = await readSnapshots(SOURCE);
@@ -66,7 +69,7 @@ if (!snaps) {
 const skew = await atlasSkew(SOURCE, ROOT);
 if (skew) console.log(skew);
 
-const census = pauCensus(entities, (id) => docs[id]?.doc_no ?? null, snaps);
+const census = pauCensus(entities, (id) => docs[id]?.doc_no ?? null, snaps, { docs, byParent: docTree(docs).byParent });
 const baseline = readBaseline();
 let drift = 0;
 if (baseline) {

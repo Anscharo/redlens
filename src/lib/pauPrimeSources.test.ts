@@ -3,7 +3,8 @@
 // sources for the same entities, so the chat, the census, the reader and the
 // Radar page compare the same values.
 import { describe, expect, it } from "vitest";
-import type { GraphEntity } from "../types.ts";
+import type { AtlasNode, GraphEntity } from "../types.ts";
+import type { LimitDocs } from "./pauLimitDocs.ts";
 import { graphView, primesStatingValues, primeValueSources, rowView, type SourceEntity } from "./pauPrimeSources.ts";
 
 interface Fixture { id: string; type: string; doc: string | null; meta: object | string | null }
@@ -30,6 +31,21 @@ describe("primeValueSources", () => {
   it("reads an unknown prime as nameless, and an unreadable meta as empty", () => {
     expect(primeValueSources(rows.map(rowView), "nobody")).toEqual([{ name: "", docId: null, params: {} }]);
     expect(rowView(rows.at(-1)!).meta).toEqual({});
+  });
+});
+
+describe("primeValueSources with the atlas documents", () => {
+  const node = (id: string, title: string, content = ""): AtlasNode => ({ id, doc_no: id, title, type: "Core", depth: 6, parentId: null, content, order: 0, addressRefs: [] });
+  const tree: [string | null, AtlasNode[]][] = [
+    ["prime-doc", [node("limits", "Diamond PAU Rate Limits")]],
+    ["limits", [node("arb", "Arbitrum")]],
+    ["arb", [node("leaf", "CCTP To Ethereum Limit", "- `maxAmount`: 5,000,000 USDC")]],
+  ];
+  const docs: LimitDocs = { byParent: new Map(tree), docs: Object.fromEntries([node("prime-doc", "Prime"), ...tree.flatMap(([, k]) => k)].map((n) => [n.id, n])) };
+  it("adds the values the prime's limit documents state, the same through either entity shape", () => {
+    const sources = primeValueSources(rows.map(rowView), "prime", undefined, docs);
+    expect(sources.map((s) => [s.name, s.docId])).toEqual([["prime", null], ["i1", "i1-doc"], ["v1", "v1-doc"], ["Arbitrum - CCTP To Ethereum Limit", "leaf"]]);
+    expect(primeValueSources(graph.map(graphView), "prime", undefined, docs)).toEqual(sources);
   });
 });
 

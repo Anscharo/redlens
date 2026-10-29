@@ -15,6 +15,7 @@ vi.mock("./ActorInstances", () => ({
 vi.mock("./ActorPau", () => ({
   ActorPau: ({ prime }: { prime: { id: string } }) => <div data-testid="pau" data-prime={prime.id} />,
 }));
+vi.mock("./PauAuditLink", () => ({ PauAuditLink: () => null }));
 
 import { ActorHistoryPage } from "./ActorHistoryPage";
 import { ActorInstancesPage } from "./ActorInstancesPage";

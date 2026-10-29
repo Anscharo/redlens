@@ -24,7 +24,7 @@ export const AUDIT_REASONS = {
   "not-set": { group: "spell", text: "The atlas states a limit no RateLimits contract on the chain has ever set." },
   "not-wired": { group: "spell", text: "The controller holds the CONTROLLER role on neither its ALM proxy nor its rate limits, so it cannot move funds." },
   "partly-wired": { group: "spell", text: "The controller holds the CONTROLLER role on only one of its ALM proxy and its rate limits." },
-  "no-key": { group: "detail", text: "The atlas states no Rate Limit ID for this value, and none of the instance's addresses derives a key the contract holds." },
+  "no-key": { group: "detail", text: "The atlas states no Rate Limit ID for this value, and nothing the document or its instance names derives a key the contract holds." },
   "rejected-claim": { group: "registry", text: "The atlas names this address for a role the chain contradicts." },
   "several-keys": { group: "ambiguous", text: "More than one key could be this value's, and they do not all agree with the atlas." },
   "units-unknown": { group: "ambiguous", text: "The limit's token units cannot be pinned down, and the stated amount fits the chain value at more than one scale." },

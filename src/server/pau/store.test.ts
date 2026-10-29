@@ -25,12 +25,13 @@ const { eventsOf, handlePau, historyComplete, maybeRefreshPauState, readPauState
 const NOW = Date.UTC(2026, 9, 7, 12);
 const reg = { shared: [], ignored: [], deployments: [{ prime: "p", primeName: "Spark", chain: "ethereum", kind: "monolithic", members: [] }] } as unknown as PauRegistry;
 
-function fakeDb(stored: { deployment: string; fetched_at: Date }[]) {
+function fakeDb(stored: { deployment: string; fetched_at: Date; state?: unknown }[]) {
   const writes: string[] = [];
   const states: unknown[] = [];
   const db = async (strings: TemplateStringsArray, ...v: unknown[]) => {
     const text = strings.join("?");
     if (text.includes("SELECT deployment, fetched_at")) return stored;
+    if (text.includes("SELECT deployment, state")) return stored.filter((s) => s.state);
     if (text.includes("DELETE FROM pau_state")) writes.push(`delete ${v[0]}`);
     if (text.includes("INSERT INTO pau_state")) {
       writes.push(`upsert ${v[0]}`);
@@ -67,6 +68,16 @@ describe("maybeRefreshPauState", () => {
       refreshed: 1, removed: 0, reason: "due", failed: [{ deployment: "p:base:monolithic", error: "a key getter is not a single return" }],
     });
     expect(writes).toEqual(["upsert p:ethereum:monolithic"]);
+  });
+  it("hands the namer the deployment's stored snapshot, string-encoded or not", async () => {
+    const before = { deployment: "p:ethereum:monolithic", keysNamedWith: "1:x", contracts: [] };
+    const seen: unknown[] = [];
+    const nameKeys = async (snap: unknown, _read: unknown, prev: unknown) => (seen.push(prev), snap as never);
+    for (const state of [before, JSON.stringify(before)]) {
+      const { db } = fakeDb([{ deployment: "p:ethereum:monolithic", fetched_at: new Date(NOW - 3_600_000), state }]);
+      await maybeRefreshPauState(db, reg, read, { refreshSeconds: 3600, now: NOW, nameKeys: nameKeys as never });
+    }
+    expect(seen).toEqual([before, before]);
   });
 });
 

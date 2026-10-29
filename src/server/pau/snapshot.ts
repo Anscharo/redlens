@@ -128,6 +128,9 @@ export async function buildSnapshot(
   return { deployment: deploymentId(d), prime: d.prime, primeName: d.primeName, chain: d.chain, kind: d.kind, contracts };
 }
 
+/** Every rate limit and BeamState default of a snapshot. */
+export const allLimits = (snap: PauSnapshot): (LiveRateLimit | BeamDefault)[] => snap.contracts.flatMap((c) => [...(c.rateLimits ?? []), ...(c.beam?.defaults ?? [])]);
+
 /** The snapshot with every rate limit and BeamState default changed by `f`. */
 export function mapLimits(snap: PauSnapshot, f: <T extends LiveRateLimit | BeamDefault>(x: T) => T): PauSnapshot {
   const contracts = snap.contracts.map((c) =>
