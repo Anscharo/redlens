@@ -175,6 +175,9 @@ export async function atlasSearch(ix: Indexes, { query, k, offset = 0, type, mod
     ? resolved
     : resolved.filter(({ n }) => matchesPhrases(n.title, n.content, phrases, casePhrases));
 
+  // poolCut: the lexical leg filled its pool. Semantic mode reports no cut: its
+  // legs stop at hnsw.ef_search whatever the pool, so a larger k ranks no
+  // deeper; the tool description says so instead.
   const { rows: results, fields } = pageOf(filtered, { offset, k }, budget, ({ m, n }) => ({
     id: n.id,
     doc_no: n.doc_no,

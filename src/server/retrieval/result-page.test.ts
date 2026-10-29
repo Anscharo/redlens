@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { MAX_RESULT_CHARS } from "../chat/output-budget.ts";
+import { rrfFuse } from "../../lib/searchSemantic.ts";
 import { fitWithExtra, PAGE_HINT, pageOf, poolSize } from "./result-page.ts";
 
 const rows = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `doc-${i}`, snippet: "x".repeat(380) }));
@@ -77,3 +78,31 @@ describe("poolSize", () => {
     expect(poolSize(78, 200, false)).toBe(800);
   });
 });
+
+describe("paging a fused ranking", () => {
+  // Two legs that disagree, fused the way search.ts does: each leg fetched to
+  // poolSize, then ranked by RRF score. The semantic leg reverses the first 100,
+  // so d30 is lexical rank 30 and semantic rank 69: inside one pool of 40 and
+  // outside the other, the case where a pool that grows with offset re-ranks it.
+  const ids = Array.from({ length: 300 }, (_, i) => `d${i}`);
+  const lexical = ids;
+  const semantic = [...ids.slice(0, 100).reverse(), ...ids.slice(100)];
+  const fused = (offset: number, k: number) => {
+    const pool = poolSize(offset, k, false);
+    const scores = rrfFuse([lexical.slice(0, pool), semantic.slice(0, pool)]);
+    return [...scores.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([id]) => id);
+  };
+
+  it("reads one ranking across pages: no row repeats and none is skipped", () => {
+    for (const k of [10, 200]) {
+      const budget = k === 200 ? 4_000 : MAX_RESULT_CHARS;
+      const first = pageOf(fused(0, k), { offset: 0, k }, budget, (id) => ({ id, pad: "x".repeat(30) }));
+      const next = first.fields.next_offset!;
+      const second = pageOf(fused(next, k), { offset: next, k }, budget, (id) => ({ id, pad: "x".repeat(30) }));
+      const read = [...first.rows, ...second.rows].map((r) => r.id);
+      expect(new Set(read).size).toBe(read.length);
+      expect(read).toEqual(fused(0, k).slice(0, read.length));
+    }
+  });
+});
+

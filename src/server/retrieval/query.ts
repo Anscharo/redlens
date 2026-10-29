@@ -284,7 +284,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_
     const envelope = {
       ...rest,
       count: kept.length,
-      ...fields,
+      ...(emptyByFilters ? {} : fields),
       ...(targetType.resolvedFrom ? { resolved_target_type: { from: targetType.resolvedFrom, to: targetType.type } } : {}),
       ...(unknownFilterValues.length && !emptyByFilters
         ? { invalid_filter_values: unknownFilterValues, hint: `${unknownFilterValues.join("; ")}. That argument was IGNORED for this call — these results are unfiltered by it.${fields.hint ? ` ${fields.hint}` : ""}` }
@@ -341,7 +341,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_
       entity: a.entity,
       resolved_entity: resolvedEntity,
       mode: "entity_broad",
-      ...(truncated ? { truncated: true, hint: UNPAGED_HINT } : {}),
+      ...(truncated || a.offset ? { ...(truncated ? { truncated: true } : {}), hint: UNPAGED_HINT } : {}),
       ...(ancestors ? { ancestors } : {}),
       by_relationship,
     };

@@ -412,3 +412,22 @@ describe("atlasQuery — hints that share the envelope", () => {
     expect(out.hint).toContain("next_offset");
   });
 });
+
+describe("atlasQuery — envelopes that must not contradict themselves", () => {
+  it("drops ranking_cut when the filters emptied the page, so the filter hint stands alone", async () => {
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, { query: "spark keeper network root primitive child", status: "Suspended", k: 1, enrich: false })) as Record<string, unknown>;
+    expect(out.count).toBe(0);
+    expect(out.filters_applied).toBeDefined();
+    expect(out).not.toHaveProperty("ranking_cut");
+  });
+
+  it("tells an entity_broad call asked for an offset that the listing starts at its first row", async () => {
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, { entity: "keeper-network", k: 10, offset: 20, enrich: false })) as Record<string, unknown>;
+    expect(out.mode).toBe("entity_broad");
+    expect(out).not.toHaveProperty("truncated");
+    expect(out.hint).toContain("does not page with offset");
+  });
+});
+

@@ -42,9 +42,10 @@ export function poolSize(offset: number, k: number, exact: boolean): number {
 // Room kept for the envelope around the rows: counts, hints, the liveness hint.
 const ENVELOPE_CHARS = 2_000;
 
-/** atlas_query's entity_broad truncation hint: that listing ignores `offset`, so it names what does narrow it. */
+/** atlas_query's entity_broad hint, on a truncated listing or one asked for an
+ *  `offset`: that listing ignores `offset`, so it names what does narrow it. */
 export const UNPAGED_HINT =
-  "Results truncated to fit context. This listing does not page with offset; narrow it with edge_types, target_type or a query.";
+  "This listing does not page with offset and always starts at its first row; narrow it with edge_types, target_type or a query.";
 
 export const PAGE_HINT =
   "This page stopped at the result budget before reaching k rows. Call again with offset set to next_offset for the rest, or narrow with a type or filter.";
