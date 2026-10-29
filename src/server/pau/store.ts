@@ -96,7 +96,7 @@ export interface StateRefresh {
   failed?: { deployment: string; error: string }[];
 }
 
-type RefreshOpts = { nameKeys?: KeyNamer; atlasKeys?: Map<string, string[]> };
+type RefreshOpts = { nameKeys?: KeyNamer; atlasKeys?: () => Promise<Map<string, string[]>> };
 
 /**
  * Rebuilds each deployment on its own: one that throws keeps its stored
@@ -107,10 +107,11 @@ async function refreshEach(db: SqlTag, reg: PauRegistry, read: ChainReader, opts
   const historyOf = async (c: string, a: string) => ({ events: await eventsOf(db, c, a), complete: await historyComplete(db, c, a) });
   const beamOf = beamSources(reg, historyOf);
   const prevs = opts.nameKeys ? await storedSnapshots(db) : new Map<string, PauSnapshot>();
+  const atlasKeys = (await opts.atlasKeys?.()) ?? new Map<string, string[]>();
   const failed: { deployment: string; error: string }[] = [];
   for (const d of reg.deployments) {
     try {
-      const snap = await snapshotOf(d, read, historyOf, await beamOf(d.chain), { nameKeys: opts.nameKeys, probe: opts.atlasKeys?.get(d.prime), prev: prevs.get(deploymentId(d)) });
+      const snap = await snapshotOf(d, read, historyOf, await beamOf(d.chain), { nameKeys: opts.nameKeys, probe: atlasKeys.get(d.prime), prev: prevs.get(deploymentId(d)) });
       await upsertSnapshot(db, snap, new Date(now));
     } catch (e) {
       failed.push({ deployment: deploymentId(d), error: (e as Error).message });
@@ -133,8 +134,8 @@ export async function maybeRefreshPauState(
     now?: number;
     /** Names each snapshot's keys by its generation (diamond-derive.ts). */
     nameKeys?: KeyNamer;
-    /** The atlas's RateLimitID hashes by prime entity, read live on each of that prime's RateLimits (probe.ts). */
-    atlasKeys?: Map<string, string[]>;
+    /** The atlas's RateLimitID hashes by prime entity, read live on each of that prime's RateLimits (probe.ts); loaded once, only when a rebuild is due. */
+    atlasKeys?: () => Promise<Map<string, string[]>>;
   },
 ): Promise<StateRefresh> {
   const now = opts.now ?? Date.now();
