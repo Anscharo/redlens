@@ -4,6 +4,8 @@ import type { Anchor } from "@/lib/pauAnchors";
 import { holderNames, isFreezable } from "@/lib/pauHolderNames";
 import { PauOriginChip } from "./PauOriginChip";
 import { PauSectionHeading } from "./PauSectionHeading";
+import { MARK_TIP_MS } from "./PauAtlasMark";
+import { Tooltip } from "../Tooltip";
 
 const STATUS: Record<HolderStatus, { mark: string; color: string; role: string; member: string }> = {
   holds: { mark: "✓", color: "var(--tan-2)", role: "holds the role", member: "the AdministeredAgent lists it" },
@@ -37,7 +39,9 @@ export function PauHolders({ snap, anchor }: { snap: PauSnapshot; anchor: Anchor
           const text = s[r.check];
           return (
             <li key={`${r.contract}:${r.name}:${r.account}`} className="mono text-[11px] flex flex-wrap items-baseline gap-x-2" data-status={r.status}>
-              <span role="img" style={{ color: s.color }} title={text} aria-label={text}>{s.mark}</span>
+              <Tooltip content={text} delay={MARK_TIP_MS}>
+                <span role="img" style={{ color: s.color }} aria-label={text}>{s.mark}</span>
+              </Tooltip>
               {names.get(r.account.toLowerCase()) && <span style={{ color: "var(--tan-2)" }}>{names.get(r.account.toLowerCase())}</span>}
               <Address address={r.account} chain={snap.chain} />
               <span style={{ color: "var(--tan-3)" }}>{VERB[r.check][r.status === "denied" ? "denied" : "else"]}</span>

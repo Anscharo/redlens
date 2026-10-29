@@ -1,10 +1,14 @@
 import { AtlasLink } from "../AtlasLink";
+import { Tooltip } from "../Tooltip";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { entryOf, loadPauHistory, type LiveRateLimit } from "../../lib/pau";
 import { unmatchedFlag } from "@/lib/pauAtlasFlag";
 import type { AtlasVerdict } from "@/lib/pauAtlasMatch";
 import { atlasOnchainHref } from "@/lib/routes";
 import { PAU_KIND_LABEL } from "@/lib/pau";
+
+/** How long the pointer rests on a mark (✓ ✗ ? ⚑) before its tooltip opens. */
+export const MARK_TIP_MS = 600;
 
 const MARK: Record<Exclude<AtlasVerdict["mark"], "elsewhere">, { mark: string; text: string }> = {
   match: { mark: "✓", text: "matches the atlas: every value the atlas states for this key matches the chain" },
@@ -20,9 +24,11 @@ function UnmatchedFlag({ chain, limit, named }: { chain: string; limit: LiveRate
   const flag = unmatchedFlag(origin, limit.setAt.time, off, Date.now(), named);
   if (!flag) return null;
   return (
-    <span role="img" aria-label={flag.text} title={flag.text} data-atlas-flag={flag.kind} style={{ color: flag.kind === "spell" ? "var(--accent)" : "var(--tan-3)" }}>
-      ⚑
-    </span>
+    <Tooltip content={flag.text} delay={MARK_TIP_MS}>
+      <span role="img" aria-label={flag.text} data-atlas-flag={flag.kind} style={{ color: flag.kind === "spell" ? "var(--accent)" : "var(--tan-3)" }}>
+        ⚑
+      </span>
+    </Tooltip>
   );
 }
 
@@ -47,8 +53,10 @@ export function PauAtlasMark({ verdict, keyDocId, chain, limit, named }: { verdi
   if (!verdict && !keyDocId) return <UnmatchedFlag chain={chain} limit={limit} named={named} />;
   const { mark, text } = verdict?.mark === "elsewhere" ? { mark: "?", text: elsewhereText(verdict.on ?? []) } : verdict ? MARK[verdict.mark] : { mark: "?", text: KEY_ONLY };
   return (
-    <AtlasLink to={atlasOnchainHref(verdict?.docId ?? keyDocId!)} className="hover:underline" title={text} aria-label={text}>
-      {mark}
-    </AtlasLink>
+    <Tooltip content={text} delay={MARK_TIP_MS}>
+      <AtlasLink to={atlasOnchainHref(verdict?.docId ?? keyDocId!)} className="hover:underline" aria-label={text}>
+        {mark}
+      </AtlasLink>
+    </Tooltip>
   );
 }

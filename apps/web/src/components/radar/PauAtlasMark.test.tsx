@@ -2,11 +2,11 @@
 // Where no Atlas document is connected to a limit, the Atlas column flags it by
 // how it was set: a spell always, a cBEAM only after two months, a switched-off
 // limit or another origin never.
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
 import type { LiveRateLimit } from "../../lib/pau";
-import { PauAtlasMark } from "./PauAtlasMark";
+import { MARK_TIP_MS, PauAtlasMark } from "./PauAtlasMark";
 
 const entry = (tx: string, kind: string) => ({ chain: "ethereum", tx, block: 1, time: "t", primes: [], origin: { kind }, executive: null, changes: [] });
 vi.mock("../../lib/pau", async (orig) => ({
@@ -58,5 +58,22 @@ describe("PauAtlasMark", () => {
   it("words the flag for a limit whose controller constant a document names", async () => {
     render(<PauAtlasMark chain="ethereum" limit={limit("0xspell", day(1))} named />);
     expect(await screen.findByRole("img", { name: /only names its controller constant/ })).toHaveAttribute("data-atlas-flag", "spell");
+  });
+
+  it("opens the mark's tooltip only once the pointer has rested on it for 600ms", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = render(<PauAtlasMark chain="ethereum" limit={limit("0xspell", day(1))} verdict={{ mark: "mismatch", docId: "doc-1" }} />);
+      const mark = within(container).getByRole("link", { name: /^differs from the atlas/ });
+      expect(mark).not.toHaveAttribute("title");
+      fireEvent.mouseEnter(mark);
+      act(() => vi.advanceTimersByTime(MARK_TIP_MS - 1));
+      expect(screen.queryByRole("tooltip")).toBeNull();
+      act(() => vi.advanceTimersByTime(1));
+      expect(screen.getByRole("tooltip")).toHaveTextContent(/^differs from the atlas/);
+      expect(MARK_TIP_MS).toBe(600);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
