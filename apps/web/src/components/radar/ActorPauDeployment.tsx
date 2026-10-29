@@ -5,6 +5,7 @@ import { PauHolders } from "./ActorPauHolders";
 import { PauRateLimits } from "./ActorPauRateLimits";
 import { PauContracts } from "./PauContracts";
 import { PauParams } from "./ActorPauParams";
+import { PauAuditLink } from "./PauAuditLink";
 import { PauWiring } from "./PauWiring";
 import { anchorProps } from "./PauSectionHeading";
 import { CopyLink } from "../CopyLink";
@@ -49,7 +50,10 @@ export function PauDeployment({ snap, keyIndex, namedIn, verdicts, defaultOpen, 
         <PauContracts snap={snap} />
         <PauFacets snap={snap} anchor={anchor} />
         <PauHolders snap={snap} anchor={anchor} />
-        <PauRateLimits chain={snap.chain} limits={limits} keyIndex={keyIndex} namedIn={namedIn} verdicts={verdicts} anchor={anchor} />
+        <PauRateLimits
+          chain={snap.chain} limits={limits} keyIndex={keyIndex} namedIn={namedIn} verdicts={verdicts} anchor={anchor}
+          review={<PauAuditLink primeId={snap.prime} primeName={snap.primeName} chain={snap.chain} kind={snap.kind} />}
+        />
         {snap.contracts.map((c) => c.beam && <PauBeam key={c.address} beam={c.beam} chain={snap.chain} keyIndex={keyIndex} anchor={c.address === firstBeam ? anchor : undefined} />)}
         <PauParams snap={snap} anchor={anchor} />
         <p className="mono text-[11px] mt-2" style={dim}>read {snap.fetchedAt.slice(0, 16).replace("T", " ")} UTC</p>

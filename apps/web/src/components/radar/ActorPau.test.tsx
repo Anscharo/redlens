@@ -202,10 +202,11 @@ describe("ActorPau", () => {
     expect(within(card).getByText("monolithic ALM Controller")).toBeInTheDocument();
   });
 
-  it("titles the table Rate limits and ticks only keys whose every atlas value matches the chain", async () => {
+  it("heads the table Rate limits, names its first column Name, and ticks only keys whose every atlas value matches the chain", async () => {
     render(<ActorPau prime={prime} instances={instances} />);
     const [table] = await screen.findAllByRole("table");
-    expect(within(table).getByRole("columnheader", { name: "Rate limits" })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "Rate limits" }).length).toBeGreaterThan(0);
+    expect(within(table).getByRole("columnheader", { name: "Name" })).toBeInTheDocument();
     expect(within(table).getByRole("columnheader", { name: "Matches Atlas" })).toBeInTheDocument();
     await waitFor(() => expect(table.querySelectorAll("[data-atlas-match]").length).toBeGreaterThan(0));
     const row = table.querySelector("[data-atlas-match=match]")!.closest("tr") as HTMLElement;

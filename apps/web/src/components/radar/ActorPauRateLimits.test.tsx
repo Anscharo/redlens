@@ -2,7 +2,7 @@
 // The rate-limit table keys each row and its "Matches Atlas" mark by contract
 // and key, so two RateLimits of one deployment holding the same key are two
 // rows, each marked only when its own values match the atlas.
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
 import { elsewhereId, matchId } from "@/lib/pauAtlasMatch";
@@ -112,5 +112,34 @@ describe("PauRateLimits", () => {
     unmount();
     const none = render1(() => null);
     expect(within(none.container.querySelector("td")!).queryByRole("link")).toBeNull();
+  });
+
+  it("sorts by a column when its header is clicked, the other way on a second click, and says so with aria-sort", () => {
+    const k = (n: number) => "0x" + String(n).repeat(64);
+    const mk = (key: string, constant: string, maxAmount: string): ContractLimit => ({ ...limit(RL1), key, configured: { maxAmount, slope: "0" }, derived: { constant, args: [] } });
+    const limits = [mk(k(1), "LIMIT_B", "3000000"), mk(k(2), "LIMIT_A", "1000000"), mk(k(3), "LIMIT_C", "2000000")];
+    const { container } = render(<PauRateLimits chain="ethereum" limits={limits} keyIndex={new Map()} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} />);
+    const names = () => within(container).getAllByRole("row").slice(1).map((r) => within(r).getAllByRole("cell")[0].textContent);
+    expect(names()).toEqual(["LIMIT_A", "LIMIT_B", "LIMIT_C"]);
+    fireEvent.click(within(container).getByRole("button", { name: "maxAmount" }));
+    expect(names()).toEqual(["LIMIT_A", "LIMIT_C", "LIMIT_B"]);
+    expect(within(container).getByRole("columnheader", { name: /maxAmount/ })).toHaveAttribute("aria-sort", "ascending");
+    fireEvent.click(within(container).getByRole("button", { name: "maxAmount" }));
+    expect(names()).toEqual(["LIMIT_B", "LIMIT_C", "LIMIT_A"]);
+    expect(within(container).getByRole("columnheader", { name: /maxAmount/ })).toHaveAttribute("aria-sort", "descending");
+    expect(within(container).getByRole("columnheader", { name: "Name" })).toHaveAttribute("aria-sort", "none");
+  });
+
+  it("heads the section Rate limits with the values to review under it, and keeps both when the deployment has no limit", () => {
+    const review = <a href="/reports/pau-audit">2 values to review</a>;
+    const { container, unmount } = render(<PauRateLimits chain="ethereum" limits={[limit(RL1)]} keyIndex={new Map()} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} review={review} />);
+    const heading = within(container).getByRole("heading", { name: "Rate limits" });
+    expect(heading).toHaveAttribute("id", "ethereum-rate-limits");
+    expect(heading.compareDocumentPosition(within(container).getByRole("link", { name: "2 values to review" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(container).getByRole("link", { name: "2 values to review" }).compareDocumentPosition(within(container).getByRole("table")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    unmount();
+    const empty = render(<PauRateLimits chain="ethereum" limits={[]} keyIndex={new Map()} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} review={review} />).container;
+    expect([within(empty).queryByRole("table"), within(empty).getByText("No rate-limit key read for this deployment.")]).toEqual([null, expect.anything()]);
+    expect(within(empty).getByRole("link", { name: "2 values to review" })).toBeInTheDocument();
   });
 });

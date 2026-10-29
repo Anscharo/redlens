@@ -4,7 +4,6 @@ import { AtlasLink } from "../AtlasLink";
 import { Callout } from "../Callout";
 import { ActorPageShell } from "./ActorPageShell";
 import { ActorPau } from "./ActorPau";
-import { PauAuditLink } from "./PauAuditLink";
 
 export interface ActorPauPageProps {
   profile: ActorProfile;
@@ -17,14 +16,11 @@ const ALLOCATION_SYSTEM_DOC = "9db14ab7-bb4b-4751-8084-843bd4359f2a";
 export function ActorPauPage({ profile }: ActorPauPageProps) {
   return (
     <ActorPageShell profile={profile} page="pau">
-      <Callout className="-mt-4 mb-3 max-w-[60rem]">
+      <Callout className="-mt-4 mb-6 max-w-[60rem]">
         Liquidity Layer Architecture is part of {profile.entity.name}&apos;s{" "}
         <AtlasLink to={atlasHref(ALLOCATION_SYSTEM_DOC)} className="text-accent hover:underline">Allocation System Primitive</AtlasLink>. It lists the contracts, rate limits and on-chain
         parameters of its controllers on each chain. On a chain, a Prime Agent runs a monolithic ALM Controller, a Diamond PAU (a controller that dispatches to facets), or both.
       </Callout>
-      <p className="text-[12px] mb-6 flex flex-wrap gap-x-4 gap-y-1" style={{ color: "var(--tan-3)" }}>
-        <PauAuditLink primeId={profile.entity.id} primeName={profile.entity.name} />
-      </p>
       <ActorPau prime={profile.entity} instances={profile.instances} />
     </ActorPageShell>
   );

@@ -13,6 +13,10 @@ export const isOff = (r: LiveRateLimit) => (r.data?.maxAmount ?? r.configured.ma
 export const isRetiredOff = (r: LiveRateLimit, keyIndex: Map<string, AtlasKeyRef[]>) =>
   !!r.retired && isOff(r) && !keyIndex.get(r.key.toLowerCase())?.length;
 
+/** The name a row shows, for sorting by it: the label of the first atlas reference, else the derivation, else the key. */
+export const limitName = (r: { key: string; derived?: DerivedKey }, keyIndex: Map<string, AtlasKeyRef[]>): string =>
+  keyIndex.get(r.key.toLowerCase())?.[0]?.label ?? (r.derived ? [r.derived.constant, ...r.derived.args].join(" · ") : r.key);
+
 /**
  * Rows grouped by how the key is named, so siblings sit together: keys an atlas document states (linked), keys the
  * atlas names without a document, keys named by their controller constant, then unnamed keys. Within a group by name,
