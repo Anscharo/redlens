@@ -82,8 +82,9 @@ describe("worker tick step bodies", () => {
     expect(maybeRefreshPauState.mock.calls[0][2]).toBe("reader");
     const opts = maybeRefreshPauState.mock.calls[0][3];
     expect(opts.refreshSeconds).toBe(3600);
-    expect(opts.nameKeys).toBe(namer);
-    expect(keyNamer.mock.calls[0][0]).toEqual(["public/addresses.atlas.json", "public/addresses.json"]);
+    // The namer and the atlas keys are built only when the store asks for them (worker-step-pau.test.ts).
+    expect([typeof opts.nameKeys, typeof opts.atlasKeys]).toEqual(["function", "function"]);
+    expect(keyNamer).not.toHaveBeenCalled();
     expect(namer).not.toHaveBeenCalled();
     syncPauEvents.mockResolvedValueOnce({ visited: 3, pending: 0, events: 0, errors: 2, rateLimited: ["robinhood"] });
     maybeRefreshPauState.mockResolvedValueOnce({ reason: "fresh", refreshed: 0, removed: 1 });

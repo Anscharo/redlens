@@ -2,10 +2,9 @@ import type { KeyHolder } from "@/lib/pauKeyHolders";
 import { isOff } from "@/lib/pauLimitOrder";
 import { formatAmount, formatPerDay, limitDecimals, PAU_KIND_LABEL, unitNote, type LiveRateLimit } from "../lib/pau";
 import { shortAddr } from "../lib/format";
+import { chainLabel, readAt } from "../lib/pauPlaces";
 
 const dim = { color: "var(--tan-3)" };
-
-const chainLabel = (chain: string) => chain.charAt(0).toUpperCase() + chain.slice(1);
 
 /** A limit's maxAmount as it reads: "off" when switched off, "unlimited" at the uint256 sentinel, else compact with its symbol. */
 function maxText(r: LiveRateLimit, dec: number, symbol: string): string {
@@ -44,10 +43,6 @@ function HolderLimit({ h, where }: { h: KeyHolder; where: string }) {
     </div>
   );
 }
-
-/** The oldest snapshot read among the holders, as "YYYY-MM-DD HH:MM". */
-const readAt = (holders: KeyHolder[]) =>
-  holders.map((h) => h.snap.fetchedAt).sort()[0]?.slice(0, 16).replace("T", " ");
 
 /** The hover card on a RateLimitID: what each PAU contract holding the key has it set to on chain. */
 export function RateLimitKeyCard({ holders }: { holders: KeyHolder[] }) {

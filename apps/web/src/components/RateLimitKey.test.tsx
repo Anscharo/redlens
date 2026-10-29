@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // A RateLimitID in atlas prose: hovering it shows what the PAU contracts holding
-// the key have it set to on chain, leaving out a chain where it is not set; a hash
-// no contract holds, and a transaction hash, stay as they were.
+// the key have it set to on chain, leaving out a chain where it is not set; a key
+// none holds that live reads found never set says so; a hash no contract holds
+// or lists, and a transaction hash, stay as they were.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
@@ -11,6 +12,7 @@ import type { PauResponse } from "@/lib/pau";
 
 const KEY = "0x" + "ab".repeat(32);
 const UNKNOWN = "0x" + "cd".repeat(32);
+const UNSET = "0x" + "12".repeat(32);
 const TX = "0x" + "ef".repeat(32);
 const M = 10n ** 6n;
 
@@ -19,7 +21,7 @@ const res: PauResponse = {
     {
       deployment: "spark:ethereum", prime: "p", primeName: "Spark", chain: "ethereum", kind: "monolithic", fetchedAt: "2026-10-28T12:34:56Z",
       contracts: [{
-        role: "rateLimits", address: "0x1", events: 1, historyComplete: true,
+        role: "rateLimits", address: "0x1", events: 1, historyComplete: true, unsetKeys: [UNSET],
         rateLimits: [{
           key: KEY,
           configured: { maxAmount: (50_000_000n * M).toString(), slope: "1" },
@@ -34,7 +36,7 @@ const res: PauResponse = {
     },
     {
       deployment: "spark:base", prime: "p", primeName: "Spark", chain: "base", kind: "monolithic", fetchedAt: "2026-10-28T12:34:56Z",
-      contracts: [{ role: "rateLimits", address: "0x2", events: 0, historyComplete: true, unsetKeys: [KEY] }],
+      contracts: [{ role: "rateLimits", address: "0x2", events: 0, historyComplete: true, unsetKeys: [KEY, UNSET] }],
     },
   ],
 };
@@ -74,6 +76,18 @@ describe("rate-limit key hover", () => {
     expect(tip).toHaveTextContent("read 2026-10-28 12:34 UTC");
     // Base's RateLimits was probed and never set the key, so the card leaves that chain out.
     expect(tip).not.toHaveTextContent("Base");
+  });
+
+  it("says a key no PAU contract holds is not set on any chain when every one read it live", async () => {
+    const { container } = render(<NodeContentInner content={`The transfer RateLimitID is: \`${UNSET}\``} />);
+    await settle();
+    fireEvent.mouseEnter(container.querySelector(`code[data-rate-limit-key="${UNSET}"]`)!);
+    await settle(800);
+    const tip = screen.getByRole("tooltip");
+    expect(tip).toHaveTextContent("Not set on any chain");
+    expect(tip).toHaveTextContent("never been set on Spark: Ethereum, Base");
+    expect(tip).not.toHaveTextContent("Not read yet");
+    expect(tip).toHaveTextContent("read 2026-10-28 12:34 UTC");
   });
 
   it("leaves a hash no PAU contract holds, and a transaction hash, without a hover card", async () => {

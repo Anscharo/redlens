@@ -35,7 +35,7 @@
 
 ## 2026-10-29
 
-- Added a hover card to rate limit IDs in documents showing the limit's on-chain maxAmount and slope
+- Added a hover card to rate limit IDs in documents showing the limit's on-chain maxAmount and slope, or that it is not set on any chain
 - Named more Liquidity Layer rate limits and hid switched-off limits for integrations the Atlas has dropped
 - Set the Liquidity Layer page's explanations apart and collapsed each vote's list of changes
 - Gave each chain's rate-limit table a Rate limits heading with its values to review under it, made the table sortable by any column, and explained each ✓ ✗ ? ⚑ mark in a tooltip
