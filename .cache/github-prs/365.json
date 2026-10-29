@@ -1,0 +1,10 @@
+{
+  "number": 365,
+  "title": "Atlas Edit Proposal — 2026-10-26",
+  "body": "## Summary\n\nThis proposal includes the following edits:\n\n- **Require Maintaining Team Review Before Auditing Changes To Other Teams' Codebases** - Requires changes to a codebase maintained by another team to be approved by that team before audit.\n- **Authorize The Skybase Foundation Grant For November 2026** - Authorizes a 900,000 USDS grant from Skybase's SubProxy to the Skybase Foundation to fund operational costs and partner payouts through the end of 2026.\n- **Add The Base Deployment Of Spark's Diamond PAU** - Adds the Base deployment of the Liquidity Layer Shared Contracts and the Parallelized Allocation System for Spark's Diamond PAU.\n- **Update The Osero Gauntlet Instance Off-Chain Parameters** - Increases the Maximum Exposure for Osero's Gauntlet USDC Prime Morpho Vault V2 Instance from 5,000,000 to 10,000,000 USDC and lowers its Capital Ratio Requirement from 100% to 25%.\n- **Housekeeping Updates** - Updates Spark, Grove, Keel and Skybase multisig documents to match on-chain state, and renames the remaining \"Proxy\" and \"SubDAO Proxy\" references to \"SubProxy\" across the Prime Agent Artifacts.\n",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/365",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1
+}
