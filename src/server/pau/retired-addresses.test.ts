@@ -52,10 +52,10 @@ describe("withRetiredKeys", () => {
 
   it("marks only the derivations that take a retired address", () => {
     const out = withRetiredKeys(snap, new Map([[JAAA, gone]])).contracts[0].rateLimits!;
-    expect(out.map((r) => r.derived?.retired ?? null)).toEqual([gone, null]);
+    expect(out.map((r) => r.retired ?? null)).toEqual([gone, null]);
   });
   it("drops a mark whose address the atlas lists again", () => {
     const marked = withRetiredKeys(snap, new Map([[JAAA, gone]]));
-    expect(withRetiredKeys(marked, new Map()).contracts[0].rateLimits!.map((r) => r.derived)).toEqual(snap.contracts[0].rateLimits!.map((r) => r.derived));
+    expect(withRetiredKeys(marked, new Map())).toEqual(snap);
   });
 });

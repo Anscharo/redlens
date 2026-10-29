@@ -13,6 +13,8 @@
 // BeamState lets the Configurator set without a spell (beam.ts), and reads
 // every RateLimitID the atlas states live on its prime's RateLimits, so a key
 // is called unset only when the contract says so (probe.ts).
+import { SUBMODULE } from "../worker-proc.mjs";
+
 function summary(ev, st) {
   const errors = ev.errors ? `, ${ev.errors} error(s)` : "";
   const limited = ev.rateLimited.length ? ` (explorer rate limit: ${ev.rateLimited.join(", ")})` : "";
@@ -23,15 +25,13 @@ function summary(ev, st) {
 }
 
 const ADDRESS_ARTIFACTS = ["public/addresses.atlas.json", "public/addresses.json"];
-// The worker image clones the atlas with its full history (Dockerfile.worker).
-const ATLAS_DIR = "vendor/next-gen-atlas";
 
-/** The atlas clone's retired addresses, read when the namer first needs them; a git failure warns and retires none. */
+/** The atlas clone's retired addresses (the worker image clones it with its full history), read when the namer first needs them; a git failure warns and retires none. */
 async function retiredReader(warn) {
   const { atlasRetiredAddresses } = await import("../../../src/server/pau/retired-addresses.ts");
   return () => {
     try {
-      return atlasRetiredAddresses(ATLAS_DIR);
+      return atlasRetiredAddresses(SUBMODULE);
     } catch (e) {
       warn(`atlas-worker: pau retired atlas addresses not read, keys derived from them stay unmarked: ${e.message}`);
       return new Map();
@@ -70,7 +70,7 @@ export default {
     const skipChains = rpcChains(reg, logsRpcsFor);
     const ev = await syncPauEvents(db, reg, { logs: explorerLogs, head: rpcHead, budgetMs: config.pauEventBudgetSeconds * 1000, skipChains });
     const material = await storedSpellMaterial(db, warn);
-    const nameKeys = keyNamer(ADDRESS_ARTIFACTS, reg, undefined, { retired: await retiredReader(warn), material: () => material });
+    const nameKeys = keyNamer(ADDRESS_ARTIFACTS, reg, { retired: await retiredReader(warn), material });
     const st = await maybeRefreshPauState(db, reg, rpcChainReader(), { refreshSeconds: config.pauRefreshSeconds, nameKeys, atlasKeys: atlasKeysByPrime() });
     for (const f of st.failed ?? []) warn(`atlas-worker: pau snapshot ${f.deployment} not rebuilt, keeping its last: ${f.error}`);
     return summary(ev, st);

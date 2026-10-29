@@ -1,16 +1,17 @@
 // Addresses an earlier atlas commit lists and the current one does not, read
 // from the atlas checkout's git history. A key derived from one meters an
-// integration the atlas has dropped (an offboarded vault), so its derivation
-// is marked `retired` and readers can set it apart. Every file of every commit is read
+// integration the atlas has dropped (an offboarded vault), so its row is
+// marked `retired` and readers can set it apart. Every file of every commit is read
 // as text, whatever layout the atlas used then, and an address counts as
 // retired only when no file at HEAD still holds it.
 import { spawnSync } from "node:child_process";
 import type { DerivedKey, PauSnapshot, RetiredAddress } from "../../lib/pau.ts";
+import { EVM_ADDRESS_BODY_SRC, EVM_ADDRESS_SRC } from "../../lib/patterns.ts";
 import { mapLimits } from "./snapshot.ts";
 
-const ADDRESS_RE = /(?<![0-9a-fA-F])0x[0-9a-fA-F]{40}(?![0-9a-fA-F])/g;
+const ADDRESS_RE = new RegExp(EVM_ADDRESS_SRC, "g");
 const COMMIT = "\u0001";
-export const LOG_FORMAT = `${COMMIT}%H %cI`;
+const LOG_FORMAT = `${COMMIT}%H %cI`;
 
 const addressesIn = (text: string) => (text.match(ADDRESS_RE) ?? []).map((a) => a.toLowerCase());
 
@@ -62,20 +63,19 @@ const git = (dir: string, args: string[]) => {
 
 /** The retired addresses of the atlas checkout at `dir`, read from its whole history (about 4 seconds). */
 export function atlasRetiredAddresses(dir: string): Map<string, RetiredAddress> {
-  const pattern = "0x[0-9a-fA-F]{40}";
-  const log = git(dir, ["log", "--reverse", "--no-renames", "--no-color", "-U0", "-p", `-G${pattern}`, `--format=${LOG_FORMAT}`, "HEAD"]);
-  return retiredFromLog(log, git(dir, ["grep", "-I", "-h", "-E", pattern, "HEAD"]));
+  const log = git(dir, ["log", "--reverse", "--no-renames", "--no-color", "-U0", "-p", `-G${EVM_ADDRESS_BODY_SRC}`, `--format=${LOG_FORMAT}`, "HEAD"]);
+  return retiredFromLog(log, git(dir, ["grep", "-I", "-h", "-E", EVM_ADDRESS_BODY_SRC, "HEAD"]));
 }
 
 const retiredArg = (d: DerivedKey, retired: Map<string, RetiredAddress>) =>
   d.args.map((a) => retired.get(a.toLowerCase())).find((r) => r !== undefined);
 
-/** The snapshot with each derivation that takes a retired address marked with it, and any other unmarked (a reused derivation can carry a stale mark). */
+/** The snapshot with each row whose derivation takes a retired address marked with it, and every other row unmarked. */
 export function withRetiredKeys(snap: PauSnapshot, retired: Map<string, RetiredAddress>): PauSnapshot {
   return mapLimits(snap, (x) => {
-    if (!x.derived) return x;
-    const { retired: _stale, ...derived } = x.derived;
-    const r = retiredArg(derived, retired);
-    return { ...x, derived: r ? { ...derived, retired: r } : derived };
+    const r = x.derived && retiredArg(x.derived, retired);
+    if (r) return { ...x, retired: r };
+    const { retired: _was, ...unmarked } = x;
+    return unmarked as typeof x;
   });
 }

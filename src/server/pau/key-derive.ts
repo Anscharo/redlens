@@ -95,11 +95,22 @@ export function keyDeriver(constants: string[], addresses: string[], words: stri
 
 type AbiItem = { type?: string; name?: string; inputs?: unknown[] };
 
-/** A cached explorer entry's ABI; an unreadable or truncated cache file reads as none. */
-function cachedAbi(file: string): AbiItem[] {
+/** Every entry of the explorer cache in `dir` (`<chainId>/<address>.json`); an unreadable or truncated file is left out. */
+export function cachedEntries(dir: string): Record<string, unknown>[] {
+  const files = (fs.existsSync(dir) ? fs.readdirSync(dir) : []).flatMap((chain) => fs.readdirSync(path.join(dir, chain)).map((f) => path.join(dir, chain, f)));
+  return files.flatMap((f) => {
+    try {
+      return [JSON.parse(fs.readFileSync(f, "utf8")) as Record<string, unknown>];
+    } catch {
+      return [];
+    }
+  });
+}
+
+/** A cached explorer entry's ABI; an unparsable one reads as none. */
+function abiOf(entry: Record<string, unknown>): AbiItem[] {
   try {
-    const j = JSON.parse(fs.readFileSync(file, "utf8")) as { abi?: unknown };
-    const abi = typeof j.abi === "string" ? JSON.parse(j.abi) : j.abi;
+    const abi = typeof entry.abi === "string" ? JSON.parse(entry.abi) : entry.abi;
     return Array.isArray(abi) ? abi : [];
   } catch {
     return [];
@@ -109,11 +120,7 @@ function cachedAbi(file: string): AbiItem[] {
 /** Every zero-argument LIMIT_* view in the cached contract ABIs. */
 export function limitConstants(dir = ".cache/etherscan"): string[] {
   const names = new Set<string>();
-  for (const chain of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
-    for (const f of fs.readdirSync(path.join(dir, chain))) {
-      for (const x of cachedAbi(path.join(dir, chain, f))) if (x.type === "function" && /^LIMIT_/.test(x.name ?? "") && !x.inputs?.length) names.add(x.name!);
-    }
-  }
+  for (const x of cachedEntries(dir).flatMap(abiOf)) if (x.type === "function" && /^LIMIT_/.test(x.name ?? "") && !x.inputs?.length) names.add(x.name!);
   return [...names].sort();
 }
 

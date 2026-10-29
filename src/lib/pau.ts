@@ -49,8 +49,6 @@ export interface DerivedKey {
   getter?: string;
   /** The argument that says which contract the key is for (a pool, a vault, a transfer's destination). */
   via?: string;
-  /** Set when an address argument is one an earlier atlas commit lists and the current one does not: the limit is for an integration the atlas dropped. */
-  retired?: RetiredAddress;
 }
 
 /** An address the atlas's git history lists and its current commit does not, with the commit that removed it. */
@@ -83,6 +81,8 @@ export interface LiveRateLimit extends RateLimitKey {
   available: string | null;
   /** How the key is derived, when a controller constant reproduces it. */
   derived?: DerivedKey;
+  /** Set when an address `derived` takes is one an earlier atlas commit lists and the current one does not: the limit is for an integration the atlas dropped. */
+  retired?: RetiredAddress;
   unit?: AmountUnit;
 }
 
@@ -96,6 +96,7 @@ export interface BeamDefault {
   /** The AddInitRateLimits that set it; null when its history is not read. */
   setAt: SetAt | null;
   derived?: DerivedKey;
+  retired?: RetiredAddress;
   unit?: AmountUnit;
 }
 

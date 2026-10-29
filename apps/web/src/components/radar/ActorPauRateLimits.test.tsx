@@ -96,7 +96,7 @@ describe("PauRateLimits", () => {
 
   it("says when a constant-named limit's address was dropped from the Atlas", () => {
     const retired = { address: "0x" + "e9".repeat(20), removedAt: "2025-08-25T14:36:55Z", commit: "dd131566aa" };
-    const row: ContractLimit = { ...limit(RL1), derived: { constant: "LIMIT_7540_DEPOSIT", args: [], retired } };
+    const row: ContractLimit = { ...limit(RL1), derived: { constant: "LIMIT_7540_DEPOSIT", args: [] }, retired };
     const { container } = render(<PauRateLimits chain="ethereum" limits={[row]} keyIndex={new Map()} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} />);
     expect(container.querySelector("td")?.textContent).toBe("LIMIT_7540_DEPOSIT · dropped from the Atlas 2025-08-25");
   });

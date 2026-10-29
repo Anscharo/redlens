@@ -8,6 +8,7 @@
 // again after UNVERIFIED_RETRY_MS, and one read under another MATERIAL_VERSION
 // is read again. Spells are Ethereum contracts, so every row is chain
 // "ethereum".
+import { EVM_ADDRESS_EXACT_RE } from "../../lib/patterns.ts";
 import type { SqlTag } from "../sql-types.ts";
 import { MATERIAL_VERSION, materialOf, mergeMaterial, type SourceMaterial } from "./source-material.ts";
 
@@ -44,7 +45,7 @@ export async function spellsToRead(db: SqlTag, now: number): Promise<string[]> {
   const have = await storedSources(db);
   const settled = new Set(have.filter((s) => s.version === MATERIAL_VERSION && (s.contractName || now - s.fetchedAt < UNVERIFIED_RETRY_MS)).map((s) => s.address));
   const wanted = [...origins.map((r) => r.address), ...have.flatMap((s) => s.material.spells)].map((a) => a.toLowerCase());
-  return [...new Set(wanted)].filter((a) => /^0x[0-9a-f]{40}$/.test(a) && !settled.has(a)).sort();
+  return [...new Set(wanted)].filter((a) => EVM_ADDRESS_EXACT_RE.test(a) && !settled.has(a)).sort();
 }
 
 async function saveSource(db: SqlTag, address: string, contractName: string, material: SourceMaterial, at: Date): Promise<void> {

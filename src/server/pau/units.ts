@@ -12,7 +12,7 @@
 import type { AmountUnit, DerivedKey, PauSnapshot } from "../../lib/pau.ts";
 import type { PauKind } from "../../lib/pauRegistry.ts";
 import { argAt, facetKeyRule } from "./facet-keys.ts";
-import { mapLimits, type ChainCall, type ChainReader } from "./snapshot.ts";
+import { allLimits, mapLimits, type ChainCall, type ChainReader } from "./snapshot.ts";
 
 type Via = "asset" | "token" | "self" | "underlying";
 type Rule = { fixed: number; symbol: string | null } | { via: Via; role?: string };
@@ -71,7 +71,7 @@ async function tokenUnits(read: ChainReader, chain: string, tokens: string[]): P
 
 /** The snapshot with each rate limit's and BeamState default's unit attached where a rule finds one. */
 export async function withUnits(snap: PauSnapshot, read: ChainReader): Promise<PauSnapshot> {
-  const derived = snap.contracts.flatMap((c) => [...(c.rateLimits ?? []), ...(c.beam?.defaults ?? [])].map((x) => x.derived));
+  const derived = allLimits(snap).map((x) => x.derived);
   const wanted = [...new Set(derived.map((d) => viaKey(d, snap.kind)).filter((w): w is string => !!w))];
   const tokens = wanted.length ? await tokensOf(read, snap.chain, wanted) : new Map<string, string | null>();
   const tokenList = [...new Set([...tokens.values()].filter((t): t is string => !!t))];

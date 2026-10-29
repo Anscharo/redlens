@@ -138,8 +138,8 @@ describe("ActorPau", () => {
   it("leaves out a switched-off key derived from an address the Atlas dropped, and says so on the count", async () => {
     const saved = served;
     const retired = { address: "0x" + "e9".repeat(20), removedAt: "2025-08-25T14:36:55Z", commit: "dd131566" };
-    const gone = { ...limit("0x" + "9a".repeat(32), "0", "0", "0"), derived: { constant: "LIMIT_7540_DEPOSIT", args: [retired.address], retired } };
-    const live = { ...limit("0x" + "9b".repeat(32), "5", "0", null), derived: { constant: "LIMIT_7540_REDEEM", args: [retired.address], retired } };
+    const gone = { ...limit("0x" + "9a".repeat(32), "0", "0", "0"), derived: { constant: "LIMIT_7540_DEPOSIT", args: [retired.address] }, retired };
+    const live = { ...limit("0x" + "9b".repeat(32), "5", "0", null), derived: { constant: "LIMIT_7540_REDEEM", args: [retired.address] }, retired };
     const [ctrl, rl, ...rest] = ETH.contracts;
     served = { deployments: [{ ...ETH, contracts: [ctrl, { ...rl, rateLimits: [...rl.rateLimits!, gone, live] }, ...rest] }] };
     try {

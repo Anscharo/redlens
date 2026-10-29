@@ -8,8 +8,8 @@
 // arguments, never by the source's constant name, because one address can mean
 // different things on two chains. `spells` are the address constants named as
 // a spell or payload (`SPARK_SPELL`), which the spell-source sync reads next.
-import fs from "node:fs";
-import path from "node:path";
+import { EVM_ADDRESS_BODY_SRC } from "../../lib/patterns.ts";
+import { cachedEntries } from "./key-derive.ts";
 
 export interface SourceMaterial {
   names: string[];
@@ -22,7 +22,7 @@ export interface SourceMaterial {
 // line can open right after an escaped `\n`, and a quote can be escaped too.
 const VISIBILITY = String.raw`(?:(?:internal|public|private)\s+)?constant\s+`;
 const NAME_RE = /keccak256\(\s*\\?"(LIMIT_[A-Z0-9_]+)\\?"\s*\)/g;
-const ADDRESS_RE = new RegExp(String.raw`address\s+${VISIBILITY}(\w+)\s*=\s*(0x[0-9a-fA-F]{40})(?![0-9a-fA-F])`, "g");
+const ADDRESS_RE = new RegExp(String.raw`address\s+${VISIBILITY}(\w+)\s*=\s*(${EVM_ADDRESS_BODY_SRC})(?![0-9a-fA-F])`, "g");
 const WORD_RE = new RegExp(String.raw`bytes32\s+${VISIBILITY}\w+\s*=\s*(0x[0-9a-fA-F]{64})(?![0-9a-fA-F])`, "g");
 const SPELL_NAME = /(?:SPELL|PAYLOAD)/;
 
@@ -52,18 +52,7 @@ export function mergeMaterial(ms: SourceMaterial[]): SourceMaterial {
   };
 }
 
-/** A cached explorer entry's verified source; an unreadable file reads as none. */
-function cachedSource(file: string): string {
-  try {
-    const j = JSON.parse(fs.readFileSync(file, "utf8")) as { sourceCode?: unknown };
-    return typeof j.sourceCode === "string" ? j.sourceCode : "";
-  } catch {
-    return "";
-  }
-}
-
-/** The material of every cached source in `dir` (`<chainId>/<address>.json`). */
-export function cachedSourceMaterial(dir = ".cache/etherscan"): SourceMaterial {
-  const files = (fs.existsSync(dir) ? fs.readdirSync(dir) : []).flatMap((chain) => fs.readdirSync(path.join(dir, chain)).map((f) => path.join(dir, chain, f)));
-  return mergeMaterial(files.map((f) => materialOf(cachedSource(f))));
+/** The material of every verified source in the explorer cache in `dir`. */
+export function cachedSourceMaterial(dir: string): SourceMaterial {
+  return mergeMaterial(cachedEntries(dir).map((e) => materialOf(typeof e.sourceCode === "string" ? e.sourceCode : "")));
 }

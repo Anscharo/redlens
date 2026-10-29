@@ -60,11 +60,10 @@ async function dropUnlisted(db: SqlTag, ids: string[]): Promise<number> {
   return ids.length;
 }
 
-/** A deployment's stored snapshot, if any. */
-async function storedSnapshot(db: SqlTag, id: string): Promise<PauSnapshot | undefined> {
-  const rows = (await db`SELECT state FROM pau_state WHERE deployment = ${id}`) as { state: unknown }[];
-  const s = rows[0]?.state;
-  return s ? ((typeof s === "string" ? JSON.parse(s) : s) as PauSnapshot) : undefined;
+/** Every stored snapshot, by deployment. */
+async function storedSnapshots(db: SqlTag): Promise<Map<string, PauSnapshot>> {
+  const rows = (await db`SELECT deployment, state FROM pau_state`) as { deployment: string; state: unknown }[];
+  return new Map(rows.map((r) => [r.deployment, (typeof r.state === "string" ? JSON.parse(r.state) : r.state) as PauSnapshot]));
 }
 
 /** One deployment's snapshot: replayed and read live, its keys named where a derivation is found (reusing what `prev` settled), then their units read. */
@@ -107,11 +106,11 @@ type RefreshOpts = { nameKeys?: KeyNamer; atlasKeys?: Map<string, string[]> };
 async function refreshEach(db: SqlTag, reg: PauRegistry, read: ChainReader, opts: RefreshOpts, now: number) {
   const historyOf = async (c: string, a: string) => ({ events: await eventsOf(db, c, a), complete: await historyComplete(db, c, a) });
   const beamOf = beamSources(reg, historyOf);
+  const prevs = opts.nameKeys ? await storedSnapshots(db) : new Map<string, PauSnapshot>();
   const failed: { deployment: string; error: string }[] = [];
   for (const d of reg.deployments) {
     try {
-      const prev = opts.nameKeys ? await storedSnapshot(db, deploymentId(d)) : undefined;
-      const snap = await snapshotOf(d, read, historyOf, await beamOf(d.chain), { nameKeys: opts.nameKeys, probe: opts.atlasKeys?.get(d.prime), prev });
+      const snap = await snapshotOf(d, read, historyOf, await beamOf(d.chain), { nameKeys: opts.nameKeys, probe: opts.atlasKeys?.get(d.prime), prev: prevs.get(deploymentId(d)) });
       await upsertSnapshot(db, snap, new Date(now));
     } catch (e) {
       failed.push({ deployment: deploymentId(d), error: (e as Error).message });

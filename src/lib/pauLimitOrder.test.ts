@@ -8,7 +8,7 @@ const KEY = "0x" + "4a".repeat(32);
 const retired = { address: "0x" + "e9".repeat(20), removedAt: "2025-08-25T14:36:55Z", commit: "dd131566" };
 const limit = (maxAmount: string, gone = true): LiveRateLimit => ({
   key: KEY, configured: { maxAmount, slope: "0" }, setAt: { block: 1, time: "", tx: "" }, changes: 1, data: null, available: null,
-  derived: { constant: "LIMIT_7540_DEPOSIT", args: [retired.address], ...(gone ? { retired } : {}) },
+  derived: { constant: "LIMIT_7540_DEPOSIT", args: [retired.address] }, ...(gone ? { retired } : {}),
 });
 
 describe("isRetiredOff", () => {

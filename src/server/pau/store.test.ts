@@ -31,7 +31,7 @@ function fakeDb(stored: { deployment: string; fetched_at: Date; state?: unknown 
   const db = async (strings: TemplateStringsArray, ...v: unknown[]) => {
     const text = strings.join("?");
     if (text.includes("SELECT deployment, fetched_at")) return stored;
-    if (text.includes("SELECT state FROM pau_state")) return stored.filter((s) => s.deployment === v[0] && s.state);
+    if (text.includes("SELECT deployment, state")) return stored.filter((s) => s.state);
     if (text.includes("DELETE FROM pau_state")) writes.push(`delete ${v[0]}`);
     if (text.includes("INSERT INTO pau_state")) {
       writes.push(`upsert ${v[0]}`);

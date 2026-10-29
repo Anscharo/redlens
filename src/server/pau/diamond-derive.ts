@@ -63,7 +63,6 @@ export interface DiamondSources {
  */
 export async function withDiamondKeys(snap: PauSnapshot, read: ChainReader, src: DiamondSources): Promise<PauSnapshot> {
   const shapes = integratedFacets(snap).flatMap((f) => src.shapesOf(snap.chain, f));
-  if (!shapes.length) return withDerivedKeys(snap, (k) => src.settled?.(k) ?? null);
   const bound = new Map<string, Bound[]>();
   for (const h of HOOKS.filter((x) => shapes.some((s) => s.facet === x.facet))) bound.set(h.facet, [...(bound.get(h.facet) ?? []), ...(await hookBound(snap, read, h))]);
   const own = JSON.stringify(params(snap)).match(ADDRESS_RE) ?? [];
@@ -97,18 +96,20 @@ function monolithicDeriver(dir: string, material: SourceMaterial, addresses: str
   return { derive: keyDeriver(constants, addresses, material.words), inputs: namingInputs(constants, addresses, material.words) };
 }
 
-/** What the worker adds to the namer's candidates; each is read once, when first needed. */
+/** Where the namer reads its sources, and what the worker adds to its candidates. */
 export interface NamerSources {
-  /** The addresses the atlas has retired (retired-addresses.ts). */
+  /** The explorer cache: facet sources, monolithic ABIs and verified sources. */
+  dir?: string;
+  /** The addresses the atlas has retired (retired-addresses.ts), read once, when first needed. */
   retired?: () => Map<string, RetiredAddress>;
   /** The naming material of sources not in `dir`: the spells behind stored changes (spell-sources.ts). */
-  material?: () => SourceMaterial;
+  material?: SourceMaterial;
 }
 
 /**
  * The worker's namer: each generation's deriver, over the address artifacts,
  * the registry's addresses, the naming material of the sources cached in
- * `dir` and of `sources.material` (source-material.ts: their LIMIT_* names,
+ * `dir` and of `material` (source-material.ts: their LIMIT_* names,
  * address constants and bytes32 constants), and the addresses the atlas has
  * retired, with the facet sources and monolithic ABIs cached in `dir`. A key
  * derived from a retired address is marked so (retired-addresses.ts). The candidates and the monolithic table
@@ -117,13 +118,13 @@ export interface NamerSources {
  * still integrates. A facet whose source the parser refuses names none of its
  * keys, rather than guessing or stopping the diamond's snapshot.
  */
-export function keyNamer(addressFiles: string[], extra: unknown, dir = ".cache/etherscan", sources: NamerSources = {}): KeyNamer {
+export function keyNamer(addressFiles: string[], extra: unknown, { dir = ".cache/etherscan", ...sources }: NamerSources = {}): KeyNamer {
   let addresses: string[] | undefined;
   let retired: Map<string, RetiredAddress> | undefined;
   let material: SourceMaterial | undefined;
   let mono: ReturnType<typeof monolithicDeriver> | undefined;
   const gone = () => (retired ??= sources.retired?.() ?? new Map());
-  const sourced = () => (material ??= mergeMaterial([cachedSourceMaterial(dir), ...(sources.material ? [sources.material()] : [])]));
+  const sourced = () => (material ??= mergeMaterial([cachedSourceMaterial(dir), ...(sources.material ? [sources.material] : [])]));
   const all = () => (addresses ??= [...candidateAddresses(addressFiles, extra), ...sourced().addresses, ...gone().keys()]);
   const shapesOf = facetShapes(dir);
   return async (snap, read, prev) => {

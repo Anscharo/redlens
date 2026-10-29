@@ -26,8 +26,8 @@ const { default: pau } = await import("../scripts/lib/worker-steps/pau.mjs");
 const db = {};
 const empty = { names: [], addresses: [], words: [], spells: [] };
 
-type Sources = { retired: () => Map<string, unknown>; material: () => unknown };
-const sourcesGiven = () => keyNamer.mock.calls.at(-1)![3] as Sources;
+type Sources = { retired: () => Map<string, unknown>; material: unknown };
+const sourcesGiven = () => keyNamer.mock.calls.at(-1)![2] as Sources;
 
 afterEach(() => vi.clearAllMocks());
 
@@ -40,9 +40,9 @@ describe("pau step", () => {
     maybeRefreshPauState.mockResolvedValueOnce({ refreshed: 3, removed: 1, reason: "due", failed: [{ deployment: "p:base:monolithic", error: "boom" }] });
     const warn = vi.fn();
     expect(await pau.run({ db, warn })).toBe("pau events 4 read, 1 pending, 2 new; state rebuilt 3, dropped 1, 1 kept their last snapshot");
-    expect(keyNamer.mock.calls[0].slice(0, 3)).toEqual([["public/addresses.atlas.json", "public/addresses.json"], expect.anything(), undefined]);
-    expect([sourcesGiven().material(), sourcesGiven().retired()]).toEqual([material, retired]);
-    expect(atlasRetiredAddresses).toHaveBeenCalledWith("vendor/next-gen-atlas");
+    expect(keyNamer.mock.calls[0].slice(0, 2)).toEqual([["public/addresses.atlas.json", "public/addresses.json"], expect.anything()]);
+    expect([sourcesGiven().material, sourcesGiven().retired()]).toEqual([material, retired]);
+    expect(atlasRetiredAddresses).toHaveBeenCalledWith(expect.stringMatching(/\/vendor\/next-gen-atlas$/));
     expect(maybeRefreshPauState.mock.calls[0][3]).toMatchObject({ refreshSeconds: 3600, nameKeys: "namer" });
     expect(warn.mock.calls.map((c) => c[0])).toEqual(["atlas-worker: pau snapshot p:base:monolithic not rebuilt, keeping its last: boom"]);
   });
@@ -55,7 +55,7 @@ describe("pau step", () => {
     maybeRefreshPauState.mockResolvedValueOnce({ refreshed: 0, removed: 0, reason: "fresh" });
     const warn = vi.fn();
     expect(await pau.run({ db, warn })).toBe("pau events 4 read, 1 pending, 2 new; state fresh");
-    expect([sourcesGiven().material(), sourcesGiven().retired()]).toEqual([empty, new Map()]);
+    expect([sourcesGiven().material, sourcesGiven().retired()]).toEqual([empty, new Map()]);
     expect(warn.mock.calls.map((c) => c[0])).toEqual([
       'atlas-worker: pau spell sources not read, keys only they name stay unnamed: relation "pau_spell_sources" does not exist',
       "atlas-worker: pau retired atlas addresses not read, keys derived from them stay unmarked: git log in vendor/next-gen-atlas: not a git repository",

@@ -100,7 +100,7 @@ describe("withDiamondKeys without a facet source", () => {
 describe("keyNamer", () => {
   const vault = UNI_POOL;
   const mono4626 = keccak256(encodeAbiParameters([{ type: "bytes32" }, { type: "address" }], [keccak256(toHex("LIMIT_4626_DEPOSIT")), vault]));
-  const name = keyNamer([], { members: [{ address: vault }] }, CACHE);
+  const name = keyNamer([], { members: [{ address: vault }] }, { dir: CACHE });
   const read = async (_c: string, calls: ChainCall[]) => calls.map(() => null);
 
   it("names a monolithic key from the monolithic constants, and never a diamond key", async () => {
@@ -111,29 +111,29 @@ describe("keyNamer", () => {
   });
   it("names a key from an address constant of a cached source the atlas never lists (Spark's Optimism PSM3 USDC deposit)", async () => {
     const key = "0xbfe451288f23aad57bdf741c22373c1453e013f9f1e8176f6bec0346449b82ca";
-    const out = named(await keyNamer([], {}, CACHE)({ ...diamond([], [key]), kind: "monolithic", chain: "optimism" }, read));
+    const out = named(await keyNamer([], {}, { dir: CACHE })({ ...diamond([], [key]), kind: "monolithic", chain: "optimism" }, read));
     expect(out[key]).toEqual({ constant: "LIMIT_PSM_DEPOSIT", args: ["0x0b2c639c533813f4aa9d7837caf62653d097ff85"] });
   });
   it("names keys from a spell's material: a LIMIT_* name no ABI holds, its pool id and its address constants (Spark's Uniswap v4 deposit and OTC swap)", async () => {
     const [v4, otc] = ["0x6bfdd5645c15990954c62067dd1996d467bad0a86baf3fa4f3407446141be964", "0x423505c71302bb78e1a7063ffe62b25e653a1d424d569e464f53694d683a969a"];
     const pool = "0xe63e32b2ae40601662f760d6bf5d771057324fbd97784fe1d3717069f7b75d45";
     const binance = "0xd010b876696f345d9e0a1b70f573244fcc2e0a0e";
-    const material = () => ({ names: ["LIMIT_OTC_SWAP", "LIMIT_UNISWAP_V4_DEPOSIT"], addresses: [binance], words: [pool], spells: [] });
-    const out = named(await keyNamer([], {}, CACHE, { material })({ ...diamond([], [v4, otc]), kind: "monolithic" }, read));
+    const material = { names: ["LIMIT_OTC_SWAP", "LIMIT_UNISWAP_V4_DEPOSIT"], addresses: [binance], words: [pool], spells: [] };
+    const out = named(await keyNamer([], {}, { dir: CACHE, material })({ ...diamond([], [v4, otc]), kind: "monolithic" }, read));
     expect([out[v4], out[otc]]).toEqual([{ constant: "LIMIT_UNISWAP_V4_DEPOSIT", args: [pool] }, { constant: "LIMIT_OTC_SWAP", args: [binance] }]);
   });
   it("names a key from an address the atlas retired, and marks it so (Grove's Centrifuge JAAA deposit)", async () => {
     const key = "0xe222ddefbb558b8f274329ffffa98deabf91ec8b75768088b27a0eb2cdd02aa6";
     const jaaa = "0xe9d1f733f406d4bbbdfac6d4cfcd2e13a6ee1d01";
     const gone = { address: jaaa, removedAt: "2025-08-25T14:36:55Z", commit: "dd131566" };
-    const out = named(await keyNamer([], {}, CACHE, { retired: () => new Map([[jaaa, gone]]) })({ ...diamond([], [key]), kind: "monolithic" }, read));
-    expect(out[key]).toEqual({ constant: "LIMIT_7540_DEPOSIT", args: [jaaa], retired: gone });
+    const snap = await keyNamer([], {}, { dir: CACHE, retired: () => new Map([[jaaa, gone]]) })({ ...diamond([], [key]), kind: "monolithic" }, read);
+    expect(snap.contracts[1].rateLimits!.map((r) => [r.derived, r.retired])).toEqual([[{ constant: "LIMIT_7540_DEPOSIT", args: [jaaa] }, gone]]);
   });
   it("leaves a facet's keys unnamed when the parser refuses its source, instead of failing the snapshot", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "facets-"));
     fs.mkdirSync(path.join(dir, "1"));
     fs.writeFileSync(path.join(dir, "1", `${FACET.usds}.json`), JSON.stringify({ contractName: "USDSFacet", sourceCode: "contract Other {}" }));
-    const bad = keyNamer([], {}, dir);
+    const bad = keyNamer([], {}, { dir });
     expect(named(await bad(diamond([FACET.usds], [KEY.usdsBurn]), read))[KEY.usdsBurn]).toBeNull();
   });
 });
