@@ -36,6 +36,7 @@
 ## 2026-10-29
 
 - Raised the search limit for the chat's in-depth answers and the MCP search tools from 50 to 200 results
+- Made search find a document by its number without the leading A., so 6.1.2 jumps to A.6.1.2
 - Added a hover card to rate limit IDs in documents showing the limit's on-chain maxAmount and slope
 - Named more Liquidity Layer rate limits and hid switched-off limits for integrations the Atlas has dropped
 - Set the Liquidity Layer page's explanations apart and collapsed each vote's list of changes
