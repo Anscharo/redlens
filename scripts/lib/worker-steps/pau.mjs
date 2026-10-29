@@ -70,6 +70,30 @@ async function storedSpellMaterial(db, warn) {
   }
 }
 
+/**
+ * The rebuild's key namer and atlas keys, each built once and only when a
+ * rebuild asks for it. An unreadable graph probes no key rather than failing
+ * every deployment's rebuild.
+ */
+async function rebuildInputs(db, warn, reg) {
+  const { keyNamer } = await import("../../../src/server/pau/diamond-derive.ts");
+  const { atlasKeysByPrime } = await import("../../../src/server/pau/probe.ts");
+  const material = await storedSpellMaterial(db, warn);
+  const retired = await retiredReader(warn);
+  const inputs = atlasInputsOnce(db, warn);
+  let namer;
+  const nameKeys = async (...a) => (await (namer ??= inputs().then((p) => keyNamer([p["addresses.atlas.json"], "public/addresses.json"], reg, { retired, material }))))(...a);
+  const atlasKeys = async () => {
+    try {
+      return atlasKeysByPrime((await inputs())["graph.json"]);
+    } catch (e) {
+      warn(`atlas-worker: pau atlas RateLimitIDs not read, no key is probed: ${e.message}`);
+      return new Map();
+    }
+  };
+  return { nameKeys, atlasKeys };
+}
+
 export default {
   id: "pau",
   phase: "tick",
@@ -84,26 +108,11 @@ export default {
     const { explorerLogs } = await import("../explorer-logs.ts");
     const { logsRpcsFor } = await import("../rpc-logs.ts");
     const { rpcChains } = await import("../../../src/server/pau/rpc-sync.ts");
-    const { keyNamer } = await import("../../../src/server/pau/diamond-derive.ts");
-    const { atlasKeysByPrime } = await import("../../../src/server/pau/probe.ts");
     // Chains read over JSON-RPC belong to the sync:pau-rpc tail; this step leaves their cursors alone.
     const skipChains = rpcChains(reg, logsRpcsFor);
     const ev = await syncPauEvents(db, reg, { logs: explorerLogs, head: rpcHead, budgetMs: config.pauEventBudgetSeconds * 1000, skipChains });
-    const material = await storedSpellMaterial(db, warn);
-    const retired = await retiredReader(warn);
-    const inputs = atlasInputsOnce(db, warn);
-    let namer;
-    const nameKeys = async (...a) => (await (namer ??= inputs().then((p) => keyNamer([p["addresses.atlas.json"], "public/addresses.json"], reg, { retired, material }))))(...a);
-    // An unreadable graph probes no key rather than failing every deployment's rebuild.
-    const atlasKeys = async () => {
-      try {
-        return atlasKeysByPrime((await inputs())["graph.json"]);
-      } catch (e) {
-        warn(`atlas-worker: pau atlas RateLimitIDs not read, no key is probed: ${e.message}`);
-        return new Map();
-      }
-    };
-    const st = await maybeRefreshPauState(db, reg, rpcChainReader(), { refreshSeconds: config.pauRefreshSeconds, nameKeys, atlasKeys });
+    const lazy = await rebuildInputs(db, warn, reg);
+    const st = await maybeRefreshPauState(db, reg, rpcChainReader(), { refreshSeconds: config.pauRefreshSeconds, ...lazy });
     for (const f of st.failed ?? []) warn(`atlas-worker: pau snapshot ${f.deployment} not rebuilt, keeping its last: ${f.error}`);
     return summary(ev, st);
   },
