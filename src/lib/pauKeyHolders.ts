@@ -1,7 +1,7 @@
-// Every PAU contract that has a rate-limit key, for the hover card on a 64-hex
-// value in atlas prose (apps/web/src/components/RateLimitKey.tsx). Only contracts
-// that hold the key count: one a live read found never set (`unsetKeys`) is left
-// out, so a hash no contract holds gets no card. Pure.
+// Every PAU contract whose RateLimits holds a rate-limit key, for the hover card
+// on a 64-hex value in atlas prose (apps/web/src/components/RateLimitKey.tsx). A
+// contract that lists the key only in `unsetKeys` (probed, never set) does not
+// hold it, and a hash no contract holds gets no card. Pure.
 import type { LiveRateLimit, PauResponse, StoredPauSnapshot } from "./pau.ts";
 
 export interface KeyHolder {

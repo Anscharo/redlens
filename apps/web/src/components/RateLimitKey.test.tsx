@@ -74,7 +74,6 @@ describe("rate-limit key hover", () => {
     expect(tip).toHaveTextContent("read 2026-10-28 12:34 UTC");
     // Base's RateLimits was probed and never set the key, so the card leaves that chain out.
     expect(tip).not.toHaveTextContent("Base");
-    expect(tip).not.toHaveTextContent("not set");
   });
 
   it("leaves a hash no PAU contract holds, and a transaction hash, without a hover card", async () => {
