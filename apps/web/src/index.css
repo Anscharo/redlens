@@ -2322,6 +2322,18 @@ a.atlas-annotates:focus-visible {
   text-underline-offset: 2px;
 }
 
+/* ─── Rate-limit key in prose (src/components/RateLimitKey.tsx): hover shows its on-chain limit ─── */
+.rl-key {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--tan-3);
+  text-underline-offset: 3px;
+}
+.rl-key:hover,
+.rl-key:focus-visible {
+  text-decoration-color: var(--accent);
+}
+
 /* ─── Chain value key column ─── */
 .chain-key {
   color: var(--tan-3);
