@@ -1,5 +1,6 @@
 import type { KeyHolder } from "@/lib/pauKeyHolders";
 import { formatAmount, formatPerDay, limitDecimals, PAU_KIND_LABEL } from "../lib/pau";
+import { shortAddr } from "../lib/format";
 
 const dim = { color: "var(--tan-3)" };
 
@@ -12,16 +13,27 @@ function maxText(raw: string, dec: number, symbol: string): string {
   return amount === "unlimited" ? amount : `${amount}${symbol}`;
 }
 
+/**
+ * Where a holder is, told apart from the card's other holders: the controller
+ * kind when the prime has two deployments on the chain, and the RateLimits
+ * contract when one deployment has two holding the key.
+ */
+function heading(h: KeyHolder, all: KeyHolder[]): string {
+  const sameChain = all.filter((x) => x.snap.prime === h.snap.prime && x.snap.chain === h.snap.chain);
+  const kind = sameChain.some((x) => x.snap.deployment !== h.snap.deployment) ? ` · ${PAU_KIND_LABEL[h.snap.kind]}` : "";
+  const contract = sameChain.filter((x) => x.snap.deployment === h.snap.deployment).length > 1 ? ` · ${shortAddr(h.contract)}` : "";
+  return `${h.snap.primeName} · ${chainLabel(h.snap.chain)}${kind}${contract}`;
+}
+
 /** One contract's limit for the key: maxAmount and refill per day, in the key's unit when the worker read one. */
-function HolderLimit({ h, showKind }: { h: KeyHolder; showKind: boolean }) {
-  const where = `${h.snap.primeName} · ${chainLabel(h.snap.chain)}${showKind ? ` · ${PAU_KIND_LABEL[h.snap.kind]}` : ""}`;
+function HolderLimit({ h, where }: { h: KeyHolder; where: string }) {
   const r = h.limit;
   const v = r ? (r.data ?? r.configured) : null;
   const dec = r && v ? limitDecimals(r.unit, v.maxAmount) : 18;
   const symbol = r?.unit?.symbol ? ` ${r.unit.symbol}` : "";
   return (
     <div className="mt-1.5 first:mt-0" data-chain={h.snap.chain}>
-      <div className="text-tan-2 truncate">{where}</div>
+      <div className="text-tan-2 break-words">{where}</div>
       {!r || !v ? (
         <div className="mono text-[10px]" style={dim}>not set on this PAU</div>
       ) : (
@@ -43,14 +55,13 @@ const readAt = (holders: KeyHolder[]) =>
 /** The hover card on a RateLimitID: what each PAU contract holding the key has it set to on chain. */
 export function RateLimitKeyCard({ holders }: { holders: KeyHolder[] }) {
   const name = holders.find((h) => h.limit?.derived)?.limit?.derived?.constant;
-  const twins = (h: KeyHolder) => holders.filter((x) => x.snap.prime === h.snap.prime && x.snap.chain === h.snap.chain).length > 1;
   const read = readAt(holders);
   return (
     <div className="min-w-[10rem] max-w-[18rem]">
       <div className="font-medium text-tan">On-chain rate limit</div>
       {name && <div className="mono text-[10px] truncate" style={dim}>{name}</div>}
       <div className="mt-1">
-        {holders.map((h) => <HolderLimit key={`${h.snap.deployment}:${h.contract}`} h={h} showKind={twins(h)} />)}
+        {holders.map((h) => <HolderLimit key={`${h.snap.deployment}:${h.contract}`} h={h} where={heading(h, holders)} />)}
       </div>
       {read && <div className="mono text-[10px] mt-1.5" style={dim}>read {read} UTC</div>}
     </div>
