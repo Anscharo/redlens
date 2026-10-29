@@ -1,15 +1,19 @@
 // The atlas against the contract as facts (src/lib/pauAtlasValues.ts): one per
-// rate-limit value a prime's instances state and the chain holds, saying
+// rate-limit value a prime's instances or limit documents state and the chain
+// holds (the sources are pauPrimeSources.ts's rule), saying
 // whether the two agree. Found by the documents stating the value and the
 // instance, so a tool result that returns either carries the comparison.
 // A value whose key the fully read contract does not hold is a disagreement
 // too. Values that cannot be compared (chain not read, no key found) are left
 // out; the coverage list says which deployments are read.
+import { docTree } from "../../lib/atlasTree.ts";
 import { checkAtlasValues, type ValueCheck } from "../../lib/pauAtlasValues.ts";
+import type { LimitDocs } from "../../lib/pauLimitDocs.ts";
 import type { StoredPauSnapshot } from "../../lib/pau.ts";
 import { checkChainValue } from "../../lib/pauCheckValue.ts";
 import { primeValueSources, rowView } from "../../lib/pauPrimeSources.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
+import { indexesToDocs } from "../reports/ix-adapter.ts";
 import type { OnchainFact } from "./facts.ts";
 import { setAt } from "./pau-fact-parts.ts";
 
@@ -25,7 +29,7 @@ function valueFact(c: ValueCheck, primeName: string, prime: string, snap: Stored
     values, summary: { value: c.label, atlas: c.stated, contract: values.contract, agrees: values.agrees },
     set_at: c.limit ? setAt(snap.chain, c.limit.setAt) : null, read_at: snap.fetchedAt,
     history_complete: snap.contracts.every((x) => x.historyComplete),
-    match: { hashes: c.key ? [c.key] : [], addresses: [contract], docs: [c.docId, ...(c.instanceDocId ? [c.instanceDocId] : [])] },
+    match: { hashes: c.key ? [c.key] : [], addresses: [contract], docs: [...new Set([c.docId, ...(c.instanceDocId ? [c.instanceDocId] : [])])] },
   };
 }
 
@@ -35,9 +39,21 @@ const deploymentsOf = (c: ValueCheck, snaps: StoredPauSnapshot[]): StoredPauSnap
   return c.status === "not-set" ? snaps.filter((s) => s.chain === c.chain) : [];
 };
 
+const treeOf = new WeakMap<Indexes, LimitDocs>();
+
+/** The index set's documents as the limit-document rule reads them, built once per index set. */
+function limitDocs(ix: Indexes): LimitDocs {
+  const known = treeOf.get(ix);
+  if (known) return known;
+  const docs = indexesToDocs(ix);
+  const built = { docs, byParent: docTree(docs).byParent };
+  treeOf.set(ix, built);
+  return built;
+}
+
 /** One fact per value the chain can be compared on, or lacks on a read chain, for one prime. */
 export function valueFacts(ix: Indexes, prime: string, snaps: StoredPauSnapshot[]): OnchainFact[] {
   const name = snaps[0]?.primeName ?? ix.entityById.get(prime)?.name ?? "";
   const primeEntity = ix.entityById.get(prime);
-  return checkAtlasValues(primeValueSources(ix.entities.map(rowView), prime, primeEntity && rowView(primeEntity)), snaps).flatMap((c) => deploymentsOf(c, snaps).map((s) => valueFact(c, name, prime, s)));
+  return checkAtlasValues(primeValueSources(ix.entities.map(rowView), prime, primeEntity && rowView(primeEntity), limitDocs(ix)), snaps).flatMap((c) => deploymentsOf(c, snaps).map((s) => valueFact(c, name, prime, s)));
 }

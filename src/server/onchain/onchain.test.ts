@@ -132,6 +132,15 @@ describe("valueFacts", () => {
     expect(facts[0].match).toEqual({ hashes: [KIN], addresses: [RL], docs: ["d-in-lim", I] });
     expect(facts[0].set_at?.url).toBe(`https://etherscan.io/tx/${at.tx}`);
   });
+  it("states a value a limit document under the prime states, read as a tree by doc number", () => {
+    const withLimits = buildIndexes([
+      doc(P, "A.6.1.1.2", "Grove"),
+      doc("d-lims", "A.6.1.1.2.6", "Diamond PAU Rate Limits"),
+      doc("d-eth", "A.6.1.1.2.6.1", "Ethereum Mainnet"),
+      doc("d-mint-leaf", "A.6.1.1.2.6.1.1", "USDS Mint Maximum", "The USDS minted (`LIMIT_USDS_MINT`).\n\n- `maxAmount`: 50,000,000 USDS"),
+    ], [ent(P, "grove", "Grove", "agent", "prime", { params: { "USDS Mint RateLimitID": [KMINT, "d-mint-id", "x"] } })], [], {});
+    expect(valueFacts(withLimits, P, [SNAP]).map((f) => [f.name, f.summary.atlas, f.match.docs])).toEqual([["Ethereum Mainnet - USDS Mint Maximum · USDS Mint maxAmount", "50,000,000 USDS", ["d-mint-leaf"]]]);
+  });
   it("finds the chain of a not-set value by the instance's Network param when its name names none", () => {
     const KGONE = k("9");
     const named = buildIndexes([doc(P, "A.6.1.1.2", "Grove")], [
