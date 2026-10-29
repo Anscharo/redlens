@@ -12,7 +12,7 @@ import { buildSnippet, highlightTerms, extractPhrases } from "@/lib/searchHighli
 import { UUID_RE } from "@/lib/patterns";
 import { isUuidPrefix, matchUuidPrefix } from "../lib/uuidSearch";
 import { scopeOf, withoutScope } from "../lib/searchScope";
-import { CHAINLOG_RE, DOC_NO_RE, cancelSemanticLeg } from "./searchSemanticLeg";
+import { BARE_DOC_NO_RE, CHAINLOG_RE, DOC_NO_RE, cancelSemanticLeg } from "./searchSemanticLeg";
 import { answerQuery, createLexicalMemo, hydrateSemantic, type QueryDeps } from "./searchWorkerLanes";
 import { MINISEARCH_OPTIONS, MINISEARCH_SEARCH_OPTIONS } from "@/lib/searchOptions";
 import { counterpartTerm, expandQueryTokens, partitionByOriginalTerms } from "@/lib/searchInflect";
@@ -126,6 +126,13 @@ function search(q: string): SearchHit[] {
   // Exact doc_no fast-path — e.g. "A.1.2" or "NR-12"
   if (DOC_NO_RE.test(trimmed)) {
     const doc = byDocNo.get(trimmed.toUpperCase());
+    if (doc) return [docToHit(doc, 10, undefined, [trimmed], "doc number")];
+  }
+
+  // The same jump without the root letter — "1.8" is A.1.8. Falls through to
+  // full-text when no such doc exists, so a decimal still searches content.
+  if (BARE_DOC_NO_RE.test(trimmed)) {
+    const doc = byDocNo.get(`A.${trimmed.toLowerCase()}`);
     if (doc) return [docToHit(doc, 10, undefined, [trimmed], "doc number")];
   }
 
