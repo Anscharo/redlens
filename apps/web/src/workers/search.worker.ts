@@ -12,7 +12,8 @@ import { buildSnippet, highlightTerms, extractPhrases } from "@/lib/searchHighli
 import { UUID_RE } from "@/lib/patterns";
 import { isUuidPrefix, matchUuidPrefix } from "../lib/uuidSearch";
 import { scopeOf, withoutScope } from "../lib/searchScope";
-import { CHAINLOG_RE, DOC_NO_RE, cancelSemanticLeg } from "./searchSemanticLeg";
+import { CHAINLOG_RE, cancelSemanticLeg } from "./searchSemanticLeg";
+import { docNoKey } from "@/lib/docNo";
 import { answerQuery, createLexicalMemo, hydrateSemantic, type QueryDeps } from "./searchWorkerLanes";
 import { MINISEARCH_OPTIONS, MINISEARCH_SEARCH_OPTIONS } from "@/lib/searchOptions";
 import { counterpartTerm, expandQueryTokens, partitionByOriginalTerms } from "@/lib/searchInflect";
@@ -123,11 +124,10 @@ function search(q: string): SearchHit[] {
     }
   }
 
-  // Exact doc_no fast-path — e.g. "A.1.2" or "NR-12"
-  if (DOC_NO_RE.test(trimmed)) {
-    const doc = byDocNo.get(trimmed.toUpperCase());
-    if (doc) return [docToHit(doc, 10, undefined, [trimmed], "doc number")];
-  }
+  // Exact doc_no fast-path — e.g. "A.1.2", "1.2" or "NR-12". Falls through to
+  // full-text when no such doc exists.
+  const docNoHit = byDocNo.get(docNoKey(trimmed) ?? "");
+  if (docNoHit) return [docToHit(docNoHit, 10, undefined, [trimmed], "doc number")];
 
   // Extract the in:DOCNUMBER scope filter with the same rule the scope button
   // and the spelling correction read it by (lib/searchScope.ts).
