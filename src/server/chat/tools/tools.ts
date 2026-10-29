@@ -141,7 +141,7 @@ export interface SearchArgs {
   mode: "lexical" | "semantic" | "hybrid";
 }
 
-// `budget` is the caller's whole-result budget (result-page.ts `resultChars`).
+// `budget` is the caller's whole-result budget (`ToolCallContext.resultChars`; the MCP budget when absent).
 export async function atlasSearch(ix: Indexes, { query, k, offset = 0, type, mode }: SearchArgs, budget = MAX_RESULT_CHARS): Promise<ToolResult> {
   const { phrases, casePhrases } = extractPhrases(query);
   const hasPhrases = phrases.length > 0 || casePhrases.length > 0;

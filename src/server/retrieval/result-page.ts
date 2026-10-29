@@ -5,8 +5,7 @@
 // last-resort cut (applyChatToolBudget, which slices the JSON text mid-row)
 // does not run on these tools.
 import { z } from "zod";
-import { fitToBudget, MAX_RESULT_CHARS } from "../chat/output-budget.ts";
-import type { ToolCallContext } from "../chat/tools/tool-context.ts";
+import { fitToBudget } from "../chat/output-budget.ts";
 
 /** Rows one call may ask for. The budget usually binds first: a lean row is
  *  about 400 chars, so the 30k chat budget holds ~70 and a large read all 200. */
@@ -29,12 +28,6 @@ export const pageShape = {
     .describe("Ranked rows to skip. Pass a previous result's next_offset, with the same k, to read the next page."),
 };
 
-/** The whole-result budget for this caller: the chat transport's cut, which
- *  execToolDetailed passes down as `resultChars`, else the MCP budget. */
-export function resultChars(ctx?: ToolCallContext): number {
-  return ctx?.resultChars ?? MAX_RESULT_CHARS;
-}
-
 /** Candidates to fetch for rows [offset, offset + k). A fused ranking depends
  *  on how deep each leg was fetched, since RRF adds a term for every list a
  *  document is in, so its pool follows `k` alone: every page of one `k` reads
@@ -48,9 +41,9 @@ export function poolSize(offset: number, k: number, exact: boolean): number {
 // Room kept for the envelope around the rows: counts, hints, the liveness hint.
 const ENVELOPE_CHARS = 2_000;
 
-/** The truncation hint for a listing that ignores `offset`, naming what does narrow it. */
-export const unpagedHint = (narrowers: string) =>
-  `Results truncated to fit context. This listing does not page with offset; narrow it with ${narrowers}.`;
+/** atlas_query's entity_broad truncation hint: that listing ignores `offset`, so it names what does narrow it. */
+export const UNPAGED_HINT =
+  "Results truncated to fit context. This listing does not page with offset; narrow it with edge_types, target_type or a query.";
 
 export const PAGE_HINT =
   "This page stopped at the result budget before reaching k rows. Call again with offset set to next_offset for the rest, or narrow with a type or filter.";

@@ -9,7 +9,7 @@ import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "./leaf-
 import { resolveEntity } from "./entity-resolve.ts";
 import { resolveTargetType } from "./doc-types.ts";
 import { MAX_RESULT_CHARS } from "../chat/output-budget.ts";
-import { fitWithExtra, pageOf, poolSize, unpagedHint } from "./result-page.ts";
+import { fitWithExtra, pageOf, poolSize, UNPAGED_HINT } from "./result-page.ts";
 import { sql } from "../db.ts";
 import { livenessOf, withLivenessHint, type ToolResult } from "../chat/tools/tools.ts";
 import { pgType } from "../history/change-type.ts";
@@ -186,7 +186,7 @@ function enrichNode(ix: Indexes, n: AtlasNode, enrich: boolean, includeParams: b
   return base;
 }
 
-// `budget` is the caller's whole-result budget (result-page.ts `resultChars`).
+// `budget` is the caller's whole-result budget (`ToolCallContext.resultChars`; the MCP budget when absent).
 export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_CHARS): Promise<ToolResult> {
   const query = a.query ?? a.q;
   if (!query && !a.entity && !a.target_type) {
@@ -269,11 +269,11 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_
     a.via_entity_type ? `via_entity_type=${a.via_entity_type}` : "",
   ].filter(Boolean);
   const row = (n: AtlasNode) => enrichNode(ix, n, a.enrich, !!a.include_params);
-  let lexCut = false; // the search leg's lexical ranking filled its pool (result-page.ts PageOpts)
   // One page of `all`, cut whole to the caller's budget so a single call can't
   // overflow its context; `next_offset` tells it where the next page starts.
-  const withBudget = <T,>(all: T[], toRow: (t: T) => unknown, rest: Record<string, unknown>): ToolResult => {
-    const { rows: kept, fields, extra: ancestors } = pageOf(all, { offset: a.offset ?? 0, k: a.k }, budget, toRow, { extra: (r) => collectAncestors(ix, r), poolCut: lexCut });
+  // `poolCut`: the ranking behind `all` filled its candidate pool (result-page.ts PageOpts).
+  const withBudget = <T,>(all: T[], toRow: (t: T) => unknown, rest: Record<string, unknown>, poolCut = false): ToolResult => {
+    const { rows: kept, fields, extra: ancestors } = pageOf(all, { offset: a.offset ?? 0, k: a.k }, budget, toRow, { extra: (r) => collectAncestors(ix, r), poolCut });
     // Zero results WITH filters active is a recoverable state, not an answer.
     // Say so, name the arguments to drop, and report how many candidates they
     // removed — the same "hand back what you need to retry" shape the rest of
@@ -341,7 +341,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_
       entity: a.entity,
       resolved_entity: resolvedEntity,
       mode: "entity_broad",
-      ...(truncated ? { truncated: true, hint: unpagedHint("edge_types, target_type or a query") } : {}),
+      ...(truncated ? { truncated: true, hint: UNPAGED_HINT } : {}),
       ...(ancestors ? { ancestors } : {}),
       by_relationship,
     };
@@ -367,6 +367,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_
   // Populated only when `query` ran the search leg; surfaces a degraded-to-
   // lexical-only semantic leg into the result envelope below.
   let semSkipped: string | null = null;
+  let lexCut = false;
   if (query) {
     const { phrases, casePhrases } = extractPhrases(query);
     const fetchK = poolSize(a.offset ?? 0, a.k, false);
@@ -425,5 +426,5 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs, budget = MAX_RESULT_
     ...(resolvedEntity ? { entity: a.entity, resolved_entity: resolvedEntity } : {}),
     mode,
     ...(semSkipped ? { semantic_skipped: semSkipped } : {}),
-  });
+  }, lexCut);
 }

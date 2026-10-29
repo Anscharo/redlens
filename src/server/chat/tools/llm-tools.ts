@@ -161,16 +161,18 @@ export async function execToolDetailed(
   if (strippedKeys.length) captureEvent("chat_tool_arg_stripped", obs, { tool: name, keys: strippedKeys });
   // The handler learns the cut below, so a paging tool can drop whole rows to fit it.
   const grant = reserveLargeRead(tool.largeResult, ctx?.largeRead);
+  let used = 0;
   try {
     const json = JSON.stringify(await invokeTool(ix, tool, parsed.data as Record<string, unknown>, { ...(ctx ?? ANON_MCP_CTX), resultChars: grant.chars }));
     const out = applyChatToolBudget(json, grant.chars);
-    settleLargeRead(ctx?.largeRead, grant, out.returnedChars);
+    used = out.returnedChars;
     return out;
   } catch (e) {
-    settleLargeRead(ctx?.largeRead, grant, 0);
     // The model still gets a usable {error} tool result (never breaks the turn),
     // but a tool handler throwing is a real bug worth alerting on, not silent.
     captureError(e, obs, { tool: name });
     return applyChatToolBudget(JSON.stringify({ error: (e as Error).message }));
+  } finally {
+    settleLargeRead(ctx?.largeRead, grant, used);
   }
 }

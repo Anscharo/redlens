@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { MAX_RESULT_CHARS } from "../chat/output-budget.ts";
-import { fitWithExtra, PAGE_HINT, pageOf, poolSize, resultChars } from "./result-page.ts";
+import { fitWithExtra, PAGE_HINT, pageOf, poolSize } from "./result-page.ts";
 
 const rows = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `doc-${i}`, snippet: "x".repeat(380) }));
 
@@ -64,7 +64,7 @@ describe("fitWithExtra", () => {
   });
 });
 
-describe("poolSize and resultChars", () => {
+describe("poolSize", () => {
   it("fetches an exact ranking one past the window so a full page knows more exist", () => {
     expect(poolSize(0, 10, true)).toBe(11);
     expect(poolSize(30, 10, true)).toBe(41);
@@ -75,11 +75,5 @@ describe("poolSize and resultChars", () => {
     expect(poolSize(30, 10, false)).toBe(40);
     expect(poolSize(0, 50, false)).toBe(200);
     expect(poolSize(78, 200, false)).toBe(800);
-  });
-
-  it("uses the chat cut when the transport passes one, else the MCP budget", () => {
-    expect(resultChars(undefined)).toBe(MAX_RESULT_CHARS);
-    expect(resultChars({ surface: "mcp" })).toBe(MAX_RESULT_CHARS);
-    expect(resultChars({ surface: "chat", resultChars: 30_000 })).toBe(30_000);
   });
 });

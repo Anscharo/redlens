@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { atlasQuery, type QueryArgs } from "../../retrieval/query.ts";
 import { atlasQueryShape } from "../../retrieval/query-schema.ts";
-import { resultChars } from "../../retrieval/result-page.ts";
 import { atlasFirstSeen } from "../../history/first-seen.ts";
 import { readOnlyAtlasTool, type AtlasTool } from "./tool-types.ts";
 
@@ -55,6 +54,6 @@ export const QUERY_TOOLS: AtlasTool[] = [
     shape: atlasQueryShape,
     emptyArgsAbsent: true,
     largeResult: true,
-    handler: (ix, a, ctx) => atlasQuery(ix, a as unknown as QueryArgs, resultChars(ctx)),
+    handler: (ix, a, ctx) => atlasQuery(ix, a as unknown as QueryArgs, ctx?.resultChars),
   },
 ];

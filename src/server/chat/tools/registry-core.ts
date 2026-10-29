@@ -3,7 +3,7 @@ import { z } from "zod";
 import { atlasDescribe, atlasGet, atlasSearch, atlasGetAddress, type SearchArgs } from "./tools.ts";
 import { readOnlyAtlasTool, type AtlasTool } from "./tool-types.ts";
 import { withOnchain } from "../../onchain/enrich.ts";
-import { pageShape, resultChars } from "../../retrieval/result-page.ts";
+import { pageShape } from "../../retrieval/result-page.ts";
 
 export const CORE_TOOLS: AtlasTool[] = [
   {
@@ -50,7 +50,7 @@ export const CORE_TOOLS: AtlasTool[] = [
     annotations: readOnlyAtlasTool("Atlas Search"),
     description:
       'Search the Sky Atlas. mode="lexical" uses minisearch BM25 (good for exact terms, IDs, addresses). ' +
-      'mode="semantic" uses Qwen3 embeddings via pgvector (paraphrase / concept queries; it ranks at most ~80 docs, so list a whole class with hybrid or lexical). ' +
+      'mode="semantic" uses Qwen3 embeddings via pgvector (paraphrase / concept queries; it ranks only the nearest few dozen docs, so list a whole class with hybrid or lexical). ' +
       'mode="hybrid" (default) merges both via reciprocal rank fusion. Quoted phrases ("...") are ' +
       "post-filtered to require an exact substring match in title or content.",
     shape: {
@@ -60,7 +60,7 @@ export const CORE_TOOLS: AtlasTool[] = [
       mode: z.enum(["lexical", "semantic", "hybrid"]).default("hybrid"),
     },
     largeResult: true,
-    handler: (ix, a, ctx) => atlasSearch(ix, a as unknown as SearchArgs, resultChars(ctx)),
+    handler: (ix, a, ctx) => atlasSearch(ix, a as unknown as SearchArgs, ctx?.resultChars),
   },
   {
     name: "atlas_get_address",
