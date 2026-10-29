@@ -1,5 +1,5 @@
-// keyHolders: which PAU contracts have a rate-limit key, live or probed unset,
-// in the order the hover card lists them.
+// keyHolders: which PAU contracts hold a rate-limit key, in the order the hover
+// card lists them.
 import { describe, expect, it } from "vitest";
 import type { ContractState, LiveRateLimit, StoredPauSnapshot } from "./pau.ts";
 import { keyHolders } from "./pauKeyHolders.ts";
@@ -23,9 +23,9 @@ describe("keyHolders", () => {
     const res = { deployments: [snap("Spark", "base", "monolithic", [rl("0x1", { rateLimits: [limit(KEY.toUpperCase().replace("0X", "0x"))] })]), snap("Grove", "ethereum", "monolithic", [rl("0x2", { rateLimits: [limit(OTHER)] })])] };
     expect(keyHolders(res, KEY).map((h) => h.contract)).toEqual(["0x1"]);
   });
-  it("lists a key a live read found unset with no limit", () => {
-    const res = { deployments: [snap("Spark", "ethereum", "monolithic", [rl("0x1", { unsetKeys: [KEY] })])] };
-    expect(keyHolders(res, KEY)).toEqual([expect.objectContaining({ contract: "0x1", limit: null })]);
+  it("leaves out a contract a live read found never set the key on", () => {
+    const res = { deployments: [snap("Spark", "ethereum", "monolithic", [rl("0x1", { unsetKeys: [KEY] })]), snap("Spark", "base", "monolithic", [rl("0x2", { rateLimits: [limit(KEY)] })])] };
+    expect(keyHolders(res, KEY).map((h) => h.contract)).toEqual(["0x2"]);
   });
   it("finds nothing for a hash no contract holds", () => {
     expect(keyHolders({ deployments: [snap("Spark", "ethereum", "monolithic", [rl("0x1", { rateLimits: [limit(OTHER)] })])] }, KEY)).toEqual([]);

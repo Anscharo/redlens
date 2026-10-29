@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // A RateLimitID in atlas prose: hovering it shows what the PAU contracts holding
-// the key have it set to on chain; a hash no contract holds, and a transaction
-// hash, stay as they were.
+// the key have it set to on chain, leaving out a chain where it is not set; a hash
+// no contract holds, and a transaction hash, stay as they were.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
@@ -31,6 +31,10 @@ const res: PauResponse = {
           unit: { decimals: 6, symbol: "USDC", source: "constant" },
         }],
       }],
+    },
+    {
+      deployment: "spark:base", prime: "p", primeName: "Spark", chain: "base", kind: "monolithic", fetchedAt: "2026-10-28T12:34:56Z",
+      contracts: [{ role: "rateLimits", address: "0x2", events: 0, historyComplete: true, unsetKeys: [KEY] }],
     },
   ],
 };
@@ -68,6 +72,9 @@ describe("rate-limit key hover", () => {
     expect(tip).toHaveTextContent("maxAmount50M USDC");
     expect(tip).toHaveTextContent("slope20M USDC per day");
     expect(tip).toHaveTextContent("read 2026-10-28 12:34 UTC");
+    // Base's RateLimits was probed and never set the key, so the card leaves that chain out.
+    expect(tip).not.toHaveTextContent("Base");
+    expect(tip).not.toHaveTextContent("not set");
   });
 
   it("leaves a hash no PAU contract holds, and a transaction hash, without a hover card", async () => {

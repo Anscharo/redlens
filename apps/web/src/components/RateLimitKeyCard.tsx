@@ -28,22 +28,18 @@ function heading(h: KeyHolder, all: KeyHolder[]): string {
 /** One contract's limit for the key: maxAmount and refill per day, in the key's unit when the worker read one. */
 function HolderLimit({ h, where }: { h: KeyHolder; where: string }) {
   const r = h.limit;
-  const v = r ? (r.data ?? r.configured) : null;
-  const dec = r && v ? limitDecimals(r.unit, v.maxAmount) : 18;
-  const symbol = r?.unit?.symbol ? ` ${r.unit.symbol}` : "";
+  const v = r.data ?? r.configured;
+  const dec = limitDecimals(r.unit, v.maxAmount);
+  const symbol = r.unit?.symbol ? ` ${r.unit.symbol}` : "";
   return (
     <div className="mt-1.5 first:mt-0" data-chain={h.snap.chain}>
       <div className="text-tan-2 break-words">{where}</div>
-      {!r || !v ? (
-        <div className="mono text-[10px]" style={dim}>not set on this PAU</div>
-      ) : (
-        <div className="mono text-[10px] text-tan-2">
-          <div className="flex justify-between gap-3"><span style={dim}>maxAmount</span><span>{maxText(v.maxAmount, dec, symbol)}</span></div>
-          <div className="flex justify-between gap-3"><span style={dim}>slope</span><span>{formatPerDay(v.slope, dec)}{symbol} per day</span></div>
-          {!r.unit && <div style={dim}>{dec} decimals, inferred from the limit's size</div>}
-          {!r.data && <div style={dim}>live read failed; the last value its history set</div>}
-        </div>
-      )}
+      <div className="mono text-[10px] text-tan-2">
+        <div className="flex justify-between gap-3"><span style={dim}>maxAmount</span><span>{maxText(v.maxAmount, dec, symbol)}</span></div>
+        <div className="flex justify-between gap-3"><span style={dim}>slope</span><span>{formatPerDay(v.slope, dec)}{symbol} per day</span></div>
+        {!r.unit && <div style={dim}>{dec} decimals, inferred from the limit's size</div>}
+        {!r.data && <div style={dim}>live read failed; the last value its history set</div>}
+      </div>
     </div>
   );
 }
@@ -54,7 +50,7 @@ const readAt = (holders: KeyHolder[]) =>
 
 /** The hover card on a RateLimitID: what each PAU contract holding the key has it set to on chain. */
 export function RateLimitKeyCard({ holders }: { holders: KeyHolder[] }) {
-  const name = holders.find((h) => h.limit?.derived)?.limit?.derived?.constant;
+  const name = holders.find((h) => h.limit.derived)?.limit.derived?.constant;
   const read = readAt(holders);
   return (
     <div className="min-w-[10rem] max-w-[18rem]">
