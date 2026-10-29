@@ -56,28 +56,38 @@ async function saveSource(db: SqlTag, address: string, contractName: string, mat
       SET contract_name = excluded.contract_name, material = excluded.material, parser_version = excluded.parser_version, fetched_at = excluded.fetched_at`;
 }
 
+/** An explorer answer that holds every lookup back, not only this spell's: a rate limit or a host cooling down after one (upstreamBackoff.ts). */
+const HOLDS_EVERY_LOOKUP = /rate limit|cooling down|HTTP 429/i;
+
 /**
- * Reads pending spells' sources, at most `max` and until `deadline`. An
- * explorer failure ends the run and is reported; that spell stays queued. A
- * spell a new source declares is queued for the next run.
+ * Reads pending spells' sources, at most `max` lookups and until `deadline`.
+ * A rate limit ends the run and is reported as `error`; any other failure is
+ * one spell's, so it is listed in `failed` and the run goes on, and that spell
+ * stays queued for the next run. A spell a new source declares is queued for
+ * the next run.
  */
 export async function syncSpellSources(db: SqlTag, fetchSource: SourceFetch, opts: { deadline: number; max: number; now?: () => number }) {
   const now = opts.now ?? Date.now;
   const queue = await spellsToRead(db, now());
   let read = 0;
+  const failed: string[] = [];
   let error: string | null = null;
   for (const address of queue) {
-    if (read >= opts.max || now() >= opts.deadline) break;
+    if (read + failed.length >= opts.max || now() >= opts.deadline) break;
     try {
       const src = await fetchSource(address);
       await saveSource(db, address, src.contractName, materialOf(src.sourceCode), new Date(now()));
       read++;
     } catch (e) {
-      error = (e as Error).message;
-      break;
+      const message = (e as Error).message;
+      if (HOLDS_EVERY_LOOKUP.test(message)) {
+        error = message;
+        break;
+      }
+      failed.push(`${address}: ${message}`);
     }
   }
-  return { read, pending: queue.length - read, error };
+  return { read, failed, pending: queue.length - read, error };
 }
 
 /** Every stored spell's naming material, as one. */

@@ -13,14 +13,16 @@ interface Props {
 
 const onDeployment = (r: AuditRow, { primeId, chain, kind }: Props) => r.primeId === primeId && r.chain === chain && (r.kind === null || r.kind === kind);
 
-/** "N values to review" for one deployment, linking to the audit report filtered to its Prime; nothing until it loads, or when none do. */
+/** "N values to review" for one deployment, as a line linking to the audit report filtered to its Prime; nothing until it loads, or when none do. */
 export function PauAuditLink(props: Props) {
   const rows = useLoaded(loadPauAuditItems, { soft: true });
   const n = rows ? auditItemCount(rows.filter((r) => onDeployment(r, props))) : 0;
   if (n === 0) return null;
   return (
-    <Link to={`${reportHref("pau-audit")}?prime=${encodeURIComponent(props.primeName)}`} className="text-accent hover:underline" data-pau-audit={n}>
-      {n} value{n === 1 ? "" : "s"} to review
-    </Link>
+    <p className="text-[12px] mb-1">
+      <Link to={`${reportHref("pau-audit")}?prime=${encodeURIComponent(props.primeName)}`} className="text-accent hover:underline" data-pau-audit={n}>
+        {n} value{n === 1 ? "" : "s"} to review
+      </Link>
+    </p>
   );
 }

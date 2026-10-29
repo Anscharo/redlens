@@ -10,6 +10,7 @@
 // rule's role names, else the first address. A key no rule covers keeps
 // decimals inferred from its size (pauView.ts), and says so.
 import type { AmountUnit, DerivedKey, PauSnapshot } from "../../lib/pau.ts";
+import { EVM_ADDRESS_EXACT_RE } from "../../lib/patterns.ts";
 import type { PauKind } from "../../lib/pauRegistry.ts";
 import { argAt, facetKeyRule } from "./facet-keys.ts";
 import { allLimits, mapLimits, type ChainCall, type ChainReader } from "./snapshot.ts";
@@ -37,7 +38,7 @@ const unitRule = (d: DerivedKey | undefined, kind: PauKind): Rule | null => {
   if (kind === "diamond") return facetKeyRule(d)?.unit ?? null;
   return MONOLITHIC.find(([re]) => re.test(d.constant))?.[1] ?? null;
 };
-const ruleAddress = (d: DerivedKey, r: { role?: string }) => (r.role ? argAt(d, r.role) : d.args.find((a) => a.startsWith("0x")))?.toLowerCase() ?? null;
+const ruleAddress = (d: DerivedKey, r: { role?: string }) => (r.role ? argAt(d, r.role) : d.args.find((a) => EVM_ADDRESS_EXACT_RE.test(a)))?.toLowerCase() ?? null;
 const viaKey = (d: DerivedKey | undefined, kind: PauKind): string | null => {
   const r = unitRule(d, kind);
   const a = d && r && "via" in r ? ruleAddress(d, r) : null;

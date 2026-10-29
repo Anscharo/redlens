@@ -34,13 +34,15 @@ function agreesAt(units: string, field: "maxAmount" | "slope", max: bigint, slop
  * The verdict on a live limit (`r.data` read). Each field answers for itself:
  * where the atlas and the contract both switch a limit off with a maxAmount of
  * 0, a stated slope of 50,000,000 per day against a held 0 is still a mismatch,
- * because the atlas states a value the contract does not hold.
+ * because the atlas states a value the contract does not hold. Likewise an
+ * unlimited limit's slope is judged on its own: a stated 0 against the held 0
+ * is a match.
  */
 export function verdict(stated: Stated, field: "maxAmount" | "slope", r: LiveRateLimit & { data: NonNullable<LiveRateLimit["data"]> }): Verdict {
   const max = BigInt(r.data.maxAmount);
   const slope = BigInt(r.data.slope);
   if (stated.kind === "unlimited") return max === UNLIMITED ? "match" : "mismatch";
-  if (max === UNLIMITED) return "mismatch";
+  if (max === UNLIMITED && field === "maxAmount") return "mismatch";
   const at = (d: number) => agreesAt(stated.units, field, max, slope, d);
   if (/^0(\.0*)?$/.test(stated.units) || r.unit) return at(r.unit?.decimals ?? 0) ? "match" : "mismatch";
   const fits = SCALES.filter(at);

@@ -43,6 +43,20 @@ describe("atlasRetiredAddresses", () => {
     const sha = git("rev-parse", "HEAD").stdout.trim();
     expect([...atlasRetiredAddresses(dir).values()].map((r) => [r.address, r.commit])).toEqual([[JAAA, sha]]);
   });
+  it("counts a change made on both sides of a merge once", () => {
+    const main = git("rev-parse", "--abbrev-ref", "HEAD").stdout.trim();
+    git("checkout", "-qb", "side");
+    fs.writeFileSync(path.join(dir, "b.md"), `${MOVED}\n`);
+    git("add", "."); git("commit", "-qm", "side adds");
+    git("checkout", "-q", main);
+    fs.writeFileSync(path.join(dir, "b.md"), `${MOVED}\n`);
+    git("add", "."); git("commit", "-qm", "main adds");
+    git("merge", "-q", "--no-edit", "side");
+    fs.writeFileSync(path.join(dir, "b.md"), "");
+    git("commit", "-qam", "drop");
+    const sha = git("rev-parse", "HEAD").stdout.trim();
+    expect(atlasRetiredAddresses(dir).get(MOVED)?.commit).toBe(sha);
+  });
 });
 
 describe("withRetiredKeys", () => {

@@ -141,5 +141,16 @@ describe("PauRateLimits", () => {
     const empty = render(<PauRateLimits chain="ethereum" limits={[]} keyIndex={new Map()} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} review={review} />).container;
     expect([within(empty).queryByRole("table"), within(empty).getByText("No rate-limit key read for this deployment.")]).toEqual([null, expect.anything()]);
     expect(within(empty).getByRole("link", { name: "2 values to review" })).toBeInTheDocument();
+    const hidden = render(<PauRateLimits chain="ethereum" limits={[]} keyIndex={new Map()} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} hidden={2} />).container;
+    expect(within(hidden).getByText(/^All 2 rate-limit keys are switched off/)).toBeInTheDocument();
+  });
+
+  it("links an address argument of a constant-named limit and shows any other argument as text", () => {
+    const [vault, id] = ["0x" + "7".repeat(40), "0x" + "ab".repeat(32)];
+    const row: ContractLimit = { ...limit(RL1), derived: { constant: "LIMIT_CCTP", args: [vault, id] } };
+    const { container } = render(<PauRateLimits chain="ethereum" limits={[row]} keyIndex={new Map()} verdicts={new Map()} anchor={{ id: "ethereum", aliases: [] }} />);
+    const cell = container.querySelector("td")!;
+    expect(cell.textContent).toContain(id);
+    expect(within(cell).getAllByRole("link").map((a) => a.getAttribute("href") ?? "").some((h) => h.includes(id))).toBe(false);
   });
 });

@@ -1,69 +1,41 @@
 // @vitest-environment jsdom
-// Where no Atlas document is connected to a limit, the Atlas column flags it by
-// how it was set: a spell always, a cBEAM only after two months, a switched-off
-// limit or another origin never.
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+// The Atlas column's mark: the verdict linked to its document, a ? linked to
+// the document naming the key, else the flag it is given (pauAtlasFlag.ts);
+// each explains itself in a tooltip after the pointer rests on it.
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
-import type { LiveRateLimit } from "../../lib/pau";
 import { MARK_TIP_MS, PauAtlasMark } from "./PauAtlasMark";
 
-const entry = (tx: string, kind: string) => ({ chain: "ethereum", tx, block: 1, time: "t", primes: [], origin: { kind }, executive: null, changes: [] });
-vi.mock("../../lib/pau", async (orig) => ({
-  ...(await orig<typeof import("../../lib/pau")>()),
-  loadPauHistory: () => Promise.resolve({ entries: [entry("0xspell", "spell"), entry("0xold", "operator"), entry("0xnew", "operator"), entry("0xdirect", "direct")] }),
-}));
-
-const day = (ago: number) => new Date(Date.now() - ago * 86_400_000).toISOString();
-const limit = (tx: string, time: string, maxAmount = "1000000"): LiveRateLimit => ({
-  key: "0x" + "a".repeat(64), configured: { maxAmount, slope: "0" }, setAt: { block: 1, time, tx }, changes: 1, data: null, available: null,
-});
+const spell = { kind: "spell" as const, text: "No Atlas document found for this limit, set by a spell on 2026-10-12." };
 
 describe("PauAtlasMark", () => {
-  it("flags a spell-set limit with the two possible causes", async () => {
-    render(<PauAtlasMark chain="ethereum" limit={limit("0xspell", day(1))} />);
-    expect(await screen.findByRole("img", { name: /did not connect it.*Atlas does not state it/ })).toHaveAttribute("data-atlas-flag", "spell");
+  it("shows the flag it is given where no document is connected, and nothing without one", () => {
+    const { container } = render(<PauAtlasMark flag={spell} />);
+    expect(within(container).getByRole("img", { name: spell.text })).toHaveAttribute("data-atlas-flag", "spell");
+    const none = render(<PauAtlasMark flag={null} />);
+    expect(none.container).toBeEmptyDOMElement();
   });
-  it("flags a cBEAM-set limit only past two months", async () => {
-    const { container } = render(<><PauAtlasMark chain="ethereum" limit={limit("0xold", day(90))} /><PauAtlasMark chain="ethereum" limit={limit("0xnew", day(10))} /></>);
-    await waitFor(() => expect(container.querySelectorAll("[data-atlas-flag]")).toHaveLength(1));
-    expect(container.querySelector("[data-atlas-flag]")).toHaveAttribute("data-atlas-flag", "cbeam");
-  });
-  it("leaves a switched-off limit and a direct call unflagged", async () => {
-    const { container } = render(<><PauAtlasMark chain="ethereum" limit={limit("0xspell", day(1), "0")} /><PauAtlasMark chain="ethereum" limit={limit("0xdirect", day(1))} /></>);
-    await new Promise((r) => setTimeout(r, 50));
-    expect(container.querySelectorAll("[data-atlas-flag]")).toHaveLength(0);
-  });
-  it("shows the verdict mark, not a flag, where a document is connected", async () => {
-    const { container } = render(<PauAtlasMark chain="ethereum" limit={limit("0xspell", day(1))} verdict={{ mark: "mismatch", docId: "doc-1" }} />);
-    await new Promise((r) => setTimeout(r, 50));
+  it("shows the verdict mark, not the flag, where a document is connected", () => {
+    const { container } = render(<PauAtlasMark flag={spell} verdict={{ mark: "mismatch", docId: "doc-1" }} />);
     expect(within(container).getByRole("link", { name: /^differs from the atlas/ })).toHaveAttribute("href", "/atlas?id=doc-1&view=onchain");
     expect(container.querySelector("[data-atlas-flag]")).toBeNull();
   });
-  it("shows a ? linked to the document naming the key where none states a value, never a flag", async () => {
-    const { container } = render(<PauAtlasMark chain="ethereum" limit={limit("0xspell", day(1))} keyDocId="key-doc" />);
-    await new Promise((r) => setTimeout(r, 50));
+  it("shows a ? linked to the document naming the key where none states a value, never the flag", () => {
+    const { container } = render(<PauAtlasMark flag={spell} keyDocId="key-doc" />);
     const link = within(container).getByRole("link", { name: /names this limit's key/ });
     expect([link.textContent, link.getAttribute("href")]).toEqual(["?", "/atlas?id=key-doc&view=onchain"]);
     expect(container.querySelector("[data-atlas-flag]")).toBeNull();
   });
-  it("says where the Atlas does state a value for a key it states nothing for on this contract", async () => {
-    const { container } = render(<PauAtlasMark chain="ethereum" limit={limit("0xspell", day(1))} keyDocId="key-doc" verdict={{ mark: "elsewhere", docId: "value-doc", on: ["arbitrum diamond"] }} />);
-    await new Promise((r) => setTimeout(r, 50));
+  it("says where the Atlas does state a value for a key it states nothing for on this contract", () => {
+    const { container } = render(<PauAtlasMark keyDocId="key-doc" verdict={{ mark: "elsewhere", docId: "value-doc", on: ["arbitrum diamond"] }} />);
     const link = within(container).getByRole("link", { name: /only for the Arbitrum Diamond PAU, not for this contract/ });
     expect([link.textContent, link.getAttribute("href")]).toEqual(["?", "/atlas?id=value-doc&view=onchain"]);
-    expect(container.querySelector("[data-atlas-flag]")).toBeNull();
   });
-
-  it("words the flag for a limit whose controller constant a document names", async () => {
-    render(<PauAtlasMark chain="ethereum" limit={limit("0xspell", day(1))} named />);
-    expect(await screen.findByRole("img", { name: /only names its controller constant/ })).toHaveAttribute("data-atlas-flag", "spell");
-  });
-
   it("opens the mark's tooltip only once the pointer has rested on it for 600ms", () => {
     vi.useFakeTimers();
     try {
-      const { container } = render(<PauAtlasMark chain="ethereum" limit={limit("0xspell", day(1))} verdict={{ mark: "mismatch", docId: "doc-1" }} />);
+      const { container } = render(<PauAtlasMark verdict={{ mark: "mismatch", docId: "doc-1" }} />);
       const mark = within(container).getByRole("link", { name: /^differs from the atlas/ });
       expect(mark).not.toHaveAttribute("title");
       fireEvent.mouseEnter(mark);

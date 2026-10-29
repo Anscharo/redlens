@@ -3,6 +3,7 @@
 // derives it, else nothing).
 import { explorerTxUrl } from "../../lib/explorer.ts";
 import type { AmountUnit, DerivedKey } from "../../lib/pau.ts";
+import { EVM_ADDRESS_EXACT_RE } from "../../lib/patterns.ts";
 import { exactAmount, labelOnChain, limitDecimals, wholeAmount } from "../../lib/pauView.ts";
 import type { OnchainFact } from "./facts.ts";
 import type { PrimeAtlasRefs } from "./pau-atlas-refs.ts";
@@ -42,6 +43,6 @@ export function keyName(refs: PrimeAtlasRefs, chain: string, key: string, derive
 /** What a key fact is found by: the key, its contract and the addresses it is derived from, and the atlas documents about it. */
 export function keyMatch(refs: PrimeAtlasRefs, key: string, contracts: string[], derived: DerivedKey | undefined): OnchainFact["match"] {
   const constantDocs = derived && derived.args.length === 0 ? (refs.constantDocs.get(derived.constant) ?? []) : [];
-  const argAddresses = derived?.args.filter((a) => a.startsWith("0x")) ?? [];
+  const argAddresses = derived?.args.filter((a) => EVM_ADDRESS_EXACT_RE.test(a)) ?? [];
   return { hashes: [key], addresses: [...contracts, ...argAddresses], docs: [...(refs.docs.get(key) ?? []), ...constantDocs] };
 }

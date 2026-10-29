@@ -1,9 +1,11 @@
 import { AtlasLink } from "../AtlasLink";
 import { Address } from "../Address";
 import { atlasHref } from "@/lib/routes";
+import { EVM_ADDRESS_EXACT_RE } from "@/lib/patterns";
 import { refsOnChain } from "@/lib/pauKeyChains";
 import type { NamedIn } from "@/lib/pauConstantDocs";
-import { labelOnChain, type AtlasKeyRef, type DerivedKey, type RetiredAddress } from "../../lib/pau";
+import { limitName } from "@/lib/pauLimitOrder";
+import type { AtlasKeyRef, DerivedKey, RetiredAddress } from "../../lib/pau";
 
 const dim = { color: "var(--tan-3)" };
 
@@ -18,7 +20,7 @@ function DerivedName({ k, d, retired, chain, namedIn }: { k: string; d: DerivedK
       {d.args.map((a) => (
         <span key={a}>
           {" · "}
-          {a.startsWith("0x") ? <Address address={a} chain={chain} noBalance /> : a}
+          {EVM_ADDRESS_EXACT_RE.test(a) ? <Address address={a} chain={chain} noBalance /> : a}
         </span>
       ))}
       {retired && (
@@ -47,7 +49,7 @@ export function PauLimitName({ r, chain, keyIndex, namedIn }: { r: { key: string
   const ref = refs[0];
   if (!ref && named.length > 0) {
     const title = `${r.key}\nnamed by the Atlas for ${chainLabel(named[0].chain!)} only`;
-    return <span title={title}>{labelOnChain(named[0].label, chain)}</span>;
+    return <span title={title}>{limitName(r, keyIndex, chain)}</span>;
   }
   if (!ref && r.derived) return <DerivedName k={r.key} d={r.derived} retired={r.retired} chain={chain} namedIn={namedIn} />;
   if (!ref) {
@@ -57,8 +59,7 @@ export function PauLimitName({ r, chain, keyIndex, namedIn }: { r: { key: string
       </span>
     );
   }
-  const constant = ref.shared && r.derived ? ` · ${r.derived.constant}` : "";
-  const label = labelOnChain(ref.label, chain) + constant + (ref.via ? " (matched by address)" : "");
+  const label = limitName(r, keyIndex, chain) + (ref.via ? " (matched by address)" : "");
   const viaNote = ref.via ? [`the atlas lists ${ref.via} for this instance, and this key is derived from that address`] : [];
   const title = [r.key, ...viaNote, ...(r.derived ? [`derived from ${derivation(r.derived)}`] : []), ...refs.slice(1).map((x) => `also ${x.label}`)].join("\n");
   if (!ref.docId) return <span title={title}>{label}</span>;

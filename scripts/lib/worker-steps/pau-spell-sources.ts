@@ -6,8 +6,9 @@
 const MAX_PER_TICK = 30;
 const BUDGET_MS = 90_000;
 
-function summary(r: { read: number; pending: number; error: string | null }): string {
-  return `pau spell sources: ${r.read} read, ${r.pending} pending${r.error ? `; stopped: ${r.error}` : ""}`;
+function summary(r: { read: number; failed: string[]; pending: number; error: string | null }): string {
+  const failed = r.failed.length ? `, ${r.failed.length} failed (${r.failed[0]}${r.failed.length > 1 ? ", …" : ""})` : "";
+  return `pau spell sources: ${r.read} read, ${r.pending} pending${failed}${r.error ? `; stopped: ${r.error}` : ""}`;
 }
 
 export default {

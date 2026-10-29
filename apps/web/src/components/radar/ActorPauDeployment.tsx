@@ -51,7 +51,7 @@ export function PauDeployment({ snap, keyIndex, namedIn, verdicts, defaultOpen, 
         <PauFacets snap={snap} anchor={anchor} />
         <PauHolders snap={snap} anchor={anchor} />
         <PauRateLimits
-          chain={snap.chain} limits={limits} keyIndex={keyIndex} namedIn={namedIn} verdicts={verdicts} anchor={anchor}
+          chain={snap.chain} limits={limits} hidden={hidden} keyIndex={keyIndex} namedIn={namedIn} verdicts={verdicts} anchor={anchor}
           review={<PauAuditLink primeId={snap.prime} primeName={snap.primeName} chain={snap.chain} kind={snap.kind} />}
         />
         {snap.contracts.map((c) => c.beam && <PauBeam key={c.address} beam={c.beam} chain={snap.chain} keyIndex={keyIndex} anchor={c.address === firstBeam ? anchor : undefined} />)}

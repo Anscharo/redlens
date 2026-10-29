@@ -61,9 +61,14 @@ const git = (dir: string, args: string[]) => {
   return r.stdout;
 };
 
-/** The retired addresses of the atlas checkout at `dir`, read from its whole history (about 4 seconds). */
+/**
+ * The retired addresses of the atlas checkout at `dir`, read from its whole
+ * history (about 4 seconds). The walk follows first parents, each merge
+ * diffed against the branch it landed on, so a change made on two branches
+ * counts once.
+ */
 export function atlasRetiredAddresses(dir: string): Map<string, RetiredAddress> {
-  const log = git(dir, ["log", "--reverse", "--no-renames", "--no-color", "-U0", "-p", `-G${EVM_ADDRESS_BODY_SRC}`, `--format=${LOG_FORMAT}`, "HEAD"]);
+  const log = git(dir, ["log", "--first-parent", "--diff-merges=first-parent", "--reverse", "--no-renames", "--no-color", "-U0", "-p", `-G${EVM_ADDRESS_BODY_SRC}`, `--format=${LOG_FORMAT}`, "HEAD"]);
   return retiredFromLog(log, git(dir, ["grep", "-I", "-h", "-E", EVM_ADDRESS_BODY_SRC, "HEAD"]));
 }
 

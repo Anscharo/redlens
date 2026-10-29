@@ -46,17 +46,26 @@ describe("syncSpellSources", () => {
   it("stores each source's material, stopping at the budget", async () => {
     const { db, writes } = fakeDb([{ address: DSS }, { address: STAR }], []);
     const fetch = async (a: string) => ({ contractName: "Spell", sourceCode: a === DSS ? `address internal constant SPARK_SPELL = ${PAYLOAD};` : "" });
-    expect(await syncSpellSources(db, fetch, { deadline: NOW + 1, max: 1, now: () => NOW })).toEqual({ read: 1, pending: 1, error: null });
+    expect(await syncSpellSources(db, fetch, { deadline: NOW + 1, max: 1, now: () => NOW })).toEqual({ read: 1, failed: [], pending: 1, error: null });
     const [chain, address, name, material, version, at] = writes[0];
     expect([chain, address, name, material, version, at]).toEqual(["ethereum", DSS, "Spell", { ...empty, addresses: [PAYLOAD], spells: [PAYLOAD] }, MATERIAL_VERSION, new Date(NOW)]);
     expect(await spellMaterial(db)).toEqual({ ...empty, addresses: [PAYLOAD], spells: [PAYLOAD] });
   });
-  it("ends the run on an explorer failure and leaves that spell queued", async () => {
+  it("ends the run on a rate limit and leaves every spell queued", async () => {
     const { db, writes } = fakeDb([{ address: DSS }, { address: STAR }], []);
     const fetch = async () => {
       throw new Error("etherscan rate limit");
     };
-    expect(await syncSpellSources(db, fetch, { deadline: NOW + 60_000, max: 30, now: () => NOW })).toEqual({ read: 0, pending: 2, error: "etherscan rate limit" });
+    expect(await syncSpellSources(db, fetch, { deadline: NOW + 60_000, max: 30, now: () => NOW })).toEqual({ read: 0, failed: [], pending: 2, error: "etherscan rate limit" });
     expect(writes).toEqual([]);
+  });
+  it("lists a lookup that fails for one spell and reads the ones after it, leaving the failed one queued", async () => {
+    const { db, writes } = fakeDb([{ address: DSS }, { address: STAR }], []);
+    const fetch = async (a: string) => {
+      if (a === DSS) throw new Error("HTTP 500 for 1/" + DSS);
+      return { contractName: "StarSpell", sourceCode: "" };
+    };
+    expect(await syncSpellSources(db, fetch, { deadline: NOW + 60_000, max: 30, now: () => NOW })).toEqual({ read: 1, failed: [`${DSS}: HTTP 500 for 1/${DSS}`], pending: 1, error: null });
+    expect(writes.map((w) => w[1])).toEqual([STAR]);
   });
 });

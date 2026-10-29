@@ -77,9 +77,9 @@ describe("pau-spell-sources step", () => {
     syncSpellSources.mockImplementationOnce(async (_db, fetch, opts) => {
       await fetch("0xspell");
       expect([opts.max, opts.deadline > Date.now()]).toEqual([30, true]);
-      return { read: 3, pending: 2, error: "etherscan rate limit" };
+      return { read: 3, failed: ["0xa: HTTP 500", "0xb: HTTP 502"], pending: 2, error: "etherscan rate limit" };
     });
-    expect(await pauSpellSources.run({ db })).toBe("pau spell sources: 3 read, 2 pending; stopped: etherscan rate limit");
+    expect(await pauSpellSources.run({ db })).toBe("pau spell sources: 3 read, 2 pending, 2 failed (0xa: HTTP 500, …); stopped: etherscan rate limit");
     expect(fetchSourceCode.mock.calls[0].slice(0, 3)).toEqual(["ethereum", 1, "0xspell"]);
   });
 });
