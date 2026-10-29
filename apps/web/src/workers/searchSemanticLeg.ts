@@ -5,6 +5,7 @@
 // worker global and without MiniSearch. Everything the leg needs from the
 // worker (the doc map, the hit builder, `postMessage`) is passed in.
 import type { SearchHit, SemanticLegStatus, SemanticLimit, WorkerOutMessage } from "@/types";
+import { docNoKey } from "@/lib/docNo";
 import { UUID_RE } from "@/lib/patterns";
 import { isUuidPrefix } from "../lib/uuidSearch";
 import {
@@ -19,24 +20,8 @@ import {
 // list is worth scrolling — but not unbounded: every id costs a pgvector row.
 export const SEMANTIC_K = 60;
 
-// Sky chainlog id shape, e.g. MCD_VAT. A doc number for the fast exact-lookup
-// path, e.g. "A.1.2", "A.1.2.3.4", "NR-12".
+// Sky chainlog id shape, e.g. MCD_VAT.
 export const CHAINLOG_RE = /^[A-Z][A-Z0-9_]{2,}$/;
-const DOC_NO_RE = /^[A-Z][A-Z0-9]*(?:\.\w+)+$|^NR-\d+$/i;
-const BARE_DOC_NO_RE = /^\d+(?:\.(?:\d+|var\d+))+$/i;
-
-/**
- * The doc_no a doc-number query names, or null when it is not one. A bare
- * "6.1.2" names A.6.1.2: every numbered document sits under the A. root. Doc
- * numbers are an uppercase root then lowercase segments ("A.1.2.1.var1"), so
- * the root is uppercased and the rest lowercased, whatever case was typed.
- */
-export function docNoKey(trimmed: string): string | null {
-  if (BARE_DOC_NO_RE.test(trimmed)) return `A.${trimmed.toLowerCase()}`;
-  if (!DOC_NO_RE.test(trimmed)) return null;
-  const dot = trimmed.indexOf(".");
-  return dot < 0 ? trimmed.toUpperCase() : trimmed.slice(0, dot).toUpperCase() + trimmed.slice(dot).toLowerCase();
-}
 
 /**
  * Identifier queries never get a semantic leg. A UUID, a doc number or a

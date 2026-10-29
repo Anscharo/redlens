@@ -174,35 +174,22 @@ describe("fast-paths", () => {
     expect(hits.every((h) => h.matchReason !== "uuid prefix")).toBe(true);
   });
 
-  it("exact doc_no jumps to the section with score 10", async () => {
+  // Any case, with or without the A. root.
+  it.each([
+    ["A.1.2", IDS.facilitatorCore],
+    ["a.1.2", IDS.facilitatorCore],
+    ["1.2", IDS.facilitatorCore],
+    ["6.1.1.1.3", IDS.agentIcd],
+    ["A.1.2.1.var1", IDS.scenarioVar],
+    ["a.1.2.1.VAR1", IDS.scenarioVar],
+    ["1.2.1.var1", IDS.scenarioVar],
+  ])("doc number %s jumps to its section with score 10", async (q, id) => {
     const s = await initSearchWorker();
-    const hits = await s.query("A.1.2");
+    const hits = await s.query(q);
     expect(hits).toHaveLength(1);
-    expect(hits[0].id).toBe(IDS.facilitatorCore);
+    expect(hits[0].id).toBe(id);
     expect(hits[0].score).toBe(10);
     expect(hits[0].matchReason).toBe("doc number");
-  });
-
-  it("exact doc_no lookup is case-insensitive on the letter prefix", async () => {
-    const s = await initSearchWorker();
-    const hits = await s.query("a.1.2");
-    expect(hits[0]?.id).toBe(IDS.facilitatorCore);
-  });
-
-  it("a doc number without its A. root jumps to the same section", async () => {
-    const s = await initSearchWorker();
-    for (const [q, id] of [
-      ["1.2", IDS.facilitatorCore],
-      ["6.1.1.1.3", IDS.agentIcd],
-      ["1.2.1.var1", IDS.scenarioVar],
-      ["A.1.2.1.var1", IDS.scenarioVar],
-      ["a.1.2.1.VAR1", IDS.scenarioVar],
-    ] as const) {
-      const hits = await s.query(q);
-      expect(hits).toHaveLength(1);
-      expect(hits[0].id).toBe(id);
-      expect(hits[0].matchReason).toBe("doc number");
-    }
   });
 
   it("a bare number with no matching doc falls through to full-text", async () => {
@@ -774,24 +761,13 @@ describe("semantic lane", () => {
     expect(h.ofType("results").filter((m) => m.id === id)).toHaveLength(1);
   });
 
-  it("the semantic lane falls back to wording for a doc-number paste", async () => {
+  it.each(["A.1.2", "1.2"])("the semantic lane falls back to wording for a doc-number paste (%s)", async (q) => {
     const calls: string[] = [];
     const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
-    const id = ask(h, "A.1.2", { lane: "semantic" });
+    const id = ask(h, q, { lane: "semantic" });
     const msg = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
     // An identifier has one right answer; it must not be a dead end on this
     // lane, and must not spend an embedding call.
-    expect(msg.semantic).toBe("none");
-    expect(msg.hits.map((x) => x.id)).toEqual([IDS.facilitatorCore]);
-    await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
-    expect(calls.some((u) => u.includes("/api/search/semantic"))).toBe(false);
-  });
-
-  it("a doc number without its A. root is an identifier on the semantic lane too", async () => {
-    const calls: string[] = [];
-    const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
-    const id = ask(h, "1.2", { lane: "semantic" });
-    const msg = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
     expect(msg.semantic).toBe("none");
     expect(msg.hits.map((x) => x.id)).toEqual([IDS.facilitatorCore]);
     await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));

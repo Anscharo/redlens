@@ -4,6 +4,7 @@
 // counterpart into the query, then partitionByOriginalTerms so original-term
 // hits always sit above inflection-only hits.
 import pluralizeModule from "pluralize";
+import { docNoKey } from "./docNo";
 import { UUID_PREFIX_RE, UUID_RE } from "./patterns";
 
 type PluralizeApi = typeof pluralizeModule;
@@ -40,11 +41,9 @@ const pluralize = resolvePluralize(pluralizeModule);
 const UNCOUNTABLE = new Set(["sky", "usds", "susds", "dai", "mkr"]);
 
 // Same shapes the search worker already treats as non-prose (tickers, chainlog
-// ids, doc numbers). Kept here so runLexical can skip them without importing
-// the worker.
+// ids). Kept here so runLexical can skip them without importing the worker.
 const TICKER_RE = /^[a-z]{0,2}[A-Z]{2,}[0-9]*$/;
 const CHAINLOG_RE = /^[A-Z][A-Z0-9_]{2,}$/;
-const DOC_NO_RE = /^[A-Z][A-Z0-9]*(?:\.\w+)+$|^NR-\d+$/i;
 const EDGE_PUNCT_RE = /^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g;
 
 /** Strip MiniSearch operators the worker leaves on a free token. */
@@ -66,7 +65,7 @@ export function normalizeToken(raw: string): string | null {
 function shouldSkipRaw(raw: string): boolean {
   if (raw.length < 3) return true;
   if (/\d/.test(raw)) return true;
-  if (TICKER_RE.test(raw) || CHAINLOG_RE.test(raw) || DOC_NO_RE.test(raw)) return true;
+  if (TICKER_RE.test(raw) || CHAINLOG_RE.test(raw) || docNoKey(raw) !== null) return true;
   if (UUID_RE.test(raw) || UUID_PREFIX_RE.test(raw)) return true;
   // ALL-CAPS prose is a ticker/acronym, not a noun to inflect.
   if (/[A-Z]/.test(raw) && raw === raw.toUpperCase()) return true;
