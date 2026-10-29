@@ -33,12 +33,15 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-10-28
+## 2026-10-29
 
 - Named more Liquidity Layer rate limits and hid switched-off limits for integrations the Atlas has dropped
 - Set the Liquidity Layer page's explanations apart and collapsed each vote's list of changes
 - Gave each chain's rate-limit table a Rate limits heading with its values to review under it, made the table sortable by any column, and explained each ✓ ✗ ? ⚑ mark in a tooltip
 - Added the rate limits a Prime's own documents state to the Diamond PAU and Monolithic Controller to Review report, so it lists every mismatch the Liquidity Layer page marks
+
+## 2026-10-28
+
 - Added an in: button beside the search box that limits search to the document you're reading
 - Fit the phone header's links and buttons on one row, with a single tap-to-switch search mode button
 
