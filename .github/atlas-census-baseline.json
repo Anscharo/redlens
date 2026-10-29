@@ -147,7 +147,7 @@
       "samples": []
     },
     "Core|bullet-kv": {
-      "total": 392,
+      "total": 395,
       "uncovered": 146,
       "samples": [
         "A.2.2.10.1.1.1.2.3.1.2.1.1",
@@ -163,8 +163,8 @@
       "samples": []
     },
     "Core|plain": {
-      "total": 8462,
-      "uncovered": 6478,
+      "total": 8483,
+      "uncovered": 6485,
       "samples": [
         "A.0.1.1.1",
         "A.0.1.1.10",
@@ -227,7 +227,7 @@
       ]
     },
     "Core|s:role-for-is,uuid-link": {
-      "total": 34,
+      "total": 35,
       "uncovered": 0,
       "samples": []
     },
@@ -305,7 +305,7 @@
       "samples": []
     },
     "Core|uuid-link": {
-      "total": 1702,
+      "total": 1704,
       "uncovered": 0,
       "samples": []
     },
