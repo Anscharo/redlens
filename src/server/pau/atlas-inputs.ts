@@ -19,7 +19,7 @@ export const publicInputs = (publicDir = "public"): PauAtlasInputs =>
   Object.fromEntries(PAU_ATLAS_ARTIFACTS.map((n) => [n, path.join(publicDir, n)])) as PauAtlasInputs;
 
 /** Each artifact's path: the published copy for sync_state's sha where the store has it, else public/. */
-export async function pauAtlasInputs(db: SqlTag, { publicDir = "public", dir = path.join(os.tmpdir(), "pau-atlas") } = {}): Promise<PauAtlasInputs> {
+export async function pauAtlasInputs(db: SqlTag, { publicDir = "public", dir = path.join(os.tmpdir(), `pau-atlas-${process.pid}`) } = {}): Promise<PauAtlasInputs> {
   const [row] = (await db`SELECT atlas_sha FROM sync_state WHERE id = 1`) as { atlas_sha?: string | null }[];
   const items = row?.atlas_sha ? await getArtifacts(row.atlas_sha, PAU_ATLAS_ARTIFACTS, db) : [];
   if (items.length) await writeStoredArtifacts(dir, items);

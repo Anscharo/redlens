@@ -26,10 +26,9 @@ vi.mock("../src/server/pau/diamond-derive.ts", () => ({ keyNamer }));
 vi.mock("../src/server/pau/probe.ts", () => ({ atlasKeysByPrime }));
 vi.mock("../src/server/pau/spell-sources.ts", () => ({ spellMaterial }));
 vi.mock("../src/server/pau/retired-addresses.ts", () => ({ atlasRetiredAddresses }));
-vi.mock("../src/server/pau/atlas-inputs.ts", () => ({
-  pauAtlasInputs,
-  publicInputs: () => ({ "graph.json": "public/graph.json", "addresses.atlas.json": "public/addresses.atlas.json" }),
-}));
+// A public/ that holds neither artifact, whatever the checkout has built.
+const NO_PUBLIC = { "graph.json": "/nonexistent/public/graph.json", "addresses.atlas.json": "/nonexistent/public/addresses.atlas.json" };
+vi.mock("../src/server/pau/atlas-inputs.ts", () => ({ pauAtlasInputs, publicInputs: () => NO_PUBLIC }));
 
 // @ts-expect-error — .mjs without types
 const { default: pau } = await import("../scripts/lib/worker-steps/pau.mjs");
@@ -104,13 +103,37 @@ describe("pau step", () => {
     rebuild({ refreshed: 1, removed: 0, reason: "due" });
     const warn = vi.fn();
     await pau.run({ db, warn });
-    expect(atlasKeysByPrime).toHaveBeenCalledWith("public/graph.json");
-    expect(keyNamer.mock.calls[0][0]).toEqual(["public/addresses.atlas.json", "public/addresses.json"]);
+    expect(atlasKeysByPrime).toHaveBeenCalledWith(NO_PUBLIC["graph.json"]);
+    expect(keyNamer.mock.calls[0][0]).toEqual([NO_PUBLIC["addresses.atlas.json"], "public/addresses.json"]);
     expect(warn.mock.calls.map((c) => c[0])).toEqual([
       "atlas-worker: pau published atlas artifacts not read, reading public/: connection refused",
-      "atlas-worker: pau has no public/graph.json (not published, not built)",
-      "atlas-worker: pau has no public/addresses.atlas.json (not published, not built)",
+      "atlas-worker: pau has no /nonexistent/public/graph.json (not published, not built)",
+      "atlas-worker: pau has no /nonexistent/public/addresses.atlas.json (not published, not built)",
     ]);
+  });
+
+  it("probes no key when the graph cannot be read, warning once, and still rebuilds", async () => {
+    pauAtlasInputs.mockResolvedValueOnce(published());
+    spellMaterial.mockResolvedValueOnce(empty);
+    atlasKeysByPrime.mockImplementationOnce(() => {
+      throw new Error("Unexpected end of JSON input");
+    });
+    rebuild({ refreshed: 2, removed: 0, reason: "due" });
+    const warn = vi.fn();
+    expect(await pau.run({ db, warn })).toBe("pau events 4 read, 1 pending, 2 new; state rebuilt 2");
+    expect(await maybeRefreshPauState.mock.results[0].value).toMatchObject({ keys: new Map() });
+    expect(warn.mock.calls.map((c) => c[0])).toEqual(["atlas-worker: pau atlas RateLimitIDs not read, no key is probed: Unexpected end of JSON input"]);
+  });
+
+  it("builds one namer when two deployments ask for it at once", async () => {
+    pauAtlasInputs.mockResolvedValueOnce(published());
+    spellMaterial.mockResolvedValueOnce(empty);
+    maybeRefreshPauState.mockImplementationOnce(async (_db: unknown, _reg: unknown, _read: unknown, opts: Opts) => {
+      await Promise.all([opts.nameKeys("a"), opts.nameKeys("b")]);
+      return { refreshed: 2, removed: 0, reason: "due" };
+    });
+    await pau.run({ db, warn: vi.fn() });
+    expect(keyNamer).toHaveBeenCalledTimes(1);
   });
 
   it("names keys without the spell material or the retired addresses when either read fails, warning once for each", async () => {

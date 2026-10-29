@@ -93,8 +93,16 @@ export default {
     const retired = await retiredReader(warn);
     const inputs = atlasInputsOnce(db, warn);
     let namer;
-    const nameKeys = async (...a) => (namer ??= keyNamer([(await inputs())["addresses.atlas.json"], "public/addresses.json"], reg, { retired, material }))(...a);
-    const atlasKeys = async () => atlasKeysByPrime((await inputs())["graph.json"]);
+    const nameKeys = async (...a) => (await (namer ??= inputs().then((p) => keyNamer([p["addresses.atlas.json"], "public/addresses.json"], reg, { retired, material }))))(...a);
+    // An unreadable graph probes no key rather than failing every deployment's rebuild.
+    const atlasKeys = async () => {
+      try {
+        return atlasKeysByPrime((await inputs())["graph.json"]);
+      } catch (e) {
+        warn(`atlas-worker: pau atlas RateLimitIDs not read, no key is probed: ${e.message}`);
+        return new Map();
+      }
+    };
     const st = await maybeRefreshPauState(db, reg, rpcChainReader(), { refreshSeconds: config.pauRefreshSeconds, nameKeys, atlasKeys });
     for (const f of st.failed ?? []) warn(`atlas-worker: pau snapshot ${f.deployment} not rebuilt, keeping its last: ${f.error}`);
     return summary(ev, st);
