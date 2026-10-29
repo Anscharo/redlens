@@ -22,10 +22,21 @@ export const SEMANTIC_K = 60;
 // Sky chainlog id shape, e.g. MCD_VAT. A doc number for the fast exact-lookup
 // path, e.g. "A.1.2", "A.1.2.3.4", "NR-12".
 export const CHAINLOG_RE = /^[A-Z][A-Z0-9_]{2,}$/;
-export const DOC_NO_RE = /^[A-Z][A-Z0-9]*(?:\.\w+)+$|^NR-\d+$/i;
-// A doc number typed without its "A." root, e.g. "1.8" or "6.1.2" for A.6.1.2.
-// At least one dot, so a bare year or count is never read as a scope number.
-export const BARE_DOC_NO_RE = /^\d+(?:\.(?:\d+|var\d+))+$/i;
+const DOC_NO_RE = /^[A-Z][A-Z0-9]*(?:\.\w+)+$|^NR-\d+$/i;
+const BARE_DOC_NO_RE = /^\d+(?:\.(?:\d+|var\d+))+$/i;
+
+/**
+ * The doc_no a doc-number query names, or null when it is not one. A bare
+ * "6.1.2" names A.6.1.2: every numbered document sits under the A. root. Doc
+ * numbers are an uppercase root then lowercase segments ("A.1.2.1.var1"), so
+ * the root is uppercased and the rest lowercased, whatever case was typed.
+ */
+export function docNoKey(trimmed: string): string | null {
+  if (BARE_DOC_NO_RE.test(trimmed)) return `A.${trimmed.toLowerCase()}`;
+  if (!DOC_NO_RE.test(trimmed)) return null;
+  const dot = trimmed.indexOf(".");
+  return dot < 0 ? trimmed.toUpperCase() : trimmed.slice(0, dot).toUpperCase() + trimmed.slice(dot).toLowerCase();
+}
 
 /**
  * Identifier queries never get a semantic leg. A UUID, a doc number or a
@@ -37,8 +48,7 @@ export function isIdentifierQuery(trimmed: string, isKnownChainlog: (s: string) 
   return (
     UUID_RE.test(trimmed) ||
     isUuidPrefix(trimmed) ||
-    DOC_NO_RE.test(trimmed) ||
-    BARE_DOC_NO_RE.test(trimmed) ||
+    docNoKey(trimmed) !== null ||
     (CHAINLOG_RE.test(trimmed) && isKnownChainlog(trimmed))
   );
 }

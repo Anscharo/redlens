@@ -195,6 +195,8 @@ describe("fast-paths", () => {
       ["1.2", IDS.facilitatorCore],
       ["6.1.1.1.3", IDS.agentIcd],
       ["1.2.1.var1", IDS.scenarioVar],
+      ["A.1.2.1.var1", IDS.scenarioVar],
+      ["a.1.2.1.VAR1", IDS.scenarioVar],
     ] as const) {
       const hits = await s.query(q);
       expect(hits).toHaveLength(1);
@@ -205,7 +207,9 @@ describe("fast-paths", () => {
 
   it("a bare number with no matching doc falls through to full-text", async () => {
     const s = await initSearchWorker();
-    const hits = await s.query("9.9");
+    // No A.9.30, so "30" is searched as text and finds the doc that says it.
+    const hits = await s.query("9.30");
+    expect(hits.map((h) => h.id)).toContain(IDS.subsidyExact);
     expect(hits.every((h) => h.matchReason !== "doc number")).toBe(true);
   });
 });

@@ -91,7 +91,7 @@ export const HINT_GROUPS: SearchHintGroup[] = [
     title: "Jump by identifier",
     note: "Paste any of these straight into the search bar.",
     hints: [
-      { label: "doc number", query: "A.1.2", description: "Jump directly to a section by number — the A. is optional (1.2)" },
+      { label: "doc number", query: "A.1.2", description: "Jump directly to a section by number — typing 1.2 also jumps to A.1.2" },
       {
         label: "uuid",
         query: "a491d7d0",

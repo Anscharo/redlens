@@ -154,7 +154,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "Jump-to",
         what: "Go straight to a document or entity by identifier.",
         how: [
-          "Enter a doc number (with or without the leading A. — 6.1.2 finds A.6.1.2), a Sky chainlog id, or a UUID (full, or an 8+ character prefix) to jump directly. An address prefix (0x…) finds every node that cites a matching address.",
+          "Type a document's number to go to it (6.1.2 or A.6.1.2). Enter a Sky chainlog id or a UUID (full, or an 8+ character prefix) to jump directly. An address prefix (0x…) finds every node that cites a matching address.",
           "Recent searches are remembered; results are labelled with the scope, agent, or ICD each hit lives under.",
         ],
       },
