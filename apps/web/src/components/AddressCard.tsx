@@ -56,9 +56,10 @@ export function AddressCard({
       {info.aliases.length > 0 && (
         <p className="text-xs mb-1 text-tan-3">also known as {info.aliases.join(" · ")}</p>
       )}
-      {/* The card already shows this address's name, owner and balances, so its
-          own address line skips the (redundant) balance hover. */}
-      <Address address={address} chain={info.chain} full noTooltip className="text-xs block mb-2" />
+      {/* The hover carries what the card does not (Safe owners and threshold,
+          the explorer link); the inline balance teaser is left off because the
+          card lists the holdings right below. */}
+      <Address address={address} chain={info.chain} full noBalance className="text-xs mb-2" />
 
       {(info.roles.length > 0 || (info.isProxy && info.implementation)) && (
         <div className="flex flex-wrap gap-1 mb-2">

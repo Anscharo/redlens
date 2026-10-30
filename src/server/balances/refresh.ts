@@ -39,6 +39,7 @@ import { config } from "../config.ts";
 import type { SqlTag } from "../sql-types.ts";
 import { REFRESH_INTERVAL_MS, refreshAllowed } from "../../lib/balances.ts";
 import { fetchBalances, type AddressInput, type BalanceResult } from "./fetch-balances.ts";
+import { toAddressInput, type AddressRow } from "./address-input.ts";
 
 interface SqlWithTx extends SqlTag {
   begin?: <T>(fn: (tx: SqlTag) => Promise<T>) => Promise<T>;
@@ -70,7 +71,8 @@ export async function loadBalanceStats(db: SqlTag): Promise<BalanceStats> {
  * Write one sweep's results. Empty balance maps COALESCE onto the stored
  * value (a failed multicall reports by omission, so empty ≠ "holds nothing").
  * has_code likewise: undefined/null means this sweep didn't check, so a
- * verified contract's flag isn't cleared.
+ * verified contract's flag isn't cleared. safe too: a Safe whose read failed
+ * this sweep keeps its last setup.
  *
  * Uses db.begin when the client has it (the web pool, the worker's Bun SQL)
  * so a mid-loop failure doesn't leave a half-written batch; tests that pass
@@ -89,7 +91,7 @@ export async function persistBalanceResults(
       await tx`
         UPDATE atlas_addresses
         SET balances = COALESCE(${balances}::jsonb, balances), balances_checked_at = ${nowIso},
-            has_code = COALESCE(${r.hasCode ?? null}, has_code)
+            has_code = COALESCE(${r.hasCode ?? null}, has_code), safe = COALESCE(${r.safe ?? null}::jsonb, safe)
         WHERE address = ${r.address} AND chain = ${r.chain}
       `;
     }
@@ -124,13 +126,6 @@ export interface BalanceRefreshDeps {
   intervalMs?: number;
 }
 
-interface StaleRow {
-  address: string;
-  chain: string;
-  expected_tokens: string[] | null;
-  is_contract: boolean | null;
-}
-
 /**
  * One worker cycle of the rolling refresh. Cheap when the hourly ceiling hasn't
  * elapsed or nothing is older than `maxAgeSeconds` (one or two aggregate reads,
@@ -159,7 +154,7 @@ export async function maybeRefreshBalances(
   // The inner ORDER BY breaks ties on chain so the pick is deterministic while
   // a fresh table is still full of NULLs.
   const rows = (await db`
-    SELECT address, chain, expected_tokens, is_contract
+    SELECT address, chain, expected_tokens, is_contract, roles, etherscan_name
     FROM atlas_addresses
     WHERE chain = (
       SELECT chain FROM atlas_addresses
@@ -170,18 +165,13 @@ export async function maybeRefreshBalances(
     AND (balances_checked_at IS NULL OR balances_checked_at < ${cutoff})
     ORDER BY balances_checked_at ASC NULLS FIRST, address
     LIMIT ${batchSize}
-  `) as StaleRow[];
+  `) as AddressRow[];
 
   if (rows.length === 0) {
     return { refreshed: false, reason: "fresh", selected: 0, fetched: 0, chain: null };
   }
 
-  const inputs: AddressInput[] = rows.map((r) => ({
-    address: r.address,
-    chain: r.chain,
-    expectedTokens: Array.isArray(r.expected_tokens) ? r.expected_tokens : [],
-    isContract: r.is_contract ?? false,
-  }));
+  const inputs = rows.map(toAddressInput);
   const fetch = deps.fetch ?? fetchBalances;
   const results = await fetch(inputs);
   if (results.length === 0) {

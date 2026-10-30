@@ -125,7 +125,7 @@ describe("ActorInstances parameter value rendering", () => {
   it("links an EVM address to a block explorer, defaulting to etherscan with no chain hint", () => {
     const addr = "0x" + "a".repeat(40);
     renderWithParam(param("Vault", addr));
-    const link = screen.getByTitle(addr);
+    const link = document.querySelector(`[data-address="${addr}"]`);
     expect(link).toHaveAttribute("href", EXPLORER.ethereum + addr);
   });
 
@@ -138,7 +138,7 @@ describe("ActorInstances parameter value rendering", () => {
         ]}
       />,
     );
-    const link = screen.getByTitle(addr);
+    const link = document.querySelector(`[data-address="${addr}"]`);
     expect(link).toHaveAttribute("href", EXPLORER.base + addr);
   });
 
@@ -161,14 +161,14 @@ describe("ActorInstances parameter value rendering", () => {
         ]}
       />,
     );
-    const link = screen.getByTitle(addr);
+    const link = document.querySelector(`[data-address="${addr}"]`);
     expect(link).toHaveAttribute("href", EXPLORER.avalanche + addr);
   });
 
   it("still shape-detects a Solana address when neither the key nor the instance name hints a chain", () => {
     const addr = "So11111111111111111111111111111111111111112";
     renderWithParam(param("Owner Address", addr));
-    const link = screen.getByTitle(addr);
+    const link = document.querySelector(`[data-address="${addr}"]`);
     expect(link).toHaveAttribute("href", EXPLORER.solana + addr);
   });
 

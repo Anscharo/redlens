@@ -9,8 +9,9 @@
 // Balances are written here and by the worker — never by sync (see migration 015).
 import { sql } from "../db.ts";
 import { json } from "../http.ts";
-import { REFRESH_INTERVAL_MS, type BalancesResponse, type BalanceMap } from "../../lib/balances.ts";
-import { fetchBalances, type AddressInput } from "./fetch-balances.ts";
+import { REFRESH_INTERVAL_MS, type BalancesResponse, type BalanceMap, type SafeState } from "../../lib/balances.ts";
+import { fetchBalances } from "./fetch-balances.ts";
+import { toAddressInput, type AddressRow } from "./address-input.ts";
 import { loadBalanceStats, persistBalanceResults } from "./refresh.ts";
 
 interface CachedRow {
@@ -19,23 +20,26 @@ interface CachedRow {
   balances: BalanceMap | string | null;
   balances_checked_at: string | Date | null;
   has_code: boolean | null;
+  safe: SafeState | string | null;
 }
 
 // A prior version of doRefresh() double-JSON-encoded balances before the
 // ::jsonb cast, storing a JSON *string* scalar instead of an object. Parse it
 // transparently on read so already-corrupted rows self-heal without a manual
 // DB fix — the next successful refresh overwrites them with a real object.
-function normalizeBalances(v: BalanceMap | string | null): BalanceMap {
-  if (!v) return {};
+function normalizeJson<T>(v: T | string | null): T | null {
+  if (!v) return null;
   if (typeof v === "string") {
     try {
-      return JSON.parse(v) as BalanceMap;
+      return JSON.parse(v) as T;
     } catch {
-      return {};
+      return null;
     }
   }
   return v;
 }
+
+const normalizeBalances = (v: BalanceMap | string | null): BalanceMap => normalizeJson(v) ?? {};
 
 function toIso(v: string | Date | null): string | null {
   if (!v) return null;
@@ -55,7 +59,7 @@ function toMs(v: string | null): number | null {
 // refresh itself — that stays a user-initiated POST).
 export async function readCache(refreshed: boolean): Promise<BalancesResponse> {
   const rows = await sql<CachedRow[]>`
-    SELECT address, chain, balances, balances_checked_at, has_code
+    SELECT address, chain, balances, balances_checked_at, has_code, safe
     FROM atlas_addresses
     WHERE balances IS NOT NULL
   `;
@@ -69,6 +73,7 @@ export async function readCache(refreshed: boolean): Promise<BalancesResponse> {
       checkedAt,
       balances: normalizeBalances(r.balances),
       hasCode: r.has_code,
+      safe: normalizeJson<SafeState>(r.safe),
     };
   }
   const stats = await loadBalanceStats(sql);
@@ -95,20 +100,13 @@ async function doRefresh(): Promise<BalancesResponse> {
   // this sweep stays due, so the next click retries only that residue, not
   // the chains that already answered.
   const cutoff = new Date(Date.now() - REFRESH_INTERVAL_MS);
-  const rows = await sql<
-    { address: string; chain: string; expected_tokens: string[] | null; is_contract: boolean | null }[]
-  >`
-    SELECT address, chain, expected_tokens, is_contract FROM atlas_addresses
+  const rows = await sql<AddressRow[]>`
+    SELECT address, chain, expected_tokens, is_contract, roles, etherscan_name FROM atlas_addresses
     WHERE balances_checked_at IS NULL OR balances_checked_at < ${cutoff}
   `;
   if (rows.length === 0) return readCache(false);
 
-  const inputs: AddressInput[] = rows.map((r) => ({
-    address: r.address,
-    chain: r.chain,
-    expectedTokens: Array.isArray(r.expected_tokens) ? r.expected_tokens : [],
-    isContract: r.is_contract ?? false,
-  }));
+  const inputs = rows.map(toAddressInput);
 
   const results = await fetchBalances(inputs);
   if (results.length > 0) {

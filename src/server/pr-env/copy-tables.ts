@@ -27,6 +27,6 @@ export const PR_ENV_COPY_TABLES: CopyTable[] = [
   // address rows sync.ts owns, so they are copied onto those rows.
   {
     table: "atlas_addresses",
-    merge: { key: ["address", "chain"], columns: ["balances", "balances_checked_at", "has_code", "chain_state"] },
+    merge: { key: ["address", "chain"], columns: ["balances", "balances_checked_at", "has_code", "safe", "chain_state"] },
   },
 ];

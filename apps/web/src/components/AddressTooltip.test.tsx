@@ -17,9 +17,21 @@ vi.mock("@/lib/balances", async (importOriginal) => ({
   peekCachedBalances: () => null,
 }));
 
+const loadGraph = vi.fn();
+vi.mock("../lib/graph", () => ({ loadGraph: () => loadGraph() }));
+
+const location = vi.hoisted(() => ({ path: "/radar" }));
+vi.mock("wouter", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useLocation: () => [location.path, () => {}],
+}));
+
 beforeEach(() => {
   vi.useFakeTimers();
   loadBalancesCached.mockReset();
+  loadGraph.mockReset();
+  loadGraph.mockResolvedValue({ participants: [], instances: [], invocations: [], primitives: [], edges: [] });
+  location.path = "/radar";
   resetSharedBalances();
 });
 afterEach(() => {
@@ -76,7 +88,7 @@ describe("AddressTooltip", () => {
     expect(tip).not.toHaveTextContent("USDS");
   });
 
-  it("falls back to a shortened address and shows no balance rows when nothing is known", async () => {
+  it("shows the full address and no balance rows when nothing is known", async () => {
     loadBalancesCached.mockResolvedValue({
       lastCheckedAt: null,
       nextRefreshAt: null,
@@ -92,7 +104,7 @@ describe("AddressTooltip", () => {
     await hover(EVM);
 
     const tip = screen.getByRole("tooltip");
-    expect(tip).toHaveTextContent(`${EVM.slice(0, 6)}…${EVM.slice(-4)}`);
+    expect(tip).toHaveTextContent(EVM);
     expect(tip).not.toHaveTextContent("ETH");
   });
 

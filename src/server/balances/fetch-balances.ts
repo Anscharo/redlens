@@ -11,17 +11,12 @@ import { createPublicClient, http, erc20Abi } from "viem";
 import { CHAIN_RPC } from "../../../scripts/lib/chains.mjs";
 import { NATIVE_TOKEN, tokensForAddress } from "../../lib/tokens.ts";
 import { fetchSolanaBalances } from "./solana-balances.ts";
+import { fetchSafes, safeReadFailed, type SafeState } from "./safe-reads.ts";
 
 // Same address on every supported chain (canonical multicall3 deployment).
 export const MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11" as const;
 const GET_ETH_BALANCE_ABI = [
-  {
-    name: "getEthBalance",
-    type: "function",
-    stateMutability: "view",
-    inputs: [{ name: "addr", type: "address" }],
-    outputs: [{ name: "balance", type: "uint256" }],
-  },
+  { name: "getEthBalance", type: "function", stateMutability: "view", inputs: [{ name: "addr", type: "address" }], outputs: [{ name: "balance", type: "uint256" }] },
 ] as const;
 
 export interface TokenBalance {
@@ -40,6 +35,8 @@ export interface AddressInput {
   // contracts skip the eth_getCode check below — only addresses this reads as
   // `false` are ambiguous (could be a real EOA, or an unverified contract).
   isContract?: boolean;
+  // Labelled a multisig (address-input.ts); only these get the Safe read.
+  multisig?: boolean;
 }
 
 export interface BalanceResult {
@@ -49,6 +46,8 @@ export interface BalanceResult {
   // Ground-truth eth_getCode result, only present when isContract was false
   // (see planCodeChecks) — undefined means "not checked this sweep".
   hasCode?: boolean;
+  // Present only when the address answered as a Safe this sweep (safe-reads.ts).
+  safe?: SafeState;
 }
 
 // Per-chain RPC override: RPC_URL_<CHAIN> (e.g. RPC_URL_BASE), ETH_RPC_URL for
@@ -153,9 +152,9 @@ export function assembleCodeResults(
 async function fetchChain(
   chain: string,
   inputs: AddressInput[],
-): Promise<{ balances: Map<string, BalanceMap>; codeResults: Map<string, boolean> }> {
+): Promise<{ balances: Map<string, BalanceMap>; codeResults: Map<string, boolean>; safes: Map<string, SafeState> }> {
   const rpc = rpcFor(chain);
-  if (!rpc || !NATIVE_TOKEN[chain]) return { balances: new Map(), codeResults: new Map() }; // unsupported chain — skip
+  if (!rpc || !NATIVE_TOKEN[chain]) return { balances: new Map(), codeResults: new Map(), safes: new Map() }; // unsupported chain — skip
 
   const client = createPublicClient({
     transport: http(rpc, { timeout: 20_000, retryCount: 3, retryDelay: 400, batch: { batchSize: BATCH, wait: 16 } }),
@@ -180,7 +179,10 @@ async function fetchChain(
     codeResults = assembleCodeResults(codeAddrs, codes);
   }
 
-  return { balances, codeResults };
+  // A failed Safe read leaves the stored setup in place (persist COALESCEs), never fails the chain.
+  const safeAddrs = inputs.filter((i) => i.multisig).map((i) => i.address);
+  const safes = await fetchSafes(client as never, safeAddrs, MULTICALL3).catch((e: Error) => safeReadFailed(chain, e));
+  return { balances, codeResults, safes };
 }
 
 /**
@@ -203,6 +205,7 @@ export function assembleChainResults(
   requested: readonly string[],
   balances: Map<string, BalanceMap>,
   codeResults: Map<string, boolean>,
+  safes: Map<string, SafeState> = new Map(),
 ): BalanceResult[] {
   const out: BalanceResult[] = [];
   const seen = new Set<string>();
@@ -212,7 +215,8 @@ export function assembleChainResults(
     seen.add(address);
     const bal = balances.get(address) ?? {};
     const hasCode = codeResults.get(address);
-    out.push({ address, chain, balances: bal, ...(hasCode !== undefined ? { hasCode } : {}) });
+    const safe = safes.get(address);
+    out.push({ address, chain, balances: bal, ...(hasCode !== undefined ? { hasCode } : {}), ...(safe ? { safe } : {}) });
   }
   return out;
 }
@@ -259,13 +263,8 @@ export async function fetchBalances(
   }
   for (const [chain, list] of byChain) {
     try {
-      const { balances, codeResults } = await fetchChain(chain, list);
-      out.push(...assembleChainResults(
-        chain,
-        list.map((i) => i.address),
-        balances,
-        codeResults,
-      ));
+      const { balances, codeResults, safes } = await fetchChain(chain, list);
+      out.push(...assembleChainResults(chain, list.map((i) => i.address), balances, codeResults, safes));
     } catch (e) {
       console.warn(`balances: chain ${chain} failed (${(e as Error).message}) — skipped`);
     }
