@@ -19,9 +19,13 @@ function rolesOf(raw: unknown): string[] {
   return Array.isArray(v) ? v.filter((r): r is string => typeof r === "string") : [];
 }
 
-/** The same rule the On-Chain Addresses report types a Multisig by (classifyAddress): a multisig role or a verified SafeProxy. */
+// Etherscan verifies Safe 1.3+ proxies as SafeProxy and earlier ones as
+// GnosisSafeProxy; both answer getThreshold/getOwners.
+const SAFE_PROXY_NAMES = new Set(["SafeProxy", "GnosisSafeProxy"]);
+
+/** Worth a Safe read: a multisig role or a verified Safe proxy (either generation). */
 export function isLabelledMultisig(roles: unknown, etherscanName: string | null): boolean {
-  return rolesOf(roles).includes("multisig") || etherscanName === "SafeProxy";
+  return rolesOf(roles).includes("multisig") || (etherscanName != null && SAFE_PROXY_NAMES.has(etherscanName));
 }
 
 export function toAddressInput(r: AddressRow): AddressInput {

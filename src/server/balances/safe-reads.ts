@@ -66,3 +66,9 @@ export async function fetchSafes(client: PublicClient, addresses: readonly strin
   }
   return assembleSafes(order, results);
 }
+
+/** A failed Safe read is logged, never fatal: it yields no setups, so persist keeps the stored ones. */
+export function safeReadFailed(chain: string, e: Error): Map<string, SafeState> {
+  console.warn(`balances: chain ${chain} Safe read failed (${e.message}) — stored setups kept`);
+  return new Map();
+}

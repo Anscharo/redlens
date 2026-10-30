@@ -11,7 +11,7 @@ import { createPublicClient, http, erc20Abi } from "viem";
 import { CHAIN_RPC } from "../../../scripts/lib/chains.mjs";
 import { NATIVE_TOKEN, tokensForAddress } from "../../lib/tokens.ts";
 import { fetchSolanaBalances } from "./solana-balances.ts";
-import { fetchSafes, type SafeState } from "./safe-reads.ts";
+import { fetchSafes, safeReadFailed, type SafeState } from "./safe-reads.ts";
 
 // Same address on every supported chain (canonical multicall3 deployment).
 export const MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11" as const;
@@ -181,7 +181,7 @@ async function fetchChain(
 
   // A failed Safe read leaves the stored setup in place (persist COALESCEs), never fails the chain.
   const safeAddrs = inputs.filter((i) => i.multisig).map((i) => i.address);
-  const safes = await fetchSafes(client as never, safeAddrs, MULTICALL3).catch(() => new Map<string, SafeState>());
+  const safes = await fetchSafes(client as never, safeAddrs, MULTICALL3).catch((e: Error) => safeReadFailed(chain, e));
   return { balances, codeResults, safes };
 }
 
