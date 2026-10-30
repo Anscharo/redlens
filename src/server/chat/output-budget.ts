@@ -56,11 +56,14 @@ export function fitToBudget<T>(items: T[], budget = rowBudget()): { kept: T[]; t
 }
 
 /** Fits several lists of one result into one budget, in order: each list gets
- *  what the lists before it left, so together they stay under `budget`. */
+ *  what the lists before it left. Only the first keeps a lone row past the
+ *  budget (fitToBudget's floor); a later list with no room left keeps none, so
+ *  together they stay under `budget` unless the first list's first row alone exceeds it. */
 export function fitEachToBudget<T>(lists: T[][], budget = rowBudget()): { kept: T[]; truncated: boolean }[] {
   let left = budget;
-  return lists.map((items) => {
-    const fit = fitToBudget(items, left);
+  return lists.map((items, i) => {
+    const noRoom = i > 0 && items.length > 0 && JSON.stringify(items[0]).length + 1 > left;
+    const fit = noRoom ? { kept: [], truncated: true } : fitToBudget(items, left);
     left = Math.max(0, left - JSON.stringify(fit.kept).length);
     return fit;
   });

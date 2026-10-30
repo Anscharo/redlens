@@ -158,7 +158,7 @@
     { "files": ["src/server/bundle-store.ts"], "rules": { "max-lines": ["error", { "max": 293, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/teach/handle.ts"], "rules": { "max-lines-per-function": ["error", { "max": 97, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/teach/review.ts"], "rules": { "max-lines-per-function": ["error", { "max": 51, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["src/server/chat/tools/tools-graph.ts"], "rules": { "max-lines": ["error", { "max": 403, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 69, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["src/server/chat/tools/tools-graph.ts"], "rules": { "max-lines": ["error", { "max": 391, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 69, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/tools/tools-history.ts"], "rules": { "max-lines": ["error", { "max": 450, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 97, "skipBlankLines": true, "skipComments": true }] } },
     // atlasSearch runs the lexical leg first and threads its residual into runSemantic,
     // which is the call site itself — see retrieval/leaf-attribution.ts.

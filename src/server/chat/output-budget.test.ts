@@ -74,13 +74,23 @@ describe("the call's result budget", () => {
 });
 
 describe("fitEachToBudget", () => {
-  it("lets each list take what the lists before it left", () => {
-    const list = Array.from({ length: 20 }, (_, i) => ({ i, v: "x".repeat(90) }));
+  const list = Array.from({ length: 20 }, (_, i) => ({ i, v: "x".repeat(90) }));
+
+  it("lets each list take what the lists before it left, and keeps the lists together under the budget", () => {
     const [a, b, c] = fitEachToBudget([list, list, list], 3_000);
     expect(a.kept.length).toBe(20);
     expect(a.truncated).toBe(false);
+    expect(b.kept.length).toBeGreaterThan(0);
     expect(b.truncated).toBe(true);
-    expect(c.truncated).toBe(true);
-    expect(JSON.stringify([a.kept, b.kept, c.kept]).length).toBeLessThanOrEqual(3_000 + JSON.stringify(c.kept[0]).length + 10);
+    expect(c).toEqual({ kept: [], truncated: true });
+    expect(JSON.stringify(a.kept).length + JSON.stringify(b.kept).length).toBeLessThanOrEqual(3_002);
+  });
+
+  it("keeps a lone oversized row only in the first list", () => {
+    const huge = [{ v: "y".repeat(500) }];
+    const [a, b] = fitEachToBudget([huge, huge], 100);
+    expect(a).toEqual({ kept: huge, truncated: false });
+    expect(b).toEqual({ kept: [], truncated: true });
+    expect(fitEachToBudget([[], huge], 0)).toEqual([{ kept: [], truncated: false }, { kept: [], truncated: true }]);
   });
 });

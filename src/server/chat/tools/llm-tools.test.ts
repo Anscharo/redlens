@@ -4,7 +4,7 @@ import { applyChatToolBudget, CHAT_TOOLS } from "./llm-tools.ts";
 import { TOOLS_BY_NAME } from "./tool-registry.ts";
 import { EXPORT_TOOL_NAME } from "./export-tool.ts";
 import { ASK_EXTERNAL_MSC } from "./external-tools.ts";
-import { buildIndexes, type AtlasNode } from "../../retrieval/indexes.ts";
+import { buildIndexes, type AtlasNode, type Edge, type Entity } from "../../retrieval/indexes.ts";
 import { config } from "../../config.ts";
 
 test("ask_external_msc is chat-only; external_msc is MCP-only", () => {
@@ -80,6 +80,27 @@ test("the same atlas_get bulk call over MCP keeps the MCP budget and returns eve
   const out = (await invokeTool(ix, TOOLS_BY_NAME.get("atlas_get")!, { id: ids })) as Record<string, unknown>;
   expect(out.count).toBe(40);
   expect(out).not.toHaveProperty("truncated");
+});
+
+test("atlas_entity in chat cuts its responsibilities list whole when it alone is bigger than the cut", async () => {
+  const { execToolDetailed } = await import(`./llm-tools.ts?entity=${Date.now()}`);
+  const docs = Array.from({ length: 400 }, (_, i) => ({
+    id: `R${i}`, doc_no: `A.2.${i}`, title: `Responsibility ${i} ${"t".repeat(80)}`, type: "Core", depth: 2, parentId: null, order: i, content: "c", addressRefs: [],
+  }) as unknown as AtlasNode);
+  const ent: Entity = { id: "E1", slug: "ent", name: "ent", entity_type: "ecosystem_actor", subtype: null, defining_doc_id: null, is_active: 1, meta: null };
+  const edges: Edge[] = docs.map((d, i) => ({ id: i, from_id: "E1", from_type: "entity", to_id: d.id, to_type: "doc", edge_type: "responsible_party_for", source_doc_nos: null, weight: 1, meta: null }));
+  const out = await execToolDetailed(buildIndexes(docs, [ent], edges, {}), "atlas_entity", JSON.stringify({ name: "ent" }), undefined, { surface: "chat" });
+  const parsed = JSON.parse(out.content) as Record<string, unknown>;
+
+  expect(out.truncated).toBe(false);
+  expect(parsed).not.toHaveProperty("preview_json");
+  expect(parsed.truncated).toBe(true);
+  expect(parsed.responsibilities_total).toBe(400);
+  const kept = parsed.responsibilities as { id: string }[];
+  expect(kept.length).toBeGreaterThan(0);
+  expect(kept.length).toBeLessThan(400);
+  expect(kept.map((r) => r.id)).toEqual(docs.slice(0, kept.length).map((d) => d.id));
+  expect((parsed.nodes as unknown[]).length).toBe(50);
 });
 
 test("execToolDetailed still runs a call carrying an unrecognized arg key (never .strict()), and captures chat_tool_arg_stripped for it", async () => {

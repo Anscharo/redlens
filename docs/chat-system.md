@@ -502,9 +502,11 @@ fragment; MCP calls, with no `resultChars`, keep `MCP_MAX_RESULT_CHARS`. The
 default leaves 2,000 chars for the envelope, and a result with other parts that
 are not cut (`atlas_entity`'s addresses, a report's ecosystem block, the other
 `atlas_describe` sections) passes them to `rowBudget` so the rows fit what they
-leave. Several lists in one result (the Stale Dates buckets, several census
-member lists) share one budget through `fitEachToBudget`. `applyChatToolBudget`
-stays as the last resort for a lone row bigger than the whole cut.
+leave. Several lists in one result (`atlas_entity`'s nodes, responsibilities
+and active data; the Stale Dates buckets; several census member lists) share one
+budget through `fitEachToBudget`, in order: a later list with no room left gets
+no rows. `applyChatToolBudget` stays as the last resort for a lone row bigger
+than the whole cut.
 
 The ranked tools (`atlas_search`, `atlas_query`) take `k` up to 200 and an
 `offset`, and cut whole rows to the call's budget in the same way: a page that

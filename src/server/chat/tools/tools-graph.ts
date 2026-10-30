@@ -2,15 +2,12 @@
 // No DB access — all data comes from the Indexes (docs, entities, edges).
 import { type Indexes, resolveNode, descendantIds, type AtlasNode, type Entity } from "../../retrieval/indexes.ts";
 import { type ToolResult, livenessOf, withLivenessHint } from "./tools.ts";
-import { fitToBudget, rowBudget, TRUNCATION_HINT } from "../output-budget.ts";
+import { fitEachToBudget, fitToBudget, rowBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { matchEntities, resolveEntity } from "../../retrieval/entity-resolve.ts";
 import { entityAddresses } from "./tools-entity-addresses.ts";
+import { docRow, linkedDocs } from "./tools-entity-links.ts";
 import { parseDocNos } from "../../../lib/meta.ts";
 
-// Slim node row for tool responses.
-function docRow(n: AtlasNode) {
-  return { id: n.id, doc_no: n.doc_no, title: n.title, type: n.type, depth: n.depth };
-}
 function entityRow(e: Entity) {
   return { id: e.id, slug: e.slug, name: e.name, entity_type: e.entity_type, subtype: e.subtype };
 }
@@ -203,9 +200,11 @@ export function atlasEntity(
   }));
   const { responsibilities, activeData } = linkedDocs(ix, entityId);
   // The address block answers "what addresses does X have" outright, so it is
-  // never the section a budget trim eats: nodes get what it and the rest leave.
+  // never the section a budget trim eats: the three lists share what it leaves, nodes first.
   const addresses = entityAddresses(ix, entityId);
-  const { kept: nodes, truncated } = fitToBudget(rows, rowBudget({ alternatives, addresses, node_types, responsibilities, activeData }));
+  const [n, r, d] = fitEachToBudget<unknown>([rows, responsibilities, activeData], rowBudget({ alternatives, addresses, node_types }));
+  const nodes = n.kept as typeof rows;
+  const truncated = n.truncated || r.truncated || d.truncated;
 
   const envelope = {
     entity: name,
@@ -220,25 +219,11 @@ export function atlasEntity(
     has_more: offset + nodes.length < filtered.length,
     ...(truncated ? { truncated: true, hint: TRUNCATION_HINT } : {}),
     nodes,
-    responsibilities,
-    activeData,
+    ...(r.truncated || d.truncated ? { responsibilities_total: responsibilities.length, activeData_total: activeData.length } : {}),
+    responsibilities: r.kept,
+    activeData: d.kept,
   };
   return withLivenessHint(envelope, nodes);
-}
-
-// The docs an entity is responsible for, and the Active Data it controls.
-function linkedDocs(ix: Indexes, entityId: string) {
-  const out = ix.edges.filter((e) => e.from_id === entityId);
-  const responsibilities = out
-    .filter((e) => ["responsible_party_for", "process_step_responsible_party_for", "duty_for"].includes(e.edge_type))
-    .map((e) => ix.docMap.get(e.to_id))
-    .filter((n): n is AtlasNode => !!n)
-    .map(docRow);
-  const activeData = out.flatMap((e) => {
-    const n = ix.docMap.get(e.to_id);
-    return n && ["Active Data Controller", "Active Data"].includes(n.type) ? [{ ...docRow(n), edge_type: e.edge_type }] : [];
-  });
-  return { responsibilities, activeData };
 }
 
 // ── atlas_entities (discovery / resolution) ──────────────────────────────────
