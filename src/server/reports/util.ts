@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "../config.ts";
-import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
+import { fitToBudget, rowBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import type { ToolResult } from "../chat/tools/tools.ts";
 import { parseMetaObject } from "../../lib/meta.ts";
 
@@ -28,14 +28,14 @@ export function parseMeta(raw: string | null): Record<string, unknown> {
 
 export { parseDocNos } from "../../lib/meta.ts";
 
-// `total` counts every matching row; [payloadKey] holds those that fit the budget.
+// `total` counts every matching row; [payloadKey] holds those that fit the budget `extra` leaves.
 export function rowsEnvelope(
   report: string,
   rows: unknown[],
   payloadKey: string,
   extra: Record<string, unknown> = {},
 ): ToolResult {
-  const { kept, truncated } = fitToBudget(rows);
+  const { kept, truncated } = fitToBudget(rows, rowBudget(extra));
   const result: ToolResult = { report, total: rows.length, returned: kept.length, truncated, ...extra, [payloadKey]: kept };
   if (truncated) result.note = TRUNCATION_HINT;
   return result;

@@ -1,11 +1,11 @@
 // Paging for the ranked tools (atlas_search, atlas_query): the largest page one
 // call may ask for, how many candidates to fetch for it, and how a page that
-// would outgrow the caller's budget is cut. Rows are dropped whole and
+// would outgrow the call's result budget (output-budget.ts) is cut. Rows are dropped whole and
 // `next_offset` says where the next page starts, so the chat transport's
 // last-resort cut (applyChatToolBudget, which slices the JSON text mid-row)
 // does not run on these tools.
 import { z } from "zod";
-import { fitToBudget } from "../chat/output-budget.ts";
+import { fitToBudget, rowBudget } from "../chat/output-budget.ts";
 
 /** Rows one call may ask for. The budget usually binds first: a lean row is
  *  about 400 chars, so the 30k chat budget holds ~70 and a large read all 200. */
@@ -39,9 +39,6 @@ export function poolSize(offset: number, k: number, exact: boolean): number {
   return exact ? offset + k + 1 : k * 4;
 }
 
-// Room kept for the envelope around the rows: counts, hints, the liveness hint.
-const ENVELOPE_CHARS = 2_000;
-
 /** atlas_query's entity_broad hint, on a truncated listing or one asked for an
  *  `offset`: that listing ignores `offset`, so it names what does narrow it. */
 export const UNPAGED_HINT =
@@ -50,15 +47,14 @@ export const UNPAGED_HINT =
 export const PAGE_HINT =
   "This page stopped at the result budget before reaching k rows. Call again with offset set to next_offset for the rest, or narrow with a type or filter.";
 
-/** Keeps a prefix of `rows` that fits `budget` together with the envelope and
- *  `extra(kept)` (atlas_query's ancestors map), and returns that `extra`.
- *  `extra` of a prefix is never larger than of the whole, so one refit is enough. */
-export function fitWithExtra<R>(rows: R[], budget: number, extra?: (kept: R[]) => unknown): { kept: R[]; truncated: boolean; extra: unknown } {
-  const room = Math.max(0, budget - ENVELOPE_CHARS);
-  const fit = fitToBudget(rows, room);
+/** Keeps a prefix of `rows` that fits the call's budget together with the
+ *  envelope and `extra(kept)` (atlas_query's ancestors map), and returns that
+ *  `extra`. `extra` of a prefix is never larger than of the whole, so one refit is enough. */
+export function fitWithExtra<R>(rows: R[], extra?: (kept: R[]) => unknown): { kept: R[]; truncated: boolean; extra: unknown } {
+  const fit = fitToBudget(rows);
   const x = extra?.(fit.kept) ?? null;
   if (x === null) return { ...fit, extra: null };
-  const refit = fitToBudget(fit.kept, Math.max(0, room - JSON.stringify(x).length));
+  const refit = fitToBudget(fit.kept, rowBudget(x));
   if (refit.kept.length === fit.kept.length) return { ...fit, extra: x };
   return { kept: refit.kept, truncated: true, extra: extra!(refit.kept) };
 }
@@ -79,17 +75,16 @@ export interface PageOpts<R> {
 }
 
 /** Rows [offset, offset + k) of `all`, built by `toRow` and cut whole to
- *  `budget`. `next_offset` is set whenever rows past this page exist;
+ *  the call's budget. `next_offset` is set whenever rows past this page exist;
  *  `truncated` only when the budget, not `k`, ended the page. */
 export function pageOf<T, R>(
   all: T[],
   window: { offset: number; k: number },
-  budget: number,
   toRow: (t: T) => R,
   opts: PageOpts<R> = {},
 ): { rows: R[]; fields: PageFields; extra: unknown } {
   const { offset, k } = window;
-  const { kept, truncated, extra } = fitWithExtra(all.slice(offset, offset + k).map(toRow), budget, opts.extra);
+  const { kept, truncated, extra } = fitWithExtra(all.slice(offset, offset + k).map(toRow), opts.extra);
   if (!truncated && all.length <= offset + k) return { rows: kept, extra, fields: endFields(offset, k, all.length, !!opts.poolCut) };
   return { rows: kept, extra, fields: { next_offset: offset + kept.length, ...(truncated ? { truncated: true, hint: PAGE_HINT } : {}) } };
 }

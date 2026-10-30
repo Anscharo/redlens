@@ -493,11 +493,24 @@ live chat context. `fitToBudget` greedily keeps items under the byte budget,
 always keeps at least one item (a lone oversized item beats an empty result),
 and reports `truncated` so the caller pages or narrows instead of blowing up.
 
+That budget follows the call. `execToolDetailed` passes the cut it will apply
+down as `ToolCallContext.resultChars`, and `invokeTool` makes it the handler's
+result budget (an `AsyncLocalStorage` in `output-budget.ts`), so every
+`fitToBudget` in a handler drops whole rows to the cut that call faces instead
+of leaving `applyChatToolBudget` to slice the JSON text into a `preview_json`
+fragment; MCP calls, with no `resultChars`, keep `MCP_MAX_RESULT_CHARS`. The
+default leaves 2,000 chars for the envelope, and a result with other parts that
+are not cut (`atlas_entity`'s addresses, a report's ecosystem block, the other
+`atlas_describe` sections) passes them to `rowBudget` so the rows fit what they
+leave. Several lists in one result (`atlas_entity`'s nodes, responsibilities
+and active data; the Stale Dates buckets; several census member lists) share one
+budget through `fitEachToBudget`, in order: a later list with no room left gets
+no rows. `applyChatToolBudget` stays as the last resort for a lone row bigger
+than the whole cut.
+
 The ranked tools (`atlas_search`, `atlas_query`) take `k` up to 200 and an
-`offset`, and cut whole rows to the caller's budget rather than leaving the
-transport to slice their JSON: `execToolDetailed` passes the chat cut down as
-`resultChars`, a page that hits it returns `truncated` and `next_offset`, and
-MCP callers get the MCP budget (`retrieval/result-page.ts`). On an ordinary turn
+`offset`, and cut whole rows to the call's budget in the same way: a page that
+hits it returns `truncated` and `next_offset` (`retrieval/result-page.ts`). On an ordinary turn
 that is about 70 lean rows or 30 enriched ones. A fused ranking's pool follows `k`
 alone, so pages of one `k` read the same ranking; a page that ends at that pool
 rather than at the last match says so (`ranking_cut`), and so does an offset past

@@ -18,7 +18,8 @@ export interface ToolCallContext {
   /** Chat only: the turn's large-read allowance (chat/large-read.ts). Absent ⇒ ordinary budget. */
   largeRead?: LargeRead | null;
   /** Chat only: the chars this result may take before the transport cuts it.
-   *  Paging tools fit whole rows to it (retrieval/result-page.ts). */
+   *  invokeTool makes it the handler's result budget, so fitToBudget cuts whole
+   *  rows to it (output-budget.ts). Absent ⇒ MCP_MAX_RESULT_CHARS. */
   resultChars?: number;
 }
 

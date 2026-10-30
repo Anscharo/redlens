@@ -4,7 +4,8 @@ import { applyChatToolBudget, CHAT_TOOLS } from "./llm-tools.ts";
 import { TOOLS_BY_NAME } from "./tool-registry.ts";
 import { EXPORT_TOOL_NAME } from "./export-tool.ts";
 import { ASK_EXTERNAL_MSC } from "./external-tools.ts";
-import { buildIndexes } from "../../retrieval/indexes.ts";
+import { buildIndexes, type AtlasNode, type Edge, type Entity } from "../../retrieval/indexes.ts";
+import { config } from "../../config.ts";
 
 test("ask_external_msc is chat-only; external_msc is MCP-only", () => {
   expect(CHAT_TOOLS.some((t) => t.type === "function" && t.function.name === ASK_EXTERNAL_MSC)).toBe(true);
@@ -41,6 +42,65 @@ test("applyChatToolBudget wraps oversized payloads with truncation metadata", ()
   expect(parsed.returned_chars).toBe(out.returnedChars);
   expect(typeof parsed.hint).toBe("string");
   expect(typeof parsed.preview_json).toBe("string");
+});
+
+// 40 docs of ~3k chars each (atlas_get takes at most 50 ids): ~125k of JSON, well past the 30k chat cut and well under MCP's 200k.
+function bigIx() {
+  const docs = Array.from({ length: 40 }, (_, i) => ({
+    id: `D${i}`, doc_no: `A.1.${i}`, title: `Doc ${i}`, type: "Core", depth: 2, parentId: null, order: i,
+    content: `body ${i} ${"z".repeat(3_000)}`, addressRefs: [],
+  }) as unknown as AtlasNode);
+  return { ix: buildIndexes(docs, [], [], {}), ids: docs.map((d) => d.id) };
+}
+
+test("an over-budget atlas_get bulk call in chat returns whole rows with truncated, not preview_json", async () => {
+  const { execToolDetailed } = await import(`./llm-tools.ts?bulkget=${Date.now()}`);
+  const { ix, ids } = bigIx();
+  const out = await execToolDetailed(ix, "atlas_get", JSON.stringify({ id: ids }), undefined, { surface: "chat" });
+  const parsed = JSON.parse(out.content) as Record<string, unknown>;
+
+  expect(out.truncated).toBe(false);
+  expect(out.returnedChars).toBeLessThanOrEqual(config.chatToolResultMaxChars);
+  expect(parsed).not.toHaveProperty("preview_json");
+  expect(parsed.truncated).toBe(true);
+  expect(parsed.requested).toBe(40);
+  const results = parsed.results as { id: string; content: string }[];
+  expect(results.length).toBeGreaterThan(5);
+  expect(results.length).toBeLessThan(40);
+  expect(parsed.count).toBe(results.length);
+  results.forEach((r, i) => {
+    expect(r.id).toBe(ids[i]);
+    expect(r.content.endsWith("z".repeat(3_000))).toBe(true);
+  });
+});
+
+test("the same atlas_get bulk call over MCP keeps the MCP budget and returns every row", async () => {
+  const { invokeTool } = await import("./tool-registry.ts");
+  const { ix, ids } = bigIx();
+  const out = (await invokeTool(ix, TOOLS_BY_NAME.get("atlas_get")!, { id: ids })) as Record<string, unknown>;
+  expect(out.count).toBe(40);
+  expect(out).not.toHaveProperty("truncated");
+});
+
+test("atlas_entity in chat cuts its responsibilities list whole when it alone is bigger than the cut", async () => {
+  const { execToolDetailed } = await import(`./llm-tools.ts?entity=${Date.now()}`);
+  const docs = Array.from({ length: 400 }, (_, i) => ({
+    id: `R${i}`, doc_no: `A.2.${i}`, title: `Responsibility ${i} ${"t".repeat(80)}`, type: "Core", depth: 2, parentId: null, order: i, content: "c", addressRefs: [],
+  }) as unknown as AtlasNode);
+  const ent: Entity = { id: "E1", slug: "ent", name: "ent", entity_type: "ecosystem_actor", subtype: null, defining_doc_id: null, is_active: 1, meta: null };
+  const edges: Edge[] = docs.map((d, i) => ({ id: i, from_id: "E1", from_type: "entity", to_id: d.id, to_type: "doc", edge_type: "responsible_party_for", source_doc_nos: null, weight: 1, meta: null }));
+  const out = await execToolDetailed(buildIndexes(docs, [ent], edges, {}), "atlas_entity", JSON.stringify({ name: "ent" }), undefined, { surface: "chat" });
+  const parsed = JSON.parse(out.content) as Record<string, unknown>;
+
+  expect(out.truncated).toBe(false);
+  expect(parsed).not.toHaveProperty("preview_json");
+  expect(parsed.truncated).toBe(true);
+  expect(parsed.responsibilities_total).toBe(400);
+  const kept = parsed.responsibilities as { id: string }[];
+  expect(kept.length).toBeGreaterThan(0);
+  expect(kept.length).toBeLessThan(400);
+  expect(kept.map((r) => r.id)).toEqual(docs.slice(0, kept.length).map((d) => d.id));
+  expect((parsed.nodes as unknown[]).length).toBe(50);
 });
 
 test("execToolDetailed still runs a call carrying an unrecognized arg key (never .strict()), and captures chat_tool_arg_stripped for it", async () => {

@@ -54,6 +54,6 @@ export const QUERY_TOOLS: AtlasTool[] = [
     shape: atlasQueryShape,
     emptyArgsAbsent: true,
     largeResult: true,
-    handler: (ix, a, ctx) => atlasQuery(ix, a as unknown as QueryArgs, ctx?.resultChars),
+    handler: (ix, a) => atlasQuery(ix, a as unknown as QueryArgs),
   },
 ];

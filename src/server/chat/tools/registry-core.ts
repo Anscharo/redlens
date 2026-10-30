@@ -60,7 +60,7 @@ export const CORE_TOOLS: AtlasTool[] = [
       mode: z.enum(["lexical", "semantic", "hybrid"]).default("hybrid"),
     },
     largeResult: true,
-    handler: (ix, a, ctx) => atlasSearch(ix, a as unknown as SearchArgs, ctx?.resultChars),
+    handler: (ix, a) => atlasSearch(ix, a as unknown as SearchArgs),
   },
   {
     name: "atlas_get_address",

@@ -8,7 +8,7 @@
 import { type Indexes, ancestorChain, resolveNode, type AtlasNode } from "../../retrieval/indexes.ts";
 import { runLexical, runSemantic, mergeForMode, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type MergedHit, type SemanticResult } from "../../retrieval/search.ts";
 import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "../../retrieval/leaf-attribution.ts";
-import { fitToBudget, MAX_RESULT_CHARS, TRUNCATION_HINT } from "../output-budget.ts";
+import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { pageOf, poolSize } from "../../retrieval/result-page.ts";
 import { statsSection } from "./tools-stats.ts";
 import { countBy } from "../../../lib/collections.ts";
@@ -98,7 +98,7 @@ export function atlasDescribe(ix: Indexes, sections?: string[]): ToolResult {
   // "censuses" → summary rows for all ten; "censuses:<slug>" → that census
   // with its full member list (the prefetch lane's drill-down path).
   const censusSlugs = (sections ?? []).filter((s) => s.startsWith("censuses:")).map((s) => s.slice("censuses:".length));
-  if (censusSlugs.length || want("censuses")) out.censuses = censusesSection(ix, censusSlugs);
+  if (censusSlugs.length || want("censuses")) out.censuses = censusesSection(ix, censusSlugs, out);
   return out;
 }
 
@@ -141,8 +141,8 @@ export interface SearchArgs {
   mode: "lexical" | "semantic" | "hybrid";
 }
 
-// `budget` is the caller's whole-result budget (`ToolCallContext.resultChars`; the MCP budget when absent).
-export async function atlasSearch(ix: Indexes, { query, k, offset = 0, type, mode }: SearchArgs, budget = MAX_RESULT_CHARS): Promise<ToolResult> {
+// Pages are cut whole to the call's result budget (output-budget.ts resultBudget).
+export async function atlasSearch(ix: Indexes, { query, k, offset = 0, type, mode }: SearchArgs): Promise<ToolResult> {
   const { phrases, casePhrases } = extractPhrases(query);
   const hasPhrases = phrases.length > 0 || casePhrases.length > 0;
   const fetchK = poolSize(offset, k, mode === "lexical" && !hasPhrases);
@@ -178,7 +178,7 @@ export async function atlasSearch(ix: Indexes, { query, k, offset = 0, type, mod
   // poolCut: the lexical leg filled its pool. Semantic mode reports no cut: its
   // legs stop at hnsw.ef_search whatever the pool, so a larger k ranks no
   // deeper; the tool description says so instead.
-  const { rows: results, fields } = pageOf(filtered, { offset, k }, budget, ({ m, n }) => ({
+  const { rows: results, fields } = pageOf(filtered, { offset, k }, ({ m, n }) => ({
     id: n.id,
     doc_no: n.doc_no,
     title: n.title,

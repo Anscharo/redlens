@@ -7,7 +7,7 @@
 // corpus, so it is safe to state as a finding; the catalog's interpretive
 // prose is deliberately NOT served through this path.
 import type { Indexes } from "../../retrieval/indexes.ts";
-import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
+import { fitEachToBudget, rowBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import {
   computeConceptsCensus,
   CENSUS_SLUGS,
@@ -53,15 +53,19 @@ const NOTE =
   "('our census shows…', 'our analysis finds…') — never present them as something the atlas itself says. " +
   'Full member lists: call atlas_describe with sections:["censuses:<slug>"].';
 
-export function censusesSection(ix: Indexes, slugs: string[]): Record<string, unknown> {
+// `beside` is the rest of the atlas_describe result: the member lists share the
+// call's budget with it, and with each other, in the order the slugs were asked.
+export function censusesSection(ix: Indexes, slugs: string[], beside?: unknown): Record<string, unknown> {
   const all = conceptsCensusFor(ix);
   if (slugs.length === 0) return { note: NOTE, censuses: CENSUS_SLUGS.map((s) => censusSummary(all[s])) };
 
-  const censuses = slugs.map((s) => {
-    const r = (all as Record<string, CensusResult>)[s];
-    if (!r) return { slug: s, error: `Unknown census slug. Known: ${CENSUS_SLUGS.join(", ")}` };
-    const { kept, truncated } = fitToBudget(r.members);
-    return { ...censusSummary(r), members: kept, ...(truncated ? { truncated: true, hint: TRUNCATION_HINT } : {}) };
+  const asked = slugs.map((s) => (all as Record<string, CensusResult | undefined>)[s]);
+  const summaries = asked.map((r) => (r ? censusSummary(r) : null));
+  const fits = fitEachToBudget(asked.map((r) => r?.members ?? []), rowBudget({ note: NOTE, beside, summaries }));
+  const censuses = slugs.map((s, i) => {
+    if (!asked[i]) return { slug: s, error: `Unknown census slug. Known: ${CENSUS_SLUGS.join(", ")}` };
+    const { kept, truncated } = fits[i];
+    return { ...summaries[i], members: kept, ...(truncated ? { truncated: true, hint: TRUNCATION_HINT } : {}) };
   });
   return { note: NOTE, censuses };
 }
