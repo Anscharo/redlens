@@ -198,7 +198,7 @@ export function Tooltip({ content, delay = 200, children }: TooltipProps) {
             padding: "6px 8px",
             background: "var(--surface)",
             color: "var(--tan)",
-            border: "1px solid var(--border)",
+            border: "1px solid var(--tooltip-border)",
             borderRadius: 4,
             fontSize: 11,
             lineHeight: 1.45,

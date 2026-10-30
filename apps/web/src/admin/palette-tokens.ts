@@ -45,6 +45,7 @@ export const PALETTE_TOKENS: readonly PaletteToken[] = [
   { name: "hover", label: "Hover", group: "surface", alpha: false },
   { name: "border", label: "Border", group: "surface", alpha: false },
   { name: "border-muted", label: "Border Muted", group: "surface", alpha: false },
+  { name: "tooltip-border", label: "Tooltip Border", group: "surface", alpha: false },
   { name: "atlas-row-selected", label: "Atlas Row Selected", group: "surface", alpha: false },
   { name: "row-pulse-flash", label: "Row Pulse Flash", group: "surface", alpha: true },
   { name: "row-bar-tint", label: "Row Bar Tint", group: "surface", alpha: false },

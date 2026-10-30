@@ -11,6 +11,7 @@
   --hover: #291612;
   --border: #3d2c28;
   --border-muted: #343434; /* neutral gray, brightness-matched to --border — hidden-section lines */
+  --tooltip-border: #2f211e; /* hover cards — a shade darker than --border */
 
   /* ─── Brand ─── */
   --red: #a63228; /* burn red — decorative: selected-bar, borders, highlights */
@@ -138,6 +139,7 @@
   --hover: #ececec;
   --border: #e0d7ff; /* Sky's lightest lavender — the same outline their own White swatch carries */
   --border-muted: #e4e4e4;
+  --tooltip-border: #c9bdf0; /* hover cards — a shade darker than --border */
 
   /* ─── Brand ─── the violet ramp ─── */
   --red: #4331e9; /* the "decorative accent" slot — Sky indigo, not a red */
@@ -324,6 +326,7 @@
   --hover: #262626;
   --border: #3a3a3a;
   --border-muted: #303030;
+  --tooltip-border: #2c2c2c; /* hover cards — a shade darker than --border */
 
   /* ─── Brand ─── shape, not colour: see the header note ─── */
   --red: #cfcfcf; /* decorative — selected bar, pill bars, fills; 10.9:1 on --surface */

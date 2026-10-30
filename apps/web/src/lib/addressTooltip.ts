@@ -4,7 +4,7 @@
 import type { AddressInfo } from "@/types";
 import type { BalanceMap, AddressBalances } from "@/lib/balances";
 import { compactAmount } from "@/lib/tokens";
-import { resolveAddressName } from "./addressName";
+import { hasResolvedName, resolveAddressName } from "./addressName";
 import { PRIMARY_BALANCE_SYMBOLS } from "@/lib/onchainAddressesIndex";
 
 export interface HeldBalance {
@@ -121,7 +121,7 @@ export function resolveAddressTooltip(
   address: string,
   addrMap: Record<string, AddressInfo>,
   balancesByAddress: Record<string, AddressBalances>,
-): { name: string; held: HeldBalance[] } {
+): { name: string; named: boolean; held: HeldBalance[] } {
   // Exact case first: addressMap keys EVM addresses lowercased but leaves
   // case-sensitive Solana base58 keys as-written (address-chains.mjs), so an
   // exact match is always correct and a lowercased fallback is only needed to
@@ -130,7 +130,7 @@ export function resolveAddressTooltip(
   const key = address.toLowerCase();
   const info = addrMap[address] ?? addrMap[key];
   const name = resolveAddressName(address, info);
-  if (!info) return { name, held: [] };
+  if (!info) return { name, named: false, held: [] };
 
   // chains always contains at least info.chain — see AddressInfo's own comment.
   const chains = info.chains;
@@ -144,5 +144,5 @@ export function resolveAddressTooltip(
     amount: compactAmount(h.raw, h.decimals),
     chain: h.chain,
   }));
-  return { name, held };
+  return { name, named: hasResolvedName(info), held };
 }

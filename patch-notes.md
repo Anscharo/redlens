@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-30
+
+- Added multisig thresholds, signers and links to the Atlas documents naming an address to the address hover card
+
 ## 2026-10-29
 
 - Raised the search limit for the chat's in-depth answers and the MCP search tools from 50 to 200 results
