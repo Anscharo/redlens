@@ -59,9 +59,7 @@ export function AddressCard({
       {/* The hover carries what the card does not (Safe owners and threshold,
           the explorer link); the inline balance teaser is left off because the
           card lists the holdings right below. */}
-      <div className="mb-2">
-        <Address address={address} chain={info.chain} full noBalance className="text-xs" />
-      </div>
+      <Address address={address} chain={info.chain} full noBalance className="text-xs mb-2" />
 
       {(info.roles.length > 0 || (info.isProxy && info.implementation)) && (
         <div className="flex flex-wrap gap-1 mb-2">

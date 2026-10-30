@@ -30,7 +30,9 @@ describe("Address", () => {
     expect(link).toHaveAttribute("href", `https://basescan.org/address/${ADDR}`);
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
-    expect(link).toHaveAttribute("title", ADDR);
+    expect(link).toHaveAttribute("data-address", ADDR);
+    // The hover card shows the full address, so no native title pops up over it.
+    expect(link).not.toHaveAttribute("title");
   });
 
   it("shortens the address by default and shows it in full with `full`", () => {

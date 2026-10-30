@@ -5,6 +5,7 @@ import { Tooltip } from "./Tooltip";
 import { AddressTooltipSafe } from "./AddressTooltipSafe";
 import { AddressTooltipDocs } from "./AddressTooltipDocs";
 import { AddressTooltipBalances } from "./AddressTooltipBalances";
+import { TipRow } from "./AddressTooltipRow";
 import { getAddressMap } from "../lib/addressMap";
 import { useSharedBalances } from "../lib/sharedBalances";
 import { resolveAddressTooltip } from "../lib/addressTooltip";
@@ -43,25 +44,21 @@ function AddressTooltipContent({
   // mentioning docs are the way back to the atlas.
   const inAtlas = location.startsWith(ROUTES.ATLAS);
   return (
-    <div className="min-w-[8rem] max-w-[18rem]">
-      {named ? (
-        <div className="font-medium text-tan truncate">{name}</div>
-      ) : (
-        <div className="mono text-tan break-all" data-full-address>{address}</div>
-      )}
-      {safes.map((safe) => <AddressTooltipSafe key={safe.chains.join()} safe={safe} />)}
-      <AddressTooltipBalances held={held} loading={loading} />
-      {!inAtlas && facts && <AddressTooltipDocs docs={facts.docs} />}
-      {href && (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="link-accent mono text-[10px] block mt-1.5 truncate"
-        >
-          {shortLink(href)}
-        </a>
-      )}
+    <div className="min-w-[10rem] max-w-[20rem]">
+      <div className={named ? "font-medium text-tan truncate" : "mono text-tan break-all"} data-full-address={named ? undefined : ""}>
+        {named ? name : address}
+      </div>
+      <dl className="mt-1.5 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1 mono text-[10px]">
+        {named && <TipRow label="address"><span className="break-all">{address}</span></TipRow>}
+        {safes.map((safe) => <AddressTooltipSafe key={safe.chains.join()} safe={safe} />)}
+        <AddressTooltipBalances held={held} loading={loading} />
+        {!inAtlas && facts && <AddressTooltipDocs docs={facts.docs} />}
+        {href && (
+          <TipRow label="explorer">
+            <a href={href} target="_blank" rel="noopener noreferrer" className="link-accent block truncate">{shortLink(href)}</a>
+          </TipRow>
+        )}
+      </dl>
     </div>
   );
 }

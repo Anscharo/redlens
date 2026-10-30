@@ -1,36 +1,36 @@
 import { explorerUrl } from "@/lib/explorer";
 import { atlasHref } from "@/lib/routes";
 import { AtlasLink } from "./AtlasLink";
+import { TipRow } from "./AddressTooltipRow";
 import { shortAddr } from "../lib/format";
 import type { SafeView } from "../lib/addressSafe";
 
-/** A Safe as read on chain: its M / N threshold and owner addresses, plus the
- *  atlas's stated threshold only when the two disagree. */
+/** A Safe as read on chain, as rows of the hover card: its M / N threshold and
+ *  signer addresses, plus the atlas's stated threshold only when they disagree. */
 export function AddressTooltipSafe({ safe }: { safe: SafeView }) {
   const chains = safe.chains.length > 1 ? ` · ${safe.chains.join(", ")}` : "";
   return (
-    <section className="mt-1.5" aria-label="Safe owners" data-safe={safe.chains.join(",")}>
-      <div className="flex justify-between gap-3 mono text-[10px] text-tan-3">
-        <span>safe{chains}</span>
-        <span>
-          threshold <span className="text-tan">{safe.threshold} / {safe.owners.length}</span>
-        </span>
-      </div>
+    <>
+      <TipRow label="threshold">
+        <span className="text-tan" data-threshold>{safe.threshold} / {safe.owners.length}</span>{chains}
+      </TipRow>
       {safe.atlas && (
-        <div className="mono text-[10px]" style={{ color: "var(--warn)" }} data-atlas-disagrees>
-          Atlas states {safe.atlas.required} / {safe.atlas.total}
+        <TipRow label="atlas states" style={{ color: "var(--warn)" }}>
+          <span data-atlas-disagrees>{safe.atlas.required} / {safe.atlas.total}</span>
           {safe.atlas.docId && <> · <AtlasLink to={atlasHref(safe.atlas.docId)} className="link-accent">{safe.atlas.name}</AtlasLink></>}
-        </div>
+        </TipRow>
       )}
-      <ul className="mt-0.5 space-y-0.5" aria-label="Owners">
-        {safe.owners.map((o) => (
-          <li key={o} className="mono text-[10px]">
-            <a href={explorerUrl(o, { chain: safe.chains[0] })} target="_blank" rel="noopener noreferrer" title={o} className="link-accent">
-              {shortAddr(o)}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </section>
+      <TipRow label="signers">
+        <ul aria-label="Signers">
+          {safe.owners.map((o) => (
+            <li key={o}>
+              <a href={explorerUrl(o, { chain: safe.chains[0] })} target="_blank" rel="noopener noreferrer" title={o} className="link-accent">
+                {shortAddr(o)}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </TipRow>
+    </>
   );
 }

@@ -78,21 +78,22 @@ async function hover() {
   return screen.getByRole("tooltip");
 }
 
-describe("AddressTooltip graph facts", () => {
+describe("AddressTooltip Safe and atlas rows", () => {
   it("shows the on-chain threshold and owner addresses, not the atlas's signer parties", async () => {
     const tip = await hover();
-    expect(tip).toHaveTextContent("threshold 5 / 6");
-    const owners = within(tip).getByRole("list", { name: "Owners" });
-    expect(within(owners).getAllByRole("link")[0]).toHaveAttribute("title", OWNERS[0]);
+    expect(tip.querySelector("[data-threshold]")).toHaveTextContent("5 / 6");
+    const signers = within(tip).getByRole("list", { name: "Signers" });
+    expect(within(signers).getAllByRole("link")[0]).toHaveAttribute("title", OWNERS[0]);
+    expect(within(tip).getByText("signers").tagName).toBe("DT");
     expect(tip).not.toHaveTextContent("Soter Labs");
-    expect(tip).not.toHaveTextContent("Atlas states");
+    expect(tip.querySelector("[data-atlas-disagrees]")).toBeNull();
   });
 
   it("adds the atlas's threshold, linked to its document, when the chain disagrees", async () => {
     chain.safe = { threshold: 2, owners: OWNERS };
     const tip = await hover();
-    expect(tip).toHaveTextContent("threshold 2 / 2");
-    expect(tip).toHaveTextContent("Atlas states 5 / 6");
+    expect(tip.querySelector("[data-threshold]")).toHaveTextContent("2 / 2");
+    expect(tip.querySelector("[data-atlas-disagrees]")).toHaveTextContent("5 / 6");
     expect(within(tip).getByRole("link", { name: "Core Council Multisig" })).toHaveAttribute("href", expect.stringContaining("id=root-doc"));
   });
 

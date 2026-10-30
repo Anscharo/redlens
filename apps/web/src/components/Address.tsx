@@ -74,7 +74,10 @@ export function Address({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      title={address}
+      // The hover card shows the full address as a row; a native title would
+      // pop up over it. Without the card the title is the only way to read it.
+      title={noTooltip ? address : undefined}
+      data-address={address}
       className={`rl-addr mono ${plain ? "rl-addr-plain" : ""} ${className ?? ""}`}
       onClick={(e) => {
         const trackChain = Array.isArray(chain) ? chain.find(Boolean) : chain;

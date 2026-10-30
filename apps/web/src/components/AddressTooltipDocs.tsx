@@ -1,6 +1,7 @@
 import type { AddressDocRef } from "@/lib/addressGraphFacts";
 import { atlasHref } from "@/lib/routes";
 import { AtlasLink } from "./AtlasLink";
+import { TipRow } from "./AddressTooltipRow";
 
 const SHOWN = 3;
 
@@ -10,15 +11,15 @@ export function AddressTooltipDocs({ docs }: { docs: AddressDocRef[] }) {
   if (docs.length === 0) return null;
   const more = docs.length - SHOWN;
   return (
-    <div className="mt-1.5 mono text-[10px] text-tan-3" data-address-docs>
-      in the Atlas:{" "}
-      {docs.slice(0, SHOWN).map((d, i) => (
-        <span key={d.id}>
-          {i > 0 && ", "}
-          <AtlasLink to={atlasHref(d.id)} className="link-accent">{d.docNo || "document"}</AtlasLink>
-        </span>
-      ))}
-      {more > 0 && ` +${more} more`}
-    </div>
+    <TipRow label="in atlas">
+      <ul data-address-docs>
+        {docs.slice(0, SHOWN).map((d) => (
+          <li key={d.id}>
+            <AtlasLink to={atlasHref(d.id)} className="link-accent">{d.docNo || "document"}</AtlasLink>
+          </li>
+        ))}
+        {more > 0 && <li className="text-tan-3">+{more} more</li>}
+      </ul>
+    </TipRow>
   );
 }
