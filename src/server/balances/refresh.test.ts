@@ -20,6 +20,8 @@ let staleRows: {
   chain: string;
   expected_tokens: string[] | null;
   is_contract: boolean | null;
+  roles?: string[];
+  etherscan_name?: string | null;
 }[] = [];
 // MAX(balances_checked_at) — the hourly ceiling THIS gate reads. POST no
 // longer shares it: it selects rows older than an hour rather than
@@ -78,7 +80,7 @@ describe("maybeRefreshBalances (rolling batch)", () => {
   it("fetches the selected batch on one chain and persists the results", async () => {
     staleRows = [
       { address: ETH, chain: "ethereum", expected_tokens: ["USDS"], is_contract: false },
-      { address: "0xbbb", chain: "ethereum", expected_tokens: null, is_contract: true },
+      { address: "0xbbb", chain: "ethereum", expected_tokens: null, is_contract: true, roles: ["multisig"], etherscan_name: null },
     ];
     let fetched = null as AddressInput[] | null;
     const res = await maybeRefreshBalances(fakeSql, {
@@ -91,8 +93,8 @@ describe("maybeRefreshBalances (rolling batch)", () => {
       batchSize: 50,
     });
     expect(fetched).toEqual([
-      { address: ETH, chain: "ethereum", expectedTokens: ["USDS"], isContract: false },
-      { address: "0xbbb", chain: "ethereum", expectedTokens: [], isContract: true },
+      { address: ETH, chain: "ethereum", expectedTokens: ["USDS"], isContract: false, multisig: false },
+      { address: "0xbbb", chain: "ethereum", expectedTokens: [], isContract: true, multisig: true },
     ]);
     expect(res).toEqual({
       refreshed: true,

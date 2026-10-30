@@ -2,12 +2,13 @@ import { useEffect, useReducer, type ReactElement } from "react";
 import { useLocation } from "wouter";
 import { ROUTES } from "@/lib/routes";
 import { Tooltip } from "./Tooltip";
-import { AddressTooltipMultisig } from "./AddressTooltipMultisig";
+import { AddressTooltipSafe } from "./AddressTooltipSafe";
 import { AddressTooltipDocs } from "./AddressTooltipDocs";
 import { AddressTooltipBalances } from "./AddressTooltipBalances";
 import { getAddressMap } from "../lib/addressMap";
 import { useSharedBalances } from "../lib/sharedBalances";
 import { resolveAddressTooltip } from "../lib/addressTooltip";
+import { resolveSafes } from "../lib/addressSafe";
 import { useAddressGraphFacts } from "../hooks/useAddressGraphFacts";
 import { shortLink } from "../lib/format";
 
@@ -32,11 +33,12 @@ function AddressTooltipContent({
   // loading finishes, producing a fresh reference, without re-triggering the
   // fetch itself (only the very first hover of a session hits this — after
   // that the shared cache is warm and loading starts out false). The graph
-  // facts (multisig setup, mentioning docs) land the same way.
+  // facts (the atlas's multisig threshold, mentioning docs) land the same way.
   useEffect(() => {
     if (!loading) onSettled();
   }, [loading, facts, onSettled]);
   const { name, named, held } = resolveAddressTooltip(address, getAddressMap(), addresses);
+  const safes = resolveSafes(address, getAddressMap(), addresses, facts?.multisigs ?? []);
   // In the reader the address already sits in its document; elsewhere the
   // mentioning docs are the way back to the atlas.
   const inAtlas = location.startsWith(ROUTES.ATLAS);
@@ -47,7 +49,7 @@ function AddressTooltipContent({
       ) : (
         <div className="mono text-tan break-all" data-full-address>{address}</div>
       )}
-      {facts?.multisigs.map((ms) => <AddressTooltipMultisig key={ms.name} ms={ms} />)}
+      {safes.map((safe) => <AddressTooltipSafe key={safe.chains.join()} safe={safe} />)}
       <AddressTooltipBalances held={held} loading={loading} />
       {!inAtlas && facts && <AddressTooltipDocs docs={facts.docs} />}
       {href && (
@@ -65,9 +67,9 @@ function AddressTooltipContent({
 }
 
 /** Wraps an on-chain address link with the shared Tooltip, showing the
- *  address's resolved name (or the full address when it has none), the
- *  multisig setup when it is one, any non-zero token balances, the atlas
- *  documents naming it (outside the reader) and a shortened explorer link. */
+ *  address's resolved name (or the full address when it has none), its live
+ *  Safe owners and threshold when it is one, any non-zero token balances, the
+ *  atlas documents naming it (outside the reader) and a shortened explorer link. */
 export function AddressTooltip({
   address,
   href,

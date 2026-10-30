@@ -19,6 +19,15 @@ export interface AddressBalances {
   // verify (see classifyAddress in onchainAddressesIndex.ts). null = not
   // checked yet — the report falls back to the atlas's isContract flag.
   hasCode: boolean | null;
+  // The address read as a Safe on this chain (getThreshold + getOwners), or
+  // null when it is not one or has not been read yet.
+  safe?: SafeState | null;
+}
+
+/** A Safe's live signing setup: `threshold` of `owners` (lowercased) must sign. */
+export interface SafeState {
+  threshold: number;
+  owners: string[];
 }
 
 export interface BalancesResponse {

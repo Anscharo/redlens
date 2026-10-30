@@ -1,18 +1,26 @@
 // @vitest-environment jsdom
-// The graph half of the address hover card: a multisig's threshold and
-// signers, and the atlas documents naming the address outside the reader.
+// The Safe and atlas half of the address hover card: the live owners and
+// threshold, the atlas's threshold only when it disagrees, and the atlas
+// documents naming the address outside the reader.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { act } from "react";
 import { AddressTooltip } from "./AddressTooltip";
 import { resetSharedBalances } from "../lib/sharedBalances";
+import { setAddressMap } from "../lib/addressMap";
+import { makeAddressInfo } from "../test/fixtures";
 
 const EVM = "0x148ef923d764cbdc1597ccadbbbc66499c1a1432";
 
+const OWNERS = ["0xaaaa000000000000000000000000000000000001", "0xbbbb000000000000000000000000000000000002"];
+const chain = vi.hoisted(() => ({ safe: null as { threshold: number; owners: string[] } | null }));
 vi.mock("@/lib/balances", async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  loadBalancesCached: () => Promise.resolve({ lastCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {} }),
+  loadBalancesCached: () => Promise.resolve({
+    lastCheckedAt: null, nextRefreshAt: null, refreshed: false,
+    addresses: { [`${EVM}|ethereum`]: { chain: "ethereum", checkedAt: null, balances: {}, hasCode: null, safe: chain.safe } },
+  }),
   peekCachedBalances: () => null,
 }));
 
@@ -43,10 +51,13 @@ vi.mock("../lib/graph", () => ({ loadGraph: () => Promise.resolve(GRAPH) }));
 beforeEach(() => {
   vi.useFakeTimers();
   location.path = "/radar";
+  chain.safe = { threshold: 5, owners: [...OWNERS, ...["3", "4", "5", "6"].map((n) => `0x${n.repeat(40)}`)] };
+  setAddressMap({ [EVM]: makeAddressInfo({ chainlogId: "Core Council Multisig" }) });
   resetSharedBalances();
 });
 afterEach(() => {
   cleanup();
+  setAddressMap({});
   vi.runOnlyPendingTimers();
   vi.useRealTimers();
 });
@@ -68,12 +79,27 @@ async function hover() {
 }
 
 describe("AddressTooltip graph facts", () => {
-  it("shows a multisig's threshold as M / N and lists its signers with counts", async () => {
+  it("shows the on-chain threshold and owner addresses, not the atlas's signer parties", async () => {
     const tip = await hover();
     expect(tip).toHaveTextContent("threshold 5 / 6");
+    const owners = within(tip).getByRole("list", { name: "Owners" });
+    expect(within(owners).getAllByRole("link")[0]).toHaveAttribute("title", OWNERS[0]);
+    expect(tip).not.toHaveTextContent("Soter Labs");
+    expect(tip).not.toHaveTextContent("Atlas states");
+  });
+
+  it("adds the atlas's threshold, linked to its document, when the chain disagrees", async () => {
+    chain.safe = { threshold: 2, owners: OWNERS };
+    const tip = await hover();
+    expect(tip).toHaveTextContent("threshold 2 / 2");
+    expect(tip).toHaveTextContent("Atlas states 5 / 6");
     expect(within(tip).getByRole("link", { name: "Core Council Multisig" })).toHaveAttribute("href", expect.stringContaining("id=root-doc"));
-    const signers = within(tip).getAllByRole("listitem").map((li) => li.textContent);
-    expect(signers).toEqual(["Soter Labs4", "JanSky2"]);
+  });
+
+  it("shows no Safe block without an on-chain read", async () => {
+    chain.safe = null;
+    const tip = await hover();
+    expect(tip).not.toHaveTextContent("threshold");
   });
 
   it("links back to the first mentioning docs outside the reader", async () => {
@@ -87,7 +113,6 @@ describe("AddressTooltip graph facts", () => {
   it("leaves the doc links out in the atlas reader", async () => {
     location.path = "/atlas";
     const tip = await hover();
-    expect(tip).toHaveTextContent("threshold 5 / 6");
     expect(within(tip).queryByRole("link", { name: "A.1.1" })).toBeNull();
   });
 });

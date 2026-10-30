@@ -35,7 +35,7 @@
 
 ## 2026-10-30
 
-- Added multisig thresholds, signers and links to the Atlas documents naming an address to the address hover card
+- Added a Safe's on-chain owners and threshold, and links to the Atlas documents naming an address, to the address hover card
 
 ## 2026-10-29
 

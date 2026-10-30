@@ -24,6 +24,9 @@ interface AddrRow {
   balances: unknown;
   balances_checked_at: string | null;
   has_code: boolean | null;
+  safe?: unknown;
+  roles?: string[];
+  etherscan_name?: string | null;
 }
 interface Call {
   address: string;
@@ -51,7 +54,7 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
       .sort();
     return Promise.resolve([{ min: checked[0] ?? null, max: checked.at(-1) ?? null }]);
   }
-  if (text.includes("SELECT address, chain, expected_tokens, is_contract FROM atlas_addresses")) {
+  if (text.includes("SELECT address, chain, expected_tokens, is_contract, roles, etherscan_name FROM atlas_addresses")) {
     // POST only loads rows due for a refresh (NULL or older than the cutoff).
     const cutoff = text.includes("balances_checked_at") ? values[0] : null;
     const cutoffMs = cutoff == null
@@ -61,18 +64,18 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
       ? rows
       : rows.filter((r) => r.balances_checked_at == null || Date.parse(r.balances_checked_at) < cutoffMs);
     return Promise.resolve(
-      due.map((r) => ({ address: r.address, chain: r.chain, expected_tokens: r.expected_tokens, is_contract: r.is_contract })),
+      due.map((r) => ({ address: r.address, chain: r.chain, expected_tokens: r.expected_tokens, is_contract: r.is_contract, roles: r.roles ?? [], etherscan_name: r.etherscan_name ?? null })),
     );
   }
   if (text.includes("SELECT address, chain, balances, balances_checked_at, has_code")) {
     return Promise.resolve(
       rows
         .filter((r) => r.balances != null)
-        .map((r) => ({ address: r.address, chain: r.chain, balances: r.balances, balances_checked_at: r.balances_checked_at, has_code: r.has_code })),
+        .map((r) => ({ address: r.address, chain: r.chain, balances: r.balances, balances_checked_at: r.balances_checked_at, has_code: r.has_code, safe: r.safe ?? null })),
     );
   }
   if (text.includes("UPDATE atlas_addresses") && text.includes("SET balances")) {
-    const [balancesJson, checkedAt, hasCodeParam, address, chain] = values as [string | null, string, boolean | null, string, string];
+    const [balancesJson, checkedAt, hasCodeParam, safeParam, address, chain] = values as [string | null, string, boolean | null, unknown, string, string];
     const row = rows.find((r) => r.address === address && r.chain === chain);
     if (row) {
       // Mirror both SQL COALESCEs: a null parameter means "this sweep had
@@ -80,6 +83,7 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
       row.balances = balancesJson ?? row.balances;
       row.balances_checked_at = checkedAt;
       row.has_code = hasCodeParam ?? row.has_code;
+      row.safe = safeParam ?? row.safe;
     }
     return Promise.resolve([]);
   }
@@ -169,8 +173,28 @@ describe("handleBalances GET", () => {
       checkedAt: "2026-08-05T09:00:00.000Z",
       hasCode: true,
       balances: { ETH: { raw: "1", decimals: 18 } },
+      safe: null,
     });
     expect(body.lastCheckedAt).toBe("2026-08-05T09:00:00.000Z");
+  });
+
+  it("reads Safe owners and threshold for a labelled multisig only, and serves them on GET", async () => {
+    const owner = "0xAAAA000000000000000000000000000000000001";
+    rows = [
+      { address: "0xaaa", chain: "ethereum", expected_tokens: [], is_contract: true, balances: null, balances_checked_at: null, has_code: null, roles: ["multisig"] },
+      { address: "0xbbb", chain: "ethereum", expected_tokens: [], is_contract: true, balances: null, balances_checked_at: null, has_code: null, roles: ["token"] },
+    ];
+    const asked: string[] = [];
+    multicallImpl = async (contracts) => contracts.map((c) => (asked.push(`${c.address}:${c.functionName}`),
+      c.functionName === "getThreshold" ? { status: "success", result: 1n }
+        : c.functionName === "getOwners" ? { status: "success", result: [owner] }
+          : { status: "success", result: 5n }
+    ));
+    await handleBalances(req("POST"));
+    const body = (await (await handleBalances(req("GET"))).json()) as BalancesResponse;
+    expect(body.addresses["0xaaa|ethereum"].safe).toEqual({ threshold: 1, owners: [owner.toLowerCase()] });
+    expect(asked.filter((a) => a.endsWith(":getOwners"))).toEqual(["0xaaa:getOwners"]); // the token is never asked
+    expect(body.addresses["0xbbb|ethereum"].safe).toBeNull();
   });
 
   it("sets nextRefreshAt from the stalest row so a recent worker batch does not start the hourly cooldown", async () => {
@@ -319,7 +343,11 @@ describe("handleBalances POST", () => {
   it("a second POST inside the hour does not re-fetch rows the first POST just stamped", async () => {
     rows = [{ address: "0xaaa", chain: "ethereum", expected_tokens: [], is_contract: false, balances: null, balances_checked_at: null, has_code: null }];
     let calls = 0;
-    multicallImpl = async (contracts) => { calls++; return contracts.map(() => ({ status: "success", result: 1n })); };
+    // Counts balance sweeps; the Safe read is a second multicall in the same sweep.
+    multicallImpl = async (contracts) => {
+      if (contracts.some((c) => c.functionName === "getEthBalance")) calls++;
+      return contracts.map(() => ({ status: "success", result: 1n }));
+    };
 
     expect(((await (await handleBalances(req("POST"))).json()) as BalancesResponse).refreshed).toBe(true);
     expect(calls).toBe(1);
@@ -341,7 +369,11 @@ describe("handleBalances POST", () => {
   it("coalesces concurrent POSTs onto one in-flight refresh", async () => {
     rows = [{ address: "0xaaa", chain: "ethereum", expected_tokens: [], is_contract: false, balances: null, balances_checked_at: null, has_code: null }];
     let calls = 0;
-    multicallImpl = async (contracts) => { calls++; return contracts.map(() => ({ status: "success", result: 1n })); };
+    // Counts balance sweeps; the Safe read is a second multicall in the same sweep.
+    multicallImpl = async (contracts) => {
+      if (contracts.some((c) => c.functionName === "getEthBalance")) calls++;
+      return contracts.map(() => ({ status: "success", result: 1n }));
+    };
 
     // Both calls issued before either awaits — the second must see inFlight
     // already set (synchronously, before doRefresh's first await) and skip
