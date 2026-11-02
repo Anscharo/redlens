@@ -13,7 +13,7 @@ export interface HeldBalance {
   symbol: string;
   amount: string;
   // Present only when the address holds balances on more than one chain —
-  // see resolveAddressTooltip's multi-chain aggregation below.
+  // see heldAcross below.
   chain?: string;
   // The holding's USD value (`$1.2K`), when a price is known for it.
   usd?: string;
@@ -80,10 +80,9 @@ export function addressHeadlineBalance(
   balancesByAddress: Record<string, AddressBalances>,
   prices: PriceMap = {},
 ): string | null {
-  const key = address.toLowerCase();
-  const info = addrMap[address] ?? addrMap[key];
+  const info = infoFor(address, addrMap);
   const chains = info?.chains ?? (info?.chain ? [info.chain] : []);
-  const items = heldAcross(key, chains, balancesByAddress);
+  const items = heldAcross(address.toLowerCase(), chains, balancesByAddress);
   const total = holdingsTotal(items, prices);
   if (total) return total;
   const others = items.filter((h) => !isPegged(h.symbol));
@@ -97,34 +96,43 @@ export function addressHeadlineBalance(
   return `${amount} ${top.symbol}`;
 }
 
-// address (lowercased, falling back to as-written for case-sensitive Solana
-// addresses) → its display name, held balances across every chain the atlas
-// places it on, and their total USD value (null below $1). Mirrors the addrMap
-// lookup in explorerUrl() (explorer.ts) and the registryName the On-Chain
-// Addresses report shows: chainlogId or the verified on-chain name only, never
-// the heuristic entityLabel (a best-effort proper-noun extraction from
-// surrounding prose — too often a stray phrase, not a real name).
-export function resolveAddressTooltip(
+// Exact case first: addressMap keys EVM addresses lowercased but leaves
+// case-sensitive Solana base58 keys as-written (address-chains.mjs), so an
+// exact match is always correct and a lowercased fallback is only needed to
+// find a mixed-case EVM address (e.g. checksummed in markdown) — never for
+// Solana, where lowercasing first risked resolving a different real pubkey.
+// Mirrors the addrMap lookup in explorerUrl() (explorer.ts).
+const infoFor = (address: string, addrMap: Record<string, AddressInfo>): AddressInfo | undefined =>
+  addrMap[address] ?? addrMap[address.toLowerCase()];
+
+/**
+ * The address's display name, and whether it is a real one: chainlogId or the
+ * verified on-chain name only (the registryName the On-Chain Addresses report
+ * shows), never the heuristic entityLabel (a best-effort proper-noun extraction
+ * from surrounding prose — too often a stray phrase, not a real name).
+ */
+export function resolveAddressLabel(address: string, addrMap: Record<string, AddressInfo>): { name: string; named: boolean } {
+  const info = infoFor(address, addrMap);
+  return { name: resolveAddressName(address, info), named: info ? hasResolvedName(info) : false };
+}
+
+/**
+ * The address's non-zero holdings across every chain the atlas places it on,
+ * each with its USD value when priced, and their total (null below $1).
+ */
+export function resolveAddressHoldings(
   address: string,
   addrMap: Record<string, AddressInfo>,
   balancesByAddress: Record<string, AddressBalances>,
   prices: PriceMap = {},
-): { name: string; named: boolean; held: HeldBalance[]; value: string | null } {
-  // Exact case first: addressMap keys EVM addresses lowercased but leaves
-  // case-sensitive Solana base58 keys as-written (address-chains.mjs), so an
-  // exact match is always correct and a lowercased fallback is only needed to
-  // find a mixed-case EVM address (e.g. checksummed in markdown) — never for
-  // Solana, where lowercasing first risked resolving a different real pubkey.
-  const key = address.toLowerCase();
-  const info = addrMap[address] ?? addrMap[key];
-  const name = resolveAddressName(address, info);
-  if (!info) return { name, named: false, held: [], value: null };
-
+): { held: HeldBalance[]; value: string | null } {
+  const info = infoFor(address, addrMap);
+  if (!info) return { held: [], value: null };
   // chains always contains at least info.chain — see AddressInfo's own comment.
-  const raw = sortHeld(heldAcross(key, info.chains, balancesByAddress));
+  const raw = sortHeld(heldAcross(address.toLowerCase(), info.chains, balancesByAddress));
   const held = raw.map((h) => {
     const usd = holdingUsd(h, prices);
     return { symbol: h.symbol, amount: compactAmount(h.raw, h.decimals), chain: h.chain, usd: usd == null ? undefined : compactUsd(usd) };
   });
-  return { name, named: hasResolvedName(info), held, value: holdingsTotal(raw, prices) };
+  return { held, value: holdingsTotal(raw, prices) };
 }

@@ -1,14 +1,17 @@
+import { useLocation } from "wouter";
 import type { AddressDocRef } from "@/lib/addressGraphFacts";
-import { atlasHref } from "@/lib/routes";
+import { atlasHref, ROUTES } from "@/lib/routes";
 import { AtlasLink } from "./AtlasLink";
 import { TipRow } from "./AddressTooltipRow";
 
 const SHOWN = 3;
 
 /** The atlas documents that mention the address, as doc_no links — the way
- *  back to the atlas from an address shown outside the reader. */
+ *  back to the atlas from an address shown outside the reader. Nothing in the
+ *  reader, where the address already sits in its document. */
 export function AddressTooltipDocs({ docs }: { docs: AddressDocRef[] }) {
-  if (docs.length === 0) return null;
+  const [location] = useLocation();
+  if (docs.length === 0 || location.startsWith(ROUTES.ATLAS)) return null;
   const more = docs.length - SHOWN;
   return (
     <TipRow label="in atlas">

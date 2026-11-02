@@ -28,7 +28,7 @@ export interface AddressProps extends Omit<ComponentPropsWithoutRef<"a">, "href"
 }
 
 // A tiny "hover for details" affordance shown on the right of the pill whenever
-// the balance tooltip is active. aria-hidden — the anchor's title carries the name.
+// the hover card is active. aria-hidden: the card itself carries the name.
 function HoverHint() {
   return (
     <svg className="rl-addr-hint" width="11" height="11" viewBox="0 0 24 24" aria-hidden="true">
@@ -37,6 +37,15 @@ function HoverHint() {
       <path d="M12 11.5v5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
+}
+
+// The inline green balance teaser. The only part of the pill that reads the
+// balances, so a pill without it never subscribes to them or re-renders when
+// they arrive.
+function AddressBalance({ address, addrMap }: { address: string; addrMap: Record<string, AddressInfo> }) {
+  const { addresses, prices } = useSharedBalances(true);
+  const balance = addressHeadlineBalance(address, addrMap, addresses, prices);
+  return balance ? <span className="rl-addr-bal">{balance}</span> : null;
 }
 
 /**
@@ -60,15 +69,8 @@ export function Address({
   ...props
 }: AddressProps) {
   const map = addrMap ?? getAddressMap();
-  const { addresses, prices } = useSharedBalances(!noBalance);
   const href = explorerUrl(address, { chain, addrMap: map });
-  const balance = noBalance ? null : addressHeadlineBalance(address, map, addresses, prices);
   const showHint = !noTooltip && !noHint;
-  // With no balance and no hint, the pill holds only the address text. Render it
-  // as `display: inline` (rl-addr-plain) so it selects and copies exactly like
-  // the surrounding prose — an inline-flex pill breaks text selection and can
-  // drag adjacent content into the copy. See index.css.
-  const plain = !balance && !showHint;
   const link = (
     <a
       href={href}
@@ -78,7 +80,7 @@ export function Address({
       // pop up over it. Without the card the title is the only way to read it.
       title={noTooltip ? address : undefined}
       data-address={address}
-      className={`rl-addr mono ${plain ? "rl-addr-plain" : ""} ${className ?? ""}`}
+      className={`rl-addr mono ${className ?? ""}`}
       onClick={(e) => {
         const trackChain = Array.isArray(chain) ? chain.find(Boolean) : chain;
         track("address_explorer_out", { address, chain: trackChain ?? map[address.toLowerCase()]?.chain });
@@ -87,11 +89,7 @@ export function Address({
       {...props}
     >
       <span className="rl-addr-text">{children ?? (full ? address : shortAddr(address))}</span>
-      {balance && (
-        <span className="rl-addr-bal" style={{ color: "var(--terminal-green)" }}>
-          {balance}
-        </span>
-      )}
+      {!noBalance && <AddressBalance address={address} addrMap={map} />}
       {showHint && <HoverHint />}
     </a>
   );

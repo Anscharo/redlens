@@ -1,15 +1,22 @@
 import { describe, it, expect } from "vitest";
 import type { AddressBalances } from "@/lib/balances";
-import { resolveAddressTooltip, addressHeadlineBalance } from "./addressTooltip";
+import { resolveAddressLabel, resolveAddressHoldings, addressHeadlineBalance } from "./addressTooltip";
 import { makeAddressInfo } from "../test/fixtures";
 
 const EVM = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
+
+// The hover card reads its label and its holdings from two resolvers; most
+// cases here assert on both at once.
+const resolveAddressTooltip = (...args: Parameters<typeof resolveAddressHoldings>) => ({
+  ...resolveAddressLabel(args[0], args[1]),
+  ...resolveAddressHoldings(...args),
+});
 
 function bal(balances: AddressBalances["balances"]): AddressBalances {
   return { chain: "ethereum", checkedAt: null, hasCode: null, balances };
 }
 
-describe("resolveAddressTooltip", () => {
+describe("resolveAddressLabel + resolveAddressHoldings", () => {
   it("resolves the chainlog name and the matching chain-keyed balance row", () => {
     const addrMap = { [EVM]: makeAddressInfo({ chainlogId: "MCD_VAT" }) };
     const balancesByAddress = { [`${EVM}|ethereum`]: bal({ ETH: { raw: "2000000000000000000", decimals: 18 } }) };

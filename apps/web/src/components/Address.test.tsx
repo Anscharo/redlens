@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { Address } from "./Address";
 import { resetSharedBalances } from "../lib/sharedBalances";
+import { setAddressMap } from "../lib/addressMap";
+import { makeAddressInfo } from "../test/fixtures";
 
 const ADDR = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
 
@@ -79,11 +81,12 @@ describe("Address", () => {
     expect(container.querySelector("a.rl-addr")).not.toBeNull();
   });
 
-  it("renders a text-only pill inline (rl-addr-plain) so it selects/copies like prose", () => {
-    // no balance + no hint → text-only → inline display for natural selection
+  it("renders a text-only pill with nothing but its text, which index.css displays inline like prose", () => {
+    // no balance + no hint → no .rl-addr-bal / .rl-addr-hint child, which is
+    // what the `.rl-addr:not(:has(…))` rule keys on (jsdom cannot evaluate it)
     const { container } = render(<Address address={ADDR} full noBalance noHint />);
     const link = container.querySelector("a.rl-addr")!;
-    expect(link.classList.contains("rl-addr-plain")).toBe(true);
+    expect(link.children).toHaveLength(1);
     expect(link.querySelector(".rl-addr-bal")).toBeNull();
     expect(link.querySelector(".rl-addr-hint")).toBeNull();
     expect(link.textContent).toBe(ADDR); // nothing extra to copy
@@ -92,6 +95,20 @@ describe("Address", () => {
   it("does not fetch balances for a noBalance pill (prose)", () => {
     render(<Address address={ADDR} full noBalance noHint />);
     expect(loadBalancesCached).not.toHaveBeenCalled();
+  });
+
+  it("adds the balance teaser once the balances arrive", async () => {
+    setAddressMap({ [ADDR]: makeAddressInfo({ chains: ["ethereum"] }) });
+    loadBalancesCached.mockResolvedValue({
+      addresses: { [`${ADDR}|ethereum`]: { chain: "ethereum", checkedAt: null, hasCode: null, balances: { USDS: { raw: "3200000000000000000000", decimals: 18 } } } },
+    });
+    const { container } = render(<Address address={ADDR} />);
+    expect(container.querySelector(".rl-addr-bal")).toBeNull();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(container.querySelector(".rl-addr-bal")).toHaveTextContent("$3.2K");
+    setAddressMap({});
   });
 
   it("fetches balances on mount for a teaser pill", () => {

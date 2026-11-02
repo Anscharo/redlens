@@ -1,48 +1,27 @@
 import { useEffect, useReducer, type ReactElement } from "react";
-import { useLocation } from "wouter";
-import { ROUTES } from "@/lib/routes";
 import { Tooltip } from "./Tooltip";
-import { AddressTooltipSafe } from "./AddressTooltipSafe";
+import { AddressTooltipOnchain } from "./AddressTooltipOnchain";
 import { AddressTooltipDocs } from "./AddressTooltipDocs";
-import { AddressTooltipBalances } from "./AddressTooltipBalances";
 import { TipRow } from "./AddressTooltipRow";
 import { getAddressMap } from "../lib/addressMap";
-import { useSharedBalances } from "../lib/sharedBalances";
-import { resolveAddressTooltip } from "../lib/addressTooltip";
-import { resolveSafes } from "../lib/addressSafe";
+import { resolveAddressLabel } from "../lib/addressTooltip";
 import { useAddressGraphFacts } from "../hooks/useAddressGraphFacts";
 import { shortLink } from "../lib/format";
 
-function AddressTooltipContent({
-  address,
-  href,
-  onSettled,
-}: {
-  address: string;
-  href?: string;
-  onSettled: () => void;
-}) {
-  const { addresses, prices, ready } = useSharedBalances(true);
+// Tooltip only re-measures its placement when its `content` element reference
+// changes (Tooltip.tsx's placement effect), and AddressTooltip creates that
+// element once. So each row whose data arrives after the card opened calls
+// `onSettled`, which re-renders AddressTooltip into a fresh reference without
+// refetching anything. Only the first hover of a session waits; after that the
+// shared caches are warm.
+function AddressTooltipContent({ address, href, onSettled }: { address: string; href?: string; onSettled: () => void }) {
+  // The graph facts feed two rows (the Safe check and the docs), so they load
+  // here, the lowest point both share.
   const facts = useAddressGraphFacts(address);
-  const [location] = useLocation();
-  const loading = !ready;
-  // Tooltip only re-measures/repositions when its `content` prop's element
-  // *reference* changes (see Tooltip.tsx's placement effect), and that
-  // reference is created once by AddressTooltip below — so on its own, this
-  // component's balances arriving asynchronously wouldn't reposition an
-  // already-open tooltip. onSettled tells AddressTooltip to re-render once
-  // loading finishes, producing a fresh reference, without re-triggering the
-  // fetch itself (only the very first hover of a session hits this — after
-  // that the shared cache is warm and loading starts out false). The graph
-  // facts (the atlas's multisig threshold, mentioning docs) land the same way.
   useEffect(() => {
-    if (!loading) onSettled();
-  }, [loading, facts, onSettled]);
-  const { name, named, held, value } = resolveAddressTooltip(address, getAddressMap(), addresses, prices);
-  const safes = resolveSafes(address, getAddressMap(), addresses, facts?.multisigs ?? []);
-  // In the reader the address already sits in its document; elsewhere the
-  // mentioning docs are the way back to the atlas.
-  const inAtlas = location.startsWith(ROUTES.ATLAS);
+    if (facts) onSettled();
+  }, [facts, onSettled]);
+  const { name, named } = resolveAddressLabel(address, getAddressMap());
   return (
     <div className="min-w-[10rem] max-w-[20rem]">
       <div className={named ? "font-medium text-tan truncate" : "mono text-tan break-all"} data-full-address={named ? undefined : ""}>
@@ -50,9 +29,8 @@ function AddressTooltipContent({
       </div>
       <dl className="mt-1.5 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1 mono text-[10px]">
         {named && <TipRow label="address"><span className="break-all">{address}</span></TipRow>}
-        {safes.map((safe) => <AddressTooltipSafe key={safe.chains.join()} safe={safe} />)}
-        <AddressTooltipBalances held={held} value={value} loading={loading} />
-        {!inAtlas && facts && <AddressTooltipDocs docs={facts.docs} />}
+        <AddressTooltipOnchain address={address} multisigs={facts?.multisigs ?? []} onSettled={onSettled} />
+        {facts && <AddressTooltipDocs docs={facts.docs} />}
         {href && (
           <TipRow label="explorer">
             <a href={href} target="_blank" rel="noopener noreferrer" className="link-accent block truncate">{shortLink(href)}</a>
@@ -65,17 +43,10 @@ function AddressTooltipContent({
 
 /** Wraps an on-chain address link with the shared Tooltip, showing the
  *  address's resolved name (or the full address when it has none), its live
- *  Safe owners and threshold when it is one, any non-zero token balances with their USD value, the
- *  atlas documents naming it (outside the reader) and a shortened explorer link. */
-export function AddressTooltip({
-  address,
-  href,
-  children,
-}: {
-  address: string;
-  href?: string;
-  children: ReactElement;
-}) {
+ *  Safe owners and threshold when it is one, any non-zero token balances with
+ *  their USD value, the atlas documents naming it (outside the reader) and a
+ *  shortened explorer link. */
+export function AddressTooltip({ address, href, children }: { address: string; href?: string; children: ReactElement }) {
   const [, bump] = useReducer((n: number) => n + 1, 0);
   return (
     <Tooltip content={<AddressTooltipContent address={address} href={href} onSettled={bump} />}>
