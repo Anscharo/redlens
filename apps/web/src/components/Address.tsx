@@ -1,4 +1,4 @@
-import { type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { type ComponentPropsWithoutRef, type MouseEvent, type ReactNode } from "react";
 import type { AddressInfo } from "@/types";
 import { explorerUrl } from "@/lib/explorer";
 import { shortAddr } from "../lib/format";
@@ -71,6 +71,11 @@ export function Address({
   const map = addrMap ?? getAddressMap();
   const href = explorerUrl(address, { chain, addrMap: map });
   const showHint = !noTooltip && !noHint;
+  function handleClick(e: MouseEvent<HTMLAnchorElement>) {
+    const trackChain = Array.isArray(chain) ? chain.find(Boolean) : chain;
+    track("address_explorer_out", { address, chain: trackChain ?? map[address.toLowerCase()]?.chain });
+    onClick?.(e);
+  }
   const link = (
     <a
       href={href}
@@ -81,11 +86,7 @@ export function Address({
       title={noTooltip ? address : undefined}
       data-address={address}
       className={`rl-addr mono ${className ?? ""}`}
-      onClick={(e) => {
-        const trackChain = Array.isArray(chain) ? chain.find(Boolean) : chain;
-        track("address_explorer_out", { address, chain: trackChain ?? map[address.toLowerCase()]?.chain });
-        onClick?.(e);
-      }}
+      onClick={handleClick}
       {...props}
     >
       <span className="rl-addr-text">{children ?? (full ? address : shortAddr(address))}</span>
