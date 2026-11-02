@@ -6,20 +6,40 @@ import { AddressCard } from "./AddressCard";
 import { makeAddressInfo } from "../test/fixtures";
 import { resetSharedBalances } from "../lib/sharedBalances";
 
+const peeked = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock("@/lib/balances", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   loadBalancesCached: () => new Promise(() => {}),
-  peekCachedBalances: () => null,
+  peekCachedBalances: () => peeked.current,
 }));
 
 const ADDR = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
 
 beforeEach(() => {
+  peeked.current = null;
   resetSharedBalances();
 });
 afterEach(cleanup);
 
 describe("AddressCard", () => {
+  it("lists the holdings with their total and each priced token's USD value", () => {
+    peeked.current = {
+      addresses: {
+        [`${ADDR}|ethereum`]: {
+          chain: "ethereum",
+          checkedAt: null,
+          hasCode: null,
+          balances: { ETH: { raw: "2000000000000000000", decimals: 18 }, MKR: { raw: "1000000000000000000", decimals: 18 } },
+        },
+      },
+      prices: { ETH: { usd: 3000, asOf: "2026-11-02T10:00:00.000Z" } },
+    };
+    resetSharedBalances();
+    const { container } = render(<AddressCard address={ADDR} info={makeAddressInfo({ chains: ["ethereum"] })} />);
+    expect(container.querySelector("[data-value]")).toHaveTextContent("≈$6.0K+");
+    expect([...container.querySelectorAll("[data-usd]")].map((e) => e.textContent)).toEqual(["$6.0K", ""]);
+  });
+
   it("renders the address as an explorer link opened in a new tab", () => {
     const info = makeAddressInfo({ explorerUrl: "https://etherscan.io/address/" + ADDR });
     render(<AddressCard address={ADDR} info={info} />);

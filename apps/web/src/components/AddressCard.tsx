@@ -6,6 +6,7 @@ import { Address } from "./Address";
 import { resolveAddressName, resolveOwner, hasResolvedName } from "../lib/addressName";
 import { resolveAddressTooltip } from "../lib/addressTooltip";
 import { useSharedBalances } from "../lib/sharedBalances";
+import { AddressTooltipBalances } from "./AddressTooltipBalances";
 
 function formatValue(val: ChainValue): string {
   if (val === null) return "—";
@@ -36,10 +37,10 @@ export function AddressCard({
   /** This section named the address only by its chainlog key, not a 0x literal. */
   byName?: boolean;
 }) {
-  const { addresses } = useSharedBalances(true);
+  const { addresses, prices } = useSharedBalances(true);
   const name = resolveAddressName(address, info);
   const owner = resolveOwner(info);
-  const { held } = resolveAddressTooltip(address, { [address]: info }, addresses);
+  const { held, value } = resolveAddressTooltip(address, { [address]: info }, addresses, prices);
   const visibleChainValues = chainValues
     ? Object.entries(chainValues).filter(([k, v]) => !isSkippable(k, v))
     : [];
@@ -58,7 +59,7 @@ export function AddressCard({
       )}
       {/* The hover carries what the card does not (Safe owners and threshold,
           the explorer link); the inline balance teaser is left off because the
-          card lists the holdings right below. */}
+          card lists the holdings and their value right below. */}
       <Address address={address} chain={info.chain} full noBalance className="text-xs mb-2" />
 
       {(info.roles.length > 0 || (info.isProxy && info.implementation)) && (
@@ -83,20 +84,9 @@ export function AddressCard({
       )}
 
       {held.length > 0 && (
-        <div className="mb-2">
-          <p className="text-[10px] mono mb-1 text-tan-3">holds</p>
-          <div className="space-y-0.5">
-            {held.map((h) => (
-              <div key={`${h.symbol}-${h.chain ?? ""}`} className="flex justify-between gap-3 mono text-[11px] text-tan-2">
-                <span>
-                  {h.symbol}
-                  {h.chain ? ` (${h.chain})` : ""}
-                </span>
-                <span>{h.amount}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <dl className="mb-2 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-0.5 mono text-[11px]">
+          <AddressTooltipBalances held={held} value={value} loading={false} />
+        </dl>
       )}
 
       {visibleChainValues.length > 0 && (

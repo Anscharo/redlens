@@ -19,15 +19,20 @@ export interface LlamaReply {
   coins?: Record<string, LlamaCoin>;
 }
 
-/** The reply as symbol → price; a coin absent, unpriced or low-confidence is left out. */
+/**
+ * The reply as symbol → price; a coin absent, unpriced, undated or
+ * low-confidence is left out. An undated quote is dropped rather than dated now,
+ * which would make it the newest price in the map and exempt it from the lag
+ * check (tokenPrices.ts PRICE_MAX_LAG_MS).
+ */
 export function parsePrices(ids: Record<string, string>, reply: LlamaReply): PriceMap {
   const out: PriceMap = {};
   for (const [symbol, id] of Object.entries(ids)) {
     const c = reply.coins?.[id];
     if (!c || typeof c.price !== "number" || !Number.isFinite(c.price) || c.price < 0) continue;
+    if (typeof c.timestamp !== "number" || !Number.isFinite(c.timestamp)) continue;
     if (typeof c.confidence === "number" && c.confidence < MIN_CONFIDENCE) continue;
-    const asOf = typeof c.timestamp === "number" ? new Date(c.timestamp * 1000) : new Date();
-    out[symbol] = { usd: c.price, asOf: asOf.toISOString() };
+    out[symbol] = { usd: c.price, asOf: new Date(c.timestamp * 1000).toISOString() };
   }
   return out;
 }

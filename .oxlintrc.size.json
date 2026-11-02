@@ -23,7 +23,7 @@
     { "files": ["apps/web/src/admin/PalettePreview.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 103, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/admin/Swatch.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 95, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/admin/useColorOverrides.ts"], "rules": { "max-lines-per-function": ["error", { "max": 53, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/components/AddressCard.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 93, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["apps/web/src/components/AddressCard.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 82, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/ConnectPage.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 102, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/Drawer.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 81, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/FeaturesPage.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 79, "skipBlankLines": true, "skipComments": true }] } },

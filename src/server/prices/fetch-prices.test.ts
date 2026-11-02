@@ -32,11 +32,12 @@ describe("parsePrices", () => {
     });
   });
 
-  it("leaves out a coin that is missing, unpriced or low-confidence", () => {
+  it("leaves out a coin that is missing, unpriced, undated or low-confidence", () => {
     const out = parsePrices(ids, {
       coins: {
         [SKY_ID]: { price: 0.07, timestamp: 1, confidence: 0.2 },
         "coingecko:ethereum": { timestamp: 1 },
+        "coingecko:monad": { price: 0.02 },
       },
     });
     expect(out).toEqual({});
