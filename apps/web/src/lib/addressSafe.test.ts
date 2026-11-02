@@ -40,6 +40,14 @@ describe("resolveSafes", () => {
     expect(resolveSafes(ADDR, map, reads, []).map((s) => s.chains)).toEqual([["arbitrum", "base"], ["optimism"]]);
   });
 
+  it("merges chains whose Safe lists the same owners in a different order", () => {
+    const { map, reads } = setup(["ethereum", "avalanche"], {
+      [`${ADDR}|ethereum`]: read("ethereum", { threshold: 2, owners: [O1, O2, O3] }),
+      [`${ADDR}|avalanche`]: read("avalanche", { threshold: 2, owners: [O2, O1, O3] }),
+    });
+    expect(resolveSafes(ADDR, map, reads, []).map((s) => s.chains)).toEqual([["ethereum", "avalanche"]]);
+  });
+
   it("shows nothing without an on-chain read, whatever the atlas states", () => {
     const { map } = setup(["ethereum"], {});
     expect(resolveSafes(ADDR, map, {}, [atlas("ethereum", 2, 3)])).toEqual([]);

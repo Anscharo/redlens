@@ -20,8 +20,11 @@ export interface SafeView extends SafeState {
   atlas: AtlasDisagreement | null;
 }
 
+// Safes return owners in their linked-list order, which differs across chains
+// for the same owner set, so the set is compared, not the order.
+const ownerSet = (s: SafeState): string => [...s.owners].sort().join();
 const sameSetup = (a: SafeState, b: SafeState): boolean =>
-  a.threshold === b.threshold && a.owners.join() === b.owners.join();
+  a.threshold === b.threshold && ownerSet(a) === ownerSet(b);
 
 // An address the atlas names as several multisigs disagrees only when none of
 // the thresholds it states for these chains matches the chain's.
