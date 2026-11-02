@@ -161,6 +161,12 @@ describe("addressHeadlineBalance", () => {
       expect(addressHeadlineBalance(EVM, multi, b, prices)).toBe("$56.0K");
     });
 
+    it("values xDAI at $1 when no price came for it, like the other pegged stables", () => {
+      const gnosis = { [EVM]: makeAddressInfo({ chains: ["gnosis"] }) };
+      const b = { [`${EVM}|gnosis`]: { ...bal({ xDAI: { raw: "50000000000000000000000", decimals: 18 } }), chain: "gnosis" } };
+      expect(addressHeadlineBalance(EVM, gnosis, b, {})).toBe("$50.0K");
+    });
+
     it("values sUSDS at its price, not at $1", () => {
       const b = { [`${EVM}|ethereum`]: bal({ SUSDS: { raw: "1000000000000000000000", decimals: 18 } }) };
       expect(addressHeadlineBalance(EVM, map, b, prices)).toBe("$1.1K");

@@ -23,7 +23,10 @@ beforeEach(() => {
   loadBalancesCached.mockReturnValue(new Promise(() => {}));
   resetSharedBalances();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  setAddressMap({});
+});
 
 describe("Address", () => {
   it("renders a new-tab explorer link with a chain-correct href", () => {
@@ -108,7 +111,6 @@ describe("Address", () => {
       await Promise.resolve();
     });
     expect(container.querySelector(".rl-addr-bal")).toHaveTextContent("$3.2K");
-    setAddressMap({});
   });
 
   it("fetches balances on mount for a teaser pill", () => {

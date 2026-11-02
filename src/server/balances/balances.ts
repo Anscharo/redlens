@@ -59,6 +59,8 @@ function toMs(v: string | null): number | null {
 // the same cache the /reports/onchain-addresses page shows (never triggers a
 // refresh itself — that stays a user-initiated POST).
 export async function readCache(refreshed: boolean): Promise<BalancesResponse> {
+  // Started first so a cold price fetch overlaps the reads below.
+  const prices = currentPrices();
   const rows = await sql<CachedRow[]>`
     SELECT address, chain, balances, balances_checked_at, has_code, safe
     FROM atlas_addresses
@@ -87,7 +89,7 @@ export async function readCache(refreshed: boolean): Promise<BalancesResponse> {
   // the worker picks those up first, so they don't need to hold the button open.
   const minMs = toMs(oldestCheckedAt);
   const nextRefreshAt = minMs != null ? new Date(minMs + REFRESH_INTERVAL_MS).toISOString() : null;
-  return { lastCheckedAt, oldestCheckedAt, nextRefreshAt, refreshed, addresses, prices: await currentPrices() };
+  return { lastCheckedAt, oldestCheckedAt, nextRefreshAt, refreshed, addresses, prices: await prices };
 }
 
 // In-process dedupe: a second POST while a refresh is running awaits the same

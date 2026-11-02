@@ -9,6 +9,9 @@ const ENDPOINT = "https://coins.llama.fi/prices/current/";
 const SEARCH_WIDTH = "6h";
 // Below this DefiLlama is guessing (thin or conflicting sources).
 const MIN_CONFIDENCE = 0.5;
+// A request that never answers would hold the cache's in-flight slot forever
+// and stop every later refresh (cache.ts), so it is abandoned after this long.
+const TIMEOUT_MS = 15_000;
 
 interface LlamaCoin {
   price?: number;
@@ -46,7 +49,10 @@ export type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;
 /** Every known symbol's current USD price. Throws when DefiLlama does not answer. */
 export async function fetchTokenPrices(fetchFn: FetchFn = politeFetch): Promise<PriceMap> {
   const ids = priceCoinIds();
-  const res = await fetchFn(pricesUrl(ids), { headers: { accept: "application/json", "user-agent": "redlens-prices" } });
+  const res = await fetchFn(pricesUrl(ids), {
+    headers: { accept: "application/json", "user-agent": "redlens-prices" },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`DefiLlama prices answered HTTP ${res.status}`);
   return parsePrices(ids, (await res.json()) as LlamaReply);
 }

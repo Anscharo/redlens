@@ -11,7 +11,8 @@ export interface Holding {
 
 // Dollar-pegged stablecoins, valued at $1 when no fresh price came for them.
 // sUSDS is not one: it accrues the savings rate, so it is only valued at its price.
-const PEGGED = new Set(["USDS", "USDC", "USDT", "DAI", "USDP", "PYUSD", "RLUSD"]);
+// xDAI is Gnosis's gas token, bridged DAI.
+const PEGGED = new Set(["USDS", "USDC", "USDT", "DAI", "XDAI", "USDP", "PYUSD", "RLUSD"]);
 
 export const isPegged = (symbol: string): boolean => PEGGED.has(symbol.toUpperCase());
 

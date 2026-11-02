@@ -3,8 +3,7 @@ import type { AddressInfo } from "@/types";
 import { explorerUrl } from "@/lib/explorer";
 import { shortAddr } from "../lib/format";
 import { getAddressMap } from "../lib/addressMap";
-import { addressHeadlineBalance } from "../lib/addressTooltip";
-import { useSharedBalances } from "../lib/sharedBalances";
+import { AddressBalance } from "./AddressBalance";
 import { AddressTooltip } from "./AddressTooltip";
 import { track } from "../lib/analytics";
 
@@ -37,15 +36,6 @@ function HoverHint() {
       <path d="M12 11.5v5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
-}
-
-// The inline green balance teaser. The only part of the pill that reads the
-// balances, so a pill without it never subscribes to them or re-renders when
-// they arrive.
-function AddressBalance({ address, addrMap }: { address: string; addrMap: Record<string, AddressInfo> }) {
-  const { addresses, prices } = useSharedBalances(true);
-  const balance = addressHeadlineBalance(address, addrMap, addresses, prices);
-  return balance ? <span className="rl-addr-bal">{balance}</span> : null;
 }
 
 /**

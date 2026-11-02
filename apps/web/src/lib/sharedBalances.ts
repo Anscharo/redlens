@@ -8,7 +8,7 @@
 // card's holdings list, a hover tooltip). Prose pills with noBalance must not
 // kick off GET /api/balances on mount — that's still hover-gated.
 import { useEffect, useSyncExternalStore } from "react";
-import { loadBalancesCached, peekCachedBalances, type AddressBalances } from "@/lib/balances";
+import { loadBalancesCached, peekCachedBalances, type AddressBalances, type BalancesResponse } from "@/lib/balances";
 import type { PriceMap } from "@/lib/tokenPrices";
 
 type BalanceMap = Record<string, AddressBalances>;
@@ -23,11 +23,16 @@ export interface SharedBalancesState {
   ready: boolean;
 }
 
+// The state a settled fetch leaves: the response's maps, or empty ones when it failed.
+const settled = (r: BalancesResponse | null): SharedBalancesState => ({
+  addresses: r?.addresses ?? EMPTY,
+  prices: r?.prices ?? NO_PRICES,
+  ready: true,
+});
+
 function fromPeek(): SharedBalancesState {
   const peeked = peekCachedBalances();
-  return peeked
-    ? { addresses: peeked.addresses, prices: peeked.prices ?? NO_PRICES, ready: true }
-    : { addresses: EMPTY, prices: NO_PRICES, ready: false };
+  return peeked ? settled(peeked) : { addresses: EMPTY, prices: NO_PRICES, ready: false };
 }
 
 let snapshot: SharedBalancesState = fromPeek();
@@ -54,18 +59,18 @@ function ensureLoaded() {
   try {
     p = loadBalancesCached();
   } catch {
-    apply({ addresses: EMPTY, prices: NO_PRICES, ready: true });
+    apply(settled(null));
     return;
   }
   // Defensive: a stubbed/mocked loader (tests) can return a non-promise.
   if (!p || typeof p.then !== "function") {
-    apply({ addresses: EMPTY, prices: NO_PRICES, ready: true });
+    apply(settled(null));
     return;
   }
   p.then((r) => {
-    apply({ addresses: r.addresses, prices: r.prices ?? NO_PRICES, ready: true });
+    apply(settled(r));
   }).catch(() => {
-    apply({ addresses: EMPTY, prices: NO_PRICES, ready: true });
+    apply(settled(null));
   });
 }
 
@@ -98,7 +103,7 @@ export function useSharedBalances(eager = false): SharedBalancesState {
     // Re-read the session cache on each eager mount so a report refresh
     // (requestBalancesRefresh updates peek) lands on the next hover/card.
     const peeked = peekCachedBalances();
-    if (peeked) apply({ addresses: peeked.addresses, prices: peeked.prices ?? NO_PRICES, ready: true });
+    if (peeked) apply(settled(peeked));
     ensureLoaded();
   }, [eager]);
   return state;

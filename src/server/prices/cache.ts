@@ -1,7 +1,7 @@
 // Token USD prices held in memory by the API server and served with
-// /api/balances. Nothing is stored, so every process start fetches them again
-// on its first balances request; how often a running process refreshes them
-// depends on the environment (priceRefreshMs).
+// /api/balances. Nothing is stored: boot warms the cache as the process starts
+// (boot.ts warmPrices), and how often a running process refreshes it depends
+// on the environment (priceRefreshMs).
 import type { PriceMap } from "../../lib/tokenPrices.ts";
 import { config } from "../config.ts";
 import { currentPrEnvGate } from "../pr-env/gate.ts";
@@ -43,7 +43,7 @@ function refresh(now: number): Promise<void> {
       // A symbol this answer left out keeps its older price; the frontend
       // stops using it once it lags the rest (PRICE_MAX_LAG_MS).
       prices = { ...prices, ...next };
-      fetchedAt = Date.now();
+      fetchedAt = now;
     })
     .catch((e: unknown) => console.warn(`prices: DefiLlama fetch failed — ${(e as Error).message}`))
     .finally(() => {

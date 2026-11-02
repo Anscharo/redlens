@@ -59,6 +59,16 @@ describe("fetchTokenPrices", () => {
     expect(out.ETH.usd).toBe(3000);
   });
 
+  it("bounds the request with a timeout signal, so a hung answer cannot hold the cache forever", async () => {
+    let signal: AbortSignal | null | undefined;
+    const fake = async (_url: string, init?: RequestInit) => {
+      signal = init?.signal;
+      return Response.json({ coins: {} });
+    };
+    await fetchTokenPrices(fake);
+    expect(signal).toBeInstanceOf(AbortSignal);
+  });
+
   it("throws on an error answer rather than reading it as no prices", async () => {
     const fake = async () => new Response("busy", { status: 502 });
     await expect(fetchTokenPrices(fake)).rejects.toThrow("HTTP 502");
