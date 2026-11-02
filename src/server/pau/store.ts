@@ -14,6 +14,7 @@ import type { SqlTag } from "../sql-types.ts";
 import type { PauEventRow } from "./replay.ts";
 import type { BeamSource } from "./beam.ts";
 import { buildSnapshot, type ChainReader, type ContractHistory, type PauSnapshot } from "./snapshot.ts";
+import { withParamSubjects } from "./param-subjects.ts";
 import { withUnits } from "./units.ts";
 import type { KeyNamer } from "./diamond-derive.ts";
 
@@ -66,7 +67,7 @@ async function storedSnapshots(db: SqlTag): Promise<Map<string, PauSnapshot>> {
   return new Map(rows.map((r) => [r.deployment, (typeof r.state === "string" ? JSON.parse(r.state) : r.state) as PauSnapshot]));
 }
 
-/** One deployment's snapshot: replayed and read live, its keys named where a derivation is found (reusing what `prev` settled), then their units read. */
+/** One deployment's snapshot: replayed and read live, its keys named where a derivation is found (reusing what `prev` settled), then their units and its parameters' subject tokens read. */
 async function snapshotOf(
   d: PauDeployment,
   read: ChainReader,
@@ -75,7 +76,7 @@ async function snapshotOf(
   opts: { nameKeys?: KeyNamer; probe?: string[]; prev?: PauSnapshot },
 ): Promise<PauSnapshot> {
   const snap = await buildSnapshot(d, read, historyOf, { beam, probe: opts.probe });
-  return withUnits(opts.nameKeys ? await opts.nameKeys(snap, read, opts.prev) : snap, read);
+  return withParamSubjects(await withUnits(opts.nameKeys ? await opts.nameKeys(snap, read, opts.prev) : snap, read), read);
 }
 
 /** Each chain's shared BeamState with its history, read once per refresh. */

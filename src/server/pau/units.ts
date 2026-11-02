@@ -60,7 +60,7 @@ async function tokensOf(read: ChainReader, chain: string, wanted: string[]): Pro
 }
 
 /** Each token's decimals and symbol; a token whose decimals() fails is left out. */
-async function tokenUnits(read: ChainReader, chain: string, tokens: string[]): Promise<Map<string, AmountUnit>> {
+export async function tokenUnits(read: ChainReader, chain: string, tokens: string[]): Promise<Map<string, AmountUnit>> {
   const res = await read(chain, tokens.flatMap((t) => (["decimals", "symbol"] as const).map((functionName) => ({ address: t, functionName, args: [] }))));
   const out = new Map<string, AmountUnit>();
   tokens.forEach((t, i) => {
