@@ -41,6 +41,7 @@ function fakeDeps(over: Partial<BootDeps> = {}): { deps: BootDeps; calls: string
     startBootEmbeddings: () => void calls.push("startBootEmbeddings"),
     startUpdater: () => void calls.push("startUpdater"),
     startPreviewSweeper: async () => void calls.push("startPreviewSweeper"),
+    warmPrices: async () => void calls.push("warmPrices"),
     ...over,
   };
   return { deps, calls };
@@ -70,6 +71,7 @@ describe("boot", () => {
     expect(calls).toContain("startBootEmbeddings");
     expect(calls).toContain("startUpdater");
     expect(calls).toContain("startPreviewSweeper");
+    expect(calls).toContain("warmPrices");
   });
 
   it("loads indexes BEFORE serving — a request must never hit an empty index", async () => {

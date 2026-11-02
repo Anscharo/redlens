@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { currentPrices, resetPriceCache } from "./cache.ts";
+import { currentPrices, priceRefreshMs, resetPriceCache } from "./cache.ts";
 import type { PriceMap } from "../../lib/tokenPrices.ts";
 
 const HOUR = 60 * 60 * 1000;
@@ -15,18 +15,43 @@ beforeEach(() => {
   calls = 0;
 });
 
+describe("priceRefreshMs", () => {
+  it("refreshes production every two hours, a PR environment never, everything else daily", () => {
+    expect(priceRefreshMs("production", false)).toBe(2 * HOUR);
+    expect(priceRefreshMs("redlens-pr-541", true)).toBe(Infinity);
+    expect(priceRefreshMs("development", false)).toBe(24 * HOUR);
+    expect(priceRefreshMs("", false)).toBe(24 * HOUR);
+  });
+});
+
 describe("currentPrices", () => {
-  it("fetches once on the first request and serves the cache for the rest of the hour", async () => {
-    resetPriceCache(counting(async () => at(3000)));
+  it("in a PR environment fetches once and never again", async () => {
+    resetPriceCache(counting(async () => at(3000)), Infinity);
+    const t0 = Date.now();
+    await currentPrices(t0);
+    await currentPrices(t0 + 30 * 24 * HOUR);
+    expect(calls).toBe(1);
+  });
+
+  it("in a PR environment still retries a fetch that failed", async () => {
+    resetPriceCache(counting(() => Promise.reject(new Error("down"))), Infinity);
+    const t0 = Date.now();
+    await currentPrices(t0);
+    await currentPrices(t0 + 6 * 60_000);
+    expect(calls).toBe(2);
+  });
+
+  it("fetches once on the first request and serves the cache until the interval passes", async () => {
+    resetPriceCache(counting(async () => at(3000)), HOUR);
     const t0 = Date.now();
     expect(await currentPrices(t0)).toEqual(at(3000));
     expect(await currentPrices(t0 + HOUR / 2)).toEqual(at(3000));
     expect(calls).toBe(1);
   });
 
-  it("refreshes after an hour while still answering with the last prices", async () => {
+  it("refreshes after the interval while still answering with the last prices", async () => {
     let usd = 3000;
-    resetPriceCache(counting(async () => at(usd)));
+    resetPriceCache(counting(async () => at(usd)), HOUR);
     const t0 = Date.now();
     await currentPrices(t0);
     usd = 3100;
@@ -38,7 +63,7 @@ describe("currentPrices", () => {
 
   it("keeps a symbol the latest answer left out", async () => {
     let answer: PriceMap = { ...at(3000), SKY: { usd: 0.07, asOf: "2026-11-02T10:00:00.000Z" } };
-    resetPriceCache(counting(async () => answer));
+    resetPriceCache(counting(async () => answer), HOUR);
     const t0 = Date.now();
     await currentPrices(t0);
     answer = at(3100);

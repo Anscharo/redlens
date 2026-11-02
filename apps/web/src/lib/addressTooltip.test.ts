@@ -139,7 +139,6 @@ describe("addressHeadlineBalance", () => {
   });
 
   describe("with prices", () => {
-    const NOW = Date.parse("2026-11-02T12:00:00Z");
     const prices = {
       SKY: { usd: 0.05, asOf: "2026-11-02T11:00:00Z" },
       ETH: { usd: 3000, asOf: "2026-11-02T11:00:00Z" },
@@ -152,19 +151,21 @@ describe("addressHeadlineBalance", () => {
         [`${EVM}|ethereum`]: bal({ SKY: { raw: "1000000000000000000000000", decimals: 18 } }), // 1M SKY = $50K
         [`${EVM}|base`]: bal({ ETH: { raw: "2000000000000000000", decimals: 18 } }), // 2 ETH = $6K
       };
-      expect(addressHeadlineBalance(EVM, multi, b, prices, NOW)).toBe("$56.0K");
+      expect(addressHeadlineBalance(EVM, multi, b, prices)).toBe("$56.0K");
     });
 
     it("values sUSDS at its price, not at $1", () => {
       const b = { [`${EVM}|ethereum`]: bal({ SUSDS: { raw: "1000000000000000000000", decimals: 18 } }) };
-      expect(addressHeadlineBalance(EVM, map, b, prices, NOW)).toBe("$1.1K");
-      expect(addressHeadlineBalance(EVM, map, b, {}, NOW)).toBe("1.00K SUSDS");
+      expect(addressHeadlineBalance(EVM, map, b, prices)).toBe("$1.1K");
+      expect(addressHeadlineBalance(EVM, map, b, {})).toBe("1.00K SUSDS");
     });
 
-    it("stops using a price older than two days", () => {
-      const old = { SKY: { usd: 0.05, asOf: "2026-10-30T11:00:00Z" } };
+    it("stops using a price two days behind the newest one, but not prices that all aged together", () => {
       const b = { [`${EVM}|ethereum`]: bal({ SKY: { raw: "35440000000000000000000000", decimals: 18 } }) };
-      expect(addressHeadlineBalance(EVM, map, b, old, NOW)).toBe("35.44M SKY");
+      const leftBehind = { SKY: { usd: 0.05, asOf: "2026-10-30T11:00:00Z" }, ETH: { usd: 3000, asOf: "2026-11-02T11:00:00Z" } };
+      expect(addressHeadlineBalance(EVM, map, b, leftBehind)).toBe("35.44M SKY");
+      const allOld = { SKY: { usd: 0.05, asOf: "2026-10-01T11:00:00Z" }, ETH: { usd: 3000, asOf: "2026-10-01T11:00:00Z" } };
+      expect(addressHeadlineBalance(EVM, map, b, allOld)).toBe("$1.8M");
     });
 
     it("gives each held token its USD value and the total in the hover", () => {
@@ -174,7 +175,7 @@ describe("addressHeadlineBalance", () => {
           MKR: { raw: "1000000000000000000", decimals: 18 },
         }),
       };
-      const { held, value } = resolveAddressTooltip(EVM, map, b, prices, NOW);
+      const { held, value } = resolveAddressTooltip(EVM, map, b, prices);
       expect(held.map((h) => [h.symbol, h.usd])).toEqual([["SKY", "$50.0K"], ["MKR", undefined]]);
       expect(value).toBe("≈$50.0K+");
     });

@@ -79,13 +79,12 @@ export function addressHeadlineBalance(
   addrMap: Record<string, AddressInfo>,
   balancesByAddress: Record<string, AddressBalances>,
   prices: PriceMap = {},
-  nowMs: number = Date.now(),
 ): string | null {
   const key = address.toLowerCase();
   const info = addrMap[address] ?? addrMap[key];
   const chains = info?.chains ?? (info?.chain ? [info.chain] : []);
   const items = heldAcross(key, chains, balancesByAddress);
-  const total = holdingsTotal(items, prices, nowMs);
+  const total = holdingsTotal(items, prices);
   if (total) return total;
   const others = items.filter((h) => !isPegged(h.symbol));
   if (others.length === 0) return null;
@@ -110,7 +109,6 @@ export function resolveAddressTooltip(
   addrMap: Record<string, AddressInfo>,
   balancesByAddress: Record<string, AddressBalances>,
   prices: PriceMap = {},
-  nowMs: number = Date.now(),
 ): { name: string; named: boolean; held: HeldBalance[]; value: string | null } {
   // Exact case first: addressMap keys EVM addresses lowercased but leaves
   // case-sensitive Solana base58 keys as-written (address-chains.mjs), so an
@@ -125,8 +123,8 @@ export function resolveAddressTooltip(
   // chains always contains at least info.chain — see AddressInfo's own comment.
   const raw = sortHeld(heldAcross(key, info.chains, balancesByAddress));
   const held = raw.map((h) => {
-    const usd = holdingUsd(h, prices, nowMs);
+    const usd = holdingUsd(h, prices);
     return { symbol: h.symbol, amount: compactAmount(h.raw, h.decimals), chain: h.chain, usd: usd == null ? undefined : compactUsd(usd) };
   });
-  return { name, named: hasResolvedName(info), held, value: holdingsTotal(raw, prices, nowMs) };
+  return { name, named: hasResolvedName(info), held, value: holdingsTotal(raw, prices) };
 }

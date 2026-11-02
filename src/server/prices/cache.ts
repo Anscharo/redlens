@@ -1,11 +1,24 @@
 // Token USD prices held in memory by the API server and served with
-// /api/balances. Each process asks DefiLlama at most once an hour; nothing is
-// stored, so a restart (or a fresh PR environment) refetches on its first
-// balances request.
+// /api/balances. Nothing is stored, so every process start fetches them again
+// on its first balances request; how often a running process refreshes them
+// depends on the environment (priceRefreshMs).
 import type { PriceMap } from "../../lib/tokenPrices.ts";
+import { config } from "../config.ts";
+import { currentPrEnvGate } from "../pr-env/gate.ts";
 import { fetchTokenPrices } from "./fetch-prices.ts";
 
-const MAX_AGE_MS = 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * How long a process keeps its prices before asking DefiLlama again:
+ * production every two hours, a PR environment never (it fetches once, when
+ * the deploy starts the process), development, local and any other
+ * environment once a day.
+ */
+export function priceRefreshMs(railwayEnv: string, prEnv: boolean): number {
+  if (prEnv) return Infinity;
+  return railwayEnv === "production" ? 2 * HOUR_MS : 24 * HOUR_MS;
+}
 // After a failed fetch, the next one waits this long; politeFetch holds the
 // host far longer on a rate limit.
 const RETRY_MS = 5 * 60 * 1000;
@@ -19,6 +32,8 @@ let fetchedAt = 0;
 let attemptedAt = 0;
 let inFlight: Promise<void> | null = null;
 let fetcher: () => Promise<PriceMap> = () => fetchTokenPrices();
+let maxAgeMs: number | null = null;
+const refreshEvery = (): number => (maxAgeMs ??= priceRefreshMs(config.railwayEnv, currentPrEnvGate().inert));
 
 function refresh(now: number): Promise<void> {
   attemptedAt = now;
@@ -26,7 +41,7 @@ function refresh(now: number): Promise<void> {
     .then((next) => {
       if (Object.keys(next).length === 0) return;
       // A symbol this answer left out keeps its older price; the frontend
-      // stops using it once it is too old (PRICE_MAX_AGE_MS).
+      // stops using it once it lags the rest (PRICE_MAX_LAG_MS).
       prices = { ...prices, ...next };
       fetchedAt = Date.now();
     })
@@ -43,19 +58,21 @@ function waitAtMost(p: Promise<void>, ms: number): Promise<void> {
   return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
 }
 
-/** The latest prices, starting an hourly refresh when one is due. */
+/** The latest prices, starting a refresh when one is due (priceRefreshMs). */
 export async function currentPrices(now: number = Date.now()): Promise<PriceMap> {
-  const due = now - fetchedAt >= MAX_AGE_MS && now - attemptedAt >= RETRY_MS;
+  const stale = fetchedAt === 0 || now - fetchedAt >= refreshEvery();
+  const due = stale && now - attemptedAt >= RETRY_MS;
   if (due && !inFlight) void refresh(now);
   if (fetchedAt === 0 && inFlight) await waitAtMost(inFlight, FIRST_WAIT_MS);
   return prices;
 }
 
-/** Tests: replace the DefiLlama fetch and forget every cached price. */
-export function resetPriceCache(fetch: () => Promise<PriceMap> = () => fetchTokenPrices()): void {
+/** Tests: replace the DefiLlama fetch and the refresh interval, and forget every cached price. */
+export function resetPriceCache(fetch: () => Promise<PriceMap> = () => fetchTokenPrices(), refreshMs: number | null = null): void {
   prices = {};
   fetchedAt = 0;
   attemptedAt = 0;
   inFlight = null;
   fetcher = fetch;
+  maxAgeMs = refreshMs;
 }
