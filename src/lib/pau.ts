@@ -119,6 +119,10 @@ export interface PauParam {
   subject: string;
   args: Record<string, unknown>;
   setAt: SetAt;
+  /** The subject's own decimals() and symbol(), when it is a token (an aToken, a vault, a Curve pool's LP); absent when either read fails or the subject is not an address. */
+  subjectToken?: AmountUnit;
+  /** For a max exchange rate: the vault's asset(), with its decimals and symbol. */
+  asset?: AmountUnit;
 }
 
 export interface PauIntegration {
