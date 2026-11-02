@@ -13,6 +13,7 @@ import { REFRESH_INTERVAL_MS, type BalancesResponse, type BalanceMap, type SafeS
 import { fetchBalances } from "./fetch-balances.ts";
 import { toAddressInput, type AddressRow } from "./address-input.ts";
 import { loadBalanceStats, persistBalanceResults } from "./refresh.ts";
+import { currentPrices } from "../prices/cache.ts";
 
 interface CachedRow {
   address: string;
@@ -86,7 +87,7 @@ export async function readCache(refreshed: boolean): Promise<BalancesResponse> {
   // the worker picks those up first, so they don't need to hold the button open.
   const minMs = toMs(oldestCheckedAt);
   const nextRefreshAt = minMs != null ? new Date(minMs + REFRESH_INTERVAL_MS).toISOString() : null;
-  return { lastCheckedAt, oldestCheckedAt, nextRefreshAt, refreshed, addresses };
+  return { lastCheckedAt, oldestCheckedAt, nextRefreshAt, refreshed, addresses, prices: await currentPrices() };
 }
 
 // In-process dedupe: a second POST while a refresh is running awaits the same

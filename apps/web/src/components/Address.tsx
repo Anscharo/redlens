@@ -60,9 +60,9 @@ export function Address({
   ...props
 }: AddressProps) {
   const map = addrMap ?? getAddressMap();
-  const { addresses } = useSharedBalances(!noBalance);
+  const { addresses, prices } = useSharedBalances(!noBalance);
   const href = explorerUrl(address, { chain, addrMap: map });
-  const balance = noBalance ? null : addressHeadlineBalance(address, map, addresses);
+  const balance = noBalance ? null : addressHeadlineBalance(address, map, addresses, prices);
   const showHint = !noTooltip && !noHint;
   // With no balance and no hint, the pill holds only the address text. Render it
   // as `display: inline` (rl-addr-plain) so it selects and copies exactly like

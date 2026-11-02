@@ -9,12 +9,16 @@
 // kick off GET /api/balances on mount — that's still hover-gated.
 import { useEffect, useSyncExternalStore } from "react";
 import { loadBalancesCached, peekCachedBalances, type AddressBalances } from "@/lib/balances";
+import type { PriceMap } from "@/lib/tokenPrices";
 
 type BalanceMap = Record<string, AddressBalances>;
 const EMPTY: BalanceMap = {};
+const NO_PRICES: PriceMap = {};
 
 export interface SharedBalancesState {
   addresses: BalanceMap;
+  /** USD prices the server sent with the balances; empty when it has none. */
+  prices: PriceMap;
   /** False until the first fetch (or peek) settles — tooltip spinner key. */
   ready: boolean;
 }
@@ -22,8 +26,8 @@ export interface SharedBalancesState {
 function fromPeek(): SharedBalancesState {
   const peeked = peekCachedBalances();
   return peeked
-    ? { addresses: peeked.addresses, ready: true }
-    : { addresses: EMPTY, ready: false };
+    ? { addresses: peeked.addresses, prices: peeked.prices ?? NO_PRICES, ready: true }
+    : { addresses: EMPTY, prices: NO_PRICES, ready: false };
 }
 
 let snapshot: SharedBalancesState = fromPeek();
@@ -35,7 +39,7 @@ function emit() {
 }
 
 function apply(next: SharedBalancesState) {
-  if (snapshot.addresses === next.addresses && snapshot.ready === next.ready) return;
+  if (snapshot.addresses === next.addresses && snapshot.prices === next.prices && snapshot.ready === next.ready) return;
   snapshot = next;
   emit();
 }
@@ -50,18 +54,18 @@ function ensureLoaded() {
   try {
     p = loadBalancesCached();
   } catch {
-    apply({ addresses: EMPTY, ready: true });
+    apply({ addresses: EMPTY, prices: NO_PRICES, ready: true });
     return;
   }
   // Defensive: a stubbed/mocked loader (tests) can return a non-promise.
   if (!p || typeof p.then !== "function") {
-    apply({ addresses: EMPTY, ready: true });
+    apply({ addresses: EMPTY, prices: NO_PRICES, ready: true });
     return;
   }
   p.then((r) => {
-    apply({ addresses: r.addresses, ready: true });
+    apply({ addresses: r.addresses, prices: r.prices ?? NO_PRICES, ready: true });
   }).catch(() => {
-    apply({ addresses: EMPTY, ready: true });
+    apply({ addresses: EMPTY, prices: NO_PRICES, ready: true });
   });
 }
 
@@ -94,7 +98,7 @@ export function useSharedBalances(eager = false): SharedBalancesState {
     // Re-read the session cache on each eager mount so a report refresh
     // (requestBalancesRefresh updates peek) lands on the next hover/card.
     const peeked = peekCachedBalances();
-    if (peeked) apply({ addresses: peeked.addresses, ready: true });
+    if (peeked) apply({ addresses: peeked.addresses, prices: peeked.prices ?? NO_PRICES, ready: true });
     ensureLoaded();
   }, [eager]);
   return state;

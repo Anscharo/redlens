@@ -22,7 +22,7 @@ function AddressTooltipContent({
   href?: string;
   onSettled: () => void;
 }) {
-  const { addresses, ready } = useSharedBalances(true);
+  const { addresses, prices, ready } = useSharedBalances(true);
   const facts = useAddressGraphFacts(address);
   const [location] = useLocation();
   const loading = !ready;
@@ -38,7 +38,7 @@ function AddressTooltipContent({
   useEffect(() => {
     if (!loading) onSettled();
   }, [loading, facts, onSettled]);
-  const { name, named, held } = resolveAddressTooltip(address, getAddressMap(), addresses);
+  const { name, named, held, value } = resolveAddressTooltip(address, getAddressMap(), addresses, prices);
   const safes = resolveSafes(address, getAddressMap(), addresses, facts?.multisigs ?? []);
   // In the reader the address already sits in its document; elsewhere the
   // mentioning docs are the way back to the atlas.
@@ -51,7 +51,7 @@ function AddressTooltipContent({
       <dl className="mt-1.5 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1 mono text-[10px]">
         {named && <TipRow label="address"><span className="break-all">{address}</span></TipRow>}
         {safes.map((safe) => <AddressTooltipSafe key={safe.chains.join()} safe={safe} />)}
-        <AddressTooltipBalances held={held} loading={loading} />
+        <AddressTooltipBalances held={held} value={value} loading={loading} />
         {!inAtlas && facts && <AddressTooltipDocs docs={facts.docs} />}
         {href && (
           <TipRow label="explorer">
@@ -65,7 +65,7 @@ function AddressTooltipContent({
 
 /** Wraps an on-chain address link with the shared Tooltip, showing the
  *  address's resolved name (or the full address when it has none), its live
- *  Safe owners and threshold when it is one, any non-zero token balances, the
+ *  Safe owners and threshold when it is one, any non-zero token balances with their USD value, the
  *  atlas documents naming it (outside the reader) and a shortened explorer link. */
 export function AddressTooltip({
   address,

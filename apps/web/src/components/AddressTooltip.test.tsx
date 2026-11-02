@@ -88,6 +88,39 @@ describe("AddressTooltip", () => {
     expect(tip).not.toHaveTextContent("USDS");
   });
 
+  it("shows the holdings' total and each priced token's USD value", async () => {
+    setAddressMap({ [EVM]: makeAddressInfo({ chainlogId: "Test Multisig" }) });
+    const asOf = new Date().toISOString();
+    loadBalancesCached.mockResolvedValue({
+      lastCheckedAt: null,
+      nextRefreshAt: null,
+      refreshed: false,
+      addresses: {
+        [`${EVM}|ethereum`]: {
+          chain: "ethereum",
+          checkedAt: null,
+          hasCode: null,
+          balances: {
+            ETH: { raw: "2000000000000000000", decimals: 18 },
+            MKR: { raw: "1000000000000000000", decimals: 18 },
+          },
+        },
+      },
+      prices: { ETH: { usd: 3000, asOf } },
+    });
+
+    render(
+      <AddressTooltip address={EVM}>
+        <a href="#">{EVM}</a>
+      </AddressTooltip>,
+    );
+    await hover(EVM);
+
+    const tip = screen.getByRole("tooltip");
+    expect(tip.querySelector("[data-value]")).toHaveTextContent("≈$6.0K+");
+    expect([...tip.querySelectorAll("[data-usd]")].map((e) => e.textContent)).toEqual(["$6.0K", ""]);
+  });
+
   it("shows the full address and no balance rows when nothing is known", async () => {
     loadBalancesCached.mockResolvedValue({
       lastCheckedAt: null,

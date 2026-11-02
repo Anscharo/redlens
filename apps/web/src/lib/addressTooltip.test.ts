@@ -88,7 +88,7 @@ describe("resolveAddressTooltip", () => {
     expect(result.held).toEqual([
       { symbol: "ETH", amount: "2.00", chain: "base" },
       { symbol: "ETH", amount: "1.00", chain: "ethereum" },
-      { symbol: "USDS", amount: "0.5", chain: "base" },
+      { symbol: "USDS", amount: "0.5", chain: "base", usd: "<$1" },
     ]);
   });
 
@@ -113,14 +113,14 @@ describe("addressHeadlineBalance", () => {
     expect(addressHeadlineBalance(EVM, map, b)).toBe("35.44M SKY");
   });
 
-  it("prefers a real stable dollar value over a token amount", () => {
+  it("marks the dollar figure as a floor when some holding has no price", () => {
     const b = {
       [`${EVM}|ethereum`]: bal({
         USDS: { raw: "5000000000000000000000", decimals: 18 }, // $5k
         SKY: { raw: "1000000000000000000", decimals: 18 }, // 1 SKY
       }),
     };
-    expect(addressHeadlineBalance(EVM, map, b)).toBe("$5.0K");
+    expect(addressHeadlineBalance(EVM, map, b)).toBe("≈$5.0K+");
   });
 
   it("ignores sub-dollar stable dust and falls back to the token holding", () => {
@@ -136,6 +136,48 @@ describe("addressHeadlineBalance", () => {
   it("floors dust token balances at <0.01", () => {
     const b = { [`${EVM}|ethereum`]: bal({ ETH: { raw: "5000000000000000", decimals: 18 } }) }; // 0.005 ETH
     expect(addressHeadlineBalance(EVM, map, b)).toBe("<0.01 ETH");
+  });
+
+  describe("with prices", () => {
+    const NOW = Date.parse("2026-11-02T12:00:00Z");
+    const prices = {
+      SKY: { usd: 0.05, asOf: "2026-11-02T11:00:00Z" },
+      ETH: { usd: 3000, asOf: "2026-11-02T11:00:00Z" },
+      SUSDS: { usd: 1.08, asOf: "2026-11-02T11:00:00Z" },
+    };
+
+    it("sums every priced holding across chains into one dollar figure", () => {
+      const multi = { [EVM]: makeAddressInfo({ chains: ["ethereum", "base"] }) };
+      const b = {
+        [`${EVM}|ethereum`]: bal({ SKY: { raw: "1000000000000000000000000", decimals: 18 } }), // 1M SKY = $50K
+        [`${EVM}|base`]: bal({ ETH: { raw: "2000000000000000000", decimals: 18 } }), // 2 ETH = $6K
+      };
+      expect(addressHeadlineBalance(EVM, multi, b, prices, NOW)).toBe("$56.0K");
+    });
+
+    it("values sUSDS at its price, not at $1", () => {
+      const b = { [`${EVM}|ethereum`]: bal({ SUSDS: { raw: "1000000000000000000000", decimals: 18 } }) };
+      expect(addressHeadlineBalance(EVM, map, b, prices, NOW)).toBe("$1.1K");
+      expect(addressHeadlineBalance(EVM, map, b, {}, NOW)).toBe("1.00K SUSDS");
+    });
+
+    it("stops using a price older than two days", () => {
+      const old = { SKY: { usd: 0.05, asOf: "2026-10-30T11:00:00Z" } };
+      const b = { [`${EVM}|ethereum`]: bal({ SKY: { raw: "35440000000000000000000000", decimals: 18 } }) };
+      expect(addressHeadlineBalance(EVM, map, b, old, NOW)).toBe("35.44M SKY");
+    });
+
+    it("gives each held token its USD value and the total in the hover", () => {
+      const b = {
+        [`${EVM}|ethereum`]: bal({
+          SKY: { raw: "1000000000000000000000000", decimals: 18 },
+          MKR: { raw: "1000000000000000000", decimals: 18 },
+        }),
+      };
+      const { held, value } = resolveAddressTooltip(EVM, map, b, prices, NOW);
+      expect(held.map((h) => [h.symbol, h.usd])).toEqual([["SKY", "$50.0K"], ["MKR", undefined]]);
+      expect(value).toBe("≈$50.0K+");
+    });
   });
 
   it("returns null when nothing is held", () => {
