@@ -48,7 +48,7 @@ export function PauParams({ snap, anchor }: { snap: StoredPauSnapshot; anchor: A
     <div className="mt-3">
       <PauSectionHeading deployment={anchor} section="parameters">Parameters</PauSectionHeading>
       <Callout className="mb-2">
-        Each row is a separate setting the contract keeps for one pool, market, vault, token or destination, as the last admin event that set it says. A max slippage or max exchange rate is shown only while a rate limit for that same address is above zero, since without one the operation it guards cannot run.
+        Each row is a separate setting the contract keeps for one pool, market, vault, token or destination, as the last admin event that set it says. A max slippage or max exchange rate is shown only while a rate limit for the operation it guards, on that same address, is above zero. One whose limits are 0, or that no named rate limit matches, is not listed.
       </Callout>
       {held.map(({ c, rows }) => <ContractParams key={c.address} c={c} rows={rows} chain={snap.chain} />)}
     </div>

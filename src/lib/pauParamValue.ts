@@ -29,7 +29,7 @@ export function slippageText(raw: string): string {
   return `at most ${scaled((WAD - v) * 100n, 18)}% loss (≥ ${scaled(v * 100n, 18)}% back)`;
 }
 
-/** "≤ 10 USDC per share" from the 1e36-scaled raw rate and both tokens' decimals, else null. */
+/** "≤ 10 USDC per share" from the 1e36-scaled raw rate and both tokens' decimals, else null. The share decimals are the subject's own: every exchange-rate event keys the rate by the vault token itself. */
 export function exchangeRateText(raw: string, shareDecimals?: number, asset?: { decimals: number; symbol: string | null }): string | null {
   if (shareDecimals === undefined || !asset) return null;
   const scale = 18;

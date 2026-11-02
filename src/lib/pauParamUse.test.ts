@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { LiveRateLimit, PauParam, PauSnapshot } from "./pau.ts";
 import { isGuardParam, paramUse } from "./pauParamUse.ts";
 
-const [POOL, ATOKEN, OTC, LONE] = ["1", "2", "3", "4"].map((c) => "0x" + c.repeat(40));
+const [POOL, ATOKEN, OTC, LONE, VAULT, DEST] = ["1", "2", "3", "4", "5", "6"].map((c) => "0x" + c.repeat(40));
 const at = { block: 1, time: "t", tx: "0xt" };
 const lim = (constant: string, args: string[], max: string, live: string | null = max): LiveRateLimit => ({
   key: `${constant}:${args.join()}`, configured: { maxAmount: max, slope: "0" }, setAt: at, changes: 1, available: null, derived: { constant, args },
@@ -14,6 +14,7 @@ const snap: PauSnapshot = {
     lim("LIMIT_CURVE_SWAP", [POOL], "0"), lim("LIMIT_CURVE_DEPOSIT", [POOL], "0"),
     lim("LIMIT_AAVE_DEPOSIT", [ATOKEN.toUpperCase().replace("0X", "0x")], "0", "5"),
     lim("LIMIT_OTC_SWAP", [OTC], "7", null),
+    lim("LIMIT_ASSET_TRANSFER", [VAULT, DEST], "9"), lim("LIMIT_4626_DEPOSIT", [VAULT], "0"),
   ] }],
 };
 const param = (event: string, subject: string): PauParam => ({ event, subject, args: {}, setAt: at });
@@ -32,6 +33,11 @@ describe("paramUse", () => {
     expect(paramUse(snap, param("MaxSlippageSet", LONE))).toEqual({ kind: null, state: "unkeyed", constants: [] });
     expect(paramUse(snap, param("CurveMaxSlippageSet", LONE)).kind).toBe("Curve pool");
     expect(paramUse(snap, param("ERC4626MaxExchangeRateSet", LONE)).kind).toBe("ERC-4626 vault");
+  });
+
+  it("counts only the rate limits for the operation the guard protects, not another key that takes the same address", () => {
+    expect(paramUse(snap, param("MaxExchangeRateSet", VAULT))).toEqual({ kind: "ERC-4626 vault", state: "off", constants: ["LIMIT_4626_DEPOSIT"] });
+    expect(paramUse(snap, param("MaxSlippageSet", VAULT)).state).toBe("unkeyed");
   });
 
   it("treats only slippage and exchange-rate settings as guards", () => {

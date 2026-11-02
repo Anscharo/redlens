@@ -36,6 +36,24 @@ const KIND_BY_EVENT: [RegExp, string][] = [
 
 const firstMatch = (table: [RegExp, string][], s: string) => table.find(([re]) => re.test(s))?.[1] ?? null;
 
+/**
+ * The rate limits each guard event protects, by constant. A guard's subject can
+ * also be an argument of a key for a different operation (a vault token moved
+ * by LIMIT_ASSET_TRANSFER), which says nothing about whether the guarded
+ * operation can run, so only these count.
+ */
+const GUARDED: [RegExp, RegExp][] = [
+  [/^MaxSlippageSet$/, /LIMIT_(CURVE|AAVE|OTC|UNISWAP_V3|UNISWAP_V4)_/],
+  [/^Curve/, /LIMIT_CURVE_/],
+  [/^Aave/, /LIMIT_AAVE_/],
+  [/^OTC/, /LIMIT_OTC_/],
+  [/^UniswapV3/, /LIMIT_UNISWAP_V3_/],
+  [/^UniswapV4/, /LIMIT_UNISWAP_V4_/],
+  [/MaxExchangeRateSet$/, /LIMIT_(4626|7540)_|LIMIT_MAPLE_REDEEM/],
+];
+
+const guards = (event: string, constant: string) => GUARDED.find(([re]) => re.test(event))?.[1].test(constant) ?? false;
+
 /** A limit is switched on when its live maxAmount is non-zero, else (live read failed) its configured one. */
 const isOn = (r: LiveRateLimit) => BigInt((r.data ?? r.configured).maxAmount || "0") > 0n;
 
@@ -45,9 +63,9 @@ export function limitsUsing(snap: PauSnapshot, address: string): LiveRateLimit[]
   return snap.contracts.flatMap((c) => c.rateLimits ?? []).filter((r) => r.derived?.args.some((x) => x.toLowerCase() === a));
 }
 
-/** What the parameter's subject is and whether a rate limit lets the guarded operation run. */
+/** What the parameter's subject is and whether a rate limit for the operation it guards lets that operation run. */
 export function paramUse(snap: PauSnapshot, p: PauParam): ParamUse {
-  const limits = limitsUsing(snap, p.subject);
+  const limits = limitsUsing(snap, p.subject).filter((r) => guards(p.event, r.derived!.constant));
   const constants = [...new Set(limits.map((r) => r.derived!.constant))];
   const kind = firstMatch(KIND_BY_EVENT, p.event) ?? constants.map((c) => firstMatch(KIND_BY_CONSTANT, c)).find(Boolean) ?? null;
   const state: ParamUseState = limits.length === 0 ? "unkeyed" : limits.some(isOn) ? "on" : "off";
