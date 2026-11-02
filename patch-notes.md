@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-11-02
+
+- Made PAU parameters readable: pools and vaults named by token, slippage as a percentage, inactive settings hidden
+
 ## 2026-10-30
 
 - Added a Safe's on-chain owners and threshold, and links to the Atlas documents naming an address, to the address hover card
