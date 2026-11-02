@@ -35,6 +35,7 @@
 
 ## 2026-11-02
 
+- Showed the total dollar value of an address's token holdings beside it, and each token's dollar value in its hover card
 - Made PAU parameters readable: pools and vaults named by token, slippage as a percentage, inactive settings hidden
 
 ## 2026-10-30

@@ -130,6 +130,8 @@ mock.module("viem", () => ({
 }));
 
 const { handleBalances } = await import("./balances.ts");
+// The in-memory price cache would otherwise call DefiLlama from every test.
+const { resetPriceCache } = await import("../prices/cache.ts");
 
 function req(method: "GET" | "POST"): Request {
   return new Request("http://localhost/api/balances", { method });
@@ -138,6 +140,7 @@ function req(method: "GET" | "POST"): Request {
 beforeEach(() => {
   rows = [];
   dbShouldThrow = false;
+  resetPriceCache(async () => ({}));
   multicallImpl = async (contracts) => contracts.map(() => ({ status: "success", result: 1000000000000000000n }));
   getCodeImpl = async () => "0x";
 });
@@ -151,7 +154,7 @@ describe("handleBalances GET", () => {
     rows = [{ address: "0xaaa", chain: "ethereum", expected_tokens: [], is_contract: false, balances: null, balances_checked_at: null, has_code: null }];
     const res = await handleBalances(req("GET"));
     const body = (await res.json()) as BalancesResponse;
-    expect(body).toEqual({ lastCheckedAt: null, oldestCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {} });
+    expect(body).toEqual({ lastCheckedAt: null, oldestCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {}, prices: {} });
   });
 
   it("keys cached rows by address|chain and passes through hasCode", async () => {
@@ -248,6 +251,21 @@ describe("handleBalances GET", () => {
     const res = await handleBalances(req("GET"));
     const body = (await res.json()) as BalancesResponse;
     expect(body.addresses["0xccc|ethereum"].balances).toEqual({});
+  });
+});
+
+describe("handleBalances prices", () => {
+  it("serves the cached token prices beside the balances", async () => {
+    resetPriceCache(async () => ({ SKY: { usd: 0.07, asOf: "2026-11-02T10:00:00.000Z" } }));
+    const body = (await (await handleBalances(req("GET"))).json()) as BalancesResponse;
+    expect(body.prices).toEqual({ SKY: { usd: 0.07, asOf: "2026-11-02T10:00:00.000Z" } });
+  });
+
+  it("answers the balances when the price fetch fails", async () => {
+    resetPriceCache(() => Promise.reject(new Error("DefiLlama down")));
+    const res = await handleBalances(req("GET"));
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as BalancesResponse).prices).toEqual({});
   });
 });
 

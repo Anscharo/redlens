@@ -10,6 +10,7 @@ import { checkAuthConfig } from "./check-auth-config.ts";
 import { buildRoutes } from "./routes.ts";
 import { handleRequest } from "./request-handler.ts";
 import { seedDbIfEmpty } from "./seed-db.ts";
+import { currentPrices } from "./prices/cache.ts";
 
 // Everything boot needs from the outside world, injected so the sequence runs
 // without a socket, Postgres or a subprocess. Only tests pass anything but realBootDeps.
@@ -24,6 +25,7 @@ export interface BootDeps {
   startBootEmbeddings: () => void;
   startUpdater: () => void;
   startPreviewSweeper: () => Promise<void>;
+  warmPrices: () => Promise<unknown>;
 }
 
 const realBootDeps: BootDeps = {
@@ -45,6 +47,9 @@ const realBootDeps: BootDeps = {
     const { startPreviewDiffBaseBackfill } = await import("./preview/diff-base-backfill.ts");
     startPreviewDiffBaseBackfill();
   },
+  // Fetches token prices as the process starts, so a deploy has them before
+  // its first balances request; a PR environment never fetches again.
+  warmPrices: () => currentPrices(),
 };
 
 function loadAndPinIndexes(deps: BootDeps): void {
@@ -90,4 +95,5 @@ export async function boot(deps: BootDeps = realBootDeps): Promise<void> {
   deps.startBootEmbeddings();
   deps.startUpdater(); // ATLAS_UPDATE_ENABLED=0 disables
   void deps.startPreviewSweeper();
+  void deps.warmPrices();
 }

@@ -2290,10 +2290,12 @@ a.atlas-annotates:focus-visible {
   min-width: 0;
   word-break: break-all;
 }
-/* Text-only pill (atlas body prose): render inline so it selects and copies
-   exactly like normal text — inline-flex breaks selection and grabs extras.
-   box-decoration-break keeps the rounded background intact across line wraps. */
-.rl-addr-plain {
+/* Text-only pill (no balance teaser, no hint icon, e.g. atlas body prose):
+   render inline so it selects and copies exactly like normal text — inline-flex
+   breaks selection and grabs extras. Decided by what the pill holds, since the
+   teaser appears only once balances arrive. box-decoration-break keeps the
+   rounded background intact across line wraps. */
+.rl-addr:not(:has(> .rl-addr-bal, > .rl-addr-hint)) {
   display: inline;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
@@ -2303,6 +2305,7 @@ a.atlas-annotates:focus-visible {
   text-underline-offset: 2px;
 }
 .rl-addr-bal {
+  color: var(--terminal-green);
   font-size: 0.85em;
   flex: none;
 }

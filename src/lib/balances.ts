@@ -3,6 +3,7 @@
 // loaders. Balances are NOT atlas-versioned — /api/balances is a fixed route
 // (dev: vite proxies /api → the Bun server).
 import { fetchJson } from "./verify";
+import type { PriceMap } from "./tokenPrices";
 
 export interface TokenBalance {
   raw: string; // integer balance as a decimal string
@@ -52,6 +53,9 @@ export interface BalancesResponse {
   // (address, chain) — the same address can be cached per-chain). Absent
   // address|chain pairs have no cached balances.
   addresses: Record<string, AddressBalances>;
+  // UPPERCASE symbol → latest DefiLlama USD price (tokenPrices.ts); absent or
+  // empty when none has been fetched yet.
+  prices?: PriceMap;
 }
 
 export const REFRESH_INTERVAL_MS = 60 * 60 * 1000; // once per hour

@@ -1,29 +1,27 @@
 import type { AddressInfo } from "@/types";
 import type { ChainValue } from "../lib/chainstate";
-import { EVM_ADDRESS_EXACT_RE } from "@/lib/patterns";
-import { shortAddr } from "../lib/format";
 import { Address } from "./Address";
 import { resolveAddressName, resolveOwner, hasResolvedName } from "../lib/addressName";
-import { resolveAddressTooltip } from "../lib/addressTooltip";
+import { resolveAddressHoldings } from "../lib/addressTooltip";
 import { useSharedBalances } from "../lib/sharedBalances";
+import { AddressTooltipBalances } from "./AddressTooltipBalances";
+import { AddressCardBadges, AddressCardChainValues } from "./AddressCardParts";
 
-function formatValue(val: ChainValue): string {
-  if (val === null) return "—";
-  if (typeof val === "boolean") return val ? "true" : "false";
-  if (typeof val === "string") return val;
-  if (Array.isArray(val)) return val.map(formatValue).join(", ");
-  if (typeof val === "object") return JSON.stringify(val);
-  return String(val);
+/** The card's holdings and their USD value. The one part that waits on
+ *  /api/balances, so it alone re-renders when they arrive. */
+function AddressCardHoldings({ address, info }: { address: string; info: AddressInfo }) {
+  const { addresses, prices } = useSharedBalances(true);
+  const { held, value } = resolveAddressHoldings(address, { [address]: info }, addresses, prices);
+  if (held.length === 0) return null;
+  return (
+    <dl className="mb-2 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-0.5 mono text-[11px]">
+      <AddressTooltipBalances held={held} value={value} loading={false} />
+    </dl>
+  );
 }
 
-function isSkippable(key: string, val: ChainValue): boolean {
-  if (val === null) return true;
-  if (val === "0x0000000000000000000000000000000000000000") return true;
-  if (val === "") return true;
-  if (key === "DOMAIN_SEPARATOR" || key === "PERMIT_TYPEHASH") return true;
-  return false;
-}
-
+/** One address in the Onchain panel: its name, owner and aliases, the explorer
+ *  link, its proxy and role badges, holdings, and view-function values. */
 export function AddressCard({
   address,
   info,
@@ -36,19 +34,12 @@ export function AddressCard({
   /** This section named the address only by its chainlog key, not a 0x literal. */
   byName?: boolean;
 }) {
-  const { addresses } = useSharedBalances(true);
-  const name = resolveAddressName(address, info);
   const owner = resolveOwner(info);
-  const { held } = resolveAddressTooltip(address, { [address]: info }, addresses);
-  const visibleChainValues = chainValues
-    ? Object.entries(chainValues).filter(([k, v]) => !isSkippable(k, v))
-    : [];
-
   return (
     <div className="py-3 border-b border-border">
       {/* Only show a bold name when it's an authoritative identifier — otherwise
           it would just repeat the address shown on the explorer line below. */}
-      {hasResolvedName(info) && <p className="text-sm font-semibold mb-1 text-tan">{name}</p>}
+      {hasResolvedName(info) && <p className="text-sm font-semibold mb-1 text-tan">{resolveAddressName(address, info)}</p>}
       {owner && <p className="text-xs mb-1 text-tan-2">{owner}</p>}
       {byName && info.chainlogId && (
         <p className="text-[10px] mono mb-1 text-tan-3">referenced by chainlog name · {info.chainlogId}</p>
@@ -58,68 +49,11 @@ export function AddressCard({
       )}
       {/* The hover carries what the card does not (Safe owners and threshold,
           the explorer link); the inline balance teaser is left off because the
-          card lists the holdings right below. */}
+          card lists the holdings and their value right below. */}
       <Address address={address} chain={info.chain} full noBalance className="text-xs mb-2" />
-
-      {(info.roles.length > 0 || (info.isProxy && info.implementation)) && (
-        <div className="flex flex-wrap gap-1 mb-2">
-          {info.isProxy && info.implementation && (
-            <span
-              className="badge badge-accent mono text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wide"
-              title={`implementation ${info.implementation}`}
-            >
-              proxy <span className="enlargen">→</span> {shortAddr(info.implementation)}
-            </span>
-          )}
-          {info.roles.map((role) => (
-            <span
-              key={role}
-              className="badge badge-muted mono text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wide"
-            >
-              {role}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {held.length > 0 && (
-        <div className="mb-2">
-          <p className="text-[10px] mono mb-1 text-tan-3">holds</p>
-          <div className="space-y-0.5">
-            {held.map((h) => (
-              <div key={`${h.symbol}-${h.chain ?? ""}`} className="flex justify-between gap-3 mono text-[11px] text-tan-2">
-                <span>
-                  {h.symbol}
-                  {h.chain ? ` (${h.chain})` : ""}
-                </span>
-                <span>{h.amount}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {visibleChainValues.length > 0 && (
-        <div className="mt-2">
-          <p className="text-[10px] mono mb-1 text-tan-3">on-chain · view functions</p>
-          <div className="space-y-0.5">
-            {visibleChainValues.map(([key, val]) => {
-              const display = formatValue(val);
-              const isAddr = typeof val === "string" && EVM_ADDRESS_EXACT_RE.test(val);
-              return (
-                <div key={key} className="flex gap-2 items-baseline">
-                  <span className="chain-key mono text-[10px] shrink-0">{key}</span>
-                  {isAddr ? (
-                    <Address address={display} chain={info.chain} full className="text-[10px]" />
-                  ) : (
-                    <span className="mono text-[10px] break-all text-tan-2">{display}</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <AddressCardBadges info={info} />
+      <AddressCardHoldings address={address} info={info} />
+      {chainValues && <AddressCardChainValues chainValues={chainValues} chain={info.chain} />}
     </div>
   );
 }

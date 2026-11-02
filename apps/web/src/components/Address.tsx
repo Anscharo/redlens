@@ -1,10 +1,9 @@
-import { type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { type ComponentPropsWithoutRef, type MouseEvent, type ReactNode } from "react";
 import type { AddressInfo } from "@/types";
 import { explorerUrl } from "@/lib/explorer";
 import { shortAddr } from "../lib/format";
 import { getAddressMap } from "../lib/addressMap";
-import { addressHeadlineBalance } from "../lib/addressTooltip";
-import { useSharedBalances } from "../lib/sharedBalances";
+import { AddressBalance } from "./AddressBalance";
 import { AddressTooltip } from "./AddressTooltip";
 import { track } from "../lib/analytics";
 
@@ -28,7 +27,7 @@ export interface AddressProps extends Omit<ComponentPropsWithoutRef<"a">, "href"
 }
 
 // A tiny "hover for details" affordance shown on the right of the pill whenever
-// the balance tooltip is active. aria-hidden — the anchor's title carries the name.
+// the hover card is active. aria-hidden: the card itself carries the name.
 function HoverHint() {
   return (
     <svg className="rl-addr-hint" width="11" height="11" viewBox="0 0 24 24" aria-hidden="true">
@@ -60,15 +59,13 @@ export function Address({
   ...props
 }: AddressProps) {
   const map = addrMap ?? getAddressMap();
-  const { addresses } = useSharedBalances(!noBalance);
   const href = explorerUrl(address, { chain, addrMap: map });
-  const balance = noBalance ? null : addressHeadlineBalance(address, map, addresses);
   const showHint = !noTooltip && !noHint;
-  // With no balance and no hint, the pill holds only the address text. Render it
-  // as `display: inline` (rl-addr-plain) so it selects and copies exactly like
-  // the surrounding prose — an inline-flex pill breaks text selection and can
-  // drag adjacent content into the copy. See index.css.
-  const plain = !balance && !showHint;
+  function handleClick(e: MouseEvent<HTMLAnchorElement>) {
+    const trackChain = Array.isArray(chain) ? chain.find(Boolean) : chain;
+    track("address_explorer_out", { address, chain: trackChain ?? map[address.toLowerCase()]?.chain });
+    onClick?.(e);
+  }
   const link = (
     <a
       href={href}
@@ -78,20 +75,12 @@ export function Address({
       // pop up over it. Without the card the title is the only way to read it.
       title={noTooltip ? address : undefined}
       data-address={address}
-      className={`rl-addr mono ${plain ? "rl-addr-plain" : ""} ${className ?? ""}`}
-      onClick={(e) => {
-        const trackChain = Array.isArray(chain) ? chain.find(Boolean) : chain;
-        track("address_explorer_out", { address, chain: trackChain ?? map[address.toLowerCase()]?.chain });
-        onClick?.(e);
-      }}
+      className={`rl-addr mono ${className ?? ""}`}
+      onClick={handleClick}
       {...props}
     >
       <span className="rl-addr-text">{children ?? (full ? address : shortAddr(address))}</span>
-      {balance && (
-        <span className="rl-addr-bal" style={{ color: "var(--terminal-green)" }}>
-          {balance}
-        </span>
-      )}
+      {!noBalance && <AddressBalance address={address} addrMap={map} />}
       {showHint && <HoverHint />}
     </a>
   );
