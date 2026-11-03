@@ -526,9 +526,9 @@ A good plan changes only the settings you meant to change. Stop if it shows
 `Create service` (the names in `.railway/railway.ts` do not match the
 dashboard's; fix `WEB_SERVICE` / `WORKER_SERVICE`), any delete, or a
 `source.repo` / `source.type` change. IaC state is per environment: apply to
-production (`prod`) and to every long-lived environment, including the base
-environment the `redlens-pr-<n>` environments are forked from. A clean run
-afterwards reports that the configuration is already up to date.
+each of `production`, `development` and `prod`, the base environment the
+`redlens-pr-<n>` environments are forked from (which is not production). A
+clean run afterwards reports that the configuration is already up to date.
 
 ### Migrating off `railway.toml` / `railway.worker.toml`
 
