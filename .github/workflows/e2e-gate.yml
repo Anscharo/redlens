@@ -3,7 +3,7 @@ name: E2E gate
 # The required status check for E2E.
 #
 # `e2e.yml` cannot be the required check: it is driven by `deployment_status`,
-# and railway.toml's watchPatterns skip the deploy for PRs that only touch
+# and the web service's watchPatterns (.railway/railway.ts) skip the deploy for PRs that only touch
 # markdown the app does not `?raw`-import. No deploy -> no event -> the workflow
 # never runs and never reports, and GitHub has no "required only if it ran"
 # setting: a required check that is never reported blocks the PR forever on

@@ -264,7 +264,7 @@ truly immutable if/when this lands.
 
 ### Filesystem semantics (Railway)
 
-`railway.toml` configures **no volume** and `restartPolicyType = "ON_FAILURE"`. The Railway
+`.railway/railway.ts` configures **no volume** and `restartPolicyType = "ON_FAILURE"`. The Railway
 filesystem is **ephemeral** — wiped not only on redeploy/image-update but also on every
 restart (crash/`ON_FAILURE` retry, OOM, manual restart, platform migration). The runtime
 already writes the FS freely (`Dockerfile:52` symlinks `dist → public`; atlas-updater writes

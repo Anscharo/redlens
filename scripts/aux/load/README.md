@@ -75,7 +75,7 @@ Until that deploy is live, RSS abort falls back to health latency / error rate.
 
 1. Kernel / Railway kills the container when RSS exceeds the Settings memory slider.
 2. `/api/health` fails → platform marks the replica unhealthy.
-3. `restartPolicyType = ON_FAILURE`, `restartPolicyMaxRetries = 3` ([railway.toml](../../../railway.toml)).
+3. `restartPolicyType = ON_FAILURE`, `restartPolicyMaxRetries = 3` ([.railway/railway.ts](../../../.railway/railway.ts)).
 4. In-flight chat SSE and atlas EventSource streams drop.
 5. New boot serves baked `dist/` artifacts, then the in-process updater hot-swaps from Postgres.
 6. After three failed restarts the replica stays down until a new deploy.

@@ -10,6 +10,7 @@ import path from "node:path";
 
 import { STEPS, PROFILES, COMMUTES, GZIP_ARTIFACTS, stepById, stepsFor } from "../scripts/lib/build-steps.mjs";
 import { OFF_CHAIN_ARTIFACTS } from "../scripts/aux/dev-offchain-artifacts.ts";
+import { WORKER_CRON_MINUTES } from "../.railway/railway.ts";
 
 const ROOT = path.resolve(__dirname, "..");
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")) as {
@@ -267,9 +268,8 @@ describe("atlas artifact store: worker publish is load-bearing (phase 4)", () =>
   // would silently reintroduce two workers re-embedding the same docs.
   it("the tail budget stays under the worker's cron period", () => {
     const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
-    const toml = fs.readFileSync(path.join(ROOT, "railway.worker.toml"), "utf8");
     const tailMin = Number(/const TAIL_CAP_MS = (\d+) \* 60 \* 1000/.exec(worker)?.[1]);
-    const everyMin = Number(/cronSchedule = "\*\/(\d+) \* \* \* \*"/.exec(toml)?.[1]);
+    const everyMin = WORKER_CRON_MINUTES;
     expect(tailMin).toBeGreaterThan(0);
     expect(everyMin).toBeGreaterThan(0);
     expect(tailMin).toBeLessThan(everyMin);
@@ -284,9 +284,8 @@ describe("atlas artifact store: worker publish is load-bearing (phase 4)", () =>
   // which of the two thresholds moved.
   it("the floor engages a full minute before it can outlive a tick", () => {
     const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
-    const toml = fs.readFileSync(path.join(ROOT, "railway.worker.toml"), "utf8");
     const tail = Number(/const TAIL_CAP_MS = (\d+) \* 60 \* 1000/.exec(worker)?.[1]) * 60;
-    const cron = Number(/cronSchedule = "\*\/(\d+) \* \* \* \*"/.exec(toml)?.[1]) * 60;
+    const cron = WORKER_CRON_MINUTES * 60;
     const floor = Number(/Math\.max\((\d+) \* 1000, TAIL_CAP_MS/.exec(worker)?.[1]);
     expect(floor).toBe(60);
 

@@ -4,7 +4,7 @@
 //
 // The suite itself (.github/workflows/e2e.yml) is driven by `deployment_status`,
 // which Railway only emits once a PR environment finishes deploying. And
-// railway.toml's watchPatterns deliberately skip that deploy for PRs that only
+// the watchPatterns in .railway/railway.ts deliberately skip that deploy for PRs that only
 // touch markdown the app does not `?raw`-import (skills, CLAUDE.md, plans). No
 // deploy means no event, which means e2e.yml never runs and never reports a
 // check at all — and GitHub has no "required only if it ran" setting. An
