@@ -70,11 +70,9 @@ describe("Address", () => {
     expect(link.className).toContain("rl-addr");
   });
 
-  it("shows the hover-affordance icon when the tooltip is active, and hides it with noTooltip", () => {
-    const { container, rerender } = render(<Address address={ADDR} />);
+  it("shows the hover-affordance icon by default", () => {
+    const { container } = render(<Address address={ADDR} />);
     expect(container.querySelector(".rl-addr-hint")).not.toBeNull();
-    rerender(<Address address={ADDR} noTooltip />);
-    expect(container.querySelector(".rl-addr-hint")).toBeNull();
   });
 
   it("noHint hides the icon while keeping the tooltip", () => {

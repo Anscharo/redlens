@@ -13,18 +13,16 @@ export interface AddressProps extends Omit<ComponentPropsWithoutRef<"a">, "href"
   chain?: string | Array<string | undefined>;
   /** Render the full address rather than a shortened `0x1234…cdef`. @default false */
   full?: boolean;
-  /** Suppress the balance-on-hover tooltip (and the hover-affordance icon). @default false */
-  noTooltip?: boolean;
   /** Hide the inline green balance teaser even when one is known. @default false */
   noBalance?: boolean;
-  /** Hide the hover-affordance icon while keeping the tooltip (e.g. in prose). @default false */
+  /** Hide the hover-affordance icon (e.g. in prose); the hover card still opens. @default false */
   noHint?: boolean;
   /** Display content; overrides the default (short/full address) — e.g. a <Highlight>. */
   children?: ReactNode;
 }
 
-// A tiny "hover for details" affordance shown on the right of the pill whenever
-// the hover card is active. aria-hidden: the card itself carries the name.
+// A tiny "hover for details" affordance on the right of the pill, unless noHint.
+// aria-hidden: the hover card itself carries the name.
 function HoverHint() {
   return (
     <svg className="rl-addr-hint" width="11" height="11" viewBox="0 0 24 24" aria-hidden="true">
@@ -46,7 +44,6 @@ export function Address({
   address,
   chain,
   full = false,
-  noTooltip = false,
   noBalance = false,
   noHint = false,
   className,
@@ -58,33 +55,26 @@ export function Address({
   // on its chains for the explorer link, the teaser and the hover card.
   const map = useSharedAddressMap();
   const href = explorerUrl(address, { chain, addrMap: map });
-  const showHint = !noTooltip && !noHint;
   function handleClick(e: MouseEvent<HTMLAnchorElement>) {
     const trackChain = Array.isArray(chain) ? chain.find(Boolean) : chain;
     track("address_explorer_out", { address, chain: trackChain ?? map[address.toLowerCase()]?.chain });
     onClick?.(e);
   }
-  const link = (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      // The hover card shows the full address as a row; a native title would
-      // pop up over it. Without the card the title is the only way to read it.
-      title={noTooltip ? address : undefined}
-      data-address={address}
-      className={`rl-addr mono ${className ?? ""}`}
-      onClick={handleClick}
-      {...props}
-    >
-      <span className="rl-addr-text">{children ?? (full ? address : shortAddr(address))}</span>
-      {!noBalance && <AddressBalance address={address} addrMap={map} />}
-      {showHint && <HoverHint />}
-    </a>
-  );
-  return noTooltip ? link : (
+  return (
     <AddressTooltip address={address} href={href}>
-      {link}
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-address={address}
+        className={`rl-addr mono ${className ?? ""}`}
+        onClick={handleClick}
+        {...props}
+      >
+        <span className="rl-addr-text">{children ?? (full ? address : shortAddr(address))}</span>
+        {!noBalance && <AddressBalance address={address} addrMap={map} />}
+        {!noHint && <HoverHint />}
+      </a>
     </AddressTooltip>
   );
 }
