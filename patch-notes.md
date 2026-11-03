@@ -35,6 +35,7 @@
 
 ## 2026-11-03
 
+- Explained roles and parameters on the PAU page, with links to the atlas
 - Fixed X Layer contracts showing as plain wallets
 
 ## 2026-11-02
