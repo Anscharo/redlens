@@ -49,7 +49,8 @@ describe("AddressLink", () => {
     render(<AddressLink addr={addr} />);
     const link = screen.getByRole("link");
     expect(link).toHaveTextContent("0x1234…5678");
-    expect(link).toHaveAttribute("title", addr);
+    // No native title: the hover card shows the full address and owner.
+    expect(link).not.toHaveAttribute("title");
     expect(link).toHaveAttribute("target", "_blank");
   });
 

@@ -6,7 +6,7 @@ import { shortAddr } from "../lib/format";
 
 export function SpellLink({ address }: { address: string }) {
   return (
-    <Address address={address} chain="ethereum" title={`Cast spell ${address}`} className="text-xs">
+    <Address address={address} chain="ethereum" className="text-xs">
       spell {shortAddr(address)}
     </Address>
   );

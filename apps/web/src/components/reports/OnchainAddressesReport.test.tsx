@@ -124,7 +124,7 @@ describe("OnchainAddressesReport", () => {
     expect(screen.getByText("1.00")).toBeInTheDocument(); // ETH compact amount
     expect(screen.getByText("DAI 2.50")).toBeInTheDocument();
     // Proxy implementation link renders shortened.
-    expect(screen.getByTitle("implementation: 0xccc0000000000000000000000000000000000003")).toBeInTheDocument();
+    expect(document.querySelector('a[data-address="0xccc0000000000000000000000000000000000003"]')).not.toBeNull();
     // Address doc mention (via address, no chainlog-name tag) vs chainlog-name-only mention.
     expect(screen.getByTitle("A.1 — Alice Doc [Core]")).toBeInTheDocument();
     expect(screen.getByTitle("A.2 — Pause Proxy Doc [Core]")).toBeInTheDocument();

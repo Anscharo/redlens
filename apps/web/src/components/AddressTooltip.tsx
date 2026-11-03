@@ -22,7 +22,7 @@ function AddressTooltipContent({ address, href, onSettled }: { address: string; 
   useEffect(() => {
     if (facts) onSettled();
   }, [facts, onSettled]);
-  const { name, named } = resolveAddressLabel(address, map);
+  const { name, named, owner } = resolveAddressLabel(address, map);
   return (
     <div className="min-w-[10rem] max-w-[20rem]">
       <div className={named ? "font-medium text-tan truncate" : "mono text-tan break-all"} data-full-address={named ? undefined : ""}>
@@ -30,6 +30,7 @@ function AddressTooltipContent({ address, href, onSettled }: { address: string; 
       </div>
       <dl className="mt-1.5 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1 mono text-[10px]">
         {named && <TipRow label="address"><span className="break-all">{address}</span></TipRow>}
+        {owner && <TipRow label="owner">{owner}</TipRow>}
         <AddressTooltipOnchain address={address} map={map} multisigs={facts?.multisigs ?? []} onSettled={onSettled} />
         {facts && <AddressTooltipDocs docs={facts.docs} />}
         {href && (

@@ -5,7 +5,7 @@ import type { AddressInfo } from "@/types";
 import type { BalanceMap, AddressBalances } from "@/lib/balances";
 import type { PriceMap } from "@/lib/tokenPrices";
 import { compactAmount } from "@/lib/tokens";
-import { hasResolvedName, resolveAddressName } from "./addressName";
+import { hasResolvedName, resolveAddressName, resolveOwner } from "./addressName";
 import { PRIMARY_BALANCE_SYMBOLS } from "@/lib/onchainAddressesIndex";
 import { compactUsd, holdingUsd, holdingsTotal, isPegged } from "./addressValue";
 
@@ -111,9 +111,12 @@ export const infoFor = (address: string, addrMap: Record<string, AddressInfo>): 
  * shows), never the heuristic entityLabel (a best-effort proper-noun extraction
  * from surrounding prose — too often a stray phrase, not a real name).
  */
-export function resolveAddressLabel(address: string, addrMap: Record<string, AddressInfo>): { name: string; named: boolean } {
+export function resolveAddressLabel(
+  address: string,
+  addrMap: Record<string, AddressInfo>,
+): { name: string; named: boolean; owner: string | null } {
   const info = infoFor(address, addrMap);
-  return { name: resolveAddressName(address, info), named: info ? hasResolvedName(info) : false };
+  return { name: resolveAddressName(address, info), named: info ? hasResolvedName(info) : false, owner: resolveOwner(info) };
 }
 
 /**

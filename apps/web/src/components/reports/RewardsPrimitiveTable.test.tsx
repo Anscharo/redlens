@@ -161,8 +161,8 @@ describe("PrimitiveTable (IB)", () => {
     expect(screen.getByText("Acme Partner")).toBeInTheDocument();
     expect(screen.getByText("ethereum")).toBeInTheDocument();
     expect(screen.getByText("monthly")).toBeInTheDocument();
-    const addrLink = screen.getByTitle("0x1111111111111111111111111111111111111111");
-    expect(addrLink.tagName).toBe("A");
+    const addrLink = document.querySelector('a[data-address="0x1111111111111111111111111111111111111111"]');
+    expect(addrLink?.tagName).toBe("A");
   });
 
   it("highlights matching text against a report query", () => {

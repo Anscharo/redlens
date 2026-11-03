@@ -129,7 +129,7 @@ describe("StaleDatesReport", () => {
     expect(screen.getByText(/not in that Executive Vote/)).toHaveTextContent("not in that Executive Vote: osero");
     const link = screen.getByRole("link", { name: "Executive Vote 2026-03-26 (+0d)" });
     expect(link).toHaveAttribute("href", "https://vote.sky.money/executive/x");
-    expect(screen.getByRole("link", { name: "spell 0x8A3A…0F9a" })).toHaveAttribute("title", "Cast spell 0x8A3A7c5e2C8D3E1f0b9C4d7E6F5a4B3c2D1e0F9a");
+    expect(screen.getByRole("link", { name: "spell 0x8A3A…0F9a" })).toHaveAttribute("data-address", "0x8A3A7c5e2C8D3E1f0b9C4d7E6F5a4B3c2D1e0F9a");
     expect(screen.getByText(/Vote record: Executive Votes 2025-05-29 → 2026-10-08/)).toBeInTheDocument();
   });
 
