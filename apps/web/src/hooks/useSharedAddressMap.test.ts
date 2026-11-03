@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { renderHook, act, cleanup } from "@testing-library/react";
 import { getAddressMap, setAddressMap } from "../lib/addressMap";
 import { makeAddressInfo } from "../test/fixtures";
 
@@ -12,8 +12,12 @@ const ADDR = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
 
 beforeEach(() => {
   loadAddresses.mockReset();
+  // Pending unless a test says otherwise, so a load never settles into the next test.
+  loadAddresses.mockReturnValue(new Promise(() => {}));
   setAddressMap({});
 });
+// Unmount first: a hook left mounted would see the next test's reset map and load again.
+afterEach(cleanup);
 
 describe("useSharedAddressMap", () => {
   it("loads the map on a page that has not, and re-renders with it", async () => {
@@ -29,7 +33,6 @@ describe("useSharedAddressMap", () => {
   });
 
   it("re-renders when someone else sets the map", () => {
-    loadAddresses.mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useSharedAddressMap());
     const readers = { [ADDR]: makeAddressInfo() };
     act(() => setAddressMap(readers));
