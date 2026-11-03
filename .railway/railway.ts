@@ -15,10 +15,11 @@
 //   - `variables.managed: false` leaves every service variable to the
 //     dashboard (docs/railway-env-vars.md). Secrets never enter the repo, and a
 //     variable missing from this file is not a variable to delete.
-//   - No `source`: the services keep the GitHub repo and branch Railway already
-//     deploys, which differs between production, development and the forked
-//     per-PR environments.
-import { defineRailway, project, service } from "railway/iac";
+//   - Every service names its GitHub repo, because a service without `source`
+//     plans as disconnecting it. The source names no branch: github() would
+//     add `branch: "main"`, and the branch each environment deploys (production,
+//     development, the forked per-PR environments) stays as Railway has it.
+import { defineRailway, project, service, type SourceConfig } from "railway/iac";
 
 import { railwayWebWatchPatterns, railwayWorkerWatchPatterns } from "../scripts/lib/deploy-skip.ts";
 
@@ -30,6 +31,9 @@ export const partial = "redlens";
 export const WEB_SERVICE = "redlens";
 export const WORKER_SERVICE = "redlens-worker";
 
+/** The repository both services deploy, spelled as Railway records it. */
+const SOURCE: SourceConfig = { type: "github", repo: "Anscharo/redlens" };
+
 /** The worker's cron period in minutes. The tail budget in atlas-worker.mjs stays under it. */
 export const WORKER_CRON_MINUTES = 12;
 
@@ -38,6 +42,7 @@ export const WORKER_CRON_MINUTES = 12;
 // clone the image build needs.
 function webService() {
   return service(WEB_SERVICE, {
+    source: SOURCE,
     build: {
       builder: "DOCKERFILE",
       dockerfilePath: "Dockerfile",
@@ -62,6 +67,7 @@ function webService() {
 // in docs/DEPLOYMENT.md step 4.
 function workerService() {
   return service(WORKER_SERVICE, {
+    source: SOURCE,
     build: {
       builder: "DOCKERFILE",
       dockerfilePath: "Dockerfile.worker",

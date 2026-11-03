@@ -497,8 +497,9 @@ runs `railway config apply`. What it deliberately leaves alone:
   is not declared and is never touched.
 - **Variables.** `variables: { managed: false }` leaves every service variable
   to the dashboard ([railway-env-vars.md](./railway-env-vars.md)).
-- **Source.** No `source` is declared, so each environment keeps the repo and
-  branch Railway already deploys.
+- **Branch.** Each service names its repo (`Anscharo/redlens`; a service
+  without a source would plan as disconnected) but no branch, so each
+  environment keeps the branch Railway already deploys.
 
 ### Running it without a local CLI
 

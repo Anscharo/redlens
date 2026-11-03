@@ -37,12 +37,13 @@ describe(".railway/railway.ts", () => {
     expect(definition.variables).toEqual({ managed: false });
   });
 
-  it("declares exactly the two services built from this repository, and no source", async () => {
+  it("declares exactly the two services built from this repository, each with its repo and no branch", async () => {
     const { definition } = await evaluate("production");
     expect(definition.resources.map((r) => `${r.type}.${r.name}`).sort()).toEqual(
       [`service.${WEB_SERVICE}`, `service.${WORKER_SERVICE}`].sort(),
     );
-    for (const r of definition.resources) expect(r.source).toBeUndefined();
+    // An omitted source plans as a disconnect; a branch would override every environment's own.
+    for (const r of definition.resources) expect(r.source).toEqual({ type: "github", repo: "Anscharo/redlens" });
   });
 
   it("renders the same services in every environment", async () => {
@@ -91,5 +92,6 @@ describe.each([
     const svc = name === WEB_SERVICE ? web : worker;
     const toml = tomlSettings(file);
     expect({ dockerfilePath: defaultDockerfile, ...toml }).toEqual({ ...svc.build, ...svc.deploy });
+    expect(svc.source).toBeDefined();
   });
 });
