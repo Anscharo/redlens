@@ -108,7 +108,7 @@ can rebuild from DB.
 a. **Create the service.** On the Railway project canvas: **New → GitHub
    Repo** → select this repo again. Railway creates a second service.
 
-b. **Apply the worker's settings.** Name the service `redlens-worker` (the
+b. **Apply the worker's settings.** Name the service `redlens worker` (the
    name `.railway/railway.ts` declares), then run `railway config plan` and
    `railway config apply` as in [Railway configuration](#railway-configuration).
 
@@ -119,7 +119,7 @@ b. **Apply the worker's settings.** Name the service `redlens-worker` (the
 
 c. **Link DATABASE_URL** to the same Postgres instance:
    ```bash
-   railway variables --set 'DATABASE_URL=${{Postgres.DATABASE_URL}}' --service redlens-worker
+   railway variables --set 'DATABASE_URL=${{Postgres.DATABASE_URL}}' --service 'redlens worker'
    ```
 
 d. **Create a GitHub fine-grained token → `GITHUB_TOKEN`.** The worker uses
@@ -142,9 +142,9 @@ d. **Create a GitHub fine-grained token → `GITHUB_TOKEN`.** The worker uses
 
 e. **Set the worker variables:**
    ```bash
-   railway variables --set 'DATABASE_URL=${{Postgres.DATABASE_URL}}' --service redlens-worker
-   railway variables --set 'OPENROUTER_API_KEY=sk-or-...'            --service redlens-worker
-   railway variables --set 'GITHUB_TOKEN=github_pat_...'             --service redlens-worker
+   railway variables --set 'DATABASE_URL=${{Postgres.DATABASE_URL}}' --service 'redlens worker'
+   railway variables --set 'OPENROUTER_API_KEY=sk-or-...'            --service 'redlens worker'
+   railway variables --set 'GITHUB_TOKEN=github_pat_...'             --service 'redlens worker'
    ```
 
 | Variable | Required | Purpose |
@@ -550,7 +550,7 @@ first (`redlens-development`), with the **Railway config** workflow:
 
 1. Run **`status`**. Its "What Railway's own migration would generate" group
    prints the service names Railway has. If they are not `redlens` and
-   `redlens-worker`, fix `WEB_SERVICE` / `WORKER_SERVICE` in
+   `redlens worker`, fix `WEB_SERVICE` / `WORKER_SERVICE` in
    `.railway/railway.ts` first.
 2. Run **`migrate`**. It cuts both services over and applies
    `.railway/railway.ts` in the same job, so no deploy runs on dashboard
@@ -631,7 +631,7 @@ instance in the same Railway project.
 **Worker service looks healthy (no stuck/failed runs) but `/api/freshness` is stale**
 → A hung tick is only one failure mode, and Railway would show it as still
 running. Check three other things, in order:
-1. You are on the **worker** service (`redlens-worker` / cron `*/12`),
+1. You are on the **worker** service (`redlens worker` / cron `*/12`),
    not the web service. Cron ticks are short-lived executions; between them
    nothing is running, which looks idle rather than failed.
 2. The latest cron execution's **timestamp** is within ~12 minutes. If the

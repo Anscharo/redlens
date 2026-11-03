@@ -29,7 +29,7 @@ export const partial = "redlens";
 // Service names as Railway shows them. A name that does not match plans as
 // "Create service", never as a change to the existing one.
 export const WEB_SERVICE = "redlens";
-export const WORKER_SERVICE = "redlens-worker";
+export const WORKER_SERVICE = "redlens worker";
 
 /** The repository both services deploy, spelled as Railway records it. */
 const SOURCE: SourceConfig = { type: "github", repo: "Anscharo/redlens" };
