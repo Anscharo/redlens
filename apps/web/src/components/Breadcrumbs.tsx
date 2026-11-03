@@ -3,6 +3,7 @@ import { AtlasLink } from "./AtlasLink";
 import { depthColor, realDepth } from "@/lib/depth";
 import { atlasHref } from "@/lib/routes";
 import { track } from "../lib/analytics";
+import { useFilterHides } from "../lib/atlasFilter";
 import type { AtlasNode } from "@/types";
 import { fitBreadcrumbs } from "../lib/breadcrumbs";
 
@@ -26,6 +27,7 @@ interface BreadcrumbsProps {
 export const Breadcrumbs = memo(function Breadcrumbs({ ancestors }: BreadcrumbsProps) {
   const [breadcrumbWidth, setBreadcrumbWidth] = useState(1000);
   const breadcrumbRef = useRef<HTMLElement>(null);
+  const filterHides = useFilterHides();
 
   useEffect(() => {
     const el = breadcrumbRef.current;
@@ -58,7 +60,10 @@ export const Breadcrumbs = memo(function Breadcrumbs({ ancestors }: BreadcrumbsP
           <AtlasLink
             to={atlasHref(a.id)}
             className="breadcrumb-link"
-            onClick={() => track("reader_breadcrumb_nav", { node_id: a.id })}
+            onClick={() => {
+              // A filter-hidden ancestor opens beside the reader; AtlasLink tracks that as a split open.
+              if (!filterHides(a.id)) track("reader_breadcrumb_nav", { node_id: a.id });
+            }}
             style={{ "--crumb-color": depthColor(realDepth(a.doc_no)) } as React.CSSProperties}
           >
             <span className="short">{fittedTitles[i] ?? a.title}</span>

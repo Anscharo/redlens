@@ -37,6 +37,7 @@
 
 - Explained roles and parameters on the PAU page, with links to the atlas
 - Fixed X Layer contracts showing as plain wallets
+- Opened links to documents outside a filtered view in the split pane, instead of leaving the reader blank
 
 ## 2026-11-02
 

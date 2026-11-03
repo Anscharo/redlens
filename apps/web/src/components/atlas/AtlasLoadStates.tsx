@@ -1,23 +1,23 @@
-import type { CSSProperties } from "react";
+import type { ComponentProps, CSSProperties } from "react";
 import { Loading } from "../Loading";
 import type { LoadedData } from "@/lib/atlasHelpers";
 
-export function RetryNotice({
-  message,
-  onRetry,
-  className,
-  style,
-}: {
+/** The rule under each full-width bar at the top of the reader. */
+export const NOTICE_BAR_STYLE: CSSProperties = { borderBottom: "1px solid var(--border)" };
+
+interface NoticeBarProps extends ComponentProps<"div"> {
   message: string;
-  onRetry: () => void;
-  className: string;
-  style?: CSSProperties;
-}) {
+  action: string;
+  onAction: () => void;
+}
+
+/** A one-line message with one text button, such as a load failure's "retry". */
+export function NoticeBar({ message, action, onAction, ...props }: NoticeBarProps) {
   return (
-    <div className={className} style={style}>
+    <div {...props}>
       <p>{message}</p>
-      <button type="button" onClick={onRetry} className="text-xs mono text-accent hover:underline">
-        retry
+      <button type="button" onClick={onAction} className="text-xs mono text-accent hover:underline">
+        {action}
       </button>
     </div>
   );
@@ -40,17 +40,18 @@ export function AtlasLoadFallback({
   if (!data) {
     if (!shallowError) return <Loading />;
     const className = "flex-1 flex flex-col items-center justify-center gap-3 py-24 text-sm text-red";
-    return <RetryNotice className={className} message="Couldn't load the atlas." onRetry={retry} />;
+    return <NoticeBar className={className} message="Couldn't load the atlas." action="retry" onAction={retry} />;
   }
   if (data.complete) {
     return <div className="flex items-center justify-center py-24 text-sm text-red">Node not found: {id}</div>;
   }
   if (!deepError) return <Loading />;
   return (
-    <RetryNotice
+    <NoticeBar
       className="flex flex-col items-center justify-center gap-3 py-24 text-sm text-red"
       message="Couldn't finish loading the atlas, so this node can't be shown yet."
-      onRetry={retry}
+      action="retry"
+      onAction={retry}
     />
   );
 }

@@ -15,13 +15,15 @@ export function usePreviewDim(nodeId: string): boolean {
 // The set of doc ids to show when "show only changed" is on: exactly the docs
 // this preview adds/changes — no ancestors. The sidebar and reader render these
 // as a flat list (each keeps its full doc-number for context). Returns null when
-// filtering is off (preview off or toggle off) — meaning "show everything".
+// filtering is off (preview off or toggle off) — meaning "show everything" — and
+// while the diff is still pending: its empty sets mean "not known yet", and the
+// reader, the tree and the link gate must all treat that the same way.
 export function usePreviewChangedSet(): Set<string> | null {
   const { preview } = useDataSource();
   const { onlyChanged } = usePreviewView();
   const diff = usePreviewDiff();
   return useMemo(() => {
-    if (!preview || !onlyChanged) return null;
+    if (!preview || !onlyChanged || diff.pending) return null;
     return new Set<string>([...diff.added, ...diff.changed]);
   }, [preview, onlyChanged, diff]);
 }

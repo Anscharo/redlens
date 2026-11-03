@@ -105,6 +105,24 @@ describe("usePreviewDiff", () => {
     expect(result.current.formerUuid.e.previousId).toBe("old-e");
   });
 
+  it("is pending in preview mode until diff.json has been read", async () => {
+    dataSourceValue = { base: "/api/preview/pend/", preview: { id: "pend", sha: "deadbeef" } };
+    vi.stubGlobal("fetch", mockFetchByUrl({ "meta.json": {}, "diff.json": { added: ["a"], changed: [] } }));
+    const { result } = renderHook(() => usePreviewDiff(), { wrapper });
+    expect(result.current.pending).toBe(true);
+    await waitFor(() => expect(result.current.added.has("a")).toBe(true));
+    expect(result.current.pending).toBeFalsy();
+  });
+
+  it("stops being pending when diff.json cannot be read", async () => {
+    dataSourceValue = { base: "/api/preview/gone/", preview: { id: "gone", sha: "deadbeef" } };
+    vi.stubGlobal("fetch", mockFetchByUrl({ "meta.json": {}, "diff.json": null }));
+    const { result } = renderHook(() => usePreviewDiff(), { wrapper });
+    expect(result.current.pending).toBe(true);
+    await waitFor(() => expect(result.current.pending).toBeFalsy());
+    expect(result.current.added.size).toBe(0);
+  });
+
   it("bases.auto = 'repo' (no URL override) fetches diff.repo.json and sets activeBase", async () => {
     dataSourceValue = { base: "/api/preview/autorepo/", preview: { id: "autorepo", sha: "deadbeef" } };
     const meta = { bases: { auto: "repo", repo: { repo: "acme/fork", ref: "main", mergeBase: "x" } } };
