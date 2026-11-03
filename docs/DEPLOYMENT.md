@@ -532,34 +532,10 @@ each of `production`, `development` and `prod`, the base environment the
 `redlens-pr-<n>` environments are forked from (which is not production). A
 clean run afterwards reports that the configuration is already up to date.
 
-### Migrating off `railway.toml` / `railway.worker.toml`
-
-Railway has deprecated Config as Code and stops reading `railway.toml` and
-`railway.worker.toml` on **2026-12-01**. A service still relying on them then
-builds with whatever its dashboard settings say, which after a cutover are
-empty until the apply. The two files stay in the repo until every environment
-is cut over, and `scripts_tests/railway-iac.test.ts` fails if they disagree
-with `.railway/railway.ts`. Once per environment, linked as above:
-
-```bash
-railway config migrate status     # which services still read Config as Code
-railway config migrate cutover    # switch both services off the toml files
-railway config plan               # expect: 0 to add, 0 to destroy
-railway config apply
-```
-
-Run them back to back, so no deploy builds on the empty dashboard settings in
-between. `railway config migrate undo` restores the toml files' config paths
-if the plan looks wrong. The plan for a fresh cutover sets, on `redlens`, the
-builder, watch patterns, healthcheck, restart policy and start command, and on
-`redlens worker` (`redlens-worker` in `production`), the builder,
-`Dockerfile.worker`, watch patterns, start
-command and the `*/12` cron; nothing else. After the apply, redeploy (or wait
-for the next push) and check the deploy's details page: its settings no longer
-carry the config-file icon.
-
-Once every environment is cut over, delete `railway.toml` and
-`railway.worker.toml`; the agreement test skips itself once the files are gone.
+Railway no longer reads `railway.toml` / `railway.json` (Config as Code), and
+the repo has none: `.railway/railway.ts` is the only place these settings
+live. A new environment forked from one of the three inherits their settings;
+any other new long-lived environment gets them from an apply.
 
 ## Ongoing operation
 
