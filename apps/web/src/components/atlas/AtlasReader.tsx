@@ -18,6 +18,7 @@ import { DEFAULT_RUNG, nextRung, reverseRung, flatRung, flatNextRung, flatRevers
 import { revealStore } from "../../lib/revealStore";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
 import { useSelectionSet } from "../../lib/selectionFilter";
+import { useAtlasFilterSet } from "../../lib/atlasFilter";
 import { useSelection } from "../../lib/selection";
 import { ErrorBoundary, PanelError } from "../ErrorBoundary";
 import {
@@ -424,10 +425,8 @@ export const AtlasReader = memo(function AtlasReader({
 
   const changedSet = usePreviewChangedSet();
   const selectionSet = useSelectionSet();
-  const filterSet = changedSet ?? selectionSet;
-  useEffect(() => {
-    inFlatViewRef.current = !!filterSet;
-  });
+  const filterSet = useAtlasFilterSet();
+  useEffect(() => { inFlatViewRef.current = !!filterSet; });
 
   // Re-scroll to the selected doc whenever the view mode flips, so leaving
   // "selected only" (or preview "changed only") keeps the current node in view.

@@ -52,6 +52,10 @@ export interface PreviewDiff {
    *  mode, before meta.json resolves, and for bundles built before per-base
    *  diffs existed. */
   activeBase?: ActiveBase | null;
+  /** True while a preview's diff.json has not been read yet: its empty sets
+   *  then mean "not known", not "nothing changed". Absent once it has (and
+   *  outside preview). */
+  pending?: boolean;
 }
 
 const EMPTY: PreviewDiff = {
@@ -64,6 +68,8 @@ const EMPTY: PreviewDiff = {
   formerUuid: {},
   activeBase: null,
 };
+
+const PENDING: PreviewDiff = { ...EMPTY, pending: true };
 
 const PreviewDiffContext = createContext<PreviewDiff>(EMPTY);
 
@@ -102,7 +108,7 @@ function resolveBase(
 export function PreviewDiffProvider({ children }: { children: ReactNode }) {
   const { base, preview } = useDataSource();
   const { baseKey } = usePreviewView();
-  const [diff, setDiff] = useState<PreviewDiff>(EMPTY);
+  const [diff, setDiff] = useState<PreviewDiff>(preview ? PENDING : EMPTY);
   useEffect(() => {
     if (!preview) {
       setDiff(EMPTY);

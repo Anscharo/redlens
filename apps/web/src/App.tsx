@@ -20,6 +20,7 @@ import { Footer } from "./components/Footer";
 import { ChatWidget } from "./components/chat/ChatWidget";
 import { PreviewBanner } from "./components/preview/PreviewBanner";
 import { chatEnabled } from "./lib/chatEnabled";
+import { AtlasFilterProvider } from "./lib/atlasFilter";
 
 prefetchNodeContent();
 
@@ -59,37 +60,39 @@ export default function App() {
   const windowScroll = usesWindowScroll(location);
 
   return (
-    <div
-      className={`app-shell flex flex-col pb-6 ${windowScroll ? "min-h-dvh" : "h-dvh"}`}
-      style={{ background: "var(--bg)" }}
-    >
-      <PreviewBanner onTabTitle={setPreviewTab} />
-      <AppHeader>
-        <HomeLink />
-        <NavBar activePage={activeNavPage} />
-        <ShellSearch
-          search={search}
-          scope={scope}
-          reportScopeCfg={REPORT_SCOPE_CONFIG[location]}
-          onSubmit={() => search.searchAnyway() || focusFirstResult()}
-        />
-      </AppHeader>
-      <div className={`flex-1 flex ${windowScroll ? "" : "overflow-hidden"}`}>
-        <TreeDrawer open={tree.open} onClose={tree.closeTree} />
-        <div className={`flex-1 flex flex-col ${windowScroll ? "" : "overflow-hidden"}`}>
-          <RouteErrorBoundary>
-            <AppRoutes search={search} onOpenTree={tree.openTree} />
-          </RouteErrorBoundary>
+    <AtlasFilterProvider>
+      <div
+        className={`app-shell flex flex-col pb-6 ${windowScroll ? "min-h-dvh" : "h-dvh"}`}
+        style={{ background: "var(--bg)" }}
+      >
+        <PreviewBanner onTabTitle={setPreviewTab} />
+        <AppHeader>
+          <HomeLink />
+          <NavBar activePage={activeNavPage} />
+          <ShellSearch
+            search={search}
+            scope={scope}
+            reportScopeCfg={REPORT_SCOPE_CONFIG[location]}
+            onSubmit={() => search.searchAnyway() || focusFirstResult()}
+          />
+        </AppHeader>
+        <div className={`flex-1 flex ${windowScroll ? "" : "overflow-hidden"}`}>
+          <TreeDrawer open={tree.open} onClose={tree.closeTree} />
+          <div className={`flex-1 flex flex-col ${windowScroll ? "" : "overflow-hidden"}`}>
+            <RouteErrorBoundary>
+              <AppRoutes search={search} onOpenTree={tree.openTree} />
+            </RouteErrorBoundary>
+          </div>
         </div>
+        <Footer />
+        {/* __CHAT_ENABLED__ (bare, build-time define) MUST stay the outer guard;
+            the comment on the /conversations route in components/routes/AppRoutes.tsx
+            explains why, and the same reasoning applies to the widget mount. The
+            widget also runs inside a preview: it needs no ChatOpenProvider
+            (useChatOpenOptional), and its page context names the preview so
+            "this PR" resolves. */}
+        {__CHAT_ENABLED__ && chatEnabled() && <ChatWidget />}
       </div>
-      <Footer />
-      {/* __CHAT_ENABLED__ (bare, build-time define) MUST stay the outer guard;
-          the comment on the /conversations route in components/routes/AppRoutes.tsx
-          explains why, and the same reasoning applies to the widget mount. The
-          widget also runs inside a preview: it needs no ChatOpenProvider
-          (useChatOpenOptional), and its page context names the preview so
-          "this PR" resolves. */}
-      {__CHAT_ENABLED__ && chatEnabled() && <ChatWidget />}
-    </div>
+    </AtlasFilterProvider>
   );
 }

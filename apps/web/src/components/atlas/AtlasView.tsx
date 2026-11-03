@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import type { AtlasNode } from "@/types";
 import { Breadcrumbs } from "../Breadcrumbs";
 import { AtlasActionsContext } from "./AtlasActionsContext";
-import { AtlasLoadFallback, RetryNotice } from "./AtlasLoadStates";
+import { AtlasLoadFallback, NoticeBar, NOTICE_BAR_STYLE } from "./AtlasLoadStates";
 import { AtlasReaderRow } from "./AtlasReaderRow";
 import { FilteredOutNotice } from "./FilteredOutNotice";
 import { DrawerToggle } from "../Drawer";
@@ -21,12 +21,11 @@ interface AtlasViewProps {
 }
 
 const COLUMN_STYLE: CSSProperties = { minHeight: 0 };
-const BAR_STYLE: CSSProperties = { borderBottom: "1px solid var(--border)" };
 const noop = () => {};
 
 function AtlasViewHeader({ id, ancestors, onOpenTree }: { id: string; ancestors: AtlasNode[]; onOpenTree?: () => void }) {
   return (
-    <div className="flex items-center" style={BAR_STYLE}>
+    <div className="flex items-center" style={NOTICE_BAR_STYLE}>
       <DrawerToggle label="Atlas" onClick={onOpenTree} breakpoint={1050} />
       {id && <Breadcrumbs ancestors={ancestors} />}
     </div>
@@ -39,7 +38,7 @@ function AtlasViewHeader({ id, ancestors, onOpenTree }: { id: string; ancestors:
 function DeepLoadBanner({ onRetry }: { onRetry: () => void }) {
   const message = "Couldn't finish loading the full atlas — showing what loaded so far.";
   const className = "flex items-center gap-2 px-3 py-1 text-xs mono text-red";
-  return <RetryNotice className={className} style={BAR_STYLE} message={message} onRetry={onRetry} />;
+  return <NoticeBar className={className} style={NOTICE_BAR_STYLE} message={message} action="retry" onAction={onRetry} />;
 }
 
 export function AtlasView({ id, onNavigate, view, onViewChange, splitId, onSplitChange, onOpenTree }: AtlasViewProps) {
