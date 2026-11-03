@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useLocation } from "wouter";
 import { ROUTES } from "@/lib/routes";
 import { track } from "../lib/analytics";
+import { splitHref, useFilterHides } from "../lib/atlasFilter";
 import type { AtlasTab } from "../lib/atlasTab";
 
 // Copy params from the live URL at click time so they ride along on every
@@ -19,11 +20,21 @@ function carryParams(params: URLSearchParams, keys: string[]): URLSearchParams {
 type Navigate = (to: string) => void;
 
 /** Opens a node in the reader. Subset filters stay active across doc clicks:
- *  opening a doc from a filtered list stays filtered rather than jumping to All. */
+ *  opening a doc from a filtered list stays filtered rather than jumping to All.
+ *  A doc the filter hides opens in the comparison pane instead (see splitHref). */
 function useNodeNavigator(navigate: Navigate): (id: string) => void {
+  const filterHides = useFilterHides();
   return useCallback(
-    (id: string) => navigate(`${ROUTES.ATLAS}?${carryParams(new URLSearchParams({ id }), ["split", "view", "subset"])}`),
-    [navigate],
+    (id: string) => {
+      if (filterHides(id)) {
+        const live = new URLSearchParams(window.location.search);
+        track("atlas_split_open", { node_id: live.get("id"), split_id: id, via: "filtered" });
+        navigate(splitHref(id, live));
+        return;
+      }
+      navigate(`${ROUTES.ATLAS}?${carryParams(new URLSearchParams({ id }), ["split", "view", "subset"])}`);
+    },
+    [navigate, filterHides],
   );
 }
 

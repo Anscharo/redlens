@@ -78,6 +78,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: [
           "Shift-click a document — a row in the tree, or its title in the reader — to open it in a second pane.",
           "The pane shows that document with its children; close it to return to single view.",
+          "While the reader is narrowed to your selected documents, an open collection, or a preview's changed documents, a link to a document outside that set opens it in the pane, and the reader stays where it was.",
           "The pane lives in the URL (?split=…), so back/forward and a shared link both restore it.",
         ],
       },

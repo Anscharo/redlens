@@ -4,6 +4,7 @@ import { Breadcrumbs } from "../Breadcrumbs";
 import { AtlasActionsContext } from "./AtlasActionsContext";
 import { AtlasLoadFallback, RetryNotice } from "./AtlasLoadStates";
 import { AtlasReaderRow } from "./AtlasReaderRow";
+import { FilteredOutNotice } from "./FilteredOutNotice";
 import { DrawerToggle } from "../Drawer";
 import { useAtlasView } from "../../hooks/useAtlasView";
 import { useDataSource } from "../../lib/dataSource";
@@ -53,6 +54,7 @@ export function AtlasView({ id, onNavigate, view, onViewChange, splitId, onSplit
       <div className="flex-1 flex flex-col" style={COLUMN_STYLE}>
         <AtlasViewHeader id={id} ancestors={v.ancestors} onOpenTree={onOpenTree} />
         {v.deepError && !data.complete && <DeepLoadBanner onRetry={v.retry} />}
+        <FilteredOutNotice id={id} />
         <AtlasReaderRow
           id={id}
           data={data}
