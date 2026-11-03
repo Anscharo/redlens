@@ -27,11 +27,12 @@ const ON_LABEL: Record<string, string> = {
 /** The atlas document defining the Diamond PAU's access-control roles (A.2.2.10.1.1.1.2.2). */
 const ROLE_DEFINITIONS_DOC = "2ae4b91a-6900-41e8-9718-32805b956550";
 
-/** What a Roles row says and what its mark means, with the atlas's role definitions. */
+/** What a role is, with the main ones and the atlas's role definitions. */
 const RolesNote = () => (
   <Callout className="mb-2">
-    Each row is an address, the role it holds and the contract it holds it on. ✓ means the chain confirms it, ✗ that it was granted but no longer
-    holds it, ? that it could not be checked. The atlas defines the Diamond PAU roles in{" "}
+    A role is a permission built into a contract: only an address holding it can call the functions it guards. The admin, Sky governance, grants and
+    removes every other role. The relayer, an off-chain bot, moves funds through the controller within its rate limits, and the freezer can cut a
+    relayer off in an emergency. More in the atlas&apos;s{" "}
     <AtlasLink to={atlasHref(ROLE_DEFINITIONS_DOC)} className="text-accent hover:underline">Liquidity Layer Role Definitions</AtlasLink>.
   </Callout>
 );
