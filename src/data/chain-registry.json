@@ -12,7 +12,8 @@
     "etherscan": "False when Etherscan v2 has no endpoint for this chainId, so Blockscout is the only source.",
     "blockscoutIntervalMs": "Minimum gap between requests to this chain's blockscoutApi host, in ms, when the host allows fewer than one request a second. Set it to use 75% of the host's stated limit.",
     "logsRpcs": "JSON-RPC endpoints that serve this chain's full eth_getLogs history, each with the most blocks one request may span and, optionally, the gap its host needs between requests (intervalMs). Read by the PAU RPC reader (src/server/pau/rpc-sync.ts) for a chain no free explorer serves; rotated per request.",
-    "routescan": "True when Routescan serves the chain's Etherscan-compatible API at its chainId (keyless). Tried after Etherscan v2 and before Blockscout."
+    "routescan": "True when Routescan serves the chain's Etherscan-compatible API at its chainId (keyless). Tried after Etherscan v2 and before Blockscout.",
+    "rpcBatchLimit": "Most calls rpcUrl accepts in one JSON-RPC batch request, when it accepts fewer than the batching readers send (address-code.mjs, fetch-balances.ts). A node that refuses an oversized batch refuses every call in it, so without this every address on the chain reads as an RPC failure."
   },
   "deferred": [],
   "$deferred": "Chains the atlas names that are not registered yet. They collapse to ethereum deliberately and are bucketed `deferred` (not `unknown`) by census:chains. Promote with `pnpm chains:add <name>`.",
@@ -230,7 +231,7 @@
     },
     {
       "chain": "xlayer",
-      "note": "Etherscan v2 has no endpoint for chain 196. XLayerScan's keyless Etherscan-compatible API serves logs and contract metadata, at most one request every 5 seconds per IP. The 7-second gap uses 75% of that, the margin every provider gets; requests exactly 5 seconds apart were refused.",
+      "note": "Etherscan v2 has no endpoint for chain 196. XLayerScan's keyless Etherscan-compatible API serves logs and contract metadata, at most one request every 5 seconds per IP. The 7-second gap uses 75% of that, the margin every provider gets; requests exactly 5 seconds apart were refused. rpc.xlayer.tech refuses a JSON-RPC batch of more than 10 calls (-32014 too many RPC calls in batch request).",
       "chainId": 196,
       "aliases": [
         "xlayer",
@@ -241,6 +242,7 @@
         "x layer"
       ],
       "rpcUrl": "https://rpc.xlayer.tech",
+      "rpcBatchLimit": 10,
       "explorer": "https://www.oklink.com/x-layer/evm/address/",
       "nativeToken": {
         "symbol": "OKB",

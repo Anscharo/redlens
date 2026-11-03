@@ -2417,24 +2417,42 @@
     "chains": [
       "xlayer"
     ],
-    "isContract": false,
-    "isProxy": false
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "xlayer": true
+    },
+    "presentOnChains": [
+      "xlayer"
+    ]
   },
   "0x83a914c361bb729eb6bebc8c7ba993667a0e6df8": {
     "chain": "xlayer",
     "chains": [
       "xlayer"
     ],
-    "isContract": false,
-    "isProxy": false
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "xlayer": true
+    },
+    "presentOnChains": [
+      "xlayer"
+    ]
   },
   "0x7f7e2286983994c4403cf2b86758ce0e7ba666a8": {
     "chain": "xlayer",
     "chains": [
       "xlayer"
     ],
-    "isContract": false,
-    "isProxy": false
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "xlayer": true
+    },
+    "presentOnChains": [
+      "xlayer"
+    ]
   },
   "0x8386f819860d54b1180539ff4852e4caecef8a1d": {
     "chain": "arbitrum",
@@ -3726,80 +3744,140 @@
     "chains": [
       "xlayer"
     ],
-    "isContract": false,
-    "isProxy": false
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "xlayer": true
+    },
+    "presentOnChains": [
+      "xlayer"
+    ]
   },
   "0x779ded0c9e1022225f8e0630b35a9b54be713736": {
     "chain": "xlayer",
     "chains": [
       "xlayer"
     ],
-    "isContract": false,
-    "isProxy": false
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "xlayer": true
+    },
+    "presentOnChains": [
+      "xlayer"
+    ]
   },
   "0xdce929a335c75a1676ef5957a4d7a3b928c48820": {
     "chain": "xlayer",
     "chains": [
       "xlayer"
     ],
-    "isContract": false,
-    "isProxy": false
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "xlayer": true
+    },
+    "presentOnChains": [
+      "xlayer"
+    ]
   },
   "0xcf5af6f53cec74b791cb4182ac778ca9cd323510": {
     "chain": "xlayer",
     "chains": [
       "xlayer"
     ],
-    "isContract": false,
-    "isProxy": false
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "xlayer": true
+    },
+    "presentOnChains": [
+      "xlayer"
+    ]
   },
   "0x9449ed367c60ea757544fd990b57e1c2d0ec3a94": {
     "chain": "xlayer",
     "chains": [
       "xlayer"
     ],
-    "isContract": false,
-    "isProxy": false
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "xlayer": true
+    },
+    "presentOnChains": [
+      "xlayer"
+    ]
   },
   "0xf90e63079d97a0a1f479b2b168457f420caff6ba": {
     "chain": "xlayer",
     "chains": [
       "xlayer"
     ],
-    "isContract": false,
-    "isProxy": false
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "xlayer": true
+    },
+    "presentOnChains": [
+      "xlayer"
+    ]
   },
   "0xb6ceceab302e2e4948951ee7843fc24e92933061": {
     "chain": "xlayer",
     "chains": [
       "xlayer"
     ],
-    "isContract": false,
-    "isProxy": false
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "xlayer": true
+    },
+    "presentOnChains": [
+      "xlayer"
+    ]
   },
   "0x79b4055eda153f739b5ea63c9b647c1a095059f5": {
     "chain": "xlayer",
     "chains": [
       "xlayer"
     ],
-    "isContract": false,
-    "isProxy": false
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "xlayer": true
+    },
+    "presentOnChains": [
+      "xlayer"
+    ]
   },
   "0xe6d5d041fc5e7fdd0a53c13e78a1cc7e4ffcb667": {
     "chain": "xlayer",
     "chains": [
       "xlayer"
     ],
-    "isContract": false,
-    "isProxy": false
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "xlayer": true
+    },
+    "presentOnChains": [
+      "xlayer"
+    ]
   },
   "0x5bcd2f30fa1bf675d5d6e793dad7ddd487d21865": {
     "chain": "xlayer",
     "chains": [
       "xlayer"
     ],
-    "isContract": false,
-    "isProxy": false
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "xlayer": true
+    },
+    "presentOnChains": [
+      "xlayer"
+    ]
   },
   "0x6a9da2d710bb9b700acde7cb81f10f1ff8c89041": {
     "chain": "ethereum",

@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-11-03
+
+- Fixed X Layer contracts showing as plain wallets
+
 ## 2026-11-02
 
 - Showed the total dollar value of an address's token holdings beside it, and each token's dollar value in its hover card

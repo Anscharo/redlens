@@ -47,6 +47,9 @@ const REGISTRY = JSON.parse(
 // routescan: true when Routescan's Etherscan-compatible API serves the chain
 // (avalanche); its URL derives from the chainId (CHAIN_ROUTESCAN).
 //
+// rpcBatchLimit: the most calls rpcUrl accepts in one JSON-RPC batch (xlayer,
+// 10). Batching readers cap their transport with rpcBatchSize.
+//
 // Shaped to the historical object so every existing consumer is unchanged:
 // optional keys stay absent rather than becoming explicit undefined.
 export const CHAINS = REGISTRY.chains.map((c) => ({
@@ -60,6 +63,7 @@ export const CHAINS = REGISTRY.chains.map((c) => ({
   ...(c.blockscoutIntervalMs && { blockscoutIntervalMs: c.blockscoutIntervalMs }),
   ...(c.routescan && { routescan: true }),
   ...(c.logsRpcs && { logsRpcs: c.logsRpcs }),
+  ...(c.rpcBatchLimit && { rpcBatchLimit: c.rpcBatchLimit }),
 }));
 
 // Future / testnet chains with no explorer or full support yet — collapse to
@@ -126,6 +130,19 @@ export const CHAIN_ID = Object.fromEntries(
 export const CHAIN_RPC = Object.fromEntries(
   CHAINS.filter((c) => c.rpcUrl).map((c) => [c.chain, c.rpcUrl]),
 );
+
+const RPC_BATCH_LIMIT = Object.fromEntries(
+  CHAINS.filter((c) => c.rpcBatchLimit).map((c) => [c.chain, c.rpcBatchLimit]),
+);
+
+/**
+ * The batch size a viem transport for `chain` may use: `preferred`, capped at
+ * the registry's rpcBatchLimit. The cap also holds for an RPC_URL_<CHAIN>
+ * override, where it costs at most a few extra round trips.
+ */
+export function rpcBatchSize(chain, preferred) {
+  return Math.min(preferred, RPC_BATCH_LIMIT[chain] ?? preferred);
+}
 
 /** Solana's JSON-RPC endpoint — a different protocol, so deliberately not in CHAIN_RPC. */
 export const SOLANA_RPC = CHAINS.find((c) => c.chain === "solana")?.solanaRpcUrl;

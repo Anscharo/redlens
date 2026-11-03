@@ -12,10 +12,12 @@
  */
 
 import { createPublicClient, http } from "viem";
-import { CHAIN_RPC } from "./chains.mjs";
+import { CHAIN_RPC, rpcBatchSize } from "./chains.mjs";
 
 // Addresses per request. The transport batches JSON-RPC calls, so this bounds
-// the payload rather than the number of round trips.
+// the payload rather than the number of round trips. A chain whose node takes
+// smaller batches gets its rpcBatchLimit instead (rpcBatchSize), because an
+// oversized batch fails every call in it.
 const BATCH = 50;
 
 /**
@@ -120,7 +122,7 @@ function defaultClientFor(chain) {
       timeout: 20_000,
       retryCount: 3,
       retryDelay: 400,
-      batch: { batchSize: BATCH, wait: 16 },
+      batch: { batchSize: rpcBatchSize(chain, BATCH), wait: 16 },
     }),
   });
 }

@@ -8,7 +8,7 @@
 // NATIVE_TOKEN entry are skipped. A failed chain is logged and omitted rather
 // than failing the whole sweep.
 import { createPublicClient, http, erc20Abi } from "viem";
-import { CHAIN_RPC } from "../../../scripts/lib/chains.mjs";
+import { CHAIN_RPC, rpcBatchSize } from "../../../scripts/lib/chains.mjs";
 import { NATIVE_TOKEN, tokensForAddress } from "../../lib/tokens.ts";
 import { fetchSolanaBalances } from "./solana-balances.ts";
 import { fetchSafes, safeReadFailed, type SafeState } from "./safe-reads.ts";
@@ -132,15 +132,17 @@ export function planCodeChecks(chain: string, inputs: AddressInput[]): string[] 
   return [...out];
 }
 
+/** Marks an eth_getCode call that failed. viem answers `undefined` for no bytecode, so a failure needs its own value. */
+export const CODE_READ_FAILED = Symbol("code read failed");
+
 // Pure: zip eth_getCode results back onto their addresses. Empty/absent code
-// ("0x", null, a failed call) means no bytecode — a real EOA.
-export function assembleCodeResults(
-  addresses: string[],
-  codes: (string | null | undefined)[],
-): Map<string, boolean> {
+// ("0x", null, undefined) means no bytecode — a real EOA. A failed read gets
+// no entry, so persist keeps the stored has_code instead of writing false.
+export function assembleCodeResults(addresses: string[], codes: (string | null | undefined | typeof CODE_READ_FAILED)[]): Map<string, boolean> {
   const out = new Map<string, boolean>();
   for (let i = 0; i < addresses.length; i++) {
-    out.set(addresses[i], !!codes[i] && codes[i] !== "0x");
+    const code = codes[i];
+    if (code !== CODE_READ_FAILED) out.set(addresses[i], !!code && code !== "0x");
   }
   return out;
 }
@@ -157,7 +159,7 @@ async function fetchChain(
   if (!rpc || !NATIVE_TOKEN[chain]) return { balances: new Map(), codeResults: new Map(), safes: new Map() }; // unsupported chain — skip
 
   const client = createPublicClient({
-    transport: http(rpc, { timeout: 20_000, retryCount: 3, retryDelay: 400, batch: { batchSize: BATCH, wait: 16 } }),
+    transport: http(rpc, { timeout: 20_000, retryCount: 3, retryDelay: 400, batch: { batchSize: rpcBatchSize(chain, BATCH), wait: 16 } }),
   });
   const { calls, meta } = planChainCalls(chain, inputs);
 
@@ -174,7 +176,7 @@ async function fetchChain(
   let codeResults = new Map<string, boolean>();
   if (codeAddrs.length > 0) {
     const codes = await Promise.all(
-      codeAddrs.map((a) => client.getCode({ address: a as `0x${string}` }).catch(() => undefined)),
+      codeAddrs.map((a) => client.getCode({ address: a as `0x${string}` }).catch((): typeof CODE_READ_FAILED => CODE_READ_FAILED)),
     );
     codeResults = assembleCodeResults(codeAddrs, codes);
   }
@@ -195,8 +197,8 @@ async function fetchChain(
  * every allowFailure entry failed used to stall the rotation for every other
  * address.
  *
- * hasCode is only attached when this sweep actually ran eth_getCode for that
- * address; omitting the property (vs `undefined`) is what persist's COALESCE
+ * hasCode is only attached when this sweep's eth_getCode for that address
+ * answered; omitting the property (vs `undefined`) is what persist's COALESCE
  * keys on. An empty balance map still travels with a code answer, which is
  * how an unverified contract holding no tokens keeps its hasCode.
  */
