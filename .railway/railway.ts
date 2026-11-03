@@ -1,10 +1,9 @@
-// Railway Infrastructure as Code for the Redline Atlas project. The Railway CLI
+// Railway Infrastructure as Code for the Redline Portal project. The Railway CLI
 // evaluates this file (`railway config plan` / `railway config apply`) under
 // `node --experimental-strip-types`, so every relative import names its `.ts`.
 // Railway does not read it during a deploy; a setting here reaches Railway only
-// through an apply, run from the manual "Railway config" workflow
-// (.github/workflows/railway-config.yml) or a local CLI. The rollout steps are
-// in docs/DEPLOYMENT.md ("Railway configuration").
+// through `railway config apply`, once per environment. The steps are in
+// docs/DEPLOYMENT.md ("Railway configuration").
 //
 // It manages the two services built from this repository and nothing else:
 //
@@ -91,5 +90,5 @@ export default defineRailway(() => {
     variables: { managed: false },
     resources: [webService(), workerService()],
   };
-  return project("Redline Atlas", definition);
+  return project("Redline Portal", definition);
 });
