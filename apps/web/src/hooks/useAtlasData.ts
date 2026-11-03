@@ -122,7 +122,7 @@ export function useAtlasData(): AtlasDataState {
         Promise.all([safe(loadAddresses(base)), safe(loadChainState()), safe(loadGlossary(base))]).then(
           ([addresses, chainState, glossary]) => {
             if (!live) return;
-            if (addresses) setAddressMap(addresses);
+            if (addresses) setAddressMap(addresses, base);
             setDeepError(null);
             startTransition(() => {
               setData({

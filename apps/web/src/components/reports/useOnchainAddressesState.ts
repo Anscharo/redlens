@@ -6,6 +6,7 @@ import { loadDocs } from "../../lib/docs";
 import { loadAddresses } from "../../lib/addresses";
 import { urlString } from "../../hooks/useUrlState";
 import { useLoaded } from "../../hooks/useAtlasData";
+import { useDataSource } from "../../lib/dataSource";
 import {
   buildOnchainAddressRows,
   addrSearchFields,
@@ -22,7 +23,8 @@ const typeCodec = urlString(null);
 
 function useOnchainRows(report: ReportId) {
   const docs = useLoaded(loadDocs);
-  const addrMap = useLoaded(loadAddresses);
+  const { base } = useDataSource();
+  const addrMap = useLoaded(() => loadAddresses(base));
   const balances = useBalances(report);
 
   const { bal } = balances;

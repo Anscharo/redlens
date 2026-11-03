@@ -112,7 +112,7 @@ describe("useAtlasData", () => {
     expect(result.current.shallowError).toBeNull();
     expect(result.current.deepError).toBeNull();
     // Address map hydrated from the resolved addresses.
-    expect(loaders.setAddressMap).toHaveBeenCalledWith({ "0xabc": { chain: "ethereum" } });
+    expect(loaders.setAddressMap).toHaveBeenCalledWith({ "0xabc": { chain: "ethereum" } }, loaders.base);
   });
 
   it("tolerates enrichment failures: still completes with null enrichments and no setAddressMap", async () => {

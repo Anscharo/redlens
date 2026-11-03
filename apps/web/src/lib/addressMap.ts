@@ -7,35 +7,40 @@ import { loadAddresses } from "./addresses";
 // read it through useSharedAddressMap, which subscribes here, so a pill that
 // rendered before the map loaded re-renders once it does.
 //
-// The reader sets it from its own data load (useAtlasData), which may be a
-// preview's map. Anywhere else, the first subscriber loads it once
-// (ensureAddressMap). A map someone has already set is never replaced by that
-// load.
+// The map belongs to one data-source base (lib/dataSource.tsx): the live atlas,
+// or a preview's bundle, whose addresses.atlas.json differs. The first
+// subscriber for a base loads that base's map (ensureAddressMap); the reader
+// also sets it from its own load (useAtlasData), so the markdown it renders
+// already has the map. A map set without a base (tests) is never replaced.
 const UNSET: Record<string, AddressInfo> = {};
 let SHARED_ADDRESSES = UNSET;
-let attempted = false;
+let mapBase: string | null = null;
+let loading: string | null = null;
 const listeners = new Set<() => void>();
 
-export function setAddressMap(m: Record<string, AddressInfo>) {
-  if (m === SHARED_ADDRESSES) return;
+/** Set the map, as loaded from `base`; no base pins it whatever base is asked for. */
+export function setAddressMap(m: Record<string, AddressInfo>, base: string | null = null) {
+  if (m === SHARED_ADDRESSES && base === mapBase) return;
   SHARED_ADDRESSES = m;
+  mapBase = base;
   for (const l of listeners) l();
 }
 
-/** Load the live map once per page, unless someone has set one. A failed load
- *  is not retried; the reader's or a report's own load can still set it. */
-function ensureAddressMap(): void {
-  if (attempted || SHARED_ADDRESSES !== UNSET) return;
-  attempted = true;
-  loadAddresses()
+/** Load the base's map once, unless it is already the one held. A failed load
+ *  is not retried; the reader's own load can still set it. */
+function ensureAddressMap(base: string): void {
+  const pinned = mapBase === null && SHARED_ADDRESSES !== UNSET;
+  if (pinned || mapBase === base || loading === base) return;
+  loading = base;
+  loadAddresses(base)
     .then((m) => {
-      if (SHARED_ADDRESSES === UNSET) setAddressMap(m);
+      if (loading === base && mapBase !== base) setAddressMap(m, base);
     })
     .catch(() => {});
 }
 
-export function subscribeAddressMap(cb: () => void): () => void {
-  ensureAddressMap();
+export function subscribeAddressMap(base: string, cb: () => void): () => void {
+  ensureAddressMap(base);
   listeners.add(cb);
   return () => {
     listeners.delete(cb);
@@ -46,8 +51,9 @@ export function getAddressMap(): Record<string, AddressInfo> {
   return SHARED_ADDRESSES;
 }
 
-/** Tests: forget the map and the load attempt. */
+/** Tests: forget the map and any load in flight. */
 export function resetAddressMap(): void {
   SHARED_ADDRESSES = UNSET;
-  attempted = false;
+  mapBase = null;
+  loading = null;
 }

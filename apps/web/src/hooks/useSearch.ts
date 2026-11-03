@@ -117,9 +117,9 @@ export function useSearch() {
     workerRef.current = worker;
 
     // Forward already-loaded docs + addresses so the search worker doesn't
-    // fetch them again independently (avoids duplicate 5.6 MB downloads). In
-    // preview, docs come from the preview bundle (base); addresses from main.
-    Promise.all([loadAtlas(base), loadAddresses()]).then(([bundle, addresses]) => {
+    // fetch them again independently (avoids duplicate 5.6 MB downloads). Both
+    // come from the active data source, so a preview searches its own addresses.
+    Promise.all([loadAtlas(base), loadAddresses(base)]).then(([bundle, addresses]) => {
       worker.postMessage({ type: "preload", docs: bundle.docs, addresses: addresses ?? {} });
     }).catch(() => {});
 
