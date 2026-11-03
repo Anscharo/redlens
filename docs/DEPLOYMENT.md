@@ -57,7 +57,8 @@ a. **Create the project from this GitHub repo.** Go to
    [railway.com/new](https://railway.com/new) → **Deploy from GitHub repo**.
    Authorize the Railway GitHub App for this repository if prompted, then
    select it. Railway creates a **web service that auto-deploys on every push
-   to `main`**. This runbook calls it `redlens-atlas`.
+   to `main`**. This runbook calls it `redlens-atlas`; in the live project it is
+   `redlens`, the name `.railway/railway.ts` declares.
 
 b. **Add managed Postgres.** On the project canvas: **New → Database → Add
    PostgreSQL**. *Railway's managed Postgres already includes `pgvector`.*
@@ -547,7 +548,7 @@ they disagree with `.railway/railway.ts`. Once per environment, development
 first (`redlens-development`), with the **Railway config** workflow:
 
 1. Run **`status`**. Its "What Railway's own migration would generate" group
-   prints the service names Railway has. If they are not `redlens-atlas` and
+   prints the service names Railway has. If they are not `redlens` and
    `redlens-worker`, fix `WEB_SERVICE` / `WORKER_SERVICE` in
    `.railway/railway.ts` first.
 2. Run **`migrate`**. It cuts both services over and applies

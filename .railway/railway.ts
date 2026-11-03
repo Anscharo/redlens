@@ -27,7 +27,7 @@ export const partial = "redlens";
 
 // Service names as Railway shows them. A name that does not match plans as
 // "Create service", never as a change to the existing one.
-export const WEB_SERVICE = "redlens-atlas";
+export const WEB_SERVICE = "redlens";
 export const WORKER_SERVICE = "redlens-worker";
 
 /** The worker's cron period in minutes. The tail budget in atlas-worker.mjs stays under it. */
