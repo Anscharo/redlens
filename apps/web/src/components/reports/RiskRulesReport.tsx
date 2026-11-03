@@ -1,4 +1,3 @@
-import { useHydrateAddressMap } from "../../hooks/useHydrateAddressMap";
 import { RiskTable } from "./RiskRulesTable";
 import { Link } from "../Link";
 import { ROUTES } from "@/lib/routes";
@@ -26,8 +25,6 @@ function RiskRulesNote({ model, rubric }: { model: string | undefined; rubric: s
 }
 
 export function RiskRulesReport({ query, mode }: { query: string; mode: ReportMode }) {
-  // Curated explorer URLs for address linkification in quotes on direct visits.
-  useHydrateAddressMap();
   const f = useRiskFilters();
   const [expanded, toggleRow] = useRiskExpandedRow();
   const { atlas, artifact, rq, join, filtered, counts } = useRiskRows(f, query, mode);

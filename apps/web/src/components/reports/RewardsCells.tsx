@@ -2,8 +2,9 @@ import { Link } from "../Link";
 import { actorHref } from "@/lib/routes";
 import { shortAddr } from "../../lib/format";
 import { Address } from "../Address";
-import { resolveAddressName, resolveOwner, hasResolvedName } from "../../lib/addressName";
-import type { AddressInfo } from "@/types";
+import { resolveAddressName, hasResolvedName } from "../../lib/addressName";
+import { infoFor } from "../../lib/addressTooltip";
+import { useSharedAddressMap } from "../../hooks/useSharedAddressMap";
 import type { EntityRef } from "@/lib/rewardsIndex";
 
 export function EntityChip({ e }: { e: EntityRef }) {
@@ -36,27 +37,13 @@ export function StatusPill({ s, label = s }: { s: string; label?: string }) {
   );
 }
 
-export function AddressLink({
-  addr,
-  chain,
-  addrMap,
-}: {
-  addr: string;
-  chain?: string;
-  addrMap: Record<string, AddressInfo>;
-}) {
+export function AddressLink({ addr, chain }: { addr: string; chain?: string }) {
+  const addrMap = useSharedAddressMap();
   const short = shortAddr(addr);
-  const info = addrMap[addr.toLowerCase()] ?? addrMap[addr];
+  const info = infoFor(addr, addrMap);
   const name = resolveAddressName(addr, info);
-  const owner = resolveOwner(info);
   return (
-    <Address
-      address={addr}
-      chain={chain}
-      addrMap={addrMap}
-      className="text-[11px]"
-      title={owner ? `${owner} — ${addr}` : addr}
-    >
+    <Address address={addr} chain={chain} className="text-[11px]">
       {hasResolvedName(info) ? `${name} · ${short}` : short}
     </Address>
   );

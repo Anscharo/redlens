@@ -74,7 +74,6 @@ describe("PrimitiveTable (DR)", () => {
       <PrimitiveTable
         agent={agent}
         prim={drPrim({ active: [drInstance()] })}
-        addrMap={{}}
       />,
     );
     expect(screen.getByText("Distribution Reward")).toBeInTheDocument();
@@ -112,7 +111,6 @@ describe("PrimitiveTable (DR)", () => {
             }),
           ],
         })}
-        addrMap={{}}
       />,
     );
     const row = screen.getByText("Spark DR Instance").closest("tr")!;
@@ -121,7 +119,7 @@ describe("PrimitiveTable (DR)", () => {
   });
 
   it("shows the empty-state copy when a global-activated primitive has no instances or invocations", () => {
-    render(<PrimitiveTable agent={agent} prim={drPrim()} addrMap={{}} />);
+    render(<PrimitiveTable agent={agent} prim={drPrim()} />);
     expect(
       screen.getByText(/Spark has Distribution Reward globally activated but has not invoked any/),
     ).toBeInTheDocument();
@@ -133,7 +131,6 @@ describe("PrimitiveTable (DR)", () => {
       <PrimitiveTable
         agent={agent}
         prim={drPrim({ invocations: [invocation] })}
-        addrMap={{}}
       />,
     );
     expect(screen.getByText("Invocations in Progress")).toBeInTheDocument();
@@ -153,7 +150,6 @@ describe("PrimitiveTable (IB)", () => {
           primitiveDocNo: "A.2.2.1.2",
           suspended: [ibInstance()],
         })}
-        addrMap={{}}
       />,
     );
     expect(screen.getByText("Integration Boost")).toBeInTheDocument();
@@ -165,8 +161,8 @@ describe("PrimitiveTable (IB)", () => {
     expect(screen.getByText("Acme Partner")).toBeInTheDocument();
     expect(screen.getByText("ethereum")).toBeInTheDocument();
     expect(screen.getByText("monthly")).toBeInTheDocument();
-    const addrLink = screen.getByTitle("0x1111111111111111111111111111111111111111");
-    expect(addrLink.tagName).toBe("A");
+    const addrLink = document.querySelector('a[data-address="0x1111111111111111111111111111111111111111"]');
+    expect(addrLink?.tagName).toBe("A");
   });
 
   it("highlights matching text against a report query", () => {
@@ -174,7 +170,7 @@ describe("PrimitiveTable (IB)", () => {
       <PrimitiveTable
         agent={agent}
         prim={drPrim({ kind: "IB", suspended: [ibInstance()] })}
-        addrMap={{}}
+       
         rq={parseReportQuery("acme")}
       />,
     );

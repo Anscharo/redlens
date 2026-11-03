@@ -1,8 +1,6 @@
 // Data loading + derived views for the Rewards report.
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { loadDocs } from "../../lib/docs";
-import { loadAddresses } from "../../lib/addresses";
-import { setAddressMap } from "../../lib/addressMap";
 import { loadGraph } from "../../lib/graph";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { buildRewardsIndex, type RewardsAgent, type RewardsIndex } from "@/lib/rewardsIndex";
@@ -46,20 +44,12 @@ function summarizeRewards(idx: RewardsIndex) {
 }
 
 export function useRewardsState(query: string, mode: ReportMode) {
-  // Three independent loads (a failure re-throws into the route ErrorBoundary,
-  // which owns the error page). Addresses are an enrichment — the tables read
-  // them as a plain record, so an empty map renders fine.
+  // Two independent loads (a failure re-throws into the route ErrorBoundary,
+  // which owns the error page). The address names and links come from the
+  // shared address map, which each <Address> loads on demand.
   const docs = useLoaded(loadDocs);
   const graph = useLoaded(loadGraph);
-  const addresses = useLoaded(loadAddresses);
   const idx = useMemo(() => (docs && graph ? buildRewardsIndex(docs, graph) : null), [docs, graph]);
-
-  // Hydrate the shared singleton the inline <Address> tooltips read for
-  // name/explorer resolution (this report loads the map directly, not via
-  // useAddressMap which is what normally sets the singleton).
-  useEffect(() => {
-    if (addresses) setAddressMap(addresses);
-  }, [addresses]);
 
   // Text filter: keep agents with at least one matching ICD, with their DR/IB
   // buckets narrowed to the matching rows. Empty-query passthrough keeps the
@@ -67,5 +57,5 @@ export function useRewardsState(query: string, mode: ReportMode) {
   const rq = useReportQuery(query, mode);
   const shownAgents = useMemo(() => (idx ? filterRewardsAgents(idx.agents, rq) : []), [idx, rq]);
   const summary = useMemo(() => (idx ? summarizeRewards(idx) : null), [idx]);
-  return { idx, addrMap: addresses ?? {}, rq, shownAgents, summary };
+  return { idx, rq, shownAgents, summary };
 }

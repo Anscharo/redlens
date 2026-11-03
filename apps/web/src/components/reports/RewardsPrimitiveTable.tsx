@@ -1,6 +1,5 @@
 import { Link } from "../Link";
 import { AtlasLink } from "../AtlasLink";
-import type { AddressInfo } from "@/types";
 import type { AgentPrimitive, RewardsAgent, RewardsInstance, RewardsInvocation } from "@/lib/rewardsIndex";
 import { atlasHref, actorHref } from "@/lib/routes";
 import { AddressLink, StatusPill } from "./RewardsCells";
@@ -11,13 +10,11 @@ import { icdSearchFields } from "@/lib/rewardsSearch";
 function InstanceRow({
   inst,
   kind,
-  addrMap,
   agent,
   rq,
 }: {
   inst: RewardsInstance | RewardsInvocation;
   kind: "DR" | "IB";
-  addrMap: Record<string, AddressInfo>;
   agent: RewardsAgent;
   rq: ReportQuery;
 }) {
@@ -103,7 +100,7 @@ function InstanceRow({
           </td>
           <td className="py-2 px-3 align-top text-xs">
             {inst.rewardAddress ? (
-              <AddressLink addr={inst.rewardAddress} chain={inst.rewardChain} addrMap={addrMap} />
+              <AddressLink addr={inst.rewardAddress} chain={inst.rewardChain} />
             ) : (
               <span className="text-tan-3">—</span>
             )}
@@ -141,12 +138,10 @@ function InstanceRow({
 export function PrimitiveTable({
   agent,
   prim,
-  addrMap,
   rq = EMPTY_QUERY,
 }: {
   agent: RewardsAgent;
   prim: AgentPrimitive;
-  addrMap: Record<string, AddressInfo>;
   rq?: ReportQuery;
 }) {
   const instances = [...prim.active, ...prim.suspended, ...prim.completed];
@@ -207,7 +202,7 @@ export function PrimitiveTable({
             <thead><HeaderRow /></thead>
             <tbody>
               {instances.map((inst) => (
-                <InstanceRow key={inst.id || inst.docNo} inst={inst} kind={kind} addrMap={addrMap} agent={agent} rq={rq} />
+                <InstanceRow key={inst.id || inst.docNo} inst={inst} kind={kind} agent={agent} rq={rq} />
               ))}
             </tbody>
           </table>
@@ -222,7 +217,7 @@ export function PrimitiveTable({
             <thead><HeaderRow /></thead>
             <tbody>
               {invocations.map((inst) => (
-                <InstanceRow key={inst.id || inst.docNo} inst={inst} kind={kind} addrMap={addrMap} agent={agent} rq={rq} />
+                <InstanceRow key={inst.id || inst.docNo} inst={inst} kind={kind} agent={agent} rq={rq} />
               ))}
             </tbody>
           </table>

@@ -121,6 +121,19 @@ describe("AddressTooltip", () => {
     expect([...tip.querySelectorAll("[data-usd]")].map((e) => e.textContent)).toEqual(["$6.0K", ""]);
   });
 
+  it("names the address's owner in its own row", async () => {
+    setAddressMap({ [EVM]: makeAddressInfo({ entityLabel: "Bonapublica" }) });
+    loadBalancesCached.mockResolvedValue({ lastCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {} });
+    render(
+      <AddressTooltip address={EVM}>
+        <a href="#">{EVM}</a>
+      </AddressTooltip>,
+    );
+    await hover(EVM);
+    const owner = [...screen.getByRole("tooltip").querySelectorAll("dt")].find((dt) => dt.textContent === "owner");
+    expect(owner?.nextElementSibling).toHaveTextContent("Bonapublica");
+  });
+
   it("shows the full address and no balance rows when nothing is known", async () => {
     loadBalancesCached.mockResolvedValue({
       lastCheckedAt: null,

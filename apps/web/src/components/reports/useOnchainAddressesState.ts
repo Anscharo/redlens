@@ -1,12 +1,12 @@
 // Data/filter-state hooks backing OnchainAddressesReport.tsx: the loaded docs,
 // address map and balances, the rows built from them, and the URL-synced
 // Chain/Type filters.
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { loadDocs } from "../../lib/docs";
 import { loadAddresses } from "../../lib/addresses";
-import { setAddressMap } from "../../lib/addressMap";
 import { urlString } from "../../hooks/useUrlState";
 import { useLoaded } from "../../hooks/useAtlasData";
+import { useDataSource } from "../../lib/dataSource";
 import {
   buildOnchainAddressRows,
   addrSearchFields,
@@ -23,15 +23,9 @@ const typeCodec = urlString(null);
 
 function useOnchainRows(report: ReportId) {
   const docs = useLoaded(loadDocs);
-  const addrMap = useLoaded(loadAddresses);
+  const { base } = useDataSource();
+  const addrMap = useLoaded(() => loadAddresses(base));
   const balances = useBalances(report);
-
-  // Hydrate the shared singleton that the inline <Address> tooltips read for
-  // name/explorer resolution (this report loads the map itself rather than
-  // through useAddressMap, which is what normally sets the singleton).
-  useEffect(() => {
-    if (addrMap) setAddressMap(addrMap);
-  }, [addrMap]);
 
   const { bal } = balances;
   const rows = useMemo(

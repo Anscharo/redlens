@@ -38,7 +38,7 @@ function RewardsCsvButton({
 }
 
 export function RewardsReport({ query, mode }: { query: string; mode: ReportMode }) {
-  const { idx, addrMap, rq, shownAgents, summary } = useRewardsState(query, mode);
+  const { idx, rq, shownAgents, summary } = useRewardsState(query, mode);
   return (
     <ReportShell
       report={REPORT}
@@ -55,10 +55,10 @@ export function RewardsReport({ query, mode }: { query: string; mode: ReportMode
           context while filtering, hidden only when the filter clears the whole
           report so the empty state reads cleanly. */}
       {idx && (shownAgents.length > 0 || rq.needles.length === 0) && (
-        <EcosystemHeader idx={idx} addrMap={addrMap} />
+        <EcosystemHeader idx={idx} />
       )}
       {shownAgents.map((a) => (
-        <AgentSection key={a.name} agent={a} addrMap={addrMap} rq={rq} />
+        <AgentSection key={a.name} agent={a} rq={rq} />
       ))}
     </ReportShell>
   );

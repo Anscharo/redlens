@@ -3,7 +3,7 @@ import { Tooltip } from "./Tooltip";
 import { AddressTooltipOnchain } from "./AddressTooltipOnchain";
 import { AddressTooltipDocs } from "./AddressTooltipDocs";
 import { TipRow } from "./AddressTooltipRow";
-import { getAddressMap } from "../lib/addressMap";
+import { useSharedAddressMap } from "../hooks/useSharedAddressMap";
 import { resolveAddressLabel } from "../lib/addressTooltip";
 import { useAddressGraphFacts } from "../hooks/useAddressGraphFacts";
 import { shortLink } from "../lib/format";
@@ -15,13 +15,14 @@ import { shortLink } from "../lib/format";
 // refetching anything. Only the first hover of a session waits; after that the
 // shared caches are warm.
 function AddressTooltipContent({ address, href, onSettled }: { address: string; href?: string; onSettled: () => void }) {
-  // The graph facts feed two rows (the Safe check and the docs), so they load
-  // here, the lowest point both share.
+  // The graph facts and the address map feed several rows, so they load here,
+  // the lowest point those rows share.
   const facts = useAddressGraphFacts(address);
+  const map = useSharedAddressMap();
   useEffect(() => {
     if (facts) onSettled();
   }, [facts, onSettled]);
-  const { name, named } = resolveAddressLabel(address, getAddressMap());
+  const { name, named, owner } = resolveAddressLabel(address, map);
   return (
     <div className="min-w-[10rem] max-w-[20rem]">
       <div className={named ? "font-medium text-tan truncate" : "mono text-tan break-all"} data-full-address={named ? undefined : ""}>
@@ -29,7 +30,8 @@ function AddressTooltipContent({ address, href, onSettled }: { address: string; 
       </div>
       <dl className="mt-1.5 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1 mono text-[10px]">
         {named && <TipRow label="address"><span className="break-all">{address}</span></TipRow>}
-        <AddressTooltipOnchain address={address} multisigs={facts?.multisigs ?? []} onSettled={onSettled} />
+        {owner && <TipRow label="owner">{owner}</TipRow>}
+        <AddressTooltipOnchain address={address} map={map} multisigs={facts?.multisigs ?? []} onSettled={onSettled} />
         {facts && <AddressTooltipDocs docs={facts.docs} />}
         {href && (
           <TipRow label="explorer">

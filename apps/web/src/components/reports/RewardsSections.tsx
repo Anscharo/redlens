@@ -3,13 +3,12 @@
 // RewardsReport.tsx so the page file is data + <ReportShell> only.
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "@/lib/routes";
-import type { AddressInfo } from "@/types";
 import type { RewardsIndex, RewardsAgent } from "@/lib/rewardsIndex";
 import type { ReportQuery } from "@/lib/reportFilter";
 import { AddressLink, EntityChip } from "./RewardsCells";
 import { PrimitiveTable } from "./RewardsPrimitiveTable";
 
-export function EcosystemHeader({ idx, addrMap }: { idx: RewardsIndex; addrMap: Record<string, AddressInfo> }) {
+export function EcosystemHeader({ idx }: { idx: RewardsIndex }) {
   const cards = (["drPrimitive", "ibPrimitive", "stUsdsDr", "srUsdsDr"] as const)
     .map((k) => idx[k])
     .filter((n): n is NonNullable<typeof n> => !!n);
@@ -30,7 +29,7 @@ export function EcosystemHeader({ idx, addrMap }: { idx: RewardsIndex; addrMap: 
       ))}
       <div className="md:col-span-2 text-[11px] text-tan-3 flex items-center gap-2 pt-2">
         <span>Demand Side Buffer Multisig:</span>
-        <AddressLink addr={idx.demandSideBufferAddress} chain="ethereum" addrMap={addrMap} />
+        <AddressLink addr={idx.demandSideBufferAddress} chain="ethereum" />
         <span className="opacity-60">— DR + IB disbursement account</span>
       </div>
     </div>
@@ -39,11 +38,9 @@ export function EcosystemHeader({ idx, addrMap }: { idx: RewardsIndex; addrMap: 
 
 export function AgentSection({
   agent,
-  addrMap,
   rq,
 }: {
   agent: RewardsAgent;
-  addrMap: Record<string, AddressInfo>;
   rq: ReportQuery;
 }) {
   // Instance counts (Active/Suspended/Completed) — operational deployments.
@@ -89,8 +86,8 @@ export function AgentSection({
           )}
         </p>
       )}
-      {agent.dr && <PrimitiveTable agent={agent} prim={agent.dr} addrMap={addrMap} rq={rq} />}
-      {agent.ib && <PrimitiveTable agent={agent} prim={agent.ib} addrMap={addrMap} rq={rq} />}
+      {agent.dr && <PrimitiveTable agent={agent} prim={agent.dr} rq={rq} />}
+      {agent.ib && <PrimitiveTable agent={agent} prim={agent.ib} rq={rq} />}
     </section>
   );
 }

@@ -8,7 +8,6 @@ import { listedAddress } from "../../lib/pau";
 import { atlasHref } from "@/lib/routes";
 import { instanceAnchor } from "@/lib/radarAnchors";
 import { INVOCATION_STATUS_LABEL, isInvocationStatus } from "@/lib/radarRules";
-import { useAddressMap } from "../../hooks/useAddressMap";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { StatusPill } from "../reports/RewardsCells";
 import { RadarHeading } from "./RadarHeading";
@@ -41,9 +40,6 @@ function ParamRow({ prime, ...line }: ComponentProps<typeof ParamLine> & { prime
  *  `prime` (the prime whose page this is) lets a RateLimitID param that lists
  *  an address show the on-chain keys derived from it. */
 export function InstanceCard({ inst, prime, headingLevel = 4 }: { inst: RadarInstance; prime?: PauPrime; headingLevel?: number }) {
-  // Loaded here rather than drilled from ActorInstances: loadAddresses() is
-  // module-cached, so every card resolves from the one in-flight request.
-  const addrMap = useAddressMap();
   const colWidth = useMemo(() => {
     if (inst.signalParams.length === 0) return MIN_DOTS_PX;
     return Math.max(...inst.signalParams.map((p) => measureKeyPx(p.key))) + MIN_DOTS_PX;
@@ -69,7 +65,7 @@ export function InstanceCard({ inst, prime, headingLevel = 4 }: { inst: RadarIns
       </div>
       {inst.signalParams.length > 0 && (
         <div>
-          {inst.signalParams.map((p) => <ParamRow key={p.key} p={p} prime={prime} colWidth={colWidth} instanceHint={inst.displayName} addrMap={addrMap} />)}
+          {inst.signalParams.map((p) => <ParamRow key={p.key} p={p} prime={prime} colWidth={colWidth} instanceHint={inst.displayName} />)}
         </div>
       )}
     </div>

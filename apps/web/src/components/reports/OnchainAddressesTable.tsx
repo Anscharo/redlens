@@ -77,7 +77,6 @@ function Row({ r, rq }: { r: OnchainAddressRow; rq: ReportQuery }) {
             address={r.implementation}
             chain={r.chain}
             className="text-[11px]"
-            title={`implementation: ${r.implementation}`}
             noBalance
           >
             <Highlight text={shortAddr(r.implementation, 6, 4)} rq={rq} />

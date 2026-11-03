@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { MultisigFact } from "@/lib/addressGraphFacts";
-import { getAddressMap } from "../lib/addressMap";
+import type { AddressInfo } from "@/types";
 import { useSharedBalances } from "../lib/sharedBalances";
 import { resolveAddressHoldings } from "../lib/addressTooltip";
 import { resolveSafes } from "../lib/addressSafe";
@@ -14,20 +14,23 @@ import { AddressTooltipBalances } from "./AddressTooltipBalances";
  */
 export function AddressTooltipOnchain({
   address,
+  map,
   multisigs,
   onSettled,
 }: {
   address: string;
+  /** The shared address map, which places the address on its chains. */
+  map: Record<string, AddressInfo>;
   /** The atlas's multisig facts for the address, compared against the chain's Safe setup. */
   multisigs: MultisigFact[];
-  /** Called once the balances have loaded, so the tooltip re-measures its placement. */
+  /** Called once the balances, or a later map, have loaded, so the tooltip re-measures its placement. */
   onSettled: () => void;
 }) {
   const { addresses, prices, ready } = useSharedBalances(true);
+  // The map can land after the card opened too (useSharedAddressMap).
   useEffect(() => {
     if (ready) onSettled();
-  }, [ready, onSettled]);
-  const map = getAddressMap();
+  }, [ready, map, onSettled]);
   const { held, value } = resolveAddressHoldings(address, map, addresses, prices);
   return (
     <>

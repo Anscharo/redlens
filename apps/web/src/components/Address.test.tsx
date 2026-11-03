@@ -70,11 +70,9 @@ describe("Address", () => {
     expect(link.className).toContain("rl-addr");
   });
 
-  it("shows the hover-affordance icon when the tooltip is active, and hides it with noTooltip", () => {
-    const { container, rerender } = render(<Address address={ADDR} />);
+  it("shows the hover-affordance icon by default", () => {
+    const { container } = render(<Address address={ADDR} />);
     expect(container.querySelector(".rl-addr-hint")).not.toBeNull();
-    rerender(<Address address={ADDR} noTooltip />);
-    expect(container.querySelector(".rl-addr-hint")).toBeNull();
   });
 
   it("noHint hides the icon while keeping the tooltip", () => {
@@ -108,6 +106,21 @@ describe("Address", () => {
     const { container } = render(<Address address={ADDR} />);
     expect(container.querySelector(".rl-addr-bal")).toBeNull();
     await act(async () => {
+      await Promise.resolve();
+    });
+    expect(container.querySelector(".rl-addr-bal")).toHaveTextContent("$3.2K");
+  });
+
+  it("shows the teaser when the address map loads after the pill first rendered", async () => {
+    let resolve!: (v: unknown) => void;
+    loadBalancesCached.mockReturnValue(new Promise((r) => (resolve = r)));
+    const { container } = render(<Address address={ADDR} />);
+    // The reader and reports load the map after the first render.
+    setAddressMap({ [ADDR]: makeAddressInfo({ chains: ["ethereum"] }) });
+    await act(async () => {
+      resolve({
+        addresses: { [`${ADDR}|ethereum`]: { chain: "ethereum", checkedAt: null, hasCode: null, balances: { USDS: { raw: "3200000000000000000000", decimals: 18 } } } },
+      });
       await Promise.resolve();
     });
     expect(container.querySelector(".rl-addr-bal")).toHaveTextContent("$3.2K");
