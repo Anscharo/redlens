@@ -30,7 +30,7 @@ name: E2E
 #     threshold, so "previews untested for days" is red, not silent.
 #
 # Markdown-only PRs (skills, CLAUDE.md, plans — anything the app does not
-# `?raw`-import) should not reach here: railway.toml watchPatterns skip the
+# `?raw`-import) should not reach here: the watchPatterns in .railway/railway.ts skip the
 # deploy. This job still no-ops if Railway emits a status anyway, so Playwright
 # does not wait on a PR env that will never converge for a docs-only change.
 #

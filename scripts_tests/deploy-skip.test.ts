@@ -8,8 +8,6 @@ import {
   isMarkdownPath,
   normalizeRepoPath,
   prNumberFromRailwayEnv,
-  railwayWebWatchPatterns,
-  railwayWorkerWatchPatterns,
   shouldSkipDeploy,
 } from "../scripts/lib/deploy-skip.ts";
 
@@ -41,13 +39,6 @@ function appReadMarkdownFromSrc(): string[] {
     }
   }
   return [...found].sort();
-}
-
-function tomlWatchPatterns(file: string): string[] {
-  const text = fs.readFileSync(path.join(ROOT, file), "utf8");
-  const block = /watchPatterns\s*=\s*\[([\s\S]*?)\]/.exec(text);
-  if (!block) throw new Error(`${file} has no watchPatterns array`);
-  return [...block[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
 }
 
 describe("shouldSkipDeploy", () => {
@@ -125,14 +116,6 @@ describe("prNumberFromRailwayEnv", () => {
 describe("allowlist stays honest", () => {
   it("APP_READ_MARKDOWN matches every src/ `?raw` markdown import", () => {
     expect(appReadMarkdownFromSrc()).toEqual([...APP_READ_MARKDOWN].sort());
-  });
-
-  it("railway.toml watchPatterns match railwayWebWatchPatterns()", () => {
-    expect(tomlWatchPatterns("railway.toml")).toEqual(railwayWebWatchPatterns());
-  });
-
-  it("railway.worker.toml ignores all markdown", () => {
-    expect(tomlWatchPatterns("railway.worker.toml")).toEqual(railwayWorkerWatchPatterns());
   });
 
   it("e2e.yml names every APP_READ_MARKDOWN path", () => {

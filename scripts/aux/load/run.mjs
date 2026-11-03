@@ -315,7 +315,7 @@ async function runOomHeadroom() {
     expected_on_oom: {
       process: "kernel/Railway kills the container when RSS exceeds the plan slider",
       health: "/api/health fails (process down)",
-      restart: "railway.toml restartPolicyType=ON_FAILURE, maxRetries=3",
+      restart: ".railway/railway.ts restartPolicyType=ON_FAILURE, maxRetries=3",
       clients: "in-flight SSE and chat streams drop; EventSource reconnects after boot",
       after_boot: "serves baked dist/ atlas then hot-swaps from Postgres",
       no_graceful_handler: true,

@@ -57,7 +57,8 @@ a. **Create the project from this GitHub repo.** Go to
    [railway.com/new](https://railway.com/new) → **Deploy from GitHub repo**.
    Authorize the Railway GitHub App for this repository if prompted, then
    select it. Railway creates a **web service that auto-deploys on every push
-   to `main`**. This runbook calls it `redlens-atlas`.
+   to `main`**. This runbook calls it `redlens-atlas`; in the live project it is
+   `redlens`, the name `.railway/railway.ts` declares.
 
 b. **Add managed Postgres.** On the project canvas: **New → Database → Add
    PostgreSQL**. *Railway's managed Postgres already includes `pgvector`.*
@@ -107,15 +108,19 @@ can rebuild from DB.
 a. **Create the service.** On the Railway project canvas: **New → GitHub
    Repo** → select this repo again. Railway creates a second service.
 
-b. **Point it at the worker config file.** In the service settings:
-   - **Build → Config file path:** `railway.worker.toml`
+b. **Apply the worker's settings.** Name the service `redlens worker`
+   (`redlens-worker` in `production`; the names `.railway/railway.ts`
+   declares), then run `railway config plan` and `railway config apply` as in
+   [Railway configuration](#railway-configuration).
 
-   This tells Railway to use `Dockerfile.worker` (a headless image with git +
-   gh CLI for history builds) and set the cron schedule (`*/12 * * * *`).
+   That sets `Dockerfile.worker` (a headless image with git + gh CLI for
+   history builds) and the cron schedule (`*/12 * * * *`). A new service cannot
+   use a **Config file path** any more; Railway reads one only for services
+   that already had it.
 
 c. **Link DATABASE_URL** to the same Postgres instance:
    ```bash
-   railway variables --set 'DATABASE_URL=${{Postgres.DATABASE_URL}}' --service redlens-worker
+   railway variables --set 'DATABASE_URL=${{Postgres.DATABASE_URL}}' --service 'redlens worker'
    ```
 
 d. **Create a GitHub fine-grained token → `GITHUB_TOKEN`.** The worker uses
@@ -136,11 +141,12 @@ d. **Create a GitHub fine-grained token → `GITHUB_TOKEN`.** The worker uses
    `gh pr view` call fails silently — history entries record only the commit
    hash and diff, with no PR title, author, or summary.*
 
-e. **Set the worker variables:**
+e. **Set the worker variables** (in `production` the service is
+   `--service redlens-worker`):
    ```bash
-   railway variables --set 'DATABASE_URL=${{Postgres.DATABASE_URL}}' --service redlens-worker
-   railway variables --set 'OPENROUTER_API_KEY=sk-or-...'            --service redlens-worker
-   railway variables --set 'GITHUB_TOKEN=github_pat_...'             --service redlens-worker
+   railway variables --set 'DATABASE_URL=${{Postgres.DATABASE_URL}}' --service 'redlens worker'
+   railway variables --set 'OPENROUTER_API_KEY=sk-or-...'            --service 'redlens worker'
+   railway variables --set 'GITHUB_TOKEN=github_pat_...'             --service 'redlens worker'
    ```
 
 | Variable | Required | Purpose |
@@ -479,6 +485,82 @@ straight into the Postgres `chain_state` table on its own time gate
 
 ---
 
+## Railway configuration
+
+Both services' build and deploy settings (builder, Dockerfile, watch patterns,
+start command, healthcheck, restart policy, the worker's cron) live in
+[`.railway/railway.ts`](../.railway/railway.ts), Railway's
+[Infrastructure as Code](https://docs.railway.com/infrastructure-as-code) file.
+Railway does not read it on deploy: a change reaches Railway only when someone
+runs `railway config apply` (below). What it deliberately leaves alone:
+
+- **Other resources.** The file is a named partial (`partial = "redlens"`), so
+  an apply only ever changes or deletes resources that partial owns. Postgres
+  is not declared and is never touched.
+- **Variables.** `variables: { managed: false }` leaves every service variable
+  to the dashboard ([railway-env-vars.md](./railway-env-vars.md)).
+- **Branch.** Each service names its repo (`Anscharo/redlens`; a service
+  without a source would plan as disconnected) but no branch, so each
+  environment keeps the branch Railway already deploys.
+
+### Applying a change
+
+The Railway CLI applies the file from a checkout of this repo. It needs CLI
+5.42.1 or newer (`railway --version`; the `config` commands do not exist
+before that, and an older copy earlier on `PATH` shadows a newer one), Node
+22.6 or newer, and `pnpm install` done so `railway/iac` resolves. Run it from
+the repo root:
+
+```bash
+railway link                 # pick the project and the environment
+railway config plan          # read-only; review every line
+railway config apply         # shows the plan again and asks y/N
+```
+
+Without a `railway login`, an account or workspace token works instead: create
+one at [railway.com/account/tokens](https://railway.com/account/tokens), put it
+in `RAILWAY_API_TOKEN` for that shell (`read -rs RAILWAY_API_TOKEN && export
+RAILWAY_API_TOKEN`), and link with `railway link --project <project-id>
+--environment <name>`, the project id being the uuid after `/project/` in its
+dashboard URL. The token acts with your own permissions; revoke it when done.
+
+A good plan changes only the settings you meant to change. Stop if it shows
+`Create service` (the names in `.railway/railway.ts` do not match the
+dashboard's; fix `WEB_SERVICE` / `WORKER_SERVICE`), any delete, or a
+`source.repo` / `source.type` change. IaC state is per environment: apply to
+each of `production`, `development` and `prod`, the base environment the
+`redlens-pr-<n>` environments are forked from (which is not production). A
+clean run afterwards reports that the configuration is already up to date.
+
+### Migrating off `railway.toml` / `railway.worker.toml`
+
+Railway has deprecated Config as Code and stops reading `railway.toml` and
+`railway.worker.toml` on **2026-12-01**. A service still relying on them then
+builds with whatever its dashboard settings say, which after a cutover are
+empty until the apply. The two files stay in the repo until every environment
+is cut over, and `scripts_tests/railway-iac.test.ts` fails if they disagree
+with `.railway/railway.ts`. Once per environment, linked as above:
+
+```bash
+railway config migrate status     # which services still read Config as Code
+railway config migrate cutover    # switch both services off the toml files
+railway config plan               # expect: 0 to add, 0 to destroy
+railway config apply
+```
+
+Run them back to back, so no deploy builds on the empty dashboard settings in
+between. `railway config migrate undo` restores the toml files' config paths
+if the plan looks wrong. The plan for a fresh cutover sets, on `redlens`, the
+builder, watch patterns, healthcheck, restart policy and start command, and on
+`redlens worker` (`redlens-worker` in `production`), the builder,
+`Dockerfile.worker`, watch patterns, start
+command and the `*/12` cron; nothing else. After the apply, redeploy (or wait
+for the next push) and check the deploy's details page: its settings no longer
+carry the config-file icon.
+
+Once every environment is cut over, delete `railway.toml` and
+`railway.worker.toml`; the agreement test skips itself once the files are gone.
+
 ## Ongoing operation
 
 - **Atlas text + history + embeddings** refresh automatically within ~15 min
@@ -542,7 +624,8 @@ instance in the same Railway project.
 **Worker service looks healthy (no stuck/failed runs) but `/api/freshness` is stale**
 → A hung tick is only one failure mode, and Railway would show it as still
 running. Check three other things, in order:
-1. You are on the **worker** service (`railway.worker.toml` / cron `*/12`),
+1. You are on the **worker** service (`redlens worker`, `redlens-worker` in
+   `production` / cron `*/12`),
    not the web service. Cron ticks are short-lived executions; between them
    nothing is running, which looks idle rather than failed.
 2. The latest cron execution's **timestamp** is within ~12 minutes. If the
@@ -610,11 +693,10 @@ resolved to the wrong attached domain (see the warning in step 7d).
 
 **"pnpm could not be found" / wrong start command**
 → Railway auto-detected the pnpm workspace and set its own start command,
-overriding the Dockerfile CMD. The fix is already in `railway.toml`
-(`startCommand = "bun run sync:atlas && bun run start"`), but if Railway
-picked up a stale dashboard override first, clear it: service → **Settings →
-Deploy → Start Command** → remove any custom value and redeploy.
+overriding the Dockerfile CMD. `.railway/railway.ts` sets the start command
+(`bun --silent run start`); run `railway config plan`, which shows a drifted
+dashboard value as a change, and `railway config apply` to put it back.
 
 **Build fails on git/python/submodule**
-→ The builder must be `DOCKERFILE` (set in `railway.toml`); Nixpacks/Railpack
+→ The builder must be `DOCKERFILE` (set in `.railway/railway.ts`); Nixpacks/Railpack
 can't carry git + python3 + the atlas checkout needed at build time.
