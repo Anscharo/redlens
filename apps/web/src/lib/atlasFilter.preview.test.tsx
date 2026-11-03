@@ -8,7 +8,7 @@ import type { PreviewDiff } from "./previewDiff";
 let diff: Partial<PreviewDiff> = {};
 vi.mock("./previewDiff", () => ({ usePreviewDiff: () => diff }));
 
-import { AtlasFilterProvider, useFilterHides } from "./atlasFilter";
+import { AtlasFilterProvider, useAtlasFilterSet, useFilterHides } from "./atlasFilter";
 import { DataSourceContext } from "./dataSource";
 import { PreviewViewProvider } from "./previewView";
 import { SelectionProvider } from "./selection";
@@ -47,8 +47,9 @@ describe("useFilterHides in a preview's changed-only view", () => {
     expect(result.current("same")).toBe(true);
   });
 
-  it("hides nothing while the diff is still loading", () => {
+  it("hides nothing while the diff is still loading, in the reader's set and the gate alike", () => {
     diff = { ...loaded([], []), pending: true };
+    expect(renderHook(() => useAtlasFilterSet(), { wrapper }).result.current).toBeNull();
     const { result } = renderHook(() => useFilterHides(), { wrapper });
     expect(result.current("chg")).toBe(false);
     const { queryByRole } = render(<FilteredOutNotice id="chg" />, { wrapper });

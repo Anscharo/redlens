@@ -13,6 +13,7 @@ import { STORAGE_KEY } from "./selectionStore";
 import { AtlasLink } from "../components/AtlasLink";
 import { FilteredOutNotice } from "../components/atlas/FilteredOutNotice";
 import { useNavigateToNode } from "../hooks/useNavigation";
+import { usePanelNav } from "../components/atlas/panelSections";
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <SelectionProvider>
@@ -52,16 +53,16 @@ describe("useFilterHides", () => {
 
 describe("hiddenTargetHref", () => {
   it("opens beside the reader's doc, keeping its tab and filter", () => {
-    const live = new URLSearchParams("id=cur&view=history&subset=selected&split=old&q=x");
+    const live = new URLSearchParams("id=cur&view=history&subset=selected&base=sky&split=old&q=x");
     const { kind, href } = hiddenTargetHref("tgt", live);
     expect(kind).toBe("split");
-    expect(Object.fromEntries(paramsOf(href))).toEqual({ id: "cur", view: "history", subset: "selected", split: "tgt" });
+    expect(Object.fromEntries(paramsOf(href))).toEqual({ id: "cur", view: "history", subset: "selected", base: "sky", split: "tgt" });
   });
 
   it("reads the target unfiltered when there is no reader doc to keep", () => {
-    const { kind, href } = hiddenTargetHref("tgt", new URLSearchParams("subset=selected&q=x"));
+    const { kind, href } = hiddenTargetHref("tgt", new URLSearchParams("subset=selected&base=repo&q=x"));
     expect(kind).toBe("read");
-    expect(Object.fromEntries(paramsOf(href))).toEqual({ id: "tgt" });
+    expect(Object.fromEntries(paramsOf(href))).toEqual({ id: "tgt", base: "repo" });
   });
 
   it("stays put when the target is already the reader's doc", () => {
@@ -86,6 +87,12 @@ describe("AtlasLink to a filter-hidden doc", () => {
     expect(paramsOf(linkHref(container)).get("id")).toBe("in-b");
     fireEvent.click(container.querySelector("a")!);
     expect(track).not.toHaveBeenCalled();
+  });
+
+  it("carries a preview's diff base to a listed target", () => {
+    at("/atlas?id=in-a&subset=selected&base=sky");
+    const { container } = render(<AtlasLink to={atlasHref("in-b")}>go</AtlasLink>, { wrapper });
+    expect(Object.fromEntries(paramsOf(linkHref(container)))).toEqual({ id: "in-b", subset: "selected", base: "sky" });
   });
 
   it("leaves a destination that names its own subset as written", () => {
@@ -117,6 +124,23 @@ describe("the node navigator and the notice", () => {
     expect(Object.fromEntries(new URLSearchParams(window.location.search))).toEqual({ id: "in-a", subset: "selected", split: "out" });
     result.current("out");
     expect(track).toHaveBeenCalledTimes(1);
+  });
+
+  it("carries a preview's diff base when moving the reader to a listed doc", () => {
+    at("/atlas?id=in-a&subset=selected&base=sky");
+    const { result } = renderHook(() => useNavigateToNode(), { wrapper });
+    result.current("in-b");
+    expect(new URLSearchParams(window.location.search).get("base")).toBe("sky");
+  });
+
+  it("panel navigation logs reader_annotation_nav only for a doc the reader moves to", () => {
+    at("/atlas?id=in-a&subset=selected");
+    const onNavigate = vi.fn();
+    const { result } = renderHook(() => usePanelNav(onNavigate, vi.fn()), { wrapper });
+    result.current.nav("related", "out");
+    result.current.nav("related", "in-b");
+    expect(track.mock.calls.map((c) => c[0])).toEqual(["reader_annotation_nav"]);
+    expect(onNavigate).toHaveBeenCalledTimes(2);
   });
 
   it("does nothing for the hidden doc the reader is already on", () => {

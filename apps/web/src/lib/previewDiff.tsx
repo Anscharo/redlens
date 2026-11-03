@@ -132,7 +132,13 @@ export function PreviewDiffProvider({ children }: { children: ReactNode }) {
           return fetch(`${base}diff.json`).then((r2) => (r2.ok ? r2.json() : null));
         })
         .catch(() => null);
-      if (!live || !d) return;
+      if (!live) return;
+      // A diff that cannot be read ends `pending`: changed-only then
+      // shows nothing, and the reader's notice offers "show all".
+      if (!d) {
+        setDiff(EMPTY);
+        return;
+      }
       setDiff({
         added: new Set<string>(d.added ?? []),
         changed: new Set<string>(d.changed ?? []),

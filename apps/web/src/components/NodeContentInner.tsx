@@ -15,6 +15,7 @@ import { track } from "../lib/analytics";
 import { rehypeHighlightMarks } from "../lib/rehypeHighlightMarks";
 import { Address } from "./Address";
 import { MarkdownCode } from "./RateLimitKey";
+import { useFilterHides } from "../lib/atlasFilter";
 import type { ReportQuery } from "@/lib/reportFilter";
 
 interface Props {
@@ -61,6 +62,7 @@ function MarkdownLink({
   ...props
 }: AnchorHTMLAttributes<HTMLAnchorElement> & { children?: React.ReactNode; node?: Element }) {
   const onNavigate = useNavigateContext();
+  const filterHides = useFilterHides();
   const { base } = useDataSource();
   const targetId = href ? internalTargetId(base, href) : null;
   if (targetId && onNavigate) {
@@ -69,7 +71,8 @@ function MarkdownLink({
         href={atlasHref(targetId)}
         onClick={(e) => {
           e.preventDefault();
-          track("reader_content_link", { target_id: targetId });
+          // A filter-hidden target opens beside the reader; the navigator tracks that as a split open.
+          if (!filterHides(targetId)) track("reader_content_link", { target_id: targetId });
           onNavigate(targetId);
         }}
         {...props}

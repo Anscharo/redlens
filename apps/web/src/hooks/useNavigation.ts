@@ -36,7 +36,7 @@ function useNodeNavigator(navigate: Navigate): (id: string) => void {
         navigate(target.href);
         return;
       }
-      navigate(`${ROUTES.ATLAS}?${carryParams(new URLSearchParams({ id }), ["split", "view", "subset"])}`);
+      navigate(`${ROUTES.ATLAS}?${carryParams(new URLSearchParams({ id }), ["split", "view", "subset", "base"])}`);
     },
     [navigate, filterHides],
   );
@@ -50,7 +50,7 @@ function useViewChange(navigate: Navigate, nodeId: string | null): (v: AtlasTab)
       const params = new URLSearchParams();
       if (nodeId) params.set("id", nodeId);
       if (v !== "notes") params.set("view", v);
-      navigate(`${ROUTES.ATLAS}?${carryParams(params, ["split", "subset"])}`);
+      navigate(`${ROUTES.ATLAS}?${carryParams(params, ["split", "subset", "base"])}`);
     },
     [navigate, nodeId],
   );

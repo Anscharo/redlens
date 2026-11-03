@@ -55,6 +55,12 @@ describe("usePreviewChangedSet", () => {
     expect(renderHook(() => usePreviewChangedSet()).result.current).toBeNull();
   });
 
+  it("is null while the diff is still pending, so nothing reads as filtered out", () => {
+    configure({ preview: true, onlyChanged: true });
+    mockDiff.mockReturnValue({ ...mockDiff(), pending: true });
+    expect(renderHook(() => usePreviewChangedSet()).result.current).toBeNull();
+  });
+
   it("is the union of added and changed when preview + toggle are on", () => {
     configure({ preview: true, onlyChanged: true, added: ["a"], changed: ["b", "c"] });
     const set = renderHook(() => usePreviewChangedSet()).result.current;

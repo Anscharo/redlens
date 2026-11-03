@@ -5,12 +5,12 @@ import { ROUTES } from "@/lib/routes";
 import { track } from "../lib/analytics";
 import { hiddenTargetHref, useFilterHides } from "../lib/atlasFilter";
 
-// Like <Link>, but when the destination is /atlas, folds ?split= and ?subset=
-// from the current URL into the target so the comparison pane and the
-// changed/selected-only filter persist across atlas-internal navigation and
-// across search → atlas navigation. A target the filter hides goes where
+// Like <Link>, but when the destination is /atlas, folds ?split=, ?subset= and
+// a preview's ?base= from the current URL into the target so the comparison
+// pane, the changed/selected-only filter and the diff base persist across
+// atlas-internal navigation and across search → atlas navigation. A target the filter hides goes where
 // hiddenTargetHref says, usually the comparison pane. From any other route (no
-// split/subset in URL) it is a no-op equivalent to <Link>.
+// split/subset/base in URL) it is a no-op equivalent to <Link>.
 interface Props extends Omit<ComponentPropsWithoutRef<"a">, "href"> {
   to: string;
 }
@@ -23,7 +23,9 @@ type Folded = { href: string; splitId: string | null };
 function foldHidden(np: URLSearchParams, target: string, live: URLSearchParams): Folded {
   if (np.has("view")) {
     const split = live.get("split");
+    const base = live.get("base");
     if (split && split !== target) np.set("split", split);
+    if (base && !np.has("base")) np.set("base", base);
     return { href: `${ROUTES.ATLAS}?${np}`, splitId: null };
   }
   const { kind, href } = hiddenTargetHref(target, live);
@@ -33,7 +35,8 @@ function foldHidden(np: URLSearchParams, target: string, live: URLSearchParams):
 function foldParams(to: string, live: URLSearchParams, filterHides: (id: string) => boolean): Folded {
   const split = live.get("split");
   const subset = live.get("subset");
-  if (!(split || subset) || !to.startsWith(`${ROUTES.ATLAS}?`)) return { href: to, splitId: null };
+  const base = live.get("base");
+  if (!(split || subset || base) || !to.startsWith(`${ROUTES.ATLAS}?`)) return { href: to, splitId: null };
   const [, query = ""] = to.split("?", 2);
   const np = new URLSearchParams(query);
   const target = np.get("id");
@@ -41,6 +44,7 @@ function foldParams(to: string, live: URLSearchParams, filterHides: (id: string)
   if (target && !chosen && filterHides(target)) return foldHidden(np, target, live);
   if (split && !np.has("split")) np.set("split", split);
   if (subset && !np.has("subset")) np.set("subset", subset);
+  if (base && !np.has("base")) np.set("base", base);
   return { href: `${ROUTES.ATLAS}?${np}`, splitId: null };
 }
 

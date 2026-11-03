@@ -1,6 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { ROUTES } from "@/lib/routes";
-import { usePreviewDiff } from "./previewDiff";
 import { usePreviewChangedSet } from "./previewFilter";
 import { useSelectionSet } from "./selectionFilter";
 
@@ -18,11 +17,11 @@ const FilterHidesContext = createContext<(id: string) => boolean>(HIDES_NOTHING)
 
 /** Works out the filter once for the app, so the many links asking "is this
  *  doc hidden?" re-render only when the filter changes, not on every checkbox
- *  tick in the All view. A preview diff still loading hides nothing. */
+ *  tick in the All view. It reads the same set as the reader and tree, so a
+ *  preview diff still loading hides nothing anywhere (see previewFilter.ts). */
 export function AtlasFilterProvider({ children }: { children: ReactNode }) {
   const set = useAtlasFilterSet();
-  const { pending } = usePreviewDiff();
-  const hides = useMemo(() => (!set || pending ? HIDES_NOTHING : (id: string) => !set.has(id)), [set, pending]);
+  const hides = useMemo(() => (set ? (id: string) => !set.has(id) : HIDES_NOTHING), [set]);
   return <FilterHidesContext.Provider value={hides}>{children}</FilterHidesContext.Provider>;
 }
 
@@ -38,7 +37,9 @@ export function useFilterHides(): (id: string) => boolean {
  *  reader's doc (reached by URL), so nothing moves. */
 export type HiddenTarget = { kind: "split" | "read" | "stay"; href: string };
 
-const KEPT_BESIDE = ["id", "view", "subset"] as const;
+// `base` is a preview's diff base (?base=): dropping it would refetch a
+// different diff and change which docs the filter lists.
+const KEPT_BESIDE = ["id", "view", "subset", "base"] as const;
 
 function atlasUrl(params: URLSearchParams): string {
   return `${ROUTES.ATLAS}?${params}`;
@@ -50,6 +51,8 @@ export function hiddenTargetHref(id: string, live: URLSearchParams): HiddenTarge
   if (!reading) {
     const params = new URLSearchParams({ id });
     if (split && split !== id) params.set("split", split);
+    const base = live.get("base");
+    if (base) params.set("base", base);
     return { kind: "read", href: atlasUrl(params) };
   }
   const params = new URLSearchParams();

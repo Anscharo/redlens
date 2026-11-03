@@ -7,6 +7,7 @@ import type { GlossaryEntry } from "../../lib/glossary";
 import type { AtlasTab } from "../../lib/atlasTab";
 import type { DocValueSources } from "@/lib/pauDocSources";
 import { track } from "../../lib/analytics";
+import { useFilterHides } from "../../lib/atlasFilter";
 
 export const SECTION_HEAD = "text-sm mono text-tan-2 font-semibold tracking-wide";
 
@@ -43,10 +44,12 @@ export interface RightPanelProps {
 export type Nav = (kind: string, target: string) => void;
 
 export function usePanelNav(onNavigate: (id: string) => void, onNavigateByDocNo: (docNo: string) => void) {
+  const filterHides = useFilterHides();
   const nav = useCallback<Nav>((kind, nid) => {
-    track("reader_annotation_nav", { kind, node_id: nid });
+    // A filter-hidden target opens beside the reader; the navigator tracks that as a split open.
+    if (!filterHides(nid)) track("reader_annotation_nav", { kind, node_id: nid });
     onNavigate(nid);
-  }, [onNavigate]);
+  }, [onNavigate, filterHides]);
   const navDoc = useCallback<Nav>((kind, docNo) => {
     track("reader_annotation_nav", { kind, doc_no: docNo });
     onNavigateByDocNo(docNo);
