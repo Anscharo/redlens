@@ -51,7 +51,7 @@
     { "files": ["apps/web/src/components/reports/OeaAssessmentTable.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 90, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/reports/PotentialMistakesPager.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 96, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/reports/ProcessCurationPanel.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 92, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/components/reports/RewardsPrimitiveTable.tsx"], "rules": { "max-lines": ["error", { "max": 229, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 129, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["apps/web/src/components/reports/RewardsPrimitiveTable.tsx"], "rules": { "max-lines": ["error", { "max": 224, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 127, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/reports/RoleCategoryTable.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 91, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/selection/SelectionTreeToggle.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 109, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/tree/TreeRow.tsx"], "rules": { "max-lines": ["error", { "max": 205, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 144, "skipBlankLines": true, "skipComments": true }] } },
