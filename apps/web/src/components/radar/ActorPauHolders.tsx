@@ -27,6 +27,15 @@ const ON_LABEL: Record<string, string> = {
 /** The atlas document defining the Diamond PAU's access-control roles (A.2.2.10.1.1.1.2.2). */
 const ROLE_DEFINITIONS_DOC = "2ae4b91a-6900-41e8-9718-32805b956550";
 
+/** What a Roles row says and what its mark means, with the atlas's role definitions. */
+const RolesNote = () => (
+  <Callout className="mb-2">
+    Each row is an address, the role it holds and the contract it holds it on. ✓ means the chain confirms it, ✗ that it was granted but no longer
+    holds it, ? that it could not be checked. The atlas defines the Diamond PAU roles in{" "}
+    <AtlasLink to={atlasHref(ROLE_DEFINITIONS_DOC)} className="text-accent hover:underline">Liquidity Layer Role Definitions</AtlasLink>.
+  </Callout>
+);
+
 const VERB = { role: { denied: "was granted", else: "holds" }, member: { denied: "was added as", else: "is" } };
 
 /** Who holds which role on which PAU contract, each marked as the chain confirms it. */
@@ -39,11 +48,7 @@ export function PauHolders({ snap, anchor }: { snap: PauSnapshot; anchor: Anchor
   return (
     <div className="mt-3">
       <PauSectionHeading deployment={anchor} section="roles">Roles</PauSectionHeading>
-      <Callout className="mb-2">
-        Each row is an address, the role it holds and the contract it holds it on. ✓ means the chain confirms it, ✗ that it was granted but no longer
-        holds it, ? that it could not be checked. The atlas defines the Diamond PAU roles in{" "}
-        <AtlasLink to={atlasHref(ROLE_DEFINITIONS_DOC)} className="text-accent hover:underline">Liquidity Layer Role Definitions</AtlasLink>.
-      </Callout>
+      <RolesNote />
       <ul className="space-y-0.5">
         {rows.map((r) => {
           const s = STATUS[r.status];
