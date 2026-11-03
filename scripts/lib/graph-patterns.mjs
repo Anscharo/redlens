@@ -104,14 +104,18 @@ export const ATOMIC_PARTY_RE = /The party ['‘]([^'’]+)['’]\s+is\b/i;
 // with `cleanOrgProseName` below — same result today, but two copies of one
 // rule). `g` flag: both consumers reset `lastIndex` before use, whether via
 // `matchAll` (2w) or a single `exec` (1p).
+// Either name may carry a parenthetical aside, as next-gen-atlas PR 370 writes
+// Grove's development company doc (A.6.1.1.2.2.1.1.3.1.1.5: "Grove Labs (…) is
+// a development company …"). The aside is matched but not captured: the name
+// before it is the entity's name, and both consumers read the two names as
+// m[1] and m[2].
+const NAME = String.raw`([A-Z][A-Za-z0-9'&. -]+?)(?: \([^()]*\))?`;
 //   "The Spark Foundation is the Prime Foundation associated with Spark."
 //   "Rubicon is the Prime Foundation associated with Obex."
-export const PRIME_FOUNDATION_RE =
-  /\b([A-Z][A-Za-z0-9'&. -]+?) is the Prime Foundation associated with (?:the )?([A-Z][A-Za-z0-9'&. -]+?)[.,]/g;
+export const PRIME_FOUNDATION_RE = new RegExp(String.raw`\b${NAME} is the Prime Foundation associated with (?:the )?${NAME}[.,]`, "g");
 //   "Phoenix Labs is a development company that provides services to the Spark Foundation."
 //   "Treadstone is the development company that provides services to Rubicon." (A.6.1.1.5.2.1.1.3.1.1.6 — "is THE ... company")
-export const PROVIDES_SERVICES_RE =
-  /\b([A-Z][A-Za-z0-9'&. -]+?) is (?:an?|the) [a-z -]*company that provides services to (?:the )?([A-Z][A-Za-z0-9'&. -]+?)[.,]/g;
+export const PROVIDES_SERVICES_RE = new RegExp(String.raw`\b${NAME} is (?:an?|the) [a-z -]*company that provides services to (?:the )?${NAME}[.,]`, "g");
 // A leading article survives the capture ("The Spark Foundation" — the regex
 // can't tell "The" apart from a real name word) and is stripped here instead,
 // so both consumers clean a captured name identically.

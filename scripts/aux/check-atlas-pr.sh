@@ -43,13 +43,18 @@ USAGE
 fi
 
 # ---------------------------------------------------------------------------
-# Fetch PR metadata (gh ships its own jq; no external dep)
+# Fetch PR metadata (gh ships its own jq; no external dep). One REST call,
+# not `gh pr view`: that is GraphQL, which some tokens and sandboxes refuse.
+# REST reports a merged PR as "closed" + merged_at; it is mapped to the
+# OPEN / CLOSED / MERGED vocabulary the guard below uses.
 # ---------------------------------------------------------------------------
 echo "Fetching PR #$PR from $ATLAS_REPO ..."
-HEAD_SHA=$(gh pr view "$PR" --repo "$ATLAS_REPO" --json headRefOid --jq '.headRefOid')
-PR_TITLE=$(gh pr view "$PR" --repo "$ATLAS_REPO" --json title     --jq '.title')
-PR_STATE=$(gh pr view "$PR" --repo "$ATLAS_REPO" --json state     --jq '.state')
-PR_URL=$(gh  pr view "$PR" --repo "$ATLAS_REPO" --json url        --jq '.url')
+PR_META=$(gh api "repos/$ATLAS_REPO/pulls/$PR" --jq '
+  .head.sha,
+  (if .merged_at then "MERGED" else (.state | ascii_upcase) end),
+  .html_url,
+  .title')
+{ read -r HEAD_SHA; read -r PR_STATE; read -r PR_URL; read -r PR_TITLE; } <<< "$PR_META"
 SHA7="${HEAD_SHA:0:7}"
 REDLENS_BRANCH=$(git -C "$ROOT" rev-parse --abbrev-ref HEAD)
 
@@ -147,8 +152,23 @@ trap cleanup EXIT
 echo "Creating isolated git worktree ..."
 git -C "$ROOT" worktree add "$WORKTREE" HEAD --detach --quiet
 
-# Share node_modules (pnpm store is content-addressed; symlink is safe)
-ln -s "$ROOT/node_modules" "$WORKTREE/node_modules"
+# Share node_modules (pnpm store is content-addressed; symlink is safe).
+# Every workspace package resolves its imports from its OWN node_modules
+# (apps/web's react, graphology-traversal, … are not hoisted to the root), so
+# each package's directory is linked, not just the root's. pnpm itself names
+# the packages, so a new one in pnpm-workspace.yaml needs no edit here.
+WORKSPACE_PKGS=$(cd "$ROOT" && pnpm -r ls --depth -1 --json | node -e '
+  const root = process.argv[1];
+  for (const p of JSON.parse(require("fs").readFileSync(0, "utf8")))
+    console.log(require("path").relative(root, p.path) || ".");
+' "$ROOT")
+while IFS= read -r pkg; do
+  if [[ ! -d "$ROOT/$pkg/node_modules" ]]; then
+    echo "ERROR: $ROOT/$pkg/node_modules is missing — run 'pnpm install' first." >&2
+    exit 1
+  fi
+  ln -s "$ROOT/$pkg/node_modules" "$WORKTREE/$pkg/node_modules"
+done <<< "$WORKSPACE_PKGS"
 
 # Share env vars and build caches (read-only from worktree's perspective)
 [[ -f "$ROOT/.env.local" ]] && ln -s "$ROOT/.env.local" "$WORKTREE/.env.local"

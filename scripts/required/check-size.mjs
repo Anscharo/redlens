@@ -31,7 +31,9 @@ let status = oxlint(".oxlintrc.size.json", ROOTS) ?? 1;
 const { added, modified } = diffScoped();
 if (added.length) {
   console.log(`\nNew files must meet the advisory limits (${added.length} added file(s)):`);
-  const newStatus = oxlint(".oxlintrc.size-warn.json", added, "--deny-warnings") ?? 1;
+  // Every added path can fall under the config's ignorePatterns (a commit that adds only
+  // tests); that selects zero files, which is a pass, not an oxlint usage error.
+  const newStatus = oxlint(".oxlintrc.size-warn.json", added, "--deny-warnings", "--no-error-on-unmatched-pattern") ?? 1;
   status ||= newStatus;
 }
 if (modified.length) {
