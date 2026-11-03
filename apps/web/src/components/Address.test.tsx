@@ -113,6 +113,21 @@ describe("Address", () => {
     expect(container.querySelector(".rl-addr-bal")).toHaveTextContent("$3.2K");
   });
 
+  it("shows the teaser when the address map loads after the pill first rendered", async () => {
+    let resolve!: (v: unknown) => void;
+    loadBalancesCached.mockReturnValue(new Promise((r) => (resolve = r)));
+    const { container } = render(<Address address={ADDR} />);
+    // The reader and reports load the map after the first render.
+    setAddressMap({ [ADDR]: makeAddressInfo({ chains: ["ethereum"] }) });
+    await act(async () => {
+      resolve({
+        addresses: { [`${ADDR}|ethereum`]: { chain: "ethereum", checkedAt: null, hasCode: null, balances: { USDS: { raw: "3200000000000000000000", decimals: 18 } } } },
+      });
+      await Promise.resolve();
+    });
+    expect(container.querySelector(".rl-addr-bal")).toHaveTextContent("$3.2K");
+  });
+
   it("fetches balances on mount for a teaser pill", () => {
     render(<Address address={ADDR} />);
     expect(loadBalancesCached).toHaveBeenCalledTimes(1);
