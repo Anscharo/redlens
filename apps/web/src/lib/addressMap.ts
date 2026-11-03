@@ -26,8 +26,8 @@ export function setAddressMap(m: Record<string, AddressInfo>, base: string | nul
   for (const l of listeners) l();
 }
 
-/** Load the base's map once, unless it is already the one held. A failed load
- *  is not retried; the reader's own load can still set it. */
+/** Load the base's map unless it is already held or loading. A failed load is
+ *  forgotten, so the next subscriber for that base tries again. */
 function ensureAddressMap(base: string): void {
   const pinned = mapBase === null && SHARED_ADDRESSES !== UNSET;
   if (pinned || mapBase === base || loading === base) return;
@@ -36,7 +36,9 @@ function ensureAddressMap(base: string): void {
     .then((m) => {
       if (loading === base && mapBase !== base) setAddressMap(m, base);
     })
-    .catch(() => {});
+    .catch(() => {
+      if (loading === base) loading = null;
+    });
 }
 
 export function subscribeAddressMap(base: string, cb: () => void): () => void {

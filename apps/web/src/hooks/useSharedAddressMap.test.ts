@@ -78,6 +78,18 @@ describe("useSharedAddressMap", () => {
     expect(loadAddresses).not.toHaveBeenCalled();
   });
 
+  it("tries again for the next subscriber after a failed load", async () => {
+    const loaded = { [ADDR]: makeAddressInfo() };
+    loadAddresses.mockRejectedValueOnce(new Error("blip")).mockResolvedValueOnce(loaded);
+    renderHook(() => useSharedAddressMap());
+    await flush();
+    expect(getAddressMap()).toEqual({});
+    const { result } = renderHook(() => useSharedAddressMap());
+    await flush();
+    expect(loadAddresses).toHaveBeenCalledTimes(2);
+    expect(result.current).toBe(loaded);
+  });
+
   it("re-renders when someone else sets the map", () => {
     const { result } = renderHook(() => useSharedAddressMap());
     const readers = { [ADDR]: makeAddressInfo() };
