@@ -17,6 +17,7 @@ export interface ChainEntry {
   etherscan?: boolean;
   routescan?: boolean;
   logsRpcs?: LogsRpc[];
+  rpcBatchLimit?: number;
 }
 export const CHAINS: ChainEntry[];
 export const FUTURE_TO_ETHEREUM: string[];
@@ -27,6 +28,8 @@ export function normalizeChainLabel(raw: unknown, warnCtx?: string): string;
 export const CHAIN_ID: Record<string, number>;
 export const CHAIN_RPC: Record<string, string>;
 export const SOLANA_RPC: string | undefined;
+/** `preferred`, capped at the chain's registry rpcBatchLimit. */
+export function rpcBatchSize(chain: string, preferred: number): number;
 export const CHAIN_BLOCKSCOUT: Record<string, string>;
 export const CHAIN_ROUTESCAN: Record<string, string>;
 export const EXPLORER_HOST_INTERVAL_MS: Record<string, number>;

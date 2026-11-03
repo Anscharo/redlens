@@ -171,12 +171,39 @@ describe("fetchImplABIs", () => {
 });
 
 describe("fetchEtherscan edge responses (via enrichAddresses)", () => {
-  it("treats a non-rate-limit NOTOK as unverified and caches an empty entry", async () => {
+  it("does not cache a refusal NOTOK (bad key, unserved chain) as unverified", async () => {
     const addr = "0x4444444444444444444444444444444444444444";
     vi.stubGlobal("fetch", vi.fn(async () => okJson({ status: "0", message: "NOTOK", result: "Invalid API Key" })));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const out = await enrichAddresses({ [addr]: { chain: "ethereum" } }, {}, "KEY");
     expect(out[addr]).toMatchObject({ isContract: false, isProxy: false });
-    expect([...store.keys()].some((k) => k.includes(addr))).toBe(true);
+    expect([...store.keys()].some((k) => k.includes(addr))).toBe(false);
+    warnSpy.mockRestore();
+  });
+
+  it("asks the next explorer when Etherscan refuses the chain", async () => {
+    const addr = "0x4545454545454545454545454545454545454545";
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => url.includes("api.etherscan.io")
+      ? okJson({ status: "0", message: "NOTOK", result: "Free API access is not supported for this chain" })
+      : verified({ ContractName: "OnOptimismBlockscout" })));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const out = await enrichAddresses({ [addr]: { chain: "optimism" } }, {}, "KEY");
+    expect(out[addr]).toMatchObject({ etherscanName: "OnOptimismBlockscout", isContract: true });
+    warnSpy.mockRestore();
+  });
+
+  it("caches nothing for a chain no explorer serves, so a provider added later is asked", async () => {
+    const addr = "0x4646464646464646464646464646464646464646";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    // No key: arbitrum has Etherscan only, so nothing serves it.
+    const out = await enrichAddresses({ [addr]: { chain: "arbitrum" } }, {}, undefined);
+    expect(out[addr]).toMatchObject({ isContract: false });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect([...store.keys()].some((k) => k.includes(addr))).toBe(false);
+    expect(String(warnSpy.mock.calls[0]?.[0])).toContain("no explorer serves arbitrum");
+    warnSpy.mockRestore();
   });
 
   it("treats an empty result array as unverified", async () => {
@@ -215,10 +242,14 @@ describe("enrichAddresses additional branches", () => {
   it("defaults chainid to 1 (mainnet) for a chain absent from CHAIN_ID", async () => {
     const addr = "0x8888888888888888888888888888888888888888";
     vi.stubGlobal("fetch", vi.fn(async () => verified()));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const out = await enrichAddresses({ [addr]: { chain: "totallyUnknownChain" } }, { [addr]: "FOO" }, "KEY");
     // chainid falls back to 1 (mainnet), so chainlog lookup applies.
     expect(out[addr]).toMatchObject({ chainlogId: "FOO" });
-    expect([...store.keys()].some((k) => k.includes("/1/"))).toBe(true);
+    // No explorer serves the chain, so nothing is cached under mainnet's id,
+    // where it would shadow a real mainnet lookup of the same address.
+    expect([...store.keys()].some((k) => k.includes(addr))).toBe(false);
+    warnSpy.mockRestore();
   });
 
   it("never applies a chainlog label on a non-mainnet chain, even if the address collides", async () => {

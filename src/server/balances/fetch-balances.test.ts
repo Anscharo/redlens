@@ -7,6 +7,7 @@ import {
   assembleBalances,
   planCodeChecks,
   assembleCodeResults,
+  CODE_READ_FAILED,
   assembleChainResults,
   fetchBalances,
   type MulticallResult,
@@ -87,6 +88,12 @@ test("assembleCodeResults: empty/absent code is false, real bytecode is true", (
   expect(out.get("0xbb")).toBe(false);
   expect(out.get("0xcc")).toBe(false);
   expect(out.get("0xdd")).toBe(true);
+});
+
+test("assembleCodeResults: a failed read gets no entry, so the stored has_code is kept", () => {
+  const out = assembleCodeResults(["0xaa", "0xbb"], [CODE_READ_FAILED, "0x6080604052"]);
+  expect(out.has("0xaa")).toBe(false);
+  expect(out.get("0xbb")).toBe(true);
 });
 
 // fetchBalances' per-chain grouping/filtering is pure — these inputs are all

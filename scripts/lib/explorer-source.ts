@@ -43,15 +43,14 @@ async function fetchExplorer(url: string, providerName: string, chainid: number,
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${chainid}/${addr} (${providerName})`);
   const data = (await res.json()) as { status?: string; result?: unknown };
-  // Negative response shape: { status: "0", message: "NOTOK", result: "..." }
+  // { status: "0", message: "NOTOK", result: "..." } is a refusal (rate limit,
+  // bad key, plan or chain not served), never an answer about the contract:
+  // Etherscan, Routescan and Blockscout all report an unverified contract or a
+  // plain account as status "1". It throws, so the next provider is tried and
+  // nothing is cached.
   if (data.status === "0" && typeof data.result === "string") {
-    // Do not cache rate-limit / transient NOTOK strings as empty ABIs — throw so
-    // the caller falls back to the next provider (or retries next run).
-    if (/rate limit/i.test(data.result)) {
-      throw new Error(`${providerName} rate limit for ${chainid}/${addr}: ${data.result}`);
-    }
-    // Treat as unverified / unknown — cache an empty entry so we don't retry.
-    return makeEntry(chainid, addr, EMPTY_SOURCE);
+    const kind = /rate limit/i.test(data.result) ? "rate limit" : "refused";
+    throw new Error(`${providerName} ${kind} for ${chainid}/${addr}: ${data.result}`);
   }
   const result = Array.isArray(data.result) ? data.result[0] : null;
   return makeEntry(chainid, addr, result ?? EMPTY_SOURCE);
@@ -61,13 +60,16 @@ async function fetchExplorer(url: string, providerName: string, chainid: number,
  * Fetch verified-source metadata for one address, trying each configured
  * explorer in order. Returns the first VERIFIED result; if an explorer answers
  * but the contract is unverified there, the next explorer is tried (a backup may
- * have it verified). Hard failures (network / HTTP error / rate limit) also fall
- * through to the next provider. If no explorer has it verified, the first
- * unverified answer is returned; only if every explorer errored does it throw.
+ * have it verified). Hard failures (network / HTTP error / rate limit / refusal) fall
+ * through to the next provider too. If no explorer has it verified, the first
+ * unverified answer is returned. It throws when no explorer serves the chain
+ * or every one errored or refused, and the caller caches nothing.
  */
 export async function fetchSourceCode(chain: string, chainid: number, addr: string, apiKey?: string): Promise<SourceEntry> {
   const providers = explorerProviders(chain, addr, apiKey);
-  if (!providers.length) return makeEntry(chainid, addr, EMPTY_SOURCE);
+  // No provider is no answer: an empty entry here would be cached as
+  // "unverified" and outlive the provider being configured.
+  if (!providers.length) throw new Error(`no explorer serves ${chain}${apiKey ? "" : " without ETHERSCAN_API_KEY"}`);
   let lastErr: unknown;
   let unverified: SourceEntry | undefined; // first successful-but-unverified answer, used as a fallback
   for (const [i, p] of providers.entries()) {

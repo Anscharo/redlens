@@ -3,7 +3,7 @@
 // CHAIN_ID). Guards the specific→generic ordering and the future-chain collapse.
 
 import { describe, it, expect, vi } from "vitest";
-import { normalizeChainLabel, classifyChainLabel, CHAIN_ID, CHAIN_RPC, CHAIN_BLOCKSCOUT, CHAIN_ROUTESCAN, CHAIN_SUPPORTS_ETHERSCAN } from "../scripts/lib/chains.mjs";
+import { normalizeChainLabel, classifyChainLabel, CHAIN_ID, CHAIN_RPC, CHAIN_BLOCKSCOUT, CHAIN_ROUTESCAN, CHAIN_SUPPORTS_ETHERSCAN, rpcBatchSize } from "../scripts/lib/chains.mjs";
 
 describe("normalizeChainLabel", () => {
   it("defaults empty / unknown labels to ethereum", () => {
@@ -78,6 +78,14 @@ describe("CHAIN_RPC", () => {
     expect(CHAIN_RPC.ethereum).toMatch(/^https:\/\//);
     expect(CHAIN_RPC.robinhood).toMatch(/^https:\/\//);
     expect(CHAIN_RPC.solana).toBeUndefined();
+  });
+});
+
+describe("rpcBatchSize", () => {
+  it("caps xlayer at its node's 10-call batch limit and leaves other chains alone", () => {
+    expect(rpcBatchSize("xlayer", 50)).toBe(10);
+    expect(rpcBatchSize("xlayer", 4)).toBe(4);
+    expect(rpcBatchSize("ethereum", 800)).toBe(800);
   });
 });
 
