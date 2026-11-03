@@ -9,6 +9,10 @@ export const RANKED_DELEGATE_UUIDS: { get(level: number): string };
 export const SPELL_TEAM_UUID: string;
 export const ACTIVE_ECOSYSTEM_ACTORS_UUID: string;
 
+export const PRIME_FOUNDATION_RE: RegExp;
+export const PROVIDES_SERVICES_RE: RegExp;
+export function cleanOrgProseName(raw: string): string;
+
 export function makeEntity(
   slug: string,
   name: string,
