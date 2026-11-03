@@ -125,12 +125,12 @@ describe("ActorPau change history key and unattributed changes", () => {
 });
 
 describe("ActorPau", () => {
-  it("lists the prime's deployments only, Ethereum first and open", async () => {
+  it("lists the prime's deployments only, Ethereum first and all closed", async () => {
     render(<ActorPau prime={prime} instances={instances} />);
     await waitFor(() => expect(screen.getByRole("region", { name: "Current state" })).toBeInTheDocument());
     const cards = document.querySelectorAll("details.pau-deployment");
     expect([...cards].map((c) => c.getAttribute("data-deployment"))).toEqual([ETH.deployment, BASE.deployment]);
-    expect(cards[0]).toHaveAttribute("open");
+    expect(cards[0]).not.toHaveAttribute("open");
     expect(cards[1]).not.toHaveAttribute("open");
     expect(within(cards[1] as HTMLElement).getByText("history still being read")).toBeInTheDocument();
   });

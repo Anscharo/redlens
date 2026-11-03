@@ -79,8 +79,8 @@ export function ActorPau(props: Props) {
         Read from the chain for each contract in the PAU registry. Role holders come from the contracts&apos; grant history,
         each confirmed live; a rate limit is named by the prime or instance whose parameters state its ID.
       </Callout>
-      {snaps.map((s, i) => (
-        <PauDeployment key={s.deployment} snap={s} keyIndex={keyIndex} namedIn={named} verdicts={verdicts} defaultOpen={i === 0} anchor={anchors.get(s.deployment)!} />
+      {snaps.map((s) => (
+        <PauDeployment key={s.deployment} snap={s} keyIndex={keyIndex} namedIn={named} verdicts={verdicts} anchor={anchors.get(s.deployment)!} />
       ))}
       <ActorPauTimeline groups={groups} snaps={snaps} keyIndex={keyIndex} />
     </section>

@@ -1,5 +1,7 @@
 import { Address } from "../Address";
+import { AtlasLink } from "../AtlasLink";
 import { Callout } from "../Callout";
+import { atlasHref } from "@/lib/routes";
 import type { ContractState, PauParam, StoredPauSnapshot } from "../../lib/pau";
 import type { Anchor } from "@/lib/pauAnchors";
 import { contractLabel } from "@/lib/pauHolderNames";
@@ -9,6 +11,9 @@ import { PauParamRow } from "./ActorPauParamRow";
 import { PauSectionHeading } from "./PauSectionHeading";
 
 type Row = { p: PauParam; use: ParamUse | null };
+
+/** The atlas document defining the PAU's parameters, max slippage among them (A.2.2.10.1.1.1.2.1). */
+const PARAM_DEFINITIONS_DOC = "a8a3e54d-18f0-451c-8ff0-4a66094650ae";
 
 const rowName = ({ p, use }: Row) => `${paramTitle(p.event)} ${use?.kind ?? ""} ${paramTarget(p.event, p.subject) ?? p.subjectToken?.symbol ?? p.subject}`;
 
@@ -48,7 +53,8 @@ export function PauParams({ snap, anchor }: { snap: StoredPauSnapshot; anchor: A
     <div className="mt-3">
       <PauSectionHeading deployment={anchor} section="parameters">Parameters</PauSectionHeading>
       <Callout className="mb-2">
-        Each row is a separate setting the contract keeps for one pool, market, vault, token or destination, as the last admin event that set it says. A max slippage or max exchange rate is shown only while a rate limit for the operation it guards, on that same address, is above zero. One whose limits are 0, or that no named rate limit matches, is not listed.
+        Each row is a setting for one pool, market, vault, token or destination, at its latest value. Max slippage and max exchange rate are shown only where a rate limit above zero lets them apply. The atlas defines these parameters in{" "}
+        <AtlasLink to={atlasHref(PARAM_DEFINITIONS_DOC)} className="text-accent hover:underline">Liquidity Layer Parameter Definitions</AtlasLink>.
       </Callout>
       {held.map(({ c, rows }) => <ContractParams key={c.address} c={c} rows={rows} chain={snap.chain} />)}
     </div>
