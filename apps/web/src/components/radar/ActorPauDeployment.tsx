@@ -24,13 +24,12 @@ interface Props {
   namedIn?: NamedIn;
   /** Each key's Atlas verdict (pauAtlasMatch.ts). */
   verdicts: Map<string, AtlasVerdict>;
-  defaultOpen: boolean;
   /** Its fragment, `#<chain>` (pauAnchors.ts); its sections are named under it. */
   anchor: Anchor;
 }
 
 /** One deployment: a collapsible card with its contracts, facets, holders, rate limits and parameters. */
-export function PauDeployment({ snap, keyIndex, namedIn, verdicts, defaultOpen, anchor }: Props) {
+export function PauDeployment({ snap, keyIndex, namedIn, verdicts, anchor }: Props) {
   const all = snap.contracts.flatMap((c) => (c.rateLimits ?? []).map((r) => ({ ...r, contract: c.address })));
   const limits = all.filter((r) => !isRetiredOff(r, keyIndex));
   const hidden = all.length - limits.length;
@@ -39,7 +38,7 @@ export function PauDeployment({ snap, keyIndex, namedIn, verdicts, defaultOpen, 
   return (
     <div className="relative">
       <CopyLink id={anchor.id} label={`${chainLabel(snap.chain)} ${PAU_KIND_LABEL[snap.kind]}`} top={10} />
-      <details {...anchorProps(anchor)} open={defaultOpen} className="pau-deployment mb-3 border-t border-[var(--border)] pt-2" data-deployment={snap.deployment} data-kind={snap.kind}>
+      <details {...anchorProps(anchor)} className="pau-deployment mb-3 border-t border-[var(--border)] pt-2" data-deployment={snap.deployment} data-kind={snap.kind}>
         <summary className="cursor-pointer mono text-[12px] flex flex-wrap items-baseline gap-2" style={{ color: "var(--tan)" }}>
           <h3 className="inline">{chainLabel(snap.chain)}</h3>
           <span className="text-[11px] px-1.5 rounded" style={{ border: "1px solid var(--border)", color: "var(--tan-2)" }}>{PAU_KIND_LABEL[snap.kind]}</span>
