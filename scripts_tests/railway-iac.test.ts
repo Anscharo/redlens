@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRailwayContext, project } from "railway/iac";
 
-import program, { WEB_SERVICE, WORKER_SERVICE, partial } from "../.railway/railway.ts";
+import program, { WEB_SERVICE, partial, workerServiceName } from "../.railway/railway.ts";
 import { railwayWebWatchPatterns, railwayWorkerWatchPatterns } from "../scripts/lib/deploy-skip.ts";
 
 const ROOT = path.resolve(__dirname, "..");
@@ -26,30 +26,35 @@ async function evaluate(environment: string) {
     resources: Service[];
   };
   const byName = new Map(definition.resources.map((r) => [r.name, r]));
-  return { definition, web: byName.get(WEB_SERVICE)!, worker: byName.get(WORKER_SERVICE)! };
+  return { definition, web: byName.get(WEB_SERVICE)!, worker: byName.get(workerServiceName(environment))! };
 }
 
 describe(".railway/railway.ts", () => {
   it("is a named partial that leaves variables to the dashboard", async () => {
     const { definition } = await evaluate("production");
     // Without a partial, an apply deletes every resource the file omits, Postgres included.
-    expect(partial).toMatch(/^[A-Za-z0-9._-]{1,64}$/);
+    // Renaming it does not transfer ownership, so the name is pinned, not just well-formed.
+    expect(partial).toBe("redlens");
     expect(definition.variables).toEqual({ managed: false });
   });
 
   it("declares exactly the two services built from this repository, each with its repo and no branch", async () => {
     const { definition } = await evaluate("production");
     expect(definition.resources.map((r) => `${r.type}.${r.name}`).sort()).toEqual(
-      [`service.${WEB_SERVICE}`, `service.${WORKER_SERVICE}`].sort(),
+      [`service.${WEB_SERVICE}`, `service.${workerServiceName("production")}`].sort(),
     );
     // An omitted source plans as a disconnect; a branch would override every environment's own.
     for (const r of definition.resources) expect(r.source).toEqual({ type: "github", repo: "Anscharo/redlens" });
   });
 
-  it("renders the same services in every environment", async () => {
+  it("names the worker per environment and otherwise renders the same services everywhere", async () => {
     const prod = await evaluate("production");
-    for (const env of ["redlens-development", "redlens-pr-292"]) {
-      expect((await evaluate(env)).definition).toEqual(prod.definition);
+    expect(prod.worker.name).toBe("redlens-worker");
+    for (const env of ["prod", "development", "redlens-pr-292"]) {
+      const other = await evaluate(env);
+      expect(other.worker.name).toBe("redlens worker");
+      expect(other.web).toEqual(prod.web);
+      expect({ ...other.worker, name: "", address: "" }).toEqual({ ...prod.worker, name: "", address: "" });
     }
   });
 
@@ -84,12 +89,11 @@ function tomlSettings(file: string): Record<string, unknown> {
 }
 
 describe.each([
-  ["railway.toml", WEB_SERVICE, "Dockerfile"],
-  ["railway.worker.toml", WORKER_SERVICE, "Dockerfile.worker"],
-])("%s while it still exists", (file, name, defaultDockerfile) => {
-  it.skipIf(!fs.existsSync(path.join(ROOT, file)))(`agrees with service ${name}`, async () => {
-    const { web, worker } = await evaluate("production");
-    const svc = name === WEB_SERVICE ? web : worker;
+  ["railway.toml", "web", "Dockerfile"],
+  ["railway.worker.toml", "worker", "Dockerfile.worker"],
+] as const)("%s while it still exists", (file, role, defaultDockerfile) => {
+  it.skipIf(!fs.existsSync(path.join(ROOT, file)))(`agrees with the ${role} service`, async () => {
+    const svc = (await evaluate("production"))[role];
     const toml = tomlSettings(file);
     expect({ dockerfilePath: defaultDockerfile, ...toml }).toEqual({ ...svc.build, ...svc.deploy });
     expect(svc.source).toBeDefined();

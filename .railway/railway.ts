@@ -25,10 +25,14 @@ import { railwayWebWatchPatterns, railwayWorkerWatchPatterns } from "../scripts/
 /** Ownership name recorded on every resource this file declares. */
 export const partial = "redlens";
 
-// Service names as Railway shows them. A name that does not match plans as
-// "Create service", never as a change to the existing one.
+// Service names as Railway shows them in each environment. A name that does
+// not match plans as "Create service", never as a change to the existing one.
 export const WEB_SERVICE = "redlens";
-export const WORKER_SERVICE = "redlens worker";
+
+/** The worker is `redlens-worker` in production and `redlens worker` everywhere else. */
+export function workerServiceName(environment: string | undefined): string {
+  return environment === "production" ? "redlens-worker" : "redlens worker";
+}
 
 /** The repository both services deploy, spelled as Railway records it. */
 const SOURCE: SourceConfig = { type: "github", repo: "Anscharo/redlens" };
@@ -64,8 +68,8 @@ function webService() {
 // table and exits. Its image is ./Dockerfile.worker (full atlas clone, gh CLI,
 // no frontend). Its variables, the PR-environment gate included, are described
 // in docs/DEPLOYMENT.md step 4.
-function workerService() {
-  return service(WORKER_SERVICE, {
+function workerService(name: string) {
+  return service(name, {
     source: SOURCE,
     build: {
       builder: "DOCKERFILE",
@@ -85,10 +89,10 @@ function workerService() {
 // --variables=unmanaged` writes) but is not yet in the SDK's ProjectDefinition
 // type, so the definition is built outside the call to skip the
 // excess-property check.
-export default defineRailway(() => {
+export default defineRailway((ctx) => {
   const definition = {
     variables: { managed: false },
-    resources: [webService(), workerService()],
+    resources: [webService(), workerService(workerServiceName(ctx.environment))],
   };
   return project("Redline Portal", definition);
 });

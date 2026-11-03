@@ -1,5 +1,6 @@
-# SUPERSEDED by .railway/railway.ts (service "redlens worker"), which is the source
-# of truth for this service's build and deploy settings. Railway keeps reading
+# SUPERSEDED by .railway/railway.ts (service "redlens worker", or
+# "redlens-worker" in production), which is the source of truth for this
+# service's build and deploy settings. Railway keeps reading
 # this file until the service is cut over to Infrastructure as Code
 # (docs/DEPLOYMENT.md, "Railway configuration"); delete it after that cutover.
 # Until then scripts_tests/railway-iac.test.ts fails if it says anything

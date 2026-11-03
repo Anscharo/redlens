@@ -108,9 +108,10 @@ can rebuild from DB.
 a. **Create the service.** On the Railway project canvas: **New → GitHub
    Repo** → select this repo again. Railway creates a second service.
 
-b. **Apply the worker's settings.** Name the service `redlens worker` (the
-   name `.railway/railway.ts` declares), then run `railway config plan` and
-   `railway config apply` as in [Railway configuration](#railway-configuration).
+b. **Apply the worker's settings.** Name the service `redlens worker`
+   (`redlens-worker` in `production`; the names `.railway/railway.ts`
+   declares), then run `railway config plan` and `railway config apply` as in
+   [Railway configuration](#railway-configuration).
 
    That sets `Dockerfile.worker` (a headless image with git + gh CLI for
    history builds) and the cron schedule (`*/12 * * * *`). A new service cannot
@@ -140,7 +141,8 @@ d. **Create a GitHub fine-grained token → `GITHUB_TOKEN`.** The worker uses
    `gh pr view` call fails silently — history entries record only the commit
    hash and diff, with no PR title, author, or summary.*
 
-e. **Set the worker variables:**
+e. **Set the worker variables** (in `production` the service is
+   `--service redlens-worker`):
    ```bash
    railway variables --set 'DATABASE_URL=${{Postgres.DATABASE_URL}}' --service 'redlens worker'
    railway variables --set 'OPENROUTER_API_KEY=sk-or-...'            --service 'redlens worker'
@@ -550,7 +552,8 @@ Run them back to back, so no deploy builds on the empty dashboard settings in
 between. `railway config migrate undo` restores the toml files' config paths
 if the plan looks wrong. The plan for a fresh cutover sets, on `redlens`, the
 builder, watch patterns, healthcheck, restart policy and start command, and on
-`redlens worker`, the builder, `Dockerfile.worker`, watch patterns, start
+`redlens worker` (`redlens-worker` in `production`), the builder,
+`Dockerfile.worker`, watch patterns, start
 command and the `*/12` cron; nothing else. After the apply, redeploy (or wait
 for the next push) and check the deploy's details page: its settings no longer
 carry the config-file icon.
@@ -621,7 +624,8 @@ instance in the same Railway project.
 **Worker service looks healthy (no stuck/failed runs) but `/api/freshness` is stale**
 → A hung tick is only one failure mode, and Railway would show it as still
 running. Check three other things, in order:
-1. You are on the **worker** service (`redlens worker` / cron `*/12`),
+1. You are on the **worker** service (`redlens worker`, `redlens-worker` in
+   `production` / cron `*/12`),
    not the web service. Cron ticks are short-lived executions; between them
    nothing is running, which looks idle rather than failed.
 2. The latest cron execution's **timestamp** is within ~12 minutes. If the
