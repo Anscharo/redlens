@@ -4,6 +4,7 @@ import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { EntityChip, StatusPill, AddressLink } from "./RewardsCells";
 import type { AddressInfo } from "@/types";
+import { setAddressMap } from "../../lib/addressMap";
 
 vi.mock("@/lib/balances", async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -11,7 +12,10 @@ vi.mock("@/lib/balances", async (importOriginal) => ({
   peekCachedBalances: () => null,
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  setAddressMap({});
+});
 
 describe("EntityChip", () => {
   it("links to the actor's radar page with its display name", () => {
@@ -42,7 +46,7 @@ describe("AddressLink", () => {
   const addr = "0x1234567890abcdef1234567890abcdef12345678";
 
   it("shows the shortened address with no label when the address isn't in the map", () => {
-    render(<AddressLink addr={addr} addrMap={{}} />);
+    render(<AddressLink addr={addr} />);
     const link = screen.getByRole("link");
     expect(link).toHaveTextContent("0x1234…5678");
     expect(link).toHaveAttribute("title", addr);
@@ -53,12 +57,13 @@ describe("AddressLink", () => {
     const addrMap: Record<string, AddressInfo> = {
       [addr.toLowerCase()]: { chain: "ethereum", chainlogId: "MCD_MULTISIG" } as AddressInfo,
     };
-    render(<AddressLink addr={addr} addrMap={addrMap} />);
+    setAddressMap(addrMap);
+    render(<AddressLink addr={addr} />);
     expect(screen.getByRole("link")).toHaveTextContent("MCD_MULTISIG · 0x1234…5678");
   });
 
   it("resolves the explorer URL from the chain hint", () => {
-    render(<AddressLink addr={addr} chain="base" addrMap={{}} />);
+    render(<AddressLink addr={addr} chain="base" />);
     expect(screen.getByRole("link")).toHaveAttribute("href", `https://basescan.org/address/${addr}`);
   });
 
@@ -66,7 +71,8 @@ describe("AddressLink", () => {
     const addrMap: Record<string, AddressInfo> = {
       [addr.toLowerCase()]: { chain: "ethereum", explorerUrl: "https://custom.example/x" } as AddressInfo,
     };
-    render(<AddressLink addr={addr} addrMap={addrMap} />);
+    setAddressMap(addrMap);
+    render(<AddressLink addr={addr} />);
     expect(screen.getByRole("link")).toHaveAttribute("href", "https://custom.example/x");
   });
 });

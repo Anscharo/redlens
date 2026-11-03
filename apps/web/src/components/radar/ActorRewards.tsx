@@ -16,8 +16,8 @@ export function ActorRewards({ agent }: Props) {
 
   return (
     <div>
-      {agent.dr && <PrimitiveTable agent={agent} prim={agent.dr} addrMap={{}} />}
-      {agent.ib && <PrimitiveTable agent={agent} prim={agent.ib} addrMap={{}} />}
+      {agent.dr && <PrimitiveTable agent={agent} prim={agent.dr} />}
+      {agent.ib && <PrimitiveTable agent={agent} prim={agent.ib} />}
     </div>
   );
 }

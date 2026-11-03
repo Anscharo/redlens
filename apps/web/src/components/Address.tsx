@@ -1,5 +1,4 @@
 import { type ComponentPropsWithoutRef, type MouseEvent, type ReactNode } from "react";
-import type { AddressInfo } from "@/types";
 import { explorerUrl } from "@/lib/explorer";
 import { shortAddr } from "../lib/format";
 import { useSharedAddressMap } from "../hooks/useSharedAddressMap";
@@ -12,8 +11,6 @@ export interface AddressProps extends Omit<ComponentPropsWithoutRef<"a">, "href"
   address: string;
   /** Chain hint(s) used to resolve the explorer URL when the address isn't in the map. */
   chain?: string | Array<string | undefined>;
-  /** Address map for explorer resolution. Defaults to the shared map (useSharedAddressMap), loaded on demand. */
-  addrMap?: Record<string, AddressInfo>;
   /** Render the full address rather than a shortened `0x1234…cdef`. @default false */
   full?: boolean;
   /** Suppress the balance-on-hover tooltip (and the hover-affordance icon). @default false */
@@ -48,7 +45,6 @@ function HoverHint() {
 export function Address({
   address,
   chain,
-  addrMap,
   full = false,
   noTooltip = false,
   noBalance = false,
@@ -58,8 +54,9 @@ export function Address({
   onClick,
   ...props
 }: AddressProps) {
-  const shared = useSharedAddressMap();
-  const map = addrMap ?? shared;
+  // The shared map (lib/addressMap.ts), loaded on demand: it places the address
+  // on its chains for the explorer link, the teaser and the hover card.
+  const map = useSharedAddressMap();
   const href = explorerUrl(address, { chain, addrMap: map });
   const showHint = !noTooltip && !noHint;
   function handleClick(e: MouseEvent<HTMLAnchorElement>) {
