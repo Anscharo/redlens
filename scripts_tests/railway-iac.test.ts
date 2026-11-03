@@ -73,29 +73,12 @@ describe(".railway/railway.ts", () => {
     expect(web.build?.watchPatterns).toEqual(railwayWebWatchPatterns());
     expect(worker.build?.watchPatterns).toEqual(railwayWorkerWatchPatterns());
   });
-});
 
-// Railway reads railway.toml / railway.worker.toml until each service is cut
-// over to IaC (docs/DEPLOYMENT.md, "Railway configuration"). Until the files
-// are deleted they must say what .railway/railway.ts says, so a deploy before
-// and after the cutover builds and runs the same way.
-function tomlSettings(file: string): Record<string, unknown> {
-  const text = fs.readFileSync(path.join(ROOT, file), "utf8").replace(/^\s*#.*$/gm, "");
-  const out: Record<string, unknown> = {};
-  for (const m of text.matchAll(/^(\w+)\s*=\s*("[^"]*"|\d+)\s*$/gm)) out[m[1]] = JSON.parse(m[2]);
-  const patterns = /watchPatterns\s*=\s*\[([\s\S]*?)\]/.exec(text);
-  if (patterns) out.watchPatterns = [...patterns[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-  return out;
-}
-
-describe.each([
-  ["railway.toml", "web", "Dockerfile"],
-  ["railway.worker.toml", "worker", "Dockerfile.worker"],
-] as const)("%s while it still exists", (file, role, defaultDockerfile) => {
-  it.skipIf(!fs.existsSync(path.join(ROOT, file)))(`agrees with the ${role} service`, async () => {
-    const svc = (await evaluate("production"))[role];
-    const toml = tomlSettings(file);
-    expect({ dockerfilePath: defaultDockerfile, ...toml }).toEqual({ ...svc.build, ...svc.deploy });
-    expect(svc.source).toBeDefined();
+  // Railway no longer reads Config as Code, so a railway.toml / railway.json
+  // would be a second, silently ignored copy of these settings.
+  it("is the only Railway config file in the repository", () => {
+    for (const file of ["railway.toml", "railway.json", "railway.worker.toml", "railway.worker.json"]) {
+      expect(fs.existsSync(path.join(ROOT, file)), file).toBe(false);
+    }
   });
 });
