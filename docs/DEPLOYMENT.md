@@ -499,20 +499,41 @@ runs `railway config apply`. What it deliberately leaves alone:
 - **Source.** No `source` is declared, so each environment keeps the repo and
   branch Railway already deploys.
 
-To apply a change (Railway CLI 5.42.1 or newer, `pnpm install` done so
-`railway/iac` resolves):
+### Running it without a local CLI
 
-```bash
-railway link                 # pick the project and the environment
-railway config plan          # read-only; review every line
-railway config apply
-```
+The **Railway config** workflow (`.github/workflows/railway-config.yml`) runs
+the Railway CLI from GitHub: **Actions → Railway config → Run workflow**, pick
+the environment and an action (`status`, `plan`, `migrate`, `apply`, `undo`;
+each is described at the top of the workflow). It needs Railway credentials
+in the repo, set once. Either:
+
+- **An account or workspace token** (any project member can make one; it acts
+  with that member's own permissions):
+  1. [railway.com/account/tokens](https://railway.com/account/tokens) →
+     create a token. Pick the project's workspace to scope it to that
+     workspace; "No workspace" gives an account token, which reaches every
+     project you can.
+  2. GitHub → this repo → **Settings → Secrets and variables → Actions**: a
+     secret `RAILWAY_API_TOKEN` with the token, and on the **Variables** tab a
+     variable `RAILWAY_PROJECT_ID` with the project's id (the uuid after
+     `/project/` in its dashboard URL).
+- **Or a project token per environment** (project → **Settings → Tokens**, if
+  your project role can create them) as the secrets
+  `RAILWAY_TOKEN_DEVELOPMENT` and `RAILWAY_TOKEN_PRODUCTION`.
+
+The workflow only appears under Actions once it is on `main`. An apply from the
+workflow never passes `--confirm-destructive`, so a plan that would delete
+anything fails the run instead.
+
+With a local CLI (5.42.1 or newer, after `pnpm install` so `railway/iac`
+resolves) the same commands are `railway link`, then `railway config plan`
+and `railway config apply`.
 
 A good plan changes only the settings you meant to change. Stop if it shows
 `Create service` (the names in `.railway/railway.ts` do not match the
 dashboard's; fix `WEB_SERVICE` / `WORKER_SERVICE`), any delete, or a source
 change. IaC state is per environment: apply to **production** and to
-**development**, the base environment every `redlens-pr-<n>` environment is
+**redlens-development**, the base environment every `redlens-pr-<n>` environment is
 forked from.
 
 ### Migrating off `railway.toml` / `railway.worker.toml`
@@ -523,19 +544,25 @@ builds with whatever its dashboard settings say, and the web image only builds
 with the `DOCKERFILE` builder. The two files stay in the repo until
 both services are cut over, and `scripts_tests/railway-iac.test.ts` fails if
 they disagree with `.railway/railway.ts`. Once per environment, development
-first:
+first (`redlens-development`), with the **Railway config** workflow:
 
-```bash
-railway link                          # select the environment
-railway config migrate status         # which services still read Config as Code
-railway config migrate cutover        # switch both services to IaC; reversible
-railway config plan                   # expect: no creates, no deletes
-railway config apply
-```
+1. Run **`status`**. Its "What Railway's own migration would generate" group
+   prints the service names Railway has. If they are not `redlens-atlas` and
+   `redlens-worker`, fix `WEB_SERVICE` / `WORKER_SERVICE` in
+   `.railway/railway.ts` first.
+2. Run **`migrate`**. It cuts both services over and applies
+   `.railway/railway.ts` in the same job, so no deploy runs on dashboard
+   settings in between; if the plan or apply fails it undoes the cutover and
+   the services read the toml files again. Read the plan in the log: expect
+   updates to build and deploy settings only.
+3. Push a commit (or redeploy from the dashboard) and check the deploy's
+   details page: its settings should no longer carry the config-file icon.
+4. Repeat for **production**.
 
-Run `cutover` and `apply` back to back, so no deploy runs on dashboard
-settings in between. `railway config migrate undo` restores the saved config
-file paths. Once production and development are both cut over, delete
+`undo` restores the saved config file paths at any point. With a local CLI the
+same steps are `railway config migrate status`, `railway config migrate
+cutover`, `railway config plan` and `railway config apply`, back to back.
+Once production and development are both cut over, delete
 `railway.toml` and `railway.worker.toml` in a follow-up PR; the agreement test
 skips itself once the files are gone.
 

@@ -1,0 +1,126 @@
+name: Railway config
+
+# Runs the Railway CLI against .railway/railway.ts from GitHub, so Railway's
+# Infrastructure as Code can be planned, applied and migrated without a local
+# CLI. Manual only (Actions → Railway config → Run workflow); nothing here runs
+# on push or on a pull request. The runbook is docs/DEPLOYMENT.md, "Railway
+# configuration".
+#
+# Actions, one environment per run:
+#   status   read-only: which services still read railway.toml, what Railway's
+#            own `config migrate` would generate (it prints the real service
+#            names), the partial ownership, and a plan (which refuses while a
+#            service still reads Config as Code)
+#   plan     read-only: what an apply would change
+#   migrate  switch both services off railway.toml (`config migrate cutover`)
+#            and apply .railway/railway.ts in the same job, so no deploy runs on
+#            dashboard settings in between; any failure undoes the cutover
+#   apply    plan, then apply
+#   undo     restore the Config as Code paths the last cutover saved
+#
+# An apply never passes --confirm-destructive: a plan that deletes anything
+# fails the run instead of applying it.
+#
+# Credentials, either of:
+#   - an ACCOUNT or WORKSPACE token (railway.com/account/tokens; any project
+#     member can create one, and it acts with that member's own permissions) as
+#     the secret RAILWAY_API_TOKEN, plus the project's id (the uuid after
+#     /project/ in its dashboard URL) as the repository variable
+#     RAILWAY_PROJECT_ID. The job links that project and the chosen environment.
+#   - a PROJECT token per environment (project → Settings → Tokens, which needs
+#     a project role allowed to create them) as RAILWAY_TOKEN_DEVELOPMENT and
+#     RAILWAY_TOKEN_PRODUCTION. A project token names its own project and
+#     environment, so nothing is linked. It wins when both are set.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Railway environment (its name in Railway)"
+        type: choice
+        options: [redlens-development, production]
+        default: redlens-development
+      action:
+        description: "What to run"
+        type: choice
+        options: [status, plan, migrate, apply, undo]
+        default: status
+
+permissions:
+  contents: read
+
+# One change at a time per environment; the CLI rejects an apply whose plan went
+# stale, and two runs would only make each other's stale.
+concurrency:
+  group: railway-config-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  railway:
+    name: ${{ inputs.action }} (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RAILWAY_TOKEN: ${{ inputs.environment == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_DEVELOPMENT }}
+      # Only when there is no project token, so the CLI never sees both.
+      RAILWAY_API_TOKEN: ${{ (inputs.environment == 'production' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_DEVELOPMENT) == '' && secrets.RAILWAY_API_TOKEN || '' }}
+      RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+      ENV_NAME: ${{ inputs.environment }}
+      ACTION: ${{ inputs.action }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # The CLI evaluates .railway/railway.ts with node, and the file imports
+      # railway/iac, so the repo's dependencies must be installed.
+      - uses: ./.github/actions/setup
+
+      # Pinned: plan output and the migrate subcommands change between releases.
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli@5.71.0
+
+      - name: Authenticate
+        run: |
+          if [ -n "$RAILWAY_TOKEN" ]; then
+            echo "Using the project token for $ENV_NAME."
+          elif [ -n "$RAILWAY_API_TOKEN" ] && [ -n "$RAILWAY_PROJECT_ID" ]; then
+            railway link --project "$RAILWAY_PROJECT_ID" --environment "$ENV_NAME"
+          else
+            echo "::error::No Railway credentials. Set the secret RAILWAY_API_TOKEN and the variable RAILWAY_PROJECT_ID, or a project token as RAILWAY_TOKEN_DEVELOPMENT / RAILWAY_TOKEN_PRODUCTION (see the top of this workflow)."
+            exit 1
+          fi
+
+      - name: Run ${{ inputs.action }}
+        run: |
+          set -uo pipefail
+          section() { echo; echo "::group::$1"; }
+          case "$ACTION" in
+            status)
+              section "Services still on Config as Code"; railway config migrate status; echo "::endgroup::"
+              section "What Railway's own migration would generate"; railway config migrate --variables=unmanaged --show; echo "::endgroup::"
+              section "Partial ownership"; railway config partials list; echo "::endgroup::"
+              section "Plan (refuses until the services are cut over)"; railway config plan; echo "::endgroup::"
+              exit 0
+              ;;
+            plan)
+              railway config plan
+              ;;
+            apply)
+              railway config plan && railway config apply --yes
+              ;;
+            migrate)
+              set -e
+              railway config migrate status
+              railway config migrate cutover --yes
+              set +e
+              if railway config plan && railway config apply --yes; then
+                railway config migrate status
+              else
+                echo "::error::Plan or apply failed after the cutover; undoing it so the services read railway.toml again."
+                railway config migrate undo --yes
+                exit 1
+              fi
+              ;;
+            undo)
+              railway config migrate undo --yes
+              ;;
+          esac

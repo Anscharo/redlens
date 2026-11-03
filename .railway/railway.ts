@@ -2,8 +2,9 @@
 // evaluates this file (`railway config plan` / `railway config apply`) under
 // `node --experimental-strip-types`, so every relative import names its `.ts`.
 // Railway does not read it during a deploy; a setting here reaches Railway only
-// through an apply. The rollout steps are in docs/DEPLOYMENT.md ("Railway
-// configuration").
+// through an apply, run from the manual "Railway config" workflow
+// (.github/workflows/railway-config.yml) or a local CLI. The rollout steps are
+// in docs/DEPLOYMENT.md ("Railway configuration").
 //
 // It manages the two services built from this repository and nothing else:
 //
