@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act, cleanup } from "@testing-library/react";
-import { getAddressMap, setAddressMap } from "../lib/addressMap";
+import { getAddressMap, resetAddressMap, setAddressMap } from "../lib/addressMap";
 import { makeAddressInfo } from "../test/fixtures";
 
 const loadAddresses = vi.fn();
@@ -14,9 +14,8 @@ beforeEach(() => {
   loadAddresses.mockReset();
   // Pending unless a test says otherwise, so a load never settles into the next test.
   loadAddresses.mockReturnValue(new Promise(() => {}));
-  setAddressMap({});
+  resetAddressMap();
 });
-// Unmount first: a hook left mounted would see the next test's reset map and load again.
 afterEach(cleanup);
 
 describe("useSharedAddressMap", () => {
@@ -30,6 +29,19 @@ describe("useSharedAddressMap", () => {
     });
     expect(result.current).toBe(loaded);
     expect(getAddressMap()).toBe(loaded);
+  });
+
+  it("loads once however many readers subscribe", () => {
+    renderHook(() => useSharedAddressMap());
+    renderHook(() => useSharedAddressMap());
+    renderHook(() => useSharedAddressMap());
+    expect(loadAddresses).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not load when the map is already set", () => {
+    setAddressMap({ [ADDR]: makeAddressInfo() });
+    renderHook(() => useSharedAddressMap());
+    expect(loadAddresses).not.toHaveBeenCalled();
   });
 
   it("re-renders when someone else sets the map", () => {

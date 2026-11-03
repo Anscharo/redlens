@@ -23,13 +23,14 @@ export function AddressTooltipOnchain({
   map: Record<string, AddressInfo>;
   /** The atlas's multisig facts for the address, compared against the chain's Safe setup. */
   multisigs: MultisigFact[];
-  /** Called once the balances have loaded, so the tooltip re-measures its placement. */
+  /** Called once the balances, or a later map, have loaded, so the tooltip re-measures its placement. */
   onSettled: () => void;
 }) {
   const { addresses, prices, ready } = useSharedBalances(true);
+  // The map can land after the card opened too (useSharedAddressMap).
   useEffect(() => {
     if (ready) onSettled();
-  }, [ready, onSettled]);
+  }, [ready, map, onSettled]);
   const { held, value } = resolveAddressHoldings(address, map, addresses, prices);
   return (
     <>

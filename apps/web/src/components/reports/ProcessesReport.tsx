@@ -1,7 +1,6 @@
 // The Processes report page: the curated process inventory grouped by
 // category, with URL-synced filters, CSV export, and an expandable row per
 // process.
-import { useHydrateAddressMap } from "../../hooks/useHydrateAddressMap";
 import { type ReportMode } from "@/lib/reportFilter";
 import type { ReportId } from "@/types";
 import { ProcessesCategoryTables } from "./ProcessesCategoryTables";
@@ -25,8 +24,6 @@ function ProcessesDescription({ rowCount, categoryCount }: { rowCount: number; c
 }
 
 export function ProcessesReport({ query, mode }: { query: string; mode: ReportMode }) {
-  // Curated explorer URLs for addresses in process docs on direct visits.
-  useHydrateAddressMap();
   const s = useProcessesState(query, mode);
   const docs = s.atlas?.docs;
   const [expandedUuid, toggleExpanded] = useExpandedProcess(s.loading);

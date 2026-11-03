@@ -3,6 +3,7 @@ import { actorHref } from "@/lib/routes";
 import { shortAddr } from "../../lib/format";
 import { Address } from "../Address";
 import { resolveAddressName, resolveOwner, hasResolvedName } from "../../lib/addressName";
+import { infoFor } from "../../lib/addressTooltip";
 import { useSharedAddressMap } from "../../hooks/useSharedAddressMap";
 import type { EntityRef } from "@/lib/rewardsIndex";
 
@@ -39,7 +40,7 @@ export function StatusPill({ s, label = s }: { s: string; label?: string }) {
 export function AddressLink({ addr, chain }: { addr: string; chain?: string }) {
   const addrMap = useSharedAddressMap();
   const short = shortAddr(addr);
-  const info = addrMap[addr.toLowerCase()] ?? addrMap[addr];
+  const info = infoFor(addr, addrMap);
   const name = resolveAddressName(addr, info);
   const owner = resolveOwner(info);
   return (

@@ -40,8 +40,6 @@ function ParamRow({ prime, ...line }: ComponentProps<typeof ParamLine> & { prime
  *  `prime` (the prime whose page this is) lets a RateLimitID param that lists
  *  an address show the on-chain keys derived from it. */
 export function InstanceCard({ inst, prime, headingLevel = 4 }: { inst: RadarInstance; prime?: PauPrime; headingLevel?: number }) {
-  // Loaded here rather than drilled from ActorInstances: loadAddresses() is
-  // module-cached, so every card resolves from the one in-flight request.
   const colWidth = useMemo(() => {
     if (inst.signalParams.length === 0) return MIN_DOTS_PX;
     return Math.max(...inst.signalParams.map((p) => measureKeyPx(p.key))) + MIN_DOTS_PX;

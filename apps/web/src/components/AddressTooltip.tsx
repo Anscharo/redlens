@@ -20,8 +20,8 @@ function AddressTooltipContent({ address, href, onSettled }: { address: string; 
   const facts = useAddressGraphFacts(address);
   const map = useSharedAddressMap();
   useEffect(() => {
-    if (facts || Object.keys(map).length > 0) onSettled();
-  }, [facts, map, onSettled]);
+    if (facts) onSettled();
+  }, [facts, onSettled]);
   const { name, named } = resolveAddressLabel(address, map);
   return (
     <div className="min-w-[10rem] max-w-[20rem]">

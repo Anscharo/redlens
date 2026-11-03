@@ -74,7 +74,6 @@ describe("PrimitiveTable (DR)", () => {
       <PrimitiveTable
         agent={agent}
         prim={drPrim({ active: [drInstance()] })}
-       
       />,
     );
     expect(screen.getByText("Distribution Reward")).toBeInTheDocument();
@@ -112,7 +111,6 @@ describe("PrimitiveTable (DR)", () => {
             }),
           ],
         })}
-       
       />,
     );
     const row = screen.getByText("Spark DR Instance").closest("tr")!;
@@ -133,7 +131,6 @@ describe("PrimitiveTable (DR)", () => {
       <PrimitiveTable
         agent={agent}
         prim={drPrim({ invocations: [invocation] })}
-       
       />,
     );
     expect(screen.getByText("Invocations in Progress")).toBeInTheDocument();
@@ -153,7 +150,6 @@ describe("PrimitiveTable (IB)", () => {
           primitiveDocNo: "A.2.2.1.2",
           suspended: [ibInstance()],
         })}
-       
       />,
     );
     expect(screen.getByText("Integration Boost")).toBeInTheDocument();

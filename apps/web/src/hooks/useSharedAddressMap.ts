@@ -1,29 +1,9 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import type { AddressInfo } from "@/types";
-import { getAddressMap, setAddressMap, subscribeAddressMap } from "../lib/addressMap";
-import { loadAddresses } from "../lib/addresses";
+import { getAddressMap, subscribeAddressMap } from "../lib/addressMap";
 
-/**
- * The shared address map (lib/addressMap.ts), re-rendering when it is set.
- * A page that has not loaded it yet (a Radar page opened directly) gets it
- * loaded here: loadAddresses caches per data source, so every caller shares
- * one fetch. A map someone else set first (the reader's, a preview's) is
- * never replaced.
- */
+/** The shared address map (lib/addressMap.ts), re-rendering when it is set.
+ *  The first subscriber on a page that has not set it starts its one load. */
 export function useSharedAddressMap(): Record<string, AddressInfo> {
-  const map = useSyncExternalStore(subscribeAddressMap, getAddressMap, getAddressMap);
-  const empty = Object.keys(map).length === 0;
-  useEffect(() => {
-    if (!empty) return;
-    let alive = true;
-    loadAddresses()
-      .then((m) => {
-        if (alive && Object.keys(getAddressMap()).length === 0) setAddressMap(m);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [empty]);
-  return map;
+  return useSyncExternalStore(subscribeAddressMap, getAddressMap, getAddressMap);
 }

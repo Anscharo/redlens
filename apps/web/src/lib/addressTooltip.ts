@@ -102,7 +102,7 @@ export function addressHeadlineBalance(
 // find a mixed-case EVM address (e.g. checksummed in markdown) — never for
 // Solana, where lowercasing first risked resolving a different real pubkey.
 // Mirrors the addrMap lookup in explorerUrl() (explorer.ts).
-const infoFor = (address: string, addrMap: Record<string, AddressInfo>): AddressInfo | undefined =>
+export const infoFor = (address: string, addrMap: Record<string, AddressInfo>): AddressInfo | undefined =>
   addrMap[address] ?? addrMap[address.toLowerCase()];
 
 /**
