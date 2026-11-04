@@ -72,10 +72,11 @@ export async function enrichAddresses(atlas, chainlog, apiKey) {
       continue;
     }
 
-    // A chain the registry lacks has no id to ask a source about: mainnet's would
-    // name the mainnet contract at the same address. Only the chainlog applies.
-    const chainid = CHAIN_ID[info.chain] ?? 1;
-    const entry = CHAIN_ID[info.chain] == null ? makeEntry(chainid, addr, {}) : await resolveEntry(info, chainid, addr, apiKey, stats);
+    // A chain the registry lacks has no id. Mainnet's would name whatever sits at
+    // the same address on mainnet, in a source or in the chainlog, so neither
+    // is asked and the address gets no name.
+    const chainid = CHAIN_ID[info.chain];
+    const entry = chainid == null ? makeEntry(1, addr, {}) : await resolveEntry(info, chainid, addr, apiKey, stats);
     out[addr] = onchainFields(info, entry, chainid === 1 ? chainlog[addr] : undefined);
   }
 
@@ -162,23 +163,31 @@ function onchainFields(info, entry, chainlogId) {
 // been fetched above. Do a second pass here so the cache is complete before
 // the snapshot step runs.
 // ---------------------------------------------------------------------------
-export async function fetchImplABIs(out, apiKey) {
-  // An implementation lives on its proxy's chain and is cached under that
-  // chain's id; the snapshot step reads ethereum's from .cache/etherscan/1/.
+// An implementation lives on its proxy's chain and is cached under that
+// chain's id; the snapshot step reads ethereum's from .cache/etherscan/1/.
+function proxyImplementations(out) {
   const impls = new Map();
   for (const a of Object.values(out)) {
     const chain = a.chain ?? "ethereum";
     if (!a.isProxy || !a.implementation || CHAIN_ID[chain] == null) continue;
     impls.set(`${chain}:${a.implementation}`, { chain, impl: a.implementation });
   }
+  return impls;
+}
+
+export async function fetchImplABIs(out, apiKey) {
+  const impls = proxyImplementations(out);
   if (!impls.size) return;
 
   console.log(`\nFetching implementation ABIs for ${impls.size} proxy contracts…`);
-  let implMisses = 0;
+  let implMisses = 0, hits = 0;
   for (const { chain, impl } of impls.values()) {
     const chainid = CHAIN_ID[chain];
     const cached = await readCache(chainid, impl);
-    if (cached && !missStale(cached)) continue;
+    if (cached && !missStale(cached)) {
+      hits++;
+      continue;
+    }
     try {
       const entry = await fetchSourceCode(chain, chainid, impl, apiKey);
       await writeCache(chainid, impl, entry);
@@ -189,5 +198,5 @@ export async function fetchImplABIs(out, apiKey) {
       else console.warn(`  ! impl ${chainid}/${impl}: ${err.message}`);
     }
   }
-  console.log(`  ${implMisses} new, ${impls.size - implMisses} already cached`);
+  console.log(`  ${implMisses} new, ${hits} already cached, ${impls.size - implMisses - hits} found nowhere or failed`);
 }

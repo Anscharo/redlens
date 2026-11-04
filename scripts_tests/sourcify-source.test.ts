@@ -36,7 +36,7 @@ describe("sourcifyEntry", () => {
     expect(materialOf(sourcifyEntry(8453, ADDR, CONTRACT).sourceCode).names).toEqual(["LIMIT_SWAP"]);
   });
 
-  it("reads a proxy's first implementation, lowercased", () => {
+  it("reads a single-implementation proxy's implementation, lowercased", () => {
     const e = sourcifyEntry(8453, ADDR, { ...CONTRACT, proxyResolution: { isProxy: true, implementations: [{ address: "0xC5A845985BdF088F44E3dDF2bd1a79b08dBe9611" }] } });
     expect(e).toMatchObject({ proxy: true, implementation: "0xc5a845985bdf088f44e3ddf2bd1a79b08dbe9611" });
   });

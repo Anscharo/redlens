@@ -142,6 +142,19 @@ describe("fetchImplABIs", () => {
     expect([...store.keys()].some((k) => k.endsWith(`${impl}.json`))).toBe(true);
   });
 
+  it("counts cache hits apart from implementations found nowhere", async () => {
+    const hit = "0x1111111111111111111111111111111111111112";
+    const miss = "0x2222222222222222222222222222222222222223";
+    store.set(cacheKey(8453, hit), JSON.stringify({ contractName: "Impl", abi: "[]" }));
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => url.includes("api.etherscan.io")
+      ? okJson({ status: "0", message: "NOTOK", result: "Free API access is not supported for this chain" })
+      : sourcifyReply(404, { customCode: "not_found" })));
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    await fetchImplABIs({ a: { chain: "base", isProxy: true, implementation: hit }, b: { chain: "base", isProxy: true, implementation: miss } }, "KEY");
+    expect(logSpy.mock.calls.map((c) => String(c[0]))).toContain("  0 new, 1 already cached, 1 found nowhere or failed");
+    logSpy.mockRestore();
+  });
+
   it("looks an implementation up on its proxy's chain and caches it under that chain's id", async () => {
     const impl = "0xc5a845985bdf088f44e3ddf2bd1a79b08dbe9611";
     const seen: string[] = [];
@@ -277,15 +290,15 @@ describe("fetchEtherscan edge responses (via enrichAddresses)", () => {
 });
 
 describe("enrichAddresses additional branches", () => {
-  it("defaults chainid to 1 (mainnet) for a chain absent from CHAIN_ID", async () => {
+  it("names nothing on a chain absent from CHAIN_ID, not even from the mainnet chainlog", async () => {
     const addr = "0x8888888888888888888888888888888888888888";
     const fetchMock = vi.fn(async () => verified());
     vi.stubGlobal("fetch", fetchMock);
     const out = await enrichAddresses({ [addr]: { chain: "totallyUnknownChain" } }, { [addr]: "FOO" }, "KEY");
-    // chainid falls back to 1 (mainnet), so chainlog lookup applies.
-    expect(out[addr]).toMatchObject({ chainlogId: "FOO" });
-    // No source is asked (Sourcify would name the mainnet contract at this
-    // address) and nothing is cached under mainnet's id.
+    // The chainlog and every source describe mainnet; the same address on
+    // another chain is a different account, so none of them names it.
+    expect(out[addr]).toMatchObject({ chain: "totallyUnknownChain", isContract: false });
+    expect(out[addr].chainlogId).toBeUndefined();
     expect(fetchMock).not.toHaveBeenCalled();
     expect([...store.keys()].some((k) => k.includes(addr))).toBe(false);
   });
