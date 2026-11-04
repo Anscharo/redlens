@@ -434,9 +434,10 @@ describe("giedi's depth ramp is one continuous curve, not a cycle", () => {
 });
 
 // ─── Test E2 ────────────────────────────────────────────────────────────
-// winter's whole identity is "no rainbow": doc titles and doc numbers are
-// purple or dark blue and nothing else. Light's seven-hue cycle passes every
-// contrast pair above, so nothing else here would notice it being pasted in.
+// winter's whole identity is "no rainbow": doc numbers run purple → navy →
+// blue and nothing else, and titles are one purple (--node-title, asserted
+// below). Light's seven-hue cycle passes every contrast pair above, so nothing
+// else here would notice it being pasted in.
 describe("winter's depth ramp is purple, navy and blue, and only that", () => {
   const stops = Array.from({ length: 17 }, (_, i) => THEMES.winter[`depth-${i + 1}`]);
   const lch = (hex: string) => {
@@ -472,8 +473,42 @@ describe("winter's depth ramp is purple, navy and blue, and only that", () => {
     expect(perceptualDistance(stops[0], stops[16]), "the purple and blue ends have converged").toBeGreaterThanOrEqual(0.1);
   });
 
-  it.each(["bg", "surface", "bg-deep", "atlas-row-selected"])("every stop is readable as a title on --%s", (on) => {
+  it.each(["bg", "surface", "bg-deep", "atlas-row-selected"])("every stop is readable as a doc number on --%s", (on) => {
     for (const hex of stops) expect(contrastRatio(hex, THEMES.winter[on]) as number).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+// winter's doc titles leave the ramp for one flat purple. --node-title is
+// declared only in the giedi and winter blocks (Test C walks :root, so it
+// never sees it), which is why it is asserted by name here.
+describe("winter's doc titles are one purple, readable everywhere a title sits", () => {
+  const title = THEMES.winter["node-title"];
+
+  it("is a purple inside the doc-number ramp's hue band", () => {
+    const [, a, b] = oklab(title);
+    const H = ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360;
+    expect(title, "winter has no --node-title, so titles fall back to the depth spectrum").toMatch(/^#[0-9a-f]{6}$/i);
+    expect(H, `--node-title (${title}) is at hue ${H.toFixed(0)}, outside winter's purple–blue band`).toBeGreaterThanOrEqual(255);
+    expect(H).toBeLessThanOrEqual(310);
+  });
+
+  it.each(["bg", "surface", "bg-deep", "atlas-row-selected"])("reads on --%s", (on) => {
+    expect(contrastRatio(title, THEMES.winter[on]) as number).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("reads on the light-scheme reader hover fill (--bg-deep 95% toward black)", () => {
+    const hover =
+      "#" +
+      [1, 3, 5]
+        .map((i) => Math.round(parseInt(THEMES.winter["bg-deep"].slice(i, i + 2), 16) * 0.95).toString(16).padStart(2, "0"))
+        .join("");
+    expect(contrastRatio(title, hover) as number).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("the selected title mixes --node-title, not the row's depth colour", () => {
+    const rule = CSS.match(/\[data-theme="winter"\]\s+\.atlas-node\.is-selected\s+\.atlas-node-title\s*\{([^}]*)\}/);
+    expect(rule, 'no `[data-theme="winter"] .atlas-node.is-selected .atlas-node-title` rule — the selected title would fall back to its depth colour').not.toBeNull();
+    expect(rule![1]).toMatch(/var\(--node-title\)/);
   });
 });
 
