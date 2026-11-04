@@ -52,7 +52,7 @@ export const THEMES = [
   {
     id: "winter",
     label: "Winter",
-    hint: "cool white · purple to blue",
+    hint: "cool white · simple",
     bg: "#f9fafc",
     scheme: "light",
   },
