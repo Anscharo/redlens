@@ -245,6 +245,158 @@
   --depth-17: #03769d;
 }
 
+/* "Winter" (id: winter) — the light scheme with the colour drained out: cool,
+   barely tinted whites (OKLCH C ≤ 0.006 at hue 255) and slate-grey text, where
+   Light is Sky's saturated violet. It follows Light's structure token for
+   token — same surface tier shape, same flipped overlays, same status-colour
+   exception — so anything tuned for Light reads the same way here.
+
+   The one structural departure is giedi's: NO RAINBOW. Light runs a seven-hue
+   depth cycle; winter's depth palette is one run from purple through navy to
+   blue, which the doc numbers carry. Doc TITLES opt out of the ramp, as
+   giedi's do, and all take one colour (--node-title, the depth-5 stop).
+   See the depth-palette note below.
+
+   The PRIMARY colour is dark navy, not purple: --accent (links, focus, the
+   search box, active pills) and the decorative --red slot are both navy, and
+   the chrome's tints (borders, the `mark` highlight, the inverted pill, the
+   treemap ramp) sit at the same hue 262. Purple stays where it carries
+   depth: the top of the doc-number ramp and the titles.
+
+   Every other hue is rationed below Light's: status colours at about 60% of
+   Light's chroma, entity colours likewise (re-spread so no pair sits under
+   0.045 OKLab apart), and nothing structural carries a hue outside
+   purple-to-blue. */
+[data-theme="winter"] {
+  color-scheme: light;
+
+  /* ─── Surface tier ─── cool near-whites, evenly stepped in OKLCH L
+     (0.985 / 0.972 / 0.962) at hue 255, chroma ≤ 0.006: white, not blue. */
+  --bg: #f9fafc;
+  --bg-alt: #f4f6f8;
+  --bg-deep: #f0f3f6; /* recessed — tree sidebar + reader */
+  --surface: #ffffff; /* raised */
+  --hover: #e7eaed;
+  --border: #dbe0e9; /* a faint blue-grey — the navy, at C 0.014 */
+  --border-muted: #e1e3e5;
+  --tooltip-border: #c1c9d8; /* hover cards — a shade darker than --border */
+
+  /* ─── Brand ─── dark navy is the primary ─── */
+  --red: #223d81; /* decorative accent slot — navy (H 265); 10.2:1 on --surface */
+  --red-dim: #d6e4fb; /* `mark` + active scope pills — ice blue (H 262); --tan on it is 13.8:1 */
+  --accent: #1d3c79; /* links + focus — dark navy (OKLCH L 0.37 / C 0.11 / H 262), 9.6:1 on --bg-deep */
+  --preview-add: #377355; /* green — status exception, as in Light, at lower chroma */
+  --error-text: #a84642; /* red — likewise */
+  --warn: #896328; /* muted amber, hue 75 */
+
+  /* ─── Text ─── slate greys at hue 262, C ≤ 0.018 */
+  --gray: #696c72;
+  --tan: #141821; /* primary text — 17.5:1 on --bg */
+  --tan-2: #31363e;
+  --tan-3: #60656d;
+  --magenta: #b2c8ef; /* an INVERTED pill: pale navy-blue on the dark --tan fill, 10.5:1 */
+  --lilac: #61579e; /* the preview "renumbered" note — a muted purple, so it stands apart from the navy --accent */
+  --terminal-green: #377355;
+  --lily-green: #20462f;
+
+  /* ─── Row state overlays ─── Light's, verbatim (translucent black) ─── */
+  --row-hover: rgba(0, 0, 0, 0.06);
+  --row-selected: rgba(0, 0, 0, 0.05);
+  --row-focused: rgba(0, 0, 0, 0.035);
+  --atlas-row-selected: #f9fafc; /* selected reader doc — lifts off --bg-deep, as in Light */
+  --row-pulse-flash: rgba(0, 0, 0, 0.16);
+  --row-bar-tint: black;
+  --change-flash-color: rgba(0, 0, 0, 0.08);
+
+  --node-hover: #ffffff;
+
+  /* Doc TITLES, all one colour: the reader, tree sidebar, split pane and
+     related-doc cards read `var(--node-title, <depth colour>)`, so this stops
+     the spectrum at the doc number, which keeps the full purple → navy → blue
+     ramp. A deep blue-violet (OKLCH L 0.411 / C 0.104 / H 288), the same
+     value as --depth-5, so the titles sit inside the ramp the numbers run
+     along. 8.2:1 on --bg-deep. Winter and giedi are the only palettes that define it;
+     the selected title mixes it toward --tan (see the winter rule below the
+     light-scheme section). */
+  --node-title: #493f7f;
+
+  --shadow: rgba(0, 0, 0, 0.1);
+  --shadow-strong: rgba(0, 0, 0, 0.18);
+
+  /* ─── CrossView treemap ─── a soft slate blue (OKLCH L 0.72 / C 0.06 /
+     H 262): light enough that the --tan-2 label still reads 6.6:1 on the
+     deepest rect. See the note in the light block. */
+  --chunk-fill: #90a5cb;
+
+  /* ─── Diff view ─── red/green as in Light, paler fills, darker inks ─── */
+  --diff-removed-bg: #f8dede;
+  --diff-removed-fg: #6f2222;
+  --diff-added-bg: #dbf0e2;
+  --diff-added-fg: #1d4d2e;
+
+  /* ─── Entity-type categorical palette ─── Light's hue assignments at ~60%
+     of their chroma, lightness re-spread where the desaturation pushed two
+     types together (facilitator-org / multisig had collapsed to 0.010).
+     Closest pair is now 0.045; every one clears 5.2:1 on --surface. */
+  --entity-agent: #a44e42;
+  --entity-facilitator-org: #572f0a;
+  --entity-govops-org: #437081;
+  --entity-delegate-org: #314c20;
+  --entity-development-company: #3a5ba9;
+  --entity-foundation: #5447ab;
+  --entity-composite-party: #7e6940;
+  --entity-governance-body: #546f3d;
+  --entity-operational-party: #875745;
+  --entity-ecosystem-actor: #863b45;
+  --entity-instance: #38414d;
+  --entity-multisig: #6f442d;
+  --entity-bridge: #40715d;
+  --entity-fallback: #666666;
+
+  /* ─── Depth palette ─── PURPLE → NAVY → BLUE, and nothing else. The
+     doc-number chiclets read these; doc titles take --node-title instead.
+
+     ONE run across all seventeen slots, no cycle and no return, so every
+     level has its own colour and none repeats. Two linear OKLab segments
+     through three points:
+       purple  OKLCH L 0.50 / C 0.128 / H 307  (depth 1)
+       navy    OKLCH L 0.32 / C 0.098 / H 262  (depth 9)
+       blue    OKLCH L 0.50 / C 0.131 / H 256  (depth 17)
+     Hue only ever moves one way (307 → 256, purple → blue). Lightness dips to
+     navy in the middle and comes back up, and the two ends are matched in
+     lightness and chroma, so purple and blue carry equal weight and the deep
+     end does not dim.
+
+     Steps are small but continuous: adjacent levels are 0.021-0.026 apart in
+     OKLab, about one JND, so a child reads as a shade of its parent rather
+     than a new colour. The ends are 0.113 apart, and every stop keeps
+     C ≥ 0.097, so all of them read as a purple or a blue, never a grey.
+     5.4:1 on --bg-deep at the blue end, 5.7:1 at the purple end, 11.5:1 at
+     navy.
+
+     Chroma is held back on purpose: every stop is 85% of the chroma the same
+     path carries at full strength (purple 0.15, navy 0.115, blue 0.155, all in
+     gamut), so the reader stays a muted purple and blue rather than a vivid
+     one. Winter is a desaturated theme, and these colours are on every title. */
+  --depth-1: #774c9b;  /* purple */
+  --depth-2: #6b4994;
+  --depth-3: #5f468d;
+  --depth-4: #544386;
+  --depth-5: #493f7f;
+  --depth-6: #3d3b78;
+  --depth-7: #313871;
+  --depth-8: #24346b;
+  --depth-9: #153064;  /* navy */
+  --depth-10: #17366c;
+  --depth-11: #1a3c76;
+  --depth-12: #1c427e;
+  --depth-13: #1f4988;
+  --depth-14: #214f90;
+  --depth-15: #24569a;
+  --depth-16: #265ca3;
+  --depth-17: #2963ac; /* blue */
+}
+
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
    greys, off-white. Named for the monochrome world; the brief was high
    contrast and high readability, so it is not a desaturation of the charcoal
@@ -697,6 +849,24 @@
 }
 [data-scheme="light"] button.atlas-node-expand-all {
   opacity: 0.7;
+}
+
+/* ─── Winter structural override ─────────────────────────────────────────
+   The light-scheme .filter-summary-em above is a salmon tuned for Light's
+   callout — the only warm hue it would leave in winter's reader. --magenta is
+   already winter's "pale navy-blue on the --tan fill" token (10.5:1, audited
+   as status pill / tan), so the emphasis takes that. After the light-scheme
+   rule on purpose: same specificity, so source order decides. */
+[data-theme="winter"] .filter-summary-em {
+  color: var(--magenta);
+}
+
+/* The selected title. The base rule mixes the row's DEPTH colour into --tan,
+   which would put the spectrum back on the one title winter singles out.
+   Mixing --node-title instead keeps the same 45/55 deepening, so the selected
+   doc reads as a darker shade of the colour every other title wears. */
+[data-theme="winter"] .atlas-node.is-selected .atlas-node-title {
+  color: color-mix(in srgb, var(--node-title) 45%, var(--tan));
 }
 
 html,

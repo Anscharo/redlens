@@ -433,6 +433,85 @@ describe("giedi's depth ramp is one continuous curve, not a cycle", () => {
   });
 });
 
+// ─── Test E2 ────────────────────────────────────────────────────────────
+// winter's whole identity is "no rainbow": doc numbers run purple → navy →
+// blue and nothing else, and titles are one purple (--node-title, asserted
+// below). Light's seven-hue cycle passes every contrast pair above, so nothing
+// else here would notice it being pasted in.
+describe("winter's depth ramp is purple, navy and blue, and only that", () => {
+  const stops = Array.from({ length: 17 }, (_, i) => THEMES.winter[`depth-${i + 1}`]);
+  const lch = (hex: string) => {
+    const [L, a, b] = oklab(hex);
+    return { L, C: Math.hypot(a, b), H: ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360 };
+  };
+
+  it("keeps every stop between purple and blue, and visibly coloured", () => {
+    for (const [i, hex] of stops.entries()) {
+      const { C, H } = lch(hex);
+      expect(H, `--depth-${i + 1} (${hex}) is at hue ${H.toFixed(0)}, outside winter's purple–blue band (255–310)`).toBeGreaterThanOrEqual(255);
+      expect(H).toBeLessThanOrEqual(310);
+      expect(C, `--depth-${i + 1} (${hex}) has sagged to a grey (C ${C.toFixed(3)})`).toBeGreaterThanOrEqual(0.08);
+    }
+  });
+
+  // One run, purple → navy → blue, across all seventeen slots: hue moves one
+  // way only, lightness dips to navy at depth 9 and rises back, and no colour
+  // is reused. Steps are allowed to be small (about a JND) but never zero.
+  it("runs purple → navy → blue once, with no repeats", () => {
+    for (let i = 1; i < 17; i++) {
+      expect(lch(stops[i]).H, `--depth-${i + 1} is not bluer than --depth-${i}`).toBeLessThan(lch(stops[i - 1]).H);
+      const L = lch(stops[i]).L, prev = lch(stops[i - 1]).L;
+      if (i <= 8) expect(L, `--depth-${i + 1} should darken toward navy at depth 9`).toBeLessThan(prev);
+      else expect(L, `--depth-${i + 1} should lighten from navy toward blue`).toBeGreaterThan(prev);
+    }
+    expect(new Set(stops).size, "a depth colour repeats — winter's ramp is one run, not a cycle").toBe(17);
+    for (let i = 1; i < 17; i++)
+      expect(
+        perceptualDistance(stops[i], stops[i - 1]),
+        `--depth-${i + 1} is indistinguishable from its parent level --depth-${i}`,
+      ).toBeGreaterThanOrEqual(0.015);
+    expect(perceptualDistance(stops[0], stops[16]), "the purple and blue ends have converged").toBeGreaterThanOrEqual(0.1);
+  });
+
+  it.each(["bg", "surface", "bg-deep", "atlas-row-selected"])("every stop is readable as a doc number on --%s", (on) => {
+    for (const hex of stops) expect(contrastRatio(hex, THEMES.winter[on]) as number).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+// winter's doc titles leave the ramp for one flat purple. --node-title is
+// declared only in the giedi and winter blocks (Test C walks :root, so it
+// never sees it), which is why it is asserted by name here.
+describe("winter's doc titles are one purple, readable everywhere a title sits", () => {
+  const title = THEMES.winter["node-title"];
+
+  it("is a purple inside the doc-number ramp's hue band", () => {
+    const [, a, b] = oklab(title);
+    const H = ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360;
+    expect(title, "winter has no --node-title, so titles fall back to the depth spectrum").toMatch(/^#[0-9a-f]{6}$/i);
+    expect(H, `--node-title (${title}) is at hue ${H.toFixed(0)}, outside winter's purple–blue band`).toBeGreaterThanOrEqual(255);
+    expect(H).toBeLessThanOrEqual(310);
+  });
+
+  it.each(["bg", "surface", "bg-deep", "atlas-row-selected"])("reads on --%s", (on) => {
+    expect(contrastRatio(title, THEMES.winter[on]) as number).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("reads on the light-scheme reader hover fill (--bg-deep 95% toward black)", () => {
+    const hover =
+      "#" +
+      [1, 3, 5]
+        .map((i) => Math.round(parseInt(THEMES.winter["bg-deep"].slice(i, i + 2), 16) * 0.95).toString(16).padStart(2, "0"))
+        .join("");
+    expect(contrastRatio(title, hover) as number).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("the selected title mixes --node-title, not the row's depth colour", () => {
+    const rule = CSS.match(/\[data-theme="winter"\]\s+\.atlas-node\.is-selected\s+\.atlas-node-title\s*\{([^}]*)\}/);
+    expect(rule, 'no `[data-theme="winter"] .atlas-node.is-selected .atlas-node-title` rule — the selected title would fall back to its depth colour').not.toBeNull();
+    expect(rule![1]).toMatch(/var\(--node-title\)/);
+  });
+});
+
 // ─── Test F ─────────────────────────────────────────────────────────────
 // Diff blocks have to be visible AS BLOCKS. AUDIT_PAIRS checks each diff
 // foreground against its own fill, which says only that the text is readable
@@ -685,7 +764,7 @@ describe("no two entity colours collapse into each other", () => {
 });
 
 // ─── Test I ─────────────────────────────────────────────────────────────
-// giedi is ADVERTISED as high contrast — "greyscale · high contrast" in the
+// giedi is ADVERTISED as high contrast — "inverted · high contrast" in the
 // THEMES registry, and again in the Features guide and the patch notes. That
 // is a measurable claim, and for a while it was not a true one: the theme won
 // on chrome (chiclets, links, focus ring) while its BODY PROSE was the

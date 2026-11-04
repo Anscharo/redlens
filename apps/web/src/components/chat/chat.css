@@ -100,6 +100,36 @@
   border-color: #fbfaff;
 }
 
+/* ── Chat-local palette, winter ────────────────────────────────────────────
+   Winter's primary is dark navy, not Sky violet, so the lavender family above
+   is re-hued: every value keeps its OKLCH lightness, moves to hue 262 (the
+   navy), and drops to 60% of its chroma, the same rationing winter applies to
+   every non-structural hue. The recess (--bg) is lifted 0.02 L so winter's
+   --tan-3 (#60656d) still clears AA on it — 4.6:1; on every other step it is
+   4.8:1 or more, and --accent is 8.4:1 or more everywhere.
+   Same specificity as the light-scheme rules it overrides, so it must stay
+   after them. These classes also back the nav's help and theme buttons. */
+[data-theme="winter"] .rlc-launcher,
+[data-theme="winter"] .rlc-panel,
+[data-theme="winter"] .rlc-signin,
+[data-theme="winter"] .rlc-avatar,
+[data-theme="winter"] .rlc-menu {
+  --surface: #f2f5fa;
+  --bg: #d8e5fb;
+  --hover: #e2e9f7;
+  --border: #b9c8e4;
+  --gray: #4f555e; /* 5.8:1 on the recess */
+}
+[data-theme="winter"] .rlc-panel {
+  background: #e8edf6;
+}
+[data-theme="winter"] .rlc-thread {
+  background: #f9fbfe;
+}
+[data-theme="winter"] .rlc-thread::-webkit-scrollbar-thumb {
+  border-color: #f9fbfe;
+}
+
 /* The float panel's inset top sheen is a dark-elevation idiom — a light
    line where light "catches" the top edge of a dark card. A light panel has
    no dark edge for light to catch, so the sheen reads as a stray line, not
@@ -157,6 +187,15 @@
 }
 [data-scheme="light"] .rlc-starters-locked {
   opacity: 0.68;
+}
+
+/* Winter's header and composer wash: 0.04 rather than the 0.05 above.
+   Winter's --tan-3 is a hair lighter than Light's, and over winter's panel
+   the 0.05 band put it at 4.47:1; 0.04 is 4.59:1 and still reads a shade
+   back from the thread. After the light-scheme rules: same specificity. */
+[data-theme="winter"] .rlc-header,
+[data-theme="winter"] .rlc-composer {
+  background: rgba(0, 0, 0, 0.04);
 }
 
 /* ── Launcher (collapsed pill) ─────────────────────────────────────────── */

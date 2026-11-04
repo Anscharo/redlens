@@ -31,22 +31,29 @@ export const THEMES = [
   {
     id: "dark",
     label: "Dark",
-    hint: "charcoal · the original",
+    hint: "charcoal · colorful",
     bg: "#160e0d",
     scheme: "dark",
   },
   {
     id: "giedi",
     label: "Giedi",
-    hint: "greyscale · high contrast",
+    hint: "inverted · high contrast",
     bg: "#141414",
     scheme: "dark",
   },
   {
     id: "light",
     label: "Light",
-    hint: "Sky Eco brand palette",
+    hint: "sky purple · colorful",
     bg: "#fafafa",
+    scheme: "light",
+  },
+  {
+    id: "winter",
+    label: "Winter",
+    hint: "cool white · simple",
+    bg: "#f9fafc",
     scheme: "light",
   },
 ] as const;
