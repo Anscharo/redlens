@@ -31,6 +31,9 @@ vi.mock("node:fs/promises", () => {
 import { fetchChainlog, enrichAddresses, fetchImplABIs } from "../scripts/lib/address-enrich.mjs";
 
 const okJson = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
+// Sourcify goes through politeFetch, which reads headers and the body, so its fakes are real Responses.
+const sourcifyReply = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const verified = (over: Record<string, unknown> = {}) => okJson({
   status: "1",
   result: [{ ContractName: "Foo", ABI: "[]", Proxy: "0", Implementation: "", SourceCode: "x", ...over }],
@@ -139,6 +142,19 @@ describe("fetchImplABIs", () => {
     expect([...store.keys()].some((k) => k.endsWith(`${impl}.json`))).toBe(true);
   });
 
+  it("looks an implementation up on its proxy's chain and caches it under that chain's id", async () => {
+    const impl = "0xc5a845985bdf088f44e3ddf2bd1a79b08dbe9611";
+    const seen: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      seen.push(url);
+      return verified({ ContractName: "VaultV2Allocator" });
+    }));
+    await fetchImplABIs({ "0xproxy": { chain: "base", isProxy: true, implementation: impl } }, "KEY");
+    expect(seen[0]).toContain("chainid=8453");
+    expect(store.has(cacheKey(8453, impl))).toBe(true);
+    expect(store.has(cacheKey(1, impl))).toBe(false);
+  });
+
   it("no-ops when there are no proxy contracts to fetch", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -192,17 +208,28 @@ describe("fetchEtherscan edge responses (via enrichAddresses)", () => {
     warnSpy.mockRestore();
   });
 
-  it("caches nothing for a chain no explorer serves, so a provider added later is asked", async () => {
+  it("caches nothing on a Sourcify 404, so a provider added later is asked", async () => {
     const addr = "0x4646464646464646464646464646464646464646";
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn(async (_url: string) => sourcifyReply(404, { customCode: "not_found" }));
     vi.stubGlobal("fetch", fetchMock);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    // No key: arbitrum has Etherscan only, so nothing serves it.
+    // No key: arbitrum's only explorer is Etherscan, so Sourcify alone is asked.
     const out = await enrichAddresses({ [addr]: { chain: "arbitrum" } }, {}, undefined);
     expect(out[addr]).toMatchObject({ isContract: false });
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls.map((c) => String(c[0]))).toEqual([expect.stringContaining("sourcify.dev/server/v2/contract/42161/")]);
     expect([...store.keys()].some((k) => k.includes(addr))).toBe(false);
-    expect(String(warnSpy.mock.calls[0]?.[0])).toContain("no explorer serves arbitrum");
+    warnSpy.mockRestore();
+  });
+
+  it("names a base contract from Sourcify when Etherscan's plan refuses base", async () => {
+    const addr = "0x4747474747474747474747474747474747474747";
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => url.includes("api.etherscan.io")
+      ? okJson({ status: "0", message: "NOTOK", result: "Free API access is not supported for this chain" })
+      : sourcifyReply(200, { abi: [{ type: "function", name: "x" }], compilation: { name: "ForeignController", language: "Solidity" }, sources: { "a.sol": { content: "c" } } })));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const out = await enrichAddresses({ [addr]: { chain: "base" } }, {}, "KEY");
+    expect(out[addr]).toMatchObject({ etherscanName: "ForeignController", isContract: true });
+    expect([...store.keys()].some((k) => k.includes(`/8453/${addr}`))).toBe(true);
     warnSpy.mockRestore();
   });
 

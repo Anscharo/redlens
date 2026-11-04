@@ -160,25 +160,29 @@ function onchainFields(info, entry, chainlogId) {
 // the snapshot step runs.
 // ---------------------------------------------------------------------------
 export async function fetchImplABIs(out, apiKey) {
-  const implAddrs = [...new Set(Object.values(out).filter((a) => a.isProxy && a.implementation).map((a) => a.implementation))];
+  // An implementation lives on its proxy's chain and is cached under that
+  // chain's id; the snapshot step reads ethereum's from .cache/etherscan/1/.
+  const impls = new Map();
+  for (const a of Object.values(out)) {
+    const chain = a.chain ?? "ethereum";
+    if (!a.isProxy || !a.implementation || CHAIN_ID[chain] == null) continue;
+    impls.set(`${chain}:${a.implementation}`, { chain, impl: a.implementation });
+  }
+  if (!impls.size) return;
 
-  if (!implAddrs.length) return;
-
-  console.log(`\nFetching implementation ABIs for ${implAddrs.length} proxy contracts…`);
+  console.log(`\nFetching implementation ABIs for ${impls.size} proxy contracts…`);
   let implMisses = 0;
-  for (const impl of implAddrs) {
-    const cached = await readCache(1, impl);
-    if (cached) continue;
+  for (const { chain, impl } of impls.values()) {
+    const chainid = CHAIN_ID[chain];
+    if (await readCache(chainid, impl)) continue;
     try {
-      // Proxy implementations tracked here are ethereum addresses (the snapshot
-      // step only reads ethereum chainlog contracts), so resolve via ethereum.
-      const entry = await fetchSourceCode("ethereum", 1, impl, apiKey);
-      await writeCache(1, impl, entry);
+      const entry = await fetchSourceCode(chain, chainid, impl, apiKey);
+      await writeCache(chainid, impl, entry);
       implMisses++;
-      console.log(`  cached ${impl} (${entry.contractName || "unverified"})`);
+      console.log(`  cached ${chainid}/${impl} (${entry.contractName || "unverified"})`);
     } catch (err) {
-      console.warn(`  ! impl ${impl}: ${err.message}`);
+      console.warn(`  ! impl ${chainid}/${impl}: ${err.message}`);
     }
   }
-  console.log(`  ${implMisses} new, ${implAddrs.length - implMisses} already cached`);
+  console.log(`  ${implMisses} new, ${impls.size - implMisses} already cached`);
 }

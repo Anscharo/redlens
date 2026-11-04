@@ -5,7 +5,9 @@
  * stampede any provider between them.
  */
 
+import { CHAIN_ID } from "./chains.mjs";
 import { explorerBases, throttleExplorer } from "./explorer-api.ts";
+import { fetchSourcify } from "./sourcify-source.ts";
 
 export interface SourceEntry {
   fetchedAt: string;
@@ -19,23 +21,34 @@ export interface SourceEntry {
 }
 
 // ---------------------------------------------------------------------------
-// Source-code lookup (Etherscan v2 + Routescan / Blockscout backup)
+// Source-code lookup (Etherscan v2, then Routescan / Blockscout, then Sourcify)
 //
 // Etherscan v2, Routescan and every Blockscout instance expose the same
 // `?module=contract&action=getsourcecode` response shape, so one parser
-// (makeEntry) covers both. Per chain we build an ordered provider list —
+// (makeEntry) covers them. Per chain we build an ordered provider list —
 // Etherscan first where supported, then Routescan and Blockscout as fallbacks —
-// and for chains Etherscan v2 doesn't cover (plume) Blockscout is the only,
-// primary provider. Blockscout's optional BLOCKSCOUT_API_KEY raises its rate
-// limit.
+// and for chains Etherscan v2 doesn't cover (plume) Blockscout is the only
+// explorer. Sourcify (sourcify-source.ts) comes last on every registered EVM
+// chain: it is keyless, so it names contracts where the explorer is paid or
+// blocks scripts (base). Blockscout's optional BLOCKSCOUT_API_KEY raises its
+// rate limit.
 // ---------------------------------------------------------------------------
 const EMPTY_SOURCE = { ContractName: "", ABI: "", Proxy: "0", Implementation: "", SourceCode: "" };
 
-function explorerProviders(chain: string, addr: string, apiKey?: string) {
-  return explorerBases(chain, apiKey).map(({ name, base }) => ({
+interface SourceProvider {
+  name: string;
+  fetch: () => Promise<SourceEntry>;
+}
+
+function sourceProviders(chain: string, chainid: number, addr: string, apiKey?: string): SourceProvider[] {
+  const explorers = explorerBases(chain, apiKey).map(({ name, base }) => ({
     name,
-    url: `${base}module=contract&action=getsourcecode&address=${addr}`,
+    fetch: () => fetchExplorer(`${base}module=contract&action=getsourcecode&address=${addr}`, name, chainid, addr),
   }));
+  // Only a registered EVM chain: an unregistered one falls back to mainnet's id,
+  // and Sourcify would answer for the mainnet contract at that address.
+  const sourcify = CHAIN_ID[chain] === chainid ? [{ name: "sourcify", fetch: () => fetchSourcify(chainid, addr) }] : [];
+  return [...explorers, ...sourcify];
 }
 
 async function fetchExplorer(url: string, providerName: string, chainid: number, addr: string): Promise<SourceEntry> {
@@ -66,7 +79,7 @@ async function fetchExplorer(url: string, providerName: string, chainid: number,
  * or every one errored or refused, and the caller caches nothing.
  */
 export async function fetchSourceCode(chain: string, chainid: number, addr: string, apiKey?: string): Promise<SourceEntry> {
-  const providers = explorerProviders(chain, addr, apiKey);
+  const providers = sourceProviders(chain, chainid, addr, apiKey);
   // No provider is no answer: an empty entry here would be cached as
   // "unverified" and outlive the provider being configured.
   if (!providers.length) throw new Error(`no explorer serves ${chain}${apiKey ? "" : " without ETHERSCAN_API_KEY"}`);
@@ -75,7 +88,7 @@ export async function fetchSourceCode(chain: string, chainid: number, addr: stri
   for (const [i, p] of providers.entries()) {
     const more = i < providers.length - 1;
     try {
-      const entry = await fetchExplorer(p.url, p.name, chainid, addr);
+      const entry = await p.fetch();
       if (entry.contractName || entry.abi) return entry; // verified — done
       unverified ??= entry;
       if (more) console.warn(`  · ${p.name} has ${chainid}/${addr} unverified — trying backup`);
