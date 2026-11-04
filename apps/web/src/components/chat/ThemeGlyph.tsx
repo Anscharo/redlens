@@ -6,6 +6,10 @@ import type { ThemeId } from "../../lib/theme";
 // eclipse is an outlined disc with a 10-to-5 terminator (same 45° as Dark's
 // crescent); the inner arc is flatter than the rim so the sliver between them
 // is wide enough to fill at 15px — a tighter pair of strokes ate the fill.
+// Winter shares Light's scheme too, so it gets a snowflake: one arm (a stem
+// with a chevron at each end) drawn three times, 60° apart.
+const SNOWFLAKE_ARM = "M12 3v18M9.5 5.2 12 7.6l2.5-2.4M9.5 18.8l2.5-2.4 2.5 2.4";
+
 const THEME_MARKS: Record<ThemeId, { glyph: string; roundJoin?: boolean; marks: ReactNode }> = {
   light: {
     glyph: "sun",
@@ -23,6 +27,17 @@ const THEME_MARKS: Record<ThemeId, { glyph: string; roundJoin?: boolean; marks: 
         <path fill="currentColor" stroke="none" d="M5.072 8 A8 8 0 0 0 16 18.928 A22 22 0 0 1 5.072 8Z" />
         <circle cx="12" cy="12" r="8" />
         <path d="M5.072 8 A22 22 0 0 0 16 18.928" />
+      </>
+    ),
+  },
+  winter: {
+    glyph: "snowflake",
+    roundJoin: true,
+    marks: (
+      <>
+        <path d={SNOWFLAKE_ARM} />
+        <path d={SNOWFLAKE_ARM} transform="rotate(60 12 12)" />
+        <path d={SNOWFLAKE_ARM} transform="rotate(-60 12 12)" />
       </>
     ),
   },

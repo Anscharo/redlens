@@ -399,12 +399,12 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "Colour schemes",
-        what: "The whole app can run in the original charcoal dark scheme, a high-contrast greyscale one, or a light one.",
+        what: "The whole app can run in the original charcoal dark scheme, a high-contrast greyscale one, a light one, or Winter — a cool white one whose document titles and numbers are only purple and navy.",
         how: [
-          "Click the sun, moon, or eclipse button in the top-right corner — it shows which scheme is on — and pick Dark, Giedi, or Light.",
+          "Click the sun, moon, eclipse, or snowflake button in the top-right corner — it shows which scheme is on — and pick Dark, Giedi, Light, or Winter.",
           "Every page follows the choice — the reader, Radar, reports, and Redline Portal Chat.",
         ],
-        note: "No sign-in needed. Until you pick one, the app follows your device's light/dark setting and keeps following it; once you choose, that choice sticks. It is kept in this browser only, so another browser or device starts from your device setting again.",
+        note: "No sign-in needed. Until you pick one, the app starts in Light, whatever your device's light/dark setting; once you choose, that choice sticks. It is kept in this browser only, so another browser or device starts in Light again.",
       },
       {
         name: "Your viewing history",

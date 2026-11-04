@@ -49,5 +49,7 @@ describe("chat glyphs", () => {
     expect(svg()).toHaveAttribute("data-glyph", "sun");
     rerender(<ThemeGlyph theme="giedi" size={22} />);
     expect(svg()).toHaveAttribute("data-glyph", "eclipse");
+    rerender(<ThemeGlyph theme="winter" size={22} />);
+    expect(svg()).toHaveAttribute("data-glyph", "snowflake");
   });
 });

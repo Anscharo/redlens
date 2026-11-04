@@ -49,6 +49,13 @@ export const THEMES = [
     bg: "#fafafa",
     scheme: "light",
   },
+  {
+    id: "winter",
+    label: "Winter",
+    hint: "cool white · purple and navy",
+    bg: "#f9fafc",
+    scheme: "light",
+  },
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number]["id"];
