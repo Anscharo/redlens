@@ -345,37 +345,42 @@
      ONE run across all seventeen slots, no cycle and no return, so every
      level has its own colour and none repeats. Two linear OKLab segments
      through three points:
-       purple  OKLCH L 0.50 / C 0.15  / H 307  (depth 1)
-       navy    OKLCH L 0.32 / C 0.115 / H 262  (depth 9)
-       blue    OKLCH L 0.50 / C 0.155 / H 256  (depth 17)
+       purple  OKLCH L 0.50 / C 0.128 / H 307  (depth 1)
+       navy    OKLCH L 0.32 / C 0.098 / H 262  (depth 9)
+       blue    OKLCH L 0.50 / C 0.131 / H 256  (depth 17)
      Hue only ever moves one way (307 → 256, purple → blue). Lightness dips to
      navy in the middle and comes back up, and the two ends are matched in
      lightness and chroma, so purple and blue carry equal weight and the deep
      end does not dim.
 
-     Steps are small but continuous: adjacent levels are 0.022-0.028 apart in
+     Steps are small but continuous: adjacent levels are 0.021-0.026 apart in
      OKLab, about one JND, so a child reads as a shade of its parent rather
-     than a new colour. The ends are 0.132 apart, and every stop keeps
-     C ≥ 0.114, so all of them read as a purple or a blue, never a grey.
-     5.5:1 on --bg-deep at the blue end, 5.8:1 at the purple end, 11.6:1 at
-     navy. */
-  --depth-1: #7a46a5;  /* purple */
-  --depth-2: #6e449d;
-  --depth-3: #614196;
-  --depth-4: #553f8f;
-  --depth-5: #493c88;
-  --depth-6: #3c3881;
-  --depth-7: #2f357a;
-  --depth-8: #213273;
-  --depth-9: #0e2e6c;  /* navy */
-  --depth-10: #0f3475;
-  --depth-11: #113a7f;
-  --depth-12: #124088;
-  --depth-13: #134792;
-  --depth-14: #144d9b;
-  --depth-15: #1554a5;
-  --depth-16: #165aaf;
-  --depth-17: #1761b9; /* blue */
+     than a new colour. The ends are 0.113 apart, and every stop keeps
+     C ≥ 0.097, so all of them read as a purple or a blue, never a grey.
+     5.4:1 on --bg-deep at the blue end, 5.7:1 at the purple end, 11.5:1 at
+     navy.
+
+     Chroma is held back on purpose: every stop is 85% of the chroma the same
+     path carries at full strength (purple 0.15, navy 0.115, blue 0.155, all in
+     gamut), so the reader stays a muted purple and blue rather than a vivid
+     one. Winter is a desaturated theme, and these colours are on every title. */
+  --depth-1: #774c9b;  /* purple */
+  --depth-2: #6b4994;
+  --depth-3: #5f468d;
+  --depth-4: #544386;
+  --depth-5: #493f7f;
+  --depth-6: #3d3b78;
+  --depth-7: #313871;
+  --depth-8: #24346b;
+  --depth-9: #153064;  /* navy */
+  --depth-10: #17366c;
+  --depth-11: #1a3c76;
+  --depth-12: #1c427e;
+  --depth-13: #1f4988;
+  --depth-14: #214f90;
+  --depth-15: #24569a;
+  --depth-16: #265ca3;
+  --depth-17: #2963ac; /* blue */
 }
 
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
