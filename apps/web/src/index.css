@@ -255,9 +255,13 @@
    depth cycle; winter's depth palette is one run from purple through navy to
    blue, which the doc numbers carry. Doc TITLES opt out of the ramp, as
    giedi's do, and all take one colour (--node-title, the depth-5 stop).
-   See the depth-palette note below. --accent and the decorative
-   --red slot come from the same range (purple links, navy bar), so the chrome
-   stays inside the same hues as the text.
+   See the depth-palette note below.
+
+   The PRIMARY colour is dark navy, not purple: --accent (links, focus, the
+   search box, active pills) and the decorative --red slot are both navy, and
+   the chrome's tints (borders, the `mark` highlight, the inverted pill, the
+   treemap ramp) sit at the same hue 262. Purple stays where it carries
+   depth: the top of the doc-number ramp and the titles.
 
    Every other hue is rationed below Light's: status colours at about 60% of
    Light's chroma, entity colours likewise (re-spread so no pair sits under
@@ -273,14 +277,14 @@
   --bg-deep: #f0f3f6; /* recessed — tree sidebar + reader */
   --surface: #ffffff; /* raised */
   --hover: #e7eaed;
-  --border: #dedfe9; /* a faint lavender-grey — the purple, at C 0.014 */
+  --border: #dbe0e9; /* a faint blue-grey — the navy, at C 0.014 */
   --border-muted: #e1e3e5;
-  --tooltip-border: #c7c7d7; /* hover cards — a shade darker than --border */
+  --tooltip-border: #c1c9d8; /* hover cards — a shade darker than --border */
 
-  /* ─── Brand ─── the theme's two hues ─── */
+  /* ─── Brand ─── dark navy is the primary ─── */
   --red: #223d81; /* decorative accent slot — navy (H 265); 10.2:1 on --surface */
-  --red-dim: #e3ddfa; /* `mark` + active scope pills — ice lavender; --tan on it is 13.5:1 */
-  --accent: #6239a0; /* links + focus — purple (H 298), 7.2:1 on --bg-deep */
+  --red-dim: #d6e4fb; /* `mark` + active scope pills — ice blue (H 262); --tan on it is 13.8:1 */
+  --accent: #1d3c79; /* links + focus — dark navy (OKLCH L 0.37 / C 0.11 / H 262), 9.6:1 on --bg-deep */
   --preview-add: #377355; /* green — status exception, as in Light, at lower chroma */
   --error-text: #a84642; /* red — likewise */
   --warn: #896328; /* muted amber, hue 75 */
@@ -290,8 +294,8 @@
   --tan: #141821; /* primary text — 17.5:1 on --bg */
   --tan-2: #31363e;
   --tan-3: #60656d;
-  --magenta: #c7bced; /* an INVERTED pill: pale lavender on the dark --tan fill, 10.0:1 */
-  --lilac: #61579e; /* the preview "renumbered" note — a greyer, bluer purple than --accent */
+  --magenta: #b2c8ef; /* an INVERTED pill: pale navy-blue on the dark --tan fill, 10.5:1 */
+  --lilac: #61579e; /* the preview "renumbered" note — a muted purple, so it stands apart from the navy --accent */
   --terminal-green: #377355;
   --lily-green: #20462f;
 
@@ -319,10 +323,10 @@
   --shadow: rgba(0, 0, 0, 0.1);
   --shadow-strong: rgba(0, 0, 0, 0.18);
 
-  /* ─── CrossView treemap ─── a soft periwinkle (OKLCH L 0.72 / C 0.06 /
-     H 280): light enough that the --tan-2 label still reads 6.6:1 on the
+  /* ─── CrossView treemap ─── a soft slate blue (OKLCH L 0.72 / C 0.06 /
+     H 262): light enough that the --tan-2 label still reads 6.6:1 on the
      deepest rect. See the note in the light block. */
-  --chunk-fill: #9da1ca;
+  --chunk-fill: #90a5cb;
 
   /* ─── Diff view ─── red/green as in Light, paler fills, darker inks ─── */
   --diff-removed-bg: #f8dede;
@@ -850,7 +854,7 @@
 /* ─── Winter structural override ─────────────────────────────────────────
    The light-scheme .filter-summary-em above is a salmon tuned for Light's
    callout — the only warm hue it would leave in winter's reader. --magenta is
-   already winter's "pale lavender on the --tan fill" token (10.0:1, audited
+   already winter's "pale navy-blue on the --tan fill" token (10.5:1, audited
    as status pill / tan), so the emphasis takes that. After the light-scheme
    rule on purpose: same specificity, so source order decides. */
 [data-theme="winter"] .filter-summary-em {
