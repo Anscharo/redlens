@@ -5,8 +5,7 @@
  * stampede any provider between them.
  */
 
-import { CHAIN_ID } from "./chains.mjs";
-import { explorerBases, throttleExplorer } from "./explorer-api.ts";
+import { CHAIN_NOT_SERVED, SourceMiss, explorerBases, throttleExplorer } from "./explorer-api.ts";
 import { fetchSourcify } from "./sourcify-source.ts";
 
 export interface SourceEntry {
@@ -28,28 +27,37 @@ export interface SourceEntry {
 // (makeEntry) covers them. Per chain we build an ordered provider list —
 // Etherscan first where supported, then Routescan and Blockscout as fallbacks —
 // and for chains Etherscan v2 doesn't cover (plume) Blockscout is the only
-// explorer. Sourcify (sourcify-source.ts) comes last on every registered EVM
-// chain: it is keyless, so it names contracts where the explorer is paid or
-// blocks scripts (base). Blockscout's optional BLOCKSCOUT_API_KEY raises its
-// rate limit.
+// explorer. Sourcify (sourcify-source.ts) comes last: it is keyless, so it
+// names contracts where the explorer is paid or blocks scripts (base).
+// Blockscout's optional BLOCKSCOUT_API_KEY raises its rate limit.
 // ---------------------------------------------------------------------------
 const EMPTY_SOURCE = { ContractName: "", ABI: "", Proxy: "0", Implementation: "", SourceCode: "" };
+
+// The failures a caller that holds off a host must see first (pau spell-sources).
+const RATE_LIMITED = /rate limit|cooling down|HTTP 429/i;
 
 interface SourceProvider {
   name: string;
   fetch: () => Promise<SourceEntry>;
+  /** Asked only while no earlier provider has answered, verified or not. */
+  onlyWithoutAnswer?: boolean;
 }
+type ProviderSource = (chain: string, chainid: number, addr: string, apiKey?: string) => SourceProvider[];
 
-function sourceProviders(chain: string, chainid: number, addr: string, apiKey?: string): SourceProvider[] {
-  const explorers = explorerBases(chain, apiKey).map(({ name, base }) => ({
+const explorerProviders: ProviderSource = (chain, chainid, addr, apiKey) =>
+  explorerBases(chain, apiKey).map(({ name, base }) => ({
     name,
     fetch: () => fetchExplorer(`${base}module=contract&action=getsourcecode&address=${addr}`, name, chainid, addr),
   }));
-  // Only a registered EVM chain: an unregistered one falls back to mainnet's id,
-  // and Sourcify would answer for the mainnet contract at that address.
-  const sourcify = CHAIN_ID[chain] === chainid ? [{ name: "sourcify", fetch: () => fetchSourcify(chainid, addr) }] : [];
-  return [...explorers, ...sourcify];
-}
+
+// After an explorer's "unverified" Sourcify is not asked: an EOA or an
+// unverified contract would cost a request that almost never names it.
+const sourcifyProviders: ProviderSource = (_chain, chainid, addr) => [
+  { name: "sourcify", onlyWithoutAnswer: true, fetch: () => fetchSourcify(chainid, addr) },
+];
+
+/** Where verified source is looked up, in order. A new provider is one appended entry. */
+const SOURCE_PROVIDERS: ProviderSource[] = [explorerProviders, sourcifyProviders];
 
 async function fetchExplorer(url: string, providerName: string, chainid: number, addr: string): Promise<SourceEntry> {
   await throttleExplorer(url);
@@ -62,6 +70,7 @@ async function fetchExplorer(url: string, providerName: string, chainid: number,
   // plain account as status "1". It throws, so the next provider is tried and
   // nothing is cached.
   if (data.status === "0" && typeof data.result === "string") {
+    if (CHAIN_NOT_SERVED.test(data.result)) throw new SourceMiss(`${providerName} does not serve ${chainid}: ${data.result}`);
     const kind = /rate limit/i.test(data.result) ? "rate limit" : "refused";
     throw new Error(`${providerName} ${kind} for ${chainid}/${addr}: ${data.result}`);
   }
@@ -70,36 +79,40 @@ async function fetchExplorer(url: string, providerName: string, chainid: number,
 }
 
 /**
- * Fetch verified-source metadata for one address, trying each configured
- * explorer in order. Returns the first VERIFIED result; if an explorer answers
- * but the contract is unverified there, the next explorer is tried (a backup may
- * have it verified). Hard failures (network / HTTP error / rate limit / refusal) fall
- * through to the next provider too. If no explorer has it verified, the first
- * unverified answer is returned. It throws when no explorer serves the chain
- * or every one errored or refused, and the caller caches nothing.
+ * Fetch verified-source metadata for one address, trying each provider in
+ * SOURCE_PROVIDERS order. Returns the first VERIFIED result; if a provider
+ * answers but the contract is unverified there, the next is tried (a backup may
+ * have it verified), and the first unverified answer is returned when none has
+ * it. Per-provider failures go to stdout: the caller reports the outcome.
+ *
+ * With no answer at all it throws outcomeError: a SourceMiss only when every
+ * provider missed (none serves the chain or holds the contract), which a
+ * caller may cache; any other failure caches nothing.
  */
 export async function fetchSourceCode(chain: string, chainid: number, addr: string, apiKey?: string): Promise<SourceEntry> {
-  const providers = sourceProviders(chain, chainid, addr, apiKey);
-  // No provider is no answer: an empty entry here would be cached as
-  // "unverified" and outlive the provider being configured.
-  if (!providers.length) throw new Error(`no explorer serves ${chain}${apiKey ? "" : " without ETHERSCAN_API_KEY"}`);
-  let lastErr: unknown;
-  let unverified: SourceEntry | undefined; // first successful-but-unverified answer, used as a fallback
-  for (const [i, p] of providers.entries()) {
-    const more = i < providers.length - 1;
+  const errors: Error[] = [];
+  let unverified: SourceEntry | undefined;
+  for (const p of SOURCE_PROVIDERS.flatMap((source) => source(chain, chainid, addr, apiKey))) {
+    if (p.onlyWithoutAnswer && unverified) continue;
     try {
       const entry = await p.fetch();
       if (entry.contractName || entry.abi) return entry; // verified — done
       unverified ??= entry;
-      if (more) console.warn(`  · ${p.name} has ${chainid}/${addr} unverified — trying backup`);
+      console.log(`  · ${p.name} has ${chainid}/${addr} unverified`);
     } catch (err) {
-      lastErr = err;
-      console.warn(`  ! ${p.name} failed for ${chainid}/${addr}: ${(err as Error).message}${more ? " — trying backup" : ""}`);
+      errors.push(err as Error);
+      console.log(`  · ${p.name} has no answer for ${chainid}/${addr}: ${(err as Error).message}`);
     }
   }
-  // No explorer had it verified — prefer a real (unverified) answer over an error.
   if (unverified) return unverified;
-  throw lastErr;
+  throw outcomeError(chain, errors);
+}
+
+// A rate limit outranks every other failure, so a caller that holds off a host
+// sees it; then any real failure; a miss only when every provider missed.
+function outcomeError(chain: string, errors: Error[]): Error {
+  const failed = errors.find((e) => RATE_LIMITED.test(e.message)) ?? errors.find((e) => !(e instanceof SourceMiss));
+  return failed ?? new SourceMiss(errors.map((e) => e.message).join("; ") || `no source serves ${chain}`);
 }
 
 export function makeEntry(chainid: number, addr: string, r: Record<string, unknown>): SourceEntry {

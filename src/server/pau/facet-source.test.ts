@@ -5,6 +5,7 @@
 import { describe, expect, it } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
+import { sourcifyEntry } from "../../../scripts/lib/sourcify-source.ts";
 import { facetShapesAt, parseFacet } from "./facet-source.ts";
 
 const CACHE = path.join(import.meta.dir, "../../../.cache/etherscan");
@@ -47,6 +48,12 @@ describe("parseFacet", () => {
       { facet: "TestFacet", getter: "getDepositRateLimitKey", constant: "LIMIT_TEST_DEPOSIT", types: ["address", "address"], roles: ["asset", "vault"] },
       { facet: "TestFacet", getter: "mintRateLimitKey", constant: "LIMIT_TEST_MINT", types: [], roles: [] },
     ]);
+  });
+
+  it("reads a facet cached from Sourcify the same as one cached from Etherscan", () => {
+    const sources = { "src/facets/TestFacet.sol": { content: GOOD }, "src/libraries/RateLimitHelpers.sol": { content: HELPERS } };
+    const entry = sourcifyEntry(8453, "0xb22d50c393c6e1d13e3e05b172448dd8bf8ddc32", { compilation: { name: "TestFacet", language: "Solidity" }, sources });
+    expect(parseFacet(entry)).toEqual(parseFacet(facet(GOOD)));
   });
   it("throws on a getter body, a helper, a constant or a rate-limit call it does not recognise", () => {
     expect(() => parseFacet(facet(GOOD.replace("return _LIMIT_MINT;", "return keccak256(abi.encode(_LIMIT_MINT, 1));")))).toThrow(/mintRateLimitKey returns/);

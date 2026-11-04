@@ -2,6 +2,8 @@
 // statuses fetchSourcify turns into errors so nothing is cached on a miss.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchSourcify, sourcifyEntry, sourcifyUrl } from "../scripts/lib/sourcify-source.ts";
+import { SourceMiss } from "../scripts/lib/explorer-api.ts";
+import { fetchSourceCode } from "../scripts/lib/explorer-source.ts";
 import { materialOf } from "../src/server/pau/source-material.ts";
 import { resetBackoff } from "../src/lib/upstreamBackoff.ts";
 
@@ -39,6 +41,12 @@ describe("sourcifyEntry", () => {
     expect(e).toMatchObject({ proxy: true, implementation: "0xc5a845985bdf088f44e3ddf2bd1a79b08dbe9611" });
   });
 
+  it("does not read a diamond's facets as its implementation", () => {
+    const facets = [{ address: "0x1111111111111111111111111111111111111111" }, { address: "0x2222222222222222222222222222222222222222" }];
+    const e = sourcifyEntry(8453, ADDR, { ...CONTRACT, proxyResolution: { isProxy: true, implementations: facets } });
+    expect(e).toMatchObject({ proxy: false, implementation: "" });
+  });
+
   it("leaves every field empty for an answer without them", () => {
     expect(sourcifyEntry(1, ADDR, {})).toMatchObject({ contractName: "", abi: "", sourceCode: "", proxy: false, implementation: "" });
   });
@@ -52,6 +60,11 @@ describe("fetchSourcify", () => {
     expect(String(fetchMock.mock.calls[0][0])).toBe(sourcifyUrl(8453, ADDR));
   });
 
+  it("throws a SourceMiss on a 404, which a caller may cache", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => reply(404, { customCode: "not_found" })));
+    await expect(fetchSourcify(8453, ADDR)).rejects.toBeInstanceOf(SourceMiss);
+  });
+
   it.each([
     [404, /sourcify has no 8453\//],
     [429, /sourcify rate limit/],
@@ -59,5 +72,23 @@ describe("fetchSourcify", () => {
   ])("throws on HTTP %i", async (status, message) => {
     vi.stubGlobal("fetch", vi.fn(async () => reply(status, {})));
     await expect(fetchSourcify(8453, ADDR)).rejects.toThrow(message);
+  });
+});
+
+describe("fetchSourceCode with Sourcify last", () => {
+  it("reports an explorer's rate limit, not Sourcify's later 404", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("api.etherscan.io")) return reply(200, { status: "0", message: "NOTOK", result: "Max rate limit reached" });
+      if (url.includes("blockscout")) return reply(500, {});
+      return reply(404, { customCode: "not_found" });
+    }));
+    await expect(fetchSourceCode("ethereum", 1, ADDR, "KEY")).rejects.toThrow(/rate limit/);
+  });
+
+  it("counts a chain refusal plus a Sourcify 404 as a miss", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => url.includes("api.etherscan.io")
+      ? reply(200, { status: "0", message: "NOTOK", result: "Free API access is not supported for this chain" })
+      : reply(404, { customCode: "not_found" })));
+    await expect(fetchSourceCode("base", 8453, ADDR, "KEY")).rejects.toBeInstanceOf(SourceMiss);
   });
 });

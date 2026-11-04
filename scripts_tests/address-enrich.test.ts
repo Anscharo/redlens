@@ -208,16 +208,27 @@ describe("fetchEtherscan edge responses (via enrichAddresses)", () => {
     warnSpy.mockRestore();
   });
 
-  it("caches nothing on a Sourcify 404, so a provider added later is asked", async () => {
+  it("caches a miss quietly with a retry date when no source serves the chain or holds the contract", async () => {
     const addr = "0x4646464646464646464646464646464646464646";
-    const fetchMock = vi.fn(async (_url: string) => sourcifyReply(404, { customCode: "not_found" }));
+    const fetchMock = vi.fn(async (url: string) => url.includes("api.etherscan.io")
+      ? okJson({ status: "0", message: "NOTOK", result: "Free API access is not supported for this chain" })
+      : sourcifyReply(404, { customCode: "not_found" }));
     vi.stubGlobal("fetch", fetchMock);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    // No key: arbitrum's only explorer is Etherscan, so Sourcify alone is asked.
-    const out = await enrichAddresses({ [addr]: { chain: "arbitrum" } }, {}, undefined);
+    const out = await enrichAddresses({ [addr]: { chain: "base" } }, {}, "KEY");
     expect(out[addr]).toMatchObject({ isContract: false });
-    expect(fetchMock.mock.calls.map((c) => String(c[0]))).toEqual([expect.stringContaining("sourcify.dev/server/v2/contract/42161/")]);
-    expect([...store.keys()].some((k) => k.includes(addr))).toBe(false);
+    const cached = JSON.parse(store.get(cacheKey(8453, addr))!);
+    expect(Date.parse(cached.retryAfter)).toBeGreaterThan(Date.now() + 6 * 86_400_000);
+    // Nothing on stderr, which atlas-update.yml diffs as drift.
+    expect(warnSpy).not.toHaveBeenCalled();
+
+    // Until the date passes the miss costs no request; after it, the address is asked again.
+    fetchMock.mockClear();
+    await enrichAddresses({ [addr]: { chain: "base" } }, {}, "KEY");
+    expect(fetchMock).not.toHaveBeenCalled();
+    store.set(cacheKey(8453, addr), JSON.stringify({ ...cached, retryAfter: new Date(Date.now() - 1).toISOString() }));
+    await enrichAddresses({ [addr]: { chain: "base" } }, {}, "KEY");
+    expect(fetchMock).toHaveBeenCalled();
     warnSpy.mockRestore();
   });
 
@@ -268,15 +279,15 @@ describe("fetchEtherscan edge responses (via enrichAddresses)", () => {
 describe("enrichAddresses additional branches", () => {
   it("defaults chainid to 1 (mainnet) for a chain absent from CHAIN_ID", async () => {
     const addr = "0x8888888888888888888888888888888888888888";
-    vi.stubGlobal("fetch", vi.fn(async () => verified()));
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchMock = vi.fn(async () => verified());
+    vi.stubGlobal("fetch", fetchMock);
     const out = await enrichAddresses({ [addr]: { chain: "totallyUnknownChain" } }, { [addr]: "FOO" }, "KEY");
     // chainid falls back to 1 (mainnet), so chainlog lookup applies.
     expect(out[addr]).toMatchObject({ chainlogId: "FOO" });
-    // No explorer serves the chain, so nothing is cached under mainnet's id,
-    // where it would shadow a real mainnet lookup of the same address.
+    // No source is asked (Sourcify would name the mainnet contract at this
+    // address) and nothing is cached under mainnet's id.
+    expect(fetchMock).not.toHaveBeenCalled();
     expect([...store.keys()].some((k) => k.includes(addr))).toBe(false);
-    warnSpy.mockRestore();
   });
 
   it("never applies a chainlog label on a non-mainnet chain, even if the address collides", async () => {
@@ -322,19 +333,22 @@ describe("enrichAddresses additional branches", () => {
     logSpy.mockRestore();
   });
 
-  it("logs the ∅ fallback for the fresh side when a proxy's implementation is removed on re-verify", async () => {
+  it.each([
+    ["no implementation", { Proxy: "1", Implementation: "" }],
+    ["not a proxy", { Proxy: "0", Implementation: "" }],
+    ["the same implementation in another provider's formatting", { Proxy: "1", Implementation: "0xffffffffffffffffffffffffffffffffffffff11", ABI: '[{"type":"function"}]' }],
+  ])("keeps the cached proxy entry when re-verify answers %s", async (_why, fresh) => {
     const addr = "0xeeee444444444444444444444444444444eeee4";
     const oldImpl = "0xffffffffffffffffffffffffffffffffffffff11";
     vi.stubGlobal("fetch", vi.fn(async () => verified({ Proxy: "1", Implementation: oldImpl })));
     await enrichAddresses({ [addr]: { chain: "ethereum" } }, {}, "KEY");
+    const before = store.get(cacheKey(1, addr));
 
     process.env.REFRESH_PROXY_CACHE = "1";
-    vi.stubGlobal("fetch", vi.fn(async () => verified({ Proxy: "1", Implementation: "" })));
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn(async () => verified(fresh)));
     const out = await enrichAddresses({ [addr]: { chain: "ethereum" } }, {}, "KEY");
-    expect(out[addr].implementation).toBeUndefined();
-    expect(logSpy.mock.calls.some((c) => String(c[0]).includes(`${oldImpl} → ∅`))).toBe(true);
-    logSpy.mockRestore();
+    expect(out[addr]).toMatchObject({ isProxy: true, implementation: oldImpl });
+    expect(store.get(cacheKey(1, addr))).toBe(before);
   });
 
   it("warns and keeps the cached proxy entry when re-verify itself fails", async () => {
@@ -433,8 +447,11 @@ describe("explorer providers (Etherscan + Blockscout backup)", () => {
   it("returns an unverified entry (does not throw) when no explorer has the contract verified", async () => {
     const addr = "0xaaaa888888888888888888888888888888aaaa8";
     vi.stubGlobal("fetch", vi.fn(async () => verified({ ContractName: "", ABI: "Contract source code not verified" })));
+    const fetchMock = vi.mocked(fetch);
     const out = await enrichAddresses({ [addr]: { chain: "ethereum" } }, {}, "KEY");
     expect(out[addr]).toMatchObject({ chain: "ethereum", isContract: false });
+    // An explorer's "unverified" is an answer: Sourcify is not asked after it.
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("sourcify.dev"))).toBe(false);
     // the unverified answer is cached so we don't re-query it every run
     expect([...store.keys()].some((k) => k.endsWith(`${addr}.json`))).toBe(true);
   });
