@@ -1,55 +1,12 @@
 /**
- * Address enrichment: chainlog + Etherscan getsourcecode lookups, with a
- * read-through disk cache.
+ * Address enrichment: chainlog + verified-source lookups, read through the
+ * disk cache in source-cache.ts.
  */
 
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { CHAIN_ID } from "./chains.mjs";
+import { SourceMiss } from "./explorer-api.ts";
 import { fetchSourceCode, makeEntry } from "./explorer-source.ts";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, "../..");
-const CACHE_DIR = path.join(ROOT, ".cache/etherscan");
-
-
-/**
- * Substantive proxy metadata fields — deliberately ignores fetchedAt so a
- * re-verification that finds no upgrade doesn't rewrite (and git-dirty) the
- * committed cache on every weekly run.
- */
-function proxyMetaChanged(a, b) {
-  return (
-    a.implementation !== b.implementation ||
-    a.abi !== b.abi ||
-    a.contractName !== b.contractName ||
-    a.proxy !== b.proxy
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Cache I/O
-// ---------------------------------------------------------------------------
-function cachePath(chainid, addr) {
-  return path.join(CACHE_DIR, String(chainid), `${addr}.json`);
-}
-
-async function readCache(chainid, addr) {
-  try {
-    const raw = await fs.readFile(cachePath(chainid, addr), "utf8");
-    return JSON.parse(raw);
-  } catch (err) {
-    if (err.code === "ENOENT") return null;
-    throw err;
-  }
-}
-
-async function writeCache(chainid, addr, entry) {
-  const p = cachePath(chainid, addr);
-  await fs.mkdir(path.dirname(p), { recursive: true });
-  await fs.writeFile(p, JSON.stringify(entry, null, 2));
-}
+import { cacheMiss, readCache, writeCache } from "./source-cache.ts";
 
 export { fetchChainlog } from "./chainlog-fetch.ts";
 
@@ -73,8 +30,11 @@ export async function enrichAddresses(atlas, chainlog, apiKey) {
       continue;
     }
 
-    const chainid = CHAIN_ID[info.chain] ?? 1;
-    const entry = await resolveEntry(info, chainid, addr, apiKey, stats);
+    // A chain the registry lacks has no id. Mainnet's would name whatever sits at
+    // the same address on mainnet, in a source or in the chainlog, so neither
+    // is asked and the address gets no name.
+    const chainid = CHAIN_ID[info.chain];
+    const entry = chainid == null ? makeEntry(1, addr, {}) : await resolveEntry(info, chainid, addr, apiKey, stats);
     out[addr] = onchainFields(info, entry, chainid === 1 ? chainlog[addr] : undefined);
   }
 
@@ -98,6 +58,7 @@ async function resolveEntry(info, chainid, addr, apiKey, stats) {
     }
     return entry;
   } catch (err) {
+    if (err instanceof SourceMiss) return cacheMiss(chainid, addr, err);
     stats.errors++;
     console.warn(`! ${chainid}/${addr}: ${err.message}`);
     // Treat as empty so the build continues — do not write cache on error
@@ -108,15 +69,16 @@ async function resolveEntry(info, chainid, addr, apiKey, stats) {
 
 // A cached proxy can be upgraded between weekly runs (its implementation
 // address changes). When REFRESH_PROXY_CACHE is set (the weekly workflow),
-// re-verify cached proxies and rewrite the cache only when the metadata
-// actually changed — so a no-op re-verify doesn't dirty git every week.
+// re-verify cached proxies and rewrite the cache only for a new implementation.
+// Another provider's answer differs in formatting, and one that does not resolve
+// the proxy says nothing about an upgrade, so neither rewrites (git-dirties) it.
 async function refreshCachedProxy(entry, info, chainid, addr, apiKey, stats) {
   if (!entry.proxy || !process.env.REFRESH_PROXY_CACHE) return entry;
   try {
     const fresh = await fetchSourceCode(info.chain, chainid, addr, apiKey);
-    if (!proxyMetaChanged(entry, fresh)) return entry;
+    if (!fresh.proxy || !fresh.implementation || fresh.implementation === entry.implementation) return entry;
     await writeCache(chainid, addr, fresh);
-    console.log(`  proxy metadata changed for ${addr}: impl ${entry.implementation || "∅"} → ${fresh.implementation || "∅"}`);
+    console.log(`  proxy metadata changed for ${addr}: impl ${entry.implementation || "∅"} → ${fresh.implementation}`);
     stats.proxyRefreshed++;
     return fresh;
   } catch (err) {
@@ -159,26 +121,39 @@ function onchainFields(info, entry, chainlogId) {
 // been fetched above. Do a second pass here so the cache is complete before
 // the snapshot step runs.
 // ---------------------------------------------------------------------------
+// An implementation lives on its proxy's chain and is cached under that
+// chain's id; the snapshot step reads ethereum's from .cache/etherscan/1/.
+function proxyImplementations(out) {
+  const impls = new Map();
+  for (const a of Object.values(out)) {
+    const chain = a.chain ?? "ethereum";
+    if (!a.isProxy || !a.implementation || CHAIN_ID[chain] == null) continue;
+    impls.set(`${chain}:${a.implementation}`, { chain, impl: a.implementation });
+  }
+  return impls;
+}
+
 export async function fetchImplABIs(out, apiKey) {
-  const implAddrs = [...new Set(Object.values(out).filter((a) => a.isProxy && a.implementation).map((a) => a.implementation))];
+  const impls = proxyImplementations(out);
+  if (!impls.size) return;
 
-  if (!implAddrs.length) return;
-
-  console.log(`\nFetching implementation ABIs for ${implAddrs.length} proxy contracts…`);
-  let implMisses = 0;
-  for (const impl of implAddrs) {
-    const cached = await readCache(1, impl);
-    if (cached) continue;
+  console.log(`\nFetching implementation ABIs for ${impls.size} proxy contracts…`);
+  let implMisses = 0, hits = 0;
+  for (const { chain, impl } of impls.values()) {
+    const chainid = CHAIN_ID[chain];
+    if (await readCache(chainid, impl)) {
+      hits++;
+      continue;
+    }
     try {
-      // Proxy implementations tracked here are ethereum addresses (the snapshot
-      // step only reads ethereum chainlog contracts), so resolve via ethereum.
-      const entry = await fetchSourceCode("ethereum", 1, impl, apiKey);
-      await writeCache(1, impl, entry);
+      const entry = await fetchSourceCode(chain, chainid, impl, apiKey);
+      await writeCache(chainid, impl, entry);
       implMisses++;
-      console.log(`  cached ${impl} (${entry.contractName || "unverified"})`);
+      console.log(`  cached ${chainid}/${impl} (${entry.contractName || "unverified"})`);
     } catch (err) {
-      console.warn(`  ! impl ${impl}: ${err.message}`);
+      if (err instanceof SourceMiss) await cacheMiss(chainid, impl, err);
+      else console.warn(`  ! impl ${chainid}/${impl}: ${err.message}`);
     }
   }
-  console.log(`  ${implMisses} new, ${implAddrs.length - implMisses} already cached`);
+  console.log(`  ${implMisses} new, ${hits} already cached, ${impls.size - implMisses - hits} found nowhere or failed`);
 }

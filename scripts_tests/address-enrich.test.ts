@@ -29,8 +29,11 @@ vi.mock("node:fs/promises", () => {
 
 // @ts-expect-error — runtime-only .mjs import.
 import { fetchChainlog, enrichAddresses, fetchImplABIs } from "../scripts/lib/address-enrich.mjs";
+import { resetUnservedChains } from "../scripts/lib/explorer-source.ts";
 
 const okJson = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
+// Sourcify goes through politeFetch, which reads headers and the body, so its fakes are real Responses.
+const sourcifyReply = (status: number, body: unknown) => Response.json(body, { status });
 const verified = (over: Record<string, unknown> = {}) => okJson({
   status: "1",
   result: [{ ContractName: "Foo", ABI: "[]", Proxy: "0", Implementation: "", SourceCode: "x", ...over }],
@@ -38,6 +41,7 @@ const verified = (over: Record<string, unknown> = {}) => okJson({
 
 beforeEach(() => {
   store.clear();
+  resetUnservedChains();
   vi.unstubAllGlobals();
   delete process.env.REFRESH_PROXY_CACHE;
   // Don't wait the real 1 req/s Etherscan throttle during unit tests.
@@ -139,6 +143,32 @@ describe("fetchImplABIs", () => {
     expect([...store.keys()].some((k) => k.endsWith(`${impl}.json`))).toBe(true);
   });
 
+  it("counts cache hits apart from implementations found nowhere", async () => {
+    const hit = "0x1111111111111111111111111111111111111112";
+    const miss = "0x2222222222222222222222222222222222222223";
+    store.set(cacheKey(8453, hit), JSON.stringify({ contractName: "Impl", abi: "[]" }));
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => url.includes("api.etherscan.io")
+      ? okJson({ status: "0", message: "NOTOK", result: "Free API access is not supported for this chain" })
+      : sourcifyReply(404, { customCode: "not_found" })));
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    await fetchImplABIs({ a: { chain: "base", isProxy: true, implementation: hit }, b: { chain: "base", isProxy: true, implementation: miss } }, "KEY");
+    expect(logSpy.mock.calls.map((c) => String(c[0]))).toContain("  0 new, 1 already cached, 1 found nowhere or failed");
+    logSpy.mockRestore();
+  });
+
+  it("looks an implementation up on its proxy's chain and caches it under that chain's id", async () => {
+    const impl = "0xc5a845985bdf088f44e3ddf2bd1a79b08dbe9611";
+    const seen: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      seen.push(url);
+      return verified({ ContractName: "VaultV2Allocator" });
+    }));
+    await fetchImplABIs({ "0xproxy": { chain: "base", isProxy: true, implementation: impl } }, "KEY");
+    expect(seen[0]).toContain("chainid=8453");
+    expect(store.has(cacheKey(8453, impl))).toBe(true);
+    expect(store.has(cacheKey(1, impl))).toBe(false);
+  });
+
   it("no-ops when there are no proxy contracts to fetch", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -192,17 +222,39 @@ describe("fetchEtherscan edge responses (via enrichAddresses)", () => {
     warnSpy.mockRestore();
   });
 
-  it("caches nothing for a chain no explorer serves, so a provider added later is asked", async () => {
+  it("caches a miss quietly with a retry date when no source serves the chain or holds the contract", async () => {
     const addr = "0x4646464646464646464646464646464646464646";
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn(async (url: string) => url.includes("api.etherscan.io")
+      ? okJson({ status: "0", message: "NOTOK", result: "Free API access is not supported for this chain" })
+      : sourcifyReply(404, { customCode: "not_found" }));
     vi.stubGlobal("fetch", fetchMock);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    // No key: arbitrum has Etherscan only, so nothing serves it.
-    const out = await enrichAddresses({ [addr]: { chain: "arbitrum" } }, {}, undefined);
+    const out = await enrichAddresses({ [addr]: { chain: "base" } }, {}, "KEY");
     expect(out[addr]).toMatchObject({ isContract: false });
+    const cached = JSON.parse(store.get(cacheKey(8453, addr))!);
+    expect(Date.parse(cached.retryAfter)).toBeGreaterThan(Date.now() + 6 * 86_400_000);
+    // Nothing on stderr, which atlas-update.yml diffs as drift.
+    expect(warnSpy).not.toHaveBeenCalled();
+
+    // Until the date passes the miss costs no request; after it, the address is asked again.
+    fetchMock.mockClear();
+    await enrichAddresses({ [addr]: { chain: "base" } }, {}, "KEY");
     expect(fetchMock).not.toHaveBeenCalled();
-    expect([...store.keys()].some((k) => k.includes(addr))).toBe(false);
-    expect(String(warnSpy.mock.calls[0]?.[0])).toContain("no explorer serves arbitrum");
+    store.set(cacheKey(8453, addr), JSON.stringify({ ...cached, retryAfter: new Date(Date.now() - 1).toISOString() }));
+    await enrichAddresses({ [addr]: { chain: "base" } }, {}, "KEY");
+    expect(fetchMock).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("names a base contract from Sourcify when Etherscan's plan refuses base", async () => {
+    const addr = "0x4747474747474747474747474747474747474747";
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => url.includes("api.etherscan.io")
+      ? okJson({ status: "0", message: "NOTOK", result: "Free API access is not supported for this chain" })
+      : sourcifyReply(200, { abi: [{ type: "function", name: "x" }], compilation: { name: "ForeignController", language: "Solidity" }, sources: { "a.sol": { content: "c" } } })));
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const out = await enrichAddresses({ [addr]: { chain: "base" } }, {}, "KEY");
+    expect(out[addr]).toMatchObject({ etherscanName: "ForeignController", isContract: true });
+    expect([...store.keys()].some((k) => k.includes(`/8453/${addr}`))).toBe(true);
     warnSpy.mockRestore();
   });
 
@@ -239,17 +291,17 @@ describe("fetchEtherscan edge responses (via enrichAddresses)", () => {
 });
 
 describe("enrichAddresses additional branches", () => {
-  it("defaults chainid to 1 (mainnet) for a chain absent from CHAIN_ID", async () => {
+  it("names nothing on a chain absent from CHAIN_ID, not even from the mainnet chainlog", async () => {
     const addr = "0x8888888888888888888888888888888888888888";
-    vi.stubGlobal("fetch", vi.fn(async () => verified()));
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchMock = vi.fn(async () => verified());
+    vi.stubGlobal("fetch", fetchMock);
     const out = await enrichAddresses({ [addr]: { chain: "totallyUnknownChain" } }, { [addr]: "FOO" }, "KEY");
-    // chainid falls back to 1 (mainnet), so chainlog lookup applies.
-    expect(out[addr]).toMatchObject({ chainlogId: "FOO" });
-    // No explorer serves the chain, so nothing is cached under mainnet's id,
-    // where it would shadow a real mainnet lookup of the same address.
+    // The chainlog and every source describe mainnet; the same address on
+    // another chain is a different account, so none of them names it.
+    expect(out[addr]).toMatchObject({ chain: "totallyUnknownChain", isContract: false });
+    expect(out[addr].chainlogId).toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
     expect([...store.keys()].some((k) => k.includes(addr))).toBe(false);
-    warnSpy.mockRestore();
   });
 
   it("never applies a chainlog label on a non-mainnet chain, even if the address collides", async () => {
@@ -295,19 +347,22 @@ describe("enrichAddresses additional branches", () => {
     logSpy.mockRestore();
   });
 
-  it("logs the ∅ fallback for the fresh side when a proxy's implementation is removed on re-verify", async () => {
+  it.each([
+    ["no implementation", { Proxy: "1", Implementation: "" }],
+    ["not a proxy", { Proxy: "0", Implementation: "" }],
+    ["the same implementation in another provider's formatting", { Proxy: "1", Implementation: "0xffffffffffffffffffffffffffffffffffffff11", ABI: '[{"type":"function"}]' }],
+  ])("keeps the cached proxy entry when re-verify answers %s", async (_why, fresh) => {
     const addr = "0xeeee444444444444444444444444444444eeee4";
     const oldImpl = "0xffffffffffffffffffffffffffffffffffffff11";
     vi.stubGlobal("fetch", vi.fn(async () => verified({ Proxy: "1", Implementation: oldImpl })));
     await enrichAddresses({ [addr]: { chain: "ethereum" } }, {}, "KEY");
+    const before = store.get(cacheKey(1, addr));
 
     process.env.REFRESH_PROXY_CACHE = "1";
-    vi.stubGlobal("fetch", vi.fn(async () => verified({ Proxy: "1", Implementation: "" })));
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn(async () => verified(fresh)));
     const out = await enrichAddresses({ [addr]: { chain: "ethereum" } }, {}, "KEY");
-    expect(out[addr].implementation).toBeUndefined();
-    expect(logSpy.mock.calls.some((c) => String(c[0]).includes(`${oldImpl} → ∅`))).toBe(true);
-    logSpy.mockRestore();
+    expect(out[addr]).toMatchObject({ isProxy: true, implementation: oldImpl });
+    expect(store.get(cacheKey(1, addr))).toBe(before);
   });
 
   it("warns and keeps the cached proxy entry when re-verify itself fails", async () => {
@@ -406,8 +461,11 @@ describe("explorer providers (Etherscan + Blockscout backup)", () => {
   it("returns an unverified entry (does not throw) when no explorer has the contract verified", async () => {
     const addr = "0xaaaa888888888888888888888888888888aaaa8";
     vi.stubGlobal("fetch", vi.fn(async () => verified({ ContractName: "", ABI: "Contract source code not verified" })));
+    const fetchMock = vi.mocked(fetch);
     const out = await enrichAddresses({ [addr]: { chain: "ethereum" } }, {}, "KEY");
     expect(out[addr]).toMatchObject({ chain: "ethereum", isContract: false });
+    // An explorer's "unverified" is an answer: Sourcify is not asked after it.
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("sourcify.dev"))).toBe(false);
     // the unverified answer is cached so we don't re-query it every run
     expect([...store.keys()].some((k) => k.endsWith(`${addr}.json`))).toBe(true);
   });

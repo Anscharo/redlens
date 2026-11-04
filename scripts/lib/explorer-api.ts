@@ -45,6 +45,17 @@ export async function throttleExplorer(url = ""): Promise<void> {
   }
 }
 
+// Etherscan v2's answer for a chain the key's plan does not cover, or a chainId
+// it does not serve.
+export const CHAIN_NOT_SERVED = /not supported for this chain|unsupported chainid/i;
+
+/**
+ * No answer about the contract: the provider does not serve the chain or does
+ * not hold the contract. Unlike a rate limit or a failed request, a miss from
+ * every provider is itself an answer, so a source lookup can cache it.
+ */
+export class SourceMiss extends Error {}
+
 export interface ExplorerBase {
   name: "etherscan" | "routescan" | "blockscout";
   /** API URL up to and including the "?…&" that the module/action params follow. */

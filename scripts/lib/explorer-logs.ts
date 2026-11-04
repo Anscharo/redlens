@@ -6,7 +6,7 @@
  * covers the chain, then Routescan, then the chain's Blockscout. Requests share
  * that module's per-host clocks with the address enrichment.
  */
-import { explorerBases, throttleExplorer, type ExplorerBase } from "./explorer-api.ts";
+import { CHAIN_NOT_SERVED, explorerBases, throttleExplorer, type ExplorerBase } from "./explorer-api.ts";
 import { politeFetch } from "../../src/lib/upstreamBackoff.ts";
 
 export interface ExplorerLog {
@@ -37,10 +37,6 @@ export type LogFetcher = (
 // short page reads as the end of the history.
 const PAGE = 1000;
 
-// Etherscan v2's answer for a chain the key's plan does not cover, or a chainId
-// it does not serve. Only this moves on to the next provider; any other error
-// (a rate limit included) is the caller's to handle.
-const REFUSED = /not supported for this chain|unsupported chainid/i;
 
 // Etherscan writes zero as a bare "0x" (logIndex / transactionIndex 0).
 const hexNum = (v: string) => (v?.startsWith("0x") ? parseInt(v.slice(2) || "0", 16) : Number(v));
@@ -108,7 +104,9 @@ export function explorerLogFetcher(): LogFetcher {
       try {
         return await readAll(base, address, topics, range);
       } catch (e) {
-        if (!REFUSED.test((e as Error).message)) throw e;
+        // Only a chain refusal moves on to the next provider; any other error
+        // (a rate limit included) is the caller's to handle.
+        if (!CHAIN_NOT_SERVED.test((e as Error).message)) throw e;
         refused.set(`${chain}:${name}`, `${name}: ${(e as Error).message.replace(/^explorer logs: /, "")}`);
       }
     }
