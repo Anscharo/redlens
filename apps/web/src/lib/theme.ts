@@ -38,7 +38,7 @@ export const THEMES = [
   {
     id: "giedi",
     label: "Giedi",
-    hint: "greyscale · high contrast",
+    hint: "inverted · high contrast",
     bg: "#141414",
     scheme: "dark",
   },
