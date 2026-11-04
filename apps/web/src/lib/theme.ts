@@ -31,7 +31,7 @@ export const THEMES = [
   {
     id: "dark",
     label: "Dark",
-    hint: "charcoal · the original",
+    hint: "charcoal · colorful",
     bg: "#160e0d",
     scheme: "dark",
   },
@@ -45,7 +45,7 @@ export const THEMES = [
   {
     id: "light",
     label: "Light",
-    hint: "Sky Eco brand palette",
+    hint: "sky purple · colorful",
     bg: "#fafafa",
     scheme: "light",
   },
