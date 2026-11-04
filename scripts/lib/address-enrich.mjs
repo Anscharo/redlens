@@ -1,54 +1,12 @@
 /**
- * Address enrichment: chainlog + Etherscan getsourcecode lookups, with a
- * read-through disk cache.
+ * Address enrichment: chainlog + verified-source lookups, read through the
+ * disk cache in source-cache.ts.
  */
 
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { CHAIN_ID } from "./chains.mjs";
 import { SourceMiss } from "./explorer-api.ts";
 import { fetchSourceCode, makeEntry } from "./explorer-source.ts";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, "../..");
-const CACHE_DIR = path.join(ROOT, ".cache/etherscan");
-
-// A miss (no provider serves the chain or holds the contract) is cached with a
-// date after which it is asked again: until then the address costs no request
-// and no warning, and a provider added later (a paid key) still gets asked.
-const MISS_RETRY_MS = 7 * 24 * 60 * 60 * 1000;
-
-async function cacheMiss(chainid, addr, err) {
-  const entry = { ...makeEntry(chainid, addr, {}), retryAfter: new Date(Date.now() + MISS_RETRY_MS).toISOString() };
-  await writeCache(chainid, addr, entry);
-  console.log(`  · ${chainid}/${addr}: no source anywhere (${err.message}); asked again after ${entry.retryAfter.slice(0, 10)}`);
-  return entry;
-}
-
-// ---------------------------------------------------------------------------
-// Cache I/O
-// ---------------------------------------------------------------------------
-function cachePath(chainid, addr) {
-  return path.join(CACHE_DIR, String(chainid), `${addr}.json`);
-}
-
-// A miss past its retryAfter reads as no entry, so every reader asks again.
-async function readCache(chainid, addr) {
-  try {
-    const entry = JSON.parse(await fs.readFile(cachePath(chainid, addr), "utf8"));
-    return entry.retryAfter && Date.now() >= Date.parse(entry.retryAfter) ? null : entry;
-  } catch (err) {
-    if (err.code === "ENOENT") return null;
-    throw err;
-  }
-}
-
-async function writeCache(chainid, addr, entry) {
-  const p = cachePath(chainid, addr);
-  await fs.mkdir(path.dirname(p), { recursive: true });
-  await fs.writeFile(p, JSON.stringify(entry, null, 2));
-}
+import { cacheMiss, readCache, writeCache } from "./source-cache.ts";
 
 export { fetchChainlog } from "./chainlog-fetch.ts";
 
