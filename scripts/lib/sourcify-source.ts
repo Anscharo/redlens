@@ -12,7 +12,7 @@ import { politeFetch } from "../../src/lib/upstreamBackoff.ts";
 import { SourceMiss, throttleExplorer } from "./explorer-api.ts";
 import type { SourceEntry } from "./explorer-source.ts";
 
-export const SOURCIFY_V2 = "https://sourcify.dev/server/v2/contract";
+const SOURCIFY_V2 = "https://sourcify.dev/server/v2/contract";
 const FIELDS = "abi,compilation,sources,proxyResolution";
 
 interface SourcifyContract {
@@ -35,6 +35,7 @@ export const sourcifyUrl = (chainid: number, addr: string) => `${SOURCIFY_V2}/${
 export function sourcifyEntry(chainid: number, addr: string, c: SourcifyContract): SourceEntry {
   const impls = c.proxyResolution?.isProxy === true ? (c.proxyResolution.implementations ?? []) : [];
   const impl = impls.length === 1 ? impls[0]?.address : undefined;
+  const implementation = typeof impl === "string" && impl.startsWith("0x") ? impl.toLowerCase() : "";
   const sources = c.sources && Object.keys(c.sources).length ? c.sources : null;
   return {
     fetchedAt: new Date().toISOString(),
@@ -42,19 +43,22 @@ export function sourcifyEntry(chainid: number, addr: string, c: SourcifyContract
     address: addr,
     contractName: c.compilation?.name ?? "",
     abi: Array.isArray(c.abi) ? JSON.stringify(c.abi) : "",
-    proxy: typeof impl === "string" && impl.startsWith("0x"),
-    implementation: typeof impl === "string" && impl.startsWith("0x") ? impl.toLowerCase() : "",
+    proxy: implementation !== "",
+    implementation,
     sourceCode: sources ? JSON.stringify({ language: c.compilation?.language ?? "Solidity", sources }) : "",
   };
 }
 
-/** One contract from Sourcify. Throws on anything but a 200: a SourceMiss on a 404. */
+/**
+ * One contract from Sourcify. Throws on anything but a 200: a SourceMiss on a
+ * 404; on a 429 politeFetch has already held the host, and `HTTP 429` reads
+ * as a rate limit (isRateLimited).
+ */
 export async function fetchSourcify(chainid: number, addr: string): Promise<SourceEntry> {
   const url = sourcifyUrl(chainid, addr);
   await throttleExplorer(url);
   const res = await politeFetch(url);
   if (res.status === 404) throw new SourceMiss(`sourcify has no ${chainid}/${addr}`);
-  if (res.status === 429) throw new Error(`sourcify rate limit for ${chainid}/${addr}`);
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${chainid}/${addr} (sourcify)`);
   return sourcifyEntry(chainid, addr, (await res.json()) as SourcifyContract);
 }

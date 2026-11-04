@@ -18,7 +18,6 @@ const CACHE_DIR = path.join(ROOT, ".cache/etherscan");
 // date after which it is asked again: until then the address costs no request
 // and no warning, and a provider added later (a paid key) still gets asked.
 const MISS_RETRY_MS = 7 * 24 * 60 * 60 * 1000;
-const missStale = (entry) => !!entry.retryAfter && Date.now() >= Date.parse(entry.retryAfter);
 
 async function cacheMiss(chainid, addr, err) {
   const entry = { ...makeEntry(chainid, addr, {}), retryAfter: new Date(Date.now() + MISS_RETRY_MS).toISOString() };
@@ -34,10 +33,11 @@ function cachePath(chainid, addr) {
   return path.join(CACHE_DIR, String(chainid), `${addr}.json`);
 }
 
+// A miss past its retryAfter reads as no entry, so every reader asks again.
 async function readCache(chainid, addr) {
   try {
-    const raw = await fs.readFile(cachePath(chainid, addr), "utf8");
-    return JSON.parse(raw);
+    const entry = JSON.parse(await fs.readFile(cachePath(chainid, addr), "utf8"));
+    return entry.retryAfter && Date.now() >= Date.parse(entry.retryAfter) ? null : entry;
   } catch (err) {
     if (err.code === "ENOENT") return null;
     throw err;
@@ -90,7 +90,7 @@ export async function enrichAddresses(atlas, chainlog, apiKey) {
 // Cache read-through for one address; `stats` is updated in place.
 async function resolveEntry(info, chainid, addr, apiKey, stats) {
   const cached = await readCache(chainid, addr);
-  if (cached && !missStale(cached)) return refreshCachedProxy(cached, info, chainid, addr, apiKey, stats);
+  if (cached) return refreshCachedProxy(cached, info, chainid, addr, apiKey, stats);
   try {
     const entry = await fetchSourceCode(info.chain, chainid, addr, apiKey);
     await writeCache(chainid, addr, entry);
@@ -183,8 +183,7 @@ export async function fetchImplABIs(out, apiKey) {
   let implMisses = 0, hits = 0;
   for (const { chain, impl } of impls.values()) {
     const chainid = CHAIN_ID[chain];
-    const cached = await readCache(chainid, impl);
-    if (cached && !missStale(cached)) {
+    if (await readCache(chainid, impl)) {
       hits++;
       continue;
     }

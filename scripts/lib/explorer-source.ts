@@ -5,6 +5,7 @@
  * stampede any provider between them.
  */
 
+import { isRateLimited } from "../../src/lib/upstreamBackoff.ts";
 import { CHAIN_NOT_SERVED, SourceMiss, explorerBases, throttleExplorer } from "./explorer-api.ts";
 import { fetchSourcify } from "./sourcify-source.ts";
 
@@ -33,9 +34,6 @@ export interface SourceEntry {
 // ---------------------------------------------------------------------------
 const EMPTY_SOURCE = { ContractName: "", ABI: "", Proxy: "0", Implementation: "", SourceCode: "" };
 
-// The failures a caller that holds off a host must see first (pau spell-sources).
-const RATE_LIMITED = /rate limit|cooling down|HTTP 429/i;
-
 interface SourceProvider {
   name: string;
   fetch: () => Promise<SourceEntry>;
@@ -44,11 +42,20 @@ interface SourceProvider {
 }
 type ProviderSource = (chain: string, chainid: number, addr: string, apiKey?: string) => SourceProvider[];
 
+// `provider:chainid` pairs that answered the chain is not served. That is
+// true of every address on the chain, so the rest of the run skips the pair
+// rather than spend a request per address learning it again.
+const unservedChains = new Set<string>();
+/** Forgets every unserved pair, as a new process starts; tests share one process. */
+export const resetUnservedChains = () => unservedChains.clear();
+
 const explorerProviders: ProviderSource = (chain, chainid, addr, apiKey) =>
-  explorerBases(chain, apiKey).map(({ name, base }) => ({
-    name,
-    fetch: () => fetchExplorer(`${base}module=contract&action=getsourcecode&address=${addr}`, name, chainid, addr),
-  }));
+  explorerBases(chain, apiKey)
+    .filter(({ name }) => !unservedChains.has(`${name}:${chainid}`))
+    .map(({ name, base }) => ({
+      name,
+      fetch: () => fetchExplorer(`${base}module=contract&action=getsourcecode&address=${addr}`, name, chainid, addr),
+    }));
 
 // After an explorer's "unverified" Sourcify is not asked: an EOA or an
 // unverified contract would cost a request that almost never names it.
@@ -70,8 +77,11 @@ async function fetchExplorer(url: string, providerName: string, chainid: number,
   // plain account as status "1". It throws, so the next provider is tried and
   // nothing is cached.
   if (data.status === "0" && typeof data.result === "string") {
-    if (CHAIN_NOT_SERVED.test(data.result)) throw new SourceMiss(`${providerName} does not serve ${chainid}: ${data.result}`);
-    const kind = /rate limit/i.test(data.result) ? "rate limit" : "refused";
+    if (CHAIN_NOT_SERVED.test(data.result)) {
+      unservedChains.add(`${providerName}:${chainid}`);
+      throw new SourceMiss(`${providerName} does not serve ${chainid}: ${data.result}`);
+    }
+    const kind = isRateLimited(data.result) ? "rate limit" : "refused";
     throw new Error(`${providerName} ${kind} for ${chainid}/${addr}: ${data.result}`);
   }
   const result = Array.isArray(data.result) ? data.result[0] : null;
@@ -105,14 +115,15 @@ export async function fetchSourceCode(chain: string, chainid: number, addr: stri
     }
   }
   if (unverified) return unverified;
-  throw outcomeError(chain, errors);
+  throw outcomeError(errors);
 }
 
 // A rate limit outranks every other failure, so a caller that holds off a host
 // sees it; then any real failure; a miss only when every provider missed.
-function outcomeError(chain: string, errors: Error[]): Error {
-  const failed = errors.find((e) => RATE_LIMITED.test(e.message)) ?? errors.find((e) => !(e instanceof SourceMiss));
-  return failed ?? new SourceMiss(errors.map((e) => e.message).join("; ") || `no source serves ${chain}`);
+// Sourcify is always asked when nothing answered, so `errors` is never empty.
+function outcomeError(errors: Error[]): Error {
+  const failed = errors.find(isRateLimited) ?? errors.find((e) => !(e instanceof SourceMiss));
+  return failed ?? new SourceMiss(errors.map((e) => e.message).join("; "));
 }
 
 export function makeEntry(chainid: number, addr: string, r: Record<string, unknown>): SourceEntry {

@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchSourcify, sourcifyEntry, sourcifyUrl } from "../scripts/lib/sourcify-source.ts";
 import { SourceMiss } from "../scripts/lib/explorer-api.ts";
-import { fetchSourceCode } from "../scripts/lib/explorer-source.ts";
+import { fetchSourceCode, resetUnservedChains } from "../scripts/lib/explorer-source.ts";
 import { materialOf } from "../src/server/pau/source-material.ts";
 import { resetBackoff } from "../src/lib/upstreamBackoff.ts";
 
@@ -15,12 +15,12 @@ const CONTRACT = {
   sources: { "src/C.sol": { content: SRC } },
   proxyResolution: { isProxy: false, implementations: [] },
 };
-const reply = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+const reply = (status: number, body: unknown) => Response.json(body, { status });
 
 beforeEach(() => {
   process.env.ETHERSCAN_THROTTLE_MS = "0";
   resetBackoff();
+  resetUnservedChains();
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -67,7 +67,7 @@ describe("fetchSourcify", () => {
 
   it.each([
     [404, /sourcify has no 8453\//],
-    [429, /sourcify rate limit/],
+    [429, /HTTP 429/],
     [500, /HTTP 500/],
   ])("throws on HTTP %i", async (status, message) => {
     vi.stubGlobal("fetch", vi.fn(async () => reply(status, {})));
@@ -90,5 +90,17 @@ describe("fetchSourceCode with Sourcify last", () => {
       ? reply(200, { status: "0", message: "NOTOK", result: "Free API access is not supported for this chain" })
       : reply(404, { customCode: "not_found" })));
     await expect(fetchSourceCode("base", 8453, ADDR, "KEY")).rejects.toBeInstanceOf(SourceMiss);
+  });
+});
+
+describe("unserved chains", () => {
+  it("skips a provider for the rest of the run once it says the chain is not served", async () => {
+    const fetchMock = vi.fn(async (url: string) => url.includes("api.etherscan.io")
+      ? reply(200, { status: "0", message: "NOTOK", result: "Free API access is not supported for this chain" })
+      : reply(200, CONTRACT));
+    vi.stubGlobal("fetch", fetchMock);
+    await fetchSourceCode("base", 8453, ADDR, "KEY");
+    await fetchSourceCode("base", 8453, "0x983ec82e45c61a42fdda7b3c43b8c767004c8a74", "KEY");
+    expect(fetchMock.mock.calls.filter((c) => String(c[0]).includes("api.etherscan.io"))).toHaveLength(1);
   });
 });

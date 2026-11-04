@@ -9,6 +9,7 @@
 // is read again. Spells are Ethereum contracts, so every row is chain
 // "ethereum".
 import { EVM_ADDRESS_EXACT_RE } from "../../lib/patterns.ts";
+import { isRateLimited } from "../../lib/upstreamBackoff.ts";
 import type { SqlTag } from "../sql-types.ts";
 import { MATERIAL_VERSION, materialOf, mergeMaterial, type SourceMaterial } from "./source-material.ts";
 
@@ -56,9 +57,6 @@ async function saveSource(db: SqlTag, address: string, contractName: string, mat
       SET contract_name = excluded.contract_name, material = excluded.material, parser_version = excluded.parser_version, fetched_at = excluded.fetched_at`;
 }
 
-/** An explorer answer that holds every lookup back, not only this spell's: a rate limit or a host cooling down after one (upstreamBackoff.ts). */
-const HOLDS_EVERY_LOOKUP = /rate limit|cooling down|HTTP 429/i;
-
 /**
  * Reads pending spells' sources, at most `max` lookups and until `deadline`.
  * A rate limit ends the run and is reported as `error`; any other failure is
@@ -80,7 +78,8 @@ export async function syncSpellSources(db: SqlTag, fetchSource: SourceFetch, opt
       read++;
     } catch (e) {
       const message = (e as Error).message;
-      if (HOLDS_EVERY_LOOKUP.test(message)) {
+      // A rate limit, or a host cooling down after one, holds every lookup back, not only this spell's.
+      if (isRateLimited(e)) {
         error = message;
         break;
       }

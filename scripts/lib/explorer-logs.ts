@@ -37,9 +37,6 @@ export type LogFetcher = (
 // short page reads as the end of the history.
 const PAGE = 1000;
 
-// Only a chain refusal (CHAIN_NOT_SERVED) moves on to the next provider; any
-// other error (a rate limit included) is the caller's to handle.
-const REFUSED = CHAIN_NOT_SERVED;
 
 // Etherscan writes zero as a bare "0x" (logIndex / transactionIndex 0).
 const hexNum = (v: string) => (v?.startsWith("0x") ? parseInt(v.slice(2) || "0", 16) : Number(v));
@@ -107,7 +104,9 @@ export function explorerLogFetcher(): LogFetcher {
       try {
         return await readAll(base, address, topics, range);
       } catch (e) {
-        if (!REFUSED.test((e as Error).message)) throw e;
+        // Only a chain refusal moves on to the next provider; any other error
+        // (a rate limit included) is the caller's to handle.
+        if (!CHAIN_NOT_SERVED.test((e as Error).message)) throw e;
         refused.set(`${chain}:${name}`, `${name}: ${(e as Error).message.replace(/^explorer logs: /, "")}`);
       }
     }

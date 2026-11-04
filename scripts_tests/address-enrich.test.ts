@@ -29,11 +29,11 @@ vi.mock("node:fs/promises", () => {
 
 // @ts-expect-error — runtime-only .mjs import.
 import { fetchChainlog, enrichAddresses, fetchImplABIs } from "../scripts/lib/address-enrich.mjs";
+import { resetUnservedChains } from "../scripts/lib/explorer-source.ts";
 
 const okJson = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
 // Sourcify goes through politeFetch, which reads headers and the body, so its fakes are real Responses.
-const sourcifyReply = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+const sourcifyReply = (status: number, body: unknown) => Response.json(body, { status });
 const verified = (over: Record<string, unknown> = {}) => okJson({
   status: "1",
   result: [{ ContractName: "Foo", ABI: "[]", Proxy: "0", Implementation: "", SourceCode: "x", ...over }],
@@ -41,6 +41,7 @@ const verified = (over: Record<string, unknown> = {}) => okJson({
 
 beforeEach(() => {
   store.clear();
+  resetUnservedChains();
   vi.unstubAllGlobals();
   delete process.env.REFRESH_PROXY_CACHE;
   // Don't wait the real 1 req/s Etherscan throttle during unit tests.
