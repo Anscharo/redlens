@@ -254,8 +254,8 @@
    The one structural departure is giedi's: NO RAINBOW. Light runs a seven-hue
    depth cycle; winter's depth palette is one run from purple through navy to
    blue, which the doc numbers carry. Doc TITLES opt out of the ramp, as
-   giedi's do, and all take one purple (--node-title). See the depth-palette
-   note below. --accent and the decorative
+   giedi's do, and all take one colour (--node-title, the depth-5 stop).
+   See the depth-palette note below. --accent and the decorative
    --red slot come from the same range (purple links, navy bar), so the chrome
    stays inside the same hues as the text.
 
@@ -309,12 +309,12 @@
   /* Doc TITLES, all one colour: the reader, tree sidebar, split pane and
      related-doc cards read `var(--node-title, <depth colour>)`, so this stops
      the spectrum at the doc number, which keeps the full purple → navy → blue
-     ramp. A muted purple (OKLCH L 0.455 / C 0.114 / H 298), the same value as
-     --depth-3, so the titles sit inside the ramp the numbers run along.
-     6.9:1 on --bg-deep. Winter and giedi are the only palettes that define it;
+     ramp. A deep blue-violet (OKLCH L 0.411 / C 0.104 / H 288), the same
+     value as --depth-5, so the titles sit inside the ramp the numbers run
+     along. 8.2:1 on --bg-deep. Winter and giedi are the only palettes that define it;
      the selected title mixes it toward --tan (see the winter rule below the
      light-scheme section). */
-  --node-title: #5f468d;
+  --node-title: #493f7f;
 
   --shadow: rgba(0, 0, 0, 0.1);
   --shadow-strong: rgba(0, 0, 0, 0.18);
@@ -860,7 +860,7 @@
 /* The selected title. The base rule mixes the row's DEPTH colour into --tan,
    which would put the spectrum back on the one title winter singles out.
    Mixing --node-title instead keeps the same 45/55 deepening, so the selected
-   doc reads as a darker shade of the same purple every other title wears. */
+   doc reads as a darker shade of the colour every other title wears. */
 [data-theme="winter"] .atlas-node.is-selected .atlas-node-title {
   color: color-mix(in srgb, var(--node-title) 45%, var(--tan));
 }
