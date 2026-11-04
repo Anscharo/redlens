@@ -35,7 +35,7 @@
 
 ## 2026-11-04
 
-- Added a Winter colour scheme: cool white, with purple and navy document titles
+- Added a Winter colour scheme: cool white, with purple-to-blue document titles
 
 ## 2026-11-03
 

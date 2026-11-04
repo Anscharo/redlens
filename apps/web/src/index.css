@@ -252,15 +252,16 @@
    exception — so anything tuned for Light reads the same way here.
 
    The one structural departure is giedi's: NO RAINBOW. Light runs a seven-hue
-   depth cycle; winter's depth palette uses exactly two hues, purple and dark
-   blue, so every doc title and doc number in the reader is one or the other.
-   See the depth-palette note below. --accent and the decorative --red slot
-   are the same pair (purple links, navy bar), so the chrome stays inside the
-   same two hues as the text.
+   depth cycle; winter's depth palette is one run from purple through navy to
+   blue, so every doc title and doc number in the reader sits somewhere on
+   that line. See the depth-palette note below. --accent and the decorative
+   --red slot come from the same range (purple links, navy bar), so the chrome
+   stays inside the same hues as the text.
 
    Every other hue is rationed below Light's: status colours at about 60% of
    Light's chroma, entity colours likewise (re-spread so no pair sits under
-   0.045 OKLab apart), and nothing structural carries a hue but purple/navy. */
+   0.045 OKLab apart), and nothing structural carries a hue outside
+   purple-to-blue. */
 [data-theme="winter"] {
   color-scheme: light;
 
@@ -337,45 +338,44 @@
   --entity-bridge: #40715d;
   --entity-fallback: #666666;
 
-  /* ─── Depth palette ─── PURPLE TO NAVY, and nothing else. Doc titles and
+  /* ─── Depth palette ─── PURPLE → NAVY → BLUE, and nothing else. Doc titles and
      doc-number chiclets both read these, so this ramp is what the reader
      looks like.
 
-     Five stops interpolated linearly in OKLab between two endpoints —
-       purple  OKLCH L 0.48 / C 0.14 / H 305  (depth 1)
-       navy    OKLCH L 0.34 / C 0.115 / H 262 (depth 5)
-     — then walked back and forth as a triangle wave (1→5→1→5→1 over the
-     seventeen slots). A triangle, not a sawtooth: there is no restart, so no
-     seam where depth 6 would jump from navy back to purple.
+     ONE run across all seventeen slots, no cycle and no return, so every
+     level has its own colour and none repeats. Two linear OKLab segments
+     through three points:
+       purple  OKLCH L 0.50 / C 0.15  / H 307  (depth 1)
+       navy    OKLCH L 0.32 / C 0.115 / H 262  (depth 9)
+       blue    OKLCH L 0.50 / C 0.155 / H 256  (depth 17)
+     Hue only ever moves one way (307 → 256, purple → blue). Lightness dips to
+     navy in the middle and comes back up, and the two ends are matched in
+     lightness and chroma, so purple and blue carry equal weight and the deep
+     end does not dim.
 
-     Five stops rather than giedi's nine because the reader lives at depths
-     1-5: on a nine-stop ramp everything a reader usually sees sat on the
-     purple half and the navy only appeared in rare deep nests. Here every
-     level is visibly different from its parent (adjacent stops 0.041-0.044
-     apart in OKLab, two JNDs) and navy is reached by depth 5.
-
-     The two hues are only 43° apart, so the straight line keeps its chroma
-     (≥ 0.113 throughout) instead of sagging through grey: every stop reads
-     as either a purple or a blue. Lightness falls with hue on purpose — dark
-     blue is the darker colour — so deeper docs go darker as well as bluer:
-     6.3:1 on --bg-deep at the purple end, 10.8:1 at the navy end. */
-  --depth-1: #70449c;  /* purple */
-  --depth-2: #5c4191;
-  --depth-3: #463d87;
-  --depth-4: #30397c;
-  --depth-5: #133372;  /* navy */
-  --depth-6: #30397c;
-  --depth-7: #463d87;
-  --depth-8: #5c4191;
-  --depth-9: #70449c;  /* purple */
-  --depth-10: #5c4191;
-  --depth-11: #463d87;
-  --depth-12: #30397c;
-  --depth-13: #133372; /* navy */
-  --depth-14: #30397c;
-  --depth-15: #463d87;
-  --depth-16: #5c4191;
-  --depth-17: #70449c; /* purple */
+     Steps are small but continuous: adjacent levels are 0.022-0.028 apart in
+     OKLab, about one JND, so a child reads as a shade of its parent rather
+     than a new colour. The ends are 0.132 apart, and every stop keeps
+     C ≥ 0.114, so all of them read as a purple or a blue, never a grey.
+     5.5:1 on --bg-deep at the blue end, 5.8:1 at the purple end, 11.6:1 at
+     navy. */
+  --depth-1: #7a46a5;  /* purple */
+  --depth-2: #6e449d;
+  --depth-3: #614196;
+  --depth-4: #553f8f;
+  --depth-5: #493c88;
+  --depth-6: #3c3881;
+  --depth-7: #2f357a;
+  --depth-8: #213273;
+  --depth-9: #0e2e6c;  /* navy */
+  --depth-10: #0f3475;
+  --depth-11: #113a7f;
+  --depth-12: #124088;
+  --depth-13: #134792;
+  --depth-14: #144d9b;
+  --depth-15: #1554a5;
+  --depth-16: #165aaf;
+  --depth-17: #1761b9; /* blue */
 }
 
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark

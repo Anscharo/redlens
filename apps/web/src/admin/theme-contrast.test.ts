@@ -437,7 +437,7 @@ describe("giedi's depth ramp is one continuous curve, not a cycle", () => {
 // winter's whole identity is "no rainbow": doc titles and doc numbers are
 // purple or dark blue and nothing else. Light's seven-hue cycle passes every
 // contrast pair above, so nothing else here would notice it being pasted in.
-describe("winter's depth ramp is purple to navy, and only that", () => {
+describe("winter's depth ramp is purple, navy and blue, and only that", () => {
   const stops = Array.from({ length: 17 }, (_, i) => THEMES.winter[`depth-${i + 1}`]);
   const lch = (hex: string) => {
     const [L, a, b] = oklab(hex);
@@ -447,28 +447,29 @@ describe("winter's depth ramp is purple to navy, and only that", () => {
   it("keeps every stop between purple and blue, and visibly coloured", () => {
     for (const [i, hex] of stops.entries()) {
       const { C, H } = lch(hex);
-      expect(H, `--depth-${i + 1} (${hex}) is at hue ${H.toFixed(0)}, outside winter's purple–navy band (255–310)`).toBeGreaterThanOrEqual(255);
+      expect(H, `--depth-${i + 1} (${hex}) is at hue ${H.toFixed(0)}, outside winter's purple–blue band (255–310)`).toBeGreaterThanOrEqual(255);
       expect(H).toBeLessThanOrEqual(310);
       expect(C, `--depth-${i + 1} (${hex}) has sagged to a grey (C ${C.toFixed(3)})`).toBeGreaterThanOrEqual(0.08);
     }
   });
 
-  // A triangle wave over five stops: 1→5 purple to navy, then mirrored back,
-  // period 8. Each level must read as different from its parent, and there is
-  // no restart, so no seam.
-  it("walks purple to navy and back with no seam, every level visibly different", () => {
-    for (let i = 1; i < 5; i++) {
+  // One run, purple → navy → blue, across all seventeen slots: hue moves one
+  // way only, lightness dips to navy at depth 9 and rises back, and no colour
+  // is reused. Steps are allowed to be small (about a JND) but never zero.
+  it("runs purple → navy → blue once, with no repeats", () => {
+    for (let i = 1; i < 17; i++) {
       expect(lch(stops[i]).H, `--depth-${i + 1} is not bluer than --depth-${i}`).toBeLessThan(lch(stops[i - 1]).H);
-      expect(lch(stops[i]).L, `--depth-${i + 1} is not darker than --depth-${i}`).toBeLessThan(lch(stops[i - 1]).L);
+      const L = lch(stops[i]).L, prev = lch(stops[i - 1]).L;
+      if (i <= 8) expect(L, `--depth-${i + 1} should darken toward navy at depth 9`).toBeLessThan(prev);
+      else expect(L, `--depth-${i + 1} should lighten from navy toward blue`).toBeGreaterThan(prev);
     }
-    const tri = (i: number) => 4 - Math.abs((i % 8) - 4); // 0..4..0
-    for (let i = 0; i < 17; i++) expect(stops[i], `--depth-${i + 1} breaks the triangle wave`).toBe(stops[tri(i)]);
+    expect(new Set(stops).size, "a depth colour repeats — winter's ramp is one run, not a cycle").toBe(17);
     for (let i = 1; i < 17; i++)
       expect(
         perceptualDistance(stops[i], stops[i - 1]),
-        `--depth-${i + 1} is within a JND of its parent level --depth-${i}`,
-      ).toBeGreaterThanOrEqual(JND);
-    expect(perceptualDistance(stops[0], stops[4])).toBeGreaterThanOrEqual(0.12);
+        `--depth-${i + 1} is indistinguishable from its parent level --depth-${i}`,
+      ).toBeGreaterThanOrEqual(0.015);
+    expect(perceptualDistance(stops[0], stops[16]), "the purple and blue ends have converged").toBeGreaterThanOrEqual(0.1);
   });
 
   it.each(["bg", "surface", "bg-deep", "atlas-row-selected"])("every stop is readable as a title on --%s", (on) => {
