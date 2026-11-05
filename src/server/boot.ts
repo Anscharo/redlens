@@ -44,8 +44,8 @@ const realBootDeps: BootDeps = {
     const { startPreviewSweeper } = await import("./preview/sweeper.ts");
     startPreviewSweeper();
     // Fills diff-base columns on rows built before they existed; a no-op once complete.
-    const { startPreviewDiffBaseBackfill } = await import("./preview/diff-base-backfill.ts");
-    startPreviewDiffBaseBackfill();
+    const { startPreviewDiffBaseBackfill } = await import("./preview/diff-base-backfill-boot.ts");
+    void startPreviewDiffBaseBackfill();
   },
   // Fetches token prices as the process starts, so a deploy has them before
   // its first balances request; a PR environment never fetches again.

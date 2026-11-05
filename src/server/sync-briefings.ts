@@ -32,7 +32,7 @@ export { seedPass, embedPass, runBriefings } from "./briefings-passes.ts";
 export { writePass } from "./briefings-write.ts";
 
 // One run at a time, across callers (the worker tail, dev-preflight, a hand run).
-// Arbitrary fixed key like the others: migrate.ts 4711_2026, diff-base-backfill.ts
+// Arbitrary fixed key like the others: migrate.ts 4711_2026, diff-base-backfill-boot.ts
 // 4711_2033, sync-embeddings.ts 4711_2042. All that matters is that they differ.
 const BRIEFINGS_LOCK_KEY = 4711_2051;
 

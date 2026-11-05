@@ -146,7 +146,7 @@ const realEmbedDeps: EmbedDeps = {
 };
 
 // One reconcile at a time, across every caller — arbitrary fixed key, like
-// migrate.ts's 4711_2026 and preview/diff-base-backfill.ts's 4711_2033; all that
+// migrate.ts's 4711_2026 and preview/diff-base-backfill-boot.ts's 4711_2033; all that
 // matters is that the three callers agree and the three keys stay distinct.
 const EMBED_LOCK_KEY = 4711_2042;
 

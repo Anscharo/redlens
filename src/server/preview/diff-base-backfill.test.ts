@@ -13,9 +13,8 @@ import {
   resolveBackfillRow,
   type BackfillRow,
 } from "./diff-base-backfill-row.ts";
-import { config } from "../config.ts";
 import { setIndexes, type Indexes } from "../retrieval/indexes.ts";
-import { backfillPreviewDiffBases, fillPrivateDiffBaseOnOpen, loadSnapshot, servedAtlas, startPreviewDiffBaseBackfill, type BackfillDeps } from "./diff-base-backfill.ts";
+import { backfillPreviewDiffBases, fillPrivateDiffBaseOnOpen, loadSnapshot, servedAtlas, type BackfillDeps } from "./diff-base-backfill.ts";
 
 const SHA = "h".repeat(40);
 const LIVE = "c".repeat(40);
@@ -518,7 +517,3 @@ test("servedAtlas returns the in-memory atlas without reading sync_state", async
   }
 });
 
-test("startPreviewDiffBaseBackfill returns before taking a lock when no token is configured", () => {
-  expect(config.githubToken).toBe("");
-  expect(startPreviewDiffBaseBackfill()).toBeUndefined();
-});

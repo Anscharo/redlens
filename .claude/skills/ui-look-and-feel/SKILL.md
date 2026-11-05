@@ -191,11 +191,11 @@ What `scripts/aux/screenshot.ts` handles, so you don't relearn it:
   shows `search-index.json: 502`. The script answers those requests from
   `public/<file>` inside the browser and 404s the rest of `/api` and `/z`,
   so no server or database is needed.
-- **Running the real Bun server needs Postgres.** `DEV_NO_DB=1 pnpm dev`
-  starts it, but the server exits on its first refused database connection,
-  with or without `OPENROUTER_API_KEY`. Use `pnpm dev` with Docker up when you
-  need the server itself (chat, history, previews); for screenshots, the
-  script is enough.
+- **The real Bun server runs without Postgres.** `DEV_NO_DB=1 pnpm dev`
+  starts it and the server stays up: it serves the atlas from
+  `public/atlas/<sha>/` and `/api/health`, and the DB-backed routes (history,
+  chain state, PAU, freshness) answer 503. Use `pnpm dev` with Docker up when
+  you need those or chat and previews; for screenshots, the script is enough.
 - **Never wait for `networkidle`.** The app polls and Vite holds an HMR
   socket, so the network never goes quiet and `goto` times out after 90 s. The
   script waits for `load`, then `--wait` ms.
