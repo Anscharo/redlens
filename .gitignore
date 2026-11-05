@@ -167,3 +167,6 @@ docs/ds/
 # backs /reports/potential-mistakes); this markdown is generated on demand and
 # would go stale the moment the JSON changed without a re-render.
 ATLAS-FINDINGS.md
+
+# pnpm screenshot output
+.cache/screenshots/

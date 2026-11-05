@@ -43,6 +43,7 @@ pnpm pull-atlas      # git submodule update --init --recursive (populate submodu
 pnpm atlas:worker    # full atlas worker cycle: drift check → build → sync all Postgres tables
 pnpm dev             # one-command local dev (see Local dev below)
 pnpm preview         # serve the production build locally
+pnpm screenshot      # PNGs of every theme × key routes; no server or DB needed (skill ui-look-and-feel)
 REPRO=1 pnpm test    # reproducibility check — two builds at the same atlas SHA must be byte-identical
 pnpm test:snap       # graph snapshot tests — fail if relations.json structure changed (graph-snapshots/); test:snap:update accepts a deliberate change
 pnpm check:atlas     # MERGE GATE for atlas bumps: refuses a build that did not read the whole atlas (scripts/CLAUDE.md)

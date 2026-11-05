@@ -4,9 +4,9 @@ description: >
   Runbook + knowledge base for visual/styling work on SAbR. Use when the
   user wants UI tweaks, look-and-feel changes, color/theme/palette edits,
   font or typography changes, spacing/layout polish, or asks to "look at the
-  app" / screenshot it. Covers the design-token system in src/index.css, the
+  app" / screenshot it. Covers the design-token system in apps/web/src/index.css, the
   /admin/palette live editor and contrast audit, styling conventions, and the
-  verified launch-and-screenshot recipe (headless Chrome against Vite).
+  `pnpm screenshot` (every theme, no server or database needed).
   Keywords: UI, look and feel, styling, theme, palette, colors, tokens,
   index.css, tailwind, fonts, Inter, screenshot, dev server, admin palette,
   contrast, WCAG
@@ -20,7 +20,7 @@ metadata:
 
 ## Where styling lives
 
-- **`src/index.css`** — the single source of truth. All design tokens as CSS
+- **`apps/web/src/index.css`** — the single source of truth. All design tokens as CSS
   custom properties in `:root`, all shared component classes (`.atlas-node`,
   `.tree-row`, `.scope-pill`, `.nav-link`, `.badge`, `.atlas-md` prose, …),
   and a small `@layer utilities` block (`.text-tan`, `.text-accent`, …).
@@ -28,7 +28,7 @@ metadata:
   Components mix Tailwind utility classes with `style={{ color: "var(--tan)" }}`
   inline styles and the component classes above. Match whichever pattern the
   surrounding component uses.
-- **`src/components/chat/chat.css`** — chat widget only.
+- **`apps/web/src/components/chat/chat.css`** — chat widget only.
 - **Fonts**: **Inter** (body, base weight 500) + **Source Code Pro** (mono,
   `.mono` class), loaded from Google Fonts in `index.html` (non-render-blocking
   `media="print"` swap trick, `display=optional`). *CLAUDE.md's "Lora serif
@@ -63,9 +63,9 @@ metadata:
 - **Palette overrides at runtime**: an inline script in `index.html` reads
   `localStorage["redlens:palette-overrides"]` and sets CSS vars before first
   paint. That's what the admin palette "apply" button writes. Permanent changes
-  go in `src/index.css`; the admin page's "copy as css" emits the snippet.
+  go in `apps/web/src/index.css`; the admin page's "copy as css" emits the snippet.
 
-## Token taxonomy (`:root` in src/index.css)
+## Token taxonomy (`:root` in apps/web/src/index.css)
 
 | Group | Tokens | Notes |
 |---|---|---|
@@ -119,15 +119,14 @@ an HSL yellow at `L=50%` is far brighter than an HSL violet at `L=50%`.
 
 **Screenshots do not substitute for the gate**, and the gate does not substitute
 for screenshots. The gate catches unreadable; only looking catches ugly. Do
-both, and shoot every theme (see the recipe below — seed
-`localStorage["redline-sky-atlas:theme"]` before load so the pre-paint path runs).
+both, and shoot every theme: `pnpm screenshot` does all of them by default (see below).
 
 ## The /admin/palette page
 
-`/admin/palette` (source: `src/admin/`). Click a swatch → color picker →
+`/admin/palette` (source: `apps/web/src/admin/`). Click a swatch → color picker →
 apply (persists per-browser via localStorage) → "copy as css" for the permanent
 `index.css` snippet. Includes a **contrast audit table** and a live
-**palette preview**. Token registry: `src/admin/palette-tokens.ts` — **a new
+**palette preview**. Token registry: `apps/web/src/admin/palette-tokens.ts` — **a new
 token in index.css should also be registered there** so it's editable/audited.
 
 ## Conventions that bite (from CLAUDE.md + the code)
@@ -138,7 +137,7 @@ token in index.css should also be registered there** so it's editable/audited.
   `--bg-deep`. (The old "never add a background to the selected node" rule was
   reversed once the reader went deep — the soft `--bg` tint is now the marker.)
 - Scroll is `behavior: "instant"`; scroll targets need
-  `scroll-margin-top: 64px` (`HEADER_OFFSET` in `src/lib/layout.ts` — the
+  `scroll-margin-top: 64px` (`HEADER_OFFSET` in `apps/web/src/lib/layout.ts` — the
   `.atlas-node` rule in index.css must stay in sync).
 - Base is `/` (served from the domain root); `import.meta.env.BASE_URL` is `"/"`. Root-relative URL strings work directly.
 - `prefers-reduced-motion` is respected for the expand animation and row pulse —
@@ -155,40 +154,71 @@ actor dashboards · `/reports/*` four reports · `/hints`, `/provenance`,
 everything else is fixed-shell/inner-scroll (`windowScroll` flag in App.tsx).
 Header = `SearchBar.tsx`, status footer = `Footer.tsx`.
 
-## Verified recipe: launch + screenshot (2026-06)
+## Screenshots: `pnpm screenshot`
+
+Use the script. Do not hand-roll a Vite + browser recipe: every piece of the
+obvious one fails in a fresh container, and each failure looks like a
+different problem.
 
 ```bash
-# pnpm dev needs bun (chat API server); chat is off by default, so Vite alone is fine:
-(pnpm exec vite > /tmp/redlens-vite.log 2>&1 & echo $! > /tmp/redlens-dev.pid)
-timeout 45 bash -c 'until curl -sf -o /dev/null http://localhost:5173/; do sleep 1; done'
-
-# chromium-cli is NOT installed; headless Chrome is, and works:
-google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
-  --window-size=1440,900 --virtual-time-budget=30000 \
-  --screenshot=/tmp/shot.png "http://localhost:5173/"
-
-kill $(cat /tmp/redlens-dev.pid)   # cleanup
+pnpm screenshot                                   # every theme x default routes
 ```
 
-- Base path is **`/`** — the app is served from the domain root.
-- Use `--virtual-time-budget=30000` (60000 right after a cold Vite start —
-  on-demand compilation eats the budget). Radar's graph worker takes >12 s of
-  virtual time; 12000 captures only the "searching the stars" loading state.
-- The worker-driven views (atlas reader, radar) are flaky under virtual time —
-  if you get the "searching the stars" loading state, retry with
-  `--virtual-time-budget=120000`; tsc/vite-log are clean, it's the harness.
-- For close inspection of small elements (chiclets, pills), add
-  `--force-device-scale-factor=2` with a narrower `--window-size` (e.g. 900,700).
-- Routes worth screenshotting: `/` (home), `/atlas` (reader),
-  `/atlas?id=<uuid>` (selected node + right panel),
-  `/radar`, `/reports`, `/admin/palette`.
-  Pick a content-rich uuid from `public/docs.json`, e.g.
-  `86a93dab-2f12-4c3f-9285-bcc4520c851b` (A.1.1 Spirit of the Atlas).
-- **If Vite overlays "Failed to resolve import"**, run `pnpm install` — stale
-  node_modules after a pulled lockfile change (happened with `wcag-contrast`).
-- `pnpm dev` (`scripts/aux/dev.mjs`) spawns bun + vite; it dies with
-  `spawn bun ENOENT` if bun isn't on PATH. Set `CHAT_ENABLED=1` only when you
-  actually need the chat widget.
+```bash
+pnpm screenshot --theme winter --route "/atlas?id=86a93dab-2f12-4c3f-9285-bcc4520c851b"
+```
+
+Flags: `--theme` and `--route` repeat (default: every id in the `THEMES`
+registry × `/`, `/?q=facilitator`, `/atlas?id=<A.1.1>`, `/reports`);
+`--out <dir>` (default `.cache/screenshots/`, gitignored; in a cloud session
+pass your scratchpad so the user can open the files); `--scale 2` for a
+screenshot a person will look at; `--wait <ms>` settle time after load
+(default 5000). It prints one PNG path per shot, named `<theme>-<route>.png`.
+A full run (4 themes × 4 routes) takes about 90 s.
+
+What `scripts/aux/screenshot.ts` handles, so you don't relearn it:
+
+- **Missing atlas data.** A fresh clone has an empty submodule and no
+  `public/docs.json`. It runs `pnpm pull-atlas`, then `build:index`,
+  `build:graph` and `build:glossary`, for whichever are missing.
+- **Vite lives in the `apps/web` workspace.** `pnpm exec vite` from the repo
+  root fails with "vite not found"; the script runs
+  `pnpm --filter sabr-web exec vite`. It reuses a Vite already on :5173 and
+  stops only the one it started.
+- **Vite alone does not serve the atlas.** The page asks for
+  `/api/atlas/<sha>/<file>`, which Vite proxies to the Bun server on :3000.
+  Without that server the reader shows "Couldn't load the atlas" and search
+  shows `search-index.json: 502`. The script answers those requests from
+  `public/<file>` inside the browser and 404s the rest of `/api` and `/z`,
+  so no server or database is needed.
+- **Running the real Bun server needs Postgres.** `DEV_NO_DB=1 pnpm dev`
+  starts it, but the server exits on its first refused database connection,
+  with or without `OPENROUTER_API_KEY`. Use `pnpm dev` with Docker up when you
+  need the server itself (chat, history, previews); for screenshots, the
+  script is enough.
+- **Never wait for `networkidle`.** The app polls and Vite holds an HMR
+  socket, so the network never goes quiet and `goto` times out after 90 s. The
+  script waits for `load`, then `--wait` ms.
+- **Theme before first paint.** It seeds `localStorage["redline-sky-atlas:theme"]`
+  (`THEME_KEY` in `apps/web/src/lib/theme.ts`) with an init script, so the
+  pre-paint path in `index.html` runs as it does for a real visitor.
+- **Which browser.** It uses the cloud image's Chromium at
+  `/opt/pw-browsers/chromium` when present (the repo pins its own
+  `@playwright/test`), and Playwright's default elsewhere.
+
+Other notes:
+
+- Routes worth shooting: `/` (home), `/?q=<term>` (search highlights, which use
+  `--red-dim`), `/atlas?id=<uuid>` (selected node + right panel), `/radar`,
+  `/reports`, `/admin/palette`. `86a93dab-2f12-4c3f-9285-bcc4520c851b` is A.1.1
+  Spirit of the Atlas, a content-rich page.
+- Radar's graph worker is slow. If a radar shot shows the "searching the
+  stars" loading state, raise `--wait` (15000).
+- **If Vite overlays "Failed to resolve import"**, run `pnpm install`: stale
+  node_modules after a pulled lockfile change.
+- Look at the PNGs (Read them) before reporting. A blank white image means the
+  app never mounted; rerun with `--theme <one> --route /` and read the
+  `page error:` lines the script prints.
 
 ## The current aesthetic, in one paragraph
 
