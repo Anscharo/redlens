@@ -37,8 +37,13 @@ export const onchain: EnvGroup = {
       default: "60",
     },
     {
+      name: "ENVIO_API_TOKEN",
+      doc: "Envio HyperSync API token (https://envio.dev/app/api-tokens). Set: the sync:pau-rpc worker tail reads PAU event history for every chain the chain registry flags `hypersync` from HyperSync, instead of a block explorer or logsRpcs. Unset: those chains stay on the explorers and logsRpcs.",
+      example: "",
+    },
+    {
       name: "PAU_RPC_DEADLINE_MS",
-      doc: "Time from start after which the sync:pau-rpc worker tail starts no new JSON-RPC request. It reads PAU event history for chains no free explorer serves.",
+      doc: "Time from start after which the sync:pau-rpc worker tail starts no new request. It reads PAU event history from HyperSync (with ENVIO_API_TOKEN) and, for chains no free explorer serves, over JSON-RPC.",
       default: "480000",
     },
     {

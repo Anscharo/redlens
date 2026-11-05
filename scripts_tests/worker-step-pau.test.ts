@@ -20,7 +20,7 @@ vi.mock("../src/server/pau/sync-events.ts", () => ({ syncPauEvents }));
 vi.mock("../src/server/pau/store.ts", () => ({ maybeRefreshPauState }));
 vi.mock("../src/server/pau/rpc-reader.ts", () => ({ rpcChainReader: () => "reader", rpcHead: async () => 1 }));
 vi.mock("../scripts/lib/explorer-logs.ts", () => ({ explorerLogs: async () => [] }));
-vi.mock("../scripts/lib/rpc-logs.ts", () => ({ logsRpcsFor: () => [] }));
+vi.mock("../scripts/lib/log-sources.ts", () => ({ logSourcesFor: () => [] }));
 vi.mock("../src/server/pau/rpc-sync.ts", () => ({ rpcChains: () => new Set(["base"]) }));
 vi.mock("../src/server/pau/diamond-derive.ts", () => ({ keyNamer }));
 vi.mock("../src/server/pau/probe.ts", () => ({ atlasKeysByPrime }));
