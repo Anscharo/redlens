@@ -8,6 +8,7 @@
 import { CHAIN_LOGS_RPCS, type LogsRpc } from "./chains.mjs";
 import { throttleExplorer } from "./explorer-api.ts";
 import { politeFetch } from "../../src/lib/upstreamBackoff.ts";
+import type { LogSource } from "../../src/server/pau/rpc-sync.ts";
 
 export interface RpcLog {
   address: string;
@@ -87,3 +88,12 @@ export async function rpcLogs(url: string, addresses: string[], topic0s: string[
   }
   return out;
 }
+
+/** A logsRpcs endpoint as a source for the PAU crawl: every window it is asked for, it answers in full. */
+export const rpcSource = (p: LogsRpc): LogSource => ({
+  url: p.url,
+  blocks: p.blocks,
+  head: () => rpcHeadBlock(p.url),
+  deployBlock: (address, head) => rpcDeployBlock(p.url, address, head),
+  logs: async (addresses, topic0s, from, to) => ({ logs: await rpcLogs(p.url, addresses, topic0s, from, to), to }),
+});

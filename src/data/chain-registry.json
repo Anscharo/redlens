@@ -12,6 +12,7 @@
     "etherscan": "False when Etherscan v2 has no endpoint for this chainId, so Blockscout is the only source.",
     "blockscoutIntervalMs": "Minimum gap between requests to this chain's blockscoutApi host, in ms, when the host allows fewer than one request a second. Set it to use 75% of the host's stated limit.",
     "logsRpcs": "JSON-RPC endpoints that serve this chain's full eth_getLogs history, each with the most blocks one request may span and, optionally, the gap its host needs between requests (intervalMs). Read by the PAU RPC reader (src/server/pau/rpc-sync.ts) for a chain no free explorer serves; rotated per request.",
+    "hypersync": "True when Envio HyperSync serves the chain at https://<chainId>.hypersync.xyz (checked with its /height). With ENVIO_API_TOKEN set, the PAU crawl (src/server/pau/rpc-sync.ts) reads the chain's event history from it instead of an explorer or logsRpcs.",
     "routescan": "True when Routescan serves the chain's Etherscan-compatible API at its chainId (keyless). Tried after Etherscan v2 and before Blockscout.",
     "rpcBatchLimit": "Most calls rpcUrl accepts in one JSON-RPC batch request, when it accepts fewer than the batching readers send (address-code.mjs, fetch-balances.ts). A node that refuses an oversized batch refuses every call in it, so without this every address on the chain reads as an RPC failure."
   },
@@ -21,6 +22,7 @@
     {
       "chain": "base",
       "chainId": 8453,
+      "hypersync": true,
       "aliases": [
         "base"
       ],
@@ -44,6 +46,7 @@
     {
       "chain": "arbitrum",
       "chainId": 42161,
+      "hypersync": true,
       "aliases": [
         "arbitrum"
       ],
@@ -61,6 +64,7 @@
     {
       "chain": "optimism",
       "chainId": 10,
+      "hypersync": true,
       "aliases": [
         "optimism"
       ],
@@ -79,6 +83,7 @@
     {
       "chain": "unichain",
       "chainId": 130,
+      "hypersync": true,
       "aliases": [
         "unichain"
       ],
@@ -105,6 +110,7 @@
     {
       "chain": "polygon",
       "chainId": 137,
+      "hypersync": true,
       "aliases": [
         "polygon"
       ],
@@ -122,6 +128,7 @@
     {
       "chain": "avalanche",
       "chainId": 43114,
+      "hypersync": true,
       "aliases": [
         "avalanche",
         "avax"
@@ -141,6 +148,7 @@
     {
       "chain": "gnosis",
       "chainId": 100,
+      "hypersync": true,
       "aliases": [
         "gnosis"
       ],
@@ -165,6 +173,7 @@
       "chain": "robinhood",
       "note": "Arbitrum Orbit L2, chain id 4663 (0x1237). Etherscan v2 serves it on the free plan. Its Blockscout answers scripted requests with a Cloudflare challenge page (HTTP 403), so Blockscout is only the fallback.",
       "chainId": 4663,
+      "hypersync": true,
       "aliases": [
         "robinhood"
       ],
@@ -182,6 +191,7 @@
     {
       "chain": "plasma",
       "chainId": 9745,
+      "hypersync": true,
       "aliases": [
         "plasma"
       ],
@@ -198,6 +208,7 @@
     {
       "chain": "monad",
       "chainId": 143,
+      "hypersync": true,
       "aliases": [
         "monad"
       ],
@@ -214,6 +225,7 @@
     {
       "chain": "plume",
       "chainId": 98866,
+      "hypersync": true,
       "aliases": [
         "plume"
       ],
@@ -255,6 +267,7 @@
     {
       "chain": "ethereum",
       "chainId": 1,
+      "hypersync": true,
       "aliases": [
         "ethereum",
         "mainnet"

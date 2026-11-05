@@ -2,12 +2,14 @@
 // matters: a cold cursor starts at its deploy block; a later contract reads alone
 // only up to the next contract's position and then shares windows; pau_cursor
 // reads complete only once the crawl reaches the confirmed head; a change in a
-// contract's events restarts it at its deploy block; a failing endpoint is left
-// out and its error stored; the deadline stops the crawl between windows.
+// contract's events restarts it at its deploy block; a failing source is left
+// out and its error stored, on pau_cursor too unless it is a rate limit; the
+// deadline stops the crawl between windows; a source that answers for part of
+// a window moves the cursors only that far.
 import { beforeEach, describe, expect, it } from "bun:test";
 import type { PauRegistry } from "../../lib/pauRegistry.ts";
 import { CONFIRMATIONS, type PauLog } from "./sync-events.ts";
-import { syncPauRpc, type RpcSyncDeps } from "./rpc-sync.ts";
+import { syncPauRpc, type LogSource, type RpcSyncDeps } from "./rpc-sync.ts";
 
 const A = "0x" + "a".repeat(40);
 const B = "0x" + "b".repeat(40);
@@ -27,6 +29,7 @@ const db = async (strings: TemplateStringsArray, ...v: unknown[]): Promise<unkno
   const t = strings.join("?");
   if (t.includes("INSERT INTO pau_cursor")) return void (cursors.some((c) => c.contract === v[1] && c.topic0 === v[2]) || cursors.push({ chain: v[0], contract: v[1], topic0: v[2], next_block: 0, last_error: "stale" }));
   if (t.includes("SET last_error = NULL WHERE")) return void cursors.forEach((c) => c.next_block === 0 && (c.last_error = null));
+  if (t.includes("UPDATE pau_cursor SET last_error = ? WHERE")) return void cursors.filter((c) => c.contract === v[2]).forEach((c) => (c.last_error = v[0]));
   if (t.includes("UPDATE pau_cursor")) return void cursors.filter((c) => c.contract === v[3]).forEach((c) => Object.assign(c, { next_block: v[0], last_error: null }));
   if (t.includes("INSERT INTO pau_rpc_cursor")) return void (rpc.some((r) => r.contract === v[1]) || rpc.push({ contract: v[1], topics: v[2], deploy_block: null, next_block: 0, last_error: null }));
   if (t.includes("FROM pau_rpc_cursor")) return rpc.map((r) => ({ ...r }));
@@ -37,17 +40,18 @@ const db = async (strings: TemplateStringsArray, ...v: unknown[]): Promise<unkno
 
 const log = (address: string, block: number, topic = DATA_SET): PauLog & { address: string } => ({ address, topics: [topic, KEY], data: DATA, blockNumber: block, timeStamp: 1_700_000_000, transactionHash: `0x${block}${address.slice(2, 4)}`, logIndex: 0 });
 let windows: { url: string; addrs: string[]; from: number; to: number }[];
-const deps = (over: Partial<RpcSyncDeps> = {}): RpcSyncDeps => ({
-  providers: () => [{ url: "u1", blocks: 500 }],
+const source = (over: Partial<LogSource> = {}, url = "u1"): LogSource => ({
+  url,
+  blocks: 500,
   head: async () => TIP + CONFIRMATIONS,
-  deployBlock: async (_u, addr) => (addr === A ? 100 : 300),
-  logs: async (url, addrs, _t, from, to) => {
+  deployBlock: async (addr) => (addr === A ? 100 : 300),
+  logs: async (addrs, _t, from, to) => {
     windows.push({ url, addrs, from, to });
-    return [log(A, 150), log(B, 150), log(A, 400, KEY)].filter((l) => l.blockNumber >= from && l.blockNumber <= to);
+    return { logs: [log(A, 150), log(B, 150), log(A, 400, KEY)].filter((l) => l.blockNumber >= from && l.blockNumber <= to), to };
   },
-  deadline: Infinity,
   ...over,
 });
+const deps = (over: Partial<RpcSyncDeps> = {}, src: Partial<LogSource> = {}): RpcSyncDeps => ({ sources: () => [source(src)], deadline: Infinity, ...over });
 
 beforeEach(() => {
   rpc = [];
@@ -74,27 +78,54 @@ describe("syncPauRpc", () => {
   it("restarts a contract at its deploy block when its events change", async () => {
     rpc.push({ contract: A, topics: "0xold", deploy_block: 100, next_block: 900, last_error: null });
     rpc.push({ contract: B, topics: "0xold", deploy_block: 300, next_block: TIP + 1, last_error: null });
-    await syncPauRpc(db, reg, deps({ deployBlock: async () => Promise.reject(new Error("bisected again")) }));
+    await syncPauRpc(db, reg, deps({}, { deployBlock: async () => Promise.reject(new Error("bisected again")) }));
     expect(windows[0]).toMatchObject({ from: 100 });
   });
-  it("leaves out a failing endpoint, stores its error and goes on with the next", async () => {
-    const providers = () => [{ url: "bad", blocks: 500 }, { url: "good", blocks: 500 }];
-    const logs: RpcSyncDeps["logs"] = async (url, addrs, t, from, to) => (url === "bad" ? Promise.reject(new Error("rpc eth_getLogs: 429 too many")) : deps().logs(url, addrs, t, from, to));
-    const res = await syncPauRpc(db, reg, deps({ providers, logs }));
+  it("leaves out a failing source, stores its error and goes on with the next", async () => {
+    const bad = source({ logs: async () => Promise.reject(new Error("rpc eth_getLogs: 429 too many")) }, "bad");
+    const res = await syncPauRpc(db, reg, deps({ sources: () => [bad, source({}, "good")] }));
     expect(res.base.error).toBe("rpc eth_getLogs: 429 too many");
     expect(windows.every((w) => w.url === "good")).toBe(true);
     expect(res.base.behind).toBe(0);
   });
   it("reports a dead endpoint as the chain's error and moves no cursor", async () => {
-    const res = await syncPauRpc(db, reg, deps({ head: async () => Promise.reject(new Error("rpc eth_blockNumber: HTTP 503")) }));
+    const res = await syncPauRpc(db, reg, deps({}, { head: async () => Promise.reject(new Error("rpc eth_blockNumber: HTTP 503")) }));
     expect(res.base.error).toBe("rpc eth_blockNumber: HTTP 503");
     expect(windows).toEqual([]);
     expect(rpc.every((r) => r.next_block === 0)).toBe(true);
+    // historyComplete reads pau_cursor, so a crawl that stopped reading never reads as complete.
+    expect(cursors.every((c) => c.last_error === "rpc eth_blockNumber: HTTP 503")).toBe(true);
   });
   it("stores an error and never crawls a contract with no code", async () => {
-    const res = await syncPauRpc(db, reg, deps({ deployBlock: async (_u, addr) => (addr === A ? null : 300) }));
+    const res = await syncPauRpc(db, reg, deps({}, { deployBlock: async (addr) => (addr === A ? null : 300) }));
     expect(rpc.find((r) => r.contract === A)!.last_error).toBe(`no code at block ${TIP}`);
+    expect(cursors.filter((c) => c.contract === A).every((c) => c.last_error === `no code at block ${TIP}`)).toBe(true);
     expect(windows.every((w) => !w.addrs.includes(A))).toBe(true);
     expect(res.base.events).toBe(0);
+  });
+  it("moves the cursors only as far as a source's answer reached", async () => {
+    const partial: LogSource["logs"] = async (addrs, _t, from, to) => {
+      windows.push({ url: "hs", addrs, from, to });
+      const reached = Math.min(to, from + 99);
+      return { logs: [log(A, 150), log(A, 260)].filter((l) => l.blockNumber >= from && l.blockNumber <= to), to: reached };
+    };
+    const res = await syncPauRpc(db, reg, deps({}, { blocks: Number.MAX_SAFE_INTEGER, logs: partial }));
+    expect(windows.slice(0, 3).map((w) => [w.from, w.to])).toEqual([[100, 299], [200, 299], [300, 1000]]);
+    // 260 is past the first answer's reach, so it is stored once, by the window that covers it.
+    expect(events).toEqual([{ contract: A, block: 150 }, { contract: A, block: 260 }]);
+    expect(res.base.behind).toBe(0);
+    expect(cursors.every((c) => c.next_block === TIP + 1)).toBe(true);
+  });
+  it("refuses an answer that claims blocks outside its window", async () => {
+    const res = await syncPauRpc(db, reg, deps({}, { logs: async (_a, _t, from) => ({ logs: [], to: from - 1 }) }));
+    expect(res.base.error).toBe("u1: answered to block 99 for window 100-299");
+    expect(rpc.find((r) => r.contract === A)!.next_block).toBe(100);
+  });
+  it("leaves pau_cursor unmarked on a rate limit, which only delays the crawl", async () => {
+    cursors.push({ chain: "base", contract: A, topic0: DATA_SET, next_block: 500, last_error: null });
+    const res = await syncPauRpc(db, reg, deps({}, { head: async () => Promise.reject(new Error("hypersync.xyz is cooling down after a rate limit until later")) }));
+    expect(res.base.error).toMatch(/cooling down/);
+    expect(rpc.every((r) => r.last_error === res.base.error)).toBe(true);
+    expect(cursors.find((c) => c.contract === A && c.topic0 === DATA_SET)!.last_error).toBeNull();
   });
 });

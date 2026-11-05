@@ -115,6 +115,42 @@ describe("politeFetch", () => {
     expect(coolingDown("https://denied.example/")).toBe(false);
   });
 
+  it("reads a small X-RateLimit-Reset as seconds from now, not as an epoch", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => json({}, 429, { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "40" })));
+    await politeFetch("https://8453.relative.example/query");
+    await vi.advanceTimersByTimeAsync(119_000);
+    expect(coolingDown("https://8453.relative.example/")).toBe(true);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(coolingDown("https://8453.relative.example/")).toBe(false);
+  });
+
+  it("reads an X-RateLimit-Reset in epoch milliseconds as that moment, not a day away", async () => {
+    const reset = String(Date.now() + 60_000);
+    vi.stubGlobal("fetch", vi.fn(async () => json({}, 429, { "x-ratelimit-remaining": "0", "x-ratelimit-reset": reset })));
+    await politeFetch("https://ms.example/q");
+    await vi.advanceTimersByTimeAsync(179_000);
+    expect(coolingDown("https://ms.example/")).toBe(true);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(coolingDown("https://ms.example/")).toBe(false);
+  });
+
+  it("shares one cooldown across hosts under a cooldownKey, and forgives it on an answer", async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(new Response("", { status: 429 })).mockResolvedValue(json({ ok: 1 }));
+    vi.stubGlobal("fetch", fetch);
+    await politeFetch("https://1.shared.example/q", undefined, { cooldownKey: "https://shared.example/" });
+    expect(coolingDown("https://shared.example/")).toBe(true);
+    expect(coolingDown("https://1.shared.example/")).toBe(false);
+    const next = politeFetch("https://8453.shared.example/q", undefined, { cooldownKey: "https://shared.example/" });
+    await vi.advanceTimersByTimeAsync(30_000);
+    await next;
+    expect(fetch).toHaveBeenCalledTimes(2);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 429 })));
+    await politeFetch("https://1.shared.example/q", undefined, { cooldownKey: "https://shared.example/" });
+    // Forgiven after the answer, so this refusal is a first strike again: 30 s, not 60 s.
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(coolingDown("https://shared.example/")).toBe(false);
+  });
+
   it("makes the next request to that host wait out the cooldown", async () => {
     const fetch = vi.fn().mockResolvedValueOnce(new Response("", { status: 429 })).mockResolvedValue(json({ result: "0x1" }));
     vi.stubGlobal("fetch", fetch);

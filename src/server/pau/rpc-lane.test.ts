@@ -29,13 +29,14 @@ describe("runPauRpc", () => {
     const reg = { shared: [], ignored: [], deployments: [{ prime: "p", primeName: "P", chain: "base", kind: "monolithic", members: [{ role: "rateLimits", address: "0x" + "a".repeat(40), provenance: [] }] }] } as unknown as PauRegistry;
     const db = (async () => []) as never;
     const lines: string[] = [];
-    await runPauRpc(db, reg, {
-      providers: () => [{ url: "u", blocks: 500 }],
+    const source = {
+      url: "u",
+      blocks: 500,
       head: async () => Promise.reject(new Error("rpc eth_blockNumber: HTTP 503")),
       deployBlock: async () => 1,
-      logs: async () => [],
-      deadline: Infinity,
-    }, (l) => lines.push(l));
+      logs: async (_a: string[], _t: string[], _f: number, to: number) => ({ logs: [], to }),
+    };
+    await runPauRpc(db, reg, { sources: () => [source], deadline: Infinity }, (l) => lines.push(l));
     expect(lines).toEqual(["sync:pau-rpc base — 0 windows, 0 new events, 0 blocks behind, error: rpc eth_blockNumber: HTTP 503"]);
   });
 });

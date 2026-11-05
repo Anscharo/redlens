@@ -16,6 +16,7 @@ export interface ChainEntry {
   blockscoutIntervalMs?: number;
   etherscan?: boolean;
   routescan?: boolean;
+  hypersync?: boolean;
   logsRpcs?: LogsRpc[];
   rpcBatchLimit?: number;
 }
@@ -33,6 +34,7 @@ export function rpcBatchSize(chain: string, preferred: number): number;
 export const CHAIN_BLOCKSCOUT: Record<string, string>;
 export const CHAIN_ROUTESCAN: Record<string, string>;
 export const EXPLORER_HOST_INTERVAL_MS: Record<string, number>;
+export const CHAIN_HYPERSYNC: Record<string, string>;
 export const CHAIN_LOGS_RPCS: Record<string, LogsRpc[]>;
 export const CHAIN_SUPPORTS_ETHERSCAN: Set<string>;
 /** Prose hint specs, ethereum FIRST — address-chains.mjs compiles them to regexes. */

@@ -44,6 +44,10 @@ const REGISTRY = JSON.parse(
 // the PAU RPC reader for a chain no free explorer serves. Every gap uses 75% of
 // the host's stated or assumed limit.
 //
+// hypersync: true when Envio HyperSync serves the chain; its URL derives from
+// the chainId (CHAIN_HYPERSYNC). Read by the PAU crawl when ENVIO_API_TOKEN is
+// set, ahead of the chain's explorer or logsRpcs.
+//
 // routescan: true when Routescan's Etherscan-compatible API serves the chain
 // (avalanche); its URL derives from the chainId (CHAIN_ROUTESCAN).
 //
@@ -62,6 +66,7 @@ export const CHAINS = REGISTRY.chains.map((c) => ({
   ...(c.etherscan === false && { etherscan: false }),
   ...(c.blockscoutIntervalMs && { blockscoutIntervalMs: c.blockscoutIntervalMs }),
   ...(c.routescan && { routescan: true }),
+  ...(c.hypersync && { hypersync: true }),
   ...(c.logsRpcs && { logsRpcs: c.logsRpcs }),
   ...(c.rpcBatchLimit && { rpcBatchLimit: c.rpcBatchLimit }),
 }));
@@ -177,6 +182,11 @@ export const CHAIN_ROUTESCAN = Object.fromEntries(
     c.chain,
     `https://api.routescan.io/v2/network/mainnet/evm/${c.chainId}/etherscan/api`,
   ]),
+);
+
+/** HyperSync's base URL per chain flagged `hypersync: true`. */
+export const CHAIN_HYPERSYNC = Object.fromEntries(
+  CHAINS.filter((c) => c.hypersync && c.chainId != null).map((c) => [c.chain, `https://${c.chainId}.hypersync.xyz`]),
 );
 
 /** Each chain's logsRpcs, for a chain whose PAU history is read over JSON-RPC. */
