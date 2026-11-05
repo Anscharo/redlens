@@ -18,6 +18,11 @@ import { parseArgs } from "node:util";
 import { chromium, type BrowserContext } from "@playwright/test";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
+// The app's own theme registry and storage key, loaded at runtime. The path is
+// a variable so tsc does not follow it: theme.ts is a browser module, and the
+// scripts typecheck has no DOM lib.
+const THEME_MODULE = path.join(ROOT, "apps/web/src/lib/theme.ts");
+const { THEMES, THEME_KEY } = (await import(THEME_MODULE)) as { THEMES: { id: string }[]; THEME_KEY: string };
 const PUBLIC = path.join(ROOT, "public");
 const ORIGIN = "http://localhost:5173";
 const DEFAULT_ROUTES = ["/", "/?q=facilitator", "/atlas?id=86a93dab-2f12-4c3f-9285-bcc4520c851b", "/reports"];
@@ -34,12 +39,6 @@ const { values: opts } = parseArgs({
     wait: { type: "string", default: "5000" },
   },
 });
-
-/** Theme ids, read from the THEMES registry so a new theme is shot without edits here. */
-function themeIds(): string[] {
-  const src = fs.readFileSync(path.join(ROOT, "apps/web/src/lib/theme.ts"), "utf8");
-  return [...src.matchAll(/^\s+id: "([\w-]+)",$/gm)].map((m) => m[1]);
-}
 
 function run(cmd: string, args: string[]): void {
   const r = spawnSync(cmd, args, { cwd: ROOT, stdio: "inherit" });
@@ -77,7 +76,7 @@ async function routeApi(ctx: BrowserContext): Promise<void> {
   await ctx.route((url) => /^\/(api|z)\//.test(url.pathname), (route) => {
     const m = route.request().url().match(/\/api\/atlas\/[0-9a-f]{40}\/([^?#]+)/);
     const file = m && path.join(PUBLIC, m[1]);
-    if (file && file.startsWith(PUBLIC) && fs.existsSync(file)) return route.fulfill({ path: file });
+    if (file && file.startsWith(PUBLIC + path.sep) && fs.existsSync(file)) return route.fulfill({ path: file });
     return route.fulfill({ status: 404, body: "" });
   });
 }
@@ -88,25 +87,28 @@ function slug(route: string): string {
 
 async function shootTheme(theme: string, routes: string[], launch: () => ReturnType<typeof chromium.launch>) {
   const browser = await launch();
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: Number(opts.scale) });
-  await ctx.addInitScript((t) => {
-    try {
-      localStorage.setItem("redline-sky-atlas:theme", t); // THEME_KEY in apps/web/src/lib/theme.ts
-    } catch {}
-  }, theme);
-  await routeApi(ctx);
-  const page = await ctx.newPage();
-  page.on("pageerror", (e) => console.warn(`  [${theme}] page error: ${e.message}`));
-  for (const route of routes) {
-    // "load", not "networkidle": the app polls (health, the atlas updater) and
-    // Vite holds an HMR socket open, so the network never goes idle.
-    await page.goto(ORIGIN + route, { waitUntil: "load", timeout: 90_000 });
-    await page.waitForTimeout(Number(opts.wait));
-    const file = path.join(opts.out!, `${theme}-${slug(route)}.png`);
-    await page.screenshot({ path: file });
-    console.log(file);
+  try {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: Number(opts.scale) });
+    await ctx.addInitScript(([key, t]) => {
+      try {
+        localStorage.setItem(key, t);
+      } catch {}
+    }, [THEME_KEY, theme]);
+    await routeApi(ctx);
+    const page = await ctx.newPage();
+    page.on("pageerror", (e) => console.warn(`  [${theme}] page error: ${e.message}`));
+    for (const route of routes) {
+      // "load", not "networkidle": the app polls (health, the atlas updater) and
+      // Vite holds an HMR socket open, so the network never goes idle.
+      await page.goto(ORIGIN + route, { waitUntil: "load", timeout: 90_000 });
+      await page.waitForTimeout(Number(opts.wait));
+      const file = path.join(opts.out!, `${theme}-${slug(route)}.png`);
+      await page.screenshot({ path: file });
+      console.log(file);
+    }
+  } finally {
+    await browser.close();
   }
-  await browser.close();
 }
 
 async function main(): Promise<void> {
@@ -115,7 +117,7 @@ async function main(): Promise<void> {
   const vite = await ensureVite();
   const launch = () => chromium.launch(fs.existsSync(IMAGE_CHROMIUM) ? { executablePath: IMAGE_CHROMIUM } : {});
   try {
-    for (const theme of opts.theme ?? themeIds()) await shootTheme(theme, opts.route ?? DEFAULT_ROUTES, launch);
+    for (const theme of opts.theme ?? THEMES.map((t) => t.id)) await shootTheme(theme, opts.route ?? DEFAULT_ROUTES, launch);
   } finally {
     if (vite?.pid) process.kill(-vite.pid);
   }
