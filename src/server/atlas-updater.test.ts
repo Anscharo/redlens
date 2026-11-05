@@ -99,6 +99,7 @@ const {
   startBootEmbeddings,
   getUpdaterState,
 } = await import("./atlas-updater.ts");
+const { _resetDbAtlasShaLog } = await import("./db-atlas-sha.ts");
 
 const A = "a".repeat(40);
 const B = "b".repeat(40);
@@ -254,7 +255,11 @@ describe("spawnCollect", () => {
 });
 
 describe("getDbAtlasSha", () => {
-  beforeEach(() => resetFakeDb());
+  beforeEach(() => {
+    resetFakeDb();
+    // Its log state is process-wide; an earlier identical failure would mute the warn these assert.
+    _resetDbAtlasShaLog();
+  });
 
   it("returns the live atlas_sha row", async () => {
     fakeDb.syncStateAtlasSha = A;
@@ -279,7 +284,6 @@ describe("getDbAtlasSha", () => {
   });
 
   it("logs a lasting outage once, not on every tick, and logs the recovery", async () => {
-    await getDbAtlasSha(); // clears any error an earlier test left behind
     fakeDb.syncStateThrows = true;
     const warns: string[] = [];
     const logs: string[] = [];

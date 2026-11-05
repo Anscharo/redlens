@@ -7,6 +7,11 @@ import { sql } from "./db.ts";
 // error stays quiet: it logs when it starts, changes, and clears.
 let lastError: string | null = null;
 
+/** Tests: forget the last error, so the next failure logs whatever ran before. */
+export function _resetDbAtlasShaLog(): void {
+  lastError = null;
+}
+
 export async function getDbAtlasSha(): Promise<string | null> {
   try {
     const rows = await sql`SELECT atlas_sha FROM sync_state WHERE id = 1`;

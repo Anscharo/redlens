@@ -110,24 +110,55 @@ test("a pass takes the lock, runs the backfill, unlocks and releases", async () 
   expect(r.released()).toBe(1);
 });
 
-test("a pass skips the backfill when another replica holds the lock", async () => {
+test("a pass skips the backfill when another replica holds the lock, and unlocks nothing", async () => {
   const r = fakeReserved(false);
   let ran = 0;
   const err = await runBackfillPass(deps({ reserve: async () => r.conn, backfill: async () => (ran++, EMPTY) }));
   expect(err).toBeNull();
   expect(ran).toBe(0);
+  expect(r.seen.some((q) => q.includes("pg_advisory_unlock"))).toBe(false);
   expect(r.released()).toBe(1);
 });
 
-test("a backfill that throws is logged and still releases the connection", async () => {
+test("a backfill that throws reports why by error name, unlocks and releases", async () => {
   const r = fakeReserved();
-  const origWarn = console.warn;
-  console.warn = () => {};
-  try {
-    const err = await runBackfillPass(deps({ reserve: async () => r.conn, backfill: async () => Promise.reject(new Error("boom")) }));
-    expect(err).toBeNull();
-  } finally {
-    console.warn = origWarn;
-  }
+  const err = await runBackfillPass(deps({ reserve: async () => r.conn, backfill: async () => Promise.reject(new TypeError("https://x/?token=secret")) }));
+  expect(err).toBe("failed (TypeError)");
+  expect(r.seen.at(-1)).toContain("pg_advisory_unlock");
   expect(r.released()).toBe(1);
+});
+
+test("a release that throws does not reject the pass", async () => {
+  const r = fakeReserved();
+  const conn = Object.assign(r.conn, { release: () => { throw new Error("socket closed"); } });
+  expect(await runBackfillPass(deps({ reserve: async () => conn }))).toBeNull();
+});
+
+test("a failed backfill (a DB reachable but not migrated yet) is retried, then runs", async () => {
+  await withToken(async () => {
+    const pending: Array<() => void> = [];
+    let calls = 0;
+    const d = deps({
+      backfill: async () => {
+        calls++;
+        if (calls === 1) throw new Error('relation "previews" does not exist');
+        return EMPTY;
+      },
+      schedule: (fn) => void pending.push(fn),
+    });
+    const warns: string[] = [];
+    const origWarn = console.warn;
+    console.warn = (m: string) => void warns.push(m);
+    try {
+      await startPreviewDiffBaseBackfill(d);
+      expect(pending).toHaveLength(1);
+      pending.shift()?.();
+      await Bun.sleep(0);
+    } finally {
+      console.warn = origWarn;
+    }
+    expect(calls).toBe(2);
+    expect(pending).toHaveLength(0);
+    expect(warns).toEqual(["[preview] diff-base backfill: failed (Error); retrying every 0m"]);
+  });
 });
