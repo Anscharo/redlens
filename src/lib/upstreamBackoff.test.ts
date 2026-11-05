@@ -124,6 +124,16 @@ describe("politeFetch", () => {
     expect(coolingDown("https://8453.relative.example/")).toBe(false);
   });
 
+  it("reads an X-RateLimit-Reset in epoch milliseconds as that moment, not a day away", async () => {
+    const reset = String(Date.now() + 60_000);
+    vi.stubGlobal("fetch", vi.fn(async () => json({}, 429, { "x-ratelimit-remaining": "0", "x-ratelimit-reset": reset })));
+    await politeFetch("https://ms.example/q");
+    await vi.advanceTimersByTimeAsync(179_000);
+    expect(coolingDown("https://ms.example/")).toBe(true);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(coolingDown("https://ms.example/")).toBe(false);
+  });
+
   it("shares one cooldown across hosts under a cooldownKey, and forgives it on an answer", async () => {
     const fetch = vi.fn().mockResolvedValueOnce(new Response("", { status: 429 })).mockResolvedValue(json({ ok: 1 }));
     vi.stubGlobal("fetch", fetch);

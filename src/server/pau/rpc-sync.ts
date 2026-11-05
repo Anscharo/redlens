@@ -8,9 +8,13 @@
 // A window stops short of the next contract's position, so a contract that
 // starts later catches up and then shares requests.
 //
-// A cold cursor first finds its contract's deploy block. pau_cursor rows are
-// written only when a contract's crawl reaches the confirmed head, so
-// historyComplete stays false through the backfill. When the registry's events
+// A cold cursor first finds its contract's deploy block. The crawl moves a
+// contract's pau_cursor rows forward only when it reaches the confirmed head,
+// so a contract no explorer has read keeps historyComplete false through the
+// backfill (a chain the explorer read stays on it until the crawl catches up,
+// handover.ts). A failure other than a rate limit also lands on the contract's
+// pau_cursor rows, so historyComplete never reads true over a crawl that stopped
+// reading; the next pass to the head clears it. When the registry's events
 // for a contract change, its crawl restarts at the deploy block, because the new
 // event has no history read yet. Sources rotate per window; one that fails is
 // left out for the rest of the run, and its error is stored on the cursors.
@@ -18,7 +22,7 @@
 // after its time limit); the cursors advance only as far as the answer reached.
 import type { PauRegistry } from "../../lib/pauRegistry.ts";
 import type { SqlTag } from "../sql-types.ts";
-import { loadCursors, markRead, saveCursor, topicKey, topicsByContract, type RpcCursor } from "./rpc-cursor.ts";
+import { loadCursors, markFailed, markRead, saveCursor, topicKey, topicsByContract, type RpcCursor } from "./rpc-cursor.ts";
 import { CONFIRMATIONS, ensureCursors, eventTargets, storeLog, type EventTarget, type PauLog } from "./sync-events.ts";
 
 /** A log as a source returns it: the stored fields and the contract that emitted it. */
@@ -69,7 +73,11 @@ export function rpcChains(reg: PauRegistry, sources: RpcSyncDeps["sources"]): Se
   return new Set(eventTargets(reg).map((t) => t.chain).filter((c) => sources(c).length > 0));
 }
 
-const save = (c: Crawl, r: RpcCursor, error: string | null = null) => saveCursor(c.db, c.chain, r, new Date(clock(c.deps)), error);
+/** Stores the cursor; an error also goes on the contract's pau_cursor rows (markFailed). */
+async function save(c: Crawl, r: RpcCursor, error: string | null = null): Promise<void> {
+  await saveCursor(c.db, c.chain, r, new Date(clock(c.deps)), error);
+  if (error) await markFailed(c.db, c.chain, r.contract, error);
+}
 
 /** Restarts a cursor whose events changed, and finds the deploy block of a cold one. */
 async function prepare(c: Crawl, src: LogSource): Promise<void> {
@@ -105,9 +113,7 @@ async function readWindow(c: Crawl, src: LogSource, w: NonNullable<ReturnType<ty
   const { logs, to } = await src.logs([...mine], [...topics], w.from, w.to);
   if (!(to >= w.from && to <= w.to)) throw new Error(`${src.url}: answered to block ${to} for window ${w.from}-${w.to}`);
   let stored = 0;
-  for (const l of logs) {
-    if (l.blockNumber <= to && mine.has(l.address) && c.topicsOf.get(l.address)!.has(l.topics[0]) && (await storeLog(c.db, c.chain, l.address, l))) stored++;
-  }
+  for (const l of logs) if (l.blockNumber <= to && mine.has(l.address) && c.topicsOf.get(l.address)!.has(l.topics[0]) && (await storeLog(c.db, c.chain, l.address, l))) stored++;
   for (const r of w.group) {
     r.next = to + 1;
     await save(c, r);
@@ -148,6 +154,8 @@ async function syncChain(db: SqlTag, chain: string, targets: EventTarget[], deps
     await crawl(c, sources, res);
   } catch (e) {
     res.error = message(e);
+    // A database that is failing too leaves the cursors as they are rather than failing the run.
+    for (const r of c.rows) await save(c, r, res.error).catch(() => {});
   }
   res.behind = Math.max(0, c.tip + 1 - Math.min(c.tip + 1, ...c.rows.map((r) => r.next)));
   return res;

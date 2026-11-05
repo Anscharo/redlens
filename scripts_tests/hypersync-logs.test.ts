@@ -86,6 +86,26 @@ describe("hypersyncSource", () => {
     expect(seen[0]).toMatchObject({ url: "https://8453.hypersync.xyz/height", init: { method: "GET" } });
     expect(await base().deployBlock("0xa", 1)).toBe(0);
   });
+  it.each([[{}], [{ height: "soon" }], [{ height: 0 }]])("throws on a /height answer without a positive height (%j)", async (answer) => {
+    stub(() => json(answer));
+    await expect(base().head()).rejects.toThrow("hypersync: no height in");
+  });
+  it("waits out the account's cooldown before starting the request's timeout", async () => {
+    vi.useFakeTimers();
+    stub(() => json({}, 429, { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1" }));
+    await base().head().catch(() => {});
+    const cooledAt = Date.now() + 30_000;
+    const created: number[] = [];
+    const timeout = AbortSignal.timeout.bind(AbortSignal);
+    vi.spyOn(AbortSignal, "timeout").mockImplementation((ms) => (created.push(Date.now()), timeout(ms)));
+    stub(() => json({ height: 7 }));
+    const head = base().head();
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(await head).toBe(7);
+    expect(created[0]).toBeGreaterThanOrEqual(cooledAt);
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
   it("spaces request starts by the account's gap", async () => {
     stub(() => json({ height: 1 }));
     const src = hypersyncSource("base", "tok", { ...FAST, gapMs: 40 })!;

@@ -11,7 +11,7 @@
  * every chain.
  */
 import { CHAIN_HYPERSYNC } from "./chains.mjs";
-import { politeFetch } from "../../src/lib/upstreamBackoff.ts";
+import { holdOff, politeFetch } from "../../src/lib/upstreamBackoff.ts";
 import { refused } from "../../src/lib/upstreamRefusal.ts";
 import type { LogSource, SourceLog } from "../../src/server/pau/rpc-sync.ts";
 
@@ -42,9 +42,14 @@ async function pace(gapMs: number): Promise<void> {
   if (at > now) await new Promise((r) => setTimeout(r, at - now));
 }
 
-/** One HTTP attempt on the account's clock and cooldown: GET without a body, POST with one. */
+/**
+ * One HTTP attempt on the account's clock and cooldown: GET without a body,
+ * POST with one. The cooldown is waited out before the request's timeout is
+ * built, so a wait does not use up the request's own time.
+ */
 async function send(url: string, token: string, body: unknown, t: HypersyncTiming): Promise<Response> {
   await pace(t.gapMs);
+  await holdOff(ACCOUNT);
   const init = {
     method: body ? "POST" : "GET",
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
@@ -86,6 +91,14 @@ function toLog(l: Row, times: Map<number, number>): SourceLog {
   };
 }
 
+/** The chain's indexed height; an answer without a positive one throws, so the crawl never runs against a NaN tip. */
+async function readHeight(base: string, token: string, t: HypersyncTiming): Promise<number> {
+  const j = await call(`${base}/height`, token, null, t);
+  const height = Number(j.height);
+  if (!Number.isFinite(height) || height <= 0) throw new Error(`hypersync: no height in ${JSON.stringify(j).slice(0, 120)}`);
+  return height;
+}
+
 /** Logs in [from, to] as far as one query reaches, and the last block it covered. */
 async function readLogs(base: string, token: string, t: HypersyncTiming, q: { addresses: string[]; topic0s: string[]; from: number; to: number }) {
   const body = { from_block: q.from, to_block: q.to + 1, logs: [{ address: q.addresses, topics: [q.topic0s] }], field_selection: FIELDS };
@@ -113,7 +126,7 @@ export function hypersyncSource(chain: string, token: string, timing: Partial<Hy
   return {
     url: base,
     blocks: Number.MAX_SAFE_INTEGER,
-    head: async () => Number((await call(`${base}/height`, token, null, t)).height),
+    head: () => readHeight(base, token, t),
     deployBlock: async () => 0,
     logs: (addresses, topic0s, from, to) => readLogs(base, token, t, { addresses, topic0s, from, to }),
   };

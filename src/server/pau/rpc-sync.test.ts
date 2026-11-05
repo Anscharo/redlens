@@ -3,8 +3,9 @@
 // only up to the next contract's position and then shares windows; pau_cursor
 // reads complete only once the crawl reaches the confirmed head; a change in a
 // contract's events restarts it at its deploy block; a failing source is left
-// out and its error stored; the deadline stops the crawl between windows; a
-// source that answers for part of a window moves the cursors only that far.
+// out and its error stored, on pau_cursor too unless it is a rate limit; the
+// deadline stops the crawl between windows; a source that answers for part of
+// a window moves the cursors only that far.
 import { beforeEach, describe, expect, it } from "bun:test";
 import type { PauRegistry } from "../../lib/pauRegistry.ts";
 import { CONFIRMATIONS, type PauLog } from "./sync-events.ts";
@@ -28,6 +29,7 @@ const db = async (strings: TemplateStringsArray, ...v: unknown[]): Promise<unkno
   const t = strings.join("?");
   if (t.includes("INSERT INTO pau_cursor")) return void (cursors.some((c) => c.contract === v[1] && c.topic0 === v[2]) || cursors.push({ chain: v[0], contract: v[1], topic0: v[2], next_block: 0, last_error: "stale" }));
   if (t.includes("SET last_error = NULL WHERE")) return void cursors.forEach((c) => c.next_block === 0 && (c.last_error = null));
+  if (t.includes("UPDATE pau_cursor SET last_error = ? WHERE")) return void cursors.filter((c) => c.contract === v[2]).forEach((c) => (c.last_error = v[0]));
   if (t.includes("UPDATE pau_cursor")) return void cursors.filter((c) => c.contract === v[3]).forEach((c) => Object.assign(c, { next_block: v[0], last_error: null }));
   if (t.includes("INSERT INTO pau_rpc_cursor")) return void (rpc.some((r) => r.contract === v[1]) || rpc.push({ contract: v[1], topics: v[2], deploy_block: null, next_block: 0, last_error: null }));
   if (t.includes("FROM pau_rpc_cursor")) return rpc.map((r) => ({ ...r }));
@@ -91,10 +93,13 @@ describe("syncPauRpc", () => {
     expect(res.base.error).toBe("rpc eth_blockNumber: HTTP 503");
     expect(windows).toEqual([]);
     expect(rpc.every((r) => r.next_block === 0)).toBe(true);
+    // historyComplete reads pau_cursor, so a crawl that stopped reading never reads as complete.
+    expect(cursors.every((c) => c.last_error === "rpc eth_blockNumber: HTTP 503")).toBe(true);
   });
   it("stores an error and never crawls a contract with no code", async () => {
     const res = await syncPauRpc(db, reg, deps({}, { deployBlock: async (addr) => (addr === A ? null : 300) }));
     expect(rpc.find((r) => r.contract === A)!.last_error).toBe(`no code at block ${TIP}`);
+    expect(cursors.filter((c) => c.contract === A).every((c) => c.last_error === `no code at block ${TIP}`)).toBe(true);
     expect(windows.every((w) => !w.addrs.includes(A))).toBe(true);
     expect(res.base.events).toBe(0);
   });
@@ -115,5 +120,12 @@ describe("syncPauRpc", () => {
     const res = await syncPauRpc(db, reg, deps({}, { logs: async (_a, _t, from) => ({ logs: [], to: from - 1 }) }));
     expect(res.base.error).toBe("u1: answered to block 99 for window 100-299");
     expect(rpc.find((r) => r.contract === A)!.next_block).toBe(100);
+  });
+  it("leaves pau_cursor unmarked on a rate limit, which only delays the crawl", async () => {
+    cursors.push({ chain: "base", contract: A, topic0: DATA_SET, next_block: 500, last_error: null });
+    const res = await syncPauRpc(db, reg, deps({}, { head: async () => Promise.reject(new Error("hypersync.xyz is cooling down after a rate limit until later")) }));
+    expect(res.base.error).toMatch(/cooling down/);
+    expect(rpc.every((r) => r.last_error === res.base.error)).toBe(true);
+    expect(cursors.find((c) => c.contract === A && c.topic0 === DATA_SET)!.last_error).toBeNull();
   });
 });

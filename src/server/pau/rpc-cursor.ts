@@ -1,5 +1,7 @@
 // Storage for the RPC reader (rpc-sync.ts): one pau_rpc_cursor row per contract,
-// and the write that marks the contract's pau_cursor rows read to the head.
+// and the writes that mark the contract's pau_cursor rows read to the head or
+// failed.
+import { isRateLimited } from "../../lib/upstreamBackoff.ts";
 import type { SqlTag } from "../sql-types.ts";
 import type { EventTarget } from "./sync-events.ts";
 
@@ -44,4 +46,14 @@ export async function saveCursor(db: SqlTag, chain: string, r: RpcCursor, at: Da
  */
 export async function markRead(db: SqlTag, chain: string, contract: string, next: number, at: Date): Promise<void> {
   await db`UPDATE pau_cursor SET next_block = GREATEST(next_block, ${next}), checked_at = ${at}, last_error = NULL WHERE chain = ${chain} AND contract = ${contract}`;
+}
+
+/**
+ * Records a crawl failure on every pau_cursor row of `contract`, so
+ * historyComplete reads false until markRead clears it. A rate limit only
+ * delays the crawl, so it is not recorded, as on the explorer path.
+ */
+export async function markFailed(db: SqlTag, chain: string, contract: string, error: string): Promise<void> {
+  if (isRateLimited(error)) return;
+  await db`UPDATE pau_cursor SET last_error = ${error} WHERE chain = ${chain} AND contract = ${contract}`;
 }
