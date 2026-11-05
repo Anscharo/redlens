@@ -107,9 +107,10 @@ export default {
     const { rpcChainReader, rpcHead } = await import("../../../src/server/pau/rpc-reader.ts");
     const { explorerLogs } = await import("../explorer-logs.ts");
     const { logSourcesFor } = await import("../log-sources.ts");
-    const { rpcChains } = await import("../../../src/server/pau/rpc-sync.ts");
-    // Chains read from HyperSync or JSON-RPC belong to the sync:pau-rpc tail; this step leaves their cursors alone.
-    const skipChains = rpcChains(reg, (chain) => logSourcesFor(chain));
+    const { logsRpcsFor } = await import("../rpc-logs.ts");
+    const { crawlOwnedChains } = await import("../../../src/server/pau/handover.ts");
+    // Chains the sync:pau-rpc tail owns (handover.ts); this step leaves their cursors alone.
+    const skipChains = await crawlOwnedChains(db, reg, (chain) => logSourcesFor(chain), (chain) => logsRpcsFor(chain).length > 0);
     const ev = await syncPauEvents(db, reg, { logs: explorerLogs, head: rpcHead, budgetMs: config.pauEventBudgetSeconds * 1000, skipChains });
     const lazy = await rebuildInputs(db, warn, reg);
     const st = await maybeRefreshPauState(db, reg, rpcChainReader(), { refreshSeconds: config.pauRefreshSeconds, ...lazy });

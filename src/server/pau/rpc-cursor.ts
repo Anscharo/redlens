@@ -37,7 +37,11 @@ export async function saveCursor(db: SqlTag, chain: string, r: RpcCursor, at: Da
   await db`UPDATE pau_rpc_cursor SET topics = ${r.topics}, deploy_block = ${r.deploy}, next_block = ${r.next}, checked_at = ${at}, last_error = ${error} WHERE chain = ${chain} AND contract = ${r.contract}`;
 }
 
-/** Marks every pau_cursor row of `contract` read up to `next`, which historyComplete reads. */
+/**
+ * Marks every pau_cursor row of `contract` read up to `next`, which
+ * historyComplete reads. A row the explorer path has read further keeps its
+ * position (handover.ts: both paths write a chain until the crawl catches up).
+ */
 export async function markRead(db: SqlTag, chain: string, contract: string, next: number, at: Date): Promise<void> {
-  await db`UPDATE pau_cursor SET next_block = ${next}, checked_at = ${at}, last_error = NULL WHERE chain = ${chain} AND contract = ${contract}`;
+  await db`UPDATE pau_cursor SET next_block = GREATEST(next_block, ${next}), checked_at = ${at}, last_error = NULL WHERE chain = ${chain} AND contract = ${contract}`;
 }

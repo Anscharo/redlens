@@ -2,9 +2,10 @@
 // one query names every address and ORs the topic0s, with an exclusive
 // to_block one past the window; each log takes its block's timestamp from the
 // same answer; the answer covers up to next_block - 1, never past the window;
-// an answer that makes no progress or lacks a timestamp throws; a 429 holds
-// every chain's host, for three times the seconds HyperSync says its window
-// resets in; an unflagged chain has no source.
+// an answer that makes no progress or lacks a usable timestamp throws; a busy
+// 503 is asked again before the source fails; a 429 holds every chain's host,
+// for three times the seconds HyperSync says its window resets in; an
+// unflagged chain has no source.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { hypersyncSource } from "../scripts/lib/hypersync-logs.ts";
 import { resetBackoff } from "../src/lib/upstreamBackoff.ts";
@@ -25,7 +26,8 @@ const json = (body: unknown, status = 200, headers: Record<string, string> = {})
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
 const hsLog = (block: number, index: number) => ({ block_number: block, log_index: index, transaction_hash: `0x${block}`, address: "0xAA", topic0: "0xt1", topic1: "0xk", topic2: null, topic3: null, data: "0x" });
 
-const base = () => hypersyncSource("base", "tok", 0)!;
+const FAST = { gapMs: 0, busyWaitsMs: [0, 0] };
+const base = () => hypersyncSource("base", "tok", FAST)!;
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -53,15 +55,29 @@ describe("hypersyncSource", () => {
     stub(() => json({ next_block: 100, data: [] }));
     await expect(base().logs(["0xa"], ["0xt1"], 100, 999)).rejects.toThrow("hypersync: no progress from block 100 (next_block 100)");
   });
-  it("throws rather than store a log whose block came without a timestamp", async () => {
-    stub(() => json({ next_block: 200, data: [{ blocks: [], logs: [hsLog(120, 0)] }] }));
+  it.each([
+    ["absent", []],
+    ["null", [{ number: 120, timestamp: null }]],
+    ["missing", [{ number: 120 }]],
+    ["zero", [{ number: 120, timestamp: "0x0" }]],
+  ])("throws rather than store a log whose block timestamp is %s", async (_case, blocks) => {
+    stub(() => json({ next_block: 200, data: [{ blocks, logs: [hsLog(120, 0)] }] }));
     await expect(base().logs(["0xa"], ["0xt1"], 100, 999)).rejects.toThrow("hypersync: no timestamp for block 120");
+  });
+  it("asks a busy (503) query again, and fails only when it stays busy", async () => {
+    let busy = 2;
+    stub(() => (busy-- > 0 ? json({}, 503) : json({ next_block: 151, data: [] })));
+    expect((await base().logs(["0xa"], ["0xt1"], 100, 999)).to).toBe(150);
+    expect(seen).toHaveLength(3);
+    stub(() => json({}, 503));
+    await expect(base().logs(["0xa"], ["0xt1"], 100, 999)).rejects.toThrow("hypersync: HTTP 503");
+    expect(seen).toHaveLength(3);
   });
   it("on a 429 throws a rate limit and holds every chain's host for three times the reset", async () => {
     stub(() => json({}, 429, { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "60" }));
     const err = await base().logs(["0xa"], ["0xt1"], 100, 999).catch((e: Error) => e);
     expect(isRateLimited(err)).toBe(true);
-    await expect(hypersyncSource("ethereum", "tok", 0)!.head()).rejects.toThrow(/hypersync\.xyz is cooling down after a rate limit/);
+    await expect(hypersyncSource("ethereum", "tok", FAST)!.head()).rejects.toThrow(/hypersync\.xyz is cooling down after a rate limit/);
     expect(seen).toHaveLength(1);
   });
   it("reads the head from /height and starts every contract at block 0", async () => {
@@ -72,7 +88,7 @@ describe("hypersyncSource", () => {
   });
   it("spaces request starts by the account's gap", async () => {
     stub(() => json({ height: 1 }));
-    const src = hypersyncSource("base", "tok", 40)!;
+    const src = hypersyncSource("base", "tok", { ...FAST, gapMs: 40 })!;
     const t0 = Date.now();
     await Promise.all([src.head(), src.head()]);
     expect(Date.now() - t0).toBeGreaterThanOrEqual(35);
