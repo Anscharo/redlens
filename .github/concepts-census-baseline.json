@@ -122,19 +122,19 @@
       },
       {
         "uuid": "055fe10c-2d08-49a1-90c5-e124e2e0b4f9",
-        "doc_no": "A.6.1.1.1.2.5.1.2.1.3.4.0.6.1",
+        "doc_no": "A.6.1.1.1.2.5.1.2.1.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "839e995c-cc05-40a7-ba31-a72bce152328",
-        "doc_no": "A.6.1.1.1.2.5.2.2.1.3.4.0.6.1",
+        "doc_no": "A.6.1.1.1.2.5.2.2.1.3.1.0.6.1",
         "title": "List Of Integration Boost Payments",
         "bucket": "empty"
       },
       {
         "uuid": "bbd8de10-0899-4c16-ae48-a3d0afed9c6f",
-        "doc_no": "A.6.1.1.2.2.5.1.2.1.3.4.0.6.1",
+        "doc_no": "A.6.1.1.2.2.5.1.2.1.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
@@ -146,103 +146,103 @@
       },
       {
         "uuid": "1d0e0165-719b-4899-af1c-8a0366a058af",
-        "doc_no": "A.6.1.1.3.2.5.1.3.1.3.4.0.6.1",
+        "doc_no": "A.6.1.1.3.2.5.1.3.1.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "f7274663-4447-4ed3-9fb5-30c72e23802b",
-        "doc_no": "A.6.1.1.3.2.5.1.3.2.3.4.0.6.1",
+        "doc_no": "A.6.1.1.3.2.5.1.3.2.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "0abca082-24c3-425d-a02f-631766a438d1",
-        "doc_no": "A.6.1.1.3.2.5.2.2.1.3.4.0.6.1",
+        "doc_no": "A.6.1.1.3.2.5.2.2.1.3.1.0.6.1",
         "title": "List Of Integration Boost Payments",
         "bucket": "empty"
       },
       {
         "uuid": "1016d28e-fab4-4893-8e8f-846bed7e207d",
-        "doc_no": "A.6.1.1.3.2.5.2.2.2.3.4.0.6.1",
+        "doc_no": "A.6.1.1.3.2.5.2.2.2.3.1.0.6.1",
         "title": "List Of Integration Boost Payments",
         "bucket": "empty"
       },
       {
         "uuid": "52237195-bbb7-4b4e-a13a-536f639bd0d0",
-        "doc_no": "A.6.1.1.3.2.5.2.2.3.3.4.0.6.1",
+        "doc_no": "A.6.1.1.3.2.5.2.2.3.3.1.0.6.1",
         "title": "List Of Integration Boost Payments",
         "bucket": "empty"
       },
       {
         "uuid": "4c94d227-1244-4926-be0b-d6cf87cd91b3",
-        "doc_no": "A.6.1.1.3.2.5.2.2.4.3.4.0.6.1",
+        "doc_no": "A.6.1.1.3.2.5.2.2.4.3.1.0.6.1",
         "title": "List Of Integration Boost Payments",
         "bucket": "empty"
       },
       {
         "uuid": "bc103251-76b5-4969-b17f-520474e01a14",
-        "doc_no": "A.6.1.1.3.2.5.2.3.1.3.4.0.6.1",
+        "doc_no": "A.6.1.1.3.2.5.2.3.1.3.1.0.6.1",
         "title": "List Of Integration Boost Payments",
         "bucket": "empty"
       },
       {
         "uuid": "09282f1f-f4fa-40b6-9073-6adc42f31569",
-        "doc_no": "A.6.1.1.4.2.5.1.2.1.3.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.1.2.1.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "ad573b24-befc-49f9-be30-6c65f8986c61",
-        "doc_no": "A.6.1.1.4.2.5.1.2.2.3.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.1.2.2.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "731c96eb-57a2-434c-852c-2c7f461efb46",
-        "doc_no": "A.6.1.1.4.2.5.1.2.3.3.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.1.2.3.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "655886dc-7ca2-45cd-be2c-7be8421961c7",
-        "doc_no": "A.6.1.1.4.2.5.1.2.4.3.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.1.2.4.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "4588c98b-1c51-4f8c-8cc5-baab631950ef",
-        "doc_no": "A.6.1.1.4.2.5.1.2.5.3.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.1.2.5.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "707956cc-62f8-4620-a95f-b45ebf263218",
-        "doc_no": "A.6.1.1.4.2.5.1.2.6.3.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.1.2.6.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "8520b41b-cf03-493b-a6ce-9314983f38b3",
-        "doc_no": "A.6.1.1.4.2.5.1.2.7.3.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.1.2.7.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "928ecae3-ee6f-4961-bae0-90dbf42b3b4d",
-        "doc_no": "A.6.1.1.4.2.5.1.2.8.3.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.1.2.8.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "4e79d3fa-29fc-41c6-b500-f379b5267416",
-        "doc_no": "A.6.1.1.4.2.5.1.2.9.3.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.1.2.9.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "a3db4319-a749-4dee-a2a8-411cc9b83b05",
-        "doc_no": "A.6.1.1.4.2.5.1.2.10.3.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.1.2.10.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
@@ -254,49 +254,49 @@
       },
       {
         "uuid": "20376e25-f067-400e-be73-dc2552766c47",
-        "doc_no": "A.6.1.1.4.2.5.1.4.1.4.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.1.4.1.4.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "a75fa6c5-8d93-43fe-acad-dfb07e226668",
-        "doc_no": "A.6.1.1.4.2.5.1.4.2.4.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.1.4.2.4.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "3dd71633-a629-47af-b806-f7930f1332da",
-        "doc_no": "A.6.1.1.4.2.5.1.4.3.4.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.1.4.3.4.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "e05bf544-6a9c-42f5-9135-01a41887a75f",
-        "doc_no": "A.6.1.1.4.2.5.1.4.4.4.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.1.4.4.4.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "358530ef-9012-4e7f-8dc4-192930c180d0",
-        "doc_no": "A.6.1.1.4.2.5.2.2.1.3.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.2.2.1.3.1.0.6.1",
         "title": "List Of Integration Boost Payments",
         "bucket": "empty"
       },
       {
         "uuid": "af376688-bb97-4fe1-bda9-58a59f735a69",
-        "doc_no": "A.6.1.1.4.2.5.2.2.2.3.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.2.2.2.3.1.0.6.1",
         "title": "List Of Integration Boost Payments",
         "bucket": "empty"
       },
       {
         "uuid": "71d49eb8-0224-4fe7-831e-e49467e2f90d",
-        "doc_no": "A.6.1.1.4.2.5.2.2.3.3.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.2.2.3.3.1.0.6.1",
         "title": "List Of Integration Boost Payments",
         "bucket": "empty"
       },
       {
         "uuid": "afe3fba8-14b9-47b7-bd71-20be58c47f29",
-        "doc_no": "A.6.1.1.4.2.5.2.4.1.4.4.0.6.1",
+        "doc_no": "A.6.1.1.4.2.5.2.4.1.4.1.0.6.1",
         "title": "List Of Integration Boost Payments",
         "bucket": "empty"
       },
@@ -308,49 +308,49 @@
       },
       {
         "uuid": "9bce120f-87d5-468c-8e16-eab9ded9285b",
-        "doc_no": "A.6.1.1.7.2.5.1.2.1.3.4.0.6.1",
+        "doc_no": "A.6.1.1.7.2.5.1.2.1.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "8d4260fa-b6ae-4326-b6cc-b4276a3b7fe1",
-        "doc_no": "A.6.1.1.7.2.5.1.2.2.3.4.0.6.1",
+        "doc_no": "A.6.1.1.7.2.5.1.2.2.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "6762a58b-3199-46a0-8b38-01cce4b7cc5d",
-        "doc_no": "A.6.1.1.7.2.5.1.2.3.3.4.0.6.1",
+        "doc_no": "A.6.1.1.7.2.5.1.2.3.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "5b0eb309-d1b2-44be-9e93-21ebe6da6193",
-        "doc_no": "A.6.1.1.7.2.5.1.2.4.3.4.0.6.1",
+        "doc_no": "A.6.1.1.7.2.5.1.2.4.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "f4dcae1d-7d08-4aa5-8df5-5f9e4c7f1e16",
-        "doc_no": "A.6.1.1.7.2.5.1.2.5.3.4.0.6.1",
+        "doc_no": "A.6.1.1.7.2.5.1.2.5.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "b48df2a3-8041-4cdf-9325-8900dfeee61b",
-        "doc_no": "A.6.1.1.7.2.5.1.2.6.3.4.0.6.1",
+        "doc_no": "A.6.1.1.7.2.5.1.2.6.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "38d25c16-8377-47ff-aea3-8054d4396afa",
-        "doc_no": "A.6.1.1.7.2.5.1.2.7.3.4.0.6.1",
+        "doc_no": "A.6.1.1.7.2.5.1.2.7.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "cc1299ab-b9fb-41a0-8a95-4a6a174fac5a",
-        "doc_no": "A.6.1.1.7.2.5.1.2.8.3.4.0.6.1",
+        "doc_no": "A.6.1.1.7.2.5.1.2.8.3.1.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
@@ -365,8 +365,8 @@
   "empty-scaffolding": {
     "counts": {
       "total": 1088,
-      "empty": 928,
-      "populated": 160
+      "empty": 926,
+      "populated": 162
     },
     "members": [
       {
@@ -5899,7 +5899,7 @@
         "uuid": "4c12626b-272a-4886-b7af-c6968b021fc2",
         "doc_no": "A.6.1.1.7.2.6.1.1.3",
         "title": "Completed Instances Directory",
-        "bucket": "empty"
+        "bucket": "populated"
       },
       {
         "uuid": "759c5f6a-7c13-466f-9130-0801575b0145",
@@ -5929,7 +5929,7 @@
         "uuid": "1292a07b-637f-4b35-adc1-1a9bdeee9566",
         "doc_no": "A.6.1.1.7.2.6.1.4",
         "title": "Completed Instances",
-        "bucket": "empty"
+        "bucket": "populated"
       },
       {
         "uuid": "475822f8-5a16-48e3-8228-85785657b2ac",
@@ -8024,16 +8024,16 @@
   },
   "title-templates": {
     "counts": {
-      "total": 1141,
+      "total": 862,
       "Primitive Hub Document": 136,
       "Global Activation Status": 140,
       "Hub Data Repository": 136,
       "Single Instance Configuration Document": 48,
       "Parameters": 242,
       "Rate Limits": 152,
-      "Initial Planning": 93,
-      "Operational GovOps Review": 93,
-      "Artifact Edit Proposal": 93,
+      "Initial Planning": 0,
+      "Operational GovOps Review": 0,
+      "Artifact Edit Proposal": 0,
       "Omni Documents": 8
     },
     "members": [
@@ -8146,24 +8146,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "d48938da-ffb4-4470-b6ea-c22d25f3cced",
-        "doc_no": "A.6.1.1.1.2.1.1.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "e52ba148-0e92-4155-9df7-b35797ee4078",
-        "doc_no": "A.6.1.1.1.2.1.1.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "84c5a139-3778-4542-8631-c13283a2cc1c",
-        "doc_no": "A.6.1.1.1.2.1.1.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "6dd6571c-f210-4e9e-850a-206275d2074e",
         "doc_no": "A.6.1.1.1.2.1.2.1",
         "title": "Primitive Hub Document",
@@ -8192,24 +8174,6 @@
         "doc_no": "A.6.1.1.1.2.1.2.3.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "b8c4fa46-ae4e-4caf-b5eb-09a3b0a45b80",
-        "doc_no": "A.6.1.1.1.2.1.2.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "dd32b7e4-8905-4ce8-b5a1-4478ef4f9028",
-        "doc_no": "A.6.1.1.1.2.1.2.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "7d7d5045-d2f5-4668-ad1f-d943f941238a",
-        "doc_no": "A.6.1.1.1.2.1.2.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "4130ff50-bc52-4c82-b461-df14bc9aece2",
@@ -8260,24 +8224,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "5313f73b-6327-4bdd-8187-eba5f99620f9",
-        "doc_no": "A.6.1.1.1.2.1.4.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "75619f28-0a62-49cb-9afa-9e9e34f37ef5",
-        "doc_no": "A.6.1.1.1.2.1.4.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "ed197cc5-6ec7-4905-8b23-502940e1dd27",
-        "doc_no": "A.6.1.1.1.2.1.4.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "7a6b27e0-4239-4481-9035-b16bf89e6a1d",
         "doc_no": "A.6.1.1.1.2.2.1.1",
         "title": "Primitive Hub Document",
@@ -8300,24 +8246,6 @@
         "doc_no": "A.6.1.1.1.2.2.1.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "1f60a729-4f0e-4310-8742-2f26395cd7de",
-        "doc_no": "A.6.1.1.1.2.2.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "ff21545c-e0d4-4057-8098-146a8c386f52",
-        "doc_no": "A.6.1.1.1.2.2.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "7ae391f1-e544-4ff5-b6d9-23fa95c75489",
-        "doc_no": "A.6.1.1.1.2.2.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "c47922e8-4dca-49d9-ad95-79ca8ec04731",
@@ -8348,24 +8276,6 @@
         "doc_no": "A.6.1.1.1.2.2.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "f36d73f1-3ea3-4293-8902-15f7e8510a82",
-        "doc_no": "A.6.1.1.1.2.2.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "42aca05d-0f81-4e6a-a5df-4a0bd627bd94",
-        "doc_no": "A.6.1.1.1.2.2.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "8d76138a-8705-4a4f-bae0-b4dcedce56e7",
-        "doc_no": "A.6.1.1.1.2.2.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "35ba196a-9dee-45f2-8d9f-2aa48a4d2816",
@@ -8416,24 +8326,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "e6f23920-b611-41f2-8d80-97b0e79b7ca1",
-        "doc_no": "A.6.1.1.1.2.3.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "b8f8acf8-fbdc-47aa-9ff4-2e2fcee33815",
-        "doc_no": "A.6.1.1.1.2.3.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "aec8ac86-35d4-4ff7-a8c8-61a8056063b3",
-        "doc_no": "A.6.1.1.1.2.3.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "4b400b96-b0a3-4b7d-81b9-b22d4f12f16f",
         "doc_no": "A.6.1.1.1.2.3.2.1",
         "title": "Primitive Hub Document",
@@ -8462,24 +8354,6 @@
         "doc_no": "A.6.1.1.1.2.3.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "5bd30523-e635-41e2-9929-d458b0bc29db",
-        "doc_no": "A.6.1.1.1.2.3.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "be8f07a7-247f-466d-a68f-fd26fd84df9b",
-        "doc_no": "A.6.1.1.1.2.3.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "7997ed4f-6484-4aab-9b46-55b4db6e4e23",
-        "doc_no": "A.6.1.1.1.2.3.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "88de14eb-6470-4980-add9-992726d6e006",
@@ -8524,24 +8398,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "09138ffc-9484-4a3a-b12a-d2fb2fc8f6ac",
-        "doc_no": "A.6.1.1.1.2.5.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "aaf76715-a3f3-4dc1-82d4-b10d7975f10b",
-        "doc_no": "A.6.1.1.1.2.5.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "41bffca2-7594-437c-84df-50827e8c001b",
-        "doc_no": "A.6.1.1.1.2.5.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "8afae5a1-8734-4b98-bfd6-1dbe7842f146",
         "doc_no": "A.6.1.1.1.2.5.2.1",
         "title": "Primitive Hub Document",
@@ -8564,24 +8420,6 @@
         "doc_no": "A.6.1.1.1.2.5.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "5a5c988e-6d19-4e82-9b27-ae0c0c02dd53",
-        "doc_no": "A.6.1.1.1.2.5.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "0628d063-99e1-4b59-a734-d2b07bee828f",
-        "doc_no": "A.6.1.1.1.2.5.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "6e4e9afb-cf23-4098-ae0b-1afcdc03e6c4",
-        "doc_no": "A.6.1.1.1.2.5.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "0e476c6e-9dda-4366-9be6-d877df7356e3",
@@ -9598,24 +9436,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "8d9cbbed-b242-4ed5-8d87-bd9e84c68bc4",
-        "doc_no": "A.6.1.1.2.2.1.1.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "36e78589-bf94-4abc-b656-0041afb5062a",
-        "doc_no": "A.6.1.1.2.2.1.1.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "528d1e34-12b8-464f-bfbc-13daa1cd5047",
-        "doc_no": "A.6.1.1.2.2.1.1.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "9062717c-fe70-4a96-b063-25fc05bf68da",
         "doc_no": "A.6.1.1.2.2.1.2.1",
         "title": "Primitive Hub Document",
@@ -9644,24 +9464,6 @@
         "doc_no": "A.6.1.1.2.2.1.2.3.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "51eb148f-c010-4e2a-a977-a6a2cb465e2d",
-        "doc_no": "A.6.1.1.2.2.1.2.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "69cbf93f-2d99-4900-af0e-8e5d5609e2ca",
-        "doc_no": "A.6.1.1.2.2.1.2.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "4bb102d6-3cdf-41c2-a285-20f2db76902c",
-        "doc_no": "A.6.1.1.2.2.1.2.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "3d4fc87f-c02b-4e39-bbca-8cd90919479a",
@@ -9712,24 +9514,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "7f6a1a86-3be4-450f-82fd-3c4b8ffa4c37",
-        "doc_no": "A.6.1.1.2.2.1.4.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "183d8611-6c51-4b92-ab69-d8cf00b68cb4",
-        "doc_no": "A.6.1.1.2.2.1.4.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "aefe1e9e-8bcb-4dfd-aa58-05778d4d4326",
-        "doc_no": "A.6.1.1.2.2.1.4.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "456f2f2e-b578-499a-ae8e-52c2dee6651e",
         "doc_no": "A.6.1.1.2.2.2.1.1",
         "title": "Primitive Hub Document",
@@ -9752,24 +9536,6 @@
         "doc_no": "A.6.1.1.2.2.2.1.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "ccb322ea-75dd-4c19-a95e-fd9d43f92f7a",
-        "doc_no": "A.6.1.1.2.2.2.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "977891ae-07b1-4330-9ce2-e2ea4a7e4f75",
-        "doc_no": "A.6.1.1.2.2.2.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "fb51f784-8c62-4bf9-92d1-f47e42c26439",
-        "doc_no": "A.6.1.1.2.2.2.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "f52af41f-b3a7-4218-bce6-11104e7d941b",
@@ -9800,24 +9566,6 @@
         "doc_no": "A.6.1.1.2.2.2.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "07447068-8892-4154-b3d0-7a2b4f1412cc",
-        "doc_no": "A.6.1.1.2.2.2.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "619ee46a-6a8c-4f13-9a04-e8cf4f8f4b86",
-        "doc_no": "A.6.1.1.2.2.2.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "e02ff5f7-7a4f-48f6-a28e-1e1fc362072e",
-        "doc_no": "A.6.1.1.2.2.2.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "659ba048-7352-449d-8d89-d4ba9c72c2df",
@@ -9868,24 +9616,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "13c839b0-85fa-4582-a3e0-196627b68220",
-        "doc_no": "A.6.1.1.2.2.3.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "644df4fe-8018-42cb-aa19-611b7a2f35b1",
-        "doc_no": "A.6.1.1.2.2.3.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "7b2e3d7a-c6ee-4d20-911a-2ca78b8eb12e",
-        "doc_no": "A.6.1.1.2.2.3.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "52031d37-fadd-4112-b2e9-53cc04ac44b8",
         "doc_no": "A.6.1.1.2.2.3.2.1",
         "title": "Primitive Hub Document",
@@ -9914,24 +9644,6 @@
         "doc_no": "A.6.1.1.2.2.3.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "0003325e-7d02-41af-b61b-110aba99540c",
-        "doc_no": "A.6.1.1.2.2.3.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "3753d344-3218-4171-be0e-9654f690439e",
-        "doc_no": "A.6.1.1.2.2.3.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "7b87b8a2-5e30-46a3-b12b-5fe0053eafc4",
-        "doc_no": "A.6.1.1.2.2.3.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "d6e99512-2f90-4c90-8d99-8b2dec137ace",
@@ -9974,24 +9686,6 @@
         "doc_no": "A.6.1.1.2.2.5.1.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "7259ff43-eaf7-484e-af71-8b6a0ecdde09",
-        "doc_no": "A.6.1.1.2.2.5.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "06a7389f-65b0-48bb-a0ee-b7b9dcbeeaa6",
-        "doc_no": "A.6.1.1.2.2.5.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "74019895-896c-4ab1-bb8c-f0e9741e69eb",
-        "doc_no": "A.6.1.1.2.2.5.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "c5a92bcd-69d3-41ee-a12a-33dce8af4686",
@@ -10804,24 +10498,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "9bacd440-487f-49f7-b0ca-fbd8367e9298",
-        "doc_no": "A.6.1.1.3.2.1.1.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "d8938b72-36af-4dce-91bc-4a8b67d20493",
-        "doc_no": "A.6.1.1.3.2.1.1.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "f79736e7-1c24-43fe-9645-605791e87942",
-        "doc_no": "A.6.1.1.3.2.1.1.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "ddfade4a-7dba-49ad-8feb-c19dfb56e378",
         "doc_no": "A.6.1.1.3.2.1.2.1",
         "title": "Primitive Hub Document",
@@ -10850,24 +10526,6 @@
         "doc_no": "A.6.1.1.3.2.1.2.3.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "10d9a22e-22ff-4f1c-8ce9-4b907b3748f5",
-        "doc_no": "A.6.1.1.3.2.1.2.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "7ab8edc0-14e5-40e1-8bf6-80ef2eb86549",
-        "doc_no": "A.6.1.1.3.2.1.2.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "795f3788-68ae-48c0-8fe3-c33b9bb81dc7",
-        "doc_no": "A.6.1.1.3.2.1.2.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "14e5e6ce-f8ba-4a83-a013-27c821cae118",
@@ -10918,24 +10576,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "79139c7c-5234-4a41-a6f7-0112216a4a9c",
-        "doc_no": "A.6.1.1.3.2.1.4.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "b49a061d-1a47-4841-91d8-753e82488288",
-        "doc_no": "A.6.1.1.3.2.1.4.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "ae670617-6780-426c-b2ef-2037d12f4669",
-        "doc_no": "A.6.1.1.3.2.1.4.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "51000f60-cf06-4f87-8e86-45573952645e",
         "doc_no": "A.6.1.1.3.2.2.1.1",
         "title": "Primitive Hub Document",
@@ -10958,24 +10598,6 @@
         "doc_no": "A.6.1.1.3.2.2.1.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "6f47f192-3277-4e40-89d9-73edee5f465c",
-        "doc_no": "A.6.1.1.3.2.2.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "969849ad-170b-4fad-972a-e37880e91b86",
-        "doc_no": "A.6.1.1.3.2.2.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "66ac9ca7-833a-457a-8d2b-e8c3fb968412",
-        "doc_no": "A.6.1.1.3.2.2.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "d32ff849-fe1d-4a99-ac1d-18e58eeca32f",
@@ -11006,24 +10628,6 @@
         "doc_no": "A.6.1.1.3.2.2.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "2e6ea01e-ec36-4150-a096-6ba0143dc800",
-        "doc_no": "A.6.1.1.3.2.2.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "360ae2a4-679c-4ee5-829a-6d01f0713602",
-        "doc_no": "A.6.1.1.3.2.2.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "79fe6be0-e7ce-4349-8c63-4579d2f17295",
-        "doc_no": "A.6.1.1.3.2.2.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "34688a2f-3a17-404a-b985-8ff8479c13f8",
@@ -11074,24 +10678,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "ea840f1f-dda7-42c5-80fe-f774657831e3",
-        "doc_no": "A.6.1.1.3.2.3.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "86e71f93-690a-478c-9c87-000c3572b4df",
-        "doc_no": "A.6.1.1.3.2.3.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "27bd4d7c-d6bb-43e8-96ef-7471798fa071",
-        "doc_no": "A.6.1.1.3.2.3.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "b8dba4a4-069a-466a-843c-61f676c3be7e",
         "doc_no": "A.6.1.1.3.2.3.2.1",
         "title": "Primitive Hub Document",
@@ -11120,24 +10706,6 @@
         "doc_no": "A.6.1.1.3.2.3.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "725ad94b-e5d5-4aad-a205-5a4508c9fe79",
-        "doc_no": "A.6.1.1.3.2.3.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "0c0ef0b1-2d54-49f2-9ba6-c47fd5e56af1",
-        "doc_no": "A.6.1.1.3.2.3.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "ca265d73-1cc0-43d3-806f-dd03219c5dec",
-        "doc_no": "A.6.1.1.3.2.3.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "b9c869ff-73ed-4b30-bc1a-33c6875524aa",
@@ -11182,46 +10750,10 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "764fdbd7-a8a6-4da5-bd3e-c6f5471afd91",
-        "doc_no": "A.6.1.1.3.2.5.1.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "634e03bc-fc80-4b2c-9182-0b3ae4386f0e",
-        "doc_no": "A.6.1.1.3.2.5.1.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "a2eeb79e-bb70-4f25-a106-18bacd69b5ab",
-        "doc_no": "A.6.1.1.3.2.5.1.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "4fcd06bc-72fd-4cce-83fd-5b1a7dda3a4a",
         "doc_no": "A.6.1.1.3.2.5.1.3.2.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "90352ea8-67ed-4148-8594-bb66826b2ad9",
-        "doc_no": "A.6.1.1.3.2.5.1.3.2.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "1f8b494d-a550-4fb7-adff-8afe9301b006",
-        "doc_no": "A.6.1.1.3.2.5.1.3.2.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "4da0eb19-7721-4249-994e-91c86695b785",
-        "doc_no": "A.6.1.1.3.2.5.1.3.2.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "18b58761-8afa-44e0-824d-32d4c85b429e",
@@ -11248,46 +10780,10 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "0886e43d-3f0e-4fbc-bb39-b21934477638",
-        "doc_no": "A.6.1.1.3.2.5.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "e00ea6ea-daab-4f81-a4c4-9e9c1a245495",
-        "doc_no": "A.6.1.1.3.2.5.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "0f24b8c3-c3ae-43e4-a649-9a7df4de6fde",
-        "doc_no": "A.6.1.1.3.2.5.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "aa1660a7-2153-4c19-b541-21e0c99da42c",
         "doc_no": "A.6.1.1.3.2.5.2.2.2.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "cb8de39f-11d4-462d-80e4-12bd793697f1",
-        "doc_no": "A.6.1.1.3.2.5.2.2.2.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "fdac7f0f-b7b3-45cd-be4f-51ba5755e097",
-        "doc_no": "A.6.1.1.3.2.5.2.2.2.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "fd38b098-1cee-4b81-9128-49f319a85624",
-        "doc_no": "A.6.1.1.3.2.5.2.2.2.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "0666e496-d967-42f0-9ec6-465fce5cc6ea",
@@ -11296,70 +10792,16 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "d1d06d85-c679-4a6f-ab24-cd10e4de1361",
-        "doc_no": "A.6.1.1.3.2.5.2.2.3.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "0e3774ea-7b40-4188-a467-ba54faacfd59",
-        "doc_no": "A.6.1.1.3.2.5.2.2.3.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "7e0fc33a-f01c-4bd1-bfae-96bfda6a7986",
-        "doc_no": "A.6.1.1.3.2.5.2.2.3.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "02b34736-8bb3-4998-aad4-d059b6574313",
         "doc_no": "A.6.1.1.3.2.5.2.2.4.1",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
-        "uuid": "4de91f25-bb65-4bc4-94b2-e9d58fbf9733",
-        "doc_no": "A.6.1.1.3.2.5.2.2.4.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "2a2ac512-32ec-4ee1-85a5-5cae060bc2ca",
-        "doc_no": "A.6.1.1.3.2.5.2.2.4.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "780b5dbf-5b27-4d12-940d-2b2d324fcf2c",
-        "doc_no": "A.6.1.1.3.2.5.2.2.4.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "99f6f4f6-40c5-4b3d-bc80-8bf7361479a0",
         "doc_no": "A.6.1.1.3.2.5.2.3.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "5d022265-732d-471f-960c-ad352469f71e",
-        "doc_no": "A.6.1.1.3.2.5.2.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "d7fe3f68-dc0b-4494-8563-44e2f8e684a3",
-        "doc_no": "A.6.1.1.3.2.5.2.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "3aaf2998-6729-4ccf-848d-5dbc8d8e68ae",
-        "doc_no": "A.6.1.1.3.2.5.2.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "9502a517-1323-4f1a-9038-8314b4704ff1",
@@ -11608,24 +11050,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "d6d7788a-4702-4e7f-8bd0-0e1bdb535e79",
-        "doc_no": "A.6.1.1.4.2.1.1.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "efc466bf-6681-4c38-ac6a-281d4c1593be",
-        "doc_no": "A.6.1.1.4.2.1.1.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "587c4557-6622-49af-b64b-9fd48dbc85b1",
-        "doc_no": "A.6.1.1.4.2.1.1.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "f4d35d37-831f-4eee-b18f-d9a3d266655e",
         "doc_no": "A.6.1.1.4.2.1.2.1",
         "title": "Primitive Hub Document",
@@ -11654,24 +11078,6 @@
         "doc_no": "A.6.1.1.4.2.1.2.3.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "70203ad1-71b6-4a80-97a4-d18227cd736e",
-        "doc_no": "A.6.1.1.4.2.1.2.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "84e3ba93-7ba4-4f52-b54e-5ea6e73da623",
-        "doc_no": "A.6.1.1.4.2.1.2.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "102b2492-34f9-4f2f-8f42-593aa8871129",
-        "doc_no": "A.6.1.1.4.2.1.2.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "f60f5f5f-3aa8-49de-85fb-95841bb73bdb",
@@ -11722,24 +11128,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "05259bea-0f5e-4afc-8279-fbd98516d7ac",
-        "doc_no": "A.6.1.1.4.2.1.4.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "b146e772-2d00-456b-8ba7-536ea733c34a",
-        "doc_no": "A.6.1.1.4.2.1.4.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "a66316d6-e4be-4ff5-b894-4c8fa3d1285c",
-        "doc_no": "A.6.1.1.4.2.1.4.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "8f799c9e-618c-407f-a4a1-899f32d13d52",
         "doc_no": "A.6.1.1.4.2.2.1.1",
         "title": "Primitive Hub Document",
@@ -11762,24 +11150,6 @@
         "doc_no": "A.6.1.1.4.2.2.1.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "0f2d0ae7-1aa7-4692-9f36-dd00b119885e",
-        "doc_no": "A.6.1.1.4.2.2.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "0bb80f80-c2c0-43f1-8783-b2a2bdbcc09b",
-        "doc_no": "A.6.1.1.4.2.2.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "659ad2e7-f1af-4bd4-b5c1-8624ba7f169e",
-        "doc_no": "A.6.1.1.4.2.2.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "787f01b6-0503-49aa-8dd1-f08ad222a5c9",
@@ -11810,24 +11180,6 @@
         "doc_no": "A.6.1.1.4.2.2.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "112386b9-0c60-4224-8d39-a43b2805f351",
-        "doc_no": "A.6.1.1.4.2.2.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "d9ebdf09-8d8e-4b14-a3f3-08a0d7579e92",
-        "doc_no": "A.6.1.1.4.2.2.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "91159367-dcf2-4c55-ae77-0ca91da4fb91",
-        "doc_no": "A.6.1.1.4.2.2.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "04e7dd63-49ab-42dd-b195-1e309d7295c9",
@@ -11878,24 +11230,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "1285deb9-39ff-400c-a82c-2ec2e7b4d216",
-        "doc_no": "A.6.1.1.4.2.3.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "db3e6b81-f383-4269-8cab-e94e47abc891",
-        "doc_no": "A.6.1.1.4.2.3.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "e877196c-33d9-48dd-b188-fe5c70c68d00",
-        "doc_no": "A.6.1.1.4.2.3.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "6952060d-f1dd-4d86-b2f8-f07090174d1d",
         "doc_no": "A.6.1.1.4.2.3.2.1",
         "title": "Primitive Hub Document",
@@ -11924,24 +11258,6 @@
         "doc_no": "A.6.1.1.4.2.3.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "a7718626-05e0-4c62-86ae-62ff9f2fc785",
-        "doc_no": "A.6.1.1.4.2.3.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "0e9c8eb9-ab4e-4240-9ea9-a2c810ea3698",
-        "doc_no": "A.6.1.1.4.2.3.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "89f2904b-d250-4643-a84a-083b54a572e0",
-        "doc_no": "A.6.1.1.4.2.3.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "052c7deb-75d9-4be2-aa45-cb3a59d14bd5",
@@ -11986,46 +11302,10 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "c4fead38-31dc-4a6a-8d98-5f28b1a46f7a",
-        "doc_no": "A.6.1.1.4.2.5.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "919d7b43-51e1-4d53-93c6-ff84a633542b",
-        "doc_no": "A.6.1.1.4.2.5.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "8bb175ef-0165-417c-9222-f4ed8df23b3f",
-        "doc_no": "A.6.1.1.4.2.5.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "159c7e99-c884-4496-aa9b-b7721be4849a",
         "doc_no": "A.6.1.1.4.2.5.1.2.2.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "8578558a-5bd3-4256-a8f6-0e14da879257",
-        "doc_no": "A.6.1.1.4.2.5.1.2.2.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "f3de12e6-9ca6-4969-95a4-50b6c6b928b3",
-        "doc_no": "A.6.1.1.4.2.5.1.2.2.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "09c5171b-5fe5-4a37-ad78-0e4be7b4c0f9",
-        "doc_no": "A.6.1.1.4.2.5.1.2.2.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "a7b36acb-01b2-42a3-8014-d567a82ab81e",
@@ -12034,46 +11314,10 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "3117ffa8-81bb-4fc3-ab15-2e2a41de26fa",
-        "doc_no": "A.6.1.1.4.2.5.1.2.3.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "e4cdcd58-9f16-4efe-9671-a0b667267004",
-        "doc_no": "A.6.1.1.4.2.5.1.2.3.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "63a206b3-3bae-4c14-ac3c-e658b912b238",
-        "doc_no": "A.6.1.1.4.2.5.1.2.3.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "014a4af6-2df3-47fe-b0e4-c1238f3ce18b",
         "doc_no": "A.6.1.1.4.2.5.1.2.4.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "d0dcbfc1-826f-4f68-ac22-f356f2b3d3f4",
-        "doc_no": "A.6.1.1.4.2.5.1.2.4.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "7b5a94d3-1bdd-4b06-823e-c31199717e29",
-        "doc_no": "A.6.1.1.4.2.5.1.2.4.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "4a803925-4c83-44a8-9530-4b0f30b6d928",
-        "doc_no": "A.6.1.1.4.2.5.1.2.4.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "0dbc09fd-557b-4434-a3ac-2ac66da6acb4",
@@ -12082,46 +11326,10 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "32dfe611-a223-40af-9100-70688fa0f162",
-        "doc_no": "A.6.1.1.4.2.5.1.2.5.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "20e0c61c-70c8-4d68-b90e-ce664ca5097a",
-        "doc_no": "A.6.1.1.4.2.5.1.2.5.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "993a4e87-14d0-4d98-9477-446d4bbbfe12",
-        "doc_no": "A.6.1.1.4.2.5.1.2.5.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "49866e74-c131-4e4d-9165-325bba89cd48",
         "doc_no": "A.6.1.1.4.2.5.1.2.6.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "2a400f84-7251-41ed-a8ce-c3d091c90ad6",
-        "doc_no": "A.6.1.1.4.2.5.1.2.6.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "3bdf7ecb-accd-4b70-b956-a5e05cb60668",
-        "doc_no": "A.6.1.1.4.2.5.1.2.6.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "1816152b-22ea-4a5a-822f-88da78afe8cf",
-        "doc_no": "A.6.1.1.4.2.5.1.2.6.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "8adfffaf-011e-4762-9b44-3e35f0f6adaa",
@@ -12130,46 +11338,10 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "bea56b80-5d46-4a44-81a5-0df050a5255b",
-        "doc_no": "A.6.1.1.4.2.5.1.2.7.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "16f6bff2-ed77-4e02-806d-5fe7941f94ce",
-        "doc_no": "A.6.1.1.4.2.5.1.2.7.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "df961d91-acfd-45de-8fd6-f17237d34eb8",
-        "doc_no": "A.6.1.1.4.2.5.1.2.7.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "be044103-09bc-410d-872a-1dfefc9410aa",
         "doc_no": "A.6.1.1.4.2.5.1.2.8.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "85861627-db6d-4be3-8057-8aff18035130",
-        "doc_no": "A.6.1.1.4.2.5.1.2.8.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "97a92e00-3f0e-481c-ab18-c3ceb1105d42",
-        "doc_no": "A.6.1.1.4.2.5.1.2.8.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "cd44d715-d147-42b9-b84b-9a8d370ca6bf",
-        "doc_no": "A.6.1.1.4.2.5.1.2.8.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "cf4e40ea-595b-4c1d-88b7-c20553e01999",
@@ -12178,46 +11350,10 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "2e3f0833-0f2f-4940-bc1e-e3adf68e41de",
-        "doc_no": "A.6.1.1.4.2.5.1.2.9.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "a78d37f7-cb9d-47ba-a956-cbdabe547efb",
-        "doc_no": "A.6.1.1.4.2.5.1.2.9.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "d9d79d33-b9ee-4c8e-a90d-b84f71dd7d54",
-        "doc_no": "A.6.1.1.4.2.5.1.2.9.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "99f977b9-533f-4526-99d8-729f005c442f",
         "doc_no": "A.6.1.1.4.2.5.1.2.10.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "7b6d6d5e-6256-4964-af7b-9abfeaceb732",
-        "doc_no": "A.6.1.1.4.2.5.1.2.10.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "9ead2507-fdaa-45d6-9f4d-d5783f425d39",
-        "doc_no": "A.6.1.1.4.2.5.1.2.10.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "763c9fbd-91ec-4d1b-bbfc-5690f4ae2989",
-        "doc_no": "A.6.1.1.4.2.5.1.2.10.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "a2cbe867-bc51-4a3c-82b6-d921e2b0a4fc",
@@ -12226,46 +11362,10 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "dabb169a-e7d5-44c2-9ed8-f0936aa9c22a",
-        "doc_no": "A.6.1.1.4.2.5.1.3.1.3.3",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "cc50de8e-ac63-4254-bb24-8a4247b8d2b5",
-        "doc_no": "A.6.1.1.4.2.5.1.3.1.3.4",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "bff7bad8-b9c9-4fb7-ae9c-08137f427f36",
-        "doc_no": "A.6.1.1.4.2.5.1.3.1.3.5",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "f46ff617-d495-402f-a3dc-f4822a018b19",
         "doc_no": "A.6.1.1.4.2.5.1.4.1.2",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "177f02ea-cde5-4d68-b7de-c3cef1a47f32",
-        "doc_no": "A.6.1.1.4.2.5.1.4.1.4.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "2cc897a5-eb49-4766-9489-3cdca7c74196",
-        "doc_no": "A.6.1.1.4.2.5.1.4.1.4.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "a7582742-03a8-4095-b394-6fe1b62f912a",
-        "doc_no": "A.6.1.1.4.2.5.1.4.1.4.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "58b69a0b-a8f3-40cd-bc36-154aa61d8f0c",
@@ -12274,70 +11374,16 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "f51aa574-e8c8-4e15-bfba-76082d40ac91",
-        "doc_no": "A.6.1.1.4.2.5.1.4.2.4.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "d35d512a-2c81-4491-b966-6803b68f9834",
-        "doc_no": "A.6.1.1.4.2.5.1.4.2.4.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "57a3bfd7-83e2-4033-9dc0-d64274973784",
-        "doc_no": "A.6.1.1.4.2.5.1.4.2.4.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "a8cf666e-2fb6-4830-bc53-5005e0111408",
         "doc_no": "A.6.1.1.4.2.5.1.4.3.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
-        "uuid": "c2db568d-6c90-4a62-8fb9-33cfb504fc1d",
-        "doc_no": "A.6.1.1.4.2.5.1.4.3.4.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "446804db-4495-4621-a504-e3575e5be34b",
-        "doc_no": "A.6.1.1.4.2.5.1.4.3.4.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "711781c6-57a9-4813-9e4d-263f9a70384a",
-        "doc_no": "A.6.1.1.4.2.5.1.4.3.4.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "79da10fb-e6c0-491f-8e18-80edc9e642ad",
         "doc_no": "A.6.1.1.4.2.5.1.4.4.2",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "3fa947ef-d8e4-4315-bccb-b4a1b6e760ca",
-        "doc_no": "A.6.1.1.4.2.5.1.4.4.4.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "8dd619da-bb48-4efc-8a68-c21754a11372",
-        "doc_no": "A.6.1.1.4.2.5.1.4.4.4.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "7ccfd0ad-4d2c-441f-afbf-dd6f7b5d4293",
-        "doc_no": "A.6.1.1.4.2.5.1.4.4.4.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "4d0912c0-d103-43b2-a6bd-c764b83436ec",
@@ -12364,46 +11410,10 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "abc0866d-8e3f-4bad-879d-6f82cee2b028",
-        "doc_no": "A.6.1.1.4.2.5.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "ec81388d-8320-47c6-8e13-2dbd5ad95dbe",
-        "doc_no": "A.6.1.1.4.2.5.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "81cff123-b17c-4208-9348-fcf2aaf99c4b",
-        "doc_no": "A.6.1.1.4.2.5.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "358e8a04-fb48-4597-abe6-58b955cd9f00",
         "doc_no": "A.6.1.1.4.2.5.2.2.2.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "00b3c481-bf1d-40a7-9fe8-aea7a99c0524",
-        "doc_no": "A.6.1.1.4.2.5.2.2.2.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "4cdcce5d-a4f5-4474-8818-72d13f6c6174",
-        "doc_no": "A.6.1.1.4.2.5.2.2.2.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "4c26b560-c84a-4e2b-882f-8ea4b821886f",
-        "doc_no": "A.6.1.1.4.2.5.2.2.2.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "fda57199-87e2-4e4a-975a-35780fd324f3",
@@ -12412,46 +11422,10 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "ef86b5b0-48ce-471e-8a26-dd59dfa09449",
-        "doc_no": "A.6.1.1.4.2.5.2.2.3.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "c1e28481-d41d-40b8-96d9-cd372e46b45d",
-        "doc_no": "A.6.1.1.4.2.5.2.2.3.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "1024c532-ea70-4d0f-b178-b99529950f25",
-        "doc_no": "A.6.1.1.4.2.5.2.2.3.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "8976aeab-15f0-44a3-8e94-145cc998be81",
         "doc_no": "A.6.1.1.4.2.5.2.4.1.2",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "eecefb67-7692-48f7-9f5b-b4bfde253fac",
-        "doc_no": "A.6.1.1.4.2.5.2.4.1.4.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "28bf469c-af5c-4014-8947-035def7c4077",
-        "doc_no": "A.6.1.1.4.2.5.2.4.1.4.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "6543a665-e415-4b54-9c0b-5af10c14f5ce",
-        "doc_no": "A.6.1.1.4.2.5.2.4.1.4.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "a5890268-5a4c-4b8c-890a-6db09c71aced",
@@ -12586,24 +11560,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "a5498802-b2d9-46d2-9a2e-30e546ba6110",
-        "doc_no": "A.6.1.1.5.2.1.1.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "a09fca08-e196-49b1-99e2-21e5c01a59cb",
-        "doc_no": "A.6.1.1.5.2.1.1.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "2e5c5930-3805-47c2-8c11-b05b8c5bdddc",
-        "doc_no": "A.6.1.1.5.2.1.1.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "b9e7cf68-feff-4a8b-9126-bc44bf3e7283",
         "doc_no": "A.6.1.1.5.2.1.2.1",
         "title": "Primitive Hub Document",
@@ -12632,24 +11588,6 @@
         "doc_no": "A.6.1.1.5.2.1.2.3.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "c0cc5f1c-0cc5-44c8-bf92-d28b371e05b0",
-        "doc_no": "A.6.1.1.5.2.1.2.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "aa23e483-3205-4843-92c9-5906b244e662",
-        "doc_no": "A.6.1.1.5.2.1.2.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "9e54e190-a5f0-466e-945b-a9075fbc20b1",
-        "doc_no": "A.6.1.1.5.2.1.2.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "7b3f85c4-e618-4071-b07f-5c771a3bc873",
@@ -12700,24 +11638,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "6fe2485a-225f-41e3-b791-0b98363df1e8",
-        "doc_no": "A.6.1.1.5.2.1.4.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "44b64f9f-aa20-4aeb-b2e3-6abda1cfa77d",
-        "doc_no": "A.6.1.1.5.2.1.4.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "c6ec5fe6-691b-4ac7-a863-2be65a28ea3f",
-        "doc_no": "A.6.1.1.5.2.1.4.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "4f398e78-1f12-447d-bb28-71cfc4e9ce4c",
         "doc_no": "A.6.1.1.5.2.2.1.1",
         "title": "Primitive Hub Document",
@@ -12740,24 +11660,6 @@
         "doc_no": "A.6.1.1.5.2.2.1.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "b7eb3de8-9b56-4e2a-b0c0-5d3f8dddccb7",
-        "doc_no": "A.6.1.1.5.2.2.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "0ab58c7d-7bb4-4d33-bd7a-2eca8e80b62a",
-        "doc_no": "A.6.1.1.5.2.2.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "248099c5-af01-490c-b248-4441accf889f",
-        "doc_no": "A.6.1.1.5.2.2.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "f6e6bc46-aa12-4a74-8433-85ffcfad4917",
@@ -12788,24 +11690,6 @@
         "doc_no": "A.6.1.1.5.2.2.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "b2f9aa29-8e29-4123-8996-12dad34b51e5",
-        "doc_no": "A.6.1.1.5.2.2.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "91cbbea6-33e4-49a4-ab2a-1c01d2b3eed8",
-        "doc_no": "A.6.1.1.5.2.2.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "efce80bb-4637-4bdf-8ddb-ad412154a521",
-        "doc_no": "A.6.1.1.5.2.2.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "c4b311b3-3f2c-483f-b24a-845ef5c6a6df",
@@ -12856,24 +11740,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "1f1e7bb2-dfa7-4189-84bd-9a6759aec3e7",
-        "doc_no": "A.6.1.1.5.2.3.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "8f8f951d-8768-457d-9c56-3a81b92c395a",
-        "doc_no": "A.6.1.1.5.2.3.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "2e866803-811d-4220-b336-ebe239402921",
-        "doc_no": "A.6.1.1.5.2.3.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "36f57327-abff-4ac1-890b-c5097c449b02",
         "doc_no": "A.6.1.1.5.2.3.2.1",
         "title": "Primitive Hub Document",
@@ -12902,24 +11768,6 @@
         "doc_no": "A.6.1.1.5.2.3.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "df002eaa-d6d5-4b27-9ccb-26193cc65ec5",
-        "doc_no": "A.6.1.1.5.2.3.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "5bf870c7-57bc-40f8-82d4-f6094b484a5b",
-        "doc_no": "A.6.1.1.5.2.3.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "d94ae414-18e8-432b-9f17-f58e8cc0cce3",
-        "doc_no": "A.6.1.1.5.2.3.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "3ce6f8aa-7a27-4701-83cb-d1fc4c41bb28",
@@ -13120,24 +11968,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "23b86592-2145-4b96-b74f-7ce8e976b47d",
-        "doc_no": "A.6.1.1.6.2.1.1.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "79928bec-a87b-427b-9221-2bc19f92fc8d",
-        "doc_no": "A.6.1.1.6.2.1.1.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "63ba43df-c030-47a1-9563-75ee436969d9",
-        "doc_no": "A.6.1.1.6.2.1.1.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "73321a03-f62c-4aaf-84de-ee79bfd55662",
         "doc_no": "A.6.1.1.6.2.1.2.1",
         "title": "Primitive Hub Document",
@@ -13166,24 +11996,6 @@
         "doc_no": "A.6.1.1.6.2.1.2.3.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "f1d6c189-e998-4bfc-b7a0-322dffdf818e",
-        "doc_no": "A.6.1.1.6.2.1.2.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "f2188696-f28a-41ca-b1d9-7dba408089e7",
-        "doc_no": "A.6.1.1.6.2.1.2.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "f68d7dad-91a6-41df-8a4f-f0a51d1edcaa",
-        "doc_no": "A.6.1.1.6.2.1.2.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "4053d47c-8495-470c-8363-763f6c9ea5e8",
@@ -13234,24 +12046,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "c900576f-7e31-40cc-8c2d-994b6b06bb5a",
-        "doc_no": "A.6.1.1.6.2.1.4.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "34f38616-01ff-4516-8ede-b553d2305fb8",
-        "doc_no": "A.6.1.1.6.2.1.4.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "bc407d25-c3f5-412e-bf72-4cab3189f9e4",
-        "doc_no": "A.6.1.1.6.2.1.4.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "4604fb19-254c-455e-93c6-e2aba0b7261d",
         "doc_no": "A.6.1.1.6.2.2.1.1",
         "title": "Primitive Hub Document",
@@ -13274,24 +12068,6 @@
         "doc_no": "A.6.1.1.6.2.2.1.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "5ac885aa-64f6-4400-82b9-d11a33470b28",
-        "doc_no": "A.6.1.1.6.2.2.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "b3a60a21-7f43-403f-9cfa-aa8bd29f0140",
-        "doc_no": "A.6.1.1.6.2.2.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "eb0aaebd-16e4-4955-b7c9-c1a778b4cf9e",
-        "doc_no": "A.6.1.1.6.2.2.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "f987a5d2-2fe4-450e-a57b-32c44ba2eb99",
@@ -13322,24 +12098,6 @@
         "doc_no": "A.6.1.1.6.2.2.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "f4b2bc56-63d1-4b5b-8c84-8eccc1fa3218",
-        "doc_no": "A.6.1.1.6.2.2.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "10680aaa-0b55-4c66-b40d-9741bcd4dc6e",
-        "doc_no": "A.6.1.1.6.2.2.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "17aa4887-fc5d-4b66-8f3e-60a3490250a5",
-        "doc_no": "A.6.1.1.6.2.2.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "2abd678a-fea3-4968-87c5-a81302f3c387",
@@ -13390,24 +12148,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "87094d8d-a42a-4665-8215-615124a8e123",
-        "doc_no": "A.6.1.1.6.2.3.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "0b1d35c9-7ae9-4b23-a5c8-360c5af2d58c",
-        "doc_no": "A.6.1.1.6.2.3.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "cf3abeef-7836-457a-a659-e432d1eb7c20",
-        "doc_no": "A.6.1.1.6.2.3.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "c1ba86c9-f638-4ebe-9346-e22377841c2c",
         "doc_no": "A.6.1.1.6.2.3.2.1",
         "title": "Primitive Hub Document",
@@ -13436,24 +12176,6 @@
         "doc_no": "A.6.1.1.6.2.3.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "136d9a42-5b8f-4e7c-835a-bbcdff8e3d9a",
-        "doc_no": "A.6.1.1.6.2.3.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "e432bb7e-0054-4306-a573-494655454d35",
-        "doc_no": "A.6.1.1.6.2.3.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "1e486b02-fcb5-4c95-b832-153f592b5f13",
-        "doc_no": "A.6.1.1.6.2.3.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "028c364c-6ac4-42b1-86a7-afb6b255d3f7",
@@ -13660,24 +12382,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "d58b413f-6fce-4b0d-80a8-aba5d74117b0",
-        "doc_no": "A.6.1.1.7.2.1.1.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "0d4f2b2d-305b-4a23-9764-64fdf5a7bcc8",
-        "doc_no": "A.6.1.1.7.2.1.1.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "dc435918-f881-4d35-af7d-1640979cc9cd",
-        "doc_no": "A.6.1.1.7.2.1.1.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "ccbf1b06-7d52-4355-8780-2618c68f1bfe",
         "doc_no": "A.6.1.1.7.2.1.2.1",
         "title": "Primitive Hub Document",
@@ -13706,24 +12410,6 @@
         "doc_no": "A.6.1.1.7.2.1.2.3.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "36e23c65-220f-43b9-ab14-6f0fe4a25524",
-        "doc_no": "A.6.1.1.7.2.1.2.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "d5c113e8-b4d2-40c4-80d8-5797f8833cd3",
-        "doc_no": "A.6.1.1.7.2.1.2.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "1b8cb6c6-0906-4c56-935f-ad8e43bb9a11",
-        "doc_no": "A.6.1.1.7.2.1.2.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "d46b399b-0432-4350-9e3c-d5cf3487764f",
@@ -13774,24 +12460,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "1d7df1bf-116c-451f-ad56-3fb899db577b",
-        "doc_no": "A.6.1.1.7.2.1.4.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "a56b88fe-398f-4384-ac87-4cd45c0290cf",
-        "doc_no": "A.6.1.1.7.2.1.4.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "cc30ee14-2850-45fa-bdf0-84d4789b7d3d",
-        "doc_no": "A.6.1.1.7.2.1.4.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "6adf71d4-03f8-43ed-83ad-3011dfebe17d",
         "doc_no": "A.6.1.1.7.2.2.1.1",
         "title": "Primitive Hub Document",
@@ -13814,24 +12482,6 @@
         "doc_no": "A.6.1.1.7.2.2.1.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "23aab69c-d555-46d7-88ab-cb06303dc9af",
-        "doc_no": "A.6.1.1.7.2.2.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "d283179e-7527-4522-8935-5fe4d2442ed5",
-        "doc_no": "A.6.1.1.7.2.2.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "83075590-9293-4ae7-bdb0-701fd0689570",
-        "doc_no": "A.6.1.1.7.2.2.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "30a4ea54-3083-4a3b-add0-0d3c41f5fcd2",
@@ -13862,24 +12512,6 @@
         "doc_no": "A.6.1.1.7.2.2.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "9dbfdcc1-4908-489a-8887-a36628d0e2d6",
-        "doc_no": "A.6.1.1.7.2.2.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "7cfd996c-2a02-412b-8d65-0efbc88a6cdf",
-        "doc_no": "A.6.1.1.7.2.2.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "ade379d8-2b49-49d8-8425-8060c5bba942",
-        "doc_no": "A.6.1.1.7.2.2.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "40fd0acb-dd7c-4b72-a842-9024d1250f3e",
@@ -13930,24 +12562,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "1d31b5fd-d55c-4d8e-b554-d2d9f1e95a05",
-        "doc_no": "A.6.1.1.7.2.3.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "9e648afc-d5c5-4f2e-8026-71fede7b270b",
-        "doc_no": "A.6.1.1.7.2.3.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "e5150ceb-77a8-468c-b202-19fefcb1f95d",
-        "doc_no": "A.6.1.1.7.2.3.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "9693a23e-9116-43d3-87ae-5036fa0fb4d1",
         "doc_no": "A.6.1.1.7.2.3.2.1",
         "title": "Primitive Hub Document",
@@ -13976,24 +12590,6 @@
         "doc_no": "A.6.1.1.7.2.3.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "e6be574b-1a20-4fbb-8ee9-43d649be4c0d",
-        "doc_no": "A.6.1.1.7.2.3.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "86a4e532-848d-4363-a87d-944176a3707f",
-        "doc_no": "A.6.1.1.7.2.3.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "54f739a5-7170-4bed-aa9b-67e6b4591786",
-        "doc_no": "A.6.1.1.7.2.3.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "3244d08e-fcb7-4685-afda-41d6b82460da",
@@ -14038,46 +12634,10 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "d62190e1-52af-452a-9108-e5a882c13722",
-        "doc_no": "A.6.1.1.7.2.5.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "93f31e74-0d9c-494f-8f04-181a471d433e",
-        "doc_no": "A.6.1.1.7.2.5.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "8608a9ab-30c5-4d14-8604-41109fc4b33a",
-        "doc_no": "A.6.1.1.7.2.5.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "83c9f943-fae9-46a2-a8cf-3593b40b5d1d",
         "doc_no": "A.6.1.1.7.2.5.1.2.2.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "7130f5c5-80d1-4ffa-ac02-78af3276666c",
-        "doc_no": "A.6.1.1.7.2.5.1.2.2.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "f108618f-d1c2-4984-aad0-4a8af0184c11",
-        "doc_no": "A.6.1.1.7.2.5.1.2.2.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "93282c5b-9bfb-4bfa-bcd2-2bf81678d99a",
-        "doc_no": "A.6.1.1.7.2.5.1.2.2.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "28579fff-c60f-44a6-baeb-42310e67fbd2",
@@ -14086,46 +12646,10 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "2de6e2f5-06a8-4768-9769-1ccbcc07012f",
-        "doc_no": "A.6.1.1.7.2.5.1.2.3.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "2883e5c8-48c1-4d88-b516-00cbb922ccf5",
-        "doc_no": "A.6.1.1.7.2.5.1.2.3.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "8af0470c-9d13-41ca-9242-65f41320f8a9",
-        "doc_no": "A.6.1.1.7.2.5.1.2.3.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "efba09b2-c045-48fd-84a0-b65196bb3032",
         "doc_no": "A.6.1.1.7.2.5.1.2.4.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "c3b4a5ae-859c-4961-a9b5-275acca7d036",
-        "doc_no": "A.6.1.1.7.2.5.1.2.4.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "6f015ed0-b3ef-442f-86d4-1f62c5c4ca1b",
-        "doc_no": "A.6.1.1.7.2.5.1.2.4.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "9e35e242-270e-4300-a2ce-2133ebda0463",
-        "doc_no": "A.6.1.1.7.2.5.1.2.4.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "c4aa6999-6e26-4053-a23a-0c40e5c9e678",
@@ -14134,46 +12658,10 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "6235ee39-d1b9-499d-8903-a88175199900",
-        "doc_no": "A.6.1.1.7.2.5.1.2.5.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "605ffedd-9677-44c5-90bb-78d883acf34b",
-        "doc_no": "A.6.1.1.7.2.5.1.2.5.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "9b28a8e8-c17e-438b-bf9c-72e25ef4eee2",
-        "doc_no": "A.6.1.1.7.2.5.1.2.5.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "c43a4f3c-f171-4292-8066-e8f219ad2913",
         "doc_no": "A.6.1.1.7.2.5.1.2.6.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "8dd16fa8-6d42-49b2-a5a6-4552ef05bc27",
-        "doc_no": "A.6.1.1.7.2.5.1.2.6.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "f50c60ab-5718-477c-98de-a11995f7e37b",
-        "doc_no": "A.6.1.1.7.2.5.1.2.6.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "48d8e8ac-cc09-4059-9a41-b8e2734e1104",
-        "doc_no": "A.6.1.1.7.2.5.1.2.6.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "63213d03-b11f-4ab1-9a97-4a1a631ba68c",
@@ -14182,46 +12670,10 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "1cbc61c5-d411-4f50-ab02-a81395b55764",
-        "doc_no": "A.6.1.1.7.2.5.1.2.7.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "de9c3d5f-50aa-41e3-b5cd-4c3fe6704973",
-        "doc_no": "A.6.1.1.7.2.5.1.2.7.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "5432ef34-4dfb-446c-8fe1-c7bb80334537",
-        "doc_no": "A.6.1.1.7.2.5.1.2.7.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "1f474e9a-e923-4bc4-bf85-cc3ee4e5eedd",
         "doc_no": "A.6.1.1.7.2.5.1.2.8.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "adb743a1-14ce-4c1d-843f-abb1a26911ab",
-        "doc_no": "A.6.1.1.7.2.5.1.2.8.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "18f498ca-6cc0-4254-86db-d39d6b251248",
-        "doc_no": "A.6.1.1.7.2.5.1.2.8.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "753db04c-a883-4ba5-ab90-49dbcaf5b5b4",
-        "doc_no": "A.6.1.1.7.2.5.1.2.8.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "60d8973d-b5e0-4dc3-ae21-edfda998bc42",
@@ -14284,26 +12736,26 @@
         "bucket": "Hub Data Repository"
       },
       {
-        "uuid": "71bf4607-f3cc-45e6-a79d-917af5bd95ef",
+        "uuid": "192cf8b5-2bd1-43a5-bfa1-5321e8ffd9e1",
         "doc_no": "A.6.1.1.7.2.6.1.3.1.1.1.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
-        "uuid": "d0d163d7-b9d3-4e7d-9371-0a8c48bf2d9f",
+        "uuid": "cb293144-de0c-4bd8-9971-d96327b38ae9",
         "doc_no": "A.6.1.1.7.2.6.1.3.1.1.1.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
-        "uuid": "192cf8b5-2bd1-43a5-bfa1-5321e8ffd9e1",
-        "doc_no": "A.6.1.1.7.2.6.1.3.1.2.1.2",
+        "uuid": "71bf4607-f3cc-45e6-a79d-917af5bd95ef",
+        "doc_no": "A.6.1.1.7.2.6.1.4.1.1.1.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
-        "uuid": "cb293144-de0c-4bd8-9971-d96327b38ae9",
-        "doc_no": "A.6.1.1.7.2.6.1.3.1.2.1.2.4",
+        "uuid": "d0d163d7-b9d3-4e7d-9371-0a8c48bf2d9f",
+        "doc_no": "A.6.1.1.7.2.6.1.4.1.1.1.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
@@ -14398,24 +12850,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "e0b544df-ad91-46a7-8c4e-da665c1ba9f5",
-        "doc_no": "A.6.1.1.8.2.1.1.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "bc83f510-98d9-4088-b775-3fca976df4ed",
-        "doc_no": "A.6.1.1.8.2.1.1.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "904a4c5e-7d06-45ee-b0e5-b327f131276d",
-        "doc_no": "A.6.1.1.8.2.1.1.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "ec52fb9d-30d6-4ccb-830d-eb8878e58e64",
         "doc_no": "A.6.1.1.8.2.1.2.1",
         "title": "Primitive Hub Document",
@@ -14444,24 +12878,6 @@
         "doc_no": "A.6.1.1.8.2.1.2.3.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "cd906df7-aeb9-4859-a364-3fb03d4f2f78",
-        "doc_no": "A.6.1.1.8.2.1.2.3.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "dcbe59e5-5d72-49f3-92cc-fce16bd6d5f9",
-        "doc_no": "A.6.1.1.8.2.1.2.3.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "11420736-9467-412e-81ee-389e254b4ac3",
-        "doc_no": "A.6.1.1.8.2.1.2.3.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "acd47616-d33c-4a8e-81cf-9f75cf83187d",
@@ -14512,24 +12928,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "3fa4e43c-9de9-4778-92b2-2adfb9dfdc92",
-        "doc_no": "A.6.1.1.8.2.1.4.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "8ee40481-70c1-450b-b6e0-aa054cc8daca",
-        "doc_no": "A.6.1.1.8.2.1.4.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "293be631-ea6f-4a3c-a6db-f1cc99b322e9",
-        "doc_no": "A.6.1.1.8.2.1.4.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "afe5ecf8-9fde-4d20-b867-192ad174c6b0",
         "doc_no": "A.6.1.1.8.2.2.1.1",
         "title": "Primitive Hub Document",
@@ -14552,24 +12950,6 @@
         "doc_no": "A.6.1.1.8.2.2.1.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "e60e7340-7e86-4207-b725-2b1380f637d4",
-        "doc_no": "A.6.1.1.8.2.2.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "15f11c14-4ae7-4e7b-84c8-211fb93b6f8b",
-        "doc_no": "A.6.1.1.8.2.2.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "b2ef0e67-5e45-43f0-a62b-6a3669db4cc8",
-        "doc_no": "A.6.1.1.8.2.2.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "b872e10d-6077-4a05-af0d-e03faed0f48a",
@@ -14600,24 +12980,6 @@
         "doc_no": "A.6.1.1.8.2.2.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "d29e42dd-0675-47b8-b0c9-8e88a7f17f14",
-        "doc_no": "A.6.1.1.8.2.2.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "f8798270-5625-496f-87f5-b79f8981fd54",
-        "doc_no": "A.6.1.1.8.2.2.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "19d6d80e-edfc-45ed-9909-8130a006c542",
-        "doc_no": "A.6.1.1.8.2.2.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "c45b24ee-844e-4fa4-bdd5-6f4af842fbea",
@@ -14668,24 +13030,6 @@
         "bucket": "Parameters"
       },
       {
-        "uuid": "1126acc9-9fb2-493b-b6ed-78cdccb75c5a",
-        "doc_no": "A.6.1.1.8.2.3.1.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "4d4d1a09-cb35-4582-bdb1-919ec4e52a16",
-        "doc_no": "A.6.1.1.8.2.3.1.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "c828c63f-634c-42f6-8741-27edbd83ff68",
-        "doc_no": "A.6.1.1.8.2.3.1.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
-      },
-      {
         "uuid": "e087c1a6-3f6f-4309-952d-71b74691c6de",
         "doc_no": "A.6.1.1.8.2.3.2.1",
         "title": "Primitive Hub Document",
@@ -14714,24 +13058,6 @@
         "doc_no": "A.6.1.1.8.2.3.2.2.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
-      },
-      {
-        "uuid": "d4946913-4550-4250-b48e-5fe97e30728c",
-        "doc_no": "A.6.1.1.8.2.3.2.2.1.3.1",
-        "title": "Initial Planning",
-        "bucket": "Initial Planning"
-      },
-      {
-        "uuid": "e07b73b0-079a-45ba-a861-03d6f4d7ac49",
-        "doc_no": "A.6.1.1.8.2.3.2.2.1.3.2",
-        "title": "Operational GovOps Review",
-        "bucket": "Operational GovOps Review"
-      },
-      {
-        "uuid": "990d5e1a-d9ac-4aa6-a663-ec310f193d84",
-        "doc_no": "A.6.1.1.8.2.3.2.2.1.3.3",
-        "title": "Artifact Edit Proposal",
-        "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "a964694f-360d-4765-b0e0-54907b66559d",
@@ -15394,8 +13720,8 @@
   },
   "cross-scope-duplication": {
     "counts": {
-      "total": 152,
-      "groups": 62
+      "total": 156,
+      "groups": 64
     },
     "members": [
       {
@@ -15517,6 +13843,18 @@
         "doc_no": "A.2.1.1.4",
         "title": "Resources",
         "bucket": "resources"
+      },
+      {
+        "uuid": "d59a233c-11b9-4140-b15f-51df37475fd8",
+        "doc_no": "A.2.2.10.1.1.1.2.1.3",
+        "title": "Inflow Rate Limits",
+        "bucket": "inflow rate limits"
+      },
+      {
+        "uuid": "e50fd86a-ffa4-4387-b212-420730a8d171",
+        "doc_no": "A.2.2.10.1.1.1.2.1.4",
+        "title": "Outflow Rate Limits",
+        "bucket": "outflow rate limits"
       },
       {
         "uuid": "82a04ab9-158e-4c6e-9f2a-04ef68c3a2f0",
@@ -16165,6 +14503,18 @@
         "doc_no": "A.6.1.1.1.2.6.1.2.2.1.3.5",
         "title": "Set Trigger For RateLimit Increase",
         "bucket": "set trigger for ratelimit increase"
+      },
+      {
+        "uuid": "9a541aa7-a734-4226-8695-8b61e13387e6",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.5.2.4.1",
+        "title": "Inflow Rate Limits",
+        "bucket": "inflow rate limits"
+      },
+      {
+        "uuid": "206c76f4-bf01-46fc-b5f2-55678c661a54",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.5.2.4.2",
+        "title": "Outflow Rate Limits",
+        "bucket": "outflow rate limits"
       },
       {
         "uuid": "9995ba51-1de7-4b32-8b76-a71462dc4c5b",
