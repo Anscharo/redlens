@@ -21,6 +21,9 @@ import type { SqlTag } from "../sql-types.ts";
 import { loadCursors, markRead, saveCursor, topicKey, topicsByContract, type RpcCursor } from "./rpc-cursor.ts";
 import { CONFIRMATIONS, ensureCursors, eventTargets, storeLog, type EventTarget, type PauLog } from "./sync-events.ts";
 
+/** A log as a source returns it: the stored fields and the contract that emitted it. */
+export type SourceLog = PauLog & { address: string };
+
 /** One reader of a chain's logs: a JSON-RPC endpoint (scripts/lib/rpc-logs.ts) or HyperSync (scripts/lib/hypersync-logs.ts). */
 export interface LogSource {
   /** Names the source in errors; also its identity in the rotation. */
@@ -31,7 +34,7 @@ export interface LogSource {
   /** First block to read for `address`; null when it has no code at `head`. */
   deployBlock: (address: string, head: number) => Promise<number | null>;
   /** Logs of any of `addresses` with any of `topic0s` in [from, to], and the last block the answer covers (at most `to`). */
-  logs: (addresses: string[], topic0s: string[], from: number, to: number) => Promise<{ logs: (PauLog & { address: string })[]; to: number }>;
+  logs: (addresses: string[], topic0s: string[], from: number, to: number) => Promise<{ logs: SourceLog[]; to: number }>;
 }
 
 export interface RpcSyncDeps {

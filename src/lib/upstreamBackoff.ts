@@ -96,13 +96,18 @@ function forgive(host: string): void {
   if ((hosts.get(host)?.until ?? 0) <= Date.now()) hosts.delete(host);
 }
 
-/** `fetch` that waits out the host's cooldown first and starts one when the answer says to slow down. */
-export async function politeFetch(input: string | URL | Request, init?: RequestInit): Promise<Response> {
-  const url = input instanceof Request ? input.url : String(input);
-  await holdOff(url);
+/**
+ * `fetch` that waits out the host's cooldown first and starts one when the
+ * answer says to slow down. `cooldownKey` names the host whose cooldown it
+ * shares instead of the URL's own, for an API whose limit spans several hosts
+ * (HyperSync's per-token budget across every chain's subdomain).
+ */
+export async function politeFetch(input: string | URL | Request, init?: RequestInit, opts: { cooldownKey?: string } = {}): Promise<Response> {
+  const key = opts.cooldownKey ?? (input instanceof Request ? input.url : String(input));
+  await holdOff(key);
   const res = await fetch(input, init);
-  if (await refused(res)) backOff(url, askedWait(res));
-  else forgive(hostOf(url));
+  if (await refused(res)) backOff(key, askedWait(res));
+  else forgive(hostOf(key));
   return res;
 }
 

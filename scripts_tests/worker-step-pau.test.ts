@@ -21,7 +21,6 @@ vi.mock("../src/server/pau/store.ts", () => ({ maybeRefreshPauState }));
 vi.mock("../src/server/pau/rpc-reader.ts", () => ({ rpcChainReader: () => "reader", rpcHead: async () => 1 }));
 vi.mock("../scripts/lib/explorer-logs.ts", () => ({ explorerLogs: async () => [] }));
 vi.mock("../scripts/lib/log-sources.ts", () => ({ logSourcesFor: () => [] }));
-vi.mock("../scripts/lib/rpc-logs.ts", () => ({ logsRpcsFor: () => [] }));
 vi.mock("../src/server/pau/handover.ts", () => ({ crawlOwnedChains: async () => new Set(["base"]) }));
 vi.mock("../src/server/pau/diamond-derive.ts", () => ({ keyNamer }));
 vi.mock("../src/server/pau/probe.ts", () => ({ atlasKeysByPrime }));

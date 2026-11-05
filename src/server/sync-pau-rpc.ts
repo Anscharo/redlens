@@ -21,7 +21,7 @@ const T0 = Date.now();
 async function run(): Promise<void> {
   await runMigrations();
   useDbCooldowns(sql);
-  const deps = { sources: (chain: string) => logSourcesFor(chain), deadline: T0 + deadlineMs() };
+  const deps = { sources: logSourcesFor, deadline: T0 + deadlineMs() };
   await runPauRpc(sql, reg as unknown as PauRegistry, deps);
 }
 

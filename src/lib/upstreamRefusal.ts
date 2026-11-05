@@ -55,10 +55,13 @@ export async function refused(res: Response): Promise<boolean> {
   return body?.message === "NOTOK" && limitedText(String(body.result ?? ""));
 }
 
-/** How long the host asked us to wait: Retry-After, else the seconds until GitHub's X-RateLimit-Reset when the limit is spent. */
+/** Below this an X-RateLimit-Reset is seconds from now (HyperSync, the RateLimit-Reset draft); at or above it, epoch seconds (GitHub). */
+const EPOCH_RESET_MIN = 1e9;
+
+/** How long the host asked us to wait: Retry-After, else the seconds until X-RateLimit-Reset when the limit is spent. */
 export function askedWait(res: Response): string | null {
   const reset = Number(res.headers.get("x-ratelimit-reset"));
   if (res.headers.get("retry-after") || res.headers.get("x-ratelimit-remaining") !== "0" || !reset) return res.headers.get("retry-after");
-  return String(Math.max(0, reset - Math.floor(Date.now() / 1000)));
+  return String(reset < EPOCH_RESET_MIN ? reset : Math.max(0, reset - Math.floor(Date.now() / 1000)));
 }
 
