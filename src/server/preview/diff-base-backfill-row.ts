@@ -1,6 +1,6 @@
 // Per-row half of the diff-base backfill: recover the Resolved a pinned-sha
 // rebuild would build, then the doc-list size of the base it would pick.
-// The boot loop that walks the table lives in diff-base-backfill.ts.
+// The loop that walks the table lives in diff-base-backfill.ts, its boot hook in diff-base-backfill-boot.ts.
 
 import { sql } from "../db.ts";
 import { CANONICAL_REPO, isPullRef, prBaseOf, type GhClient, type Resolved } from "./resolve.ts";

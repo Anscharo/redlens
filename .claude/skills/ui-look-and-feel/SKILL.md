@@ -155,19 +155,21 @@ actor dashboards · `/reports/*` four reports · `/hints`, `/provenance`,
 everything else is fixed-shell/inner-scroll (`windowScroll` flag in App.tsx).
 Header = `SearchBar.tsx`, status footer = `Footer.tsx`.
 
-## Verified recipe: launch + screenshot (2026-06)
+## Verified recipe: launch + screenshot (2026-11)
 
 ```bash
-# pnpm dev needs bun (chat API server); chat is off by default, so Vite alone is fine:
-(pnpm exec vite > /tmp/redlens-vite.log 2>&1 & echo $! > /tmp/redlens-dev.pid)
-timeout 45 bash -c 'until curl -sf -o /dev/null http://localhost:5173/; do sleep 1; done'
+# The reader loads its atlas from the Bun server (/api/atlas/<sha>/), so run both.
+# DEV_NO_DB=1 needs no Docker: the server stays up without Postgres and only
+# DB-backed routes (history, chain state, PAU, chat) answer 503.
+(DEV_NO_DB=1 pnpm dev > /tmp/redlens-dev.log 2>&1 &)
+timeout 300 bash -c 'until curl -sf -o /dev/null http://localhost:5173/ && curl -sf -o /dev/null http://localhost:3000/api/health; do sleep 2; done'
 
 # chromium-cli is NOT installed; headless Chrome is, and works:
 google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
   --window-size=1440,900 --virtual-time-budget=30000 \
   --screenshot=/tmp/shot.png "http://localhost:5173/"
 
-kill $(cat /tmp/redlens-dev.pid)   # cleanup
+pkill -f scripts/aux/dev.mjs   # cleanup: takes the server and Vite down with it
 ```
 
 - Base path is **`/`** — the app is served from the domain root.

@@ -277,6 +277,28 @@ describe("getDbAtlasSha", () => {
       console.warn = origWarn;
     }
   });
+
+  it("logs a lasting outage once, not on every tick, and logs the recovery", async () => {
+    await getDbAtlasSha(); // clears any error an earlier test left behind
+    fakeDb.syncStateThrows = true;
+    const warns: string[] = [];
+    const logs: string[] = [];
+    const origWarn = console.warn;
+    const origLog = console.log;
+    console.warn = (...a: unknown[]) => void warns.push(a.join(" "));
+    console.log = (...a: unknown[]) => void logs.push(a.join(" "));
+    try {
+      for (let i = 0; i < 3; i++) expect(await getDbAtlasSha()).toBeNull();
+      fakeDb.syncStateThrows = false;
+      fakeDb.syncStateAtlasSha = A;
+      expect(await getDbAtlasSha()).toBe(A);
+    } finally {
+      console.warn = origWarn;
+      console.log = origLog;
+    }
+    expect(warns.filter((w) => w.includes("getDbAtlasSha"))).toHaveLength(1);
+    expect(logs.filter((l) => l.includes("database reachable again"))).toHaveLength(1);
+  });
 });
 
 describe("runTick", () => {

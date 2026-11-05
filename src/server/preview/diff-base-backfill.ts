@@ -56,8 +56,6 @@ export interface BackfillDeps {
   fill: (sha: string, meta: PreviewMeta, discovered: DiscoveredBase) => Promise<boolean>;
 }
 
-const LOCK_KEY = 4711_2033;
-
 export async function servedAtlas(token: string): Promise<LiveAtlas> {
   try {
     const ix = getIndexes();
@@ -244,32 +242,6 @@ export function fillPrivateDiffBaseOnOpen(
       console.warn(`[preview] ${sha8}: diff-base backfill failed (${(e as Error).name || "Error"})`);
     } finally {
       openInflight.delete(resolved.sha);
-    }
-  })();
-}
-
-/** Detached boot hook. Quiet when there is nothing to fill. One advisory lock
- *  so two web replicas don't each download every archive. */
-export function startPreviewDiffBaseBackfill(): void {
-  if (!config.githubToken) return;
-  void (async () => {
-    const reserved = await sql.reserve();
-    try {
-      const got = (await reserved`SELECT pg_try_advisory_lock(${LOCK_KEY})`) as { pg_try_advisory_lock: boolean }[];
-      if (!got[0]?.pg_try_advisory_lock) return;
-      const r = await backfillPreviewDiffBases();
-      if (r.filled || r.skipped || r.failed) {
-        console.log(`[preview] diff-base backfill: filled ${r.filled}, skipped ${r.skipped}, failed ${r.failed}`);
-      }
-    } catch (e) {
-      console.warn(`[preview] diff-base backfill failed (${(e as Error).name || "Error"})`);
-    } finally {
-      try {
-        await reserved`SELECT pg_advisory_unlock(${LOCK_KEY})`;
-      } catch {
-        /* connection already dead — the lock dies with the session */
-      }
-      reserved.release();
     }
   })();
 }

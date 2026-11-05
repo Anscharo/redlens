@@ -14,6 +14,7 @@
 import { spawn } from "node:child_process";
 import { config } from "./config.ts";
 import { sql } from "./db.ts";
+import { getDbAtlasSha } from "./db-atlas-sha.ts";
 import { getIndexes, rebuildFromDisk, docRowToNode, loadDocMetaSnapshot, writeDocsJson, type AtlasNode } from "./retrieval/indexes.ts";
 import { refreshInPlaceFromDisk } from "./atlas-refresh.ts";
 import { broadcastAtlasUpdate } from "./sse.ts";
@@ -194,15 +195,7 @@ export type SpawnFn = (cmd: string, args: string[]) => Promise<{ code: number; s
 const realSpawn: SpawnFn = (cmd, args) => spawnCollect(cmd, args, false);
 
 // Poll sync_state.atlas_sha (fast, same-process DB connection; replaces git ls-remote).
-export async function getDbAtlasSha(): Promise<string | null> {
-  try {
-    const rows = await sql`SELECT atlas_sha FROM sync_state WHERE id = 1`;
-    return (rows[0] as { atlas_sha?: string } | undefined)?.atlas_sha ?? null;
-  } catch (e) {
-    console.warn(`getDbAtlasSha: ${(e as Error).message}`);
-    return null;
-  }
-}
+export { getDbAtlasSha };
 
 /** Injected so runRefreshFromStore is testable without a database. */
 export type ArtifactLoader = (
