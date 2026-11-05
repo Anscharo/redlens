@@ -1185,13 +1185,15 @@
       "ethereum": true,
       "arbitrum": true,
       "base": true,
-      "avalanche": true
+      "avalanche": true,
+      "xlayer": true
     },
     "presentOnChains": [
       "base",
       "ethereum",
       "arbitrum",
-      "avalanche"
+      "avalanche",
+      "xlayer"
     ]
   },
   "0x210cfcf53d1f9648c1c4dcaee677f0cb06914364": {
@@ -2276,13 +2278,15 @@
       "ethereum": true,
       "arbitrum": true,
       "base": true,
-      "avalanche": true
+      "avalanche": true,
+      "xlayer": true
     },
     "presentOnChains": [
       "avalanche",
       "ethereum",
       "arbitrum",
-      "base"
+      "base",
+      "xlayer"
     ]
   },
   "0x8cc0cb0cfb6b7e548cfd395b833c05c346534795": {
@@ -2417,6 +2421,7 @@
     "chains": [
       "xlayer"
     ],
+    "etherscanName": "ForeignController",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -2431,6 +2436,7 @@
     "chains": [
       "xlayer"
     ],
+    "etherscanName": "ALMProxy",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -2445,6 +2451,7 @@
     "chains": [
       "xlayer"
     ],
+    "etherscanName": "RateLimits",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -3744,6 +3751,7 @@
     "chains": [
       "xlayer"
     ],
+    "etherscanName": "ERC1967Proxy",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -3758,6 +3766,7 @@
     "chains": [
       "xlayer"
     ],
+    "etherscanName": "TransparentUpgradeableProxy",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -3772,6 +3781,7 @@
     "chains": [
       "xlayer"
     ],
+    "etherscanName": "SparkVault",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -3786,6 +3796,7 @@
     "chains": [
       "xlayer"
     ],
+    "etherscanName": "Executor",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -3800,6 +3811,7 @@
     "chains": [
       "xlayer"
     ],
+    "etherscanName": "ALMProxyFreezable",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -3814,6 +3826,7 @@
     "chains": [
       "xlayer"
     ],
+    "etherscanName": "ERC1967Proxy",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -3828,6 +3841,7 @@
     "chains": [
       "xlayer"
     ],
+    "etherscanName": "FiatTokenProxy",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -3842,6 +3856,7 @@
     "chains": [
       "xlayer"
     ],
+    "etherscanName": "AdministeredAgent",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -3856,6 +3871,7 @@
     "chains": [
       "xlayer"
     ],
+    "etherscanName": "ALMProxy",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -3870,6 +3886,7 @@
     "chains": [
       "xlayer"
     ],
+    "etherscanName": "SavingsVaultIntents",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -4814,6 +4831,7 @@
     "chains": [
       "plume"
     ],
+    "etherscanName": "ALMProxy",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -5882,6 +5900,7 @@
     "chains": [
       "plume"
     ],
+    "etherscanName": "FiatTokenProxy",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -7180,6 +7199,21 @@
     "isContract": true,
     "isProxy": true,
     "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x9dd0ceb7cac214777014d2f664db3c20f0838d53": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "MorphoMarketV1AdapterV2",
+    "isContract": true,
+    "isProxy": false,
     "codeByChain": {
       "ethereum": true
     },

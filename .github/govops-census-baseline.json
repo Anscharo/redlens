@@ -221,6 +221,11 @@
       "title": "Emergency Operations Training And Readiness Requirement"
     },
     {
+      "uuid": "b73bfcda-8adc-40d0-b327-c90b3693798e",
+      "doc_no": "A.3.2.2.1.4",
+      "title": "Temporary Capital Ratio Requirements"
+    },
+    {
       "uuid": "1ccb4063-facc-42d6-a71e-21fe29e84519",
       "doc_no": "A.3.2.2.7.2.3.2",
       "title": "Sky Governance Process"
@@ -457,12 +462,12 @@
     },
     {
       "uuid": "b0b73201-d985-4a71-84d9-05ae9f9320be",
-      "doc_no": "A.6.1.1.7.2.6.1.3.1.2.1.4.1.3",
+      "doc_no": "A.6.1.1.7.2.6.1.3.1.1.1.4.1.3",
       "title": "Allocator Role Addresses"
     },
     {
       "uuid": "c2390e13-50af-4008-9474-ed4e99eac308",
-      "doc_no": "A.6.1.1.7.2.6.1.3.1.2.1.4.1.4",
+      "doc_no": "A.6.1.1.7.2.6.1.3.1.1.1.4.1.4",
       "title": "Sentinel Role Addresses"
     },
     {
