@@ -105,7 +105,7 @@
    re-hued to the navy (hue 262) at a lower chroma. The recess (--bg), hover
    and hairline (--border) stay lavender (hue 298), winter's highlight colour,
    so the chips, kbd keys and panel edges carry it. The recess is lifted
-   0.02 L so winter's --tan-3 (#60656e) still clears AA on it — 4.56:1; on
+   0.02 L so winter's --tan-3 (#60656e) still clears AA on it — 4.57:1; on
    every other step it is 4.8:1 or more, and --accent is 8.3:1 or more
    everywhere.
    Same specificity as the light-scheme rules it overrides, so it must stay
@@ -116,13 +116,13 @@
 [data-theme="winter"] .rlc-avatar,
 [data-theme="winter"] .rlc-menu {
   --surface: #f2f5fb;
-  --bg: #e7dffc;
-  --hover: #eae6f6;
-  --border: #cbc2e2;
-  --gray: #4e555f; /* 5.8:1 on the recess */
+  --bg: #e7dffd;
+  --hover: #eae6f7;
+  --border: #cbc2e3;
+  --gray: #4e5560; /* 5.8:1 on the recess */
 }
 [data-theme="winter"] .rlc-panel {
-  background: #e8edf7;
+  background: #e8edf8;
 }
 [data-theme="winter"] .rlc-thread {
   background: #f9fbfe;
