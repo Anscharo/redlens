@@ -49,6 +49,9 @@ function sqlCall(...args: unknown[]): unknown {
 const FN_OWN = new Set<PropertyKey>(["length", "name", "prototype", "constructor", "call", "apply", "bind"]);
 const sqlDispatch = new Proxy(sqlCall, {
   get(target, prop, receiver) {
+    // A member a later file assigns (search.test.ts's `sql.unsafe = stub`) lands on
+    // the target, and wins over the forwarded snapshot.
+    if (Object.prototype.hasOwnProperty.call(target, prop)) return Reflect.get(target, prop, receiver);
     if (baseSql && !FN_OWN.has(prop)) {
       const v = baseSql[prop];
       if (v !== undefined) return typeof v === "function" ? (v as SqlImpl).bind(baseSql) : v;

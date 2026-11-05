@@ -106,15 +106,44 @@ test("runSemantic embeds the query and the residual in ONE request, and hands bo
     );
   }) as unknown as typeof fetch;
 
-  const res = await runSemantic(ix, "who approves rewards", undefined, 5, undefined, "approves rewards");
-  // ONE call, carrying BOTH texts — a second call here is the regression this
-  // test exists for.
-  expect(bodies).toHaveLength(1);
-  expect((bodies[0] as { input: string[] }).input).toHaveLength(2);
-  // pgvector is unreachable in this suite, so the leg degrades — and a degraded
-  // leg reports no vectors, because with no hits there is nothing to attribute.
-  expect(res.skipped).toBeTruthy();
-  expect(res.vecs).toBeUndefined();
+  // pgvector fails on purpose, so the leg degrades whether or not a local
+  // Postgres happens to be running.
+  const restore = stubUnsafe(() => Promise.reject(new Error("pgvector unavailable")));
+  try {
+    const res = await runSemantic(ix, "who approves rewards", undefined, 5, undefined, "approves rewards");
+    // ONE call, carrying BOTH texts — a second call here is the regression this
+    // test exists for.
+    expect(bodies).toHaveLength(1);
+    expect((bodies[0] as { input: string[] }).input).toHaveLength(2);
+    // A degraded leg reports no vectors: with no hits there is nothing to attribute.
+    expect(res.skipped).toBe("pgvector unavailable");
+    expect(res.vecs).toBeUndefined();
+  } finally {
+    restore();
+  }
+});
+
+test("runSemantic hands both vectors back when the vector query answers", async () => {
+  config.openrouterApiKey = "test-key";
+  config.semanticEmbedTimeoutMs = 5_000;
+  globalThis.fetch = ((_u: string, init: { body: string }) => {
+    const input = (JSON.parse(init.body) as { input: string[] }).input;
+    return Promise.resolve(
+      // One-hot per text: unit-length already, so normalising leaves them apart.
+      new Response(JSON.stringify({ data: input.map((_t, i) => ({ index: i, embedding: Array.from({ length: 1024 }, (_v, d) => (d === i ? 1 : 0)) })) }), {
+        status: 200, headers: { "content-type": "application/json" },
+      }),
+    );
+  }) as unknown as typeof fetch;
+  const restore = stubUnsafe(() => Promise.resolve([]));
+  try {
+    const res = await runSemantic(ix, "who approves rewards", undefined, 5, undefined, "approves rewards");
+    expect(res.skipped).toBeNull();
+    expect(res.vecs?.query.slice(0, 2)).toEqual([1, 0]);
+    expect(res.vecs?.residual?.slice(0, 2)).toEqual([0, 1]);
+  } finally {
+    restore();
+  }
 });
 
 test("runSemantic sends ONE text when the residual came back identical to the query", async () => {
@@ -142,9 +171,14 @@ test("buildLeafScorer never embeds — so it cannot time out", async () => {
   globalThis.fetch = (() => { calls++; return Promise.reject(new Error("no")); }) as unknown as typeof fetch;
   const grouped: Hit[] = [{ id: "g", rank: 0, score: 0.8, source: "semantic", memberIds: ["m1", "m2"] }];
   const vecs = { query: Array.from({ length: 1024 }, () => 0.01), residual: Array.from({ length: 1024 }, () => 0.02) };
-  // pgvector is unreachable here, so this returns undefined (attribution falls
+  // pgvector fails on purpose, so this returns undefined (attribution falls
   // back to the lexical pick) — without having gone near the network.
-  expect(await buildLeafScorer(grouped, vecs)).toBeUndefined();
+  const restore = stubUnsafe(() => Promise.reject(new Error("pgvector unavailable")));
+  try {
+    expect(await buildLeafScorer(grouped, vecs)).toBeUndefined();
+  } finally {
+    restore();
+  }
   expect(calls).toBe(0);
 });
 
