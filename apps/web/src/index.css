@@ -259,11 +259,16 @@
 
    The PRIMARY colour is dark navy, not purple: --accent (links, focus, the
    search box, active pills) and the decorative --red slot are both navy, and
-   the chrome's tints (borders, the `mark` highlight, the inverted pill, the
-   treemap ramp) sit at the same hue 262. Purple stays where it carries
-   depth: the top of the doc-number ramp and the titles.
+   borders sit at the same hue 262. Purple carries depth: the top of the
+   doc-number ramp and the titles.
 
-   Every other hue is rationed below Light's: status colours at about 60% of
+   Lavender (hue 298) is the HIGHLIGHT colour, so the theme is not navy on
+   grey alone: the `mark` highlight and active scope pills (--red-dim), the
+   inverted pill and filter emphasis (--magenta), row hover (--hover), the
+   hover-card edge (--tooltip-border), the treemap ramp (--chunk-fill), and
+   the chat widget's recess and hairlines (chat.css).
+
+   Every other hue is rationed below Light's: status colours at about 66% of
    Light's chroma, entity colours likewise (re-spread so no pair sits under
    0.045 OKLab apart), and nothing structural carries a hue outside
    purple-to-blue. */
@@ -276,28 +281,28 @@
   --bg-alt: #f4f6f8;
   --bg-deep: #f0f3f6; /* recessed — tree sidebar + reader */
   --surface: #ffffff; /* raised */
-  --hover: #e7eaed;
-  --border: #dbe0e9; /* a faint blue-grey — the navy, at C 0.014 */
+  --hover: #ebe8f1; /* a faint lavender (H 298, C 0.012) */
+  --border: #dbe0ea; /* a faint blue-grey — the navy, at C 0.015 */
   --border-muted: #e1e3e5;
-  --tooltip-border: #c1c9d8; /* hover cards — a shade darker than --border */
+  --tooltip-border: #cbc4dd; /* hover cards — lavender, a shade darker than --border */
 
   /* ─── Brand ─── dark navy is the primary ─── */
-  --red: #223d81; /* decorative accent slot — navy (H 265); 10.2:1 on --surface */
-  --red-dim: #d6e4fb; /* `mark` + active scope pills — ice blue (H 262); --tan on it is 13.8:1 */
-  --accent: #1d3c79; /* links + focus — dark navy (OKLCH L 0.37 / C 0.11 / H 262), 9.6:1 on --bg-deep */
-  --preview-add: #377355; /* green — status exception, as in Light, at lower chroma */
-  --error-text: #a84642; /* red — likewise */
-  --warn: #896328; /* muted amber, hue 75 */
+  --red: #1f3b87; /* decorative accent slot — navy (H 265); 10.3:1 on --surface */
+  --red-dim: #e6ddfe; /* `mark` + active scope pills — lavender (H 298); --tan on it is 13.6:1 */
+  --accent: #193b7f; /* links + focus — dark navy (OKLCH L 0.37 / C 0.12 / H 262), 9.6:1 on --bg-deep */
+  --preview-add: #307453; /* green — status exception, as in Light, at lower chroma */
+  --error-text: #ad403d; /* red — likewise */
+  --warn: #8c621c; /* muted amber, hue 75 */
 
-  /* ─── Text ─── slate greys at hue 262, C ≤ 0.018 */
-  --gray: #696c72;
-  --tan: #141821; /* primary text — 17.5:1 on --bg */
-  --tan-2: #31363e;
-  --tan-3: #60656d;
-  --magenta: #b2c8ef; /* an INVERTED pill: pale navy-blue on the dark --tan fill, 10.5:1 */
-  --lilac: #61579e; /* the preview "renumbered" note — a muted purple, so it stands apart from the navy --accent */
-  --terminal-green: #377355;
-  --lily-green: #20462f;
+  /* ─── Text ─── slate greys at hue 262, C ≤ 0.021 */
+  --gray: #696c73;
+  --tan: #141822; /* primary text — 17.0:1 on --bg */
+  --tan-2: #31363f;
+  --tan-3: #60656e;
+  --magenta: #cdbdf5; /* an INVERTED pill: pale lavender on the dark --tan fill, 10.3:1 */
+  --lilac: #6155a4; /* the preview "renumbered" note — a muted purple, so it stands apart from the navy --accent */
+  --terminal-green: #307453;
+  --lily-green: #1c472e;
 
   /* ─── Row state overlays ─── Light's, verbatim (translucent black) ─── */
   --row-hover: rgba(0, 0, 0, 0.06);
@@ -313,44 +318,44 @@
   /* Doc TITLES, all one colour: the reader, tree sidebar, split pane and
      related-doc cards read `var(--node-title, <depth colour>)`, so this stops
      the spectrum at the doc number, which keeps the full purple → navy → blue
-     ramp. A deep blue-violet (OKLCH L 0.411 / C 0.104 / H 288), the same
+     ramp. A deep blue-violet (OKLCH L 0.411 / C 0.115 / H 288), the same
      value as --depth-5, so the titles sit inside the ramp the numbers run
      along. 8.2:1 on --bg-deep. Winter and giedi are the only palettes that define it;
      the selected title mixes it toward --tan (see the winter rule below the
      light-scheme section). */
-  --node-title: #493f7f;
+  --node-title: #493d84;
 
   --shadow: rgba(0, 0, 0, 0.1);
   --shadow-strong: rgba(0, 0, 0, 0.18);
 
-  /* ─── CrossView treemap ─── a soft slate blue (OKLCH L 0.72 / C 0.06 /
-     H 262): light enough that the --tan-2 label still reads 6.6:1 on the
-     deepest rect. See the note in the light block. */
-  --chunk-fill: #90a5cb;
+  /* ─── CrossView treemap ─── a soft lavender (OKLCH L 0.74 / C 0.08 /
+     H 295): light enough that the --tan-2 label still reads 5.1:1 at full
+     strength, more on every lighter rect. See the note in the light block. */
+  --chunk-fill: #aea1d9;
 
   /* ─── Diff view ─── red/green as in Light, paler fills, darker inks ─── */
-  --diff-removed-bg: #f8dede;
-  --diff-removed-fg: #6f2222;
-  --diff-added-bg: #dbf0e2;
-  --diff-added-fg: #1d4d2e;
+  --diff-removed-bg: #fadddd;
+  --diff-removed-fg: #731c1e;
+  --diff-added-bg: #d9f1e1;
+  --diff-added-fg: #174e2c;
 
-  /* ─── Entity-type categorical palette ─── Light's hue assignments at ~60%
+  /* ─── Entity-type categorical palette ─── Light's hue assignments at ~66%
      of their chroma, lightness re-spread where the desaturation pushed two
      types together (facilitator-org / multisig had collapsed to 0.010).
      Closest pair is now 0.045; every one clears 5.2:1 on --surface. */
-  --entity-agent: #a44e42;
-  --entity-facilitator-org: #572f0a;
-  --entity-govops-org: #437081;
-  --entity-delegate-org: #314c20;
-  --entity-development-company: #3a5ba9;
-  --entity-foundation: #5447ab;
-  --entity-composite-party: #7e6940;
-  --entity-governance-body: #546f3d;
-  --entity-operational-party: #875745;
-  --entity-ecosystem-actor: #863b45;
-  --entity-instance: #38414d;
-  --entity-multisig: #6f442d;
-  --entity-bridge: #40715d;
+  --entity-agent: #a94a3d;
+  --entity-facilitator-org: #5a2d01;
+  --entity-govops-org: #3e7183;
+  --entity-delegate-org: #2f4d1b;
+  --entity-development-company: #365ab0;
+  --entity-foundation: #5443b3;
+  --entity-composite-party: #80693b;
+  --entity-governance-body: #527038;
+  --entity-operational-party: #8a5541;
+  --entity-ecosystem-actor: #8a3743;
+  --entity-instance: #37414e;
+  --entity-multisig: #724229;
+  --entity-bridge: #3b725c;
   --entity-fallback: #666666;
 
   /* ─── Depth palette ─── PURPLE → NAVY → BLUE, and nothing else. The
@@ -359,9 +364,9 @@
      ONE run across all seventeen slots, no cycle and no return, so every
      level has its own colour and none repeats. Two linear OKLab segments
      through three points:
-       purple  OKLCH L 0.50 / C 0.128 / H 307  (depth 1)
-       navy    OKLCH L 0.32 / C 0.098 / H 262  (depth 9)
-       blue    OKLCH L 0.50 / C 0.131 / H 256  (depth 17)
+       purple  OKLCH L 0.50 / C 0.140 / H 307  (depth 1)
+       navy    OKLCH L 0.32 / C 0.108 / H 262  (depth 9)
+       blue    OKLCH L 0.50 / C 0.144 / H 256  (depth 17)
      Hue only ever moves one way (307 → 256, purple → blue). Lightness dips to
      navy in the middle and comes back up, and the two ends are matched in
      lightness and chroma, so purple and blue carry equal weight and the deep
@@ -370,31 +375,31 @@
      Steps are small but continuous: adjacent levels are 0.021-0.026 apart in
      OKLab, about one JND, so a child reads as a shade of its parent rather
      than a new colour. The ends are 0.113 apart, and every stop keeps
-     C ≥ 0.097, so all of them read as a purple or a blue, never a grey.
-     5.4:1 on --bg-deep at the blue end, 5.7:1 at the purple end, 11.5:1 at
+     C ≥ 0.107, so all of them read as a purple or a blue, never a grey.
+     5.5:1 on --bg-deep at the blue end, 5.8:1 at the purple end, 11.5:1 at
      navy.
 
-     Chroma is held back on purpose: every stop is 85% of the chroma the same
-     path carries at full strength (purple 0.15, navy 0.115, blue 0.155, all in
-     gamut), so the reader stays a muted purple and blue rather than a vivid
-     one. Winter is a desaturated theme, and these colours are on every title. */
-  --depth-1: #774c9b;  /* purple */
-  --depth-2: #6b4994;
-  --depth-3: #5f468d;
-  --depth-4: #544386;
-  --depth-5: #493f7f;
-  --depth-6: #3d3b78;
-  --depth-7: #313871;
-  --depth-8: #24346b;
-  --depth-9: #153064;  /* navy */
-  --depth-10: #17366c;
-  --depth-11: #1a3c76;
-  --depth-12: #1c427e;
-  --depth-13: #1f4988;
-  --depth-14: #214f90;
-  --depth-15: #24569a;
-  --depth-16: #265ca3;
-  --depth-17: #2963ac; /* blue */
+     Chroma is held back on purpose: every stop is about 94% of the chroma the
+     same path carries at full strength (purple 0.15, navy 0.115, blue 0.155,
+     all in gamut), so the reader stays a soft purple and blue rather than a
+     vivid one. These colours are on every doc number. */
+  --depth-1: #7949a0;  /* purple */
+  --depth-2: #6d4699;
+  --depth-3: #604492;
+  --depth-4: #55418b;
+  --depth-5: #493d84;
+  --depth-6: #3d397d;
+  --depth-7: #303776;
+  --depth-8: #223370;
+  --depth-9: #112f69;  /* navy */
+  --depth-10: #133571;
+  --depth-11: #153b7b;
+  --depth-12: #164184;
+  --depth-13: #19488e;
+  --depth-14: #1a4e96;
+  --depth-15: #1c55a0;
+  --depth-16: #1d5baa;
+  --depth-17: #2062b3; /* blue */
 }
 
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
@@ -854,7 +859,7 @@
 /* ─── Winter structural override ─────────────────────────────────────────
    The light-scheme .filter-summary-em above is a salmon tuned for Light's
    callout — the only warm hue it would leave in winter's reader. --magenta is
-   already winter's "pale navy-blue on the --tan fill" token (10.5:1, audited
+   already winter's "pale lavender on the --tan fill" token (10.3:1, audited
    as status pill / tan), so the emphasis takes that. After the light-scheme
    rule on purpose: same specificity, so source order decides. */
 [data-theme="winter"] .filter-summary-em {

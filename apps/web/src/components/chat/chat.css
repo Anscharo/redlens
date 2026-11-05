@@ -101,12 +101,13 @@
 }
 
 /* ── Chat-local palette, winter ────────────────────────────────────────────
-   Winter's primary is dark navy, not Sky violet, so the lavender family above
-   is re-hued: every value keeps its OKLCH lightness, moves to hue 262 (the
-   navy), and drops to 60% of its chroma, the same rationing winter applies to
-   every non-structural hue. The recess (--bg) is lifted 0.02 L so winter's
-   --tan-3 (#60656d) still clears AA on it — 4.6:1; on every other step it is
-   4.8:1 or more, and --accent is 8.4:1 or more everywhere.
+   Winter's primary is dark navy, not Sky violet, so the surfaces above are
+   re-hued to the navy (hue 262) at a lower chroma. The recess (--bg), hover
+   and hairline (--border) stay lavender (hue 298), winter's highlight colour,
+   so the chips, kbd keys and panel edges carry it. The recess is lifted
+   0.02 L so winter's --tan-3 (#60656e) still clears AA on it — 4.56:1; on
+   every other step it is 4.8:1 or more, and --accent is 8.3:1 or more
+   everywhere.
    Same specificity as the light-scheme rules it overrides, so it must stay
    after them. These classes also back the nav's help and theme buttons. */
 [data-theme="winter"] .rlc-launcher,
@@ -114,14 +115,14 @@
 [data-theme="winter"] .rlc-signin,
 [data-theme="winter"] .rlc-avatar,
 [data-theme="winter"] .rlc-menu {
-  --surface: #f2f5fa;
-  --bg: #d8e5fb;
-  --hover: #e2e9f7;
-  --border: #b9c8e4;
-  --gray: #4f555e; /* 5.8:1 on the recess */
+  --surface: #f2f5fb;
+  --bg: #e7dffc;
+  --hover: #eae6f6;
+  --border: #cbc2e2;
+  --gray: #4e555f; /* 5.8:1 on the recess */
 }
 [data-theme="winter"] .rlc-panel {
-  background: #e8edf6;
+  background: #e8edf7;
 }
 [data-theme="winter"] .rlc-thread {
   background: #f9fbfe;
