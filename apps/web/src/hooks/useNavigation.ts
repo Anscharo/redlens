@@ -19,6 +19,10 @@ function carryParams(params: URLSearchParams, keys: string[]): URLSearchParams {
 
 type Navigate = (to: string) => void;
 
+// The reader's filter (subset, a preview's change filters, its diff base):
+// opening a doc keeps all three, or the reader would list different docs.
+const FILTER_PARAMS = ["subset", "change", "base"];
+
 /** Opens a node in the reader. Subset filters stay active across doc clicks:
  *  opening a doc from a filtered list stays filtered rather than jumping to All.
  *  A doc the filter hides goes where hiddenTargetHref says, usually the comparison pane. */
@@ -36,7 +40,7 @@ function useNodeNavigator(navigate: Navigate): (id: string) => void {
         navigate(target.href);
         return;
       }
-      navigate(`${ROUTES.ATLAS}?${carryParams(new URLSearchParams({ id }), ["split", "view", "subset", "base"])}`);
+      navigate(`${ROUTES.ATLAS}?${carryParams(new URLSearchParams({ id }), ["split", "view", ...FILTER_PARAMS])}`);
     },
     [navigate, filterHides],
   );
@@ -50,7 +54,7 @@ function useViewChange(navigate: Navigate, nodeId: string | null): (v: AtlasTab)
       const params = new URLSearchParams();
       if (nodeId) params.set("id", nodeId);
       if (v !== "notes") params.set("view", v);
-      navigate(`${ROUTES.ATLAS}?${carryParams(params, ["split", "subset", "base"])}`);
+      navigate(`${ROUTES.ATLAS}?${carryParams(params, ["split", ...FILTER_PARAMS])}`);
     },
     [navigate, nodeId],
   );

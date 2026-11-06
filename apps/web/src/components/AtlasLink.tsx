@@ -5,10 +5,11 @@ import { ROUTES } from "@/lib/routes";
 import { track } from "../lib/analytics";
 import { hiddenTargetHref, useFilterHides } from "../lib/atlasFilter";
 
-// Like <Link>, but when the destination is /atlas, folds ?split=, ?subset= and
-// a preview's ?base= from the current URL into the target so the comparison
-// pane, the changed/selected-only filter and the diff base persist across
-// atlas-internal navigation and across search → atlas navigation. A target the filter hides goes where
+// Like <Link>, but when the destination is /atlas, folds ?split=, ?subset=
+// (with a preview's ?change= filters) and a preview's ?base= from the current
+// URL into the target so the comparison pane, the changed/selected-only
+// filter and the diff base persist across atlas-internal navigation and
+// across search → atlas navigation. A target the filter hides goes where
 // hiddenTargetHref says, usually the comparison pane. From any other route (no
 // split/subset/base in URL) it is a no-op equivalent to <Link>.
 interface Props extends Omit<ComponentPropsWithoutRef<"a">, "href"> {
@@ -43,7 +44,11 @@ function foldParams(to: string, live: URLSearchParams, filterHides: (id: string)
   const chosen = np.has("subset") || np.has("split");
   if (target && !chosen && filterHides(target)) return foldHidden(np, target, live);
   if (split && !np.has("split")) np.set("split", split);
-  if (subset && !np.has("subset")) np.set("subset", subset);
+  if (subset && !np.has("subset")) {
+    np.set("subset", subset);
+    const change = live.get("change");
+    if (change) np.set("change", change);
+  }
   if (base && !np.has("base")) np.set("base", base);
   return { href: `${ROUTES.ATLAS}?${np}`, splitId: null };
 }

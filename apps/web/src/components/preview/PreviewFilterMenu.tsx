@@ -11,6 +11,7 @@ import {
   type PreviewFilterId,
   type PreviewFilterPreset as Preset,
 } from "../../lib/previewFilters";
+import { toggleFilter } from "../../lib/previewFilterTicks";
 import { track } from "../../lib/analytics";
 import { FILTER_HEADING_CLASS, PreviewFilterGroup } from "./PreviewFilterGroup";
 import { PreviewFilterPreset } from "./PreviewFilterPreset";
@@ -35,7 +36,7 @@ export function PreviewFilterMenu({ onPicked, ...props }: ComponentProps<"div"> 
     track("preview_filter_change", { filters: ordered, via, count: filterPreviewDocs(diff, ordered).size });
     setChangeFilters(ordered);
   };
-  const toggle = (id: PreviewFilterId, on: boolean) => apply(on ? [...ticked, id] : ticked.filter((f) => f !== id), id);
+  const toggle = (id: PreviewFilterId, on: boolean) => apply(toggleFilter(ticked, id, on, diff), id);
   const pickPreset = (p: Preset) => (apply(p.filters, `preset:${p.label}`), onPicked());
 
   return (
@@ -51,7 +52,7 @@ export function PreviewFilterMenu({ onPicked, ...props }: ComponentProps<"div"> 
         />
       ))}
       {PREVIEW_FILTER_GROUPS.map((g) => (
-        <PreviewFilterGroup key={g.id} group={g.id} label={g.label} diff={diff} ticked={ticked} onToggle={toggle} />
+        <PreviewFilterGroup key={g.id} group={g.id} label={g.label} diff={diff} selected={ticked} onToggle={toggle} />
       ))}
     </div>
   );

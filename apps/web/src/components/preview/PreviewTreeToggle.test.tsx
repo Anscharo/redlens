@@ -77,15 +77,26 @@ describe("PreviewTreeToggle", () => {
     expect(window.location.search).not.toContain("change=");
   });
 
-  it("ticking a filter keeps the menu open; × clears back to All", async () => {
-    mockDiff({ added: ["a"], changed: ["c"], renumberedOnly: [] });
+  it("Changed only shows every change kind ticked", async () => {
+    mockDiff({ added: ["a"], changed: ["c", "d"], renumberedOnly: ["d"] });
     renderToggle(PREVIEW_SOURCE);
     fireEvent.click(await screen.findByText("Filter"));
-    const box = await screen.findByLabelText(/^\+?\s*New/);
+    fireEvent.click(await screen.findByRole("button", { name: /Changed only/ }));
+    fireEvent.click(await screen.findByText("Changed only"));
+    for (const name of [/^\+?\s*New/, /Edited/, /Renumbered only/]) expect(screen.getByLabelText(name)).toBeChecked();
+    expect(screen.getByLabelText(/Retitled/)).not.toBeChecked();
+  });
+
+  it("unticking a kind keeps the menu open and narrows; × clears back to All", async () => {
+    mockDiff({ added: ["a"], changed: ["c", "d"], renumberedOnly: ["d"] });
+    renderToggle(PREVIEW_SOURCE);
+    fireEvent.click(await screen.findByText("Filter"));
+    const box = await screen.findByLabelText(/Renumbered only/);
     await waitFor(() => expect(box).not.toBeDisabled());
     fireEvent.click(box);
-    await waitFor(() => expect(box).toBeChecked());
-    expect(screen.getAllByText("New").length).toBeGreaterThan(1);
+    await waitFor(() => expect(box).not.toBeChecked());
+    expect(screen.getByText("New · Edited")).toBeTruthy();
+    expect(screen.getByText("· 2")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("Clear filter"));
     await waitFor(() => expect(window.location.search).not.toContain("subset"));
     expect(window.location.search).not.toContain("change");
@@ -95,7 +106,7 @@ describe("PreviewTreeToggle", () => {
     mockDiff({ added: ["a"], changed: ["c"] });
     renderToggle(PREVIEW_SOURCE);
     fireEvent.click(await screen.findByText("Filter"));
-    await waitFor(() => expect(screen.getByLabelText(/^\+?\s*New/)).not.toBeDisabled());
+    await waitFor(() => expect(screen.getByLabelText(/Retitled/)).not.toBeDisabled());
     expect(screen.getByLabelText(/Renumbered only/)).toBeDisabled();
     expect(screen.getByLabelText(/Edited/)).toBeDisabled();
   });

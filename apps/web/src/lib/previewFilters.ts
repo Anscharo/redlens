@@ -7,13 +7,18 @@ import type { PreviewDiff } from "./previewDiff";
 // Filters in the same group combine by OR, groups combine by AND, and a group
 // with nothing ticked does not narrow. Nothing ticked at all is "Changed only":
 // every doc the preview adds or changes.
+//
+// The change kinds partition that set — every added or changed doc is exactly
+// one of New, Edited or Renumbered only — so the kind group is `exhaustive`:
+// the menu shows all its boxes ticked when none is (previewFilterTicks.ts).
+// Retitled is a subset of Edited, so it is a flag, not a kind.
 
 export const PREVIEW_FILTER_IDS = ["new", "edited", "renumbered", "retitled", "identity-swap", "reused-slot"] as const;
 export type PreviewFilterId = (typeof PREVIEW_FILTER_IDS)[number];
 
 export const PREVIEW_FILTER_GROUPS = [
-  { id: "kind", label: "Change kind" },
-  { id: "flag", label: "Flags" },
+  { id: "kind", label: "Change kind", exhaustive: true },
+  { id: "flag", label: "Flags", exhaustive: false },
 ] as const;
 export type PreviewFilterGroup = (typeof PREVIEW_FILTER_GROUPS)[number]["id"];
 
@@ -48,7 +53,7 @@ export const PREVIEW_FILTERS: readonly PreviewFilterDef[] = [
     description: "Only the doc number changed",
     ids: (d) => d.renumberedOnly ?? null,
   },
-  { id: "retitled", group: "kind", label: "Retitled", glyph: "T", description: "The title changed", ids: (d) => keys(d.retitled) },
+  { id: "retitled", group: "flag", label: "Retitled", glyph: "T", description: "The title changed", ids: (d) => keys(d.retitled) },
   {
     id: "identity-swap",
     group: "flag",
