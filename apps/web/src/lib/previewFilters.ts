@@ -8,12 +8,15 @@ import type { PreviewDiff } from "./previewDiff";
 // with nothing ticked does not narrow. Nothing ticked at all is "Changed only":
 // every doc the preview adds or changes.
 //
-// The change kinds partition that set — every added or changed doc is exactly
-// one of New, Edited or Renumbered only — so the kind group is `exhaustive`:
-// the menu shows all its boxes ticked when none is (previewFilterTicks.ts).
-// Retitled is a subset of Edited, so it is a flag, not a kind.
+// New and Edited split that set in two, so the kind group is `exhaustive`:
+// the menu shows both ticked when neither is stored (previewFilterTicks.ts).
+//
+// An `exclude` filter works the other way: its box is ticked by default, and
+// unticking it stores the filter, which removes its docs from whatever the
+// rest keep. "Include renumbered only" is one, so the doc-number-only changes
+// Edited counts can be hidden.
 
-export const PREVIEW_FILTER_IDS = ["new", "edited", "renumbered", "retitled", "identity-swap", "reused-slot"] as const;
+export const PREVIEW_FILTER_IDS = ["new", "edited", "no-renumbered", "retitled", "identity-swap", "reused-slot"] as const;
 export type PreviewFilterId = (typeof PREVIEW_FILTER_IDS)[number];
 
 export const PREVIEW_FILTER_GROUPS = [
@@ -25,32 +28,39 @@ export type PreviewFilterGroup = (typeof PREVIEW_FILTER_GROUPS)[number]["id"];
 export interface PreviewFilterDef {
   id: PreviewFilterId;
   group: PreviewFilterGroup;
+  /** Stored when unticked, and then removes its docs (see above). */
+  exclude?: boolean;
   label: string;
+  /** What the filter button says for it, if not the label. */
+  short?: string;
   /** Shown beside the label: the same mark the tree and reader use. */
   glyph: string;
   description: string;
-  /** The doc ids this filter keeps, or null when this preview's bundle was
+  /** The doc ids this filter matches, or null when this preview's bundle was
    *  built before the field it reads existed (the menu greys the row out). */
   ids: (diff: PreviewDiff) => ReadonlySet<string> | null;
 }
 
 const keys = (o: Record<string, unknown>): Set<string> => new Set(Object.keys(o));
 
-function edited(diff: PreviewDiff): Set<string> | null {
-  const only = diff.renumberedOnly;
-  if (!only) return null;
-  return new Set([...diff.changed].filter((id) => !only.has(id)));
-}
-
 export const PREVIEW_FILTERS: readonly PreviewFilterDef[] = [
   { id: "new", group: "kind", label: "New", glyph: "+", description: "Documents this preview adds", ids: (d) => d.added },
-  { id: "edited", group: "kind", label: "Edited", glyph: "Δ", description: "Changed in title or text, not just renumbered", ids: edited },
   {
-    id: "renumbered",
+    id: "edited",
     group: "kind",
-    label: "Renumbered only",
+    label: "Edited",
+    glyph: "Δ",
+    description: "Documents this preview changes, including doc-number-only changes",
+    ids: (d) => d.changed,
+  },
+  {
+    id: "no-renumbered",
+    group: "flag",
+    exclude: true,
+    label: "Include renumbered only",
+    short: "No renumbers",
     glyph: "↻",
-    description: "Only the doc number changed",
+    description: "Untick to hide documents whose only change is the doc number",
     ids: (d) => d.renumberedOnly ?? null,
   },
   { id: "retitled", group: "flag", label: "Retitled", glyph: "T", description: "The title changed", ids: (d) => keys(d.retitled) },
@@ -99,20 +109,26 @@ export function presetAvailable(preset: PreviewFilterPreset, diff: PreviewDiff):
 export function describeFilters(selected: readonly PreviewFilterId[]): string {
   const preset = matchingPreset(selected);
   if (preset) return preset.label;
-  return PREVIEW_FILTERS.filter((f) => selected.includes(f.id))
-    .map((f) => f.label)
-    .join(" · ");
+  const picked = PREVIEW_FILTERS.filter((f) => selected.includes(f.id));
+  const narrowing = picked.filter((f) => !f.exclude).map((f) => f.short ?? f.label);
+  const excluding = picked.filter((f) => f.exclude).map((f) => f.short ?? f.label);
+  return [...(narrowing.length ? narrowing : [PREVIEW_FILTER_PRESETS[0].label]), ...excluding].join(" · ");
 }
 
 /** The doc ids the selected filters keep, in no particular order. */
 export function filterPreviewDocs(diff: PreviewDiff, selected: readonly PreviewFilterId[]): Set<string> {
   let kept = new Set<string>([...diff.added, ...diff.changed]);
   for (const group of PREVIEW_FILTER_GROUPS) {
-    const picked = PREVIEW_FILTERS.filter((f) => f.group === group.id && selected.includes(f.id));
+    const picked = PREVIEW_FILTERS.filter((f) => f.group === group.id && !f.exclude && selected.includes(f.id));
     if (!picked.length) continue;
     const union = new Set<string>();
     for (const f of picked) for (const id of f.ids(diff) ?? []) union.add(id);
     kept = new Set([...kept].filter((id) => union.has(id)));
+  }
+  for (const f of PREVIEW_FILTERS) {
+    if (!f.exclude || !selected.includes(f.id)) continue;
+    const drop = f.ids(diff);
+    if (drop) kept = new Set([...kept].filter((id) => !drop.has(id)));
   }
   return kept;
 }

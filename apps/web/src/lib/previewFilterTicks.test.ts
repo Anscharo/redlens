@@ -17,37 +17,35 @@ function diff(over: Partial<PreviewDiff> = {}): PreviewDiff {
   };
 }
 
-describe("change kinds are exhaustive", () => {
-  it("New + Edited + Renumbered only is every change", () => {
-    expect(filterPreviewDocs(diff(), ["new", "edited", "renumbered"])).toEqual(filterPreviewDocs(diff(), []));
+describe("preview filter ticks", () => {
+  it("New + Edited is every change", () => {
+    expect(filterPreviewDocs(diff(), ["new", "edited"])).toEqual(filterPreviewDocs(diff(), []));
   });
 
-  it("Changed only shows every kind ticked, and no flag", () => {
-    expect(tickedFilters([])).toEqual(["new", "edited", "renumbered"]);
-    expect(tickedFilters(["identity-swap"])).toEqual(["new", "edited", "renumbered", "identity-swap"]);
+  it("Changed only shows both kinds and Include renumbered only ticked, and no other flag", () => {
+    expect(tickedFilters([])).toEqual(["new", "edited", "no-renumbered"]);
+    expect(tickedFilters(["identity-swap"])).toEqual(["new", "edited", "no-renumbered", "identity-swap"]);
   });
 
-  it("unticking a kind from Changed only stores the rest", () => {
-    expect(toggleFilter([], "renumbered", false, diff())).toEqual(["new", "edited"]);
+  it("unticking Include renumbered only stores the exclusion; ticking it back clears it", () => {
+    expect(toggleFilter([], "no-renumbered", false, diff())).toEqual(["no-renumbered"]);
+    expect(toggleFilter(["no-renumbered"], "no-renumbered", true, diff())).toEqual([]);
+    expect(tickedFilters(["no-renumbered"])).toEqual(["new", "edited"]);
   });
 
-  it("ticking the last missing kind back stores Changed only", () => {
-    expect(toggleFilter(["new", "edited"], "renumbered", true, diff())).toEqual([]);
+  it("unticking a kind stores the other; ticking it back stores Changed only", () => {
+    expect(toggleFilter([], "new", false, diff())).toEqual(["edited"]);
+    expect(toggleFilter(["edited"], "new", true, diff())).toEqual([]);
   });
 
-  it("flags toggle on their own", () => {
-    expect(toggleFilter([], "retitled", true, diff())).toEqual(["retitled"]);
-    expect(toggleFilter(["new", "retitled"], "retitled", false, diff())).toEqual(["new"]);
+  it("toggling a kind keeps an exclusion, and toggling a flag keeps the kinds", () => {
+    expect(toggleFilter(["no-renumbered"], "new", false, diff())).toEqual(["edited", "no-renumbered"]);
+    expect(toggleFilter(["edited"], "retitled", true, diff())).toEqual(["edited", "retitled"]);
   });
 
-  it("locks the last ticked kind", () => {
-    expect(isLastTicked("new", ["new"], diff())).toBe(true);
-    expect(isLastTicked("new", [], diff())).toBe(false);
-    expect(isLastTicked("retitled", ["retitled"], diff())).toBe(false);
-  });
-
-  it("on a bundle without renumberedOnly, New is the only kind it can untick, so it is locked", () => {
-    const old = diff({ renumberedOnly: undefined });
-    expect(isLastTicked("new", [], old)).toBe(true);
+  it("locks the last ticked kind, never a flag", () => {
+    expect(isLastTicked("edited", ["edited"], diff())).toBe(true);
+    expect(isLastTicked("edited", [], diff())).toBe(false);
+    expect(isLastTicked("no-renumbered", [], diff())).toBe(false);
   });
 });

@@ -59,8 +59,8 @@ describe("PreviewTreeToggle", () => {
     fireEvent.click(await screen.findByText("Filter"));
     const changed = await screen.findByRole("button", { name: /Changed only/ });
     await waitFor(() => expect(changed.textContent).toContain("4"));
-    expect(screen.getByLabelText(/Edited/).closest("label")?.textContent).toContain("1");
-    expect(screen.getByLabelText(/Renumbered only/).closest("label")?.textContent).toContain("1");
+    expect(screen.getByLabelText(/Edited/).closest("label")?.textContent).toContain("2");
+    expect(screen.getByLabelText(/Include renumbered only/).closest("label")?.textContent).toContain("1");
   });
 
   it("a preset filters, names itself on the button, and closes the menu", async () => {
@@ -77,26 +77,29 @@ describe("PreviewTreeToggle", () => {
     expect(window.location.search).not.toContain("change=");
   });
 
-  it("Changed only shows every change kind ticked", async () => {
+  it("Changed only shows both kinds and Include renumbered only ticked", async () => {
     mockDiff({ added: ["a"], changed: ["c", "d"], renumberedOnly: ["d"] });
     renderToggle(PREVIEW_SOURCE);
     fireEvent.click(await screen.findByText("Filter"));
     fireEvent.click(await screen.findByRole("button", { name: /Changed only/ }));
     fireEvent.click(await screen.findByText("Changed only"));
-    for (const name of [/^\+?\s*New/, /Edited/, /Renumbered only/]) expect(screen.getByLabelText(name)).toBeChecked();
+    for (const name of [/^\+?\s*New/, /Edited/, /Include renumbered only/]) expect(screen.getByLabelText(name)).toBeChecked();
     expect(screen.getByLabelText(/Retitled/)).not.toBeChecked();
+    const box = screen.getByLabelText(/Include renumbered only/);
+    expect(box.closest("fieldset")?.querySelector("legend")?.textContent).toBe("Flags");
   });
 
-  it("unticking a kind keeps the menu open and narrows; × clears back to All", async () => {
+  it("unticking Include renumbered only hides those docs and keeps the menu open; × clears back to All", async () => {
     mockDiff({ added: ["a"], changed: ["c", "d"], renumberedOnly: ["d"] });
     renderToggle(PREVIEW_SOURCE);
     fireEvent.click(await screen.findByText("Filter"));
-    const box = await screen.findByLabelText(/Renumbered only/);
+    const box = await screen.findByLabelText(/Include renumbered only/);
     await waitFor(() => expect(box).not.toBeDisabled());
     fireEvent.click(box);
     await waitFor(() => expect(box).not.toBeChecked());
-    expect(screen.getByText("New · Edited")).toBeTruthy();
+    expect(screen.getByText("Changed only · No renumbers")).toBeTruthy();
     expect(screen.getByText("· 2")).toBeTruthy();
+    expect(window.location.search).toContain("change=no-renumbered");
     fireEvent.click(screen.getByLabelText("Clear filter"));
     await waitFor(() => expect(window.location.search).not.toContain("subset"));
     expect(window.location.search).not.toContain("change");
@@ -107,7 +110,7 @@ describe("PreviewTreeToggle", () => {
     renderToggle(PREVIEW_SOURCE);
     fireEvent.click(await screen.findByText("Filter"));
     await waitFor(() => expect(screen.getByLabelText(/Retitled/)).not.toBeDisabled());
-    expect(screen.getByLabelText(/Renumbered only/)).toBeDisabled();
-    expect(screen.getByLabelText(/Edited/)).toBeDisabled();
+    expect(screen.getByLabelText(/Include renumbered only/)).toBeDisabled();
+    expect(screen.getByLabelText(/Edited/)).not.toBeDisabled();
   });
 });

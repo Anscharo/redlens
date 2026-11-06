@@ -19,20 +19,21 @@ function diff(over: Partial<PreviewDiff> = {}): PreviewDiff {
 const sorted = (s: Set<string>) => [...s].sort();
 
 describe("filterPreviewDocs", () => {
-  it("keeps every added and changed doc with nothing ticked", () => {
+  it("keeps every added and changed doc with nothing stored", () => {
     expect(sorted(filterPreviewDocs(diff(), []))).toEqual(["e1", "n1", "n2", "r1", "t1"]);
   });
 
-  it("ORs filters within a group", () => {
-    expect(sorted(filterPreviewDocs(diff(), ["new", "renumbered"]))).toEqual(["n1", "n2", "r1"]);
+  it("Edited includes doc-number-only changes", () => {
+    expect(sorted(filterPreviewDocs(diff(), ["edited"]))).toEqual(["e1", "r1", "t1"]);
   });
 
-  it("Edited leaves out renumber-only docs", () => {
-    expect(sorted(filterPreviewDocs(diff(), ["edited"]))).toEqual(["e1", "t1"]);
+  it("no-renumbered removes doc-number-only changes from whatever else is kept", () => {
+    expect(sorted(filterPreviewDocs(diff(), ["no-renumbered"]))).toEqual(["e1", "n1", "n2", "t1"]);
+    expect(sorted(filterPreviewDocs(diff(), ["edited", "no-renumbered"]))).toEqual(["e1", "t1"]);
   });
 
   it("ANDs across groups", () => {
-    expect(sorted(filterPreviewDocs(diff(), ["new", "edited", "reused-slot"]))).toEqual(["n2"]);
+    expect(sorted(filterPreviewDocs(diff(), ["new", "reused-slot"]))).toEqual(["n2"]);
   });
 
   it("a flag alone narrows the full changed set", () => {
@@ -42,17 +43,18 @@ describe("filterPreviewDocs", () => {
 
 describe("old bundles without renumberedOnly", () => {
   const old = diff({ renumberedOnly: undefined });
-  it("cannot answer Edited or Renumbered only, but can answer Changed only", () => {
-    expect(PREVIEW_FILTERS.find((f) => f.id === "edited")!.ids(old)).toBeNull();
-    expect(PREVIEW_FILTERS.find((f) => f.id === "renumbered")!.ids(old)).toBeNull();
+  it("cannot hide renumber-only docs, and storing it removes nothing", () => {
+    expect(PREVIEW_FILTERS.find((f) => f.id === "no-renumbered")!.ids(old)).toBeNull();
+    expect(filterPreviewDocs(old, ["no-renumbered"]).size).toBe(5);
     expect(presetAvailable(PREVIEW_FILTER_PRESETS[0], old)).toBe(true);
   });
 });
 
 describe("describeFilters", () => {
-  it("names a matching preset, else the ticked filters", () => {
+  it("names a matching preset, else the stored filters", () => {
     expect(describeFilters([])).toBe("Changed only");
-    expect(describeFilters(["edited", "new"])).toBe("New · Edited");
-    expect(describeFilters(["retitled", "new"])).toBe("New · Retitled");
+    expect(describeFilters(["new", "retitled"])).toBe("New · Retitled");
+    expect(describeFilters(["no-renumbered"])).toBe("Changed only · No renumbers");
+    expect(describeFilters(["edited", "no-renumbered"])).toBe("Edited · No renumbers");
   });
 });
