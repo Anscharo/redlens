@@ -22,6 +22,8 @@ const MENU_STYLE: CSSProperties = {
   boxShadow: "0 10px 28px -8px var(--shadow-strong)",
 };
 
+// z-40 clears the hovered tree row and its split-view hint, both z-index 30
+// (index.css, .tree-row:hover).
 /** The preview filter menu: presets (pick one, menu closes), then each
  *  filter group as checkboxes (menu stays open). Every row carries the count
  *  it would show. Rows are read from the previewFilters.ts registry. */
@@ -40,7 +42,7 @@ export function PreviewFilterMenu({ onPicked, ...props }: ComponentProps<"div"> 
   const pickPreset = (p: Preset) => (apply(p.filters, `preset:${p.label}`), onPicked());
 
   return (
-    <div className="absolute left-2 right-2 top-full mt-1 z-30 max-w-xs rounded-md p-1 font-sans text-[13px]" style={MENU_STYLE} {...props}>
+    <div className="absolute left-2 right-2 top-full mt-1 z-40 max-w-xs rounded-md p-1 font-sans text-[13px]" style={MENU_STYLE} {...props}>
       <h3 className={FILTER_HEADING_CLASS}>Show</h3>
       {PREVIEW_FILTER_PRESETS.map((p) => (
         <PreviewFilterPreset
