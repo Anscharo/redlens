@@ -6,6 +6,7 @@ import { checkGuardParams } from "./paramGuardChecks.ts";
 
 const [POOL, VAULT, USDC] = ["1", "2", "3"].map((c) => "0x" + c.repeat(40));
 const POOL_ID = "0x" + "9".repeat(64);
+const V4_ID = "0x" + "a".repeat(24) + "b".repeat(40);
 const at = { block: 1, time: "t", tx: "0xt" };
 const param = (event: string, subject: string, args: Record<string, unknown>, extra: Partial<PauParam> = {}): PauParam => ({ event, subject, args, setAt: at, ...extra });
 
@@ -19,6 +20,7 @@ const def: BeamDefault = { key: "0xkey", maxAmount: "5000000000000", slope: "752
 const contracts: ContractState[] = [
   { role: "controller", address: "0xc", events: 1, historyComplete: true, params: [
     param("MaxSlippageSet", POOL, { maxSlippage: "999000000000000000" }),
+    param("MaxSlippageSet", "0x" + "b".repeat(40), { maxSlippage: "998000000000000000" }),
     param("MaxExchangeRateSet", VAULT, { maxExchangeRate: "2000000000000000000000000" }, { subjectToken: vaultToken, asset: usdc }),
   ] },
   { role: "rateLimits", address: "0xrl", events: 1, historyComplete: true, rateLimits: [held], beam: { beamState: "0xb", hop: null, maxChange: null, historyComplete: true, defaults: [def] } },
@@ -38,8 +40,18 @@ describe("checkGuardParams: max slippage", () => {
   it("flags a slippage the atlas leaves to be specified while the chain holds one", () => {
     expect(get({ "Pool Address": POOL, "Max Slippage": "The `maxSlippage` will be specified in a future iteration." }, "Max Slippage")?.status).toBe("candidate");
   });
-  it("keys a Uniswap v4 instance's guard by its pool id only, so another integration's guard on a listed address is not read as its own", () => {
-    expect(get({ "Token Address": POOL, "Pool ID": POOL_ID, "Maximum Slippage": "Max slippage: 0.1%" }, "Maximum Slippage")).toMatchObject({ status: "unsure", lines: [{ text: "Param or contract not yet indexed." }] });
+  it("reads a Uniswap v4 pool's guard where the monolithic controller keys it, by the pool id's low 20 bytes", () => {
+    const v4 = { "Token Address": POOL, "Pool ID": V4_ID, "Maximum Slippage": "Max slippage: 0.2%" };
+    expect(get(v4, "Maximum Slippage")).toMatchObject({ status: "match", lines: [{ value: "at most 0.2% loss (≥ 99.8% back)" }] });
+  });
+  it("never reads another integration's guard on an address a v4 instance also lists, and says an unset pool guard is not set", () => {
+    expect(get({ "Token Address": POOL, "Pool ID": POOL_ID, "Maximum Slippage": "Max slippage: 0.1%" }, "Maximum Slippage")).toMatchObject({ status: "not-set", lines: [{ text: "No max slippage is set on-chain for this pool." }] });
+  });
+  it("reads a value the atlas leaves to be specified, with nothing on-chain, as unstated", () => {
+    expect(get({ "Token Address": USDC, "Max Slippage": "The `maxSlippage` will be specified in a future iteration." }, "Max Slippage")?.status).toBe("not-stated");
+  });
+  it("stays unsure where nothing is set on the addresses an instance lists, since the guard may sit on one it does not", () => {
+    expect(get({ "Token Address": USDC, "TransferAssets Rate Limit / maxSlippage": "0.2%" }, "TransferAssets Rate Limit / maxSlippage")).toMatchObject({ status: "unsure", lines: [{ text: "No max slippage is set on-chain for the addresses this instance lists." }] });
   });
 });
 

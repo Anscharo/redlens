@@ -43,17 +43,32 @@ function judge(stated: string, expected: bigint | null, raws: string[], show: (r
 
 const notIndexed: PlainCheck = { status: "unsure", head: "Can't be checked", lines: [{ text: `${NOT_INDEXED[0].toUpperCase()}${NOT_INDEXED.slice(1)}.` }] };
 
-function slippageCheck(stated: string, subjects: Set<string>, snaps: StoredPauSnapshot[]): PlainCheck {
+/**
+ * Why no guard was found. A value the atlas leaves to be specified is just
+ * unstated. Until every controller's history is read it may just
+ * not be stored yet. After that, a Uniswap v4 pool, whose key the pool id fixes,
+ * has none set; for listed addresses it stays unsure, because the guard may be
+ * keyed by an address the atlas does not list (an OTC exchange it leaves TBD).
+ */
+function absent(guard: string, stated: string, snaps: StoredPauSnapshot[], byPoolId: boolean): PlainCheck {
+  if (UNSTATED_RE.test(stated)) return { status: "not-stated", head: "The atlas states no value yet", lines: [{ text: `No ${guard} is found on-chain either.` }] };
+  const read = snaps.every((s) => s.contracts.filter((c) => c.role === "controller").every((c) => c.historyComplete));
+  if (!read) return notIndexed;
+  if (byPoolId) return { status: "not-set", head: "Not set on the contract", lines: [{ text: `No ${guard} is set on-chain for this pool.` }] };
+  return { status: "unsure", head: "Can't be checked", lines: [{ text: `No ${guard} is set on-chain for the addresses this instance lists.` }] };
+}
+
+function slippageCheck(stated: string, { subjects, byPoolId }: Subjects, snaps: StoredPauSnapshot[]): PlainCheck {
   const raws = paramsOn(snaps, /MaxSlippage/i, subjects).map((p) => String(p.args.maxSlippage));
-  if (raws.length === 0) return notIndexed;
+  if (raws.length === 0) return absent("max slippage", stated, snaps, byPoolId);
   const pct = /(\d+(?:\.\d+)?)\s*%/.exec(stated)?.[1];
   const loss = pct ? toRaw(pct, 16) : null;
   return judge(stated, loss === null ? null : WAD - loss, raws, slippageText, pct ? `at most ${pct}% loss` : null);
 }
 
-function exchangeRateCheck(stated: string, subjects: Set<string>, snaps: StoredPauSnapshot[]): PlainCheck {
+function exchangeRateCheck(stated: string, { subjects, byPoolId }: Subjects, snaps: StoredPauSnapshot[]): PlainCheck {
   const params = paramsOn(snaps, /MaxExchangeRate/i, subjects);
-  if (params.length === 0) return notIndexed;
+  if (params.length === 0) return absent("max exchange rate", stated, snaps, byPoolId);
   const m = RATE_CALL_RE.exec(stated);
   const [shares, assets] = m ? [toRaw(m[1]), toRaw(m[2])] : [null, null];
   const expected = shares && assets !== null ? (assets * 10n ** 36n) / shares : null;
@@ -91,14 +106,22 @@ function defaultCheck(src: ValueSource, name: string, stated: string, snaps: Sto
   return found.every(agrees) ? { status: "match", head: "Matches the chain", lines } : { status: "mismatch", head: "Differs from the chain", lines: [...lines, { label: "Atlas", value: stated }] };
 }
 
+interface Subjects {
+  subjects: Set<string>;
+  /** The guards are keyed by a Uniswap v4 pool id the instance states. */
+  byPoolId: boolean;
+}
+
 /**
- * What an instance's guards are set on: its Uniswap v4 pool id where it states
- * one (a v4 guard is keyed by the pool id, and an address the instance also
- * lists can carry another integration's guard), else its listed addresses.
+ * What an instance's guards are set on: for a Uniswap v4 pool id it states, the
+ * id and the address a monolithic controller keys that pool's guard by
+ * (MainnetController reads maxSlippages[address(uint160(uint256(poolId)))]),
+ * and nothing else, because an address the instance also lists can carry
+ * another integration's guard; otherwise its listed addresses.
  */
-function subjectsOf(src: ValueSource): Set<string> {
-  const poolId = Object.entries(src.params).find(([n, [v]]) => /pool\s*id/i.test(n) && /^0x[0-9a-fA-F]{64}$/.test(v.trim()));
-  return new Set(poolId ? [poolId[1][0].trim().toLowerCase()] : listedAddresses(src));
+function subjectsOf(src: ValueSource): Subjects {
+  const poolId = Object.values(src.params).map(([v]) => v.trim().toLowerCase()).find((v, i) => /pool\s*id/i.test(Object.keys(src.params)[i]) && /^0x[0-9a-f]{64}$/.test(v));
+  return poolId ? { subjects: new Set([poolId, `0x${poolId.slice(-40)}`]), byPoolId: true } : { subjects: new Set(listedAddresses(src)), byPoolId: false };
 }
 
 function paramCheck(src: ValueSource, name: string, value: string, all: StoredPauSnapshot[]): PlainCheck | null {
