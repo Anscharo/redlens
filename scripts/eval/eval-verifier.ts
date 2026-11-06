@@ -33,12 +33,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
 import { config } from "../../src/server/config.ts";
-import { openrouterJson } from "../../src/server/chat/llm.ts";
-import { runDeterministicChecks } from "../../src/server/chat/verify/verify-checks.ts";
-import { computeOverall, type Verdict, type VerifyOverall } from "../../src/server/chat/verify/verifier.ts";
-import { runSlicedVerifier, sliceModels } from "../../src/server/chat/verify/sliced-verifier.ts";
-import { createParagraphRefuter } from "../../src/server/chat/verify/paragraph-refute.ts";
-import { createParagraphSegmenter } from "../../src/server/chat/verify/paragraphs.ts";
+import type { VerifyOverall } from "../../src/server/chat/verify/verifier.ts";
+import { grade, type Graded } from "./eval-verifier-grade.ts";
 import { buildMutations, type Mutation, type SavedRun } from "./eval-verifier-mutations.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
@@ -74,57 +70,7 @@ if (MODELS[0] && !config.openrouterApiKey) {
 }
 
 const ix = loadIndexes();
-
-// `model`, when set, becomes CHAT_VERIFIER_MODEL for the duration of the call
-// so sliceModels() routes every role (refute/overreach/confirm) to it, unless
-// CHAT_VERIFIER_SLICE_MODELS overrides a role explicitly.
-async function grade(model: string | null, run: SavedRun, answer: string): Promise<{ overall: VerifyOverall; verdict: Verdict | null; discarded: number }> {
-  const checks = runDeterministicChecks(answer, run.evidence.map((e) => e.content), ix, {
-    question: run.question,
-    evidence: run.evidence,
-  });
-  if (!model) return { overall: checks.failed ? "fail" : "unverified", verdict: null, discarded: 0 };
-  const prev = config.chatVerifierModel;
-  config.chatVerifierModel = model;
-  try {
-    if (MODE === "paragraph") {
-      // The production per-paragraph refuter itself (not a second pool) —
-      // segmented with the SAME createParagraphSegmenter production streams
-      // through, fed the run's fixed evidence for every paragraph (there is
-      // no live gateResults/history to grow mid-stream here).
-      const models = sliceModels();
-      const refuter = createParagraphRefuter({
-        call: openrouterJson, model: models.refute, ix, question: run.question,
-        evidence: () => run.evidence, timeoutMs: config.chatVerifierSliceTimeoutMs,
-        concurrency: 3, maxParagraphs: config.chatRefuteMaxParagraphs,
-      });
-      const seg = createParagraphSegmenter();
-      let index = 0;
-      for (const p of seg.push(answer)) refuter.submit(index++, p);
-      const tail = seg.flush();
-      if (tail) refuter.submit(index++, tail);
-      const settleStart = Date.now();
-      const paragraphRefutes = await refuter.settle(config.chatVerifierSliceTimeoutMs);
-      const settleMs = Date.now() - settleStart;
-      const res = await runSlicedVerifier({
-        call: openrouterJson, models, ix, question: run.question, answer, evidence: run.evidence, checks,
-        paragraphRefutes, settleMs,
-      });
-      // No `refute` slice exists in paragraph mode — the miss-attribution
-      // discard count lives on the merged verdict instead.
-      const discarded = res.verdict?.paragraphs?.discarded ?? 0;
-      return { overall: computeOverall(checks, res.verdict), verdict: res.verdict, discarded };
-    }
-    const res = await runSlicedVerifier({
-      call: openrouterJson, models: sliceModels(), ix,
-      question: run.question, answer, evidence: run.evidence, checks,
-    });
-    const discarded = res.slices.find((sl) => sl.slice === "refute")?.discarded ?? 0;
-    return { overall: computeOverall(checks, res.verdict), verdict: res.verdict, discarded };
-  } finally {
-    config.chatVerifierModel = prev;
-  }
-}
+const GRADE_CTX = { mode: MODE, ix };
 
 // `ruling` is caught by "warn or fail" (an unconfirmed overreach ruling still
 // carries the finding); every other class needs the hard "fail" a confirmed,
@@ -149,30 +95,25 @@ interface Row {
   discarded: number;
 }
 
+function toRow(runId: string, kind: string, graded: Graded, caught: boolean | null, informational: boolean): Row {
+  return {
+    runId, kind, overall: graded.overall, caught, informational,
+    agreedContradiction: graded.verdict?.contradictions.some((c) => c.agreed) ?? false,
+    candidates: graded.verdict?.contradictions.length ?? 0,
+    agreed: graded.verdict?.contradictions.filter((c) => c.agreed).length ?? 0,
+    discarded: graded.discarded,
+  };
+}
+
 async function evalModel(model: string | null) {
   const rows: Row[] = (
     await Promise.all(
       runs.map(async (run) => {
-        const out: Row[] = [];
-        const baseline = await grade(model, run, run.answer);
-        out.push({
-          runId: run.id, kind: "baseline", overall: baseline.overall, caught: null, informational: false,
-          agreedContradiction: baseline.verdict?.contradictions.some((c) => c.agreed) ?? false,
-          candidates: baseline.verdict?.contradictions.length ?? 0,
-          agreed: baseline.verdict?.contradictions.filter((c) => c.agreed).length ?? 0,
-          discarded: baseline.discarded,
-        });
+        const out: Row[] = [toRow(run.id, "baseline", await grade(GRADE_CTX, model, run, run.answer), null, false)];
         for (const mut of buildMutations(run, ix)) {
           if (!model && !mut.deterministic) continue;
-          const graded = await grade(model, run, mut.answer);
-          out.push({
-            runId: run.id, kind: mut.class, overall: graded.overall,
-            caught: caughtFor(mut.class, graded.overall), informational: mut.informational === true,
-            agreedContradiction: graded.verdict?.contradictions.some((c) => c.agreed) ?? false,
-            candidates: graded.verdict?.contradictions.length ?? 0,
-            agreed: graded.verdict?.contradictions.filter((c) => c.agreed).length ?? 0,
-            discarded: graded.discarded,
-          });
+          const graded = await grade(GRADE_CTX, model, run, mut.answer);
+          out.push(toRow(run.id, mut.class, graded, caughtFor(mut.class, graded.overall), mut.informational === true));
         }
         return out;
       }),

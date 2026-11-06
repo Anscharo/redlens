@@ -17,6 +17,7 @@ import { forumTopicUrlForMonth } from "@/lib/forumMonths";
 import { SettlementBars } from "./SettlementBars";
 import { SettlementDemandBars } from "./SettlementDemandBars";
 import { ActorSettlementVenues } from "./ActorSettlementVenues";
+import { SourceNote } from "./ActorSettlementSourceNote";
 
 const mscCodec = urlString(null);
 const SOURCE = "https://github.com/soterlabs/settlement-reports";
@@ -63,23 +64,7 @@ export function ActorSettlements({ slug, name }: Props) {
 
   return (
     <>
-      <p className="text-xs mb-4" style={{ color: "var(--tan-3)" }}>
-        From Soter Labs' published Monthly Settlement Cycle workbooks — OEA
-        calculations, not the on-chain GovOps spell and not Sky Atlas figures.
-        “To Sky” is what this Prime owed Sky, not the Protocol’s Net Revenue,
-        which the Atlas defines as income minus expenses (A.2.3.1.2.1.1).{" "}
-        <a href={workbook} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
-          {month} source
-        </a>
-        {forumUrl && (
-          <>
-            {" · "}
-            <a href={forumUrl} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
-              Sky Forum
-            </a>
-          </>
-        )}
-      </p>
+      <SourceNote workbook={workbook} month={month} forumUrl={forumUrl} />
       <SettlementBars
         months={reports.map(summaryThreeWay)}
         selected={month}

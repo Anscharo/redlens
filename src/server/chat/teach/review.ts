@@ -67,12 +67,8 @@ export async function reviewTeaching(
   opts: { signal?: AbortSignal; obs?: ErrorContext } = {},
 ): Promise<TeachReview> {
   const heuristic = heuristicReview(text);
-  if (!heuristic.accept) {
-    return { ...heuristic, model: null, usage: { input: 0, output: 0 }, generationId: null };
-  }
-
   const model = config.chatTeachReviewModel;
-  if (!model) {
+  if (!heuristic.accept || !model) {
     return { ...heuristic, model: null, usage: { input: 0, output: 0 }, generationId: null };
   }
 

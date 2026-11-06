@@ -142,25 +142,26 @@ export interface ClusterResult {
   missing: number; // subjects the model failed to return (defaulted to "none")
 }
 
+const homeNote = (c: ProposeCandidate): string =>
+  c.soleHome ? '\n  note: no other document lists this candidate — if unused it is treated as DELETED.' : '';
+const sid = (i: number) => `S${i + 1}`;
+const cid = (i: number) => `C${i + 1}`;
+// deterministic order tag: subjects carry an explicit `order`; older candidates encode their
+// document position as the `#N` occurrence suffix on the key — surface both so the model can
+// align indistinguishable stubs monotonically (see CLUSTER_SYSTEM).
+const occOf = (key: string): string => { const s = key.split("#")[1]; return s ? ` (order ${s})` : ""; };
+
 export async function proposeClusterAssignment(
   subjects: ClusterSubject[],
   candidates: ProposeCandidate[],
   opts: { model?: string; change?: ChangeContext | null; clip?: number } = {},
 ): Promise<ClusterResult> {
   const max = opts.clip ?? 700; // shorter per-doc clip — a cluster stacks many docs into one prompt
-  const homeNote = (c: ProposeCandidate): string =>
-    c.soleHome ? '\n  note: no other document lists this candidate — if unused it is treated as DELETED.' : '';
   const ch = opts.change;
   const changeBlock = ch && (ch.title || ch.summary)
     ? `THE CHANGE that produced these documents${ch.pr ? ` (PR #${ch.pr})` : ""}: ${ch.title || ""}` +
       `${ch.summary ? `\n${clip(ch.summary, 1200)}` : ""}\n\n`
     : "";
-  const sid = (i: number) => `S${i + 1}`;
-  const cid = (i: number) => `C${i + 1}`;
-  // deterministic order tag: subjects carry an explicit `order`; older candidates encode their
-  // document position as the `#N` occurrence suffix on the key — surface both so the model can
-  // align indistinguishable stubs monotonically (see CLUSTER_SYSTEM).
-  const occOf = (key: string): string => { const s = key.split("#")[1]; return s ? ` (order ${s})` : ""; };
   const user =
     changeBlock +
     `NEWER documents (assign EACH to one older candidate, or "none"):\n` +

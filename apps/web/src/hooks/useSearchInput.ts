@@ -76,6 +76,70 @@ function useSearchLane(): { lane: SearchLane; selectLane: (next: SearchLane) => 
   return { lane, selectLane };
 }
 
+interface SearchHandlerArgs {
+  query: string;
+  mode: SearchMode;
+  location: string;
+  navigate: (to: string) => void;
+  scope: SearchScope;
+  setQueryParam: (next: string | null) => void;
+  patchUrl: ReturnType<typeof useUrlPatch>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+}
+
+/** The search box's event handlers; each one writes the URL or navigates. */
+function useSearchHandlers({ query, mode, location, navigate, scope, setQueryParam, patchUrl, inputRef }: SearchHandlerArgs) {
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const q = e.target.value;
+      if (runSlashCommand(q, navigate)) return;
+      if (scope === "atlas" && location !== ROUTES.HOME) {
+        navigate(homeSearchHref(q, new URLSearchParams(window.location.search).get("split")));
+        return;
+      }
+      setQueryParam(q || null);
+    },
+    [location, navigate, scope, setQueryParam],
+  );
+
+  const handleHintClick = useCallback(
+    (q: string) => {
+      if (runSlashCommand(q, navigate)) return;
+      if (/~\d/.test(q)) patchUrl(broadPatch(q));
+      else setQueryParam(q || null);
+    },
+    [navigate, setQueryParam, patchUrl],
+  );
+
+  const clearQuery = useCallback(() => {
+    setQueryParam(null);
+    inputRef.current?.focus();
+  }, [setQueryParam, inputRef]);
+
+  const broadSearch = useCallback((q: string) => patchUrl(broadPatch(q)), [patchUrl]);
+
+  // Picking a recent search re-runs it on the results page (works from any
+  // route — e.g. focusing the bar on /radar), then refocuses the input so the
+  // restored query can be edited straight away.
+  const selectRecent = useCallback((q: string, rank: number) => {
+    track("search_recent_select", { product: "search", query: q, rank: rank + 1 });
+    navigate(homeSearchHref(q, new URLSearchParams(window.location.search).get("split")));
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, [navigate, inputRef]);
+
+  // Clicking a mode pill wraps/unwraps the free text in the input and positions
+  // the cursor before the closing quote so typing extends the phrase naturally.
+  const wrapModeClick = useCallback((newMode: SearchMode) => {
+    track("search_mode_change", { mode: newMode });
+    const { newQuery, cursorPos, toBroad } = modePillClick(query, mode, newMode);
+    // An unwrap clears ?mode= too, in the same write as the query (see useUrlPatch).
+    patchUrl(toBroad ? broadPatch(newQuery) : { q: queryCodec.encode(newQuery || null) });
+    focusInputAt(inputRef, cursorPos);
+  }, [query, mode, patchUrl, inputRef]);
+
+  return { handleChange, handleHintClick, clearQuery, broadSearch, selectRecent, wrapModeClick };
+}
+
 export function useSearchInput(location: string, navigate: (to: string) => void, scope: SearchScope) {
   const { state, search, ready } = useSearch();
   const [queryParam, setQueryParam] = useUrlState("q", queryCodec);
@@ -111,53 +175,8 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
     search(withMode.trim() ? withMode : "", { lane });
   }, [deferredQuery, mode, location, search, lane]);
 
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const q = e.target.value;
-      if (runSlashCommand(q, navigate)) return;
-      if (scope === "atlas" && location !== ROUTES.HOME) {
-        navigate(homeSearchHref(q, new URLSearchParams(window.location.search).get("split")));
-        return;
-      }
-      setQueryParam(q || null);
-    },
-    [location, navigate, scope, setQueryParam],
-  );
-
-  const handleHintClick = useCallback(
-    (q: string) => {
-      if (runSlashCommand(q, navigate)) return;
-      if (/~\d/.test(q)) patchUrl(broadPatch(q));
-      else setQueryParam(q || null);
-    },
-    [navigate, setQueryParam, patchUrl],
-  );
-
-  const clearQuery = useCallback(() => {
-    setQueryParam(null);
-    inputRef.current?.focus();
-  }, [setQueryParam]);
-
-  const broadSearch = useCallback((q: string) => patchUrl(broadPatch(q)), [patchUrl]);
-
-  // Picking a recent search re-runs it on the results page (works from any
-  // route — e.g. focusing the bar on /radar), then refocuses the input so the
-  // restored query can be edited straight away.
-  const selectRecent = useCallback((q: string, rank: number) => {
-    track("search_recent_select", { product: "search", query: q, rank: rank + 1 });
-    navigate(homeSearchHref(q, new URLSearchParams(window.location.search).get("split")));
-    requestAnimationFrame(() => inputRef.current?.focus());
-  }, [navigate]);
-
-  // Clicking a mode pill wraps/unwraps the free text in the input and positions
-  // the cursor before the closing quote so typing extends the phrase naturally.
-  const wrapModeClick = useCallback((newMode: SearchMode) => {
-    track("search_mode_change", { mode: newMode });
-    const { newQuery, cursorPos, toBroad } = modePillClick(query, mode, newMode);
-    // An unwrap clears ?mode= too, in the same write as the query (see useUrlPatch).
-    patchUrl(toBroad ? broadPatch(newQuery) : { q: queryCodec.encode(newQuery || null) });
-    focusInputAt(inputRef, cursorPos);
-  }, [query, mode, patchUrl, inputRef]);
+  const { handleChange, handleHintClick, clearQuery, broadSearch, selectRecent, wrapModeClick } =
+    useSearchHandlers({ query, mode, location, navigate, scope, setQueryParam, patchUrl, inputRef });
 
   return {
     query, activeMode, isMixed,

@@ -19,6 +19,16 @@ interface DrawerProps {
   children: React.ReactNode;
 }
 
+const RESIZE_HANDLE_STYLE: React.CSSProperties = {
+  position: "absolute",
+  top: 0,
+  bottom: 0,
+  right: -3,
+  width: 6,
+  cursor: "col-resize",
+  zIndex: 10,
+};
+
 export function Drawer({
   open,
   onClose,
@@ -91,15 +101,7 @@ export function Drawer({
           <div
             onMouseDown={startResize}
             title="Drag to resize"
-            style={{
-              position: "absolute",
-              top: 0,
-              bottom: 0,
-              right: -3,
-              width: 6,
-              cursor: "col-resize",
-              zIndex: 10,
-            }}
+            style={RESIZE_HANDLE_STYLE}
           />
         )}
       </div>

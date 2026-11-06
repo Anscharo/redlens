@@ -6,15 +6,11 @@ import { aqByServedModel, armTotals, caseRows, pct, printTable, type ToolEvalRep
 const top = (counts: Record<string, number>, n = 3) =>
   Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => `${k}×${v}`).join(", ");
 
-export function printReport(rep: ToolEvalReport): void {
-  const p = rep.provenance;
-  console.log(`\n# eval:tools  label=${rep.label}  atlas=${(rep.atlasCommit ?? "?").slice(0, 8)}  passes=${rep.passes}  arms=${rep.arms.join(",")}`);
-  console.log(`  tools=${p.toolsSha}  prompt=${p.promptSha}  prefetch-judge=${p.prefetchJudge || "(off)"} @${p.judgeDeadlineMs}ms`);
-  for (const [tier, chain] of Object.entries(p.models)) console.log(`  ${tier}: ${chain.join(" → ")}`);
+type CaseRows = ReturnType<typeof caseRows>;
 
-  // Per case: first-call pass count per arm, the full-turn pass count, and what
-  // the first arm actually called first.
-  const rows = caseRows(rep);
+// Per case: first-call pass count per arm, the full-turn pass count, and what
+// the first arm actually called first.
+function printPerCase(rep: ToolEvalReport, rows: CaseRows): void {
   const byCase = rep.cases.map((c) => {
     const out: Record<string, unknown> = { case: c.id, cat: c.category };
     for (const arm of rep.arms) {
@@ -27,6 +23,30 @@ export function printReport(rep: ToolEvalReport): void {
   });
   console.log("\nper case (k/n runs whose first call was acceptable; all = first ok + acceptAny + nothing forbidden):");
   printTable(byCase, ["case", "cat", ...rep.arms.flatMap((a) => [`${a}:first`, `${a}:all`]), "called_first"]);
+}
+
+function printFailures(rep: ToolEvalReport, rows: CaseRows): void {
+  console.log("\nfailing cases (first call not acceptable in ≥1 run):");
+  for (const r of rows.filter((x) => x.n > 0 && x.first < x.n).sort((a, b) => a.first / a.n - b.first / b.n)) {
+    const c = rep.cases.find((x) => x.id === r.id)!;
+    const want = (c.acceptFirst.length ? c.acceptFirst.join("|") : "(no tool)") +
+      (c.acceptFirstAfterDocFacts?.length ? ` (+${c.acceptFirstAfterDocFacts.join("|")} after a doc fact)` : "");
+    console.log(`  ${r.id} [${r.arm}] ${r.first}/${r.n} — called first: ${top(r.firstCalls, 4)}; accepts: ${want}`);
+  }
+  const forbidden = rep.runs.filter((r) => r.score?.forbiddenCalled.length);
+  for (const r of forbidden) console.log(`  ${r.id} [${r.arm} #${r.pass}] called forbidden ${r.score!.forbiddenCalled.join(", ")}`);
+  const errors = rep.runs.filter((r) => r.error);
+  if (errors.length) console.log(`\nerrored runs (not scored): ${errors.map((r) => `${r.id}[${r.arm}#${r.pass}]: ${r.error!.slice(0, 60)}`).join("; ")}`);
+}
+
+export function printReport(rep: ToolEvalReport): void {
+  const p = rep.provenance;
+  console.log(`\n# eval:tools  label=${rep.label}  atlas=${(rep.atlasCommit ?? "?").slice(0, 8)}  passes=${rep.passes}  arms=${rep.arms.join(",")}`);
+  console.log(`  tools=${p.toolsSha}  prompt=${p.promptSha}  prefetch-judge=${p.prefetchJudge || "(off)"} @${p.judgeDeadlineMs}ms`);
+  for (const [tier, chain] of Object.entries(p.models)) console.log(`  ${tier}: ${chain.join(" → ")}`);
+
+  const rows = caseRows(rep);
+  printPerCase(rep, rows);
 
   const totals = rep.arms.map((a) => armTotals(rep, a));
   console.log("\ntotals per arm:");
@@ -53,17 +73,7 @@ export function printReport(rep: ToolEvalReport): void {
     ["arm", "served_by", "runs", "aq_calls", "filtering_extra", "any_extra", "emptied_by_filters", "params"],
   );
 
-  console.log("\nfailing cases (first call not acceptable in ≥1 run):");
-  for (const r of rows.filter((x) => x.n > 0 && x.first < x.n).sort((a, b) => a.first / a.n - b.first / b.n)) {
-    const c = rep.cases.find((x) => x.id === r.id)!;
-    const want = (c.acceptFirst.length ? c.acceptFirst.join("|") : "(no tool)") +
-      (c.acceptFirstAfterDocFacts?.length ? ` (+${c.acceptFirstAfterDocFacts.join("|")} after a doc fact)` : "");
-    console.log(`  ${r.id} [${r.arm}] ${r.first}/${r.n} — called first: ${top(r.firstCalls, 4)}; accepts: ${want}`);
-  }
-  const forbidden = rep.runs.filter((r) => r.score?.forbiddenCalled.length);
-  for (const r of forbidden) console.log(`  ${r.id} [${r.arm} #${r.pass}] called forbidden ${r.score!.forbiddenCalled.join(", ")}`);
-  const errors = rep.runs.filter((r) => r.error);
-  if (errors.length) console.log(`\nerrored runs (not scored): ${errors.map((r) => `${r.id}[${r.arm}#${r.pass}]: ${r.error!.slice(0, 60)}`).join("; ")}`);
+  printFailures(rep, rows);
 
   const chat = totals.reduce((s, t) => s + t.costUsd, 0);
   const jev = totals.reduce((s, t) => s + t.jevCostUsd, 0);

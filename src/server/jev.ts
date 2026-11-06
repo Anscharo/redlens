@@ -91,12 +91,7 @@ export function withDeadline(ms: number, parent?: AbortSignal): AbortSignal {
   return parent ? AbortSignal.any([parent, deadline]) : deadline;
 }
 
-// Retries mirror retrieval/embed.ts: bounded exponential backoff, and an
-// aborted signal (caller gave up / timed out) stops the loop immediately
-// rather than retrying against a request nobody is waiting for. A 4xx other
-// than 429 is a malformed question — retrying it just burns the same error,
-// so it throws on the first try.
-export async function askJev(params: {
+export interface AskJevParams {
   state: unknown;
   questions: Record<string, JevQuestion>;
   model?: string;
@@ -107,7 +102,41 @@ export async function askJev(params: {
   lane: string;
   /** Turn context, when the caller has one, so the call joins the turn's trace. */
   obs?: { distinctId?: string; traceId?: string };
-}): Promise<JevRun> {
+}
+
+// One POST to /systemone. A 429 or 5xx throws a retryable error; any other
+// failure (4xx, a body without `answers`) throws with `fatal: true`.
+async function postSystemOne(model: string, params: AskJevParams, signal: AbortSignal): Promise<JevResponse & Pick<JevRun, "answers">> {
+  const res = await fetch(`${config.openrouterBaseUrl}/systemone`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${config.openrouterApiKey}`,
+      "content-type": "application/json",
+      ...openrouterAttributionHeaders(),
+    },
+    body: JSON.stringify({ model, state: params.state, questions: params.questions }),
+    signal,
+  });
+  if (!res.ok) {
+    const body = (await res.text().catch(() => "")).slice(0, 300);
+    const err = new Error(`systemone ${res.status}: ${body}`);
+    // Only 429 and 5xx are worth another attempt.
+    if (res.status !== 429 && res.status < 500) throw Object.assign(err, { fatal: true });
+    throw err;
+  }
+  const json = (await res.json()) as JevResponse;
+  if (!json.answers || typeof json.answers !== "object") {
+    throw Object.assign(new Error(`systemone: no answers in response`), { fatal: true });
+  }
+  return json as JevResponse & Pick<JevRun, "answers">;
+}
+
+// Retries mirror retrieval/embed.ts: bounded exponential backoff, and an
+// aborted signal (caller gave up / timed out) stops the loop immediately
+// rather than retrying against a request nobody is waiting for. A 4xx other
+// than 429 is a malformed question — retrying it just burns the same error,
+// so it throws on the first try.
+export async function askJev(params: AskJevParams): Promise<JevRun> {
   if (!config.openrouterApiKey) throw new Error("OPENROUTER_API_KEY is not set");
   const model = params.model || config.chatJevModel;
   if (!model) throw new Error("no Jev model configured (CHAT_JEV_MODEL is empty)");
@@ -117,27 +146,7 @@ export async function askJev(params: {
   const signal = withDeadline(timeoutMs, params.signal);
   const t0 = Date.now();
   try {
-    const res = await fetch(`${config.openrouterBaseUrl}/systemone`, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${config.openrouterApiKey}`,
-        "content-type": "application/json",
-        ...openrouterAttributionHeaders(),
-      },
-      body: JSON.stringify({ model, state: params.state, questions: params.questions }),
-      signal,
-    });
-    if (!res.ok) {
-      const body = (await res.text().catch(() => "")).slice(0, 300);
-      const err = new Error(`systemone ${res.status}: ${body}`);
-      // Only 429 and 5xx are worth another attempt.
-      if (res.status !== 429 && res.status < 500) throw Object.assign(err, { fatal: true });
-      throw err;
-    }
-    const json = (await res.json()) as JevResponse;
-    if (!json.answers || typeof json.answers !== "object") {
-      throw Object.assign(new Error(`systemone: no answers in response`), { fatal: true });
-    }
+    const json = await postSystemOne(model, params, signal);
     const latencyMs = Date.now() - t0;
     captureAiCall({
       kind: "generation",

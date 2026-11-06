@@ -24,16 +24,18 @@ export function assessStructuralSnapshot(snapshot) {
   return { ...snapshot, healthy: reasons.length === 0, reasons };
 }
 
+const emptySnapshot = (syncSha) => ({
+  syncSha,
+  totalDocs: 0,
+  currentDocs: 0,
+  docsWithAddressRefs: 0,
+  totalAddresses: 0,
+  currentAddresses: 0,
+});
+
 export async function inspectStructuralSnapshot(db, syncSha) {
   if (!syncSha) {
-    return assessStructuralSnapshot({
-      syncSha: null,
-      totalDocs: 0,
-      currentDocs: 0,
-      docsWithAddressRefs: 0,
-      totalAddresses: 0,
-      currentAddresses: 0,
-    });
+    return assessStructuralSnapshot(emptySnapshot(null));
   }
 
   try {
@@ -67,12 +69,7 @@ export async function inspectStructuralSnapshot(db, syncSha) {
     });
   } catch (error) {
     return {
-      syncSha,
-      totalDocs: 0,
-      currentDocs: 0,
-      docsWithAddressRefs: 0,
-      totalAddresses: 0,
-      currentAddresses: 0,
+      ...emptySnapshot(syncSha),
       healthy: false,
       reasons: [`integrity query failed: ${error?.message ?? error}`],
     };

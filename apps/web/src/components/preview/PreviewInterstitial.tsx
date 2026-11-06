@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { initAnalytics, track } from "../../lib/analytics";
 import { usePreviewMeta } from "../../lib/previewMeta";
+import type { PreviewMeta } from "../../lib/previewMetaTypes";
 
 // Low-trust click-through: shown on first visit per session for (a) fork
 // previews whose owner is NOT trusted-tier (whitelisted orgs / atlas-merged
@@ -27,40 +28,7 @@ export function PreviewInterstitial({ sha, base, children }: { sha: string; base
       className="flex flex-col items-center justify-center gap-4 px-6"
       style={{ height: "100vh", textAlign: "center", background: "var(--bg)" }}
     >
-      <div className="mono text-xs" style={{ color: "var(--red)", fontWeight: 700, letterSpacing: "0.1em" }}>
-        {isFork ? "UNREVIEWED FORK" : "UNREVIEWED PROPOSAL"}
-      </div>
-      <p className="text-lg max-w-xl" style={{ color: "var(--tan)" }}>
-        {isFork ? (
-          <>
-            This is unreviewed fork content from <strong>{owner}</strong> — not the live Sky Atlas, and
-            not proposed to it.
-          </>
-        ) : (
-          <>
-            This is unreviewed proposed content from <strong>{owner}</strong> — a pull request that has
-            not been reviewed or merged into the live Sky Atlas.
-          </>
-        )}
-      </p>
-      {meta!.trustTier === "unknown" && (
-        <p className="text-sm max-w-xl" style={{ color: "var(--red)" }}>
-          {owner} has never had a PR accepted into the canonical atlas.
-        </p>
-      )}
-      {(meta!.newAddresses ?? 0) > 0 && (
-        <p className="text-sm max-w-xl" style={{ color: "var(--red)" }}>
-          This fork references {meta!.newAddresses} on-chain address
-          {meta!.newAddresses === 1 ? "" : "es"} not present in the live atlas. Do not send funds to or
-          interact with addresses from unreviewed content.
-        </p>
-      )}
-      {meta!.addressCheckFailed && (
-        <p className="text-sm max-w-xl" style={{ color: "var(--red)" }}>
-          We couldn't verify whether this fork introduces new on-chain addresses. Treat any address in
-          unreviewed content with caution — do not send funds to or interact with it.
-        </p>
-      )}
+      <InterstitialNotice meta={meta!} isFork={isFork} owner={owner} />
       <button
         type="button"
         className="px-4 py-1.5 rounded mono text-sm"
@@ -87,5 +55,46 @@ export function PreviewInterstitial({ sha, base, children }: { sha: string; base
         ← back to the live atlas
       </a>
     </div>
+  );
+}
+
+function InterstitialNotice({ meta, isFork, owner }: { meta: PreviewMeta; isFork: boolean; owner: string }) {
+  return (
+    <>
+      <div className="mono text-xs" style={{ color: "var(--red)", fontWeight: 700, letterSpacing: "0.1em" }}>
+        {isFork ? "UNREVIEWED FORK" : "UNREVIEWED PROPOSAL"}
+      </div>
+      <p className="text-lg max-w-xl" style={{ color: "var(--tan)" }}>
+        {isFork ? (
+          <>
+            This is unreviewed fork content from <strong>{owner}</strong> — not the live Sky Atlas, and
+            not proposed to it.
+          </>
+        ) : (
+          <>
+            This is unreviewed proposed content from <strong>{owner}</strong> — a pull request that has
+            not been reviewed or merged into the live Sky Atlas.
+          </>
+        )}
+      </p>
+      {meta.trustTier === "unknown" && (
+        <p className="text-sm max-w-xl" style={{ color: "var(--red)" }}>
+          {owner} has never had a PR accepted into the canonical atlas.
+        </p>
+      )}
+      {(meta.newAddresses ?? 0) > 0 && (
+        <p className="text-sm max-w-xl" style={{ color: "var(--red)" }}>
+          This fork references {meta.newAddresses} on-chain address
+          {meta.newAddresses === 1 ? "" : "es"} not present in the live atlas. Do not send funds to or
+          interact with addresses from unreviewed content.
+        </p>
+      )}
+      {meta.addressCheckFailed && (
+        <p className="text-sm max-w-xl" style={{ color: "var(--red)" }}>
+          We couldn't verify whether this fork introduces new on-chain addresses. Treat any address in
+          unreviewed content with caution — do not send funds to or interact with it.
+        </p>
+      )}
+    </>
   );
 }

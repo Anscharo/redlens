@@ -158,6 +158,42 @@ function stats(name: string, rows: Row[]) {
   }
 }
 
+const pct = (rows: Row[], f: (r: Row) => boolean) => ((100 * rows.filter(f).length) / rows.length).toFixed(1);
+
+function reportMeasure(neg: Row[], pos: Row[], siblings: Row[]): void {
+  console.log("\n=== AS A MEASURE — a swap is flagged when the measure is <= t ===");
+  for (const k of ARMS) {
+    console.log(`  ${String(k)}`);
+    for (const t of [0, 0.15, 0.3, 0.4, 0.45, 0.5, 0.53, 0.6, 0.67, 0.75]) {
+      console.log(
+        `    t=${t.toFixed(2)}  ordinary-edit-flagged=${pct(neg, (r) => (r[k] as number) <= t)}%` +
+        `  real-swap-missed=${pct(pos, (r) => (r[k] as number) > t)}%` +
+        `  (hard siblings missed=${pct(siblings, (r) => (r[k] as number) > t)}%)`,
+      );
+    }
+  }
+}
+
+// The veto framing: the word measure has already decided to flag. Can a high
+// embedding similarity rescue the ordinary edits caught in that net, without
+// talking us out of the real swaps sitting right beside them?
+function reportVeto(neg: Row[], pos: Row[]): void {
+  const WORD_T = 0.5;
+  const wrongly = neg.filter((r) => r.word <= WORD_T); // ordinary edits the word measure flags
+  const rightly = pos.filter((r) => r.word <= WORD_T); // real swaps it flags
+  console.log(`\n=== AS A VETO on top of word<=${WORD_T} ===`);
+  console.log(`  the net holds ${wrongly.length} ordinary edits (to rescue) and ${rightly.length} real swaps (to keep)`);
+  for (const k of ARMS.filter((a) => a === "tern" || a === "qwen")) {
+    const w = wrongly.map((r) => r[k] as number), g = rightly.map((r) => r[k] as number);
+    console.log(`  ${String(k)}: ordinary edits in the net p50=${q(w, 0.5).toFixed(3)} | real swaps in the net p50=${q(g, 0.5).toFixed(3)}`);
+    for (const v of [0.6, 0.7, 0.8, 0.85, 0.9, 0.95]) {
+      const resc = wrongly.filter((r) => (r[k] as number) > v).length;
+      const lost = rightly.filter((r) => (r[k] as number) > v).length;
+      console.log(`    veto when ${String(k)}>${v.toFixed(2)}  rescues ${resc}/${wrongly.length} ordinary edits, loses ${lost}/${rightly.length} real swaps  (net flags removed: ${resc + lost})`);
+    }
+  }
+}
+
 const main = async () => {
   const docs = (await getJson<{ nodes: Record<string, any> }>("/docs.json")).nodes;
   buildDf(Object.values(docs).map((n: any) => String(n.content ?? "")));
@@ -200,36 +236,8 @@ const main = async () => {
   stats("POSITIVE  unrelated one-liners (MUST flag)", unrelated);
   stats("POSITIVE  sibling one-liners, shared boilerplate (MUST flag)", siblings);
 
-  const pct = (rows: Row[], f: (r: Row) => boolean) => ((100 * rows.filter(f).length) / rows.length).toFixed(1);
-  console.log("\n=== AS A MEASURE — a swap is flagged when the measure is <= t ===");
-  for (const k of ARMS) {
-    console.log(`  ${String(k)}`);
-    for (const t of [0, 0.15, 0.3, 0.4, 0.45, 0.5, 0.53, 0.6, 0.67, 0.75]) {
-      console.log(
-        `    t=${t.toFixed(2)}  ordinary-edit-flagged=${pct(neg, (r) => (r[k] as number) <= t)}%` +
-        `  real-swap-missed=${pct(pos, (r) => (r[k] as number) > t)}%` +
-        `  (hard siblings missed=${pct(siblings, (r) => (r[k] as number) > t)}%)`,
-      );
-    }
-  }
-
-  // The veto framing: the word measure has already decided to flag. Can a high
-  // embedding similarity rescue the ordinary edits caught in that net, without
-  // talking us out of the real swaps sitting right beside them?
-  const WORD_T = 0.5;
-  const wrongly = neg.filter((r) => r.word <= WORD_T); // ordinary edits the word measure flags
-  const rightly = pos.filter((r) => r.word <= WORD_T); // real swaps it flags
-  console.log(`\n=== AS A VETO on top of word<=${WORD_T} ===`);
-  console.log(`  the net holds ${wrongly.length} ordinary edits (to rescue) and ${rightly.length} real swaps (to keep)`);
-  for (const k of ARMS.filter((a) => a === "tern" || a === "qwen")) {
-    const w = wrongly.map((r) => r[k] as number), g = rightly.map((r) => r[k] as number);
-    console.log(`  ${String(k)}: ordinary edits in the net p50=${q(w, 0.5).toFixed(3)} | real swaps in the net p50=${q(g, 0.5).toFixed(3)}`);
-    for (const v of [0.6, 0.7, 0.8, 0.85, 0.9, 0.95]) {
-      const resc = wrongly.filter((r) => (r[k] as number) > v).length;
-      const lost = rightly.filter((r) => (r[k] as number) > v).length;
-      console.log(`    veto when ${String(k)}>${v.toFixed(2)}  rescues ${resc}/${wrongly.length} ordinary edits, loses ${lost}/${rightly.length} real swaps  (net flags removed: ${resc + lost})`);
-    }
-  }
+  reportMeasure(neg, pos, siblings);
+  reportVeto(neg, pos);
 
   if (badged.length) {
     console.log(`\nDocs this preview badged "identity changed":`);

@@ -139,14 +139,13 @@ export async function maybeRefreshBalances(
   const nowMs = deps.now?.() ?? Date.now();
   const maxAgeSeconds = deps.maxAgeSeconds ?? config.balancesRefreshSeconds;
   const batchSize = deps.batchSize ?? config.balancesRefreshBatch;
-  const intervalMs = deps.intervalMs ?? REFRESH_INTERVAL_MS;
   const cutoff = new Date(nowMs - maxAgeSeconds * 1000);
 
   // Gate 1 — anyone's last lookup, not just ours: a manual POST refresh writes
   // the same column, so pressing the button also buys the worker an hour off.
   const stats = await loadBalanceStats(db);
   const lastMs = toMs(stats.maxCheckedAt);
-  if (!refreshAllowed(lastMs, nowMs, intervalMs)) {
+  if (!refreshAllowed(lastMs, nowMs, deps.intervalMs ?? REFRESH_INTERVAL_MS)) {
     return { refreshed: false, reason: "cooldown", selected: 0, fetched: 0, chain: null };
   }
 

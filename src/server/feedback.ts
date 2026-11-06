@@ -28,6 +28,36 @@ import {
   rateLimited,
 } from "./feedback-limits.ts";
 
+// Re-clamp + redact authoritatively (the client applies equivalent caps before
+// sending; these are the ones that count), then store the row. Returns the new
+// id and the redacted message.
+async function insertFeedback(
+  req: Request,
+  body: FeedbackBody,
+  rawMessage: string,
+  userId: string | null,
+  submitterKey: string,
+  hash: string,
+): Promise<{ id: string; message: string }> {
+  const message = redact(rawMessage.slice(0, MAX_MESSAGE_LEN));
+  const consoleEntries = normalizeConsole(body.console).map((e) => ({ ...e, text: redact(e.text) }));
+  const context = buildContext(body.context);
+
+  const rows = (await sql`
+    INSERT INTO feedback (
+      user_id, submitter_key, message, message_hash,
+      url, host, app_commit, atlas_commit, atlas_base, preview_id,
+      node_id, session_id, user_agent, context, console
+    ) VALUES (
+      ${userId}, ${submitterKey}, ${message}, ${hash},
+      ${str(body.url)}, ${str(body.host)}, ${str(body.appCommit)}, ${str(body.atlasCommit)},
+      ${str(body.atlasBase)}, ${str(body.previewId)}, ${str(body.nodeId)}, ${str(body.sessionId)},
+      ${req.headers.get("user-agent")}, ${context}::jsonb, ${consoleEntries}::jsonb
+    ) RETURNING id
+  `) as { id: string }[];
+  return { id: rows[0].id, message };
+}
+
 export async function handleFeedback(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
@@ -94,25 +124,7 @@ export async function handleFeedback(req: Request): Promise<Response> {
     // if (config.turnstileSecret) { … } — seam for a future Cloudflare
     // Turnstile escalation, once anon volume warrants it.
 
-    // Re-clamp + redact authoritatively. The client applies equivalent caps
-    // before sending; these are the ones that count.
-    const message = redact(validated.message.slice(0, MAX_MESSAGE_LEN));
-    const consoleEntries = normalizeConsole(body.console).map((e) => ({ ...e, text: redact(e.text) }));
-    const context = buildContext(body.context);
-
-    const rows = (await sql`
-      INSERT INTO feedback (
-        user_id, submitter_key, message, message_hash,
-        url, host, app_commit, atlas_commit, atlas_base, preview_id,
-        node_id, session_id, user_agent, context, console
-      ) VALUES (
-        ${userId}, ${submitterKey}, ${message}, ${hash},
-        ${str(body.url)}, ${str(body.host)}, ${str(body.appCommit)}, ${str(body.atlasCommit)},
-        ${str(body.atlasBase)}, ${str(body.previewId)}, ${str(body.nodeId)}, ${str(body.sessionId)},
-        ${req.headers.get("user-agent")}, ${context}::jsonb, ${consoleEntries}::jsonb
-      ) RETURNING id
-    `) as { id: string }[];
-    const id = rows[0].id;
+    const { id, message } = await insertFeedback(req, body, validated.message, userId, submitterKey, hash);
 
     // Unconditional server-side receipt — the event the "new feedback" PostHog
     // alert watches. Deliberately NOT the client's own `feedback_submitted`

@@ -7,6 +7,28 @@ import { ShareLinkButton } from "./ShareLinkButton";
 
 const PREVIEW_COUNT = 10;
 
+const DATE_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" };
+
+function ActionButton({
+  color,
+  onClick,
+  label,
+}: {
+  color: string;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      className="mono text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[var(--hover)]"
+      style={{ borderColor: "var(--border)", color }}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+}
+
 // Single collection card: name (inline-editable), doc count + a vertical list of
 // the first documents (doc_no + title), updated date, and Open/Rename/Delete.
 export function CollectionCard({
@@ -66,11 +88,7 @@ export function CollectionCard({
           </button>
         )}
         <p className="mono text-[11px] text-tan-3 whitespace-nowrap shrink-0">
-          {new Date(collection.updatedAt).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          })}
+          {new Date(collection.updatedAt).toLocaleDateString("en-US", DATE_FORMAT)}
         </p>
       </div>
 
@@ -79,28 +97,10 @@ export function CollectionCard({
       <CollectionDocList ids={collection.ids} docs={docs} limit={PREVIEW_COUNT} className="mb-3" />
 
       <div className="flex gap-2">
-        <button
-          className="mono text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[var(--hover)]"
-          style={{ borderColor: "var(--border)", color: "var(--accent)" }}
-          onClick={onOpen}
-        >
-          Open
-        </button>
-        <button
-          className="mono text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[var(--hover)]"
-          style={{ borderColor: "var(--border)", color: "var(--tan-3)" }}
-          onClick={() => setEditing(true)}
-        >
-          Rename
-        </button>
+        <ActionButton color="var(--accent)" onClick={onOpen} label="Open" />
+        <ActionButton color="var(--tan-3)" onClick={() => setEditing(true)} label="Rename" />
         <ShareLinkButton id={collection.id} />
-        <button
-          className="mono text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[var(--hover)]"
-          style={{ borderColor: "var(--border)", color: "var(--error-text)" }}
-          onClick={onDelete}
-        >
-          Delete
-        </button>
+        <ActionButton color="var(--error-text)" onClick={onDelete} label="Delete" />
       </div>
     </article>
   );

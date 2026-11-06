@@ -12,6 +12,7 @@ import { CHAIN_RPC, rpcBatchSize } from "../../../scripts/lib/chains.mjs";
 import { NATIVE_TOKEN, tokensForAddress } from "../../lib/tokens.ts";
 import { fetchSolanaBalances } from "./solana-balances.ts";
 import { fetchSafes, safeReadFailed, type SafeState } from "./safe-reads.ts";
+import { assembleChainResults } from "./assemble-chain-results.ts";
 
 // Same address on every supported chain (canonical multicall3 deployment).
 export const MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11" as const;
@@ -185,42 +186,6 @@ async function fetchChain(
   const safeAddrs = inputs.filter((i) => i.multisig).map((i) => i.address);
   const safes = await fetchSafes(client as never, safeAddrs, MULTICALL3).catch((e: Error) => safeReadFailed(chain, e));
   return { balances, codeResults, safes };
-}
-
-/**
- * Pure: one row per requested address once this chain's RPC has answered.
- *
- * The rolling refresh's progress invariant (refresh.ts): a cycle that writes
- * nothing re-selects the same rows, so every address we were ASKED about must
- * come back when the multicall returned — empty balances allowed (persist
- * COALESCEs those onto the stored value). Dropping a verified contract whose
- * every allowFailure entry failed used to stall the rotation for every other
- * address.
- *
- * hasCode is only attached when this sweep's eth_getCode for that address
- * answered; omitting the property (vs `undefined`) is what persist's COALESCE
- * keys on. An empty balance map still travels with a code answer, which is
- * how an unverified contract holding no tokens keeps its hasCode.
- */
-export function assembleChainResults(
-  chain: string,
-  requested: readonly string[],
-  balances: Map<string, BalanceMap>,
-  codeResults: Map<string, boolean>,
-  safes: Map<string, SafeState> = new Map(),
-): BalanceResult[] {
-  const out: BalanceResult[] = [];
-  const seen = new Set<string>();
-  for (const raw of requested) {
-    const address = raw.toLowerCase();
-    if (seen.has(address)) continue;
-    seen.add(address);
-    const bal = balances.get(address) ?? {};
-    const hasCode = codeResults.get(address);
-    const safe = safes.get(address);
-    out.push({ address, chain, balances: bal, ...(hasCode !== undefined ? { hasCode } : {}), ...(safe ? { safe } : {}) });
-  }
-  return out;
 }
 
 // Fetch balances for many addresses across chains (one multicall per chain).

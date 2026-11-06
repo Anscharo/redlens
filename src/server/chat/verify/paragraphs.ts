@@ -28,61 +28,63 @@ export interface ParagraphSegmenter {
   reset(): void;
 }
 
+interface SegmenterState {
+  buf: string; // text since the last complete line
+  fence: boolean; // inside a ``` or ~~~ fenced block
+  defs: string[];
+  pending: string[]; // lines of the paragraph in progress
+}
+
+const freshState = (): SegmenterState => ({ buf: "", fence: false, defs: [], pending: [] });
+
+function closePending(st: SegmenterState, out: string[]) {
+  const text = st.pending.join("\n").trim();
+  st.pending = [];
+  if (text) out.push(text);
+}
+
+function consumeLine(st: SegmenterState, line: string, out: string[]) {
+  if (FENCE_RE.test(line)) {
+    st.fence = !st.fence;
+    st.pending.push(line);
+    return;
+  }
+  if (!st.fence && line.trim() === "") {
+    closePending(st, out);
+    return;
+  }
+  if (!st.fence && st.pending.length === 0 && DEF_RE.test(line)) {
+    st.defs.push(line);
+    return;
+  }
+  st.pending.push(line);
+}
+
 export function createParagraphSegmenter(): ParagraphSegmenter {
-  let buf = ""; // text since the last complete line
-  let fence = false; // inside a ``` or ~~~ fenced block
-  let defs: string[] = [];
-  let pending: string[] = []; // lines of the paragraph in progress
-
-  function closePending(out: string[]) {
-    const text = pending.join("\n").trim();
-    pending = [];
-    if (text) out.push(text);
-  }
-
-  function consumeLine(line: string, out: string[]) {
-    if (FENCE_RE.test(line)) {
-      fence = !fence;
-      pending.push(line);
-      return;
-    }
-    if (!fence && line.trim() === "") {
-      closePending(out);
-      return;
-    }
-    if (!fence && pending.length === 0 && DEF_RE.test(line)) {
-      defs.push(line);
-      return;
-    }
-    pending.push(line);
-  }
-
+  let st = freshState();
   return {
     push(text: string): string[] {
-      buf += text;
+      st.buf += text;
       const out: string[] = [];
       let nl: number;
-      while ((nl = buf.indexOf("\n")) !== -1) {
-        consumeLine(buf.slice(0, nl), out);
-        buf = buf.slice(nl + 1);
+      while ((nl = st.buf.indexOf("\n")) !== -1) {
+        consumeLine(st, st.buf.slice(0, nl), out);
+        st.buf = st.buf.slice(nl + 1);
       }
       return out;
     },
     flush(): string | null {
       const out: string[] = [];
-      if (buf) {
-        consumeLine(buf, out);
-        buf = "";
+      if (st.buf) {
+        consumeLine(st, st.buf, out);
+        st.buf = "";
       }
-      closePending(out);
+      closePending(st, out);
       return out[0] ?? null; // at most one trailing paragraph
     },
-    definitions: () => defs.join("\n"),
+    definitions: () => st.defs.join("\n"),
     reset() {
-      buf = "";
-      fence = false;
-      defs = [];
-      pending = [];
+      st = freshState();
     },
   };
 }

@@ -177,28 +177,18 @@ for (const p of GROUP_POLICIES) {
 
 const kvFamilyDup = familyDupRates(unitsByPolicy["kv_records_breadcrumbs"] ?? []);
 
+const example = (d: AtlasNode) => ({
+  id: d.id,
+  doc_no: d.doc_no,
+  title: d.title,
+  direct: (childrenByDocNo.get(d.doc_no) ?? []).length,
+  descendants: descendantsOf(d.doc_no, childrenByDocNo).length,
+});
+
 const examples = {
-  icd: icds.slice(0, 3).map((d) => ({
-    id: d.id,
-    doc_no: d.doc_no,
-    title: d.title,
-    direct: (childrenByDocNo.get(d.doc_no) ?? []).length,
-    descendants: descendantsOf(d.doc_no, childrenByDocNo).length,
-  })),
-  directory: dirs.slice(0, 3).map((d) => ({
-    id: d.id,
-    doc_no: d.doc_no,
-    title: d.title,
-    direct: (childrenByDocNo.get(d.doc_no) ?? []).length,
-    descendants: descendantsOf(d.doc_no, childrenByDocNo).length,
-  })),
-  hub: hubs.slice(0, 3).map((d) => ({
-    id: d.id,
-    doc_no: d.doc_no,
-    title: d.title,
-    direct: (childrenByDocNo.get(d.doc_no) ?? []).length,
-    descendants: descendantsOf(d.doc_no, childrenByDocNo).length,
-  })),
+  icd: icds.slice(0, 3).map(example),
+  directory: dirs.slice(0, 3).map(example),
+  hub: hubs.slice(0, 3).map(example),
 };
 
 const report = {

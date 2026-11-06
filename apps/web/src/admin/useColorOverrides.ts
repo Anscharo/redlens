@@ -20,6 +20,22 @@ function shallowEqual(a: Record<string, string>, b: Record<string, string>): boo
   return true;
 }
 
+// Setting a token back to its default removes the override entry entirely.
+function withDraftValue(
+  d: Record<string, string>,
+  name: string,
+  value: string,
+): Record<string, string> {
+  if (normalize(value) === normalize(cssDefault(name))) {
+    if (!(name in d)) return d;
+    const next = { ...d };
+    delete next[name];
+    return next;
+  }
+  if (d[name] === value) return d;
+  return { ...d, [name]: value };
+}
+
 export interface UseColorOverridesResult {
   draft: Record<string, string>;
   saved: Record<string, string>;
@@ -39,17 +55,7 @@ export function useColorOverrides(): UseColorOverridesResult {
   const setDraftValue = useCallback((name: string, value: string) => {
     const token = TOKEN_BY_NAME.get(name);
     if (!token) return;
-    setDraft((d) => {
-      // Setting back to default removes the override entry entirely.
-      if (normalize(value) === normalize(cssDefault(name))) {
-        if (!(name in d)) return d;
-        const next = { ...d };
-        delete next[name];
-        return next;
-      }
-      if (d[name] === value) return d;
-      return { ...d, [name]: value };
-    });
+    setDraft((d) => withDraftValue(d, name, value));
   }, []);
 
   const apply = useCallback(() => {

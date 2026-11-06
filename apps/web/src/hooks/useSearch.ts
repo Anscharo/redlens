@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, type MutableRefObject } from "react";
 import type { SearchHit, SemanticLegStatus, SemanticLimit, WorkerOutMessage } from "@/types";
 import type { SearchLane } from "@/lib/searchSemantic";
 import { loadAtlas } from "../lib/docs";
@@ -60,6 +60,71 @@ function doneState(msg: Extract<WorkerOutMessage, { type: "results" }>, query: s
   };
 }
 
+/**
+ * Spawns the search worker and forwards the already-loaded docs and addresses
+ * so it does not fetch them again. Both come from the active data source, so a
+ * preview searches its own addresses. Worker failures reach `onError`.
+ */
+function createSearchWorker(base: string, onError: (message: string) => void): Worker {
+  // Inline `new Worker(new URL(...))` so Vite compiles the worker; a split
+  // `const url = ...` ships raw .ts (video/mp2t MIME) the browser won't load.
+  // Preview base goes through the worker `name` (self.name), not ?base=.
+  const worker = new Worker(new URL("../workers/search.worker.ts", import.meta.url), {
+    type: "module",
+    name: base,
+  });
+
+  worker.addEventListener("error", (e: ErrorEvent) => {
+    console.error("Search worker error:", e.message, e);
+    // Opaque worker error events (script fetch failure, cross-origin) carry
+    // neither .error nor .message — synthesize one so the report isn't
+    // "Primitive value captured as exception: undefined".
+    captureException(e.error ?? new Error(e.message || "search worker failed to load (opaque error event)"), { mechanism: "search.worker" });
+    onError(e.message || "Worker failed to load");
+  });
+
+  Promise.all([loadAtlas(base), loadAddresses(base)]).then(([bundle, addresses]) => {
+    worker.postMessage({ type: "preload", docs: bundle.docs, addresses: addresses ?? {} });
+  }).catch(() => {});
+
+  return worker;
+}
+
+interface WorkerMessageContext {
+  readyRef: MutableRefObject<boolean>;
+  pendingBeforeReady: MutableRefObject<{ q: string; id: number; opts: SearchOptions } | null>;
+  pendingId: MutableRefObject<number>;
+  lastQuery: MutableRefObject<string>;
+  setReady: (ready: boolean) => void;
+  setState: (state: SearchState) => void;
+}
+
+/** Applies one worker reply: unblocks and flushes the queued query on `ready`,
+ *  shows `results` for the current query id, and surfaces worker errors. */
+function handleWorkerMessage(msg: WorkerOutMessage, worker: Worker, ctx: WorkerMessageContext) {
+  const { readyRef, pendingBeforeReady, pendingId, lastQuery, setReady, setState } = ctx;
+  if (msg.type === "ready") {
+    readyRef.current = true;
+    setReady(true);
+    const pending = pendingBeforeReady.current;
+    if (pending) {
+      pendingBeforeReady.current = null;
+      lastQuery.current = pending.q;
+      // State is already "searching" — skip idle flash, go straight to results
+      worker.postMessage({ type: "query", id: pending.id, q: pending.q, ...pending.opts });
+    } else {
+      setState({ status: "idle" });
+    }
+  } else if (msg.type === "results") {
+    // A query can answer TWICE under one id: the lexical half arrives with
+    // semantic "pending", then the fused set replaces it. Both are current,
+    // so this compares ids only — never "have I already answered this id".
+    if (msg.id === pendingId.current) setState(doneState(msg, lastQuery.current));
+  } else if (msg.type === "error") {
+    setState({ status: "error", message: msg.message });
+  }
+}
+
 export function useSearch() {
   const { base } = useDataSource();
   const workerRef = useRef<Worker | null>(null);
@@ -73,55 +138,15 @@ export function useSearch() {
   useEffect(() => {
     readyRef.current = false;
     setReady(false);
-    // Inline `new Worker(new URL(...))` so Vite compiles the worker; a split
-    // `const url = ...` ships raw .ts (video/mp2t MIME) the browser won't load.
-    // Preview base goes through the worker `name` (self.name), not ?base=.
-    const worker = new Worker(new URL("../workers/search.worker.ts", import.meta.url), {
-      type: "module",
-      name: base,
-    });
-
-    worker.addEventListener("error", (e: ErrorEvent) => {
-      console.error("Search worker error:", e.message, e);
-      // Opaque worker error events (script fetch failure, cross-origin) carry
-      // neither .error nor .message — synthesize one so the report isn't
-      // "Primitive value captured as exception: undefined".
-      captureException(e.error ?? new Error(e.message || "search worker failed to load (opaque error event)"), { mechanism: "search.worker" });
-      setState({ status: "error", message: e.message || "Worker failed to load" });
-    });
+    const worker = createSearchWorker(base, (message) => setState({ status: "error", message }));
 
     worker.addEventListener("message", (e: MessageEvent<WorkerOutMessage>) => {
-      const msg = e.data;
-      if (msg.type === "ready") {
-        readyRef.current = true;
-        setReady(true);
-        const pending = pendingBeforeReady.current;
-        if (pending) {
-          pendingBeforeReady.current = null;
-          lastQuery.current = pending.q;
-          // State is already "searching" — skip idle flash, go straight to results
-          worker.postMessage({ type: "query", id: pending.id, q: pending.q, ...pending.opts });
-        } else {
-          setState({ status: "idle" });
-        }
-      } else if (msg.type === "results") {
-        // A query can answer TWICE under one id: the lexical half arrives with
-        // semantic "pending", then the fused set replaces it. Both are current,
-        // so this compares ids only — never "have I already answered this id".
-        if (msg.id === pendingId.current) setState(doneState(msg, lastQuery.current));
-      } else if (msg.type === "error") {
-        setState({ status: "error", message: msg.message });
-      }
+      handleWorkerMessage(e.data, worker, {
+        readyRef, pendingBeforeReady, pendingId, lastQuery, setReady, setState,
+      });
     });
 
     workerRef.current = worker;
-
-    // Forward already-loaded docs + addresses so the search worker doesn't
-    // fetch them again independently (avoids duplicate 5.6 MB downloads). Both
-    // come from the active data source, so a preview searches its own addresses.
-    Promise.all([loadAtlas(base), loadAddresses(base)]).then(([bundle, addresses]) => {
-      worker.postMessage({ type: "preload", docs: bundle.docs, addresses: addresses ?? {} });
-    }).catch(() => {});
 
     return () => worker.terminate();
   }, [base]);

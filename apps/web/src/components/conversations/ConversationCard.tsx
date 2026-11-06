@@ -1,9 +1,23 @@
 import { useState } from "react";
-import { MAX_CONVERSATION_TITLE_LEN, type ConversationSummary } from "../../lib/conversationsApi";
+import type { ConversationSummary } from "../../lib/conversationsApi";
 import { formatTokens } from "../../lib/formatTokens";
 import { ConversationActions } from "./ConversationActions";
+import { ConversationTitleInput } from "./ConversationTitleInput";
 
 const UNTITLED = "Untitled chat";
+
+const DATE_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" };
+
+function ConversationStats({ conversation }: { conversation: ConversationSummary }) {
+  return (
+    <p className="text-xs text-tan-3 mb-3">
+      {conversation.messageCount} {conversation.messageCount === 1 ? "message" : "messages"}
+      {conversation.contextTokens != null &&
+        ` · ${conversation.contextEstimated ? "~" : ""}${formatTokens(conversation.contextTokens)} context`}
+      {` · ${conversation.citationCount} ${conversation.citationCount === 1 ? "citation" : "citations"}`}
+    </p>
+  );
+}
 
 // Bails an outer row handler when the event originated on (or inside) a
 // nested interactive element — the rename input, or the Rename/Delete
@@ -76,20 +90,13 @@ export function ConversationCard({
     >
       <div className="flex items-start justify-between gap-3 mb-1">
         {editing ? (
-          <input
-            autoFocus
-            className="text-sm font-medium bg-transparent border-b outline-none flex-1"
-            style={{ color: "var(--tan)", borderColor: "var(--border)" }}
-            maxLength={MAX_CONVERSATION_TITLE_LEN}
+          <ConversationTitleInput
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={submitRename}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submitRename();
-              if (e.key === "Escape") {
-                setDraft(conversation.title ?? "");
-                setEditing(false);
-              }
+            onChange={setDraft}
+            onSubmit={submitRename}
+            onCancel={() => {
+              setDraft(conversation.title ?? "");
+              setEditing(false);
             }}
           />
         ) : (
@@ -98,20 +105,11 @@ export function ConversationCard({
           </p>
         )}
         <p className="mono text-[11px] text-tan-3 whitespace-nowrap">
-          {new Date(conversation.updatedAt).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          })}
+          {new Date(conversation.updatedAt).toLocaleDateString("en-US", DATE_FORMAT)}
         </p>
       </div>
 
-      <p className="text-xs text-tan-3 mb-3">
-        {conversation.messageCount} {conversation.messageCount === 1 ? "message" : "messages"}
-        {conversation.contextTokens != null &&
-          ` · ${conversation.contextEstimated ? "~" : ""}${formatTokens(conversation.contextTokens)} context`}
-        {` · ${conversation.citationCount} ${conversation.citationCount === 1 ? "citation" : "citations"}`}
-      </p>
+      <ConversationStats conversation={conversation} />
 
       <ConversationActions
         citationCount={conversation.citationCount}

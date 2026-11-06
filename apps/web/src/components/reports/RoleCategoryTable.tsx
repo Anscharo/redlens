@@ -85,46 +85,70 @@ export function RoleCategoryTable<R extends RoleRow>({
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr
+            <RoleCategoryRow
               key={`${cat}:${r.uuid || r.docNo}:${config.rowKeyRole(r)}`}
-              className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors"
-            >
-              <td className="py-2 px-3 align-top relative">
-                <MatchAside matches={hiddenMatches(config.searchFields(r), rq)} rq={rq} />
-                <DocCell r={r} rq={rq} />
-              </td>
-              {cat === "assignment" ? (
-                <>
-                  <td className="py-2 px-3 align-top text-sm text-tan">
-                    {r.executor ? <Highlight text={stripExecutorPrefix(r.executor)} rq={rq} flex /> : "—"}
-                  </td>
-                  <td className="py-2 px-3 align-top text-sm text-accent">
-                    <Highlight text={config.assignmentRoleValue(r)} rq={rq} flex />
-                  </td>
-                  <td className="py-2 px-3 align-top">
-                    <AgentChips agents={r.agents ?? []} chains={chains} rq={rq} />
-                  </td>
-                </>
-              ) : (
-                <>
-                  <td className="py-2 px-3 align-top text-sm text-tan"><Highlight text={r.title} rq={rq} /></td>
-                  <td className="py-2 px-3 align-top text-sm text-tan-2"><Highlight text={r.duty} rq={rq} /></td>
-                  {showRole && (
-                    <td className="py-2 px-3 align-top text-sm text-accent">
-                      <Highlight text={config.dutyRoleValue(r)} rq={rq} flex />
-                    </td>
-                  )}
-                  {showPrime && (
-                    <td className="py-2 px-3 align-top">
-                      <AgentChips agents={config.primeAgents(r, cat)} chains={chains} rq={rq} />
-                    </td>
-                  )}
-                </>
-              )}
-            </tr>
+              r={r}
+              cat={cat}
+              chains={chains}
+              rq={rq}
+              config={config}
+            />
           ))}
         </tbody>
       </table>
     </div>
+  );
+}
+
+function RoleCategoryRow<R extends RoleRow>({
+  r,
+  cat,
+  chains,
+  rq,
+  config,
+}: {
+  r: R;
+  cat: string;
+  chains: Map<string, Chain>;
+  rq: ReportQuery;
+  config: RoleCategoryTableConfig<R>;
+}) {
+  const showRole = config.showRoleCol(cat);
+  const showPrime = config.showPrimeCol(cat);
+  return (
+    <tr className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors">
+      <td className="py-2 px-3 align-top relative">
+        <MatchAside matches={hiddenMatches(config.searchFields(r), rq)} rq={rq} />
+        <DocCell r={r} rq={rq} />
+      </td>
+      {cat === "assignment" ? (
+        <>
+          <td className="py-2 px-3 align-top text-sm text-tan">
+            {r.executor ? <Highlight text={stripExecutorPrefix(r.executor)} rq={rq} flex /> : "—"}
+          </td>
+          <td className="py-2 px-3 align-top text-sm text-accent">
+            <Highlight text={config.assignmentRoleValue(r)} rq={rq} flex />
+          </td>
+          <td className="py-2 px-3 align-top">
+            <AgentChips agents={r.agents ?? []} chains={chains} rq={rq} />
+          </td>
+        </>
+      ) : (
+        <>
+          <td className="py-2 px-3 align-top text-sm text-tan"><Highlight text={r.title} rq={rq} /></td>
+          <td className="py-2 px-3 align-top text-sm text-tan-2"><Highlight text={r.duty} rq={rq} /></td>
+          {showRole && (
+            <td className="py-2 px-3 align-top text-sm text-accent">
+              <Highlight text={config.dutyRoleValue(r)} rq={rq} flex />
+            </td>
+          )}
+          {showPrime && (
+            <td className="py-2 px-3 align-top">
+              <AgentChips agents={config.primeAgents(r, cat)} chains={chains} rq={rq} />
+            </td>
+          )}
+        </>
+      )}
+    </tr>
   );
 }

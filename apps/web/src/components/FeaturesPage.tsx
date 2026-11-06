@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { HEADER_OFFSET } from "../lib/layout";
 import { Link } from "./Link";
-import { FEATURE_GROUPS } from "@/lib/featuresData";
+import { FEATURE_GROUPS, type Feature } from "@/lib/featuresData";
 
 export function FeaturesPage() {
   useDocumentTitle("Features: Redline Portal");
@@ -57,39 +57,44 @@ export function FeaturesPage() {
 
             <div className="space-y-5">
               {g.features.map((f) => (
-                <div
-                  key={f.name}
-                  className="pl-4"
-                  style={{ borderLeft: "1px solid var(--tan-3)" }}
-                >
-                  <p className="text-base font-semibold" style={{ color: "var(--tan)" }}>
-                    {f.name}
-                  </p>
-                  <p className="text-sm mt-1" style={{ color: "var(--tan-2)" }}>
-                    {f.what}
-                  </p>
-                  <div className="flex gap-3 mt-2">
-                    <span className="mono text-sm text-tan-3 w-10 shrink-0">how</span>
-                    {/* space-y-1.5, not -1: at 14px these steps wrap more often,
-                        and a 4px gap between items reads as smaller than the gap
-                        between two lines of the SAME item. */}
-                    <ul className="space-y-1.5 flex-1 text-sm" style={{ color: "var(--tan-2)" }}>
-                      {f.how.map((h) => (
-                        <li key={h}>&middot; {h}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  {f.note && (
-                    <p className="mono text-sm mt-2" style={{ color: "var(--tan-3)" }}>
-                      {f.note}
-                    </p>
-                  )}
-                </div>
+                <FeatureItem key={f.name} f={f} />
               ))}
             </div>
           </section>
         ))}
       </div>
     </div>
+  );
+}
+
+function FeatureItem({ f }: { f: Feature }) {
+  return (
+  <div
+    className="pl-4"
+    style={{ borderLeft: "1px solid var(--tan-3)" }}
+  >
+    <p className="text-base font-semibold" style={{ color: "var(--tan)" }}>
+      {f.name}
+    </p>
+    <p className="text-sm mt-1" style={{ color: "var(--tan-2)" }}>
+      {f.what}
+    </p>
+    <div className="flex gap-3 mt-2">
+      <span className="mono text-sm text-tan-3 w-10 shrink-0">how</span>
+      {/* space-y-1.5, not -1: at 14px these steps wrap more often,
+          and a 4px gap between items reads as smaller than the gap
+          between two lines of the SAME item. */}
+      <ul className="space-y-1.5 flex-1 text-sm" style={{ color: "var(--tan-2)" }}>
+        {f.how.map((h) => (
+          <li key={h}>&middot; {h}</li>
+        ))}
+      </ul>
+    </div>
+    {f.note && (
+      <p className="mono text-sm mt-2" style={{ color: "var(--tan-3)" }}>
+        {f.note}
+      </p>
+    )}
+  </div>
   );
 }
