@@ -17,7 +17,8 @@ const TITLES: Record<string, string> = {
 const CCTP_DOMAINS: Record<string, string> = { "0": "Ethereum", "1": "Avalanche", "2": "OP Mainnet", "3": "Arbitrum", "5": "Solana", "6": "Base", "7": "Polygon", "10": "Unichain" };
 const LAYERZERO_ENDPOINTS: Record<string, string> = { "30101": "Ethereum", "30106": "Avalanche", "30109": "Polygon", "30110": "Arbitrum", "30111": "OP Mainnet", "30168": "Solana", "30184": "Base" };
 
-const words = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+/** An event name in words: an acronym is split from the word after it ("OTCWhitelistedAsset" → "OTC Whitelisted Asset"), then each word from the next. */
+const words = (s: string) => s.replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2").replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
 const PROPER: [RegExp, string][] = [[/\buniswap v(\d)/, "Uniswap V$1"], [/\baave\b/, "Aave"], [/\bcurve\b/, "Curve"], [/\botc\b/, "OTC"], [/\berc ?4626\b/, "ERC-4626"], [/\bmerkl\b/, "Merkl"], [/\bethena\b/, "Ethena"], [/\busds\b/, "USDS"]];
 
 /** The setting's name: "CCTP mint recipient" for `MintRecipientSet`; an unlisted event is its name in words. */

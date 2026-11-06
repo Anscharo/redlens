@@ -98,6 +98,27 @@ describe("replayParams", () => {
   });
 });
 
+describe("replayParams for settings keyed by more than their subject", () => {
+  it("keeps an OTC exchange's whitelist per asset, and its recharge rate and tick limits per exchange and pool", () => {
+    block = 0;
+    const POOL_ID = "0x" + "9".repeat(64);
+    const params = replayParams([
+      ev("OTCWhitelistedAssetSet", { exchange: A, asset: B, isWhitelisted: true }),
+      ev("OTCWhitelistedAssetSet", { exchange: A, asset: RELAYER, isWhitelisted: true }),
+      ev("OTCWhitelistedAssetSet", { exchange: A, asset: B, isWhitelisted: false }),
+      ev("OTCRechargeRateSet", { exchange: A, oldRate18: "0", newRate18: "1" }),
+      ev("OTCRechargeRateSet", { exchange: A, oldRate18: "1", newRate18: "2" }),
+      ev("UniswapV4TickLimitsSet", { poolId: POOL_ID, tickLowerMin: -10, tickUpperMax: 10, maxTickSpacing: 10 }),
+    ]);
+    expect(params.map((p) => [p.event, p.subject, p.args.asset ?? p.args.newRate18 ?? p.args.tickUpperMax, p.args.isWhitelisted])).toEqual([
+      ["OTCWhitelistedAssetSet", A, B, false],
+      ["OTCWhitelistedAssetSet", A, RELAYER, true],
+      ["OTCRechargeRateSet", A, "2", undefined],
+      ["UniswapV4TickLimitsSet", POOL_ID, 10, undefined],
+    ]);
+  });
+});
+
 describe("replayParams with args read back from jsonb", () => {
   // jsonb orders keys by length then bytewise, so the event's first argument
   // is often not the first key; the subject must come from the ABI.

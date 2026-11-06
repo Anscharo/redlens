@@ -9,6 +9,10 @@ describe("pauParamText", () => {
     expect(paramTitle("UniswapV3PoolMaxTickDeltaSet")).toBe("Uniswap V3 pool max tick delta");
     expect(paramTitle("AaveMaxSlippageSet")).toBe("Aave max slippage");
     expect(paramTitle("UniswapV3PoolLowerTickUpdated")).toBe("Uniswap V3 pool lower tick");
+    expect(paramTitle("OTCWhitelistedAssetSet")).toBe("OTC whitelisted asset");
+    expect(paramTitle("OTCRechargeRateSet")).toBe("OTC recharge rate");
+    expect(paramTitle("USDSVaultSet")).toBe("USDS vault");
+    expect(paramTitle("UniswapV4TickLimitsSet")).toBe("Uniswap V4 tick limits");
   });
   it("names the destination a domain or endpoint number stands for, and leaves an unknown number bare", () => {
     expect(paramTarget("MintRecipientSet", "5")).toBe("CCTP destination domain 5 (Solana)");

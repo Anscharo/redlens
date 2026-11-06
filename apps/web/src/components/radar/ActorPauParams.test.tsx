@@ -49,6 +49,17 @@ describe("PauParams", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("keeps one row per asset an OTC exchange whitelists, across re-renders", () => {
+    const [EXCHANGE, USDC, USDT] = ["5", "6", "7"].map((c) => "0x" + c.repeat(40));
+    const otc = (asset: string) => ({ event: "OTCWhitelistedAssetSet", subject: EXCHANGE, args: { exchange: EXCHANGE, asset, isWhitelisted: true }, setAt: at });
+    const desk = { ...snap, contracts: [{ ...snap.contracts[0], params: [otc(USDC), otc(USDT)] }] };
+    const { rerender } = render(<PauParams snap={desk} anchor={{ id: "spark-ethereum", aliases: [] }} />);
+    rerender(<PauParams snap={{ ...desk }} anchor={{ id: "spark-ethereum", aliases: [] }} />);
+    const rows = [...document.querySelectorAll("li")].filter((li) => li.textContent?.startsWith("OTC whitelisted asset"));
+    expect(rows).toHaveLength(2);
+    expect(rows.map((li) => li.querySelector(`[data-address="${USDC}"], [data-address="${USDT}"]`)?.getAttribute("data-address")).sort()).toEqual([USDC, USDT]);
+  });
+
   it("renders a padded bytes32 recipient as the address it holds", () => {
     render(<PauParams snap={snap} anchor={{ id: "spark-ethereum", aliases: [] }} />);
     const row = [...document.querySelectorAll("li")].find((li) => li.textContent?.startsWith("CCTP mint recipient")) as HTMLElement;
