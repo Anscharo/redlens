@@ -36,6 +36,7 @@
 ## 2026-11-06
 
 - Marked each rate limit, rate limit ID and address on a Prime Agent's instance cards with whether it matches the chain, and linked each parameter to the document that states it
+- Added a Filter menu to the preview tree that can hide renumber-only changes or show only new, edited or flagged documents, and enlarged the tree's filter bar
 - Showed title changes in a preview's history as a word diff, above the body changes
 
 ## 2026-11-04

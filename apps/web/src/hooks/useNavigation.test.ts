@@ -41,6 +41,21 @@ describe("useNavigation", () => {
     expect(params.get("subset")).toBe("foo");
   });
 
+  it("navigateToNode and handleViewChange keep a preview's change filters and base", async () => {
+    window.history.pushState({}, "", "/atlas?id=old&subset=changed&change=new,edited&base=repo");
+    const { useNavigation } = await import("./useNavigation");
+    const navigate = vi.fn();
+    const { result } = renderHook(() => useNavigation({ navigate, nodeId: "old" }));
+    result.current.navigateToNode("target-id");
+    result.current.handleViewChange("history");
+    for (const [url] of navigate.mock.calls as [string][]) {
+      const params = new URLSearchParams(url.split("?")[1]);
+      expect(params.get("subset")).toBe("changed");
+      expect(params.get("change")).toBe("new,edited");
+      expect(params.get("base")).toBe("repo");
+    }
+  });
+
   it("handleViewChange tracks atlas_view_tab and omits view param for the default notes panel", async () => {
     const { useNavigation } = await import("./useNavigation");
     const navigate = vi.fn();

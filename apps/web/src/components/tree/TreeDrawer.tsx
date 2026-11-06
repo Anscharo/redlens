@@ -41,7 +41,7 @@ export function TreeDrawer({ open, onClose }: TreeDrawerProps) {
       <Drawer
         open={open}
         onClose={onClose}
-        defaultWidth={280}
+        defaultWidth={320}
         resizable
         minWidth={180}
         maxWidth={600}

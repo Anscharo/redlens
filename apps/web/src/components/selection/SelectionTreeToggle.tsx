@@ -6,7 +6,7 @@ import { takeResumeSave } from "../../lib/authReturn";
 import { useSelection } from "../../lib/selection";
 import { track } from "../../lib/analytics";
 import { ROUTES } from "@/lib/routes";
-import { TREE_TOGGLE_BAR_CLASS, TREE_TOGGLE_BAR_STYLE, togglePillStyle } from "../tree/togglePill";
+import { TREE_TOGGLE_BAR_CLASS, TREE_TOGGLE_PILL_CLASS, togglePillStyle, treeToggleBarStyle } from "../tree/togglePill";
 import { usersEnabled } from "../../lib/usersEnabled";
 import { SaveCollectionModal } from "./SaveCollectionModal";
 
@@ -48,9 +48,9 @@ export function SelectionTreeToggle() {
   if (!inReader && count === 0) return null;
 
   return (
-    <div className={TREE_TOGGLE_BAR_CLASS} style={TREE_TOGGLE_BAR_STYLE}>
+    <div className={TREE_TOGGLE_BAR_CLASS} style={treeToggleBarStyle(selectedOnly && count > 0)}>
       <button
-        className="px-2 py-0.5 rounded shrink-0"
+        className={`${TREE_TOGGLE_PILL_CLASS} shrink-0`}
         style={togglePillStyle(!selectedOnly, "var(--tan)")}
         onClick={() => {
           track("selection_view_toggle", { view: "all", count });
@@ -63,7 +63,7 @@ export function SelectionTreeToggle() {
       {count > 0 && (
         <>
           <button
-            className="px-2 py-0.5 rounded flex items-center gap-1 min-w-0"
+            className={`${TREE_TOGGLE_PILL_CLASS} flex items-center gap-1 min-w-0`}
             style={togglePillStyle(selectedOnly, "var(--tan)")}
             title={activeCollectionName ?? undefined}
             onClick={() => {

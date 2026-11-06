@@ -38,8 +38,9 @@ export function useFilterHides(): (id: string) => boolean {
 export type HiddenTarget = { kind: "split" | "read" | "stay"; href: string };
 
 // `base` is a preview's diff base (?base=): dropping it would refetch a
-// different diff and change which docs the filter lists.
-const KEPT_BESIDE = ["id", "view", "subset", "base"] as const;
+// different diff and change which docs the filter lists. `change` is the
+// preview's change filters, which the filter needs just as much.
+const KEPT_BESIDE = ["id", "view", "subset", "change", "base"] as const;
 
 function atlasUrl(params: URLSearchParams): string {
   return `${ROUTES.ATLAS}?${params}`;
