@@ -197,13 +197,15 @@ describe("instance params (extracted from ICD Parameters subtree)", () => {
     const sl = instances.find((e) => e.name === "Ethereum Mainnet - SparkLend USDS");
     expect(sl, "SparkLend USDS allocation instance").toBeTruthy();
     const p = paramsOf(sl!);
-    expect(p["Inflow Rate Limits / maxAmount"]?.[0]).toBe("200,000,000 USDS");
-    expect(p["Inflow Rate Limits / slope"]?.[0]).toBe("400,000,000 USDS per day");
-    expect(p["Outflow Rate Limits / maxAmount"]?.[0]).toBe("Unlimited");
-    // The outer "Inflow Rate Limits" / "Outflow Rate Limits" keys should NOT
+    // Keys carry the leaf's title, which the atlas writes in the singular
+    // ("Inflow Rate Limit", A.6.1.1.1.2.6.1.3.1.1.1.2.4.1).
+    expect(p["Inflow Rate Limit / maxAmount"]?.[0]).toBe("200,000,000 USDS");
+    expect(p["Inflow Rate Limit / slope"]?.[0]).toBe("400,000,000 USDS per day");
+    expect(p["Outflow Rate Limit / maxAmount"]?.[0]).toBe("Unlimited");
+    // The outer "Inflow Rate Limit" / "Outflow Rate Limit" keys should NOT
     // be present as single entries — they've been expanded into sub-keys.
-    expect(p["Inflow Rate Limits"]).toBeUndefined();
-    expect(p["Outflow Rate Limits"]).toBeUndefined();
+    expect(p["Inflow Rate Limit"]).toBeUndefined();
+    expect(p["Outflow Rate Limit"]).toBeUndefined();
   });
 
   it("multi-chain Agent Token produces one key per chain", () => {
