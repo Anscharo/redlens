@@ -49,7 +49,7 @@ const marks: CardMarks = {
   ]),
   addresses: new Map([
     [addressCheckId("inst-doc", "Rate Limit IDs"), address("rate-limit-id", "not-stated")],
-    [addressCheckId("inst-doc", "Token Address"), address("address", "unsure", { reason: "no PAU rate limit or parameter uses this address" })],
+    [addressCheckId("inst-doc", "Token Address"), address("address", "unsure", { reason: "no rate limit or controller parameter on-chain uses this address" })],
     [addressCheckId("inst-doc", "Underlying Asset Address"), address("underlying", "match", { onchain: ["0x" + "d".repeat(40)] })],
   ]),
   held: new Map(),

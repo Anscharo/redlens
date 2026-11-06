@@ -5,7 +5,6 @@
 // records, so a row never borrows another instance's or another side's verdict.
 import { valueParam, type ValueCheck } from "@/lib/pauAtlasValues";
 import type { InstanceParam } from "@/lib/radarRules";
-import { PAU_KIND_LABEL } from "./pau";
 import type { LiveRateLimit } from "@/lib/pau";
 import { isOff } from "@/lib/pauLimitOrder";
 import { heldKeyId, sentence, type RowMark, type TipLine } from "./rowMark";
@@ -63,12 +62,15 @@ const VALUE_HEAD: Record<ParamMark, string> = {
   unsure: "Can't be compared",
 };
 
+/** A deployment as a card tooltip names it, in plain words: not every controller is a PAU. */
+const KIND_LABEL: Record<NonNullable<ValueCheck["kind"]>, string> = { monolithic: "monolithic controller", diamond: "diamond controller" };
+
 /** Each deployment's lines: the value it holds and when it was set, or why there is none, said once per deployment. */
 function checkLines(checks: ValueCheck[]): TipLine[] {
   const many = checks.length > 1;
   const said = new Set<string>();
   return checks.flatMap((c): TipLine[] => {
-    const where = many && c.kind ? ` · ${PAU_KIND_LABEL[c.kind]}` : "";
+    const where = many && c.kind ? ` · ${KIND_LABEL[c.kind]}` : "";
     if (isCompared(c)) return [{ label: `On-chain${where}`, value: contractValue(c) }, { set: c.limit!.setAt, chain: c.chain!, readAt: c.readAt }];
     const text = `${sentence(VALUE_STATUS[c.status].text)}${where}`;
     if (said.has(text)) return [];

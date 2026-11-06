@@ -81,7 +81,7 @@ function addressCheck(address: string, chain: string | null, snaps: StoredPauSna
   const limits = limitsOf(snaps).filter((r) => argsOf(r).includes(address));
   const params = paramsOf(snaps).filter((p) => p.subject.toLowerCase() === address);
   const found = limits.length > 0 || params.length > 0;
-  const reason = found ? undefined : noAnswer(chain, snaps, "no PAU rate limit or parameter uses this address");
+  const reason = found ? undefined : noAnswer(chain, snaps, "no rate limit or controller parameter on-chain uses this address");
   return { kind: "address", subject: address, status: found ? "match" : "unsure", chain, limits, params, onchain: [], symbols: symbolsOf([address], snaps), ...(reason ? { reason } : {}) };
 }
 

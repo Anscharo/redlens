@@ -53,7 +53,7 @@ describe("checkAtlasAddresses: addresses", () => {
     expect(get(inst, "Pool")).toMatchObject({ status: "match", params: [{ event: "MaxSlippageSet" }] });
   });
   it("cannot match an address nothing on the chain uses, and checks no other param", () => {
-    expect(get(inst, "Other")).toMatchObject({ status: "unsure", reason: "no PAU rate limit or parameter uses this address" });
+    expect(get(inst, "Other")).toMatchObject({ status: "unsure", reason: "no rate limit or controller parameter on-chain uses this address" });
     expect(get(inst, "Network")).toBeUndefined();
   });
   it("checks only instances that state a rate limit, on their own chain", () => {

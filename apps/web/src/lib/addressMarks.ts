@@ -35,19 +35,19 @@ function underlyingLines(c: AddressCheck): TipLine[] {
   return [{ label: "On-chain", value: c.onchain.map((a) => named(c, a)).join(", ") }];
 }
 
-/** An ID the atlas has not stated, for which the PAU holds keys derived from the instance's addresses: each key, one of which the atlas probably should state. */
+/** An ID the atlas has not stated, for which the chain holds keys derived from the instance's addresses: each key, one of which the atlas probably should state. */
 function candidateLines(c: AddressCheck): TipLine[] {
   const seen = new Set<string>();
   const keys = c.limits.filter((r) => !isOff(r) && !seen.has(r.key.toLowerCase()) && seen.add(r.key.toLowerCase()));
   return [
-    { text: "The PAU holds keys derived from this instance's addresses; the atlas probably should state one of them." },
+    { text: "Keys derived from this instance's addresses are set on-chain; the atlas probably should state one of them." },
     ...keys.map((r): TipLine => ({ label: limitName(r), value: `${r.key.slice(0, 10)}…${r.key.slice(-6)}` })),
   ];
 }
 
 const HEAD: Record<AddressCheck["kind"], Partial<Record<AddressCheck["status"], string>>> = {
-  "rate-limit-id": { match: "Held on the PAU", "not-set": "Not set on the contract" },
-  address: { match: "Used by the PAU" },
+  "rate-limit-id": { match: "Set on-chain", "not-set": "Not set on the contract" },
+  address: { match: "Used on-chain" },
   underlying: { match: "Matches the chain", mismatch: "Differs from the chain" },
 };
 
@@ -55,7 +55,7 @@ const LINES: Record<AddressCheck["kind"], (c: AddressCheck) => TipLine[]> = { "r
 
 /** An ID or address row's mark, opening the Onchain tab of the document that states it. */
 export function addressRowMark(c: AddressCheck, docId: string | null): RowMark {
-  if (c.status === "not-stated" && c.limits.some((r) => !isOff(r))) return { mark: "candidate", head: "The atlas states no ID, but the PAU holds a likely key", lines: candidateLines(c), docId };
-  if (c.status === "not-stated") return { mark: "not-stated", head: "The atlas states no ID yet", lines: [{ text: "No key derived from this instance's addresses is switched on at the PAU either." }], docId };
+  if (c.status === "not-stated" && c.limits.some((r) => !isOff(r))) return { mark: "candidate", head: "The atlas states no ID, but a likely key is set on-chain", lines: candidateLines(c), docId };
+  if (c.status === "not-stated") return { mark: "not-stated", head: "The atlas states no ID yet", lines: [{ text: "No key derived from this instance's addresses is switched on either." }], docId };
   return { mark: c.status, head: HEAD[c.kind][c.status] ?? "Can't be checked", lines: LINES[c.kind](c), docId };
 }
