@@ -93,6 +93,24 @@ describe("parseHtmlToNodes — per-section column mapping", () => {
     expect(n.content).toBe("The instances are stored here.");
     expect(n.structuralKey).toBe("agent scope database spark spark active instances");
   });
+
+  it("a row with no breadcrumb outside the Agent Scope DB → Name cell is both title and owner", () => {
+    const [n] = parseHtmlToNodes(`
+<h1>Articles</h1>
+<table>
+  <tr>
+    <td><dfn>Process Flow</dfn></td>
+    <td>Step One</td>
+    <td>Core</td>
+    <td>Do the first thing.</td>
+  </tr>
+</table>
+`);
+    expect(n.doc_no).toBeNull();
+    expect(n.title).toBe("Step One");
+    expect(n.owner).toBe("Step One");
+    expect(n.ancestors).toEqual([]);
+  });
 });
 
 describe("convert-twice determinism + minimal-diff (artifact cancellation)", () => {
