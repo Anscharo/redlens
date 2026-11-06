@@ -90,6 +90,52 @@ function bestPoint(arms: ArmResult[]): ArmResult {
   return arms.slice().sort((a, b) => b.fbeta - a.fbeta)[0]!;
 }
 
+interface CensusResult {
+  regexArm: ArmResult; regexTest: ArmResult; sweep: ArmResult[];
+  trainPicked: number; trainPickedTest: ArmResult;
+  shipped: number; shippedTest: ArmResult; shippedAll: ArmResult;
+  cases: Scored[];
+}
+
+function printReport(r: CensusResult): void {
+  const { regexArm, regexTest, sweep, trainPicked, trainPickedTest, shipped, shippedTest, shippedAll, cases } = r;
+  console.log(`${cases.length} labeled questions (${cases.filter((c) => c.expectSlug !== null).length} should route somewhere)\n`);
+  console.log(line(regexArm));
+  console.log(line(regexTest));
+  console.log("\nfull-corpus sweep:");
+  for (const a of sweep) console.log(line(a) + (a.threshold === shipped ? "   <- SHIPPED (config.chatCensusSimilarityMargin)" : a.threshold === trainPicked ? "   <- train-fitted pick" : ""));
+  console.log(`\ntrain-fitted pick (${trainPicked}), held out:`);
+  console.log(line(trainPickedTest));
+  console.log(`\nSHIPPED margin (${shipped}), held out and on the whole corpus — the headline numbers:`);
+  console.log(line(shippedTest) + "   <- HELD-OUT");
+  console.log(line(shippedAll));
+
+  console.log(`\nregex misses (what similarity would have to recover), ${regexArm.misses.length} of ${cases.filter((c) => c.expectSlug !== null).length}:`);
+  for (const m of regexArm.misses) console.log(`  · ${m}`);
+
+  console.log(`\nshipped (all, thr=${shipped}) false fires (${shippedAll.fp}):`);
+  for (const f of shippedAll.falseFires) console.log(`  · ${f}`);
+  console.log(`shipped (all, thr=${shipped}) remaining misses (${shippedAll.misses.length}):`);
+  for (const m of shippedAll.misses) console.log(`  · ${m}`);
+}
+
+// Real traffic, not my corpus — the only honest false-fire check on
+// messages nobody wrote for this test (same rationale as eval-facts.ts's
+// identical block, which this mirrors).
+async function realTraffic(): Promise<void> {
+  if (!process.env.DATABASE_URL) return;
+  const { sql } = await import("../../src/server/db.ts");
+  const rows = (await sql`SELECT content FROM messages WHERE role = 'user' ORDER BY created_at DESC LIMIT 500`) as { content: string }[];
+  const newFires = rows
+    .map((r) => r.content.slice(0, 300))
+    .filter((q) => matchConceptCensuses(q).length === 0)
+    .map((q) => ({ q, slugs: routeCensuses(q) }))
+    .filter((r) => r.slugs.length > 0);
+  console.log(`\nreal messages from DATABASE_URL: ${rows.length}`);
+  console.log(`  regex fires on ${rows.filter((r) => matchConceptCensuses(r.content.slice(0, 300)).length > 0).length}; similarity adds ${newFires.length} more`);
+  for (const r of newFires.slice(0, 12)) console.log(`  + [${r.slugs.join(",")}]  ${r.q.slice(0, 90).replace(/\s+/g, " ")}`);
+}
+
 async function main() {
   const ix = loadIndexes();
   const subjects = [...new Set([...ix.entities.map((e) => e.name), ...[...ix.docMap.values()].map((d) => d.title)])]
@@ -134,46 +180,15 @@ async function main() {
   const shippedTest = score((c) => hybrid(c, shipped), test, "regex OR similarity (TEST)", shipped);
   const shippedAll = score((c) => hybrid(c, shipped), cases, "regex OR similarity (all)", shipped);
 
-  console.log(`${cases.length} labeled questions (${cases.filter((c) => c.expectSlug !== null).length} should route somewhere)\n`);
-  console.log(line(regexArm));
-  console.log(line(regexTest));
-  console.log("\nfull-corpus sweep:");
-  for (const a of sweep) console.log(line(a) + (a.threshold === shipped ? "   <- SHIPPED (config.chatCensusSimilarityMargin)" : a.threshold === trainPicked ? "   <- train-fitted pick" : ""));
-  console.log(`\ntrain-fitted pick (${trainPicked}), held out:`);
-  console.log(line(trainPickedTest));
-  console.log(`\nSHIPPED margin (${shipped}), held out and on the whole corpus — the headline numbers:`);
-  console.log(line(shippedTest) + "   <- HELD-OUT");
-  console.log(line(shippedAll));
-
-  console.log(`\nregex misses (what similarity would have to recover), ${regexArm.misses.length} of ${cases.filter((c) => c.expectSlug !== null).length}:`);
-  for (const m of regexArm.misses) console.log(`  · ${m}`);
-
-  console.log(`\nshipped (all, thr=${shipped}) false fires (${shippedAll.fp}):`);
-  for (const f of shippedAll.falseFires) console.log(`  · ${f}`);
-  console.log(`shipped (all, thr=${shipped}) remaining misses (${shippedAll.misses.length}):`);
-  for (const m of shippedAll.misses) console.log(`  · ${m}`);
-
-  // Real traffic, not my corpus — the only honest false-fire check on
-  // messages nobody wrote for this test (same rationale as eval-facts.ts's
-  // identical block, which this mirrors).
-  if (process.env.DATABASE_URL) {
-    const { sql } = await import("../../src/server/db.ts");
-    const rows = (await sql`SELECT content FROM messages WHERE role = 'user' ORDER BY created_at DESC LIMIT 500`) as { content: string }[];
-    const newFires = rows
-      .map((r) => r.content.slice(0, 300))
-      .filter((q) => matchConceptCensuses(q).length === 0)
-      .map((q) => ({ q, slugs: routeCensuses(q) }))
-      .filter((r) => r.slugs.length > 0);
-    console.log(`\nreal messages from DATABASE_URL: ${rows.length}`);
-    console.log(`  regex fires on ${rows.filter((r) => matchConceptCensuses(r.content.slice(0, 300)).length > 0).length}; similarity adds ${newFires.length} more`);
-    for (const r of newFires.slice(0, 12)) console.log(`  + [${r.slugs.join(",")}]  ${r.q.slice(0, 90).replace(/\s+/g, " ")}`);
-  }
+  const result: CensusResult = { regexArm, regexTest, sweep, trainPicked, trainPickedTest, shipped, shippedTest, shippedAll, cases };
+  printReport(result);
+  await realTraffic();
 
   const out = path.join(".cache", "eval-census.json");
   fs.mkdirSync(".cache", { recursive: true });
   fs.writeFileSync(
     out,
-    JSON.stringify({ generatedAt: new Date().toISOString(), regexArm, regexTest, sweep, trainPicked, trainPickedTest, shipped, shippedTest, shippedAll, cases }, null, 2),
+    JSON.stringify({ generatedAt: new Date().toISOString(), ...result }, null, 2),
   );
   console.log(`\nwrote ${out}`);
 }

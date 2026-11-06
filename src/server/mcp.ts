@@ -49,6 +49,59 @@ export interface McpRequestContext {
   sessionId: string;
 }
 
+type ToolDef = (typeof ATLAS_TOOLS)[number] | (typeof EXTERNAL_TOOLS)[number];
+
+// The tool callback: runs the tool, then reports one `mcp_tool_call` event.
+function makeToolHandler(server: McpServer, ix: ReturnType<typeof getIndexes>, t: ToolDef, reqCtx?: McpRequestContext) {
+  return async (args: Record<string, unknown>) => {
+    const t0 = performance.now();
+    let resultText = "";
+    let toolOk = true;
+    let errorMessage: string | undefined;
+    try {
+      const res = ok(ix.meta, await invokeTool(ix, t, args, ANON_MCP_CTX));
+      resultText = res.content[0].text;
+      return res;
+    } catch (e) {
+      toolOk = false;
+      errorMessage = (e as Error).message?.slice(0, 300);
+      throw e;
+    } finally {
+      // Every MCP tool call funnels through here regardless of which tool was
+      // invoked — the one hook point for "what people are using the MCP for"
+      // (tool) and "what they're trying to find" (params).
+      const client = server.server.getClientVersion();
+      // distinct_id groups calls in PostHog. reqCtx.sessionId is the echoed/minted
+      // Mcp-Session-Id (see index.ts) — same value for every call in one agent
+      // run, for clients that honor it; falls back to a one-off id otherwise, no
+      // worse than before. Also sent as a property (mcp_session) so HogQL can
+      // filter/group on it without relying on distinct_id semantics.
+      captureServerEvent(
+        "mcp_tool_call",
+        reqCtx?.sessionId ?? crypto.randomUUID(),
+        {
+          product: "mcp",
+          tool: t.name,
+          params: safeParams(args),
+          ok: toolOk,
+          error: errorMessage,
+          duration_ms: Math.round(performance.now() - t0),
+          result_bytes: resultText.length || undefined,
+          client_name: client?.name,
+          client_version: client?.version,
+          protocol_version: reqCtx?.protocolVersion ?? undefined,
+          user_agent: reqCtx?.userAgent?.slice(0, 200) ?? undefined,
+          host: reqCtx?.host ?? undefined,
+          environment: reqCtx?.host === PROD_HOST ? "prod" : "dev",
+          app_commit: config.appCommit || null,
+          atlas_commit: ix.meta.atlasCommit ?? null,
+          mcp_session: reqCtx?.sessionId ?? null,
+        },
+      );
+    }
+  }
+}
+
 export function createMcpServer(reqCtx?: McpRequestContext): McpServer {
   const server = new McpServer({
     name: "redline-sky-atlas",
@@ -87,53 +140,7 @@ export function createMcpServer(reqCtx?: McpRequestContext): McpServer {
         inputSchema: t.shape,
         annotations: t.annotations,
       },
-      async (args) => {
-        const t0 = performance.now();
-        let resultText = "";
-        let toolOk = true;
-        let errorMessage: string | undefined;
-        try {
-          const res = ok(ix.meta, await invokeTool(ix, t, args, ANON_MCP_CTX));
-          resultText = res.content[0].text;
-          return res;
-        } catch (e) {
-          toolOk = false;
-          errorMessage = (e as Error).message?.slice(0, 300);
-          throw e;
-        } finally {
-          // Every MCP tool call funnels through here regardless of which tool was
-          // invoked — the one hook point for "what people are using the MCP for"
-          // (tool) and "what they're trying to find" (params).
-          const client = server.server.getClientVersion();
-          // distinct_id groups calls in PostHog. reqCtx.sessionId is the echoed/minted
-          // Mcp-Session-Id (see index.ts) — same value for every call in one agent
-          // run, for clients that honor it; falls back to a one-off id otherwise, no
-          // worse than before. Also sent as a property (mcp_session) so HogQL can
-          // filter/group on it without relying on distinct_id semantics.
-          captureServerEvent(
-            "mcp_tool_call",
-            reqCtx?.sessionId ?? crypto.randomUUID(),
-            {
-              product: "mcp",
-              tool: t.name,
-              params: safeParams(args),
-              ok: toolOk,
-              error: errorMessage,
-              duration_ms: Math.round(performance.now() - t0),
-              result_bytes: resultText.length || undefined,
-              client_name: client?.name,
-              client_version: client?.version,
-              protocol_version: reqCtx?.protocolVersion ?? undefined,
-              user_agent: reqCtx?.userAgent?.slice(0, 200) ?? undefined,
-              host: reqCtx?.host ?? undefined,
-              environment: reqCtx?.host === PROD_HOST ? "prod" : "dev",
-              app_commit: config.appCommit || null,
-              atlas_commit: ix.meta.atlasCommit ?? null,
-              mcp_session: reqCtx?.sessionId ?? null,
-            },
-          );
-        }
-      },
+      makeToolHandler(server, ix, t, reqCtx),
     );
   }
 

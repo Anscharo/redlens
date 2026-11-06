@@ -9,7 +9,7 @@ vi.mock("../src/server/preview/pr-state.ts", () => ({ sweepPrStates }));
 vi.mock("../src/server/chain-state.ts", () => ({ maybeRefreshChainState }));
 vi.mock("../scripts/required/fetch-chain-state.mjs", () => ({ fetchChainState }));
 vi.mock("../src/server/balances/refresh.ts", () => ({ maybeRefreshBalances }));
-vi.mock("../src/server/forum.ts", () => ({ maybeSyncForum }));
+vi.mock("../src/server/forum-sync.ts", () => ({ maybeSyncForum }));
 const syncPauEvents = vi.fn();
 const maybeRefreshPauState = vi.fn();
 const rpcChainReader = vi.fn(() => "reader");

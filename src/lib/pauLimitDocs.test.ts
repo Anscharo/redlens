@@ -137,6 +137,16 @@ describe("withInstanceLimitDocs", () => {
     expect(withInstanceLimitDocs(out, instDocs)).toBe(out);
     expect(withInstanceLimitDocs({ ...src, docId: null }, instDocs).params).toBe(src.params);
   });
+  it("reads a leaf titled in the singular ('<X> Rate Limit') the same way", () => {
+    const one: [string | null, AtlasNode[]][] = [
+      [null, [node("inst", "Ethereum Mainnet - Spark Savings v2 USDC Instance Configuration Document")]],
+      ["inst", [node("take", "Take Rate Limit", "- `maxAmount`: Unlimited"), node("cap", "Supply Cap", "- `maxAmount`: 5")]],
+    ];
+    const d: LimitDocs = { byParent: new Map(one), docs: Object.fromEntries(one.flatMap(([, kids]) => kids).map((n) => [n.id, n])) };
+    const out = withInstanceLimitDocs(src, d);
+    expect(out.params["Take Rate Limit / maxAmount"]).toEqual(["Unlimited", "take"]);
+    expect(out.params["Supply Cap / maxAmount"]).toBeUndefined();
+  });
   it("compares a take limit with the vault's LIMIT_SPARK_VAULT_TAKE key the instance's token address derives", () => {
     const key = lim("0x" + "7".repeat(64), UNL, "0", { constant: "LIMIT_SPARK_VAULT_TAKE", args: [VAULT] });
     const checks = checkAtlasValues([withInstanceLimitDocs(src, instDocs)], [snap("ethereum", "monolithic", [key])]);

@@ -86,6 +86,48 @@ function genesisTombstoneUuid(node) {
   return uuidv5(`${node.section}|${(node.ancestors || []).join(">")}|${node.title}|${node.contentHash}|genesis:${GENESIS_CID}`);
 }
 
+/** Promote the human-confirmed ambiguous pairs (CONFIRMED_AMBIGUOUS) into `locked`.
+ *  matchNodes never proposed these as pairs at all (too uncertain to auto-pick among
+ *  candidates), so they can't go through the isCorroborated path — promote them
+ *  directly. Returns how many were promoted. */
+function promoteConfirmedAmbiguous(m, locked, bridgedRoot) {
+  let confirmedAmbiguous = 0;
+  for (const a of m.ambiguous) {
+    const g = a.older;
+    const expectedRootTitle = CONFIRMED_AMBIGUOUS.get(`${g.doc_no || ""}|${normT(g.title)}`);
+    if (!expectedRootTitle) continue;
+    const match = (a.candidates || []).find((c) => normT(c.title) === expectedRootTitle);
+    if (!match || bridgedRoot.has(match)) continue; // candidate gone or already claimed elsewhere
+    locked.push({ genesisNode: g, rootNode: match, tier: "confirmed-ambiguous" });
+    bridgedRoot.add(match);
+    confirmedAmbiguous++;
+  }
+  return confirmedAmbiguous;
+}
+
+/** Stress-test the seedHop "contained" bucket (split/absorb candidates): the ORIGINAL
+ *  seedHop check only asked "is >=60% of this root doc's content found somewhere in
+ *  the older corpus" and took the single best-coverage genesis doc as "the parent" —
+ *  it never checked whether that parent was the ONLY genesis doc the content fit
+ *  inside. findContainer redoes the check properly: order-preserving containment
+ *  >=90%, and returns null (reject) the instant a SECOND genesis doc also qualifies —
+ *  exactly the boilerplate-template trap (e.g. "Element Annotation", reused verbatim
+ *  across dozens of unrelated docs) that inflated the original 28. Promotes the
+ *  survivors into `locked` and returns how many there were. */
+function promoteConfirmedSplits(m, genesisNodes, locked, bridgedRoot) {
+  let confirmedSplits = 0;
+  const splitPool = genesisNodes.filter((n) => (n.content || "").split(/\s+/).filter(Boolean).length >= SPLIT_MIN_WORDS);
+  for (const c of m.contained) {
+    if (bridgedRoot.has(c.newer)) continue; // already claimed via a pair or CONFIRMED_AMBIGUOUS
+    const parent = findContainer(c.newer.content || "", splitPool);
+    if (!parent) continue; // ambiguous (found in >1 genesis doc) or no longer found at the stricter bar — leave severed-born
+    locked.push({ genesisNode: parent, rootNode: c.newer, tier: "confirmed-split" });
+    bridgedRoot.add(c.newer);
+    confirmedSplits++;
+  }
+  return confirmedSplits;
+}
+
 /** Parse genesis, thread real root uuids, bridge the two. Returns everything both
  *  build-genesis.mjs and build-mip.mjs need; the threading (~2-4 min, 79 git-show
  *  calls) only has to run once per invocation of THIS function. */
@@ -110,39 +152,8 @@ export function computeGenesisBridge({ genesisHtmlPath = GENESIS_HTML_PATH, deci
     bridgedRoot.add(p.newer);
   }
 
-  // Human-confirmed ambiguous pairs (CONFIRMED_AMBIGUOUS): matchNodes never proposed
-  // these as pairs at all (too uncertain to auto-pick among candidates), so they can't
-  // go through the isCorroborated path above — promote them directly.
-  let confirmedAmbiguous = 0;
-  for (const a of m.ambiguous) {
-    const g = a.older;
-    const expectedRootTitle = CONFIRMED_AMBIGUOUS.get(`${g.doc_no || ""}|${normT(g.title)}`);
-    if (!expectedRootTitle) continue;
-    const match = (a.candidates || []).find((c) => normT(c.title) === expectedRootTitle);
-    if (!match || bridgedRoot.has(match)) continue; // candidate gone or already claimed elsewhere
-    locked.push({ genesisNode: g, rootNode: match, tier: "confirmed-ambiguous" });
-    bridgedRoot.add(match);
-    confirmedAmbiguous++;
-  }
-
-  // Stress-test the seedHop "contained" bucket (split/absorb candidates): the ORIGINAL
-  // seedHop check only asked "is >=60% of this root doc's content found somewhere in
-  // the older corpus" and took the single best-coverage genesis doc as "the parent" —
-  // it never checked whether that parent was the ONLY genesis doc the content fit
-  // inside. findContainer redoes the check properly: order-preserving containment
-  // >=90%, and returns null (reject) the instant a SECOND genesis doc also qualifies —
-  // exactly the boilerplate-template trap (e.g. "Element Annotation", reused verbatim
-  // across dozens of unrelated docs) that inflated the original 28.
-  let confirmedSplits = 0;
-  const splitPool = genesisNodes.filter((n) => (n.content || "").split(/\s+/).filter(Boolean).length >= SPLIT_MIN_WORDS);
-  for (const c of m.contained) {
-    if (bridgedRoot.has(c.newer)) continue; // already claimed via a pair or CONFIRMED_AMBIGUOUS
-    const parent = findContainer(c.newer.content || "", splitPool);
-    if (!parent) continue; // ambiguous (found in >1 genesis doc) or no longer found at the stricter bar — leave severed-born
-    locked.push({ genesisNode: parent, rootNode: c.newer, tier: "confirmed-split" });
-    bridgedRoot.add(c.newer);
-    confirmedSplits++;
-  }
+  const confirmedAmbiguous = promoteConfirmedAmbiguous(m, locked, bridgedRoot);
+  const confirmedSplits = promoteConfirmedSplits(m, genesisNodes, locked, bridgedRoot);
 
   // Graveyard: genesis docs with NO candidate at all in root (confirmed dead in the
   // severed era) — not the 16 ambiguous/uncorroborated ones, which stay silent pending

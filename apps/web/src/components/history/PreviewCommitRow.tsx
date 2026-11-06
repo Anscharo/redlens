@@ -3,17 +3,20 @@ import type { PreviewCommit, PreviewCommitRow as Row } from "@/lib/previewCommit
 import { commitRowLabel } from "../../lib/previewCommitCopy";
 import { DiffView } from "./DiffView";
 import { LINE1_H } from "./Timeline";
+import { TitleDiff } from "./TitleDiff";
 import { TimelineBranch } from "./TimelineBranch";
 
 const rowColor = (r: Row) => CHANGE_COLOR[r.changeType === "renumbered" ? "moved" : r.changeType] ?? "var(--tan-3)";
 
-/** What one commit did to this document: its change line, then its diff. */
+/** What one commit did to this document: its change line, its title change
+ *  if any, then its diff. */
 function CommitEntry({ row }: { row: Row }) {
   return (
     <>
       <p className="mono text-[12px] mt-1 break-all" style={{ color: rowColor(row) }}>
         {commitRowLabel(row)}
       </p>
+      {row.prevTitle && <TitleDiff prev={row.prevTitle} next={row.title} />}
       {row.diff && <DiffView lines={row.diff} />}
     </>
   );

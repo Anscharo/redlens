@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { captureException, track } from "../lib/analytics";
 
@@ -16,27 +16,7 @@ const MIN_CHECK_GAP_MS = 30 * 60 * 1000;
 // error tracking. Bail after this many consecutive failures.
 const MAX_FAILURES = 3;
 
-export function useSWUpdate() {
-  const regRef = useRef<ServiceWorkerRegistration | null>(null);
-
-  const {
-    needRefresh: [needRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
-    onNeedRefresh() {
-      // No silent auto-apply — the pill (needRefresh=true, set by the library)
-      // is the only apply path, fresh open or mid-session alike. This is
-      // product policy: an unprompted reload wipes in-progress user state.
-      track("sw_update_available");
-    },
-    onRegisteredSW(_url, r) {
-      // Only stash the registration — the polling lifecycle is owned by the
-      // effect below so it gets torn down. This callback can fire more than
-      // once, and setting up timers/listeners here leaked one set per call.
-      if (r) regRef.current = r;
-    },
-  });
-
+function useUpdatePolling(regRef: RefObject<ServiceWorkerRegistration | null>) {
   useEffect(() => {
     let failures = 0;
     let lastCheck = Date.now();
@@ -90,7 +70,31 @@ export function useSWUpdate() {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, []);
+  }, [regRef]);
+}
+
+export function useSWUpdate() {
+  const regRef = useRef<ServiceWorkerRegistration | null>(null);
+
+  const {
+    needRefresh: [needRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onNeedRefresh() {
+      // No silent auto-apply — the pill (needRefresh=true, set by the library)
+      // is the only apply path, fresh open or mid-session alike. This is
+      // product policy: an unprompted reload wipes in-progress user state.
+      track("sw_update_available");
+    },
+    onRegisteredSW(_url, r) {
+      // Only stash the registration — the polling lifecycle is owned by
+      // useUpdatePolling so it gets torn down. This callback can fire more than
+      // once, and setting up timers/listeners here leaked one set per call.
+      if (r) regRef.current = r;
+    },
+  });
+
+  useUpdatePolling(regRef);
 
   function applyUpdate() {
     // vite-plugin-pwa registers its own `controlling` listener (in

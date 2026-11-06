@@ -1,7 +1,8 @@
 import { config } from "./config.ts";
 import { NOT_FOUND } from "./http.ts";
 import { getIndexes, resolveNode } from "./retrieval/indexes.ts";
-import { getOgImage, getCardImage, cardFromQuery } from "./og-image.ts";
+import { getOgImage, getCardImage } from "./og-image.ts";
+import { cardFromQuery } from "./og-card-spec.ts";
 
 // Generated OG card images, both memoized by og-image.ts:
 //   /api/og/<uuid|doc_no>.png[?preview=<label>] — a document card

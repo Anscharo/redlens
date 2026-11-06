@@ -8,7 +8,7 @@ export default {
   label: "forum step",
   skipWhenNoFetch: "forum sync skipped (--no-fetch)",
   async run({ db }) {
-    const { maybeSyncForum } = await import("../../../src/server/forum.ts");
+    const { maybeSyncForum } = await import("../../../src/server/forum-sync.ts");
     const res = await maybeSyncForum(db);
     return res.synced
       ? `forum synced (was ${res.reason}) — ${res.upserted} topic(s)`

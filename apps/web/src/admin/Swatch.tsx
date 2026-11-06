@@ -20,6 +20,54 @@ interface SwatchProps {
 
 const CHECKER_BG = checkerBg("var(--surface)", "var(--bg-deep)");
 
+const BUTTON_STYLE: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 4,
+  padding: 8,
+  background: "var(--surface)",
+  borderRadius: 6,
+  cursor: "pointer",
+  textAlign: "left",
+  position: "relative",
+  minWidth: 0,
+};
+
+const OVERRIDE_DOT_STYLE: React.CSSProperties = {
+  position: "absolute",
+  top: 6,
+  right: 6,
+  width: 6,
+  height: 6,
+  borderRadius: "50%",
+  background: "var(--accent)",
+};
+
+const LABEL_STYLE: React.CSSProperties = {
+  fontSize: 9,
+  letterSpacing: "0.04em",
+  textTransform: "uppercase",
+  color: "var(--tan-3)",
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+};
+
+const PREVIEW_STYLE: React.CSSProperties = {
+  height: 56,
+  borderRadius: 4,
+  border: "1px solid var(--border)",
+  position: "relative",
+  overflow: "hidden",
+};
+
+const VALUE_STYLE: React.CSSProperties = {
+  fontSize: 9,
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+};
+
 export const Swatch = forwardRef<HTMLButtonElement, SwatchProps>(function Swatch(
   { token, value, isOverridden, onClick, contrastBadge },
   ref,
@@ -30,74 +78,30 @@ export const Swatch = forwardRef<HTMLButtonElement, SwatchProps>(function Swatch
       onClick={onClick}
       aria-label={`Edit ${token.label} (--${token.name}), currently ${value}`}
       style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 4,
-        padding: 8,
-        background: "var(--surface)",
+        ...BUTTON_STYLE,
         border: `1px solid ${isOverridden ? "var(--accent)" : "var(--border)"}`,
-        borderRadius: 6,
-        cursor: "pointer",
-        textAlign: "left",
-        position: "relative",
-        minWidth: 0,
       }}
     >
       {isOverridden && (
         <span
           aria-hidden
-          style={{
-            position: "absolute",
-            top: 6,
-            right: 6,
-            width: 6,
-            height: 6,
-            borderRadius: "50%",
-            background: "var(--accent)",
-          }}
+          style={OVERRIDE_DOT_STYLE}
         />
       )}
       <span
         className="mono"
-        style={{
-          fontSize: 9,
-          letterSpacing: "0.04em",
-          textTransform: "uppercase",
-          color: "var(--tan-3)",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
+        style={LABEL_STYLE}
       >
         {token.label}
       </span>
       <div
-        style={{
-          ...(token.alpha ? CHECKER_BG : {}),
-          height: 56,
-          borderRadius: 4,
-          border: "1px solid var(--border)",
-          position: "relative",
-          overflow: "hidden",
-        }}
+        style={{ ...(token.alpha ? CHECKER_BG : {}), ...PREVIEW_STYLE }}
       >
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: value,
-          }}
-        />
+        <div style={{ position: "absolute", inset: 0, background: value }} />
       </div>
       <span
         className="mono"
-        style={{
-          fontSize: 9,
-          color: isOverridden ? "var(--accent)" : "var(--tan-3)",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
+        style={{ ...VALUE_STYLE, color: isOverridden ? "var(--accent)" : "var(--tan-3)" }}
         title={`--${token.name}: ${value}`}
       >
         {value}

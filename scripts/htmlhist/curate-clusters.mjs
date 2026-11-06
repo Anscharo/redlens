@@ -23,14 +23,8 @@ function makeUF() {
   return { find, union };
 }
 
-// Build residual clusters. `cases` is the full queue; `resolved` a Set of resolved case keys;
-// `claimed` a Set of candidate keys a resolved decision already chose (removed from pools).
-// Returns { clusters, stats }. A cluster is { caseKeys[], candidateKeys[], hop }.
-export function buildClusters(cases, resolved, claimed, { maxSize = 12 } = {}) {
-  const residual = (cases || []).filter((c) => !resolved.has(c.key));
-  const byCase = new Map(residual.map((c) => [c.key, c]));
-  const availCands = (c) => (c.candidates || []).map((x) => x.key).filter((k) => !claimed.has(k));
-
+// Connected components of the cases that share an available candidate, keyed by root case key.
+function groupByCandidateOverlap(residual, availCands) {
   const { find, union } = makeUF();
   const candToCases = new Map();
   for (const c of residual) {
@@ -52,6 +46,18 @@ export function buildClusters(cases, resolved, claimed, { maxSize = 12 } = {}) {
     if (!comp.has(r)) comp.set(r, []);
     comp.get(r).push(c.key);
   }
+  return comp;
+}
+
+// Build residual clusters. `cases` is the full queue; `resolved` a Set of resolved case keys;
+// `claimed` a Set of candidate keys a resolved decision already chose (removed from pools).
+// Returns { clusters, stats }. A cluster is { caseKeys[], candidateKeys[], hop }.
+export function buildClusters(cases, resolved, claimed, { maxSize = 12 } = {}) {
+  const residual = (cases || []).filter((c) => !resolved.has(c.key));
+  const byCase = new Map(residual.map((c) => [c.key, c]));
+  const availCands = (c) => (c.candidates || []).map((x) => x.key).filter((k) => !claimed.has(k));
+
+  const comp = groupByCandidateOverlap(residual, availCands);
 
   const clusters = [];
   let oversized = 0, oversizedCases = 0;

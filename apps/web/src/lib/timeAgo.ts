@@ -34,3 +34,8 @@ export function timeAgo(at: number, now: number = Date.now()): string {
     ...(sameYear ? {} : { year: "numeric" }),
   });
 }
+
+// A card's absolute "updated" date: "Nov 6, 2026".
+export function formatCardDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+}

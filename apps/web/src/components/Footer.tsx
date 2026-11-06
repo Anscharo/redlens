@@ -8,7 +8,7 @@ import { loadAtlas } from "../lib/docs";
 import { loadChainState } from "../lib/chainstate";
 import { loadHealth } from "../lib/health";
 import { liveAtlasSha } from "../lib/atlasBase";
-import { useDataSource } from "../lib/dataSource";
+import { type PreviewInfo, useDataSource } from "../lib/dataSource";
 import { usePreviewMeta } from "../lib/previewMeta";
 import { StatusPill } from "./StatusPill";
 import { FooterInfo } from "./FooterInfo";
@@ -22,20 +22,10 @@ function reloadWithFreshAtlas() {
   window.location.reload();
 }
 
-export function Footer() {
-  const { base, preview } = useDataSource();
-  const online = useOnlineStatus();
-  const { needRefresh, applyUpdate } = useSWUpdate();
-  const buildBehind = useBuildBehind();
+function useFooterAtlasInfo(base: string, preview: PreviewInfo | null) {
   const [block, setBlock] = useState<string | null>(null);
   const [atlasCommit, setAtlasCommit] = useState<string | null>(null);
   const [nodeCount, setNodeCount] = useState<number>(0);
-  // No "atlas updated" prompt in preview — the bundle is pinned to a SHA, so we
-  // pass null (useAtlasVersion no-ops on null), keeping the hook call unconditional.
-  // Compared against liveAtlasSha() — the sha this page was actually served/pinned
-  // with — not `atlasCommit` state, which is itself sourced from the same
-  // /api/health call the hook would be comparing it to (see useAtlasVersion.ts).
-  const atlasNeedsUpdate = useAtlasVersion(preview ? null : liveAtlasSha());
 
   useEffect(() => {
     // Chain state is reused from main even in preview (on-chain, shared, served
@@ -64,6 +54,22 @@ export function Footer() {
       }).catch(() => {});
     }
   }, [base, preview]);
+
+  return { block, atlasCommit, nodeCount };
+}
+
+export function Footer() {
+  const { base, preview } = useDataSource();
+  const online = useOnlineStatus();
+  const { needRefresh, applyUpdate } = useSWUpdate();
+  const buildBehind = useBuildBehind();
+  const { block, atlasCommit, nodeCount } = useFooterAtlasInfo(base, preview);
+  // No "atlas updated" prompt in preview — the bundle is pinned to a SHA, so we
+  // pass null (useAtlasVersion no-ops on null), keeping the hook call unconditional.
+  // Compared against liveAtlasSha() — the sha this page was actually served/pinned
+  // with — not `atlasCommit` state, which is itself sourced from the same
+  // /api/health call the hook would be comparing it to (see useAtlasVersion.ts).
+  const atlasNeedsUpdate = useAtlasVersion(preview ? null : liveAtlasSha());
 
   const atlasRepo = usePreviewMeta(preview ? base : null)?.repo ?? "sky-ecosystem/next-gen-atlas";
 

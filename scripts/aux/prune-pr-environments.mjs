@@ -149,6 +149,31 @@ async function prStates(api, repo, numbers) {
   return states;
 }
 
+async function deleteAll(api, repo, doomed) {
+  let deleted = 0;
+  const failures = [];
+  for (const [i, c] of doomed.entries()) {
+    // Sequential + spaced: writes are what GitHub's secondary rate limit
+    // watches, and ~100 back-to-back deletes is the shape that trips it.
+    if (i > 0) await sleep(250);
+    // encodeURIComponent is load-bearing: these names contain spaces and a "/".
+    try {
+      await api("DELETE", `/repos/${repo}/environments/${encodeURIComponent(c.name)}`);
+      deleted += 1;
+      console.log(`  deleted ${c.name} (PR #${c.pr})`);
+    } catch (err) {
+      failures.push(`${c.name}: ${err.message}`);
+    }
+  }
+
+  console.log(`\ndeleted ${deleted}/${doomed.length}`);
+  if (failures.length) {
+    console.error("\nfailures:");
+    for (const f of failures) console.error(`  ${f}`);
+    process.exitCode = 1;
+  }
+}
+
 async function main(argv) {
   const { apply, orphans, onlyPr, keeps, repo: repoArg } = parsePruneArgs(argv);
   const repo = resolveRepo(repoArg);
@@ -190,28 +215,7 @@ async function main(argv) {
     return;
   }
 
-  let deleted = 0;
-  const failures = [];
-  for (const [i, c] of doomed.entries()) {
-    // Sequential + spaced: writes are what GitHub's secondary rate limit
-    // watches, and ~100 back-to-back deletes is the shape that trips it.
-    if (i > 0) await sleep(250);
-    // encodeURIComponent is load-bearing: these names contain spaces and a "/".
-    try {
-      await api("DELETE", `/repos/${repo}/environments/${encodeURIComponent(c.name)}`);
-      deleted += 1;
-      console.log(`  deleted ${c.name} (PR #${c.pr})`);
-    } catch (err) {
-      failures.push(`${c.name}: ${err.message}`);
-    }
-  }
-
-  console.log(`\ndeleted ${deleted}/${doomed.length}`);
-  if (failures.length) {
-    console.error("\nfailures:");
-    for (const f of failures) console.error(`  ${f}`);
-    process.exitCode = 1;
-  }
+  await deleteAll(api, repo, doomed);
 }
 
 // Guarded so a test can import this file without firing real API calls.

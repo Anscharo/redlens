@@ -20,14 +20,10 @@ const TABS: { tab: CrossViewTab; label: string; to: string }[] = [
   { tab: "glossary", label: "Glossary", to: ROUTES.REPORTS_CROSSVIEW_GLOSSARY },
 ];
 
-export function CrossViewPage({ tab }: { tab: CrossViewTab }) {
-  useDocumentTitle("Atlas CrossView: Redline Portal");
+function useCrossViewData() {
   const { base } = useDataSource();
   const [data, setData] = useState<CrossViewData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    track("report_view", { report: "crossview" });
-  }, []);
   useEffect(() => {
     let on = true;
     loadCrossView(base)
@@ -37,6 +33,15 @@ export function CrossViewPage({ tab }: { tab: CrossViewTab }) {
       on = false;
     };
   }, [base]);
+  return { data, error };
+}
+
+export function CrossViewPage({ tab }: { tab: CrossViewTab }) {
+  useDocumentTitle("Atlas CrossView: Redline Portal");
+  const { data, error } = useCrossViewData();
+  useEffect(() => {
+    track("report_view", { report: "crossview" });
+  }, []);
 
   return (
     <div className="flex-1 px-6 py-8">
@@ -49,22 +54,7 @@ export function CrossViewPage({ tab }: { tab: CrossViewTab }) {
           Alternate categorizations of the Atlas: its functional chunks, how much weight each carries, and the terms it
           defines — instead of one monolith document or a pile of disconnected sections.
         </p>
-        <nav className="flex gap-2 mb-8" aria-label="CrossView pages">
-          {TABS.map((t) => (
-            <Link
-              key={t.tab}
-              to={t.to}
-              className="mono text-xs px-3 py-1.5 rounded"
-              style={
-                t.tab === tab
-                  ? { background: "var(--hover)", color: "var(--tan)" }
-                  : { color: "var(--tan-3)" }
-              }
-            >
-              {t.label}
-            </Link>
-          ))}
-        </nav>
+        <CrossViewTabs tab={tab} />
       </div>
       {/* Concepts gets its own (wider, lg+ only) row so a left TOC column fits
           beside the max-w-3xl article measure. Shape widens to 4xl so the 610px
@@ -105,5 +95,26 @@ export function CrossViewPage({ tab }: { tab: CrossViewTab }) {
         {tab === "concepts" && <CrossViewTopicIndex />}
       </div>
     </div>
+  );
+}
+
+function CrossViewTabs({ tab }: { tab: CrossViewTab }) {
+  return (
+    <nav className="flex gap-2 mb-8" aria-label="CrossView pages">
+      {TABS.map((t) => (
+        <Link
+          key={t.tab}
+          to={t.to}
+          className="mono text-xs px-3 py-1.5 rounded"
+          style={
+            t.tab === tab
+              ? { background: "var(--hover)", color: "var(--tan)" }
+              : { color: "var(--tan-3)" }
+          }
+        >
+          {t.label}
+        </Link>
+      ))}
+    </nav>
   );
 }

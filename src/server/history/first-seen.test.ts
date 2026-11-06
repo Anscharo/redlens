@@ -62,7 +62,8 @@ const sqlDispatch = new Proxy(sqlCall, {
 
 mock.module("../db.ts", () => ({ ...baseExports, sql: sqlDispatch }));
 
-const { firstSeenFor, atlasFirstSeen } = await import("./first-seen.ts");
+const { atlasFirstSeen } = await import("./first-seen.ts");
+const { firstSeenFor } = await import("./first-seen-rows.ts");
 
 function doc(id: string, doc_no: string, title = doc_no): AtlasNode {
   return { id, doc_no, title, type: "Core", depth: 1, parentId: null, content: "", order: 0, addressRefs: [] };

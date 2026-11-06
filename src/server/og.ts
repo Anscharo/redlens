@@ -14,7 +14,7 @@
 // links are /atlas?id=<uuid|doc_no>; other routes get their own card too.
 
 import { ROUTES, REPORT_TITLES } from "../lib/routes.ts";
-import { cardToQuery } from "./og-image.ts";
+import { cardToQuery } from "./og-card-spec.ts";
 
 const SITE_NAME = "Redline Portal";
 const SITE_TITLE = "Redline Portal";

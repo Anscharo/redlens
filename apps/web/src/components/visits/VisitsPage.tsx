@@ -6,6 +6,7 @@ import { useDataSource } from "../../lib/dataSource";
 import { clearHistory, RETENTION_DAYS, useVisitLog } from "../../lib/visitHistory";
 import {
   buildHistoryView,
+  type HistoryView,
   RECENT_DOCS,
   RECENT_PAGES,
   TOP_DOCS,
@@ -70,46 +71,52 @@ export function VisitsPage() {
             and it will show up here.
           </p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
-            <VisitCard
-              title="Recently viewed documents"
-              blurb={`The last ${RECENT_DOCS} Atlas documents you opened, newest first`}
-              empty={view.recentDocs.length === 0}
-              showCount={false}
-            >
-              {view.recentDocs.map((d) => (
-                <DocRow key={d.id} path={d.path} docNo={d.docNo} label={d.label} at={d.last} />
-              ))}
-            </VisitCard>
-
-            <VisitCard
-              title="Most viewed documents"
-              blurb={`Your top ${TOP_DOCS} Atlas documents by number of visits`}
-              empty={view.topDocs.length === 0}
-            >
-              {view.topDocs.map((d) => (
-                <DocRow key={d.id} path={d.path} docNo={d.docNo} label={d.label} count={d.count} />
-              ))}
-            </VisitCard>
-
-            <VisitCard
-              title="Most viewed document trees"
-              blurb={`Your top ${TOP_TREES} areas of the Atlas, grouped by document number — open one to see the documents behind its count`}
-              empty={view.topTrees.length === 0}
-            >
-              <TreeRows trees={view.topTrees} />
-            </VisitCard>
-
-            <VisitCard
-              title="Recently viewed reports & radar"
-              blurb={`The last ${RECENT_PAGES} report and Radar pages you opened, with the filters you had set`}
-              empty={view.recentPages.length === 0}
-            >
-              <PageRows pages={view.recentPages} />
-            </VisitCard>
-          </div>
+          <HistoryCards view={view} />
         )}
       </div>
+    </div>
+  );
+}
+
+function HistoryCards({ view }: { view: HistoryView }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+      <VisitCard
+        title="Recently viewed documents"
+        blurb={`The last ${RECENT_DOCS} Atlas documents you opened, newest first`}
+        empty={view.recentDocs.length === 0}
+        showCount={false}
+      >
+        {view.recentDocs.map((d) => (
+          <DocRow key={d.id} path={d.path} docNo={d.docNo} label={d.label} at={d.last} />
+        ))}
+      </VisitCard>
+
+      <VisitCard
+        title="Most viewed documents"
+        blurb={`Your top ${TOP_DOCS} Atlas documents by number of visits`}
+        empty={view.topDocs.length === 0}
+      >
+        {view.topDocs.map((d) => (
+          <DocRow key={d.id} path={d.path} docNo={d.docNo} label={d.label} count={d.count} />
+        ))}
+      </VisitCard>
+
+      <VisitCard
+        title="Most viewed document trees"
+        blurb={`Your top ${TOP_TREES} areas of the Atlas, grouped by document number — open one to see the documents behind its count`}
+        empty={view.topTrees.length === 0}
+      >
+        <TreeRows trees={view.topTrees} />
+      </VisitCard>
+
+      <VisitCard
+        title="Recently viewed reports & radar"
+        blurb={`The last ${RECENT_PAGES} report and Radar pages you opened, with the filters you had set`}
+        empty={view.recentPages.length === 0}
+      >
+        <PageRows pages={view.recentPages} />
+      </VisitCard>
     </div>
   );
 }

@@ -104,13 +104,11 @@ function splitLinesSkippingCode(markdown: string): { lineNo: number; text: strin
 const FOOTNOTE_DEF_RE = /^\s*\[\^([^\]]+)\]:\s*(.*)$/;
 const FOOTNOTE_REF_RE = /\[\^([^\]]+)\]/g;
 
-/** Analyze a report's markdown for the citation dictate. */
-export function analyzeReportCitations(markdown: string): { claims: ReportClaim[]; uncited: UncitedClaim[] } {
-  const lines = splitLinesSkippingCode(markdown);
+const TABLE_SEP_RE = /^\|[\s:|-]+\|$/;
 
-  // Table header rows are column labels, not claims (like headings). A header is
-  // the nearest preceding non-blank line above a `|---|` separator row.
-  const TABLE_SEP_RE = /^\|[\s:|-]+\|$/;
+// Table header rows are column labels, not claims (like headings). A header is
+// the nearest preceding non-blank line above a `|---|` separator row.
+function tableHeaderLineNos(lines: { lineNo: number; text: string; code: boolean }[]): Set<number> {
   const headerLineNos = new Set<number>();
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].code) continue;
@@ -121,6 +119,14 @@ export function analyzeReportCitations(markdown: string): { claims: ReportClaim[
       break;
     }
   }
+  return headerLineNos;
+}
+
+/** Analyze a report's markdown for the citation dictate. */
+export function analyzeReportCitations(markdown: string): { claims: ReportClaim[]; uncited: UncitedClaim[] } {
+  const lines = splitLinesSkippingCode(markdown);
+
+  const headerLineNos = tableHeaderLineNos(lines);
 
   // Pass 1: collect footnote-definition ids that themselves carry a citation.
   const citedFootnoteIds = new Set<string>();

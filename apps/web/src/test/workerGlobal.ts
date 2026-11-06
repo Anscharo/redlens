@@ -41,6 +41,32 @@ export interface WorkerHarness {
 
 const REAL_SELF = Object.getOwnPropertyDescriptor(globalThis, "self");
 
+function pollPosted(
+  posted: Posted[],
+  pred: (m: Posted) => boolean,
+  timeoutMs: number,
+  fromIndex: number,
+): Promise<Posted> {
+  return new Promise<Posted>((resolve, reject) => {
+    const start = Date.now();
+    const tick = () => {
+      const hit = posted.slice(fromIndex).find(pred);
+      if (hit) return resolve(hit);
+      if (Date.now() - start > timeoutMs) {
+        return reject(
+          new Error(
+            `waitFor timed out after ${timeoutMs}ms; posted: ${JSON.stringify(
+              posted.map((m) => m.type),
+            )}`,
+          ),
+        );
+      }
+      setTimeout(tick, 0);
+    };
+    tick();
+  });
+}
+
 export function installWorkerGlobal(name = ""): WorkerHarness {
   const posted: Posted[] = [];
   let messageHandler: ((e: { data: unknown }) => void) | null = null;
@@ -73,24 +99,7 @@ export function installWorkerGlobal(name = ""): WorkerHarness {
       fakeSelf.name = n;
     },
     waitFor: (pred, timeoutMs = 2000, fromIndex = 0) =>
-      new Promise<Posted>((resolve, reject) => {
-        const start = Date.now();
-        const tick = () => {
-          const hit = posted.slice(fromIndex).find(pred);
-          if (hit) return resolve(hit);
-          if (Date.now() - start > timeoutMs) {
-            return reject(
-              new Error(
-                `waitFor timed out after ${timeoutMs}ms; posted: ${JSON.stringify(
-                  posted.map((m) => m.type),
-                )}`,
-              ),
-            );
-          }
-          setTimeout(tick, 0);
-        };
-        tick();
-      }),
+      pollPosted(posted, pred, timeoutMs, fromIndex),
     restore: () => {
       if (REAL_SELF) Object.defineProperty(globalThis, "self", REAL_SELF);
       else delete (globalThis as Record<string, unknown>).self;

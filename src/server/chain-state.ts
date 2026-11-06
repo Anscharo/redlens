@@ -13,6 +13,7 @@ import { sql } from "./db.ts";
 import { json } from "./http.ts";
 import { config } from "./config.ts";
 import type { SqlTag } from "./sql-types.ts";
+import { toIso } from "./to-iso.ts";
 
 // `db` is a parameter (SqlTag) so the atlas worker can pass its own Bun.sql
 // client without importing the web service's config-bound `sql` — same seam as
@@ -41,12 +42,6 @@ function normalizeValues(v: unknown): ChainStateSnapshot["values"] {
     }
   }
   return v as ChainStateSnapshot["values"];
-}
-
-function toIso(v: string | Date | null | undefined): string | null {
-  if (!v) return null;
-  const d = v instanceof Date ? v : new Date(v);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 interface Row {

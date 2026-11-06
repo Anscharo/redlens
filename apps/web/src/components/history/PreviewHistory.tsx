@@ -4,10 +4,10 @@ import { usePreviewMeta } from "../../lib/previewMeta";
 import { entrySourceUrl, type PreviewMeta } from "../../lib/previewMetaCopy";
 import { NodeHistory } from "./NodeHistory";
 import { DiffTitle } from "./DiffTitle";
-import { DiffView } from "./DiffView";
 import { PreviewChangeNotes } from "./PreviewChangeNotes";
 import { PreviewCommits } from "./PreviewCommits";
 import { PreviewEntryLine1 } from "./PreviewEntryLine1";
+import { PreviewDocDiff } from "./TitleDiff";
 import { CONTENT_INDENT, TimelineRow } from "./Timeline";
 
 // History tab in preview mode. The real per-doc history lives in Postgres for
@@ -52,7 +52,7 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
               view on GitHub
             </a>
           )}
-          {patch && patch.length > 0 && <DiffView lines={patch} />}
+          <PreviewDocDiff nodeId={nodeId} patch={patch} />
           </TimelineRow>
         </>
       ) : (

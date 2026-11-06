@@ -75,21 +75,24 @@ function loadHtmlEraCommits() {
   return { commits, shas, seqBySha, commitMeta, md };
 }
 
-/** Resolve the committed curation decisions (plan §10.4) into seed/hop override maps. */
-function resolveDecisionOverrides(decisionsPath, { commits, shas }) {
-  const file = JSON.parse(fs.readFileSync(decisionsPath, "utf8"));
+/** The #117 markdown bodies: md5(body) → uuid, and uuid → body. (history-ok: atlas PR) */
+function indexMd117Bodies() {
   const rawUuid = new Map();
   const mdContentByUuid = new Map();
-  { const HRE = /^(#{1,6}) (\S+) - (.*?) \[([^\]]+)\]\s+<!-- UUID: ([0-9a-f-]{36}) -->/;
-    let cur = null, body = [];
-    const flush = () => { if (cur) { const b = body.join("\n").trim(); rawUuid.set(md5(b), cur); mdContentByUuid.set(cur, b); } };
-    for (const line of execSync(`git -C "${REPO}" show ${MD117}:'${MD}'`, { maxBuffer: 1 << 30 }).toString().split("\n")) {
-      const m = line.match(HRE);
-      if (m) { flush(); cur = m[5]; body = []; }
-      else if (cur) body.push(line);
-    }
-    flush();
+  const HRE = /^(#{1,6}) (\S+) - (.*?) \[([^\]]+)\]\s+<!-- UUID: ([0-9a-f-]{36}) -->/;
+  let cur = null, body = [];
+  const flush = () => { if (cur) { const b = body.join("\n").trim(); rawUuid.set(md5(b), cur); mdContentByUuid.set(cur, b); } };
+  for (const line of execSync(`git -C "${REPO}" show ${MD117}:'${MD}'`, { maxBuffer: 1 << 30 }).toString().split("\n")) {
+    const m = line.match(HRE);
+    if (m) { flush(); cur = m[5]; body = []; }
+    else if (cur) body.push(line);
   }
+  flush();
+  return { rawUuid, mdContentByUuid };
+}
+
+/** Every html-era node keyed by `<sha8>:<contentHash>` and by its occurrence key. */
+function indexHtmlNodes(commits, shas) {
   const nodeIndex = new Map();
   shas.forEach((full, idx) => {
     const sha8 = full.slice(0, 8);
@@ -99,6 +102,14 @@ function resolveDecisionOverrides(decisionsPath, { commits, shas }) {
       nodeIndex.set(occKey(sha8, n, dupCounts), n);
     }
   });
+  return nodeIndex;
+}
+
+/** Resolve the committed curation decisions (plan §10.4) into seed/hop override maps. */
+function resolveDecisionOverrides(decisionsPath, { commits, shas }) {
+  const file = JSON.parse(fs.readFileSync(decisionsPath, "utf8"));
+  const { rawUuid, mdContentByUuid } = indexMd117Bodies();
+  const nodeIndex = indexHtmlNodes(commits, shas);
 
   const seedOverrides = new Map(), hopOverrides = new Map();
   const methodPins = [];
