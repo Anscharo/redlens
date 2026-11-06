@@ -32,6 +32,9 @@ export interface AddressCheck {
   symbols: Record<string, string>;
 }
 
+/** The reason given where no contract on the param's chain is indexed. */
+export const NOT_INDEXED = "param or contract not yet indexed";
+
 const HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 const limitsOf = (snaps: StoredPauSnapshot[]) => snaps.flatMap((s) => s.contracts.flatMap((c) => c.rateLimits ?? []));
@@ -48,10 +51,15 @@ function symbolsOf(addresses: string[], snaps: StoredPauSnapshot[]): Record<stri
 /** An instance whose params state a rate limit: the only kind whose addresses the PAU is expected to use. */
 const isAllocation = (src: ValueSource) => Object.keys(src.params).some((n) => RATE_LIMIT_ID_RE.test(n) || VALUE_PARAM_RE.test(n));
 
-/** Why nothing on the chain answers: no chain, no deployment there, or (`absent`) what was looked for and not found. */
+/**
+ * Why nothing on the chain answers: no chain, nothing indexed there, or
+ * (`absent`) what was looked for and not found. Nothing indexed is said as the
+ * param or contract not being indexed yet: the contract may not be a PAU at
+ * all, and a new one is often just not in the registry yet.
+ */
 function noAnswer(chain: string | null, snaps: StoredPauSnapshot[], absent: string): string {
   if (!chain) return "chain not recognised";
-  if (snaps.length === 0) return `no PAU indexed on ${chain}`;
+  if (snaps.length === 0) return NOT_INDEXED;
   return snaps.every((s) => s.contracts.every((c) => c.historyComplete)) ? absent : `${absent} (history still being read)`;
 }
 

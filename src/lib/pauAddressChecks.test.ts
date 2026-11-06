@@ -58,7 +58,7 @@ describe("checkAtlasAddresses: addresses", () => {
   });
   it("checks only instances that state a rate limit, on their own chain", () => {
     expect(run(src("n", { "Token Address": VAULT })).size).toBe(0);
-    expect(get(src("b", { "Rate Limit IDs": "x", "Token Address": VAULT }, "Base - X"), "Token Address")?.reason).toBe("no PAU indexed on base");
+    expect(get(src("b", { "Rate Limit IDs": "x", "Token Address": VAULT }, "Base - X"), "Token Address")?.reason).toBe("param or contract not yet indexed");
   });
 });
 

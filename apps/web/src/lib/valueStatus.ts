@@ -4,6 +4,7 @@
 // so a mark means the same thing wherever it appears.
 import type { ValueCheck, ValueStatus } from "@/lib/pauAtlasValues";
 import type { LiveRateLimit } from "@/lib/pau";
+import { NOT_INDEXED } from "@/lib/pauAddressChecks";
 import { formatAmount, formatPerDay, limitDecimals } from "./pau";
 
 export const VALUE_STATUS: Record<ValueStatus, { mark: string; text: string }> = {
@@ -13,7 +14,7 @@ export const VALUE_STATUS: Record<ValueStatus, { mark: string; text: string }> =
   ambiguous: { mark: "?", text: "more than one key could be this one" },
   "not-set": { mark: "!", text: "not set on the contract" },
   unread: { mark: "…", text: "contract not read yet" },
-  "no-deployment": { mark: "–", text: "no PAU indexed on this chain" },
+  "no-deployment": { mark: "–", text: NOT_INDEXED },
   "unknown-chain": { mark: "–", text: "chain not recognised" },
   "no-key": { mark: "–", text: "no rate-limit key found" },
   "not-stated": { mark: "–", text: "the atlas sets no value yet" },
