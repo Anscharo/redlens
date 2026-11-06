@@ -3,6 +3,8 @@ import type { InstanceParam } from "../../lib/actorIndex";
 import { atlasHref } from "@/lib/routes";
 import { Address } from "../Address";
 import { EVM_ADDRESS_EXACT_RE, SOL_ADDRESS_EXACT_RE } from "@/lib/patterns";
+import type { RowMark } from "../../lib/rowMark";
+import { ParamCheckMark } from "./ParamCheckMark";
 
 // Whole-string address shape tests — sourced from patterns.ts (the src-side
 // home for these forms) so this doesn't drift into its own copy.
@@ -32,6 +34,10 @@ function renderMarkdownLinks(value: string): React.ReactNode {
   return <>{parts}</>;
 }
 
+/** A value with its own hover or click target (an address, a key hash, a link), which must sit above the row's link. */
+const isInteractive = (value: string) =>
+  EVM_RE.test(value) || SOL_RE.test(value) || RATE_LIMIT_HASH_RE.test(value.trim()) || value.includes("](");
+
 function renderValue(value: string, chainHint?: Array<string | undefined>): React.ReactNode {
   if (EVM_RE.test(value) || SOL_RE.test(value)) {
     // The shared address map is the build pipeline's resolved chain and
@@ -53,15 +59,49 @@ function renderValue(value: string, chainHint?: Array<string | undefined>): Reac
   return value;
 }
 
-export function ParamLine({ p, colWidth, instanceHint }: { p: InstanceParam; colWidth: number; instanceHint: string }) {
+/**
+ * The link to the document stating a param: a chain-link icon after its name,
+ * shown while the row is hovered or the link has focus, and always on a device
+ * that cannot hover. Its ::after covers the whole row, so a click anywhere on
+ * the row opens the document; the value's own links and the mark sit above it.
+ */
+function ParamDocLink({ docId, name }: { docId: string; name: string }) {
   return (
-    <div className="flex py-0.5 w-full items-baseline">
+    <AtlasLink
+      to={atlasHref(docId)}
+      aria-label={`Open the document stating ${name}`}
+      title="Open the document that states this"
+      className="ml-1 self-center inline-flex opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 after:absolute after:inset-0 after:rounded"
+      style={{ color: "var(--accent)" }}
+    >
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      </svg>
+    </AtlasLink>
+  );
+}
+
+interface ParamLineProps {
+  p: InstanceParam;
+  colWidth: number;
+  instanceHint: string;
+  /** The row's verdict against the chain (rowMark.ts), shown in the mark column. */
+  mark?: RowMark | null;
+  /** Whether the card keeps a mark column, so its marks line up even on rows with none. */
+  markCol?: boolean;
+}
+
+export function ParamLine({ p, colWidth, instanceHint, mark = null, markCol = false }: ParamLineProps) {
+  return (
+    <div className="group relative flex py-0.5 px-1 -mx-1 items-baseline rounded hover:bg-[var(--row-hover)]">
       <span className="mono text-[10px] shrink-0" style={{ color: "var(--tan-3)" }}>
         {p.key}
       </span>
+      {p.srcDocId && <ParamDocLink docId={p.srcDocId} name={p.key} />}
       <span className="flex-1 min-w-0" style={{ borderBottom: "1px dotted color-mix(in srgb, var(--tan-3) 25%, transparent)", margin: "0 4px 3px" }} />
       <span
-        className="mono text-[10px] shrink-0 text-right leading-relaxed"
+        className={`mono text-[10px] shrink-0 text-right leading-relaxed${isInteractive(p.value) ? " relative z-10" : ""}`}
         style={{ maxWidth: `calc(100% - ${colWidth}px)`, wordBreak: "break-word", color: "var(--tan-2)" }}
       >
         {/* Param key first: it's the more specific signal (e.g. "Token Address
@@ -70,6 +110,7 @@ export function ParamLine({ p, colWidth, instanceHint }: { p: InstanceParam; col
             back to the instance name when the key carries no chain hint. */}
         {renderValue(p.value, [p.key, instanceHint])}
       </span>
+      {markCol && <ParamCheckMark mark={mark} />}
     </div>
   );
 }

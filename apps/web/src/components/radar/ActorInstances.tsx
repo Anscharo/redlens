@@ -9,6 +9,8 @@ import { StatusPill } from "../reports/RewardsCells";
 import { InstanceCard } from "./InstanceCard";
 import type { PauPrime } from "./ParamAddressKeys";
 import { RadarHeading } from "./RadarHeading";
+import { usePrimeCardMarks } from "../../hooks/usePrimeAtlasChecks";
+import type { CardMarks } from "../../lib/rowMark";
 
 
 interface Props {
@@ -80,9 +82,10 @@ interface SectionProps {
   /** Rank of each category heading; primitives sit one below, items two. */
   level: number;
   prime?: PauPrime;
+  marks: CardMarks | null;
 }
 
-function ActorItemsSection({ groups, level, prime }: SectionProps) {
+function ActorItemsSection({ groups, level, prime, marks }: SectionProps) {
   const visibleGroups = groups
     .map((cat) => ({ ...cat, primitives: cat.primitives.filter((p) => itemsOf(p).length > 0) }))
     .filter((cat) => cat.primitives.length > 0);
@@ -136,7 +139,7 @@ function ActorItemsSection({ groups, level, prime }: SectionProps) {
                         className="mb-2"
                         style={anchorId ? { scrollMarginTop: HEADER_OFFSET } : undefined}
                       >
-                        <InstanceCard inst={inst} prime={prime} headingLevel={level + 2} />
+                        <InstanceCard inst={inst} prime={prime} headingLevel={level + 2} marks={marks} />
                       </div>
                     ))}
                   </div>
@@ -154,10 +157,11 @@ function ActorItemsSection({ groups, level, prime }: SectionProps) {
  *  its invocations and instances together, each labelled by its own status. */
 export function ActorInstances({ primitives, prime }: Props) {
   const groups = buildCategoryGroups(primitives);
+  const marks = usePrimeCardMarks(prime?.id);
 
   return (
     <section id={RADAR_SECTION.primitives} aria-label="Primitives" style={{ scrollMarginTop: HEADER_OFFSET }}>
-      <ActorItemsSection groups={groups} level={2} prime={prime} />
+      <ActorItemsSection groups={groups} level={2} prime={prime} marks={marks} />
     </section>
   );
 }

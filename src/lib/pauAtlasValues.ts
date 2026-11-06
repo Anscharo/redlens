@@ -120,20 +120,26 @@ function ownKeys(keys: InstanceKey[], side: string, qualifier: string): Instance
   return qualifier ? onSide.filter((k) => k.qualifier === qualifier) : onSide;
 }
 
+/** A maxAmount or slope param as the checks name it ("Inflow maxAmount", "Deposit slope (AUSD)"); null for any other param. */
+export function valueParam(name: string): { side: string; field: ValueCheck["field"]; label: string; qualifier: string } | null {
+  const m = VALUE_PARAM_RE.exec(name);
+  if (!m) return null;
+  const field = m[2] as ValueCheck["field"];
+  const qualifier = paramQualifier(name);
+  const asset = qualifier && /\(([^)]+)\)\s*$/.exec(name)?.[1].trim();
+  return { side: m[1], field, qualifier, label: `${m[1].trim() || "Rate limit"} ${field}${asset ? ` (${asset})` : ""}` };
+}
+
 function sourceChecks(src: ValueSource, snaps: StoredPauSnapshot[], shared: Set<string>): ValueCheck[] {
   const keys = instanceKeys(src, snaps, shared);
   const values = Object.entries(src.params).flatMap(([name, [text, docId]]) => {
-    const m = VALUE_PARAM_RE.exec(name);
-    return m && docId ? [{ m, name, text, docId }] : [];
+    const v = valueParam(name);
+    return v && docId ? [{ v, text, docId }] : [];
   });
-  const sides = new Set(values.map((v) => valueSide(v.m[1])));
-  return values.flatMap(({ m, name, text, docId }) => {
-    const field = m[2] as ValueCheck["field"];
-    const qualifier = paramQualifier(name);
-    const asset = qualifier && /\(([^)]+)\)\s*$/.exec(name)?.[1].trim();
-    const label = `${m[1].trim() || "Rate limit"} ${field}${asset ? ` (${asset})` : ""}`;
+  const sides = new Set(values.map(({ v }) => valueSide(v.side)));
+  return values.flatMap(({ v: { side, field, qualifier, label }, text, docId }) => {
     const base = { docId, instance: src.name, instanceDocId: src.docId ?? null, label, field, stated: text, src, ...(qualifier ? { qualifier } : {}) };
-    const mine = ownKeys(keys, valueSide(m[1]), qualifier);
+    const mine = ownKeys(keys, valueSide(side), qualifier);
     const stated = parseStated(text);
     if (mine.length === 0) return check(base, stated, null, snaps);
     return unambiguous(mine.flatMap((k) => check(base, stated, k.key, snaps).map((c) => (k.via ? { ...c, via: k.via } : c))), mine, sides);

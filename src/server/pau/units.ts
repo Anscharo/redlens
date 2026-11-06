@@ -16,7 +16,8 @@ import { argAt, facetKeyRule } from "./facet-keys.ts";
 import { allLimits, mapLimits, type ChainCall, type ChainReader } from "./snapshot.ts";
 
 type Via = "asset" | "token" | "self" | "underlying";
-type Rule = { fixed: number; symbol: string | null } | { via: Via; role?: string };
+/** `wraps`: the token is an aToken, so its UNDERLYING_ASSET_ADDRESS() is read too and kept on the unit. */
+type Rule = { fixed: number; symbol: string | null } | { via: Via; role?: string; wraps?: true };
 
 const MONOLITHIC: [RegExp, Rule][] = [
   // depositToFarm / withdrawFromFarm limit the usdsAmount, whatever the farm.
@@ -29,8 +30,10 @@ const MONOLITHIC: [RegExp, Rule][] = [
   [/^LIMIT_(4626|7540)_|^LIMIT_(MAPLE_REDEEM|SPARK_VAULT_TAKE)$/, { via: "asset" }],
   // An OFT adapter moves its token(); a native OFT is the token itself.
   [/^LIMIT_LAYERZERO_TRANSFER$/, { via: "token" }],
-  // The token itself: an aToken has its underlying's decimals, and UniswapV3Lib keys each token of a pool with its own amount.
-  [/^LIMIT_(AAVE_DEPOSIT|AAVE_WITHDRAW|ASSET_TRANSFER|CENTRIFUGE_TRANSFER|PSM_DEPOSIT|PSM_WITHDRAW|UNISWAP_V3_\w+)$/, { via: "self" }],
+  // An aToken: counted in itself (it has its underlying's decimals), and the asset it wraps is kept beside the unit.
+  [/^LIMIT_AAVE_(DEPOSIT|WITHDRAW)$/, { via: "self", wraps: true }],
+  // The token itself: UniswapV3Lib keys each token of a pool with its own amount.
+  [/^LIMIT_(ASSET_TRANSFER|CENTRIFUGE_TRANSFER|PSM_DEPOSIT|PSM_WITHDRAW|UNISWAP_V3_\w+)$/, { via: "self" }],
 ];
 
 const unitRule = (d: DerivedKey | undefined, kind: PauKind): Rule | null => {
@@ -70,6 +73,15 @@ export async function tokenUnits(read: ChainReader, chain: string, tokens: strin
   return out;
 }
 
+/** Each aToken's underlying asset; a failed read is left out, so its unit carries no `underlying`. */
+async function underlyingsOf(read: ChainReader, chain: string, tokens: string[]): Promise<Map<string, string>> {
+  if (tokens.length === 0) return new Map();
+  const res = await read(chain, tokens.map((address) => ({ address, functionName: "UNDERLYING_ASSET_ADDRESS", args: [] })));
+  return new Map(tokens.flatMap((t, i) => (typeof res[i] === "string" ? [[t, (res[i] as string).toLowerCase()] as const] : [])));
+}
+
+const wraps = (r: Rule | null) => !!r && "via" in r && !!r.wraps;
+
 /** The snapshot with each rate limit's and BeamState default's unit attached where a rule finds one. */
 export async function withUnits(snap: PauSnapshot, read: ChainReader): Promise<PauSnapshot> {
   const derived = allLimits(snap).map((x) => x.derived);
@@ -77,11 +89,16 @@ export async function withUnits(snap: PauSnapshot, read: ChainReader): Promise<P
   const tokens = wanted.length ? await tokensOf(read, snap.chain, wanted) : new Map<string, string | null>();
   const tokenList = [...new Set([...tokens.values()].filter((t): t is string => !!t))];
   const units = tokenList.length ? await tokenUnits(read, snap.chain, tokenList) : new Map<string, AmountUnit>();
+  const tokenOf = (d: DerivedKey | undefined) => tokens.get(viaKey(d, snap.kind) ?? "") ?? null;
+  const wrapped = [...new Set(derived.filter((d) => wraps(unitRule(d, snap.kind))).map(tokenOf).filter((t): t is string => !!t && units.has(t)))];
+  const underlyings = await underlyingsOf(read, snap.chain, wrapped);
   const unitOf = (d: DerivedKey | undefined): AmountUnit | undefined => {
     const r = unitRule(d, snap.kind);
     if (r && "fixed" in r) return { decimals: r.fixed, symbol: r.symbol, source: "constant" };
-    const token = tokens.get(viaKey(d, snap.kind) ?? "");
-    return token ? units.get(token) : undefined;
+    const token = tokenOf(d);
+    const unit = token ? units.get(token) : undefined;
+    const underlying = wraps(r) && token ? underlyings.get(token) : undefined;
+    return unit && underlying ? { ...unit, underlying } : unit;
   };
   return mapLimits(snap, (x) => {
     const unit = unitOf(x.derived);
