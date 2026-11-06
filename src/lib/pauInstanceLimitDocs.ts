@@ -1,13 +1,13 @@
 // The limit values an instance's own subtree states in leaves titled
-// "<X> Rate Limits" ("Take Rate Limits" under its Risk Parameters), as value
+// "<X> Rate Limit(s)" ("Take Rate Limit" under its Risk Parameters), as value
 // bullets the atlas-vs-chain check reads beside the instance's params. Pure.
 import { BULLET_RE, type LimitDocs } from "./pauLimitDocs.ts";
 import type { ValueSource } from "./pauInstanceKeys.ts";
 
-const INSTANCE_LIMITS_RE = /^(.+?)\s+Rate\s*Limits$/i;
+const INSTANCE_LIMITS_RE = /^(.+?)\s+Rate\s*Limits?$/i;
 const instanceParams = new WeakMap<LimitDocs["byParent"], Map<string, ValueSource["params"]>>();
 
-/** The limit values the documents below an instance's own state, in leaves titled "<X> Rate Limits" ("Take Rate Limits" under its Risk Parameters), as "<X> Rate Limits / <field>" params. */
+/** The limit values the documents below an instance's own state, in leaves titled "<X> Rate Limit" or "<X> Rate Limits" ("Take Rate Limit" under its Risk Parameters), as "<title> / <field>" params. */
 function instanceLimitParams(docId: string, d: LimitDocs): ValueSource["params"] {
   const cache = instanceParams.get(d.byParent) ?? instanceParams.set(d.byParent, new Map()).get(d.byParent)!;
   const known = cache.get(docId);
