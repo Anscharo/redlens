@@ -31,6 +31,9 @@ export interface PreviewDiff {
   added: Set<string>;
   changed: Set<string>;
   renumbered: Record<string, [string, string]>;
+  /** Changed docs whose only change is the doc number. Absent on bundles
+   *  built before the build recorded it. */
+  renumberedOnly?: Set<string>;
   /** Changed docs whose title differs from the live atlas (title-only or
    *  title+content edits). id → [live title, preview title]. */
   retitled: Record<string, [string, string]>;
@@ -143,6 +146,7 @@ export function PreviewDiffProvider({ children }: { children: ReactNode }) {
         added: new Set<string>(d.added ?? []),
         changed: new Set<string>(d.changed ?? []),
         renumbered: d.renumbered ?? {},
+        renumberedOnly: d.renumberedOnly ? new Set<string>(d.renumberedOnly) : undefined,
         // Absent on bundles built before retitle detection shipped.
         retitled: d.retitled ?? {},
         // Older bundles shipped reusedSlot as a bare id array — normalize.

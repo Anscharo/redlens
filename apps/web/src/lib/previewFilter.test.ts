@@ -26,7 +26,7 @@ function configure({
   changed = [] as string[],
 }) {
   mockSource.mockReturnValue({ base: "/b/", preview: preview ? { id: "p", sha: "s" } : null });
-  mockView.mockReturnValue({ onlyChanged } as ReturnType<typeof usePreviewView>);
+  mockView.mockReturnValue({ onlyChanged, changeFilters: [] } as unknown as ReturnType<typeof usePreviewView>);
   mockDiff.mockReturnValue({
     added: new Set(added),
     changed: new Set(changed),

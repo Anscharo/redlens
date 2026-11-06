@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// PreviewTreeToggle sits above the tree in preview mode ("All" ⇄ "Changed
-// only"). It renders nothing outside preview mode, and the "Changed only"
-// pill carries the added+changed count via PreviewDiffProvider (diff.json).
+// PreviewTreeToggle sits above the tree in preview mode: "All", then a Filter
+// button whose menu picks which changes to show. It renders nothing outside
+// preview mode; the menu's counts come from PreviewDiffProvider (diff.json).
 
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
@@ -36,6 +36,7 @@ function renderToggle(source: DataSource) {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  window.history.replaceState(null, "", "/");
 });
 
 describe("PreviewTreeToggle", () => {
@@ -45,42 +46,57 @@ describe("PreviewTreeToggle", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders the All / Changed only pills in preview mode", async () => {
+  it("renders the All pill and the Filter button in preview mode", async () => {
     mockDiff({ added: [], changed: [] });
     renderToggle(PREVIEW_SOURCE);
     expect(await screen.findByText("All")).toBeTruthy();
-    expect(screen.getByText("Changed only")).toBeTruthy();
+    expect(screen.getByText("Filter")).toBeTruthy();
   });
 
-  it("shows the added+changed count on the Changed only pill", async () => {
-    mockDiff({ added: ["a", "b"], changed: ["c"] });
+  it("opens the menu with each row's count", async () => {
+    mockDiff({ added: ["a", "b"], changed: ["c", "d"], renumberedOnly: ["d"] });
     renderToggle(PREVIEW_SOURCE);
-    expect(await screen.findByText("Changed only · 3")).toBeTruthy();
+    fireEvent.click(await screen.findByText("Filter"));
+    const changed = await screen.findByRole("button", { name: /Changed only/ });
+    await waitFor(() => expect(changed.textContent).toContain("4"));
+    expect(screen.getByRole("button", { name: /Substantive/ }).textContent).toContain("3");
+    expect(screen.getByLabelText(/Renumbered only/).closest("label")?.textContent).toContain("1");
   });
 
-  it("switches the active pill when Changed only is clicked", async () => {
-    mockDiff({ added: [], changed: [] });
+  it("a preset filters, names itself on the button, and closes the menu", async () => {
+    mockDiff({ added: ["a"], changed: ["c", "d"], renumberedOnly: ["d"] });
     renderToggle(PREVIEW_SOURCE);
-    const allBtn = await screen.findByText("All");
-    const changedBtn = screen.getByText("Changed only");
+    fireEvent.click(await screen.findByText("Filter"));
+    const substantive = await screen.findByRole("button", { name: /Substantive/ });
+    await waitFor(() => expect(substantive).not.toBeDisabled());
+    fireEvent.click(substantive);
+    expect(await screen.findByText("Substantive")).toBeTruthy();
+    expect(screen.getByText("· 2")).toBeTruthy();
+    expect(screen.queryByRole("group")).toBeNull();
+    expect(window.location.search).toContain("subset=changed");
+    expect(window.location.search).toContain("change=new%2Cedited");
+  });
 
-    fireEvent.click(changedBtn);
+  it("ticking a filter keeps the menu open; × clears back to All", async () => {
+    mockDiff({ added: ["a"], changed: ["c"], renumberedOnly: [] });
+    renderToggle(PREVIEW_SOURCE);
+    fireEvent.click(await screen.findByText("Filter"));
+    const box = await screen.findByLabelText(/^\+?\s*New/);
+    await waitFor(() => expect(box).not.toBeDisabled());
+    fireEvent.click(box);
+    await waitFor(() => expect(box).toBeChecked());
+    expect(screen.getAllByText("New").length).toBeGreaterThan(1);
+    fireEvent.click(screen.getByLabelText("Clear filter"));
+    await waitFor(() => expect(window.location.search).not.toContain("subset"));
+    expect(window.location.search).not.toContain("change");
+  });
 
-    // Assert the active-pill MARKERS (filled background + bold), not a literal
-    // colour: the active colour is a theme token now, so a hardcoded rgb here
-    // would pin the pill to one theme's palette — which is exactly the bug the
-    // light theme had to fix in the component.
-    await waitFor(() => {
-      expect(changedBtn.getAttribute("style")).toContain("font-weight: 600");
-    });
-    expect(changedBtn.getAttribute("style")).toContain("var(--hover)");
-    expect(allBtn.getAttribute("style")).not.toContain("font-weight: 600");
-
-    // Clicking All switches back.
-    fireEvent.click(allBtn);
-    await waitFor(() => {
-      expect(changedBtn.getAttribute("style")).not.toContain("font-weight: 600");
-    });
-    expect(allBtn.getAttribute("style")).toContain("font-weight: 600");
+  it("greys out the rows an older bundle cannot answer", async () => {
+    mockDiff({ added: ["a"], changed: ["c"] });
+    renderToggle(PREVIEW_SOURCE);
+    fireEvent.click(await screen.findByText("Filter"));
+    await waitFor(() => expect(screen.getByLabelText(/^\+?\s*New/)).not.toBeDisabled());
+    expect(screen.getByLabelText(/Renumbered only/)).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Substantive/ })).toBeDisabled();
   });
 });

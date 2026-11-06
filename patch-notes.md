@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-11-06
+
+- Added a Filter menu to the preview tree that shows only new, edited, renumbered, retitled or flagged documents, and made the tree's filter bar larger
+
 ## 2026-11-04
 
 - Added a Winter colour scheme: cool white, with purple document titles and purple-to-blue doc numbers

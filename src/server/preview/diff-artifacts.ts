@@ -22,6 +22,7 @@ import { contentDiff } from "./patch-diff.ts";
 import { diffSnapshots, type Snapshot } from "./snapshot.ts";
 import type { DiffLine } from "../../lib/history";
 import { detectIdentitySwaps, type IdentitySwap, type FormerUuid } from "./identity.ts";
+import { diffSides, findRenumberedOnly } from "./renumber-only.ts";
 
 export interface PreviewDiffJson {
   added: string[];
@@ -29,6 +30,9 @@ export interface PreviewDiffJson {
   /** In the base, gone from the head. Absent on bundles built before it was recorded. */
   removed?: string[];
   renumbered: Record<string, [string, string]>;
+  /** Changed docs whose only change is the doc number (renumber-only.ts).
+   *  Absent on bundles built before it was recorded. */
+  renumberedOnly?: string[];
   retitled: Record<string, [string, string]>;
   reusedSlot: Record<string, { title: string; movedTo?: string }>;
   identitySwap: Record<string, IdentitySwap>;
@@ -112,7 +116,12 @@ export function computeDiffArtifacts(
   // loads after the page is up.
   const { identitySwap, formerUuid } = detectIdentitySwaps({ changed, added, mainById: reference, previewById: head });
 
-  return { diff: { added, changed, removed, renumbered, retitled, reusedSlot, identitySwap, formerUuid }, patches };
+  const renumberedOnly = findRenumberedOnly(changed, diffSides(base, head, reference));
+
+  return {
+    diff: { added, changed, removed, renumbered, renumberedOnly, retitled, reusedSlot, identitySwap, formerUuid },
+    patches,
+  };
 }
 
 export function writeDiffArtifacts(

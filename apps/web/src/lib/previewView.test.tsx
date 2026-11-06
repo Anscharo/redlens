@@ -31,6 +31,18 @@ function baseWrapper(path: string) {
   };
 }
 
+function recordingWrapper(path: string) {
+  const { hook, history } = memoryLocation({ path, record: true });
+  function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <Router hook={hook}>
+        <PreviewViewProvider>{children}</PreviewViewProvider>
+      </Router>
+    );
+  }
+  return { Wrapper, history };
+}
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -60,16 +72,35 @@ describe("usePreviewView", () => {
     expect(result.current.onlyChanged).toBe(false);
   });
 
-  it("setOnlyChanged(true) sets the subset to 'changed'", () => {
-    const { result } = renderHook(() => usePreviewView(), { wrapper });
+  // subset and change are written in one URL update (useUrlPatch), so these
+  // read the URL rather than the mocked subset setter.
+  it("setOnlyChanged(true) sets subset=changed and keeps the change filters", () => {
+    const { Wrapper, history } = recordingWrapper("/atlas?change=new");
+    const { result } = renderHook(() => usePreviewView(), { wrapper: Wrapper });
     act(() => result.current.setOnlyChanged(true));
-    expect(setSubset).toHaveBeenCalledWith("changed");
+    expect(history.at(-1)).toBe("/atlas?change=new&subset=changed");
   });
 
-  it("setOnlyChanged(false) sets the subset to 'all'", () => {
-    const { result } = renderHook(() => usePreviewView(), { wrapper });
+  it("setOnlyChanged(false) drops both subset and change", () => {
+    const { Wrapper, history } = recordingWrapper("/atlas?subset=changed&change=new,edited");
+    const { result } = renderHook(() => usePreviewView(), { wrapper: Wrapper });
     act(() => result.current.setOnlyChanged(false));
-    expect(setSubset).toHaveBeenCalledWith("all");
+    expect(history.at(-1)?.replace(/\?$/, "")).toBe("/atlas");
+  });
+
+  it("reads the change filters, dropping unknown ones", () => {
+    const { Wrapper } = recordingWrapper("/atlas?subset=changed&change=edited,bogus,new");
+    const { result } = renderHook(() => usePreviewView(), { wrapper: Wrapper });
+    expect(result.current.changeFilters).toEqual(["edited", "new"]);
+  });
+
+  it("setChangeFilters turns the changed view on with exactly those filters", () => {
+    const { Wrapper, history } = recordingWrapper("/atlas?id=x");
+    const { result } = renderHook(() => usePreviewView(), { wrapper: Wrapper });
+    act(() => result.current.setChangeFilters(["new", "edited"]));
+    expect(history.at(-1)).toBe("/atlas?id=x&subset=changed&change=new%2Cedited");
+    act(() => result.current.setChangeFilters([]));
+    expect(history.at(-1)).toBe("/atlas?id=x&subset=changed");
   });
 });
 
