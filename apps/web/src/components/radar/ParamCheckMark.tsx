@@ -6,11 +6,21 @@ import { MARK_TIP_MS } from "./PauAtlasMark";
 import type { ParamMark } from "../../lib/paramChecks";
 import type { RowMark, TipLine } from "../../lib/rowMark";
 
-const LOOK: Record<ParamMark, { glyph: string; color: string }> = {
+/** An exclamation mark in a circle, at the text's size and colour. */
+const CIRCLED_BANG = (
+  <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true" style={{ display: "inline", verticalAlign: "-1px" }}>
+    <circle cx="8" cy="8" r="6.8" />
+    <path d="M8 4.4v4.4" />
+    <path d="M8 11.4v.2" strokeWidth="2.2" />
+  </svg>
+);
+
+const LOOK: Record<ParamMark, { glyph: React.ReactNode; color: string }> = {
   match: { glyph: "✓", color: "var(--terminal-green)" },
   mismatch: { glyph: "✗", color: "var(--error-text)" },
   "not-set": { glyph: "!", color: "var(--error-text)" },
   "not-stated": { glyph: "–", color: "var(--tan-3)" },
+  candidate: { glyph: CIRCLED_BANG, color: "var(--error-text)" },
   unsure: { glyph: "?", color: "var(--tan-3)" },
 };
 
@@ -48,8 +58,8 @@ function MarkTip({ mark }: { mark: RowMark }) {
 }
 
 /**
- * A card row's verdict against the chain, in the card's mark column: ✓ ✗ ! ? or
- * –, linked to the stating document's Onchain tab. The column is kept empty
+ * A card row's verdict against the chain, in the card's mark column: ✓ ✗ ! ?,
+ * – or a circled ! (an unstated ID with a likely key on the PAU), linked to the stating document's Onchain tab. The column is kept empty
  * for a row with nothing to check, so every mark in a card lines up.
  */
 export function ParamCheckMark({ mark }: { mark: RowMark | null }) {

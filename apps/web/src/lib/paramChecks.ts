@@ -30,8 +30,12 @@ export function checksForParam(index: ParamChecks, instanceDocId: string | null,
   return (index.get(rowId(instanceDocId, p.srcDocId, v.label)) ?? []).filter((c) => c.stated === p.value);
 }
 
-/** The one mark a row shows for all its checks: one per deployment holding the key. */
-export type ParamMark = "match" | "mismatch" | "not-set" | "not-stated" | "unsure";
+/**
+ * The one mark a row shows for all its checks. "candidate": the atlas has not
+ * stated a RateLimitID, but the PAU holds keys derived from the instance's
+ * addresses, one of which is probably the ID it should state (addressMarks.ts).
+ */
+export type ParamMark = "match" | "mismatch" | "not-set" | "not-stated" | "candidate" | "unsure";
 
 /**
  * Any certain difference is a mismatch; a match needs every deployment to
@@ -52,6 +56,7 @@ const VALUE_HEAD: Record<ParamMark, string> = {
   mismatch: "Differs from the atlas",
   "not-set": "Not set on the contract",
   "not-stated": "The atlas sets no value yet",
+  candidate: "The atlas sets no value yet",
   unsure: "Can't be compared",
 };
 
