@@ -35,7 +35,6 @@
 
 ## 2026-11-06
 
-- Fixed Spark Savings take and transfer limits missing from the Liquidity Layer pages and the PAU Values Needing Audit report after the Atlas renamed them
 
 ## 2026-11-04
 
