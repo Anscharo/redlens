@@ -6,7 +6,7 @@
 // (agent-live.ts); their replay supplies when each member was added.
 import { keccak256, toHex } from "viem";
 import type { AgentMember, PauIntegration, PauParam, RateLimitKey, RoleHolder, SetAt } from "../../lib/pau.ts";
-import { subjectKey } from "./admin-events.ts";
+import { settingKey, subjectKey } from "./admin-events.ts";
 
 export interface PauEventRow {
   contract: string;
@@ -83,13 +83,13 @@ export function replayIntegrations(events: PauEventRow[]): PauIntegration[] {
 // have their own replays, and RelayerRemoved is the freezer acting.
 const NOT_PARAMS = /^(Role|Integration|RelayerRemoved$|RateLimitDataSet$)|(Added|Removed)$/;
 
-/** The latest value of each (parameter event, subject), e.g. MaxSlippageSet per pool. */
+/** The latest value of each (parameter event, setting), e.g. MaxSlippageSet per pool, OTCWhitelistedAssetSet per exchange and asset. */
 export function replayParams(events: PauEventRow[]): PauParam[] {
   const latest = new Map<string, PauParam>();
   for (const e of events) {
     if (NOT_PARAMS.test(e.event)) continue;
     const subject = String(e.args[subjectKey(e.event) ?? ""] ?? "");
-    latest.set(`${e.event}:${subject}`, { event: e.event, subject, args: e.args, setAt: setAt(e) });
+    latest.set(`${e.event}:${settingKey(e.event, e.args)}`, { event: e.event, subject, args: e.args, setAt: setAt(e) });
   }
   return [...latest.values()];
 }
