@@ -79,6 +79,30 @@ const DOCNO = /^(?:[A-Z]\.[\w.]+|NR-\d+)$/; // strict-ish doc number
 // Specs spread prose across cols 3–7; Scenarios across 3–5 (plan §2b).
 const PROSE_FROM = { default: 3 };
 
+function resolveTitleOwner({ dfn, name, pathSegs, section }) {
+  // Title/owner/ancestors are SECTION-AWARE (plan §2b column schemas):
+  //  - breadcrumb dfn  → title = leaf, ancestors = the path (well-structured).
+  //  - Agent Scope DB  → dfn IS the doc-name (title); Name cell is the Agent
+  //    (owner) — NOT the title.
+  //  - everything else → Name cell is the title; owner is the breadcrumb parent.
+  const isAgentDb = /agent scope database/i.test(section);
+  let title, ancestors, owner;
+  if (pathSegs.length >= 2) {
+    title = pathSegs[pathSegs.length - 1];
+    ancestors = pathSegs.slice(0, -1);
+    owner = ancestors[ancestors.length - 1] || "";
+  } else if (isAgentDb) {
+    title = dfn;            // Document Name
+    owner = name;           // Agent Name
+    ancestors = name ? [name] : [];
+  } else {
+    title = name || pathSegs[pathSegs.length - 1] || dfn;
+    owner = name;
+    ancestors = [];
+  }
+  return { title, owner, ancestors };
+}
+
 // ---- parse one HTML blob into document nodes --------------------------------
 export function parseHtmlToNodes(html) {
   // section boundaries (11 invariant <h1>s, plan §2.1)
@@ -109,26 +133,7 @@ export function parseHtmlToNodes(html) {
     let doc_no = null, pathSegs = segs;
     if (segs.length && DOCNO.test(segs[0])) { doc_no = segs[0]; pathSegs = segs.slice(1); }
 
-    // Title/owner/ancestors are SECTION-AWARE (plan §2b column schemas):
-    //  - breadcrumb dfn  → title = leaf, ancestors = the path (well-structured).
-    //  - Agent Scope DB  → dfn IS the doc-name (title); Name cell is the Agent
-    //    (owner) — NOT the title.
-    //  - everything else → Name cell is the title; owner is the breadcrumb parent.
-    const isAgentDb = /agent scope database/i.test(section);
-    let title, ancestors, owner;
-    if (pathSegs.length >= 2) {
-      title = pathSegs[pathSegs.length - 1];
-      ancestors = pathSegs.slice(0, -1);
-      owner = ancestors[ancestors.length - 1] || "";
-    } else if (isAgentDb) {
-      title = dfn;            // Document Name
-      owner = name;           // Agent Name
-      ancestors = name ? [name] : [];
-    } else {
-      title = name || pathSegs[pathSegs.length - 1] || dfn;
-      owner = name;
-      ancestors = [];
-    }
+    const { title, owner, ancestors } = resolveTitleOwner({ dfn, name, pathSegs, section });
 
     const content = proseCells.map((c) => htmlCellToMarkdown(c)).filter(Boolean).join("\n\n");
 

@@ -4,6 +4,9 @@ import type { AtlasNode } from "@/types";
 import { CollectionBlurb } from "./CollectionBlurb";
 import { CollectionDocList } from "./CollectionDocList";
 import { ShareLinkButton } from "./ShareLinkButton";
+import { ActionButton } from "../ActionButton";
+import { InlineRenameInput } from "../InlineRenameInput";
+import { formatCardDate } from "../../lib/timeAgo";
 
 const PREVIEW_COUNT = 10;
 
@@ -40,20 +43,15 @@ export function CollectionCard({
     >
       <div className="flex items-start justify-between gap-3 mb-1 min-w-0">
         {editing ? (
-          <input
-            autoFocus
-            className="text-sm font-medium bg-transparent border-b outline-none flex-1 min-w-0"
-            style={{ color: "var(--tan)", borderColor: "var(--border)" }}
-            maxLength={MAX_COLLECTION_NAME_LEN}
+          <InlineRenameInput
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={submitRename}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submitRename();
-              if (e.key === "Escape") {
-                setDraft(collection.name);
-                setEditing(false);
-              }
+            maxLength={MAX_COLLECTION_NAME_LEN}
+            className="min-w-0"
+            onChange={setDraft}
+            onSubmit={submitRename}
+            onCancel={() => {
+              setDraft(collection.name);
+              setEditing(false);
             }}
           />
         ) : (
@@ -66,11 +64,7 @@ export function CollectionCard({
           </button>
         )}
         <p className="mono text-[11px] text-tan-3 whitespace-nowrap shrink-0">
-          {new Date(collection.updatedAt).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          })}
+          {formatCardDate(collection.updatedAt)}
         </p>
       </div>
 
@@ -79,28 +73,10 @@ export function CollectionCard({
       <CollectionDocList ids={collection.ids} docs={docs} limit={PREVIEW_COUNT} className="mb-3" />
 
       <div className="flex gap-2">
-        <button
-          className="mono text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[var(--hover)]"
-          style={{ borderColor: "var(--border)", color: "var(--accent)" }}
-          onClick={onOpen}
-        >
-          Open
-        </button>
-        <button
-          className="mono text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[var(--hover)]"
-          style={{ borderColor: "var(--border)", color: "var(--tan-3)" }}
-          onClick={() => setEditing(true)}
-        >
-          Rename
-        </button>
+        <ActionButton color="var(--accent)" onClick={onOpen}>Open</ActionButton>
+        <ActionButton color="var(--tan-3)" onClick={() => setEditing(true)}>Rename</ActionButton>
         <ShareLinkButton id={collection.id} />
-        <button
-          className="mono text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[var(--hover)]"
-          style={{ borderColor: "var(--border)", color: "var(--error-text)" }}
-          onClick={onDelete}
-        >
-          Delete
-        </button>
+        <ActionButton color="var(--error-text)" onClick={onDelete}>Delete</ActionButton>
       </div>
     </article>
   );

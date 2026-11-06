@@ -10,114 +10,20 @@
 // `{ results }` unchanged) or a class filter that reduces the whole named set
 // in one SQL min. No atlas_history_extremum sibling — this is the tool the
 // "oldest / since when" question already wants.
-import { sql } from "../db.ts";
 import { type Indexes, resolveNode } from "../retrieval/indexes.ts";
 import { type ToolResult } from "../chat/tools/tools.ts";
 import { classFilterProvided, collectClassDocs, type ClassFilter } from "../chat/tools/tools-graph.ts";
 import { isoDate } from "../chat/tools/tools-history.ts";
-import { RECONSTRUCTED_ERAS } from "../../lib/history.ts";
-
-export interface FirstSeen {
-  // YYYY-MM-DD, or null if the 'added' event is recorded but genuinely
-  // undated — severed-era reconstructions (scripts/prehist/build-genesis.mjs)
-  // emit `date: null` on purpose; that's a real record with an unknown date,
-  // not a missing one, so it must not be conflated with "no record at all".
-  date: string | null;
-  // Which atlas_history record backs the date, in descending specificity:
-  // a PR number ("pr:1234") when the 'added' event came in through a PR;
-  // otherwise the pre-git era tag ("mip" / "genesis-v2" / "html-era" / "severed")
-  // when the doc predates git history; otherwise a plain git commit with no PR
-  // ("commit:<short sha>").
-  // Never confused with an explicit in-content date — this is always derived.
-  source: string;
-}
-
-type AddedRow = {
-  doc_id: string;
-  committed_at: string | Date | null;
-  pr_number: number | null;
-  pr_title?: string | null;
-  era: string | null;
-  commit_sha: string;
-  commit_seq: number | null;
-};
-
-// Display label per reconstructed era (src/lib/history.ts's RECONSTRUCTED_ERAS
-// is the canonical membership set — reused here so a new era value only needs
-// a label added, not a second parallel vocabulary to keep in sync).
-const ERA_LABEL: Record<string, string> = {
-  mip: "mip",
-  genesis: "genesis-v2",
-  html: "html-era",
-  severed: "severed",
-};
-
-function sourceLabel(r: AddedRow): string {
-  if (r.pr_number != null) return `pr:${r.pr_number}`;
-  if (r.era && RECONSTRUCTED_ERAS.has(r.era)) return ERA_LABEL[r.era] ?? r.era;
-  return `commit:${r.commit_sha}`;
-}
-
-/** The #117 seam verdict for docs that have no `added` event at all, so the caller can
- *  say WHY. `untraced` (the common case) means the reconstruction couldn't attach the doc
- *  to any pre-migration entry — the doc is older than its records, not new. `created` means
- *  a reviewer found no earlier version. Keyed by doc_id; only queried for the docs that
- *  came back empty, so the normal path costs nothing. */
-async function migrationSeamFor(docIds: string[]): Promise<Map<string, string>> {
-  if (docIds.length === 0) return new Map();
-  const rows = await sql<{ doc_id: string; seam: string }[]>`
-    SELECT doc_id, seam FROM atlas_history
-    WHERE change_type = 'structural' AND seam IS NOT NULL AND doc_id IN ${sql(docIds)}
-  `;
-  return new Map(rows.map((r) => [r.doc_id, r.seam]));
-}
-
-const SEAM_NOTE: Record<string, string> = {
-  untraced:
-    "no 'added' event — this doc's history could not be traced back through the #117 markdown migration, so it is at least as old as that migration (2025-11-21), not newer",
-  created:
-    "no 'added' event — reviewed as introduced by the #117 markdown migration (2025-11-21); the pre-migration HTML holds no earlier version",
-  split:
-    "no 'added' event — carved out of a larger document at the #117 markdown migration (2025-11-21); it is at least as old as the document it was extracted from, whose history carries its earlier record",
-  reintroduced:
-    "no 'added' event — the migration revived a name the pre-migration HTML had already retired, so this doc continues an earlier document under its former name; older than the migration, not new",
-};
-
-export type HistoryEvent = "added" | "modified";
-
-function storeChangeType(event: HistoryEvent): "added" | "content" {
-  return event === "modified" ? "content" : "added";
-}
-
-/** Earliest event per doc_id for the given change_type (`added` default). Empty
- *  input short-circuits to an empty map without touching the DB. Ties (same
- *  committed_at) break on commit_seq so the result is deterministic. */
-export async function firstSeenFor(docIds: string[], event: HistoryEvent = "added"): Promise<Map<string, FirstSeen>> {
-  const ids = [...new Set(docIds)];
-  if (ids.length === 0) return new Map();
-  const rows = await firstSeenRowsFor(ids, event);
-  const out = new Map<string, FirstSeen>();
-  for (const r of rows.values()) {
-    // Every row here IS a real event — even a severed-era row with a
-    // null committed_at is evidence the doc existed, just undated. Dropping
-    // it would silently downgrade "severed, date unknown" to "no record".
-    out.set(r.doc_id, { date: isoDate(r.committed_at), source: sourceLabel(r) });
-  }
-  return out;
-}
-
-async function firstSeenRowsFor(docIds: string[], event: HistoryEvent = "added"): Promise<Map<string, AddedRow>> {
-  const ids = [...new Set(docIds)];
-  if (ids.length === 0) return new Map();
-  const changeType = storeChangeType(event);
-  const rows = await sql<AddedRow[]>`
-    SELECT DISTINCT ON (doc_id) doc_id, committed_at, pr_number, pr_title, era, commit_sha, commit_seq
-    FROM atlas_history
-    WHERE change_type = ${changeType} AND doc_id IN ${sql(ids)}
-    ORDER BY doc_id, committed_at ASC NULLS LAST, commit_seq ASC NULLS LAST
-  `;
-  return new Map(rows.map((r) => [r.doc_id, r]));
-}
+import {
+  firstSeenFor,
+  firstSeenRowsFor,
+  migrationSeamFor,
+  sourceLabel,
+  SEAM_NOTE,
+  type AddedRow,
+  type FirstSeen,
+  type HistoryEvent,
+} from "./first-seen-rows.ts";
 
 export type FirstSeenIdsArgs = { ids: string[] };
 export type FirstSeenClassArgs = ClassFilter & { ids?: undefined; event?: HistoryEvent };
@@ -186,18 +92,17 @@ async function atlasFirstSeenIds(ix: Indexes, ids: string[]): Promise<ToolResult
   return { results: idsModeResults(resolved, firstSeenMap, seamMap) };
 }
 
-async function atlasFirstSeenClass(ix: Indexes, opts: FirstSeenClassArgs): Promise<ToolResult> {
-  const event: HistoryEvent = opts.event === "modified" ? "modified" : "added";
-  const collected = collectClassDocs(ix, classFieldsOf(opts));
-  if (!Array.isArray(collected)) return collected;
+type DatedRow = { uuid: string; doc_no: string; title: string; date: string; source: string; pr_number: number | null; pr_title: string | null };
+type UndatedRow = { uuid: string; doc_no: string; note: string };
 
-  const class_total = collected.length;
-  const docIds = collected.map((n) => n.id);
-  const rowMap = await firstSeenRowsFor(docIds, event);
-  const seamMap = event === "added" ? await migrationSeamFor(docIds.filter((id) => !rowMap.has(id))) : new Map<string, string>();
-
-  const dated: Array<{ uuid: string; doc_no: string; title: string; date: string; source: string; pr_number: number | null; pr_title: string | null }> = [];
-  const undated: Array<{ uuid: string; doc_no: string; note: string }> = [];
+function splitClassRows(
+  collected: Array<{ id: string; doc_no: string; title: string }>,
+  rowMap: Map<string, AddedRow>,
+  seamMap: Map<string, string>,
+  event: HistoryEvent,
+) {
+  const dated: DatedRow[] = [];
+  const undated: UndatedRow[] = [];
 
   for (const n of collected) {
     const row = rowMap.get(n.id);
@@ -228,6 +133,19 @@ async function atlasFirstSeenClass(ix: Indexes, opts: FirstSeenClassArgs): Promi
       pr_title: row.pr_title ?? null,
     });
   }
+  return { dated, undated };
+}
+
+async function atlasFirstSeenClass(ix: Indexes, opts: FirstSeenClassArgs): Promise<ToolResult> {
+  const event: HistoryEvent = opts.event === "modified" ? "modified" : "added";
+  const collected = collectClassDocs(ix, classFieldsOf(opts));
+  if (!Array.isArray(collected)) return collected;
+
+  const class_total = collected.length;
+  const docIds = collected.map((n) => n.id);
+  const rowMap = await firstSeenRowsFor(docIds, event);
+  const seamMap = event === "added" ? await migrationSeamFor(docIds.filter((id) => !rowMap.has(id))) : new Map<string, string>();
+  const { dated, undated } = splitClassRows(collected, rowMap, seamMap, event);
 
   dated.sort((a, b) => a.date.localeCompare(b.date) || a.doc_no.localeCompare(b.doc_no));
   const minDate = dated[0]?.date;

@@ -25,12 +25,12 @@ import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
 import { parseReportsDir, parseWorkbook, reconcile } from "../lib/settlement-xlsx.mjs";
+import { printStats, THRESHOLD } from "./settlement-stats-print.ts";
 
 const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const ARCHIVE_URL =
   "https://github.com/soterlabs/settlement-reports/archive/refs/heads/main.tar.gz";
-const THRESHOLD = 1;
 // Both callers run unattended — `pnpm dev`'s preflight and the Docker image
 // build — so a network that accepts the connection and then stalls must not
 // hang the boot/build forever. Failure is already tolerated by both.
@@ -52,11 +52,6 @@ function flagValue(args, name) {
     process.exit(1);
   }
   return v;
-}
-
-function usd(n) {
-  const sign = n < 0 ? "-" : "";
-  return `${sign}$${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 async function fetchReportsTree() {
@@ -94,75 +89,6 @@ function printSummary(bundle, dest) {
       `${months[0] ?? "—"} … ${months[months.length - 1] ?? "—"} · ${flags} reconcile flag(s)` +
       (dest ? ` → ${dest}` : ""),
   );
-}
-
-function printStats(bundle) {
-  const { reports } = bundle;
-  const primes = [...new Set(reports.map((r) => r.prime))];
-  const months = [...new Set(reports.map((r) => r.month))].sort();
-  console.log(`reports: ${reports.length}`);
-  console.log(`primes:  ${primes.join(", ")}`);
-  console.log(`months:  ${months[0] ?? "—"} … ${months[months.length - 1] ?? "—"} (${months.length})`);
-  console.log("");
-  console.log("venues (PnL rows, synthetic included):");
-  for (const p of primes) {
-    const rs = reports.filter((r) => r.prime === p);
-    const counts = rs.map((r) => r.venues.length);
-    const synth = rs.reduce((n, r) => n + r.venues.filter((v) => v.synthetic).length, 0);
-    console.log(
-      `  ${p.padEnd(10)} months=${String(rs.length).padStart(2)}  ` +
-        `venues/month ${Math.min(...counts)}–${Math.max(...counts)}  synthetic=${synth}`,
-    );
-  }
-  console.log("");
-  console.log(
-    `reconciliation (dCof is the load-bearing one; flag > ${usd(THRESHOLD)}):`,
-  );
-  let flags = 0;
-  for (const r of reports) {
-    const rec = reconcile(r);
-    const bad = rec.dSky > THRESHOLD || rec.dP2G > THRESHOLD || rec.dCof > THRESHOLD;
-    if (bad) flags++;
-    const mark = bad ? "  FLAG" : "";
-    const gap =
-      rec.dRevenue > THRESHOLD ? `  revenueGap=${usd(rec.dRevenue)}` : "";
-    console.log(
-      `  ${r.prime}/${r.month}  dSky=${usd(rec.dSky)}  dP2G=${usd(rec.dP2G)}` +
-        `  dCof=${usd(rec.dCof)}  venues=${r.venues.length}${gap}${mark}`,
-    );
-  }
-  console.log(`flags: ${flags} / ${reports.length}`);
-  console.log("(dCof = |Σ CoF alloc − Σ Spread Reimb − headline CoF|; catches a renamed CoF label,");
-  console.log(" which parses as 0 and is otherwise indistinguishable from Keel/Skybase's real 0)");
-  console.log("(revenueGap = |Σ venue.revenueToPrime − primeAgentRevenue|; Spark's is the non-venue PSM3 slice)");
-
-  const unfooted = reports
-    .map((r) => ({ r, rec: reconcile(r) }))
-    .filter(({ rec }) => rec.dComparisonFoot > THRESHOLD);
-  console.log("");
-  console.log(
-    `upstream Comparison blocks that do not foot: ${unfooted.length} / ${reports.length}`,
-  );
-  for (const { r, rec } of unfooted) {
-    console.log(
-      `  ${r.prime}/${r.month}  supplyKept(par−CoF)=${usd(rec.supplyKept)}` +
-        `  ΣP2G=${usd(rec.sumProfitToGrove)}  off by ${usd(rec.dComparisonFoot)}`,
-    );
-  }
-  console.log("(build_settlement_xlsx.py totals that block with Σ Profit to Grove rather than its");
-  console.log(" own addends. We report supplyKept = prime_agent_revenue − CoF, per load/summary.py.)");
-
-  const sparkJul = reports.find((r) => r.prime === "spark" && r.month === "2026-07");
-  if (sparkJul) {
-    const top = [...sparkJul.venues]
-      .sort((a, b) => Math.abs(b.profitToSky) - Math.abs(a.profitToSky))
-      .slice(0, 8);
-    console.log("");
-    console.log("spark/2026-07 top |Profit to Sky|:");
-    for (const v of top) {
-      console.log(`  ${v.id.padEnd(18)} ${usd(v.profitToSky).padStart(16)}  ${v.label}`);
-    }
-  }
 }
 
 async function parseOneXlsx(file) {

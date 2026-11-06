@@ -20,63 +20,75 @@ export interface LinkGate {
   flush(): string;
 }
 
+interface GateState {
+  mode: "idle" | "title" | "after" | "target";
+  held: string;
+  title: string;
+  target: string;
+}
+
+function resetGate(g: GateState): void {
+  g.mode = "idle";
+  g.held = g.title = g.target = "";
+}
+
+function beginLink(g: GateState): void {
+  resetGate(g);
+  g.mode = "title";
+  g.held = "[";
+}
+
+// Advance the link parser by one character; returns the text safe to emit now.
+// Mirrors the repair pass's link regex \[([^\]]+)\]\(([^)\s]+)\): the title is
+// anything but "]", the href anything but ")" or whitespace, both non-empty.
+function stepGate(g: GateState, ch: string, render: (title: string, target: string, raw: string) => string): string {
+  let out = "";
+  if (g.mode === "idle") {
+    if (ch === "[") beginLink(g);
+    else out += ch;
+  } else if (g.mode === "title") {
+    g.held += ch;
+    if (ch === "]") g.mode = "after";
+    else g.title += ch;
+  } else if (g.mode === "after") {
+    if (ch === "(") {
+      g.held += ch;
+      g.mode = "target";
+    } else {
+      // "[text]" with no "(" — not a link; the "[" may start a new one.
+      out += g.held;
+      if (ch === "[") beginLink(g);
+      else {
+        resetGate(g);
+        out += ch;
+      }
+    }
+  } else if (ch === ")") {
+    out += g.title && g.target ? render(g.title, g.target, g.held + ")") : g.held + ")";
+    resetGate(g);
+  } else if (/\s/.test(ch)) {
+    // An href never contains whitespace — the repair regex wouldn't match.
+    out += g.held + ch;
+    resetGate(g);
+  } else {
+    g.held += ch;
+    g.target += ch;
+  }
+  return out;
+}
+
 // `render` receives the parsed link and its raw text, returns the replacement
 // to emit. It MUST NOT throw — wrap judge errors and fall back to `raw`.
 export function createLinkGate(render: (title: string, target: string, raw: string) => string): LinkGate {
-  // Mirrors the repair pass's link regex \[([^\]]+)\]\(([^)\s]+)\): the title
-  // is anything but "]", the href anything but ")" or whitespace, both non-empty.
-  let state: "idle" | "title" | "after" | "target" = "idle";
-  let held = "";
-  let title = "";
-  let target = "";
-
-  const reset = () => {
-    state = "idle";
-    held = title = target = "";
-  };
-  const begin = () => {
-    reset();
-    state = "title";
-    held = "[";
-  };
+  const g: GateState = { mode: "idle", held: "", title: "", target: "" };
 
   const push = (text: string): string => {
     let out = "";
     for (const ch of text) {
-      if (state === "idle") {
-        if (ch === "[") begin();
-        else out += ch;
-      } else if (state === "title") {
-        held += ch;
-        if (ch === "]") state = "after";
-        else title += ch;
-      } else if (state === "after") {
-        if (ch === "(") {
-          held += ch;
-          state = "target";
-        } else {
-          // "[text]" with no "(" — not a link; the "[" may start a new one.
-          out += held;
-          if (ch === "[") begin();
-          else {
-            reset();
-            out += ch;
-          }
-        }
-      } else if (ch === ")") {
-        out += title && target ? render(title, target, held + ")") : held + ")";
-        reset();
-      } else if (/\s/.test(ch)) {
-        // An href never contains whitespace — the repair regex wouldn't match.
-        out += held + ch;
-        reset();
-      } else {
-        held += ch;
-        target += ch;
-      }
-      if (held.length > MAX_HELD) {
-        out += held;
-        reset();
+      out += stepGate(g, ch, render);
+      if (g.held.length > MAX_HELD) {
+        out += g.held;
+        resetGate(g);
       }
     }
     return out;
@@ -85,8 +97,8 @@ export function createLinkGate(render: (title: string, target: string, raw: stri
   return {
     push,
     flush: () => {
-      const tail = held;
-      reset();
+      const tail = g.held;
+      resetGate(g);
       return tail;
     },
   };

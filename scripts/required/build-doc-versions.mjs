@@ -43,6 +43,26 @@ function commitSeqs() {
   return m;
 }
 
+/** Diff each commit from `start` against its predecessor; returns the version rows
+ *  and the fingerprint snapshot at the last commit. */
+async function walkCommits(commits, start, prevStart, seqs) {
+  const rows = [];
+  let prev = prevStart;
+  for (let i = start; i < commits.length; i++) {
+    const c = commits[i];
+    const seq = seqs.get(c.hash);
+    if (seq === undefined) throw new Error(`commit ${c.hash} is missing from the submodule's full log`);
+    const curr = fingerprintSnapshot(await loadSnapshot(c.hash));
+    const r = versionRows(prev, curr, { sha: c.hash, seq });
+    for (const row of r) rows.push(row);
+    prev = curr;
+    if ((i - start) % 25 === 24 || i === commits.length - 1) {
+      console.error(`  [${i + 1}/${commits.length}] ${c.hash.slice(0, 7)} — ${rows.length} version rows so far`);
+    }
+  }
+  return { rows, prev };
+}
+
 async function main() {
   let sql = null;
   let db = null;
@@ -61,12 +81,12 @@ async function main() {
   const commits = atlasCommits();
   const seqs = commitSeqs();
   let start = 0;
-  let prev = new Map();
+  let startSnapshot = new Map();
   if (cursor) {
     const idx = commits.findIndex((c) => c.hash === cursor);
     if (idx >= 0) {
       start = idx + 1;
-      prev = fingerprintSnapshot(await loadSnapshot(commits[idx].hash));
+      startSnapshot = fingerprintSnapshot(await loadSnapshot(commits[idx].hash));
     } else {
       // Upstream's history no longer contains the cursor (a rewritten main, or a
       // different clone). Rows keyed to the old numbering would corrupt every
@@ -77,20 +97,8 @@ async function main() {
   }
   console.error(`  ${commits.length} atlas commits, ${commits.length - start} to walk`);
 
-  const rows = [];
   const t0 = Date.now();
-  for (let i = start; i < commits.length; i++) {
-    const c = commits[i];
-    const seq = seqs.get(c.hash);
-    if (seq === undefined) throw new Error(`commit ${c.hash} is missing from the submodule's full log`);
-    const curr = fingerprintSnapshot(await loadSnapshot(c.hash));
-    const r = versionRows(prev, curr, { sha: c.hash, seq });
-    for (const row of r) rows.push(row);
-    prev = curr;
-    if ((i - start) % 25 === 24 || i === commits.length - 1) {
-      console.error(`  [${i + 1}/${commits.length}] ${c.hash.slice(0, 7)} — ${rows.length} version rows so far`);
-    }
-  }
+  const { rows, prev } = await walkCommits(commits, start, startSnapshot, seqs);
   const removals = rows.filter((r) => r.fingerprint === null).length;
   console.error(
     `doc-versions: ${rows.length} rows (${removals} removals) over ${commits.length - start} commits in ${((Date.now() - t0) / 1000).toFixed(1)}s; ` +

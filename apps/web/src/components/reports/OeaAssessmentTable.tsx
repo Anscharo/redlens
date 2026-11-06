@@ -1,23 +1,14 @@
-import type { Rating, PrecisionElement } from "@/lib/oeaAssessment";
+import type { PrecisionElement } from "@/lib/oeaAssessment";
 import { PRECISION_ELEMENTS } from "@/lib/oeaAssessment";
 import type { OeaMechanism, OeaRow } from "@/lib/oeaReport";
-import { oeaSearchFields } from "@/lib/oeaReport";
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "@/lib/routes";
 import { usePagedRows } from "../../hooks/usePagedRows";
-import { EMPTY_QUERY, hiddenMatches, type ReportQuery } from "@/lib/reportFilter";
-import { Highlight, MatchAside } from "./Highlight";
+import { EMPTY_QUERY, type ReportQuery } from "@/lib/reportFilter";
+import { Highlight } from "./Highlight";
+import { RatingPill } from "./OeaRatingPill";
+import { OeaTableRow } from "./OeaTableRow";
 
-const RATING_STYLE: Record<Rating, string> = {
-  weak: "bg-[color-mix(in_srgb,var(--red)_30%,transparent)] text-tan",
-  mid: "bg-[var(--hover)] text-tan-2",
-  strong: "bg-[color-mix(in_srgb,var(--terminal-green)_28%,transparent)] text-tan",
-};
-
-export function RatingPill({ r }: { r: Rating | null }) {
-  if (!r) return <span className="mono text-[10px] text-tan-3">—</span>;
-  return <span className={`mono text-[10px] px-1.5 py-0.5 rounded ${RATING_STYLE[r]}`}>{r}</span>;
-}
 
 const ELEMENT_LABELS: Record<PrecisionElement, string> = {
   actor: "Actor", trigger: "Trigger", action: "Action",
@@ -108,52 +99,17 @@ export function OeaTable({
         <tbody>
           {visible.map((row) => {
             const expanded = expandedKey === row.task.taskKey;
-            const e = row.entry;
-            return [
-              <tr key={row.task.taskKey}
-                className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors">
-                <td className="py-2 px-3 align-top relative">
-                  <MatchAside matches={hiddenMatches(oeaSearchFields(row), rq)} rq={rq} />
-                  <AtlasLink to={atlasHref(row.task.uuid)} className="mono text-xs text-accent hover:underline">
-                    <Highlight text={row.task.docNo} rq={rq} />
-                  </AtlasLink>
-                </td>
-                <td className="py-2 px-3 align-top text-sm">
-                  <button
-                    type="button"
-                    className="mono text-xs text-tan-3 mr-1.5 hover:text-accent focus:outline-none focus-visible:ring-1 focus-visible:ring-accent rounded-sm"
-                    aria-expanded={expanded}
-                    aria-label={`${expanded ? "Collapse" : "Expand"} assessment reasoning for ${row.task.title}`}
-                    onClick={() => onToggle(row)}
-                  >
-                    {expanded ? "▾" : "▸"}
-                  </button>
-                  <AtlasLink to={atlasHref(row.task.uuid)} className="text-tan hover:underline"
-                  >
-                    <Highlight text={row.task.title} rq={rq} />
-                  </AtlasLink>
-                  {row.task.automated && <span className="mono text-[10px] text-tan-3 ml-1.5">[automated]</span>}
-                  {!expanded && <p className="text-xs text-tan-2 mt-0.5 line-clamp-2"><Highlight text={row.task.assessedText} rq={rq} /></p>}
-                </td>
-                <td className="py-2 px-3 align-top"><RatingPill r={e?.precision.rating ?? null} /></td>
-                <td className="py-2 px-3 align-top">
-                  <RatingPill r={e?.incentives.rating ?? null} />
-                  {e && <span className="text-tan-3 text-[10px] ml-1 cursor-help" title={`assessed by ${e.model}`}>✳</span>}
-                </td>
-                <td className="py-2 px-3 align-top">
-                  {row.status !== "fresh" && (
-                    <span className={`badge ${row.status === "stale" ? "badge-red" : "badge-muted"}`}>{row.status}</span>
-                  )}
-                </td>
-              </tr>,
-              expanded && (
-                <tr key={`${row.task.taskKey}:x`} className="border-t border-[var(--border)]">
-                  <td colSpan={5} className="py-3 px-3 bg-[color-mix(in_srgb,var(--surface)_60%,transparent)]">
-                    <ExpandedBody row={row} mechanisms={mechanisms} rq={rq} />
-                  </td>
-                </tr>
-              ),
-            ];
+            return (
+              <OeaTableRow
+                key={row.task.taskKey}
+                row={row}
+                expanded={expanded}
+                onToggle={() => onToggle(row)}
+                rq={rq}
+              >
+                <ExpandedBody row={row} mechanisms={mechanisms} rq={rq} />
+              </OeaTableRow>
+            );
           })}
         </tbody>
       </table>

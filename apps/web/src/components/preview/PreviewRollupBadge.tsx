@@ -3,6 +3,35 @@ import { chicletColor } from "@/lib/depth";
 
 const FADE_MS = 180;
 
+// shown → leaving → gone as the node expands; back to shown on collapse.
+function useLeaveFade(expanded: boolean) {
+  const [phase, setPhase] = useState<"shown" | "leaving" | "gone">(expanded ? "gone" : "shown");
+  const wasExpanded = useRef(expanded);
+  const ref = useRef<HTMLButtonElement>(null);
+
+  useLayoutEffect(() => {
+    const was = wasExpanded.current;
+    wasExpanded.current = expanded;
+    if (expanded && !was) {
+      const el = ref.current;
+      if (!el) {
+        setPhase("gone");
+        return;
+      }
+      // Pin the current auto width to a concrete px value so the transition to 0
+      // has something to animate from, then flip to the collapsed state.
+      el.style.width = `${el.offsetWidth}px`;
+      void el.offsetWidth; // force reflow so the pin takes before we collapse
+      setPhase("leaving");
+      const t = setTimeout(() => setPhase("gone"), FADE_MS);
+      return () => clearTimeout(t);
+    }
+    if (!expanded && was) setPhase("shown");
+  }, [expanded]);
+
+  return { phase, ref };
+}
+
 // Preview rollup badge: a small count shown on a COLLAPSED ancestor whose
 // subtree hides N added/changed docs. White fill with a pale ring tinted by the
 // deepest change's depth colour (same scale as the doc-no chiclets); the number
@@ -27,29 +56,7 @@ export function PreviewRollupBadge({
   onReveal?: () => void;
   className?: string;
 }) {
-  const [phase, setPhase] = useState<"shown" | "leaving" | "gone">(expanded ? "gone" : "shown");
-  const wasExpanded = useRef(expanded);
-  const ref = useRef<HTMLButtonElement>(null);
-
-  useLayoutEffect(() => {
-    const was = wasExpanded.current;
-    wasExpanded.current = expanded;
-    if (expanded && !was) {
-      const el = ref.current;
-      if (!el) {
-        setPhase("gone");
-        return;
-      }
-      // Pin the current auto width to a concrete px value so the transition to 0
-      // has something to animate from, then flip to the collapsed state.
-      el.style.width = `${el.offsetWidth}px`;
-      void el.offsetWidth; // force reflow so the pin takes before we collapse
-      setPhase("leaving");
-      const t = setTimeout(() => setPhase("gone"), FADE_MS);
-      return () => clearTimeout(t);
-    }
-    if (!expanded && was) setPhase("shown");
-  }, [expanded]);
+  const { phase, ref } = useLeaveFade(expanded);
 
   if (!entry || entry.count <= 0 || phase === "gone") return null;
   const { count, depth } = entry;

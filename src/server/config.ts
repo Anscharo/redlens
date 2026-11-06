@@ -878,7 +878,7 @@ export const config = {
   balancesRefreshSeconds: Number(process.env.BALANCES_REFRESH_SECONDS ?? 86_400),
   balancesRefreshBatch: Number(process.env.BALANCES_REFRESH_BATCH ?? 50),
 
-  // Forum cycle-thread crawl (forum.ts, atlas worker). Same shape as chain-state:
+  // Forum cycle-thread crawl (forum-sync.ts, atlas worker). Same shape as chain-state:
   // the worker ticks every ~12 minutes but Discourse is fetched only when the
   // stored cursor is older than this. Default hourly — MSC threads post at most
   // a few times a month, so hourly is plenty and stays polite to the forum.

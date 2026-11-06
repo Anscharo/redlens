@@ -1,5 +1,6 @@
 import type { ConversationSummary } from "../../lib/conversationsApi";
 import { ShareLinkButton } from "./ShareLinkButton";
+import { formatCardDate } from "../../lib/timeAgo";
 
 const UNTITLED = "Untitled chat";
 
@@ -10,7 +11,7 @@ function CardHead({ title, updatedAt }: { title: string | null; updatedAt: strin
         {title ?? UNTITLED}
       </h2>
       <p className="mono text-[11px] text-tan-3 whitespace-nowrap shrink-0">
-        {new Date(updatedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+        {formatCardDate(updatedAt)}
       </p>
     </div>
   );

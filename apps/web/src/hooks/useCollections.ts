@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../components/chat/auth";
+import { useAliveRef } from "./useAliveRef";
 import {
   type Collection,
   listCollections,
@@ -21,14 +22,7 @@ export function useCollections(): {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const aliveRef = useRef(true);
-
-  useEffect(() => {
-    aliveRef.current = true;
-    return () => {
-      aliveRef.current = false;
-    };
-  }, []);
+  const aliveRef = useAliveRef();
 
   useEffect(() => {
     if (!user) {
@@ -48,7 +42,7 @@ export function useCollections(): {
       .finally(() => {
         if (aliveRef.current) setLoading(false);
       });
-  }, [user]);
+  }, [user, aliveRef]);
 
   const rename = useCallback(async (id: string, name: string) => {
     const updated = await renameCollection(id, name);
@@ -56,12 +50,12 @@ export function useCollections(): {
       setCollections((prev) => prev.map((c) => (c.id === id ? updated : c)));
     }
     return updated;
-  }, []);
+  }, [aliveRef]);
 
   const remove = useCallback(async (id: string) => {
     await deleteCollection(id);
     if (aliveRef.current) setCollections((prev) => prev.filter((c) => c.id !== id));
-  }, []);
+  }, [aliveRef]);
 
   return { collections, loading, error, rename, remove };
 }

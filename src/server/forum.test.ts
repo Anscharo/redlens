@@ -69,7 +69,7 @@ const sqlDispatch = new Proxy(sqlCall, {
 
 mock.module("./db.ts", () => ({ ...baseExports, sql: sqlDispatch, toUuidArrayLiteral, fromUuidArray }));
 
-const { readForumTopics, upsertForumTopic, maybeSyncForum, handleForumTopics } = await import("./forum.ts");
+const { readForumTopics, handleForumTopics } = await import("./forum.ts");
 
 const NOW = Date.UTC(2026, 7, 24, 12, 0, 0);
 const hoursAgo = (h: number) => new Date(NOW - h * 3600_000);
@@ -112,91 +112,6 @@ afterEach(() => {
 
 afterAll(() => {
   sqlImpl = null;
-});
-
-describe("maybeSyncForum (cadence guard)", () => {
-  it("does NOT fetch when the stored cursor is younger than the refresh interval", async () => {
-    syncRow = { fetched_at: hoursAgo(0.5) };
-    let fetches = 0;
-    const res = await maybeSyncForum(fakeSql, {
-      fetchTopics: async () => {
-        fetches++;
-        return [TOPIC];
-      },
-      now: () => NOW,
-      refreshSeconds: 3_600,
-    });
-    expect(fetches).toBe(0);
-    expect(res).toMatchObject({ synced: false, reason: "fresh", upserted: 0 });
-    expect(res.ageSeconds).toBe(1800);
-    expect(queries.every((q) => !q.text.includes("INSERT INTO forum_topics"))).toBe(true);
-  });
-
-  it("fetches and upserts when the stored cursor is older than the refresh interval", async () => {
-    syncRow = { fetched_at: hoursAgo(2) };
-    let fetches = 0;
-    const res = await maybeSyncForum(fakeSql, {
-      fetchTopics: async () => {
-        fetches++;
-        return [TOPIC];
-      },
-      now: () => NOW,
-      refreshSeconds: 3_600,
-    });
-    expect(fetches).toBe(1);
-    expect(res).toMatchObject({ synced: true, reason: "stale", upserted: 1 });
-    const insert = queries.find((q) => q.text.includes("INSERT INTO forum_topics"))!;
-    expect(insert).toBeDefined();
-    expect(insert.values).toContainEqual(TOPIC.tags);
-    expect(insert.text).toContain("::jsonb");
-    expect(queries.some((q) => q.text.includes("INSERT INTO forum_posts"))).toBe(true);
-    expect(queries.some((q) => q.text.includes("INSERT INTO forum_sync_state"))).toBe(true);
-  });
-
-  it("fetches when there is no row, and when the row has no usable timestamp", async () => {
-    for (const [label, r, reason] of [
-      ["no row", null, "no-row"],
-      ["null timestamp", { fetched_at: null }, "no-timestamp"],
-      ["unparseable timestamp", { fetched_at: "not-a-date" }, "no-timestamp"],
-    ] as const) {
-      queries = [];
-      syncRow = r as Record<string, unknown> | null;
-      let fetches = 0;
-      const res = await maybeSyncForum(fakeSql, {
-        fetchTopics: async () => {
-          fetches++;
-          return [TOPIC];
-        },
-        now: () => NOW,
-      });
-      expect(fetches, label).toBe(1);
-      expect(res.reason, label).toBe(reason);
-      expect(res.synced, label).toBe(true);
-    }
-  });
-
-  it("does not stamp the cursor when the crawl returns no topics", async () => {
-    syncRow = { fetched_at: hoursAgo(24) };
-    const res = await maybeSyncForum(fakeSql, {
-      fetchTopics: async () => [],
-      now: () => NOW,
-      refreshSeconds: 3_600,
-    });
-    expect(res).toMatchObject({ synced: false, reason: "empty", upserted: 0 });
-    expect(queries.every((q) => !q.text.includes("INSERT INTO forum_sync_state"))).toBe(true);
-    expect(queries.every((q) => !q.text.includes("INSERT INTO forum_topics"))).toBe(true);
-  });
-});
-
-describe("upsertForumTopic", () => {
-  it("writes the topic then each post", async () => {
-    await upsertForumTopic(fakeSql, TOPIC, new Date(NOW));
-    expect(queries.filter((q) => q.text.includes("INSERT INTO forum_topics"))).toHaveLength(1);
-    expect(queries.filter((q) => q.text.includes("INSERT INTO forum_posts"))).toHaveLength(1);
-    const insert = queries.find((q) => q.text.includes("INSERT INTO forum_topics"))!;
-    expect(insert.text).toContain("period");
-    expect(insert.values).toContainEqual(["2026-05"]);
-  });
 });
 
 describe("readForumTopics", () => {

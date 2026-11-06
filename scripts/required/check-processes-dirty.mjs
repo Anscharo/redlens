@@ -38,6 +38,7 @@ import { fileURLToPath } from "node:url";
 
 import { findCandidates } from "../lib/process-keywords.mjs";
 import { naturalCompare } from "../lib/natural-sort.mjs";
+import { renderMarkdown } from "../lib/processes-audit-markdown.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
@@ -153,56 +154,6 @@ if (process.env.GITHUB_OUTPUT) {
 }
 
 // ---------------------------------------------------------------------------
-
-function renderMarkdown(audit, dirty) {
-  const lines = [];
-  lines.push(`# Process inventory audit`);
-  lines.push("");
-  lines.push(`**Generated:** ${audit.generated_at}`);
-  lines.push(`**Status:** ${dirty ? "needs review" : "clean"}`);
-  lines.push("");
-  lines.push(`Curated: ${audit.total_curated} · Candidates: ${audit.total_candidates} · Ignored: ${audit.total_ignored}`);
-  lines.push("");
-
-  const diff = audit.atlas_diff;
-  if (diff && diff.since_atlas_sha && diff.since_atlas_sha !== diff.current_atlas_sha) {
-    lines.push(`**Atlas diff since last triage:** \`${diff.since_atlas_sha.slice(0, 8)}\` → \`${diff.current_atlas_sha.slice(0, 8)}\` · ${diff.added_uuids.length} new UUIDs added.`);
-    lines.push("");
-  } else if (diff && diff.error) {
-    lines.push(`_(Atlas diff unavailable: ${diff.error})_`);
-    lines.push("");
-  }
-
-  if (audit.missing_uuids.length > 0) {
-    lines.push(`## Missing UUIDs (${audit.missing_uuids.length})`);
-    lines.push("");
-    lines.push("These curated entries no longer exist in the atlas — deleted, merged, or restructured. Review and either remove from `public/processes.json` or replace the UUID. To see what each was, run `git log -S <uuid> -- public/processes.json`.");
-    lines.push("");
-    for (const m of audit.missing_uuids) {
-      lines.push(`- \`${m.uuid}\` (${m.category})`);
-    }
-    lines.push("");
-  }
-
-  if (audit.new_candidates.length > 0) {
-    const recent = audit.new_candidates.filter((c) => c.recently_added).length;
-    lines.push(`## New candidates (${audit.new_candidates.length}${recent ? `, ${recent} ★ added since last triage` : ""})`);
-    lines.push("");
-    lines.push("Atlas nodes whose titles match the process keyword classifier but aren't in the curated list. Entries marked ★ were added to the atlas since the last commit to `public/processes.json` — those are the high-signal review targets. Unmarked entries are \"always-there\" docs that earlier passes missed. For each: add to `public/processes.json` if it's a real process, or to `public/processes-ignored.json` to suppress permanently.");
-    lines.push("");
-    for (const c of audit.new_candidates) {
-      const star = c.recently_added ? "★ " : "";
-      lines.push(`- ${star}${c.doc_no} — **${c.title}** (\`${c.uuid}\`, ${c.type}) — keywords: ${c.keywords.join(", ")}`);
-    }
-    lines.push("");
-  }
-
-  if (!dirty) {
-    lines.push("Nothing to review.");
-  }
-
-  return lines.join("\n");
-}
 
 // Find UUIDs added to the atlas between the submodule SHA at the last commit
 // that touched public/processes.json (= our last triage) and current HEAD of

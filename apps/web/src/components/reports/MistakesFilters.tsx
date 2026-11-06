@@ -44,7 +44,6 @@ export function MistakesFilters({
 }) {
   const mobile = useMediaQuery(MOBILE_AT);
   const [open, setOpen] = useState(false);
-  const bodyId = useId();
   const cats = useMemo(() => presentCategories(all), [all]);
   const catLabels = useMemo(
     () => Object.fromEntries(cats.map((c) => [c, CATEGORY_LABELS[c] ?? c])),
@@ -94,13 +93,30 @@ export function MistakesFilters({
   if (!mobile) return <div className="mb-4">{pills}</div>;
 
   return (
+    <FilterFold open={open} onToggle={() => setOpen((v) => !v)}>
+      {pills}
+    </FilterFold>
+  );
+}
+
+function FilterFold({
+  open,
+  onToggle,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  const bodyId = useId();
+  return (
     <div className="mb-4" data-state={open ? "open" : "closed"}>
       <button
         type="button"
         className="mono text-xs text-tan-2 min-h-11"
         aria-expanded={open}
         aria-controls={bodyId}
-        onClick={() => setOpen((v) => !v)}
+        onClick={onToggle}
       >
         <span className="mr-1.5" aria-hidden="true">
           {open ? "▾" : "▸"}
@@ -109,7 +125,7 @@ export function MistakesFilters({
       </button>
       {open && (
         <div id={bodyId} className="mt-1.5">
-          {pills}
+          {children}
         </div>
       )}
     </div>

@@ -23,19 +23,9 @@
 import { ancestorByStripping } from "./graph-patterns.mjs";
 import { isPlausibleName } from "./address-annotate.mjs";
 
-export function enrichAddresses({
-  allDocs,
-  docByDocNo,
-  addressesAtlas,
-  addressesOnChain,
-  icdAnnotations,
-  entityMap,
-  labelToAddresses,
-}) {
+/** 4.5a: roles, entityLabel and chain from structured ICD params. */
+function enrichFromIcd(addressesAtlas, icdAnnotations) {
   let icdUpdated = 0, icdMissing = 0, icdRechained = 0;
-  let entityLabeled = 0, parentLabeled = 0, titleLabeled = 0, chainlogFallback = 0;
-
-  // 4.5a
   for (const [addr, ann] of icdAnnotations) {
     const entry = addressesAtlas[addr];
     if (!entry) { icdMissing++; continue; }
@@ -54,18 +44,12 @@ export function enrichAddresses({
     }
     icdUpdated++;
   }
+  return { icdUpdated, icdMissing, icdRechained };
+}
 
-  // 4.5b
-  for (const [slug, addrList] of labelToAddresses) {
-    const entity = entityMap.get(slug);
-    if (!entity) continue;
-    for (const { addr } of addrList) {
-      const entry = addressesAtlas[addr];
-      if (!entry || entry.entityLabel) continue;
-      entry.entityLabel = entity.name;
-      entityLabeled++;
-    }
-  }
+/** 4.5c and 4.5d: labels copied from document titles, gated by isPlausibleName. */
+function enrichFromDocTitles(allDocs, docByDocNo, addressesAtlas) {
+  let parentLabeled = 0, titleLabeled = 0;
 
   // 4.5c
   const GENERIC_TITLE = /^address(?:es)?$/i;
@@ -95,6 +79,36 @@ export function enrichAddresses({
       titleLabeled++;
     }
   }
+
+  return { parentLabeled, titleLabeled };
+}
+
+export function enrichAddresses({
+  allDocs,
+  docByDocNo,
+  addressesAtlas,
+  addressesOnChain,
+  icdAnnotations,
+  entityMap,
+  labelToAddresses,
+}) {
+  let entityLabeled = 0, chainlogFallback = 0;
+
+  const { icdUpdated, icdMissing, icdRechained } = enrichFromIcd(addressesAtlas, icdAnnotations);
+
+  // 4.5b
+  for (const [slug, addrList] of labelToAddresses) {
+    const entity = entityMap.get(slug);
+    if (!entity) continue;
+    for (const { addr } of addrList) {
+      const entry = addressesAtlas[addr];
+      if (!entry || entry.entityLabel) continue;
+      entry.entityLabel = entity.name;
+      entityLabeled++;
+    }
+  }
+
+  const { parentLabeled, titleLabeled } = enrichFromDocTitles(allDocs, docByDocNo, addressesAtlas);
 
   // 4.5e: chainlog/Etherscan fallback — pull from on-chain file
   for (const [addr, entry] of Object.entries(addressesAtlas)) {

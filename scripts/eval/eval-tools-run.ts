@@ -69,10 +69,33 @@ export function resolveCase(ix: Indexes, c: ToolCase): { q: string; pageContext?
 const clip = (args: Record<string, unknown>) =>
   Object.fromEntries(Object.entries(args).map(([k, v]) => [k, typeof v === "string" && v.length > 300 ? `${v.slice(0, 300)}…` : v]));
 
+type Sink = { served: string[]; cost: number; requests: number; subagentTokens: number };
+
+// Counts requests, served models and OpenRouter-reported spend as chunks pass.
+const meterStream =
+  (base: ChatStream, sink: Sink): ChatStream =>
+  async function* (p) {
+    sink.requests++;
+    for await (const chunk of base(p)) {
+      if (chunk.model && !sink.served.includes(chunk.model)) sink.served.push(chunk.model);
+      const cost = (chunk.usage as { cost?: unknown } | undefined)?.cost;
+      if (typeof cost === "number") sink.cost += cost;
+      yield chunk;
+    }
+  };
+
+const meterJson =
+  (baseJson: JsonCall, sink: Sink): JsonCall =>
+  async (a) => {
+    const r = await baseJson(a);
+    sink.subagentTokens += r.usage.input + r.usage.output;
+    return r;
+  };
+
 export async function runCase(opts: { ix: Indexes; c: ToolCase; arm: Arm; pass: number; timeoutMs: number }): Promise<RunRecord> {
   const { ix, c, arm, pass } = opts;
   const started = Date.now();
-  const sink = { served: [] as string[], cost: 0, requests: 0, subagentTokens: 0 };
+  const sink: Sink = { served: [], cost: 0, requests: 0, subagentTokens: 0 };
   const calls: ObservedCall[] = [];
   const blank: RunRecord = {
     id: c.id, arm, pass, route: { tier: "default", reason: "" }, routed: { tier: "default", reason: "" }, models: [], maxIterations: 0,
@@ -92,21 +115,8 @@ export async function runCase(opts: { ix: Indexes; c: ToolCase; arm: Arm; pass: 
     // One conversation per run: session_id (provider stickiness) is keyed on it, as in production.
     const obs = { distinctId: `eval-tools:${c.id}:${arm}:${pass}` };
     const base = makeOpenrouterStream(obs, turn.models);
-    const stream: ChatStream = async function* (p) {
-      sink.requests++;
-      for await (const chunk of base(p)) {
-        if (chunk.model && !sink.served.includes(chunk.model)) sink.served.push(chunk.model);
-        const cost = (chunk.usage as { cost?: unknown } | undefined)?.cost;
-        if (typeof cost === "number") sink.cost += cost;
-        yield chunk;
-      }
-    };
-    const baseJson = makeOpenrouterJson(obs, "eval-tools-msc");
-    const jsonCall: JsonCall = async (a) => {
-      const r = await baseJson(a);
-      sink.subagentTokens += r.usage.input + r.usage.output;
-      return r;
-    };
+    const stream = meterStream(base, sink);
+    const jsonCall = meterJson(makeOpenrouterJson(obs, "eval-tools-msc"), sink);
     const onRoundEnd = (info: RoundInfo) =>
       info.calls.forEach((call, i) => {
         const r = info.results[i];

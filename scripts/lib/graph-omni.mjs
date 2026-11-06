@@ -27,6 +27,17 @@ const PLACEHOLDER_RE = /will be specified in a future iteration/i;
 // Direct children of a Governance Information node (A.6.1.1.X.3.1).
 const GOV_INFO_RE = /^A\.6\.1\.1\.\d+\.3\.1\.\d+$/;
 
+// A doc → prime-agent entity edge carrying its metadata as JSON.
+const omniEdge = (doc, agent, edgeType, meta) => ({
+  fromId: doc.id,
+  fromType: "doc",
+  toId: agent.id,
+  toType: "entity",
+  edgeType,
+  sourceDocNos: [doc.doc_no],
+  meta: JSON.stringify(meta),
+});
+
 export function extractOmni(allDocs, docById, docByDocNo, entityByDocId, edges) {
   const stats = { channels: 0, emergencies: 0, warnings: 0 };
   const warn = makeWarn("  [omni]", stats);
@@ -66,28 +77,12 @@ export function extractOmni(allDocs, docById, docByDocNo, entityByDocId, edges) 
         if (m) meta.url = m[1];
         else warn(`${d.doc_no} Discord — no URL matched`);
       }
-      edges.push({
-        fromId: d.id,
-        fromType: "doc",
-        toId: agent.id,
-        toType: "entity",
-        edgeType: "governance_channel",
-        sourceDocNos: [d.doc_no],
-        meta: JSON.stringify(meta),
-      });
+      edges.push(omniEdge(d, agent, "governance_channel", meta));
       stats.channels++;
     } else {
       const scope = /^Sky Ecosystem/i.test(title) ? "ecosystem" : "agent_specific";
       const status = PLACEHOLDER_RE.test(d.content ?? "") ? "placeholder" : "specified";
-      edges.push({
-        fromId: d.id,
-        fromType: "doc",
-        toId: agent.id,
-        toType: "entity",
-        edgeType: "emergency_response",
-        sourceDocNos: [d.doc_no],
-        meta: JSON.stringify({ scope, status }),
-      });
+      edges.push(omniEdge(d, agent, "emergency_response", { scope, status }));
       stats.emergencies++;
     }
   }

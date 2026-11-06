@@ -42,24 +42,24 @@ const EST_DATE_RE =
 // them out of the never-silent warning stream.
 const SKIP_HOLDERS = new Set(["endgame", "endgame state", "the endgame"]);
 
+// Resolve a holder name to an agent / bootstrap entity. Agent slugs are the
+// lowercased name (grove, spark, …); "X Governance" falls back to X.
+function resolveHolder(entityMap, raw) {
+  const s = raw.trim().replace(/\s+/g, " ");
+  let ent = entityMap.get(slugify(s));
+  if (ent) return ent;
+  const m = s.match(/^(.+?)\s+Governance$/i);
+  if (m) {
+    ent = entityMap.get(slugify(m[1]));
+    if (ent) return ent;
+  }
+  if (/^sky\s+governance$/i.test(s)) return entityMap.get("sky-governance");
+  return null;
+}
+
 export function extractTransitions(allDocs, docById, docByDocNo, entityMap, edges) {
   const stats = { count: 0, warnings: 0 };
   const warn = makeWarn("  [transition]", stats);
-
-  // Resolve a holder name to an agent / bootstrap entity. Agent slugs are the
-  // lowercased name (grove, spark, …); "X Governance" falls back to X.
-  const resolveHolder = (raw) => {
-    const s = raw.trim().replace(/\s+/g, " ");
-    let ent = entityMap.get(slugify(s));
-    if (ent) return ent;
-    const m = s.match(/^(.+?)\s+Governance$/i);
-    if (m) {
-      ent = entityMap.get(slugify(m[1]));
-      if (ent) return ent;
-    }
-    if (/^sky\s+governance$/i.test(s)) return entityMap.get("sky-governance");
-    return null;
-  };
 
   for (const d of allDocs) {
     const content = d.content ?? "";
@@ -74,7 +74,7 @@ export function extractTransitions(allDocs, docById, docByDocNo, entityMap, edge
     let unresolved = null;
     for (const m of content.matchAll(TRANSITION_RE)) {
       const holderRaw = m[1];
-      const ent = resolveHolder(holderRaw);
+      const ent = resolveHolder(entityMap, holderRaw);
       if (ent) {
         future = ent;
         break;
@@ -91,7 +91,7 @@ export function extractTransitions(allDocs, docById, docByDocNo, entityMap, edge
     const meta = {};
     const ch = content.match(CURRENT_HOLDER_RE);
     if (ch) {
-      const holder = resolveHolder(ch[1]);
+      const holder = resolveHolder(entityMap, ch[1]);
       meta.current_holder = holder ? holder.name : ch[1].trim();
     }
     const ed = content.match(EST_DATE_RE);

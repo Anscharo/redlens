@@ -1,13 +1,6 @@
 import { useState } from "react";
 import type { LocalIgnore } from "../../lib/curationStore";
-
-const REASONS = [
-  "schema template",
-  "category container",
-  "role definition",
-  "requirement spec",
-  "other",
-] as const;
+import { DEFAULT_REASON, ProcessReasonFields } from "./ProcessReasonFields";
 
 const PILL =
   "px-2 py-1 rounded bg-[var(--hover)] text-tan text-xs hover:bg-[color-mix(in_srgb,var(--accent)_25%,var(--hover))] disabled:opacity-50";
@@ -24,7 +17,7 @@ export function ProcessCurationPanel({
   onUnmark: (uuid: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [reason, setReason] = useState<string>("schema template");
+  const [reason, setReason] = useState<string>(DEFAULT_REASON);
   const [custom, setCustom] = useState("");
 
   if (existing) {
@@ -48,7 +41,7 @@ export function ProcessCurationPanel({
   const reset = () => {
     setEditing(false);
     setCustom("");
-    setReason("schema template");
+    setReason(DEFAULT_REASON);
   };
 
   return (
@@ -58,29 +51,12 @@ export function ProcessCurationPanel({
       </p>
       {editing && (
         <div className="mb-3 space-y-2">
-          <label className="block">
-            <span className="text-tan-3 block mb-1">Reason</span>
-            <select
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="w-full bg-[var(--bg)] text-tan border border-[var(--border)] rounded px-2 py-1"
-            >
-              {REASONS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </label>
-          {reason === "other" && (
-            <input
-              autoFocus
-              value={custom}
-              onChange={(e) => setCustom(e.target.value)}
-              placeholder="describe…"
-              className="w-full bg-[var(--bg)] text-tan border border-[var(--border)] rounded px-2 py-1"
-            />
-          )}
+          <ProcessReasonFields
+            reason={reason}
+            onReason={setReason}
+            custom={custom}
+            onCustom={setCustom}
+          />
         </div>
       )}
       <div className="flex gap-2">
