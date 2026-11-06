@@ -34,6 +34,10 @@ function renderMarkdownLinks(value: string): React.ReactNode {
   return <>{parts}</>;
 }
 
+/** A value with its own hover or click target (an address, a key hash, a link), which must sit above the row's link. */
+const isInteractive = (value: string) =>
+  EVM_RE.test(value) || SOL_RE.test(value) || RATE_LIMIT_HASH_RE.test(value.trim()) || value.includes("](");
+
 function renderValue(value: string, chainHint?: Array<string | undefined>): React.ReactNode {
   if (EVM_RE.test(value) || SOL_RE.test(value)) {
     // The shared address map is the build pipeline's resolved chain and
@@ -58,7 +62,8 @@ function renderValue(value: string, chainHint?: Array<string | undefined>): Reac
 /**
  * The link to the document stating a param: a chain-link icon after its name,
  * shown while the row is hovered or the link has focus, and always on a device
- * that cannot hover.
+ * that cannot hover. Its ::after covers the whole row, so a click anywhere on
+ * the row opens the document; the value's own links and the mark sit above it.
  */
 function ParamDocLink({ docId, name }: { docId: string; name: string }) {
   return (
@@ -66,7 +71,7 @@ function ParamDocLink({ docId, name }: { docId: string; name: string }) {
       to={atlasHref(docId)}
       aria-label={`Open the document stating ${name}`}
       title="Open the document that states this"
-      className="ml-1 self-center inline-flex opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+      className="ml-1 self-center inline-flex opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 after:absolute after:inset-0 after:rounded"
       style={{ color: "var(--accent)" }}
     >
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -89,14 +94,14 @@ interface ParamLineProps {
 
 export function ParamLine({ p, colWidth, instanceHint, mark = null, markCol = false }: ParamLineProps) {
   return (
-    <div className="group flex py-0.5 px-1 -mx-1 items-baseline rounded hover:bg-[var(--row-hover)]">
+    <div className="group relative flex py-0.5 px-1 -mx-1 items-baseline rounded hover:bg-[var(--row-hover)]">
       <span className="mono text-[10px] shrink-0" style={{ color: "var(--tan-3)" }}>
         {p.key}
       </span>
       {p.srcDocId && <ParamDocLink docId={p.srcDocId} name={p.key} />}
       <span className="flex-1 min-w-0" style={{ borderBottom: "1px dotted color-mix(in srgb, var(--tan-3) 25%, transparent)", margin: "0 4px 3px" }} />
       <span
-        className="mono text-[10px] shrink-0 text-right leading-relaxed"
+        className={`mono text-[10px] shrink-0 text-right leading-relaxed${isInteractive(p.value) ? " relative z-10" : ""}`}
         style={{ maxWidth: `calc(100% - ${colWidth}px)`, wordBreak: "break-word", color: "var(--tan-2)" }}
       >
         {/* Param key first: it's the more specific signal (e.g. "Token Address

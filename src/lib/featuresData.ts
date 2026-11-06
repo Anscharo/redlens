@@ -197,7 +197,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: [
           "Open a Prime Agent on Radar and pick `Primitives` under its name in the actor list.",
           "Hover a mark to see what the chain holds: a limit's value (and the Atlas value beside it on a ✗) with when it was set, linked to its transaction; an ID's key and its live limit; the rate limits and parameters that use an address and its token symbol; the asset a token wraps; or, on a red circled !, each likely key or the on-chain value the Atlas could state. Click the mark to open the document's Onchain tab.",
-          "Hover a parameter row to show the link (chain) icon after its name, and click it to open the document stating that parameter.",
+          "Hover a parameter row to highlight it and show the link (chain) icon after its name; click anywhere on the row to open the document stating that parameter (an address, a link or a mark in the row keeps its own click).",
         ],
         note: "Marks appear only for Primes whose controller contracts the atlas worker has read.",
       },

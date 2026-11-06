@@ -69,7 +69,7 @@ export function ParamCheckMark({ mark }: { mark: RowMark | null }) {
   const look = mark ? LOOK[mark.mark] : null;
   const glyph = look && <span style={{ color: look.color }}>{look.glyph}</span>;
   return (
-    <span className="mono text-[10px] shrink-0 w-4 ml-2 text-center font-semibold" data-check={mark?.mark}>
+    <span className={`${mark ? "relative z-10 " : ""}mono text-[10px] shrink-0 w-4 ml-2 text-center font-semibold`} data-check={mark?.mark}>
       {mark && (
         <Tooltip content={<MarkTip mark={mark} />} delay={MARK_TIP_MS}>
           {mark.docId ? (
