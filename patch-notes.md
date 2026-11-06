@@ -33,9 +33,6 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-11-06
-
-
 ## 2026-11-04
 
 - Added a Winter colour scheme: cool white, with purple document titles and purple-to-blue doc numbers
