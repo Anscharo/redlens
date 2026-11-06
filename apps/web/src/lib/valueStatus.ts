@@ -3,6 +3,7 @@
 // "Atlas vs contract" panel and the Radar instance cards both say it this way,
 // so a mark means the same thing wherever it appears.
 import type { ValueCheck, ValueStatus } from "@/lib/pauAtlasValues";
+import type { LiveRateLimit } from "@/lib/pau";
 import { formatAmount, formatPerDay, limitDecimals } from "./pau";
 
 export const VALUE_STATUS: Record<ValueStatus, { mark: string; text: string }> = {
@@ -31,4 +32,14 @@ export function contractValue(c: ValueCheck): string {
   const amount = formatAmount(max, dec);
   if (amount === "unlimited") return amount;
   return c.field === "maxAmount" ? `${amount}${symbol}` : `${formatPerDay(r.data!.slope, dec)}${symbol} per day`;
+}
+
+/** A held key's live limit in its token's units: "200M spUSDS · 400M spUSDS/day", or why it has none. */
+export function limitSummary(r: LiveRateLimit): string {
+  if (!r.data) return "not read";
+  const dec = limitDecimals(r.unit, r.data.maxAmount);
+  const symbol = r.unit?.symbol ? ` ${r.unit.symbol}` : "";
+  const max = formatAmount(r.data.maxAmount, dec);
+  if (max === "unlimited") return "unlimited";
+  return `${max}${symbol} · ${formatPerDay(r.data.slope, dec)}${symbol}/day`;
 }

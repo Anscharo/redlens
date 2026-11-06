@@ -5,6 +5,9 @@
 // records, so a row never borrows another instance's or another side's verdict.
 import { valueParam, type ValueCheck } from "@/lib/pauAtlasValues";
 import type { InstanceParam } from "@/lib/radarRules";
+import { PAU_KIND_LABEL } from "./pau";
+import { sentence, type RowMark, type TipLine } from "./rowMark";
+import { contractValue, isCompared, VALUE_STATUS } from "./valueStatus";
 
 export type ParamChecks = ReadonlyMap<string, ValueCheck[]>;
 
@@ -42,4 +45,33 @@ export function paramMark(checks: ValueCheck[]): ParamMark | null {
   if (checks.some((c) => c.status === "not-set")) return "not-set";
   if (checks.every((c) => c.status === "not-stated")) return "not-stated";
   return "unsure";
+}
+
+const VALUE_HEAD: Record<ParamMark, string> = {
+  match: "Matches the atlas",
+  mismatch: "Differs from the atlas",
+  "not-set": "Not set on the contract",
+  "not-stated": "The atlas sets no value yet",
+  unsure: "Can't be compared",
+};
+
+/** Each deployment's lines: the value it holds and when it was set, or why there is none, said once per deployment. */
+function checkLines(checks: ValueCheck[]): TipLine[] {
+  const many = checks.length > 1;
+  const said = new Set<string>();
+  return checks.flatMap((c): TipLine[] => {
+    const where = many && c.kind ? ` · ${PAU_KIND_LABEL[c.kind]}` : "";
+    if (isCompared(c)) return [{ label: `On-chain${where}`, value: contractValue(c) }, { set: c.limit!.setAt, chain: c.chain!, readAt: c.readAt }];
+    const text = `${sentence(VALUE_STATUS[c.status].text)}${where}`;
+    if (said.has(text)) return [];
+    said.add(text);
+    return [{ text }];
+  });
+}
+
+/** A maxAmount or slope row's mark: the verdict over its checks, each deployment's value, and the atlas's on a mismatch. */
+export function valueRowMark(checks: ValueCheck[]): RowMark {
+  const mark = paramMark(checks)!;
+  const atlas: TipLine[] = mark === "mismatch" ? [{ label: "Atlas", value: checks[0].stated }] : [];
+  return { mark, head: VALUE_HEAD[mark], lines: [...checkLines(checks), ...atlas], docId: checks[0].docId };
 }

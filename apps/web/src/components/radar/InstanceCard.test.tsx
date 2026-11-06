@@ -1,13 +1,16 @@
 // @vitest-environment jsdom
-// An instance card's on-chain marks and document links: each maxAmount and
-// slope row gets its check's mark in one column, every other row keeps that
-// column empty, and each row links to the document that states it.
+// An instance card's on-chain marks and document links: each checked row
+// (a maxAmount or slope, a RateLimitID, an address) gets its mark in one
+// column, every other row keeps that column empty, and each row links to the
+// document that states it.
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { ValueCheck, ValueStatus } from "@/lib/pauAtlasValues";
+import { addressCheckId, type AddressCheck } from "@/lib/pauAddressChecks";
 import type { RadarInstance } from "../../lib/actorIndex";
 import { indexParamChecks } from "../../lib/paramChecks";
+import type { CardMarks } from "../../lib/rowMark";
 import { InstanceCard } from "./InstanceCard";
 
 afterEach(cleanup);
@@ -17,7 +20,10 @@ const inst: RadarInstance = {
   docId: "inst-doc", docNo: null, primitiveTitle: null, primitiveDocId: null, primitiveCategory: null, primitiveCategoryDocId: null,
   isUnknownPrimitive: false,
   signalParams: [
+    { key: "Rate Limit IDs", value: "To be specified", srcDocId: "inst-doc" },
     { key: "Network", value: "Ethereum Mainnet", srcDocId: "inst-doc" },
+    { key: "Token Address", value: "0x" + "c".repeat(40), srcDocId: "inst-doc" },
+    { key: "Underlying Asset Address", value: "0x" + "d".repeat(40), srcDocId: "inst-doc" },
     { key: "Inflow Rate Limit / maxAmount", value: "200,000,000 USDS", srcDocId: "inflow-doc" },
     { key: "Outflow Rate Limit / maxAmount", value: "Unlimited", srcDocId: "outflow-doc" },
   ],
@@ -25,28 +31,49 @@ const inst: RadarInstance = {
 
 const check = (docId: string, label: string, stated: string, status: ValueStatus): ValueCheck => ({
   docId, instance: inst.rawName, instanceDocId: "inst-doc", label, field: "maxAmount", stated, status,
-  key: "0xk", chain: "ethereum", kind: "monolithic", contract: "0xrl", limit: null, readAt: null,
+  key: "0xk", chain: "ethereum", kind: "monolithic", contract: "0xrl", readAt: null,
+  limit: status === "match" || status === "mismatch" ? {
+    key: "0xk", configured: { maxAmount: "1", slope: "0" }, setAt: { block: 1, time: "2026-01-02T00:00:00Z", tx: "0xt" }, changes: 1,
+    data: { maxAmount: "150000000000000000000000000", slope: "0", lastAmount: "0", lastUpdated: "0" }, available: null,
+  } : null,
 });
 
-const checks = indexParamChecks([
-  check("inflow-doc", "Inflow maxAmount", "200,000,000 USDS", "mismatch"),
-  check("outflow-doc", "Outflow maxAmount", "Unlimited", "no-key"),
-]);
+const address = (kind: AddressCheck["kind"], status: AddressCheck["status"], over: Partial<AddressCheck> = {}): AddressCheck => ({
+  kind, status, subject: "0x", chain: "ethereum", limits: [], params: [], onchain: [], symbols: {}, ...over,
+});
 
-const marks = (container: HTMLElement) => [...container.querySelectorAll("[data-check], span.w-4")].map((e) => e.getAttribute("data-check"));
+const marks: CardMarks = {
+  values: indexParamChecks([
+    check("inflow-doc", "Inflow maxAmount", "200,000,000 USDS", "mismatch"),
+    check("outflow-doc", "Outflow maxAmount", "Unlimited", "no-key"),
+  ]),
+  addresses: new Map([
+    [addressCheckId("inst-doc", "Rate Limit IDs"), address("rate-limit-id", "not-stated")],
+    [addressCheckId("inst-doc", "Token Address"), address("address", "unsure", { reason: "no PAU rate limit or parameter uses this address" })],
+    [addressCheckId("inst-doc", "Underlying Asset Address"), address("underlying", "match", { onchain: ["0x" + "d".repeat(40)] })],
+  ]),
+};
+
+const shown = (container: HTMLElement) => [...container.querySelectorAll("span.w-4")].map((e) => e.getAttribute("data-check"));
 
 describe("InstanceCard on-chain marks", () => {
-  it("marks each checked value, linked to its document's Onchain tab, and leaves the other rows' column empty", () => {
-    const { container } = render(<InstanceCard inst={inst} checks={checks} />);
-    expect(marks(container)).toEqual([null, "mismatch", "unsure"]);
-    expect(screen.getByRole("link", { name: "Differs from the atlas" })).toHaveAttribute("href", expect.stringContaining("inflow-doc"));
-    expect(screen.getByRole("link", { name: "Differs from the atlas" })).toHaveAttribute("href", expect.stringContaining("view=onchain"));
-    expect(screen.getByRole("link", { name: "Can't be compared" })).toBeInTheDocument();
+  it("marks every checked row in one column, leaving the rest of the column empty", () => {
+    const { container } = render(<InstanceCard inst={inst} marks={marks} />);
+    expect(shown(container)).toEqual(["not-stated", null, "unsure", "match", "mismatch", "unsure"]);
+  });
+
+  it("links a mark to the Onchain tab of the document stating the row", () => {
+    render(<InstanceCard inst={inst} marks={marks} />);
+    const mismatch = screen.getByRole("link", { name: "Differs from the atlas" });
+    expect(mismatch).toHaveAttribute("href", expect.stringContaining("inflow-doc"));
+    expect(mismatch).toHaveAttribute("href", expect.stringContaining("view=onchain"));
+    expect(screen.getByRole("link", { name: "Matches the chain" })).toHaveAttribute("href", expect.stringContaining("inst-doc"));
+    expect(screen.getAllByRole("link", { name: "Can't be checked" })).toHaveLength(1);
   });
 
   it("keeps no mark column on a card with nothing checked", () => {
     const { container } = render(<InstanceCard inst={inst} />);
-    expect(marks(container)).toEqual([]);
+    expect(shown(container)).toEqual([]);
   });
 
   it("links every row to the document that states it", () => {

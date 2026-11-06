@@ -6,6 +6,9 @@ import { loadGraph } from "../lib/graph";
 import { loadAtlas } from "../lib/docs";
 import { loadPau, snapshotsForPrime } from "../lib/pau";
 import { useLoaded } from "./useAtlasData";
+import { checkAtlasAddresses } from "@/lib/pauAddressChecks";
+import { indexParamChecks } from "../lib/paramChecks";
+import type { CardMarks } from "../lib/rowMark";
 
 /** Every value the atlas states for the prime's keys, in its instances and in its limit documents, beside the chain (pauAtlasValues.ts); empty until the graph loads. */
 export function usePrimeAtlasChecks(primeId: string | undefined, snaps: StoredPauSnapshot[]): ValueCheck[] {
@@ -17,10 +20,15 @@ export function usePrimeAtlasChecks(primeId: string | undefined, snaps: StoredPa
   }, [graph, atlas, primeId, snaps]);
 }
 
-/** The same checks, against the prime's PAU snapshots; empty without a prime, and until the snapshots load. */
-export function usePrimeChecks(primeId: string | undefined): ValueCheck[] {
+/** Every check an instance card shows for the prime: its values against the contract, and its IDs and addresses against the snapshots; null without a prime, and until the snapshots and graph load. */
+export function usePrimeCardMarks(primeId: string | undefined): CardMarks | null {
   const res = useLoaded(loadPau, { soft: true });
-  const snaps = useMemo(() => (res && primeId ? snapshotsForPrime(res, primeId) : []), [res, primeId]);
-  const checks = usePrimeAtlasChecks(primeId, snaps);
-  return res ? checks : [];
+  const graph = useLoaded(loadGraph, { soft: true });
+  const atlas = useLoaded(loadAtlas, { soft: true });
+  return useMemo(() => {
+    const sources = res && primeId ? graphPrimeSources(primeId, graph, atlas ?? undefined) : null;
+    if (!res || !primeId || !sources) return null;
+    const snaps = snapshotsForPrime(res, primeId);
+    return { values: indexParamChecks(checkAtlasValues(sources, snaps)), addresses: checkAtlasAddresses(sources, snaps) };
+  }, [res, graph, atlas, primeId]);
 }

@@ -3,7 +3,7 @@ import type { InstanceParam } from "../../lib/actorIndex";
 import { atlasHref } from "@/lib/routes";
 import { Address } from "../Address";
 import { EVM_ADDRESS_EXACT_RE, SOL_ADDRESS_EXACT_RE } from "@/lib/patterns";
-import type { ValueCheck } from "@/lib/pauAtlasValues";
+import type { RowMark } from "../../lib/rowMark";
 import { ParamCheckMark } from "./ParamCheckMark";
 
 // Whole-string address shape tests — sourced from patterns.ts (the src-side
@@ -81,13 +81,13 @@ interface ParamLineProps {
   p: InstanceParam;
   colWidth: number;
   instanceHint: string;
-  /** The row's on-chain checks (paramChecks.ts); shown in the mark column. */
-  checks?: ValueCheck[];
+  /** The row's verdict against the chain (rowMark.ts), shown in the mark column. */
+  mark?: RowMark | null;
   /** Whether the card keeps a mark column, so its marks line up even on rows with none. */
   markCol?: boolean;
 }
 
-export function ParamLine({ p, colWidth, instanceHint, checks = [], markCol = false }: ParamLineProps) {
+export function ParamLine({ p, colWidth, instanceHint, mark = null, markCol = false }: ParamLineProps) {
   return (
     <div className="group flex py-0.5 px-1 -mx-1 items-baseline rounded hover:bg-[var(--row-hover)]">
       <span className="mono text-[10px] shrink-0" style={{ color: "var(--tan-3)" }}>
@@ -105,7 +105,7 @@ export function ParamLine({ p, colWidth, instanceHint, checks = [], markCol = fa
             back to the instance name when the key carries no chain hint. */}
         {renderValue(p.value, [p.key, instanceHint])}
       </span>
-      {markCol && <ParamCheckMark checks={checks} />}
+      {markCol && <ParamCheckMark mark={mark} />}
     </div>
   );
 }
