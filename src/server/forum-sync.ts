@@ -9,7 +9,7 @@ import {
   type DiscoursePost,
   type DiscourseTopic,
 } from "./forum-discourse.ts";
-import { toIso } from "./forum.ts";
+import { toIso } from "./to-iso.ts";
 import type { SqlTag } from "./sql-types.ts";
 
 export async function upsertForumTopic(db: SqlTag, topic: DiscourseTopic, now: Date): Promise<void> {

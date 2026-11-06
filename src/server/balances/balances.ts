@@ -14,6 +14,7 @@ import { fetchBalances } from "./fetch-balances.ts";
 import { toAddressInput, type AddressRow } from "./address-input.ts";
 import { loadBalanceStats, persistBalanceResults } from "./refresh.ts";
 import { currentPrices } from "../prices/cache.ts";
+import { toIso } from "../to-iso.ts";
 
 interface CachedRow {
   address: string;
@@ -41,12 +42,6 @@ function normalizeJson<T>(v: T | string | null): T | null {
 }
 
 const normalizeBalances = (v: BalanceMap | string | null): BalanceMap => normalizeJson(v) ?? {};
-
-function toIso(v: string | Date | null): string | null {
-  if (!v) return null;
-  const d = v instanceof Date ? v : new Date(v);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString();
-}
 
 function toMs(v: string | null): number | null {
   if (!v) return null;

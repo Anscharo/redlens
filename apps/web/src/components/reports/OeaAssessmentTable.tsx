@@ -9,7 +9,6 @@ import { Highlight } from "./Highlight";
 import { RatingPill } from "./OeaRatingPill";
 import { OeaTableRow } from "./OeaTableRow";
 
-export { RatingPill };
 
 const ELEMENT_LABELS: Record<PrecisionElement, string> = {
   actor: "Actor", trigger: "Trigger", action: "Action",

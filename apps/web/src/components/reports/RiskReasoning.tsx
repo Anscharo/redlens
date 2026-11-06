@@ -5,7 +5,7 @@
 // misrender, while still linkifying any addresses.
 import type { AtlasNode } from "@/types";
 import type { RiskAssessmentEntry } from "@/lib/riskAssessment";
-import { RatingPill } from "./OeaAssessmentTable";
+import { RatingPill } from "./OeaRatingPill";
 import { ScorePill } from "./ScorePill";
 import { NodeContent } from "../NodeContent";
 import { AtlasLink } from "../AtlasLink";

@@ -13,6 +13,7 @@ import { sql } from "./db.ts";
 import { json } from "./http.ts";
 import { isForumKind, type ForumKind } from "../lib/forumKinds.ts";
 import type { SqlTag } from "./sql-types.ts";
+import { toIso } from "./to-iso.ts";
 
 
 export interface ForumTopicRow {
@@ -32,12 +33,6 @@ export interface ForumTopicRow {
 export interface ForumTopicsPayload {
   topics: ForumTopicRow[];
   fetchedAt: string | null;
-}
-
-export function toIso(v: string | Date | null | undefined): string | null {
-  if (!v) return null;
-  const d = v instanceof Date ? v : new Date(v);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 function asTags(v: unknown): string[] {

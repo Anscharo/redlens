@@ -89,6 +89,8 @@ export function RoleCategoryTable<R extends RoleRow>({
               key={`${cat}:${r.uuid || r.docNo}:${config.rowKeyRole(r)}`}
               r={r}
               cat={cat}
+              showRole={showRole}
+              showPrime={showPrime}
               chains={chains}
               rq={rq}
               config={config}
@@ -103,18 +105,20 @@ export function RoleCategoryTable<R extends RoleRow>({
 function RoleCategoryRow<R extends RoleRow>({
   r,
   cat,
+  showRole,
+  showPrime,
   chains,
   rq,
   config,
 }: {
   r: R;
   cat: string;
+  showRole: boolean;
+  showPrime: boolean;
   chains: Map<string, Chain>;
   rq: ReportQuery;
   config: RoleCategoryTableConfig<R>;
 }) {
-  const showRole = config.showRoleCol(cat);
-  const showPrime = config.showPrimeCol(cat);
   return (
     <tr className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors">
       <td className="py-2 px-3 align-top relative">

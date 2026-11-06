@@ -25,7 +25,7 @@ import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
 import { parseReportsDir, parseWorkbook, reconcile } from "../lib/settlement-xlsx.mjs";
-import { printStats, THRESHOLD } from "../lib/settlement-stats-print.ts";
+import { printStats, THRESHOLD } from "./settlement-stats-print.ts";
 
 const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");

@@ -22,13 +22,12 @@ export function PreviewInterstitial({ sha, base, children }: { sha: string; base
   // meta === null (fetch failed) → both false → fail open; our server's fault, fork banner still shows.
   if (!isFork && !lowTrustPr) return children;
 
-  const owner = meta!.forkOwner ?? meta!.prAuthor ?? (meta!.repo ?? "").split("/")[0];
   return (
     <div
       className="flex flex-col items-center justify-center gap-4 px-6"
       style={{ height: "100vh", textAlign: "center", background: "var(--bg)" }}
     >
-      <InterstitialNotice meta={meta!} isFork={isFork} owner={owner} />
+      <InterstitialNotice meta={meta!} isFork={isFork} />
       <button
         type="button"
         className="px-4 py-1.5 rounded mono text-sm"
@@ -58,7 +57,8 @@ export function PreviewInterstitial({ sha, base, children }: { sha: string; base
   );
 }
 
-function InterstitialNotice({ meta, isFork, owner }: { meta: PreviewMeta; isFork: boolean; owner: string }) {
+function InterstitialNotice({ meta, isFork }: { meta: PreviewMeta; isFork: boolean }) {
+  const owner = meta.forkOwner ?? meta.prAuthor ?? (meta.repo ?? "").split("/")[0];
   return (
     <>
       <div className="mono text-xs" style={{ color: "var(--red)", fontWeight: 700, letterSpacing: "0.1em" }}>

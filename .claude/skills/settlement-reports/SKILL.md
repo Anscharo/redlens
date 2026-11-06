@@ -5,6 +5,7 @@ description: >
   (MSC) workbooks — the xlsx files behind public/settlements.json and Radar's
   Monthly settlement section. Use when running or changing pnpm
   settlements:parse, editing scripts/lib/settlement-xlsx.mjs,
+  scripts/aux/settlement-stats-print.ts,
   scripts/aux/parse-settlements.mjs, src/lib/settlements.ts,
   src/lib/settlementSankey.ts or src/components/radar/ActorSettlement*, when a
   new month or prime is published, or when asked to audit / reconcile / check

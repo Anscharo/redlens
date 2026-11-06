@@ -1,23 +1,12 @@
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../components/chat/auth";
+import { useAliveRef } from "./useAliveRef";
 import {
   type ConversationSummary,
   listConversations,
   renameConversation,
   deleteConversation,
 } from "../lib/conversationsApi";
-
-// True while the component is mounted; guards setState after an await.
-function useAliveRef() {
-  const aliveRef = useRef(true);
-  useEffect(() => {
-    aliveRef.current = true;
-    return () => {
-      aliveRef.current = false;
-    };
-  }, []);
-  return aliveRef;
-}
 
 function useConversationList(aliveRef: RefObject<boolean>) {
   const { user } = useAuth();

@@ -1,12 +1,12 @@
 import { useState } from "react";
-import type { ConversationSummary } from "../../lib/conversationsApi";
+import { type ConversationSummary, MAX_CONVERSATION_TITLE_LEN } from "../../lib/conversationsApi";
 import { formatTokens } from "../../lib/formatTokens";
 import { ConversationActions } from "./ConversationActions";
-import { ConversationTitleInput } from "./ConversationTitleInput";
+import { InlineRenameInput } from "../InlineRenameInput";
+import { formatCardDate } from "../../lib/timeAgo";
 
 const UNTITLED = "Untitled chat";
 
-const DATE_FORMAT: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" };
 
 function ConversationStats({ conversation }: { conversation: ConversationSummary }) {
   return (
@@ -90,8 +90,9 @@ export function ConversationCard({
     >
       <div className="flex items-start justify-between gap-3 mb-1">
         {editing ? (
-          <ConversationTitleInput
+          <InlineRenameInput
             value={draft}
+            maxLength={MAX_CONVERSATION_TITLE_LEN}
             onChange={setDraft}
             onSubmit={submitRename}
             onCancel={() => {
@@ -105,7 +106,7 @@ export function ConversationCard({
           </p>
         )}
         <p className="mono text-[11px] text-tan-3 whitespace-nowrap">
-          {new Date(conversation.updatedAt).toLocaleDateString("en-US", DATE_FORMAT)}
+          {formatCardDate(conversation.updatedAt)}
         </p>
       </div>
 

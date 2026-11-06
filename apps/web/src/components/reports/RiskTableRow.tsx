@@ -4,7 +4,7 @@ import type { AtlasNode } from "@/types";
 import type { RiskRow } from "@/lib/riskAssessmentIndex";
 import { RISK_DOMAIN_LABELS, type RiskDomain } from "@/lib/riskRules";
 import type { ReportQuery } from "@/lib/reportFilter";
-import { RatingPill } from "./OeaAssessmentTable";
+import { RatingPill } from "./OeaRatingPill";
 import { RiskExpandedBody } from "./RiskExpandedBody";
 import { RiskDocCell, RiskRuleCell } from "./RiskRuleCell";
 import { ScorePill } from "./ScorePill";

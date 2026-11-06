@@ -1,10 +1,9 @@
 // Console report for `pnpm settlements:parse`: coverage, per-venue counts and
 // the reconcile() deltas. Reads the parsed bundle and writes nothing.
 import type { SettlementReport } from "../../src/lib/settlements.ts";
-import { reconcile } from "./settlement-xlsx.mjs";
+import { reconcile } from "../lib/settlement-xlsx.mjs";
 
-type Report = SettlementReport;
-interface Bundle { reports: Report[] }
+interface Bundle { reports: SettlementReport[] }
 
 /** A reconcile delta above this many dollars is flagged. */
 export const THRESHOLD = 1;
@@ -38,7 +37,7 @@ export function printStats(bundle: Bundle) {
   printSparkTop(reports);
 }
 
-function printReconciliation(reports: Report[]) {
+function printReconciliation(reports: SettlementReport[]) {
   console.log("");
   console.log(
     `reconciliation (dCof is the load-bearing one; flag > ${usd(THRESHOLD)}):`,
@@ -62,7 +61,7 @@ function printReconciliation(reports: Report[]) {
   console.log("(revenueGap = |Σ venue.revenueToPrime − primeAgentRevenue|; Spark's is the non-venue PSM3 slice)");
 }
 
-function printUnfooted(reports: Report[]) {
+function printUnfooted(reports: SettlementReport[]) {
   const unfooted = reports
     .map((r) => ({ r, rec: reconcile(r) }))
     .filter(({ rec }) => rec.dComparisonFoot > THRESHOLD);
@@ -80,7 +79,7 @@ function printUnfooted(reports: Report[]) {
   console.log(" own addends. We report supplyKept = prime_agent_revenue − CoF, per load/summary.py.)");
 }
 
-function printSparkTop(reports: Report[]) {
+function printSparkTop(reports: SettlementReport[]) {
   const sparkJul = reports.find((r) => r.prime === "spark" && r.month === "2026-07");
   if (sparkJul) {
     const top = [...sparkJul.venues]
