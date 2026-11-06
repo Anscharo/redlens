@@ -11,16 +11,16 @@ import type { PreviewDiff } from "./previewDiff";
 // New and Edited split that set in two, so the kind group is `exhaustive`:
 // the menu shows both ticked when neither is stored (previewFilterTicks.ts).
 //
-// An `exclude` filter works the other way: its box is ticked by default, and
-// unticking it stores the filter, which removes its docs from whatever the
-// rest keep. "Include renumbered only" is one, so the doc-number-only changes
-// Edited counts can be hidden.
+// An `exclude` filter, ticked, removes its docs from whatever the rest keep.
+// "Renumber-only changes" is one, so the doc-number-only changes Edited counts
+// can be hidden.
 
 export const PREVIEW_FILTER_IDS = ["new", "edited", "no-renumbered", "retitled", "identity-swap", "reused-slot"] as const;
 export type PreviewFilterId = (typeof PREVIEW_FILTER_IDS)[number];
 
 export const PREVIEW_FILTER_GROUPS = [
   { id: "kind", label: "Change kind", exhaustive: true },
+  { id: "exclude", label: "Exclude", exhaustive: false },
   { id: "flag", label: "Flags", exhaustive: false },
 ] as const;
 export type PreviewFilterGroup = (typeof PREVIEW_FILTER_GROUPS)[number]["id"];
@@ -28,7 +28,7 @@ export type PreviewFilterGroup = (typeof PREVIEW_FILTER_GROUPS)[number]["id"];
 export interface PreviewFilterDef {
   id: PreviewFilterId;
   group: PreviewFilterGroup;
-  /** Stored when unticked, and then removes its docs (see above). */
+  /** Removes its docs instead of keeping them (see above). */
   exclude?: boolean;
   label: string;
   /** What the filter button says for it, if not the label. */
@@ -55,12 +55,12 @@ export const PREVIEW_FILTERS: readonly PreviewFilterDef[] = [
   },
   {
     id: "no-renumbered",
-    group: "flag",
+    group: "exclude",
     exclude: true,
-    label: "Include renumbered only",
+    label: "Renumber-only changes",
     short: "No renumbers",
     glyph: "↻",
-    description: "Untick to hide documents whose only change is the doc number",
+    description: "Hide documents whose only change is the doc number",
     ids: (d) => d.renumberedOnly ?? null,
   },
   { id: "retitled", group: "flag", label: "Retitled", glyph: "T", description: "The title changed", ids: (d) => keys(d.retitled) },

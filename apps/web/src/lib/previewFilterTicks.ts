@@ -2,25 +2,22 @@ import type { PreviewDiff } from "./previewDiff";
 import { PREVIEW_FILTER_GROUPS, PREVIEW_FILTER_IDS, PREVIEW_FILTERS, type PreviewFilterId } from "./previewFilters";
 
 // Which boxes the preview filter menu shows ticked, and what a click on one
-// writes to the URL. Two cases differ from "ticked = stored":
-// - An exhaustive group (the change kinds) covers every change between its
-//   filters, so "none ticked" and "all ticked" keep the same docs: the menu
-//   shows the first as the second, and the URL stores the second as the
-//   first, so "Changed only" stays one clean URL whichever way it is reached.
-// - An exclude filter is ticked while it is NOT stored (previewFilters.ts).
+// writes to the URL. An exhaustive group (the change kinds) covers every
+// change between its filters, so "none ticked" and "all ticked" keep the same
+// docs: the menu shows the first as the second, and the URL stores the second
+// as the first, so "Changed only" stays one clean URL whichever way it is
+// reached. Every other box is ticked exactly when it is stored.
 
 const EXHAUSTIVE = PREVIEW_FILTER_GROUPS.filter((g) => g.exhaustive).map((g) => g.id as string);
 const inGroup = (group: string) => PREVIEW_FILTERS.filter((f) => f.group === group);
-const EXCLUDE = new Set<PreviewFilterId>(PREVIEW_FILTERS.filter((f) => f.exclude).map((f) => f.id));
 
 /** The boxes to show ticked for this selection. */
 export function tickedFilters(selected: readonly PreviewFilterId[]): PreviewFilterId[] {
-  const ticked = new Set(selected.filter((id) => !EXCLUDE.has(id)));
+  const ticked = new Set(selected);
   for (const group of EXHAUSTIVE) {
     const members = inGroup(group);
     if (!members.some((f) => ticked.has(f.id))) for (const f of members) ticked.add(f.id);
   }
-  for (const id of EXCLUDE) if (!selected.includes(id)) ticked.add(id);
   return PREVIEW_FILTER_IDS.filter((id) => ticked.has(id));
 }
 
@@ -31,10 +28,6 @@ export function toggleFilter(selected: readonly PreviewFilterId[], id: PreviewFi
   for (const group of EXHAUSTIVE) {
     const available = inGroup(group).filter((f) => f.ids(diff) !== null);
     if (available.every((f) => next.has(f.id))) for (const f of inGroup(group)) next.delete(f.id);
-  }
-  for (const ex of EXCLUDE) {
-    if (next.has(ex)) next.delete(ex);
-    else next.add(ex);
   }
   return PREVIEW_FILTER_IDS.filter((f) => next.has(f));
 }

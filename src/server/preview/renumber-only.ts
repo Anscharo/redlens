@@ -4,7 +4,7 @@
 // children's bodies often cite their siblings ("per A.1.2.3"), so a strict
 // body comparison would call every one of them edited.
 //
-// The reader's "Include renumbered only" filter reads this list; patches are loaded
+// The reader's Exclude › "Renumber-only changes" filter reads this list; patches are loaded
 // lazily, so the browser cannot work it out itself.
 import type { Snapshot, SnapshotDoc } from "./snapshot.ts";
 
