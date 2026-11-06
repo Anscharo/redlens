@@ -40,9 +40,15 @@ describe("checkAtlasAddresses: rate-limit IDs", () => {
     expect(get(vault, "Swap RateLimitID")).toMatchObject({ status: "unsure", reason: "no RateLimits here holds this key" });
     expect(get(vault, "Rate Limit IDs")?.status).toBe("not-stated");
   });
-  it("lists, for an ID not stated yet, the held keys derived from the instance's addresses", () => {
-    const listed = src("l", { "Rate Limit IDs": "To be specified", "Token Address": VAULT });
+  it("lists, for an ID left to be specified, the held keys derived from the instance's addresses", () => {
+    const listed = src("l", { "Rate Limit IDs": "This parameter will be specified in a future iteration.", "Token Address": VAULT });
     expect(get(listed, "Rate Limit IDs")).toMatchObject({ status: "not-stated", limits: [{ key: HELD }] });
+  });
+  it("offers no likely key for an ID the atlas says does not apply, or through an address another instance also lists", () => {
+    expect(get(src("n", { "Rate Limit IDs": "N/A", "Token Address": VAULT }), "Rate Limit IDs")).toMatchObject({ status: "not-stated", limits: [] });
+    const tbs = "This parameter will be specified in a future iteration.";
+    const [a, b] = [src("a", { "Rate Limit IDs": tbs, "Token Address": VAULT }), src("b", { "Rate Limit IDs": tbs, "Token Address": VAULT })];
+    expect(checkAtlasAddresses([a, b], snaps).get(addressCheckId("a", "Rate Limit IDs"))?.limits).toEqual([]);
   });
 });
 

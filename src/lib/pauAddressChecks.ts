@@ -10,7 +10,10 @@ import type { LiveRateLimit, PauParam, StoredPauSnapshot } from "./pau.ts";
 import { RATE_LIMIT_ID_RE } from "./atlasHashes.ts";
 import { VALUE_PARAM_RE } from "./pauParams.ts";
 import { chainInText, instanceChain } from "./pauInstanceChain.ts";
-import { listedAddresses, type ValueSource } from "./pauInstanceKeys.ts";
+import { instanceKeys, listedAddresses, sharedAddresses, type ValueSource } from "./pauInstanceKeys.ts";
+import { isUnstated, NOT_INDEXED } from "./plainCheck.ts";
+
+export { NOT_INDEXED };
 
 export type AddressStatus = "match" | "mismatch" | "not-set" | "not-stated" | "unsure";
 
@@ -32,8 +35,6 @@ export interface AddressCheck {
   symbols: Record<string, string>;
 }
 
-/** The reason given where no contract on the param's chain is indexed. */
-export const NOT_INDEXED = "param or contract not yet indexed";
 
 const HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
@@ -63,12 +64,21 @@ function noAnswer(chain: string | null, snaps: StoredPauSnapshot[], absent: stri
   return snaps.every((s) => s.contracts.every((c) => c.historyComplete)) ? absent : `${absent} (history still being read)`;
 }
 
-function idCheck(value: string, src: ValueSource, chain: string | null, snaps: StoredPauSnapshot[]): AddressCheck {
+/**
+ * The held keys an ID the atlas leaves to be specified probably is: the ones
+ * instanceKeys derives from the instance's own addresses, through the argument
+ * that identifies the integration and never an address another instance also
+ * lists. Any other unstated text ("N/A") has none.
+ */
+function candidateKeys(value: string, src: ValueSource, snaps: StoredPauSnapshot[], shared: Set<string>): LiveRateLimit[] {
+  if (!isUnstated(value)) return [];
+  const keys = new Set(instanceKeys(src, snaps, shared).map((k) => k.key));
+  return limitsOf(snaps).filter((r) => keys.has(r.key.toLowerCase()));
+}
+
+function idCheck(value: string, src: ValueSource, chain: string | null, snaps: StoredPauSnapshot[], shared: Set<string>): AddressCheck {
   const base = { kind: "rate-limit-id" as const, subject: value.toLowerCase(), chain, limits: [], params: [], onchain: [], symbols: {} };
-  if (!HASH_RE.test(value)) {
-    const listed = new Set(listedAddresses(src));
-    return { ...base, status: "not-stated", reason: "the atlas states no ID yet", limits: limitsOf(snaps).filter((r) => argsOf(r).some((a) => listed.has(a))) };
-  }
+  if (!HASH_RE.test(value)) return { ...base, status: "not-stated", reason: "the atlas states no ID yet", limits: candidateKeys(value, src, snaps, shared) };
   const key = value.toLowerCase();
   const limits = limitsOf(snaps).filter((r) => r.key.toLowerCase() === key);
   if (limits.length) return { ...base, status: "match", limits };
@@ -104,14 +114,14 @@ function underlyingCheck(address: string, src: ValueSource, chain: string | null
 }
 
 /** One param's check, or null for a param that is neither an ID nor an address. */
-function paramCheck(src: ValueSource, name: string, value: string, all: StoredPauSnapshot[]): AddressCheck | null {
+function paramCheck(src: ValueSource, name: string, value: string, all: StoredPauSnapshot[], shared: Set<string>): AddressCheck | null {
   const chain = chainInText(name) ?? instanceChain(src);
   const snaps = chain ? all.filter((s) => s.chain === chain) : [];
   const v = value.trim();
   const address = ADDRESS_RE.test(v) ? v.toLowerCase() : null;
   if (address && /underlying/i.test(name)) return underlyingCheck(address, src, chain, snaps);
   if (address) return addressCheck(address, chain, snaps);
-  return RATE_LIMIT_ID_RE.test(name) ? idCheck(v, src, chain, snaps) : null;
+  return RATE_LIMIT_ID_RE.test(name) ? idCheck(v, src, chain, snaps, shared) : null;
 }
 
 /** `${instance doc id}|${param name}`: the key a card row looks its check up by. */
@@ -120,10 +130,11 @@ export const addressCheckId = (instanceDocId: string, param: string) => `${insta
 /** Every allocation instance's ID and address params, checked against the prime's snapshots. */
 export function checkAtlasAddresses(sources: ValueSource[], snaps: StoredPauSnapshot[]): Map<string, AddressCheck> {
   const out = new Map<string, AddressCheck>();
+  const shared = sharedAddresses(sources);
   for (const src of sources) {
     if (!src.docId || src.constant || !isAllocation(src)) continue;
     for (const [name, [value]] of Object.entries(src.params)) {
-      const c = paramCheck(src, name, value, snaps);
+      const c = paramCheck(src, name, value, snaps, shared);
       if (c) out.set(addressCheckId(src.docId, name), c);
     }
   }

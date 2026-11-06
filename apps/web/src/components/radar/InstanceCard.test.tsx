@@ -82,6 +82,10 @@ describe("InstanceCard on-chain marks", () => {
     expect(shown(container)).toEqual(["candidate"]);
     rerender(<InstanceCard inst={tbs} marks={withKey(new Map([["ethereum|0xk", [{ ...on, configured: { maxAmount: "0", slope: "0" } }]]]))} />);
     expect(shown(container)).toEqual(["not-stated"]);
+    const na = { ...tbs, signalParams: [{ ...tbs.signalParams[0], value: "N/A - swap only" }] };
+    const naMarks: CardMarks = { values: indexParamChecks([{ ...stated, stated: "N/A - swap only" }]), addresses: new Map(), plain: new Map(), held: new Map([["ethereum|0xk", [on]]]) };
+    rerender(<InstanceCard inst={na} marks={naMarks} />);
+    expect(shown(container)).toEqual(["not-stated"]);
   });
 
   it("keeps no mark column on a card with nothing checked", () => {

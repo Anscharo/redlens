@@ -4,7 +4,7 @@
 // so a mark means the same thing wherever it appears.
 import type { ValueCheck, ValueStatus } from "@/lib/pauAtlasValues";
 import type { LiveRateLimit } from "@/lib/pau";
-import { NOT_INDEXED } from "@/lib/pauAddressChecks";
+import { NOT_INDEXED } from "@/lib/plainCheck";
 import { formatAmount, formatPerDay, limitDecimals } from "./pau";
 
 export const VALUE_STATUS: Record<ValueStatus, { mark: string; text: string }> = {

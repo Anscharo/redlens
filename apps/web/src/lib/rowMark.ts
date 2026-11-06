@@ -5,7 +5,8 @@
 // column and one tooltip for both.
 import type { LiveRateLimit, SetAt } from "@/lib/pau";
 import { addressCheckId, type AddressCheck } from "@/lib/pauAddressChecks";
-import type { PlainCheck } from "@/lib/agentChecks";
+import type { PlainCheck } from "@/lib/plainCheck";
+export { shortAddress } from "@/lib/plainCheck";
 import type { InstanceParam } from "@/lib/radarRules";
 import { addressRowMark } from "./addressMarks";
 import { checksForParam, unstatedValueMark, valueRowMark, type ParamChecks, type ParamMark } from "./paramChecks";
@@ -43,9 +44,6 @@ export function rowMarkFor(marks: CardMarks, instanceDocId: string | null, p: In
   const plain = id ? marks.plain.get(id) : undefined;
   return plain ? { mark: plain.status, head: plain.head, lines: plain.lines, docId: p.srcDocId ?? instanceDocId } : null;
 }
-
-/** "0xdc03…384f". */
-export const shortAddress = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
 /** A reason as the first words of a line. */
 export const sentence = (s: string) => `${s[0].toUpperCase()}${s.slice(1)}`;

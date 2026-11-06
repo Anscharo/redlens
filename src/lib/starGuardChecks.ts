@@ -4,16 +4,13 @@
 // checks the atlas's "StarGuard Max Delay", and its subProxy() confirms a
 // SubProxy Account where none of the Prime's controller contracts is indexed.
 import type { ChainValue } from "./chainstateTypes.ts";
-import type { PlainCheck } from "./agentChecks.ts";
-import { NOT_INDEXED } from "./pauAddressChecks.ts";
+import { notIndexed, shortAddress as short, type PlainCheck } from "./plainCheck.ts";
 import type { ValueSource } from "./pauInstanceKeys.ts";
 
 type Values = Record<string, Record<string, ChainValue>>;
 
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 const UNIT_SECONDS: Record<string, number> = { second: 1, minute: 60, hour: 3_600, day: 86_400, week: 604_800 };
-const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
-const notIndexed: PlainCheck = { status: "unsure", head: "Can't be checked", lines: [{ text: `${NOT_INDEXED[0].toUpperCase()}${NOT_INDEXED.slice(1)}.` }] };
 
 /** The StarGuard whose subProxy() is `subProxy`, with its address. */
 export function starGuardOf(values: Values, subProxy: string): { address: string; state: Record<string, ChainValue> } | null {

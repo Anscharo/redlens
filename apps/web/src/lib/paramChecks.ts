@@ -7,6 +7,7 @@ import { valueParam, type ValueCheck } from "@/lib/pauAtlasValues";
 import type { InstanceParam } from "@/lib/radarRules";
 import type { LiveRateLimit } from "@/lib/pau";
 import { isOff } from "@/lib/pauLimitOrder";
+import { isUnstated } from "@/lib/plainCheck";
 import { heldKeyId, sentence, type RowMark, type TipLine } from "./rowMark";
 import { contractValue, fieldValue, isCompared, VALUE_STATUS } from "./valueStatus";
 
@@ -89,11 +90,11 @@ export function valueRowMark(checks: ValueCheck[]): RowMark {
 /**
  * A value the atlas leaves to be specified while the PAU holds its key switched
  * on: the atlas is probably behind, so the row gets the "candidate" mark with
- * what the chain holds. Null when every check is not "not-stated", or no key of
- * them is held on.
+ * what the chain holds. Null for any other value (an "N/A" says it does not
+ * apply), and when no key of its checks is held on.
  */
 export function unstatedValueMark(checks: ValueCheck[], held: ReadonlyMap<string, LiveRateLimit[]>): RowMark | null {
-  if (paramMark(checks) !== "not-stated") return null;
+  if (paramMark(checks) !== "not-stated" || !isUnstated(checks[0].stated)) return null;
   const limits = checks.flatMap((c) => (c.key && c.chain ? (held.get(heldKeyId(c.chain, c.key)) ?? []) : [])).filter((r) => !isOff(r));
   if (limits.length === 0) return null;
   const field = checks[0].field;

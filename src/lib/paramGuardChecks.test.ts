@@ -50,6 +50,11 @@ describe("checkGuardParams: max slippage", () => {
   it("reads a value the atlas leaves to be specified, with nothing on-chain, as unstated", () => {
     expect(get({ "Token Address": USDC, "Max Slippage": "The `maxSlippage` will be specified in a future iteration." }, "Max Slippage")?.status).toBe("not-stated");
   });
+  it("reads a guard left to be specified on a chain with nothing indexed as unstated, and a stated one as not yet indexed", () => {
+    const onBase = (value: string) => checkGuardParams([{ name: "Base - X", docId: "b", params: { "Max Slippage": [value, "b"] } }], snaps).get(addressCheckId("b", "Max Slippage"));
+    expect(onBase("This will be specified in a future iteration.")?.status).toBe("not-stated");
+    expect(onBase("0.1%")).toMatchObject({ status: "unsure", lines: [{ text: "Param or contract not yet indexed." }] });
+  });
   it("stays unsure where nothing is set on the addresses an instance lists, since the guard may sit on one it does not", () => {
     expect(get({ "Token Address": USDC, "TransferAssets Rate Limit / maxSlippage": "0.2%" }, "TransferAssets Rate Limit / maxSlippage")).toMatchObject({ status: "unsure", lines: [{ text: "No max slippage is set on-chain for the addresses this instance lists." }] });
   });

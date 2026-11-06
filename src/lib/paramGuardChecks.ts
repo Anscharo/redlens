@@ -7,8 +7,8 @@
 // instance's key. Nothing here is read live. A value the atlas leaves to be
 // specified while the chain holds one gets the "candidate" mark.
 import type { AmountUnit, BeamDefault, ContractState, LiveRateLimit, PauParam, StoredPauSnapshot } from "./pau.ts";
-import type { PlainCheck, PlainLine } from "./agentChecks.ts";
-import { addressCheckId, NOT_INDEXED } from "./pauAddressChecks.ts";
+import { addressCheckId } from "./pauAddressChecks.ts";
+import { isUnstated, notIndexed, type PlainCheck, type PlainLine } from "./plainCheck.ts";
 import { chainInText, instanceChain } from "./pauInstanceChain.ts";
 import { instanceKeys, listedAddresses, valueSide, type ValueSource } from "./pauInstanceKeys.ts";
 import { exchangeRateText, slippageText } from "./pauParamValue.ts";
@@ -16,7 +16,6 @@ import { parseStated } from "./pauParams.ts";
 import { verdict } from "./pauValueVerdict.ts";
 import { formatAmount, formatPerDay, limitDecimals } from "./pauView.ts";
 
-const UNSTATED_RE = /specified in a future/i;
 const DEFAULT_RE = /^(.*?)\s*Rate\s*Limits?\s+Default\s*\/\s*(maxAmount|slope)\b/i;
 const RATE_CALL_RE = /setMaxExchangeRate\(\s*\w+\s*,\s*([\d.]+(?:e\d+)?)\s*,\s*([\d.]+(?:e\d+)?)\s*\)/i;
 const WAD = 10n ** 18n;
@@ -35,13 +34,11 @@ const paramsOn = (snaps: StoredPauSnapshot[], event: RegExp, subjects: Set<strin
 /** A verdict over every stored value: all `expected` is a match, any other a mismatch; `show` says a raw value in words. */
 function judge(stated: string, expected: bigint | null, raws: string[], show: (raw: string) => string, atlas: string | null): PlainCheck {
   const onchain: PlainLine[] = [...new Set(raws)].map((raw) => ({ label: "On-chain", value: show(raw) }));
-  if (UNSTATED_RE.test(stated)) return { status: "candidate", head: "The atlas states no value, but the chain holds one", lines: onchain };
+  if (isUnstated(stated)) return { status: "candidate", head: "The atlas states no value, but the chain holds one", lines: onchain };
   if (expected === null) return { status: "unsure", head: "Can't be checked", lines: [{ text: "Atlas value not read." }, ...onchain] };
   if (raws.every((r) => BigInt(r) === expected)) return { status: "match", head: "Matches the chain", lines: onchain };
   return { status: "mismatch", head: "Differs from the chain", lines: [...onchain, { label: "Atlas", value: atlas ?? stated }] };
 }
-
-const notIndexed: PlainCheck = { status: "unsure", head: "Can't be checked", lines: [{ text: `${NOT_INDEXED[0].toUpperCase()}${NOT_INDEXED.slice(1)}.` }] };
 
 /**
  * Why no guard was found. A value the atlas leaves to be specified is just
@@ -50,8 +47,10 @@ const notIndexed: PlainCheck = { status: "unsure", head: "Can't be checked", lin
  * has none set; for listed addresses it stays unsure, because the guard may be
  * keyed by an address the atlas does not list (an OTC exchange it leaves TBD).
  */
+const unstated = (guard: string): PlainCheck => ({ status: "not-stated", head: "The atlas states no value yet", lines: [{ text: `No ${guard} is found on-chain either.` }] });
+
 function absent(guard: string, stated: string, snaps: StoredPauSnapshot[], byPoolId: boolean): PlainCheck {
-  if (UNSTATED_RE.test(stated)) return { status: "not-stated", head: "The atlas states no value yet", lines: [{ text: `No ${guard} is found on-chain either.` }] };
+  if (isUnstated(stated)) return unstated(guard);
   const read = snaps.every((s) => s.contracts.filter((c) => c.role === "controller").every((c) => c.historyComplete));
   if (!read) return notIndexed;
   if (byPoolId) return { status: "not-set", head: "Not set on the contract", lines: [{ text: `No ${guard} is set on-chain for this pool.` }] };
@@ -100,7 +99,7 @@ function defaultCheck(src: ValueSource, name: string, stated: string, snaps: Sto
   const found = beams.flatMap((c) => c.beam!.defaults.filter((d) => keys.has(d.key.toLowerCase())));
   if (found.length === 0) return { status: "not-set", head: "Not set on the contract", lines: [{ text: "No Configurator default limit is set for this instance's key." }] };
   const lines: PlainLine[] = found.map((d) => ({ label: "On-chain default", value: defaultValue(d, unitOf(d, beams), field) }));
-  if (UNSTATED_RE.test(stated)) return { status: "candidate", head: "The atlas states no value, but the chain holds one", lines };
+  if (isUnstated(stated)) return { status: "candidate", head: "The atlas states no value, but the chain holds one", lines };
   const s = parseStated(stated);
   const agrees = (d: BeamDefault) => !!s && s.kind !== "none" && verdict(s, field, asLimit(d, unitOf(d, beams))) === "match";
   return found.every(agrees) ? { status: "match", head: "Matches the chain", lines } : { status: "mismatch", head: "Differs from the chain", lines: [...lines, { label: "Atlas", value: stated }] };
@@ -120,16 +119,16 @@ interface Subjects {
  * another integration's guard; otherwise its listed addresses.
  */
 function subjectsOf(src: ValueSource): Subjects {
-  const poolId = Object.values(src.params).map(([v]) => v.trim().toLowerCase()).find((v, i) => /pool\s*id/i.test(Object.keys(src.params)[i]) && /^0x[0-9a-f]{64}$/.test(v));
+  const poolId = Object.entries(src.params).map(([name, [v]]) => [name, v.trim().toLowerCase()]).find(([name, v]) => /pool\s*id/i.test(name) && /^0x[0-9a-f]{64}$/.test(v))?.[1];
   return poolId ? { subjects: new Set([poolId, `0x${poolId.slice(-40)}`]), byPoolId: true } : { subjects: new Set(listedAddresses(src)), byPoolId: false };
 }
 
-function paramCheck(src: ValueSource, name: string, value: string, all: StoredPauSnapshot[]): PlainCheck | null {
+function paramCheck(src: ValueSource, subjects: Subjects, name: string, value: string, all: StoredPauSnapshot[]): PlainCheck | null {
   const chain = chainInText(name) ?? instanceChain(src);
   const snaps = chain ? all.filter((s) => s.chain === chain) : [];
-  const subjects = subjectsOf(src);
-  if (/slippage/i.test(name)) return snaps.length ? slippageCheck(value, subjects, snaps) : notIndexed;
-  if (/exchange\s*rate/i.test(name)) return snaps.length ? exchangeRateCheck(value, subjects, snaps) : notIndexed;
+  const unread = (guard: string) => (isUnstated(value) ? unstated(guard) : notIndexed);
+  if (/slippage/i.test(name)) return snaps.length ? slippageCheck(value, subjects, snaps) : unread("max slippage");
+  if (/exchange\s*rate/i.test(name)) return snaps.length ? exchangeRateCheck(value, subjects, snaps) : unread("max exchange rate");
   if (DEFAULT_RE.test(name)) return snaps.length ? defaultCheck(src, name, value, all) : notIndexed;
   return null;
 }
@@ -139,8 +138,9 @@ export function checkGuardParams(sources: ValueSource[], snaps: StoredPauSnapsho
   const out = new Map<string, PlainCheck>();
   for (const src of sources) {
     if (!src.docId || src.constant) continue;
+    const subjects = subjectsOf(src);
     for (const [name, [value]] of Object.entries(src.params)) {
-      const c = paramCheck(src, name, value, snaps);
+      const c = paramCheck(src, subjects, name, value, snaps);
       if (c) out.set(addressCheckId(src.docId, name), c);
     }
   }

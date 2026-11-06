@@ -42,7 +42,8 @@ export function usePrimeCardMarks(primeId: string | undefined): CardMarks | null
   const chain = useLoaded(loadChainState, { soft: true });
   return useMemo(() => {
     const sources = res && primeId ? graphPrimeSources(primeId, graph, atlas ?? undefined) : null;
-    if (!res || !primeId || !sources) return null;
+    // A failed /api/pau resolves to no deployments at all: say nothing rather than mark every row unindexed.
+    if (!res || res.deployments.length === 0 || !primeId || !sources) return null;
     const snaps = snapshotsForPrime(res, primeId);
     return { values: indexParamChecks(checkAtlasValues(sources, snaps)), addresses: checkAtlasAddresses(sources, snaps), plain: new Map([...checkAgentInstances(sources, snaps, chain?.values ?? null), ...checkGuardParams(sources, snaps)]), held: heldKeys(snaps) };
   }, [res, graph, atlas, chain, primeId]);

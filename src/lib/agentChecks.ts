@@ -8,7 +8,8 @@
 // value to be specified while the token is on-chain the atlas is probably behind.
 import type { ChainValue } from "./chainstateTypes.ts";
 import type { StoredPauSnapshot } from "./pau.ts";
-import { addressCheckId, NOT_INDEXED, type AddressStatus } from "./pauAddressChecks.ts";
+import { addressCheckId } from "./pauAddressChecks.ts";
+import { isUnstated, NOT_INDEXED, shortAddress as short, unsure, type PlainCheck, type PlainLine } from "./plainCheck.ts";
 import { contractLabel } from "./pauHolderNames.ts";
 import { chainInText, instanceChain } from "./pauInstanceChain.ts";
 import type { ValueSource } from "./pauInstanceKeys.ts";
@@ -16,23 +17,11 @@ import { parseStated } from "./pauParams.ts";
 import { exactAmount } from "./pauView.ts";
 import { maxDelayCheck, subProxyByStarGuard } from "./starGuardChecks.ts";
 
-export type PlainLine = { label: string; value: string } | { text: string };
-
-/** A row's verdict, said in full: "candidate" when the chain holds what the atlas leaves to be specified. */
-export interface PlainCheck {
-  status: AddressStatus | "candidate";
-  head: string;
-  lines: PlainLine[];
-}
-
 /** chain_state's values, by contract address in any case. */
 export type ChainValues = Record<string, Record<string, ChainValue>>;
 
 const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
-const UNSTATED_RE = /specified in a future/i;
 const isAdminRole = (role: string) => /^0x0{64}$/.test(role) || /DEFAULT_ADMIN/i.test(role);
-const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
-const unsure = (text: string): PlainCheck => ({ status: "unsure", head: "Can't be checked", lines: [{ text: `${text[0].toUpperCase()}${text.slice(1)}.` }] });
 
 function subProxyCheck(address: string, chain: string | null, snaps: StoredPauSnapshot[], values: ChainValues | null): PlainCheck {
   const contracts = chain ? snaps.filter((s) => s.chain === chain).flatMap((s) => s.contracts) : [];
@@ -77,7 +66,7 @@ function tokenFieldCheck(name: string, stated: string, token: Record<string, Cha
   const onchain = FIELD[name].read(token);
   if (onchain === null) return null;
   const shown = name === "Genesis Supply" ? onchain.replace(/\B(?=(\d{3})+(?!\d))/g, ",") : onchain;
-  if (UNSTATED_RE.test(stated)) return { status: "candidate", head: "The atlas states no value, but the chain holds one", lines: [{ label: "On-chain", value: shown }] };
+  if (isUnstated(stated)) return { status: "candidate", head: "The atlas states no value, but the chain holds one", lines: [{ label: "On-chain", value: shown }] };
   if (FIELD[name].same(stated, onchain)) return { status: "match", head: "Matches the chain", lines: [{ label: "On-chain", value: shown }] };
   const note: PlainLine[] = name === "Genesis Supply" ? [{ text: "This is the current supply: burns or emissions since genesis also change it." }] : [];
   return { status: "mismatch", head: "Differs from the chain", lines: [{ label: "On-chain", value: shown }, { label: "Atlas", value: stated }, ...note] };
