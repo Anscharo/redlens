@@ -192,6 +192,16 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: ["From Radar, open a primitive to view its dashboard and activation matrix."],
       },
       {
+        name: "Instance cards checked against the chain",
+        what: "On a Prime Agent's Primitives page, each instance card marks every maxAmount and slope it states against the Prime's PAU contracts: ✓ where the chain holds the same value, ✗ where it differs, ! where the key was read and never set, ? where it cannot be compared, and – where the Atlas has not set the value yet. Every parameter also links to the Atlas document that states it.",
+        how: [
+          "Open a Prime Agent on Radar and pick `Primitives` under its name in the actor list.",
+          "Hover a mark to see what the contract holds (and the Atlas value beside it on a ✗), when the limit was set, linked to its transaction, and when the contract was read; click the mark to open the document's Onchain tab.",
+          "Hover a parameter row to show the link (chain) icon after its name, and click it to open the document stating that parameter.",
+        ],
+        note: "Marks appear only for Primes whose controller contracts the atlas worker has read.",
+      },
+      {
         name: "Monthly settlement charts",
         what: "On primes that publish a Monthly Settlement Cycle workbook, the actor page shows last month's take; a full cycle page charts Sky's share, supply kept, and demand-side, plus the demand-side mix and venue AUM.",
         how: [

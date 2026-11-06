@@ -1,0 +1,34 @@
+// How a rate-limit value check reads to a person: one glyph and one phrase per
+// status, and the contract's own value in its token's units. The reader's
+// "Atlas vs contract" panel and the Radar instance cards both say it this way,
+// so a mark means the same thing wherever it appears.
+import type { ValueCheck, ValueStatus } from "@/lib/pauAtlasValues";
+import { formatAmount, formatPerDay, limitDecimals } from "./pau";
+
+export const VALUE_STATUS: Record<ValueStatus, { mark: string; text: string }> = {
+  match: { mark: "✓", text: "matches the atlas" },
+  mismatch: { mark: "✗", text: "differs from the atlas" },
+  "units-unknown": { mark: "?", text: "token units not confirmed" },
+  ambiguous: { mark: "?", text: "more than one key could be this one" },
+  "not-set": { mark: "!", text: "not set on the contract" },
+  unread: { mark: "…", text: "contract not read yet" },
+  "no-deployment": { mark: "–", text: "no PAU indexed on this chain" },
+  "unknown-chain": { mark: "–", text: "chain not recognised" },
+  "no-key": { mark: "–", text: "no rate-limit key found" },
+  "not-stated": { mark: "–", text: "the atlas sets no value yet" },
+  unparsed: { mark: "?", text: "atlas value not read" },
+};
+
+/** A check the contract was certainly compared on: its `limit.data` is read. */
+export const isCompared = (c: ValueCheck) => c.status === "match" || c.status === "mismatch";
+
+/** What the contract holds for the value, in its token's units; call only for a compared check. */
+export function contractValue(c: ValueCheck): string {
+  const r = c.limit!;
+  const max = r.data!.maxAmount;
+  const dec = limitDecimals(r.unit, max);
+  const symbol = r.unit?.symbol ? ` ${r.unit.symbol}` : "";
+  const amount = formatAmount(max, dec);
+  if (amount === "unlimited") return amount;
+  return c.field === "maxAmount" ? `${amount}${symbol}` : `${formatPerDay(r.data!.slope, dec)}${symbol} per day`;
+}

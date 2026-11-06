@@ -11,6 +11,7 @@ import { INVOCATION_STATUS_LABEL, isInvocationStatus } from "@/lib/radarRules";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { StatusPill } from "../reports/RewardsCells";
 import { RadarHeading } from "./RadarHeading";
+import { checksForParam, type ParamChecks } from "../../lib/paramChecks";
 
 const PARAM_FONT = '10px "Source Code Pro", monospace';
 const MIN_DOTS_PX = 30;
@@ -36,14 +37,25 @@ function ParamRow({ prime, ...line }: ComponentProps<typeof ParamLine> & { prime
   );
 }
 
+interface InstanceCardProps {
+  inst: RadarInstance;
+  prime?: PauPrime;
+  headingLevel?: number;
+  /** The prime's on-chain checks (paramChecks.ts); a card with none checked keeps no mark column. */
+  checks?: ParamChecks;
+}
+
 /** One instance's card. `headingLevel` ranks its name in the page outline;
  *  `prime` (the prime whose page this is) lets a RateLimitID param that lists
- *  an address show the on-chain keys derived from it. */
-export function InstanceCard({ inst, prime, headingLevel = 4 }: { inst: RadarInstance; prime?: PauPrime; headingLevel?: number }) {
+ *  an address show the on-chain keys derived from it, and `checks` marks each
+ *  maxAmount and slope against the chain. */
+export function InstanceCard({ inst, prime, headingLevel = 4, checks }: InstanceCardProps) {
   const colWidth = useMemo(() => {
     if (inst.signalParams.length === 0) return MIN_DOTS_PX;
     return Math.max(...inst.signalParams.map((p) => measureKeyPx(p.key))) + MIN_DOTS_PX;
   }, [inst.signalParams]);
+  const rowChecks = useMemo(() => inst.signalParams.map((p) => (checks ? checksForParam(checks, inst.docId, p) : [])), [checks, inst.docId, inst.signalParams]);
+  const markCol = rowChecks.some((c) => c.length > 0);
 
   return (
     <div
@@ -65,7 +77,9 @@ export function InstanceCard({ inst, prime, headingLevel = 4 }: { inst: RadarIns
       </div>
       {inst.signalParams.length > 0 && (
         <div>
-          {inst.signalParams.map((p) => <ParamRow key={p.key} p={p} prime={prime} colWidth={colWidth} instanceHint={inst.displayName} />)}
+          {inst.signalParams.map((p, i) => (
+            <ParamRow key={p.key} p={p} prime={prime} colWidth={colWidth} instanceHint={inst.displayName} checks={rowChecks[i]} markCol={markCol} />
+          ))}
         </div>
       )}
     </div>

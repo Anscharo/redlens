@@ -5,12 +5,17 @@
 // hashes, placeholders, and markdown links. Fixtures are hand-written
 // RadarPrimitive/RadarInstance shapes so no artifacts are loaded.
 
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { ActorInstances } from "./ActorInstances";
 import type { RadarInstance, RadarPrimitive, InstanceParam } from "../../lib/actorIndex";
 import { EXPLORER } from "@/lib/explorer";
+
+// The on-chain marks load the atlas, graph and PAU snapshots; they never arrive
+// here, so no card has a mark column (InstanceCard.test.tsx covers the marks).
+vi.mock("../../lib/docs", async (importOriginal) => ({ ...(await importOriginal<typeof import("../../lib/docs")>()), loadAtlas: () => new Promise(() => {}) }));
+vi.mock("../../lib/graph", () => ({ loadGraph: () => new Promise(() => {}) }));
 
 afterEach(cleanup);
 
