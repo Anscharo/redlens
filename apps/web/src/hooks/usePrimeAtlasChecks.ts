@@ -8,7 +8,8 @@ import { loadPau, snapshotsForPrime } from "../lib/pau";
 import { useLoaded } from "./useAtlasData";
 import { checkAtlasAddresses } from "@/lib/pauAddressChecks";
 import { indexParamChecks } from "../lib/paramChecks";
-import type { CardMarks } from "../lib/rowMark";
+import { heldKeyId, type CardMarks } from "../lib/rowMark";
+import type { LiveRateLimit } from "@/lib/pau";
 
 /** Every value the atlas states for the prime's keys, in its instances and in its limit documents, beside the chain (pauAtlasValues.ts); empty until the graph loads. */
 export function usePrimeAtlasChecks(primeId: string | undefined, snaps: StoredPauSnapshot[]): ValueCheck[] {
@@ -20,6 +21,16 @@ export function usePrimeAtlasChecks(primeId: string | undefined, snaps: StoredPa
   }, [graph, atlas, primeId, snaps]);
 }
 
+/** Every key the snapshots hold, by chain and key. */
+function heldKeys(snaps: StoredPauSnapshot[]): Map<string, LiveRateLimit[]> {
+  const out = new Map<string, LiveRateLimit[]>();
+  for (const s of snaps) for (const c of s.contracts) for (const r of c.rateLimits ?? []) {
+    const id = heldKeyId(s.chain, r.key);
+    out.set(id, [...(out.get(id) ?? []), r]);
+  }
+  return out;
+}
+
 /** Every check an instance card shows for the prime: its values against the contract, and its IDs and addresses against the snapshots; null without a prime, and until the snapshots and graph load. */
 export function usePrimeCardMarks(primeId: string | undefined): CardMarks | null {
   const res = useLoaded(loadPau, { soft: true });
@@ -29,6 +40,6 @@ export function usePrimeCardMarks(primeId: string | undefined): CardMarks | null
     const sources = res && primeId ? graphPrimeSources(primeId, graph, atlas ?? undefined) : null;
     if (!res || !primeId || !sources) return null;
     const snaps = snapshotsForPrime(res, primeId);
-    return { values: indexParamChecks(checkAtlasValues(sources, snaps)), addresses: checkAtlasAddresses(sources, snaps) };
+    return { values: indexParamChecks(checkAtlasValues(sources, snaps)), addresses: checkAtlasAddresses(sources, snaps), held: heldKeys(snaps) };
   }, [res, graph, atlas, primeId]);
 }

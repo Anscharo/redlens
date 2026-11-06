@@ -52,6 +52,7 @@ const marks: CardMarks = {
     [addressCheckId("inst-doc", "Token Address"), address("address", "unsure", { reason: "no PAU rate limit or parameter uses this address" })],
     [addressCheckId("inst-doc", "Underlying Asset Address"), address("underlying", "match", { onchain: ["0x" + "d".repeat(40)] })],
   ]),
+  held: new Map(),
 };
 
 const shown = (container: HTMLElement) => [...container.querySelectorAll("span.w-4")].map((e) => e.getAttribute("data-check"));
@@ -69,6 +70,17 @@ describe("InstanceCard on-chain marks", () => {
     expect(mismatch).toHaveAttribute("href", expect.stringContaining("view=onchain"));
     expect(screen.getByRole("link", { name: "Matches the chain" })).toHaveAttribute("href", expect.stringContaining("inst-doc"));
     expect(screen.getAllByRole("link", { name: "Can't be checked" })).toHaveLength(1);
+  });
+
+  it("flags a value the atlas leaves unstated while the chain holds its key switched on", () => {
+    const tbs = { ...inst, signalParams: [{ key: "Outflow Rate Limit / maxAmount", value: "Will be specified in a future iteration", srcDocId: "outflow-doc" }] };
+    const stated = check("outflow-doc", "Outflow maxAmount", tbs.signalParams[0].value, "not-stated");
+    const on = { ...stated.limit, key: "0xk", configured: { maxAmount: "5000000", slope: "0" }, setAt: { block: 1, time: "2026-01-02T00:00:00Z", tx: "0xt" }, changes: 1, data: null, available: null };
+    const withKey = (held: CardMarks["held"]): CardMarks => ({ values: indexParamChecks([stated]), addresses: new Map(), held });
+    const { container, rerender } = render(<InstanceCard inst={tbs} marks={withKey(new Map([["ethereum|0xk", [on]]]))} />);
+    expect(shown(container)).toEqual(["candidate"]);
+    rerender(<InstanceCard inst={tbs} marks={withKey(new Map([["ethereum|0xk", [{ ...on, configured: { maxAmount: "0", slope: "0" } }]]]))} />);
+    expect(shown(container)).toEqual(["not-stated"]);
   });
 
   it("keeps no mark column on a card with nothing checked", () => {

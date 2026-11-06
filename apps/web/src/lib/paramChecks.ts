@@ -6,8 +6,10 @@
 import { valueParam, type ValueCheck } from "@/lib/pauAtlasValues";
 import type { InstanceParam } from "@/lib/radarRules";
 import { PAU_KIND_LABEL } from "./pau";
-import { sentence, type RowMark, type TipLine } from "./rowMark";
-import { contractValue, isCompared, VALUE_STATUS } from "./valueStatus";
+import type { LiveRateLimit } from "@/lib/pau";
+import { isOff } from "@/lib/pauLimitOrder";
+import { heldKeyId, sentence, type RowMark, type TipLine } from "./rowMark";
+import { contractValue, fieldValue, isCompared, VALUE_STATUS } from "./valueStatus";
 
 export type ParamChecks = ReadonlyMap<string, ValueCheck[]>;
 
@@ -31,9 +33,10 @@ export function checksForParam(index: ParamChecks, instanceDocId: string | null,
 }
 
 /**
- * The one mark a row shows for all its checks. "candidate": the atlas has not
- * stated a RateLimitID, but the PAU holds keys derived from the instance's
- * addresses, one of which is probably the ID it should state (addressMarks.ts).
+ * The one mark a row shows for all its checks. "candidate": the chain holds
+ * what the atlas leaves to be specified, so the atlas is probably behind: a
+ * value whose key is switched on (unstatedValueMark), or a RateLimitID where a
+ * key derived from the instance's addresses is (addressMarks.ts).
  */
 export type ParamMark = "match" | "mismatch" | "not-set" | "not-stated" | "candidate" | "unsure";
 
@@ -79,4 +82,19 @@ export function valueRowMark(checks: ValueCheck[]): RowMark {
   const mark = paramMark(checks)!;
   const atlas: TipLine[] = mark === "mismatch" ? [{ label: "Atlas", value: checks[0].stated }] : [];
   return { mark, head: VALUE_HEAD[mark], lines: [...checkLines(checks), ...atlas], docId: checks[0].docId };
+}
+
+/**
+ * A value the atlas leaves to be specified while the PAU holds its key switched
+ * on: the atlas is probably behind, so the row gets the "candidate" mark with
+ * what the chain holds. Null when every check is not "not-stated", or no key of
+ * them is held on.
+ */
+export function unstatedValueMark(checks: ValueCheck[], held: ReadonlyMap<string, LiveRateLimit[]>): RowMark | null {
+  if (paramMark(checks) !== "not-stated") return null;
+  const limits = checks.flatMap((c) => (c.key && c.chain ? (held.get(heldKeyId(c.chain, c.key)) ?? []) : [])).filter((r) => !isOff(r));
+  if (limits.length === 0) return null;
+  const field = checks[0].field;
+  const lines = limits.flatMap((r): TipLine[] => [{ label: "On-chain", value: fieldValue(r, field) }, { set: r.setAt, chain: checks[0].chain!, readAt: null }]);
+  return { mark: "candidate", head: "The atlas states no value, but the chain holds one", lines: [...lines, { label: "Atlas", value: checks[0].stated }], docId: checks[0].docId };
 }

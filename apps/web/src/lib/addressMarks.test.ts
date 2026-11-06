@@ -18,7 +18,9 @@ describe("addressRowMark: an ID the atlas has not stated", () => {
     expect(m.lines.filter((l) => "label" in l).map((l) => ("label" in l ? l.label : ""))).toEqual(["LIMIT_AAVE_DEPOSIT", "LIMIT_AAVE_WITHDRAW"]);
   });
 
-  it("stays a plain – when no such key is held", () => {
+  it("stays a plain – when no such key is held, or every one is switched off", () => {
     expect(addressRowMark(unstated([]), "doc").mark).toBe("not-stated");
+    const off = { ...key("0x" + "c".repeat(64), "LIMIT_AAVE_DEPOSIT"), configured: { maxAmount: "0", slope: "0" } };
+    expect(addressRowMark(unstated([off]), "doc").mark).toBe("not-stated");
   });
 });

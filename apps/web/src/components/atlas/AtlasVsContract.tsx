@@ -34,7 +34,7 @@ function Row({ c, label }: { c: ValueCheck; label: string }) {
       <td className="py-1 pr-2 mono" title={compared ? unitNote(c.limit!.unit, max) : undefined} style={compared ? undefined : dim}>
         {compared ? contractValue(c) : s.text}
       </td>
-      <td className="py-1 pr-2 text-center" title={s.text} style={{ color: c.status === "mismatch" || c.status === "not-set" ? "var(--accent)" : "var(--tan-3)" }}>
+      <td className="py-1 pr-2 text-center" title={s.text} style={{ color: c.status === "mismatch" ? "var(--warn)" : "var(--tan-3)" }}>
         <span aria-hidden="true">{s.mark}</span>
         <span className="sr-only">{s.text}</span>
       </td>

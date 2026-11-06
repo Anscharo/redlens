@@ -23,16 +23,18 @@ export const VALUE_STATUS: Record<ValueStatus, { mark: string; text: string }> =
 /** A check the contract was certainly compared on: its `limit.data` is read. */
 export const isCompared = (c: ValueCheck) => c.status === "match" || c.status === "mismatch";
 
-/** What the contract holds for the value, in its token's units; call only for a compared check. */
-export function contractValue(c: ValueCheck): string {
-  const r = c.limit!;
-  const max = r.data!.maxAmount;
-  const dec = limitDecimals(r.unit, max);
+/** A held key's maxAmount or slope in its token's units, from its live read, else the last value its history set. */
+export function fieldValue(r: LiveRateLimit, field: ValueCheck["field"]): string {
+  const { maxAmount, slope } = r.data ?? r.configured;
+  const dec = limitDecimals(r.unit, maxAmount);
   const symbol = r.unit?.symbol ? ` ${r.unit.symbol}` : "";
-  const amount = formatAmount(max, dec);
+  const amount = formatAmount(maxAmount, dec);
   if (amount === "unlimited") return amount;
-  return c.field === "maxAmount" ? `${amount}${symbol}` : `${formatPerDay(r.data!.slope, dec)}${symbol} per day`;
+  return field === "maxAmount" ? `${amount}${symbol}` : `${formatPerDay(slope, dec)}${symbol} per day`;
 }
+
+/** What the contract holds for the value, in its token's units; call only for a compared check. */
+export const contractValue = (c: ValueCheck): string => fieldValue(c.limit!, c.field);
 
 /** A held key's live limit in its token's units: "200M spUSDS · 400M spUSDS/day", or why it has none. */
 export function limitSummary(r: LiveRateLimit): string {

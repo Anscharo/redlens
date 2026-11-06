@@ -15,10 +15,13 @@ const CIRCLED_BANG = (
   </svg>
 );
 
+// Red is kept for "the atlas is probably wrong" (the chain holds what the atlas
+// leaves unstated), because the reader updates the atlas. A disagreement could
+// be either side's, so it is amber; a key the contract never set is grey.
 const LOOK: Record<ParamMark, { glyph: React.ReactNode; color: string }> = {
   match: { glyph: "✓", color: "var(--terminal-green)" },
-  mismatch: { glyph: "✗", color: "var(--error-text)" },
-  "not-set": { glyph: "!", color: "var(--error-text)" },
+  mismatch: { glyph: "✗", color: "var(--warn)" },
+  "not-set": { glyph: "!", color: "var(--tan-3)" },
   "not-stated": { glyph: "–", color: "var(--tan-3)" },
   candidate: { glyph: CIRCLED_BANG, color: "var(--error-text)" },
   unsure: { glyph: "?", color: "var(--tan-3)" },
@@ -59,7 +62,7 @@ function MarkTip({ mark }: { mark: RowMark }) {
 
 /**
  * A card row's verdict against the chain, in the card's mark column: ✓ ✗ ! ?,
- * – or a circled ! (an unstated ID with a likely key on the PAU), linked to the stating document's Onchain tab. The column is kept empty
+ * – or a circled ! (the chain holds an ID or value the atlas leaves unstated), linked to the stating document's Onchain tab. The column is kept empty
  * for a row with nothing to check, so every mark in a card lines up.
  */
 export function ParamCheckMark({ mark }: { mark: RowMark | null }) {
