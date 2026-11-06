@@ -60,3 +60,20 @@ describe("checkAgentInstances: Agent Token", () => {
     expect(get(src("k", { "Token Symbol": "KEEL", "Genesis Supply": "10 billion", "Token Address": "will be specified in a future iteration" }), "Token Symbol", [], values)).toBeUndefined();
   });
 });
+
+describe("checkAgentInstances: StarGuard", () => {
+  const GUARD = "0x" + "9".repeat(40);
+  const values: ChainValues = { [GUARD]: { subProxy: SUB.toUpperCase().replace("0X", "0x"), maxDelay: "604800" } };
+  const creation = (delay: string) => src("g", { "SubProxy Account / Ethereum Mainnet": SUB, "StarGuard Max Delay": delay });
+  it("matches a stated max delay against the StarGuard whose subProxy() is the instance's SubProxy", () => {
+    expect(get(creation("The StarGuard `maxDelay` is seven (7) days."), "StarGuard Max Delay", [], values)).toMatchObject({ status: "match", lines: [{ label: "On-chain", value: "7 days" }, { label: "StarGuard" }] });
+    expect(get(creation("48 hours"), "StarGuard Max Delay", [], values)?.status).toBe("mismatch");
+  });
+  it("confirms a SubProxy through its StarGuard where no controller contract is indexed", () => {
+    expect(get(creation("7 days"), "SubProxy Account / Ethereum Mainnet", [], values)).toMatchObject({ status: "match", lines: [{ label: "SubProxy of", value: "StarGuard 0x9999…9999" }] });
+  });
+  it("says not yet indexed where no StarGuard names the SubProxy", () => {
+    const other: ChainValues = { [GUARD]: { subProxy: OTHER, maxDelay: "604800" } };
+    expect(get(creation("7 days"), "StarGuard Max Delay", [], other)?.lines).toEqual([{ text: "Param or contract not yet indexed." }]);
+  });
+});

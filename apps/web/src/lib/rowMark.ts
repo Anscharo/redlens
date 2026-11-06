@@ -25,7 +25,7 @@ export interface RowMark {
 export interface CardMarks {
   values: ParamChecks;
   addresses: ReadonlyMap<string, AddressCheck>;
-  /** Agent Creation and Agent Token rows, said in full (src/lib/agentChecks.ts). */
+  /** Agent Creation, Agent Token and guard-value rows, said in full (src/lib/agentChecks.ts, paramGuardChecks.ts). */
   plain: ReadonlyMap<string, PlainCheck>;
   /** Every key the prime's PAUs hold, by `${chain}|${key}` (heldKeyId), for a value the atlas leaves unstated. */
   held: ReadonlyMap<string, LiveRateLimit[]>;

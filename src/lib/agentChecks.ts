@@ -1,7 +1,8 @@
 // What the stored on-chain snapshots say about a Prime's Agent Creation and
 // Agent Token instances. A SubProxy Account is checked against the admin role
 // (DEFAULT_ADMIN_ROLE) on the Prime's controller contracts, from the controller
-// snapshots' live hasRole; an agent token's name, symbol and supply against the
+// snapshots' live hasRole, else against its StarGuard's subProxy(); a StarGuard
+// Max Delay against that StarGuard's maxDelay() (starGuardChecks.ts); an agent token's name, symbol and supply against the
 // daily Ethereum chain_state snapshot. Nothing here is read live: where the
 // snapshots hold no answer the check says so, and where the atlas leaves a
 // value to be specified while the token is on-chain the atlas is probably behind.
@@ -13,6 +14,7 @@ import { chainInText, instanceChain } from "./pauInstanceChain.ts";
 import type { ValueSource } from "./pauInstanceKeys.ts";
 import { parseStated } from "./pauParams.ts";
 import { exactAmount } from "./pauView.ts";
+import { maxDelayCheck, subProxyByStarGuard } from "./starGuardChecks.ts";
 
 export type PlainLine = { label: string; value: string } | { text: string };
 
@@ -32,9 +34,9 @@ const isAdminRole = (role: string) => /^0x0{64}$/.test(role) || /DEFAULT_ADMIN/i
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const unsure = (text: string): PlainCheck => ({ status: "unsure", head: "Can't be checked", lines: [{ text: `${text[0].toUpperCase()}${text.slice(1)}.` }] });
 
-function subProxyCheck(address: string, chain: string | null, snaps: StoredPauSnapshot[]): PlainCheck {
+function subProxyCheck(address: string, chain: string | null, snaps: StoredPauSnapshot[], values: ChainValues | null): PlainCheck {
   const contracts = chain ? snaps.filter((s) => s.chain === chain).flatMap((s) => s.contracts) : [];
-  if (contracts.length === 0) return unsure(chain ? NOT_INDEXED : "chain not recognised");
+  if (contracts.length === 0) return (chain === "ethereum" && subProxyByStarGuard(address, values)) || unsure(chain ? NOT_INDEXED : "chain not recognised");
   const admins = contracts.flatMap((c) => (c.roles ?? []).filter((r) => isAdminRole(r.role) && r.holds).map((r) => ({ c, account: r.account.toLowerCase() })));
   const mine = [...new Set(admins.filter((a) => a.account === address).map((a) => contractLabel(a.c)))];
   if (mine.length) return { status: "match", head: "Admin on-chain", lines: [{ label: "Admin of", value: mine.join(", ") }] };
@@ -84,7 +86,8 @@ function tokenFieldCheck(name: string, stated: string, token: Record<string, Cha
 /** One param's check, or null for a param neither instance kind checks. */
 function paramCheck(src: ValueSource, name: string, value: string, snaps: StoredPauSnapshot[], values: ChainValues | null): PlainCheck | null {
   const v = value.trim().toLowerCase();
-  if (/subproxy/i.test(name) && ADDRESS_RE.test(v)) return subProxyCheck(v, chainInText(name) ?? instanceChain(src), snaps);
+  if (/subproxy/i.test(name) && ADDRESS_RE.test(v)) return subProxyCheck(v, chainInText(name) ?? instanceChain(src), snaps, values);
+  if (/starguard\s*max\s*delay/i.test(name)) return values ? maxDelayCheck(src, value, values) : null;
   if (!values || !("Genesis Supply" in src.params || "Token Symbol" in src.params)) return null;
   if (/token address/i.test(name) && ADDRESS_RE.test(v)) return tokenAddressCheck(name, v, values);
   const token = FIELD[name] ? tokenOf(src, values) : null;
