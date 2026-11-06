@@ -29,12 +29,13 @@ function docChanges(diff: PreviewDiff, nodeId: string) {
 
 // Prose notes about *how* a doc changed in this preview: the ⚠ identity
 // paragraphs (and the plain "rewritten" one for a swap with no sign of where
-// the old content went), the renumber/retitle lines, and — when a Changed doc has none
+// the old content went), the renumber line, and — when a Changed doc has none
 // of those and no line diff either — one neutral fallback sentence. Neutral
 // on purpose: the cause may be main having caught up with the branch's edit,
 // a raw-only edit the parser normalises away, or a hash-only change — the
 // client can't tell these apart, and a bare "Changed" heading with nothing
-// under it reads as a bug.
+// under it reads as a bug. A title change is not a note: PreviewDocDiff
+// shows it as a word diff above the body diff.
 export function PreviewChangeNotes({ nodeId, meta, source, hasPatch, status }: PreviewChangeNotesProps) {
   const diff = usePreviewDiff();
   const { swap, former, renumber, retitle } = docChanges(diff, nodeId);
@@ -66,14 +67,6 @@ export function PreviewChangeNotes({ nodeId, meta, source, hasPatch, status }: P
         <p className="mt-1" style={{ color: "var(--lilac)" }}>
           renumbered {renumber[0]}{" "}
           <span className="enlargen">→</span> {renumber[1]}
-        </p>
-      )}
-      {/* A swap's ⚠ paragraph already carries the old → new title; a second
-          "retitled" line under it would repeat the same two strings. */}
-      {retitle && !swap && (
-        <p className="mt-1" style={{ color: "var(--lilac)" }}>
-          retitled “{retitle[0]}”{" "}
-          <span className="enlargen">→</span> “{retitle[1]}”
         </p>
       )}
       {silent && (

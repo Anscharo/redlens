@@ -8,13 +8,13 @@ const CHANGE_WORD: Record<PreviewCommitRow["changeType"], string> = {
   renumbered: "renumbered",
 };
 
-/** One row's change line, as the live history words it plus what a branch adds. */
+/** One row's change line, as the live history words it plus what a branch adds.
+ *  A title change is not part of it: CommitEntry shows that as a TitleDiff. */
 export function commitRowLabel(row: PreviewCommitRow): string {
   const parts = [CHANGE_WORD[row.changeType]];
   if (row.changeType === "modified" && row.changeKind && row.changeKind !== "semantic") parts[0] += ` (${row.changeKind})`;
   if (row.changeType === "renumbered" && row.prevDocNo) parts[0] += ` ${row.prevDocNo} → ${row.docNo}`;
   if (row.changeType === "moved" && row.movedTo) parts[0] += `${row.movedFrom ? ` from ${row.movedFrom}` : ""} to ${row.movedTo}`;
-  if (row.prevTitle) parts.push(`retitled from “${row.prevTitle}”`);
   if (row.bothSides) parts.push("both sides' edits met here");
   return parts.join(" · ");
 }

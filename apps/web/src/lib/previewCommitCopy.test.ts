@@ -23,7 +23,7 @@ describe("commitRowLabel", () => {
     expect(commitRowLabel({ ...row, changeType: "modified", changeKind: "typo" })).toBe("edited (typo)");
     expect(commitRowLabel({ ...row, changeType: "moved", movedFrom: "a.md", movedTo: "b.md" })).toBe("moved from a.md to b.md");
     expect(commitRowLabel({ ...row, changeType: "renumbered", prevDocNo: "A.1" })).toBe("renumbered A.1 → A.2");
-    expect(commitRowLabel({ ...row, changeType: "modified", prevTitle: "Old", bothSides: true })).toBe("edited · retitled from “Old” · both sides' edits met here");
+    expect(commitRowLabel({ ...row, changeType: "modified", prevTitle: "Old", bothSides: true })).toBe("edited · both sides' edits met here");
   });
 });
 
