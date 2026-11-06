@@ -35,6 +35,7 @@
 
 ## 2026-11-06
 
+- Added a Filter menu to the preview tree that can hide renumber-only changes or show only new, edited or flagged documents, and enlarged the tree's filter bar
 - Showed title changes in a preview's history as a word diff, above the body changes
 
 ## 2026-11-04

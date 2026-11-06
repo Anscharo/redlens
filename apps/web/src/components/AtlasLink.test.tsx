@@ -17,6 +17,23 @@ describe("AtlasLink", () => {
     expect(params.get("subset")).toBe("changed");
   });
 
+  it("carries a preview's change filters along with subset=changed", () => {
+    window.history.replaceState(null, "", "/atlas?id=old&subset=changed&change=new,edited&base=sky");
+    const { container } = render(<AtlasLink to={atlasHref("new-id")}>go</AtlasLink>);
+    const params = new URLSearchParams(container.querySelector("a")!.getAttribute("href")!.split("?")[1]);
+    expect(params.get("subset")).toBe("changed");
+    expect(params.get("change")).toBe("new,edited");
+    expect(params.get("base")).toBe("sky");
+  });
+
+  it("drops the change filters when the destination picks its own subset", () => {
+    window.history.replaceState(null, "", "/atlas?id=old&subset=changed&change=new");
+    const { container } = render(<AtlasLink to={`${atlasHref("new-id")}&subset=selected`}>go</AtlasLink>);
+    const params = new URLSearchParams(container.querySelector("a")!.getAttribute("href")!.split("?")[1]);
+    expect(params.get("subset")).toBe("selected");
+    expect(params.has("change")).toBe(false);
+  });
+
   it("does not add split/subset when the destination already sets them", () => {
     window.history.replaceState(null, "", "/atlas?id=old&split=cmp&subset=changed");
     const { container } = render(
