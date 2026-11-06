@@ -42,11 +42,9 @@ describe("filterPreviewDocs", () => {
 
 describe("old bundles without renumberedOnly", () => {
   const old = diff({ renumberedOnly: undefined });
-  it("cannot answer Edited, Renumbered only or Substantive", () => {
+  it("cannot answer Edited or Renumbered only, but can answer Changed only", () => {
     expect(PREVIEW_FILTERS.find((f) => f.id === "edited")!.ids(old)).toBeNull();
     expect(PREVIEW_FILTERS.find((f) => f.id === "renumbered")!.ids(old)).toBeNull();
-    const substantive = PREVIEW_FILTER_PRESETS.find((p) => p.label === "Substantive")!;
-    expect(presetAvailable(substantive, old)).toBe(false);
     expect(presetAvailable(PREVIEW_FILTER_PRESETS[0], old)).toBe(true);
   });
 });
@@ -54,7 +52,7 @@ describe("old bundles without renumberedOnly", () => {
 describe("describeFilters", () => {
   it("names a matching preset, else the ticked filters", () => {
     expect(describeFilters([])).toBe("Changed only");
-    expect(describeFilters(["edited", "new"])).toBe("Substantive");
+    expect(describeFilters(["edited", "new"])).toBe("New · Edited");
     expect(describeFilters(["retitled", "new"])).toBe("New · Retitled");
   });
 });

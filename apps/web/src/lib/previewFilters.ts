@@ -75,7 +75,6 @@ export interface PreviewFilterPreset {
 
 export const PREVIEW_FILTER_PRESETS: readonly PreviewFilterPreset[] = [
   { label: "Changed only", description: "Every document this preview adds or changes", filters: [] },
-  { label: "Substantive", description: "Hides documents whose only change is a doc number", filters: ["new", "edited"] },
 ];
 
 function sameFilters(a: readonly PreviewFilterId[], b: readonly PreviewFilterId[]): boolean {

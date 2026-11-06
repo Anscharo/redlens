@@ -59,7 +59,7 @@ describe("PreviewTreeToggle", () => {
     fireEvent.click(await screen.findByText("Filter"));
     const changed = await screen.findByRole("button", { name: /Changed only/ });
     await waitFor(() => expect(changed.textContent).toContain("4"));
-    expect(screen.getByRole("button", { name: /Substantive/ }).textContent).toContain("3");
+    expect(screen.getByLabelText(/Edited/).closest("label")?.textContent).toContain("1");
     expect(screen.getByLabelText(/Renumbered only/).closest("label")?.textContent).toContain("1");
   });
 
@@ -67,14 +67,14 @@ describe("PreviewTreeToggle", () => {
     mockDiff({ added: ["a"], changed: ["c", "d"], renumberedOnly: ["d"] });
     renderToggle(PREVIEW_SOURCE);
     fireEvent.click(await screen.findByText("Filter"));
-    const substantive = await screen.findByRole("button", { name: /Substantive/ });
-    await waitFor(() => expect(substantive).not.toBeDisabled());
-    fireEvent.click(substantive);
-    expect(await screen.findByText("Substantive")).toBeTruthy();
-    expect(screen.getByText("· 2")).toBeTruthy();
+    const changedOnly = await screen.findByRole("button", { name: /Changed only/ });
+    await waitFor(() => expect(changedOnly.textContent).toContain("3"));
+    fireEvent.click(changedOnly);
+    expect(await screen.findByText("Changed only")).toBeTruthy();
+    expect(screen.getByText("· 3")).toBeTruthy();
     expect(screen.queryByRole("group")).toBeNull();
     expect(window.location.search).toContain("subset=changed");
-    expect(window.location.search).toContain("change=new%2Cedited");
+    expect(window.location.search).not.toContain("change=");
   });
 
   it("ticking a filter keeps the menu open; × clears back to All", async () => {
@@ -97,6 +97,6 @@ describe("PreviewTreeToggle", () => {
     fireEvent.click(await screen.findByText("Filter"));
     await waitFor(() => expect(screen.getByLabelText(/^\+?\s*New/)).not.toBeDisabled());
     expect(screen.getByLabelText(/Renumbered only/)).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Substantive/ })).toBeDisabled();
+    expect(screen.getByLabelText(/Edited/)).toBeDisabled();
   });
 });
