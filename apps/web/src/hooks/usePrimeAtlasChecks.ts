@@ -7,6 +7,8 @@ import { loadAtlas } from "../lib/docs";
 import { loadPau, snapshotsForPrime } from "../lib/pau";
 import { useLoaded } from "./useAtlasData";
 import { checkAtlasAddresses } from "@/lib/pauAddressChecks";
+import { checkAgentInstances } from "@/lib/agentChecks";
+import { loadChainState } from "../lib/chainstate";
 import { indexParamChecks } from "../lib/paramChecks";
 import { heldKeyId, type CardMarks } from "../lib/rowMark";
 import type { LiveRateLimit } from "@/lib/pau";
@@ -36,10 +38,11 @@ export function usePrimeCardMarks(primeId: string | undefined): CardMarks | null
   const res = useLoaded(loadPau, { soft: true });
   const graph = useLoaded(loadGraph, { soft: true });
   const atlas = useLoaded(loadAtlas, { soft: true });
+  const chain = useLoaded(loadChainState, { soft: true });
   return useMemo(() => {
     const sources = res && primeId ? graphPrimeSources(primeId, graph, atlas ?? undefined) : null;
     if (!res || !primeId || !sources) return null;
     const snaps = snapshotsForPrime(res, primeId);
-    return { values: indexParamChecks(checkAtlasValues(sources, snaps)), addresses: checkAtlasAddresses(sources, snaps), held: heldKeys(snaps) };
-  }, [res, graph, atlas, primeId]);
+    return { values: indexParamChecks(checkAtlasValues(sources, snaps)), addresses: checkAtlasAddresses(sources, snaps), plain: checkAgentInstances(sources, snaps, chain?.values ?? null), held: heldKeys(snaps) };
+  }, [res, graph, atlas, chain, primeId]);
 }

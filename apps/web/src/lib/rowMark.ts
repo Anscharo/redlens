@@ -5,6 +5,7 @@
 // column and one tooltip for both.
 import type { LiveRateLimit, SetAt } from "@/lib/pau";
 import { addressCheckId, type AddressCheck } from "@/lib/pauAddressChecks";
+import type { PlainCheck } from "@/lib/agentChecks";
 import type { InstanceParam } from "@/lib/radarRules";
 import { addressRowMark } from "./addressMarks";
 import { checksForParam, unstatedValueMark, valueRowMark, type ParamChecks, type ParamMark } from "./paramChecks";
@@ -24,18 +25,23 @@ export interface RowMark {
 export interface CardMarks {
   values: ParamChecks;
   addresses: ReadonlyMap<string, AddressCheck>;
+  /** Agent Creation and Agent Token rows, said in full (src/lib/agentChecks.ts). */
+  plain: ReadonlyMap<string, PlainCheck>;
   /** Every key the prime's PAUs hold, by `${chain}|${key}` (heldKeyId), for a value the atlas leaves unstated. */
   held: ReadonlyMap<string, LiveRateLimit[]>;
 }
 
 export const heldKeyId = (chain: string, key: string) => `${chain}|${key.toLowerCase()}`;
 
-/** A row's mark: its value checks where it states a maxAmount or slope, else its ID or address check; null when nothing checks it. */
+/** A row's mark: its value checks where it states a maxAmount or slope, else its ID or address check, else its agent check; null when nothing checks it. */
 export function rowMarkFor(marks: CardMarks, instanceDocId: string | null, p: InstanceParam): RowMark | null {
   const checks = checksForParam(marks.values, instanceDocId, p);
   if (checks.length) return unstatedValueMark(checks, marks.held) ?? valueRowMark(checks);
-  const check = instanceDocId ? marks.addresses.get(addressCheckId(instanceDocId, p.key)) : undefined;
-  return check ? addressRowMark(check, p.srcDocId ?? instanceDocId) : null;
+  const id = instanceDocId ? addressCheckId(instanceDocId, p.key) : null;
+  const check = id ? marks.addresses.get(id) : undefined;
+  if (check) return addressRowMark(check, p.srcDocId ?? instanceDocId);
+  const plain = id ? marks.plain.get(id) : undefined;
+  return plain ? { mark: plain.status, head: plain.head, lines: plain.lines, docId: p.srcDocId ?? instanceDocId } : null;
 }
 
 /** "0xdc03…384f". */

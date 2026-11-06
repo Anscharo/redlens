@@ -52,6 +52,7 @@ const marks: CardMarks = {
     [addressCheckId("inst-doc", "Token Address"), address("address", "unsure", { reason: "no rate limit or controller parameter on-chain uses this address" })],
     [addressCheckId("inst-doc", "Underlying Asset Address"), address("underlying", "match", { onchain: ["0x" + "d".repeat(40)] })],
   ]),
+  plain: new Map(),
   held: new Map(),
 };
 
@@ -76,7 +77,7 @@ describe("InstanceCard on-chain marks", () => {
     const tbs = { ...inst, signalParams: [{ key: "Outflow Rate Limit / maxAmount", value: "Will be specified in a future iteration", srcDocId: "outflow-doc" }] };
     const stated = check("outflow-doc", "Outflow maxAmount", tbs.signalParams[0].value, "not-stated");
     const on = { ...stated.limit, key: "0xk", configured: { maxAmount: "5000000", slope: "0" }, setAt: { block: 1, time: "2026-01-02T00:00:00Z", tx: "0xt" }, changes: 1, data: null, available: null };
-    const withKey = (held: CardMarks["held"]): CardMarks => ({ values: indexParamChecks([stated]), addresses: new Map(), held });
+    const withKey = (held: CardMarks["held"]): CardMarks => ({ values: indexParamChecks([stated]), addresses: new Map(), plain: new Map(), held });
     const { container, rerender } = render(<InstanceCard inst={tbs} marks={withKey(new Map([["ethereum|0xk", [on]]]))} />);
     expect(shown(container)).toEqual(["candidate"]);
     rerender(<InstanceCard inst={tbs} marks={withKey(new Map([["ethereum|0xk", [{ ...on, configured: { maxAmount: "0", slope: "0" } }]]]))} />);
