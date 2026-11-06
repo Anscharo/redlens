@@ -46,3 +46,11 @@ describe("pauParamValue", () => {
     expect(paramValue(param(), "domain", "3")).toBeNull();
   });
 });
+
+describe("an OTC recharge rate", () => {
+  it("reads an 18-decimal amount per second as a whole amount per day", () => {
+    const p: PauParam = { event: "OTCRechargeRateSet", subject: "0x" + "5".repeat(40), args: {}, setAt: { block: 1, time: "t", tx: "0xt" } };
+    expect(paramValue(p, "newRate18", "578703703703703703")).toMatchObject({ kind: "text", text: "50K per day" });
+    expect(paramValue(p, "oldRate18", "0")).toMatchObject({ text: "0 per day" });
+  });
+});
