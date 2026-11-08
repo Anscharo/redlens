@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-11-09
+
+- Showed address dollar values to the cent, so stablecoin holdings no longer look off their peg
+
 ## 2026-11-06
 
 - Added Uniswap v4 tick limits and OTC desk settings to the Liquidity Layer page's parameters and change history

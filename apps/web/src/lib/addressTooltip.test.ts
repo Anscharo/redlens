@@ -112,7 +112,7 @@ describe("addressHeadlineBalance", () => {
 
   it("sums stablecoins into a compact dollar figure", () => {
     const b = { [`${EVM}|ethereum`]: bal({ USDS: { raw: "3200000000000000000000", decimals: 18 } }) };
-    expect(addressHeadlineBalance(EVM, map, b)).toBe("$3.2K");
+    expect(addressHeadlineBalance(EVM, map, b)).toBe("$3.20K");
   });
 
   it("shows the top non-stable holding as a token amount when there is no stable value", () => {
@@ -127,7 +127,7 @@ describe("addressHeadlineBalance", () => {
         SKY: { raw: "1000000000000000000", decimals: 18 }, // 1 SKY
       }),
     };
-    expect(addressHeadlineBalance(EVM, map, b)).toBe("≈$5.0K+");
+    expect(addressHeadlineBalance(EVM, map, b)).toBe("≈$5.00K+");
   });
 
   it("ignores sub-dollar stable dust and falls back to the token holding", () => {
@@ -158,18 +158,31 @@ describe("addressHeadlineBalance", () => {
         [`${EVM}|ethereum`]: bal({ SKY: { raw: "1000000000000000000000000", decimals: 18 } }), // 1M SKY = $50K
         [`${EVM}|base`]: bal({ ETH: { raw: "2000000000000000000", decimals: 18 } }), // 2 ETH = $6K
       };
-      expect(addressHeadlineBalance(EVM, multi, b, prices)).toBe("$56.0K");
+      expect(addressHeadlineBalance(EVM, multi, b, prices)).toBe("$56.00K");
     });
 
     it("values xDAI at $1 when no price came for it, like the other pegged stables", () => {
       const gnosis = { [EVM]: makeAddressInfo({ chains: ["gnosis"] }) };
       const b = { [`${EVM}|gnosis`]: { ...bal({ xDAI: { raw: "50000000000000000000000", decimals: 18 } }), chain: "gnosis" } };
-      expect(addressHeadlineBalance(EVM, gnosis, b, {})).toBe("$50.0K");
+      expect(addressHeadlineBalance(EVM, gnosis, b, {})).toBe("$50.00K");
+    });
+
+    it("shows a USDS holding's value at the precision of its amount, so the peg reads as a peg", () => {
+      const usds = { USDS: { usd: 0.9998, asOf: "2026-11-02T11:00:00Z" } };
+      const cases = [
+        ["4749749000000000000000000", "4.75M", "$4.75M"],
+        ["1460000000000000000", "1.46", "$1.46"],
+        ["243450000000000000000", "243.45", "$243.40"],
+      ];
+      for (const [raw, amount, usd] of cases) {
+        const b = { [`${EVM}|ethereum`]: bal({ USDS: { raw, decimals: 18 } }) };
+        expect(resolveAddressTooltip(EVM, map, b, usds).held).toEqual([{ symbol: "USDS", amount, chain: undefined, usd }]);
+      }
     });
 
     it("values sUSDS at its price, not at $1", () => {
       const b = { [`${EVM}|ethereum`]: bal({ SUSDS: { raw: "1000000000000000000000", decimals: 18 } }) };
-      expect(addressHeadlineBalance(EVM, map, b, prices)).toBe("$1.1K");
+      expect(addressHeadlineBalance(EVM, map, b, prices)).toBe("$1.08K");
       expect(addressHeadlineBalance(EVM, map, b, {})).toBe("1.00K SUSDS");
     });
 
@@ -178,7 +191,7 @@ describe("addressHeadlineBalance", () => {
       const leftBehind = { SKY: { usd: 0.05, asOf: "2026-10-30T11:00:00Z" }, ETH: { usd: 3000, asOf: "2026-11-02T11:00:00Z" } };
       expect(addressHeadlineBalance(EVM, map, b, leftBehind)).toBe("35.44M SKY");
       const allOld = { SKY: { usd: 0.05, asOf: "2026-10-01T11:00:00Z" }, ETH: { usd: 3000, asOf: "2026-10-01T11:00:00Z" } };
-      expect(addressHeadlineBalance(EVM, map, b, allOld)).toBe("$1.8M");
+      expect(addressHeadlineBalance(EVM, map, b, allOld)).toBe("$1.77M");
     });
 
     it("gives each held token its USD value and the total in the hover", () => {
@@ -189,8 +202,8 @@ describe("addressHeadlineBalance", () => {
         }),
       };
       const { held, value } = resolveAddressTooltip(EVM, map, b, prices);
-      expect(held.map((h) => [h.symbol, h.usd])).toEqual([["SKY", "$50.0K"], ["MKR", undefined]]);
-      expect(value).toBe("≈$50.0K+");
+      expect(held.map((h) => [h.symbol, h.usd])).toEqual([["SKY", "$50.00K"], ["MKR", undefined]]);
+      expect(value).toBe("≈$50.00K+");
     });
   });
 

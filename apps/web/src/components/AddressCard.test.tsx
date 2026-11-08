@@ -36,8 +36,8 @@ describe("AddressCard", () => {
     };
     resetSharedBalances();
     const { container } = render(<AddressCard address={ADDR} info={makeAddressInfo({ chains: ["ethereum"] })} />);
-    expect(container.querySelector("[data-value]")).toHaveTextContent("≈$6.0K+");
-    expect([...container.querySelectorAll("[data-usd]")].map((e) => e.textContent)).toEqual(["$6.0K", ""]);
+    expect(container.querySelector("[data-value]")).toHaveTextContent("≈$6.00K+");
+    expect([...container.querySelectorAll("[data-usd]")].map((e) => e.textContent)).toEqual(["$6.00K", ""]);
   });
 
   it("renders the address as an explorer link opened in a new tab", () => {
