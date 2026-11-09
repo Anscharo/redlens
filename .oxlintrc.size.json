@@ -94,9 +94,9 @@
     // entry is how the guide is meant to grow; a split would scatter one catalog.
     // The Features guide is the one list of what the app does, so every
     // user-visible feature is described here (a Prime's subpages, each report,
-    // the PAU Values Needing Audit report among them). It is data with no seam to
+    // the PAU Values Needing Audit report and the instance-card on-chain marks among them). It is data with no seam to
     // split along, so the pin rises by exactly what a new entry needs.
-    { "files": ["src/lib/featuresData.ts"], "rules": { "max-lines": ["error", { "max": 426, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["src/lib/featuresData.ts"], "rules": { "max-lines": ["error", { "max": 436, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/oeaTasks.ts"], "rules": { "max-lines-per-function": ["error", { "max": 97, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/onchainAddressesIndex.ts"], "rules": { "max-lines": ["error", { "max": 345, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 57, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/rewardsIndex.ts"], "rules": { "max-lines": ["error", { "max": 299, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }] } },

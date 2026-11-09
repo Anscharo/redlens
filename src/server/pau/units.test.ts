@@ -1,6 +1,6 @@
 // The unit a rate limit is counted in: fixed by its constant, read from a
 // vault's asset() or an OFT adapter's token() (else the address itself), or
-// from the address itself; a key no rule covers, or a token whose decimals()
+// from the address itself (an aToken also keeps the asset it wraps); a key no rule covers, or a token whose decimals()
 // fails, keeps inferred decimals. BeamState defaults get the same. A diamond
 // key gets a unit only from its facet getter's entry in facet-keys.ts.
 import { describe, expect, it } from "bun:test";
@@ -81,6 +81,15 @@ describe("withUnits", async () => {
       null,
       null,
     ]);
+  });
+  it("keeps the asset a monolithic Aave key's aToken wraps, and only for an Aave key", () => {
+    expect(unit("k-aave")).toEqual({ decimals: 6, symbol: "aEthUSDC", token: ATOKEN, underlying: USDC, source: "token" });
+    expect(unit("k-native")).not.toHaveProperty("underlying");
+  });
+  it("leaves out the underlying when its read fails, keeping the unit", async () => {
+    const failing = async (chain: string, calls: ChainCall[]) => (await read(chain, calls)).map((v, i) => (calls[i].functionName === "UNDERLYING_ASSET_ADDRESS" ? null : v));
+    const mono = await withUnits({ ...snap, contracts: [{ role: "rateLimits", address: "0xrl", events: 0, historyComplete: true, rateLimits: [lim("m-aave", "LIMIT_AAVE_WITHDRAW", [ATOKEN])] }] }, failing);
+    expect(mono.contracts[0].rateLimits![0].unit).toEqual({ decimals: 6, symbol: "aEthUSDC", token: ATOKEN, source: "token" });
   });
   it("counts a monolithic Uniswap V3 key in its token", async () => {
     const mono = await withUnits({ ...snap, contracts: [{ role: "rateLimits", address: "0xrl", events: 0, historyComplete: true, rateLimits: [lim("m-uni", "LIMIT_UNISWAP_V3_SWAP", [ATOKEN, VAULT])] }] }, read);

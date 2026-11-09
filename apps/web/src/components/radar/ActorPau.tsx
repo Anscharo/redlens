@@ -3,13 +3,12 @@ import { useLoaded } from "../../hooks/useAtlasData";
 import { useArrivalTarget } from "../../hooks/useArrivalTarget";
 import { loadGraph } from "../../lib/graph";
 import { loadAtlas } from "../../lib/docs";
-import { checkAtlasValues, type ValueCheck } from "@/lib/pauAtlasValues";
 import { atlasVerdicts } from "@/lib/pauAtlasMatch";
 import { withCheckedKeys } from "@/lib/pauCheckKeys";
 import { withRefChains } from "@/lib/pauKeyChains";
 import { withSharedLabels } from "@/lib/pauSharedLabels";
 import { namedIn } from "@/lib/pauConstantDocs";
-import { graphPrimeSources } from "@/lib/pauDocSources";
+import { usePrimeAtlasChecks } from "../../hooks/usePrimeAtlasChecks";
 import { addressKeyIndex, instanceKeyIndex, loadPau, loadPauHistory, primeKeyedInstance, snapshotsForPrime, timelineFor, withAddressKeys, type KeyedInstance } from "../../lib/pau";
 import { deploymentAnchors, PAU_ANCHOR } from "@/lib/pauAnchors";
 import { PauPartHeading } from "./PauSectionHeading";
@@ -25,21 +24,11 @@ interface Props {
   instances: KeyedInstance[];
 }
 
-/** Every value the atlas states for the prime's keys, in its instances and in its limit documents, beside the chain (pauAtlasValues.ts); empty until the graph loads. */
-function useAtlasChecks(primeId: string, snaps: Parameters<typeof checkAtlasValues>[1]): ValueCheck[] {
-  const graph = useLoaded(loadGraph, { soft: true });
-  const atlas = useLoaded(loadAtlas, { soft: true });
-  return useMemo(() => {
-    const sources = graphPrimeSources(primeId, graph, atlas ?? undefined);
-    return sources ? checkAtlasValues(sources, snaps) : [];
-  }, [graph, atlas, primeId, snaps]);
-}
-
 /** The page's data: the prime's snapshots and change history, the names of their keys, and where a fragment link lands. */
 function usePauPage({ prime, instances }: Props) {
   const res = useLoaded(loadPau, { soft: true });
   const snaps = useMemo(() => (res ? snapshotsForPrime(res, prime.id) : []), [res, prime.id]);
-  const checks = useAtlasChecks(prime.id, snaps);
+  const checks = usePrimeAtlasChecks(prime.id, snaps);
   const atlas = useLoaded(loadAtlas, { soft: true });
   const graph = useLoaded(loadGraph, { soft: true });
   const named = useMemo(() => namedIn(graph?.participants.find((p) => p.id === prime.id)?.did, atlas), [graph, atlas, prime.id]);

@@ -4,9 +4,10 @@
 // says why instead of reading as a mismatch.
 import { useMemo } from "react";
 import { explorerTxUrl } from "@/lib/explorer";
-import { checkAtlasValues, type ValueCheck, type ValueStatus } from "@/lib/pauAtlasValues";
+import { checkAtlasValues, type ValueCheck } from "@/lib/pauAtlasValues";
 import type { DocValueSources } from "@/lib/pauDocSources";
-import { formatAmount, formatPerDay, limitDecimals, loadPau, unitNote } from "../../lib/pau";
+import { loadPau, unitNote } from "../../lib/pau";
+import { contractValue, isCompared, VALUE_STATUS as STATUS } from "../../lib/valueStatus";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { SECTION_HEAD } from "./panelSections";
 
@@ -20,36 +21,11 @@ export function useAtlasVsContract(id: string, src: DocValueSources | null | und
   }, [res, src, id]);
 }
 
-const STATUS: Record<ValueStatus, { mark: string; text: string }> = {
-  match: { mark: "✓", text: "matches the atlas" },
-  mismatch: { mark: "✗", text: "differs from the atlas" },
-  "units-unknown": { mark: "?", text: "token units not confirmed" },
-  ambiguous: { mark: "?", text: "more than one key could be this one" },
-  "not-set": { mark: "!", text: "not set on the contract" },
-  unread: { mark: "…", text: "contract not read yet" },
-  "no-deployment": { mark: "–", text: "no PAU indexed on this chain" },
-  "unknown-chain": { mark: "–", text: "chain not recognised" },
-  "no-key": { mark: "–", text: "no rate-limit key found" },
-  "not-stated": { mark: "–", text: "the atlas sets no value yet" },
-  unparsed: { mark: "?", text: "atlas value not read" },
-};
-
-/** What the contract holds for the value, in its token's units (only shown for a certain verdict, so `data` is read). */
-function contractValue(c: ValueCheck): string {
-  const r = c.limit!;
-  const max = r.data!.maxAmount;
-  const dec = limitDecimals(r.unit, max);
-  const symbol = r.unit?.symbol ? ` ${r.unit.symbol}` : "";
-  const amount = formatAmount(max, dec);
-  if (amount === "unlimited") return amount;
-  return c.field === "maxAmount" ? `${amount}${symbol}` : `${formatPerDay(r.data!.slope, dec)}${symbol} per day`;
-}
-
 const dim = { color: "var(--tan-3)" };
 
 function Row({ c, label }: { c: ValueCheck; label: string }) {
   const s = STATUS[c.status];
-  const compared = c.status === "match" || c.status === "mismatch";
+  const compared = isCompared(c);
   const max = c.limit?.data?.maxAmount ?? "0";
   return (
     <tr className="border-t border-[var(--border)] align-top" data-status={c.status}>
@@ -58,7 +34,7 @@ function Row({ c, label }: { c: ValueCheck; label: string }) {
       <td className="py-1 pr-2 mono" title={compared ? unitNote(c.limit!.unit, max) : undefined} style={compared ? undefined : dim}>
         {compared ? contractValue(c) : s.text}
       </td>
-      <td className="py-1 pr-2 text-center" title={s.text} style={{ color: c.status === "mismatch" || c.status === "not-set" ? "var(--accent)" : "var(--tan-3)" }}>
+      <td className="py-1 pr-2 text-center" title={s.text} style={{ color: c.status === "mismatch" ? "var(--warn)" : "var(--tan-3)" }}>
         <span aria-hidden="true">{s.mark}</span>
         <span className="sr-only">{s.text}</span>
       </td>

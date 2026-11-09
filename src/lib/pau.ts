@@ -71,6 +71,8 @@ export interface AmountUnit {
   symbol: string | null;
   /** The token read, for source "token". */
   token?: string;
+  /** For an aToken unit (a monolithic Aave key), the asset it wraps: its UNDERLYING_ASSET_ADDRESS(), lowercased; absent when that read failed. */
+  underlying?: string;
   source: "token" | "constant";
 }
 
