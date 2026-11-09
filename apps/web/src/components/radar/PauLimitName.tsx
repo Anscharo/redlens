@@ -3,17 +3,21 @@ import { Address } from "../Address";
 import { atlasHref } from "@/lib/routes";
 import { EVM_ADDRESS_EXACT_RE } from "@/lib/patterns";
 import { refsOnChain } from "@/lib/pauKeyChains";
-import type { NamedIn } from "@/lib/pauConstantDocs";
+import { constantDoc, type NamedIn } from "@/lib/pauConstantDocs";
 import { limitName } from "@/lib/pauLimitOrder";
-import type { AtlasKeyRef, DerivedKey, RetiredAddress } from "../../lib/pau";
+import type { AmountUnit, AtlasKeyRef, DerivedKey, RetiredAddress } from "../../lib/pau";
 
 const dim = { color: "var(--tan-3)" };
 
 const derivation = (d: DerivedKey) => [d.constant, ...d.args].join(" · ");
 
-/** A key no atlas doc states a value for, named by the controller constant and arguments that derive it, and by the one document that names the constant when there is one. */
-function DerivedName({ k, d, retired, chain, namedIn }: { k: string; d: DerivedKey; retired?: RetiredAddress; chain: string; namedIn?: NamedIn }) {
-  const doc = namedIn?.(d.constant, chain);
+type LimitRow = { key: string; derived?: DerivedKey; retired?: RetiredAddress; unit?: AmountUnit };
+
+/** A key no atlas doc states a value for, named by the controller constant and arguments that derive it, and by the one document that names the constant (or the constant spelled with its token) when there is one. */
+function DerivedName({ r, d, chain, namedIn }: { r: LimitRow; d: DerivedKey; chain: string; namedIn?: NamedIn }) {
+  const { key: k, retired } = r;
+  const found = constantDoc(r, chain, namedIn);
+  const doc = found?.doc;
   return (
     <span title={`${k}\nderived from ${derivation(d)}; no atlas document states this key`}>
       {d.constant}
@@ -31,7 +35,7 @@ function DerivedName({ k, d, retired, chain, namedIn }: { k: string; d: DerivedK
       {doc && (
         <span style={dim}>
           {" · named in "}
-          <AtlasLink to={atlasHref(doc.id)} className="text-accent hover:underline" title={`${doc.doc_no}: the one document in this Prime's artifact that names ${d.constant} on this chain; this link does not compare a value`}>
+          <AtlasLink to={atlasHref(doc.id)} className="text-accent hover:underline" title={`${doc.doc_no}: the one document in this Prime's artifact that names ${found!.name} on this chain; this link does not compare a value`}>
             {doc.title}
           </AtlasLink>
         </span>
@@ -43,7 +47,7 @@ function DerivedName({ k, d, retired, chain, namedIn }: { k: string; d: DerivedK
 const chainLabel = (chain: string) => chain.charAt(0).toUpperCase() + chain.slice(1);
 
 /** A key's name: the atlas param that states it, else its derivation, else a note that nothing names it. */
-export function PauLimitName({ r, chain, keyIndex, namedIn }: { r: { key: string; derived?: DerivedKey; retired?: RetiredAddress }; chain: string; keyIndex: Map<string, AtlasKeyRef[]>; namedIn?: NamedIn }) {
+export function PauLimitName({ r, chain, keyIndex, namedIn }: { r: LimitRow; chain: string; keyIndex: Map<string, AtlasKeyRef[]>; namedIn?: NamedIn }) {
   const named = keyIndex.get(r.key.toLowerCase()) ?? [];
   const refs = refsOnChain(named, chain);
   const ref = refs[0];
@@ -51,7 +55,7 @@ export function PauLimitName({ r, chain, keyIndex, namedIn }: { r: { key: string
     const title = `${r.key}\nnamed by the Atlas for ${chainLabel(named[0].chain!)} only`;
     return <span title={title}>{limitName(r, keyIndex, chain)}</span>;
   }
-  if (!ref && r.derived) return <DerivedName k={r.key} d={r.derived} retired={r.retired} chain={chain} namedIn={namedIn} />;
+  if (!ref && r.derived) return <DerivedName r={r} d={r.derived} chain={chain} namedIn={namedIn} />;
   if (!ref) {
     return (
       <span title={r.key} style={dim}>
