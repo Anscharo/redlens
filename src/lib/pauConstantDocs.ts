@@ -6,7 +6,9 @@
 // arbitrary; a document under another chain's heading is not on this chain. The
 // tree is walked by parent edges, never by doc_no. Pure.
 import type { AtlasNode } from "../types.ts";
+import type { LiveRateLimit } from "./pau.ts";
 import { chainInText, chainOfLabel } from "./pauInstanceChain.ts";
+import { constantNames } from "./pauInstanceKeys.ts";
 import { ancestorsOf, type LimitDocs } from "./pauLimitDocs.ts";
 
 const CONSTANT_RE = /`(LIMIT_[A-Z0-9_]+)`/g;
@@ -20,9 +22,15 @@ interface Naming {
 /** The document a row's constant is named in; null when none or several do. */
 export type NamedIn = (constant: string, chain: string) => AtlasNode | null;
 
-/** The document shown beside a row's name: only for a row derived from a constant that no Atlas ref names (`named` is the key index's refs for it). */
-export const rowNamedIn = (r: { derived?: { constant: string } }, chain: string, named: unknown[], find?: NamedIn): AtlasNode | null =>
-  r.derived && named.length === 0 ? find?.(r.derived.constant, chain) ?? null : null;
+/** The document shown beside a row's name: only for a row derived from a constant that no Atlas ref names (`named` is the key index's refs for it), by its most specific name (pauInstanceKeys.ts constantNames). */
+export function rowNamedIn(r: Pick<LiveRateLimit, "derived" | "unit">, chain: string, named: unknown[], find?: NamedIn): AtlasNode | null {
+  if (!r.derived || named.length > 0 || !find) return null;
+  for (const name of constantNames(r)) {
+    const doc = find(name, chain);
+    if (doc) return doc;
+  }
+  return null;
+}
 
 const cache = new WeakMap<LimitDocs["byParent"], Map<string, Map<string, Naming[]>>>();
 

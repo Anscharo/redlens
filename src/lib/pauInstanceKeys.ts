@@ -67,10 +67,26 @@ function derivedKeys(src: ValueSource, snaps: StoredPauSnapshot[], shared: Set<s
   });
 }
 
-/** The source's constant's key on each deployment of its chain that holds exactly one key of it: more than one (a constant hashed with a token or domain) leaves the text unable to say which. */
+const symbolWord = (symbol: string) => symbol.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+/**
+ * The names the atlas may give a derived key: its controller constant, and, for
+ * a key hashed with one token, that constant followed by the token's symbol
+ * (`LIMIT_PSM_DEPOSIT_USDC` for LIMIT_PSM_DEPOSIT keyed by USDC). The symbol is
+ * the key's own argument's, read on chain (units.ts), never a vault's asset.
+ */
+export function constantNames(r: Pick<LiveRateLimit, "derived" | "unit">): string[] {
+  const d = r.derived;
+  if (!d) return [];
+  const arg = d.args.length === 1 ? d.args[0].toLowerCase() : null;
+  const own = r.unit?.source === "token" && r.unit.symbol && arg && r.unit.token?.toLowerCase() === arg;
+  return own ? [`${d.constant}_${symbolWord(r.unit!.symbol!)}`, d.constant] : [d.constant];
+}
+
+/** The source's constant's key on each deployment of its chain that holds exactly one key of that name: more than one (a constant hashed with a token or domain the name leaves out) leaves the text unable to say which. */
 function constantKeys(src: ValueSource, snaps: StoredPauSnapshot[]): InstanceKey[] {
   const keys = chainSnaps(snaps, src).flatMap((s) => {
-    const held = [...new Set(limitsOf([s]).filter((r) => r.derived?.constant === src.constant).map((r) => r.key.toLowerCase()))];
+    const held = [...new Set(limitsOf([s]).filter((r) => constantNames(r).includes(src.constant!)).map((r) => r.key.toLowerCase()))];
     return held.length === 1 ? held : [];
   });
   return [...new Set(keys)].map((key) => ({ side: "", key }));

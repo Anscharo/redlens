@@ -2,7 +2,7 @@
 // Prime's artifact names it on the row's chain.
 import { describe, expect, it } from "vitest";
 import type { AtlasNode } from "../types.ts";
-import { namedIn } from "./pauConstantDocs.ts";
+import { namedIn, rowNamedIn } from "./pauConstantDocs.ts";
 
 const node = (id: string, title: string, content = "") => ({ id, title, content }) as AtlasNode;
 const prime = node("prime", "Spark");
@@ -45,6 +45,17 @@ describe("namedIn", () => {
     const find = namedIn("prime", tree);
     expect(find("LIMIT_4626_WITHDRAW", "ethereum")?.id).toBe("step");
     for (const chain of ["robinhood", "base", "arbitrum", "optimism"]) expect(find("LIMIT_4626_WITHDRAW", chain)).toBeNull();
+  });
+  it("links a key hashed with one token to the document naming the constant with that token's symbol, before the bare constant", () => {
+    const op = node("op", "Optimism");
+    const dep = node("dep", "Optimism USDC Deposit Maximum", "(`LIMIT_PSM_DEPOSIT_USDC`) is specified herein.");
+    const step = node("step", "Deposit To PSM", "Uses `LIMIT_PSM_DEPOSIT`.");
+    const tree = { docs: Object.fromEntries([prime, op, dep, step].map((n) => [n.id, n])), byParent: new Map([["prime", [op, step]], ["op", [dep]], [null, [prime]]]) };
+    const usdc = "0x0b2c639c533813f4aa9d7837caf62653d097ff85";
+    const row = (symbol: string) => ({ derived: { constant: "LIMIT_PSM_DEPOSIT", args: [usdc] }, unit: { decimals: 6, symbol, token: usdc, source: "token" as const } });
+    expect(rowNamedIn(row("USDC"), "optimism", [], namedIn("prime", tree))?.id).toBe("dep");
+    expect(rowNamedIn(row("USDS"), "optimism", [], namedIn("prime", tree))?.id).toBe("step");
+    expect(rowNamedIn(row("USDC"), "optimism", ["ref"], namedIn("prime", tree))).toBeNull();
   });
   it("scopes a document by a chain-named ancestor above its parent, as Grove's mainnet section sits above its steps", () => {
     const mono = node("mono", "Monolithic Mainnet Controller Contract Functions");
