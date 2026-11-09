@@ -67,7 +67,25 @@
  * (offline proxy for grouping architecture — not a substitute for the neural
  * bakeoff). Writes .cache/eval-retrieval.json.
  *
- * ══ RERANKERS — one Jev CHOICE over the whole list wins; pairwise scoring loses ══
+ * ══ JEV CHOICE ON THE PRODUCTION STACK — gemini-embedding-2 + briefings (s2docs) ══
+ * --policies kv_records_breadcrumbs --models google/gemini-embedding-2 --briefings s2docs
+ * --briefing-text both --pool all --rerank jev-choice --rerank-pool 30, 179 queries,
+ * exact recall@10, paired per query against the same 30-list unreranked
+ * (rerank_detail.control.per_query), 4,000 resamples:
+ *
+ *   lane                       control  reranked  ceiling@30   delta [95% CI]          gained/lost
+ *   hybrid, questions           0.642    0.810     0.832       +16.8 [11.7, 22.3]      30 / 0
+ *   hybrid, keywords            0.587    0.693     0.726       +10.6 [6.1, 15.6]       19 / 0
+ *   semantic-only, questions    0.676    0.793     0.844       +11.7 [6.1, 17.3]       24 / 3
+ *   hybrid, no briefings        0.575    0.609     0.620       +3.4 [1.1, 6.1]          6 / 0
+ *
+ * Briefings changed the picture below: they put the exact leaf into the 30-list
+ * (ceiling 0.620 -> 0.832) without lifting it into the top 10, and the Choice is
+ * what lifts it. ICD disambiguation carries it (hybrid questions +35.0 [20.0,
+ * 50.0], keywords +30.0), then icd-param and kv-record; hub and control are
+ * unchanged. 170 ms p50 / 265 ms p95 per query, $0.045 per 179 queries.
+ *
+ * ══ RERANKERS — one Jev CHOICE over the whole list wins; pairwise scoring loses (Qwen embeddings, before briefings) ══
  * --reuse-db, generic prefix, --rerank-pool 30: the reranker reorders the final
  * 30-leaf list the shipped path returns and the top 10 is scored. `control` is that
  * list's own top 10; the exact ceiling@30 (a relevant leaf anywhere in the 30) is
