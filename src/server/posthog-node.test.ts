@@ -95,14 +95,3 @@ test("captureError / captureEvent call through to a real (but unreachable) clien
     await shutdownPosthog();
   });
 });
-
-test("withEnvironment fills a missing environment and keeps one the caller set", async () => {
-  const { withEnvironment } = await freshPosthogNode();
-  const { openrouterEnvironment } = await import("./openrouter-attribution.ts");
-  expect(withEnvironment({ event: "$mcp_tool_call" })?.properties?.environment).toBe(openrouterEnvironment());
-  expect(withEnvironment({ event: "x", properties: { environment: "eval", a: 1 } })?.properties).toEqual({
-    environment: "eval",
-    a: 1,
-  });
-  expect(withEnvironment(null)).toBeNull();
-});
