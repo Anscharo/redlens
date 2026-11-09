@@ -1900,7 +1900,7 @@
     "etherscanName": "SubProxy",
     "isContract": true,
     "isProxy": true,
-    "implementation": "0xce352d9429a5e10b29d3d610c7217f9333e04ab4",
+    "implementation": "0x78e4439ae74447992b111a73556a188229d34c37",
     "codeByChain": {
       "ethereum": true
     },
