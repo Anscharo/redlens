@@ -35,7 +35,7 @@
 
 ## 2026-11-09
 
-- Showed address dollar values to the cent, so stablecoin holdings no longer look off their peg
+- Showed address dollar values with two decimals, the same as the token amount
 
 ## 2026-11-06
 
