@@ -22,17 +22,23 @@ export function holdingUsd(h: Holding, prices: PriceMap): number | null {
   return unit == null ? null : (Number(h.raw) / 10 ** h.decimals) * unit;
 }
 
+const USD_TIERS: [number, string][] = [[1e9, "B"], [1e6, "M"], [1e3, "K"], [1, ""]];
+
+/**
+ * A dollar figure at the precision compactAmount (tokens.ts) gives the token
+ * amount beside it: two decimals at every tier. With less, a stablecoin's value
+ * reads as off its peg — `4.75M USDS` beside `$4.7M`, `1.46 USDS` beside `$1`.
+ */
 export function compactUsd(n: number): string {
   const abs = Math.abs(n);
-  if (abs >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
-  if (abs >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
-  if (abs >= 1e3) return `$${(n / 1e3).toFixed(1)}K`;
-  if (abs > 0 && abs < 1) return "<$1";
-  return `$${Math.round(n)}`;
+  if (abs === 0) return "$0";
+  if (abs < 1) return "<$1";
+  const [scale, suffix] = USD_TIERS.find(([s]) => abs >= s)!;
+  return `$${(n / scale).toFixed(2)}${suffix}`;
 }
 
 /**
- * The summed value of the holdings as `$1.2M`, or `≈$1.2M+` when some holding
+ * The summed value of the holdings as `$1.20M`, or `≈$1.20M+` when some holding
  * has no price (the figure is then a floor). Null below $1, where a dollar
  * figure says less than the token amount does.
  */

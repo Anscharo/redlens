@@ -117,8 +117,8 @@ describe("AddressTooltip", () => {
     await hover(EVM);
 
     const tip = screen.getByRole("tooltip");
-    expect(tip.querySelector("[data-value]")).toHaveTextContent("≈$6.0K+");
-    expect([...tip.querySelectorAll("[data-usd]")].map((e) => e.textContent)).toEqual(["$6.0K", ""]);
+    expect(tip.querySelector("[data-value]")).toHaveTextContent("≈$6.00K+");
+    expect([...tip.querySelectorAll("[data-usd]")].map((e) => e.textContent)).toEqual(["$6.00K", ""]);
   });
 
   it("names the address's owner in its own row", async () => {
