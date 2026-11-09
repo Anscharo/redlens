@@ -16,6 +16,8 @@ import type { BeamSource } from "./beam.ts";
 import { buildSnapshot, type ChainReader, type ContractHistory, type PauSnapshot } from "./snapshot.ts";
 import { withParamSubjects } from "./param-subjects.ts";
 import { withUnits } from "./units.ts";
+import { withTargets } from "./targets.ts";
+import type { RoleClaims } from "./role-claims.ts";
 import type { KeyNamer } from "./diamond-derive.ts";
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v));
@@ -67,16 +69,17 @@ async function storedSnapshots(db: SqlTag): Promise<Map<string, PauSnapshot>> {
   return new Map(rows.map((r) => [r.deployment, (typeof r.state === "string" ? JSON.parse(r.state) : r.state) as PauSnapshot]));
 }
 
-/** One deployment's snapshot: replayed and read live, its keys named where a derivation is found (reusing what `prev` settled), then their units and its parameters' subject tokens read. */
+/** One deployment's snapshot: replayed and read live, its keys named where a derivation is found (reusing what `prev` settled), then their units, its parameters' subject tokens and its pools' and vaults' own state read. */
 async function snapshotOf(
   d: PauDeployment,
   read: ChainReader,
   historyOf: (chain: string, contract: string) => Promise<ContractHistory>,
   beam: BeamSource | undefined,
-  opts: { nameKeys?: KeyNamer; probe?: string[]; prev?: PauSnapshot },
+  opts: { nameKeys?: KeyNamer; probe?: string[]; prev?: PauSnapshot; roles?: RoleClaims },
 ): Promise<PauSnapshot> {
   const snap = await buildSnapshot(d, read, historyOf, { beam, probe: opts.probe });
-  return withParamSubjects(await withUnits(opts.nameKeys ? await opts.nameKeys(snap, read, opts.prev) : snap, read), read);
+  const named = await withUnits(opts.nameKeys ? await opts.nameKeys(snap, read, opts.prev) : snap, read);
+  return withTargets(await withParamSubjects(named, read), read, opts.roles);
 }
 
 /** Each chain's shared BeamState with its history, read once per refresh. */
@@ -97,7 +100,7 @@ export interface StateRefresh {
   failed?: { deployment: string; error: string }[];
 }
 
-type RefreshOpts = { nameKeys?: KeyNamer; atlasKeys?: () => Promise<Map<string, string[]>> };
+type RefreshOpts = { nameKeys?: KeyNamer; atlasKeys?: () => Promise<Map<string, string[]>>; atlasRoles?: () => Promise<RoleClaims> };
 
 /**
  * Rebuilds each deployment on its own: one that throws keeps its stored
@@ -109,10 +112,11 @@ async function refreshEach(db: SqlTag, reg: PauRegistry, read: ChainReader, opts
   const beamOf = beamSources(reg, historyOf);
   const prevs = opts.nameKeys ? await storedSnapshots(db) : new Map<string, PauSnapshot>();
   const atlasKeys = (await opts.atlasKeys?.()) ?? new Map<string, string[]>();
+  const roles = await opts.atlasRoles?.();
   const failed: { deployment: string; error: string }[] = [];
   for (const d of reg.deployments) {
     try {
-      const snap = await snapshotOf(d, read, historyOf, await beamOf(d.chain), { nameKeys: opts.nameKeys, probe: atlasKeys.get(d.prime), prev: prevs.get(deploymentId(d)) });
+      const snap = await snapshotOf(d, read, historyOf, await beamOf(d.chain), { nameKeys: opts.nameKeys, probe: atlasKeys.get(d.prime), prev: prevs.get(deploymentId(d)), roles });
       await upsertSnapshot(db, snap, new Date(now));
     } catch (e) {
       failed.push({ deployment: deploymentId(d), error: (e as Error).message });
@@ -137,6 +141,8 @@ export async function maybeRefreshPauState(
     nameKeys?: KeyNamer;
     /** The atlas's RateLimitID hashes by prime entity, read live on each of that prime's RateLimits (probe.ts); loaded once, only when a rebuild is due. */
     atlasKeys?: () => Promise<Map<string, string[]>>;
+    /** The accounts the atlas names to each vault's allocator and sentinel roles (role-claims.ts), asked of the vault; loaded like `atlasKeys`. */
+    atlasRoles?: () => Promise<RoleClaims>;
   },
 ): Promise<StateRefresh> {
   const now = opts.now ?? Date.now();

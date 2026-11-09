@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-11-09
+
+- Checked a Morpho vault's owner, curator, allocator and sentinel roles and a Curve pool's assets on a Prime Agent's instance cards against the chain
+
 ## 2026-11-06
 
 - Marked each rate limit, slippage and exchange-rate guard, address and agent detail on a Prime Agent's instance cards with whether it matches the chain, and linked each parameter to the document that states it
