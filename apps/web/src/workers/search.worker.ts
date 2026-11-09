@@ -13,6 +13,7 @@ import { UUID_RE } from "@/lib/patterns";
 import { isUuidPrefix, matchUuidPrefix } from "../lib/uuidSearch";
 import { CHAINLOG_RE, cancelSemanticLeg } from "./searchSemanticLeg";
 import { parseQuery, type ParsedQuery } from "./searchQuery";
+import { mergeChainlog, toHits, type ChainlogMatch, type MiniResult } from "./searchHits";
 import { docNoKey } from "@/lib/docNo";
 import { answerQuery, createLexicalMemo, hydrateSemantic, type QueryDeps } from "./searchWorkerLanes";
 import { MINISEARCH_OPTIONS, MINISEARCH_SEARCH_OPTIONS } from "@/lib/searchOptions";
@@ -113,7 +114,7 @@ function search(q: string): SearchHit[] {
   }
 
   const results = runIndex(idx, parsed, docFilterFor(parsed));
-  const hits = toHits(results, parsed);
+  const hits = toHits(results, parsed, docs, hitFor);
   if (!chainlog || chainlog.hits.size === 0) return hits;
   return mergeChainlog(hits, chainlog);
 }
@@ -144,12 +145,6 @@ function exactLookup(trimmed: string): SearchHit[] | null {
   // full-text when no such doc exists.
   const docNoHit = byDocNo.get(docNoKey(trimmed) ?? "");
   return docNoHit ? [docToHit(docNoHit, 10, undefined, [trimmed], "doc number")] : null;
-}
-
-interface ChainlogMatch {
-  id: string;
-  addr: string;
-  hits: Map<string, SearchHit>;
 }
 
 // Chainlog reverse-map — collected into a scored map to merge with search results
@@ -233,8 +228,6 @@ function docFilterFor(p: ParsedQuery): DocFilter | undefined {
   };
 }
 
-type MiniResult = { id: unknown; score: number; terms: string[]; queryTerms: string[]; match: Record<string, string[]> };
-
 function runIndex(index: MiniSearch, p: ParsedQuery, docFilter: DocFilter | undefined): MiniResult[] {
   const { finalQuery } = p;
   // A query with no indexable token (e.g. a bare "_") can only be answered by
@@ -258,100 +251,6 @@ function runIndex(index: MiniSearch, p: ParsedQuery, docFilter: DocFilter | unde
   }) as MiniResult[];
   return expansion.extra.length > 0 ? partitionByOriginalTerms(results, new Set(expansion.originals)) : results;
 }
-
-function highlightTermsFor(p: ParsedQuery): { title: string[]; content: string[] } {
-  // Use original query words for highlighting (not stems)
-  // Exclude words that came from phrases — the phrase highlight covers them.
-  // Without this, "Delegated" from 'Delegated Signers' leaks into terms and
-  // highlights "delegatedSigners" case-insensitively via the \w* extension.
-  const phraseWordSet = new Set(
-    [...p.phrases, ...p.casePhrases].flatMap((ph) => ph.toLowerCase().split(/\s+/)),
-  );
-  const queryWords = p.finalQuery
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w && !phraseWordSet.has(w.toLowerCase()));
-
-  // title: and content: scoped terms only highlight in their own field.
-  // doc_no: and unscoped terms are treated as free (highlight everywhere).
-  const fieldTitle = p.fieldScopedTerms.get("title") ?? [];
-  const fieldContent = p.fieldScopedTerms.get("content") ?? [];
-  const strictFieldTerms = new Set([...fieldTitle, ...fieldContent].map((w) => w.toLowerCase()));
-  const freeWords = queryWords.filter((w) => !strictFieldTerms.has(w.toLowerCase()));
-  const inflectedFree = expandQueryTokens(freeWords).extra;
-  const counterparts = (terms: string[]) => terms.flatMap((t) => {
-    const other = counterpartTerm(t);
-    return other ? [other] : [];
-  });
-  return {
-    title: [...fieldTitle, ...counterparts(fieldTitle), ...freeWords, ...inflectedFree],
-    content: [...fieldContent, ...counterparts(fieldContent), ...freeWords, ...inflectedFree],
-  };
-}
-
-// Build matchReason from MiniSearch match object: { term: [field, ...] }
-function matchReasonFor(match: Record<string, string[]>, p: ParsedQuery): string {
-  const fieldSet = new Set<string>();
-  for (const fields of Object.values(match)) {
-    for (const f of fields) fieldSet.add(f);
-  }
-  const scoped = p.fieldScopedTerms;
-  const parts: string[] = [];
-  if (p.typeFilters.length > 0) parts.push("type");
-  if (fieldSet.has("title") || scoped.has("title")) parts.push("title");
-  if (fieldSet.has("doc_no") || scoped.has("doc_no")) parts.push("doc number");
-  if (fieldSet.has("content") || scoped.has("content")) parts.push("content");
-  if (p.phrases.length > 0 || p.casePhrases.length > 0) parts.push("exact phrase");
-  return parts.join(" + ");
-}
-
-function toHits(results: MiniResult[], p: ParsedQuery): SearchHit[] {
-  const terms = highlightTermsFor(p);
-  return results
-    .map((r): SearchHit | null => {
-      const doc = docs[r.id as string];
-      if (!doc) return null;
-      return hitFor(
-        doc,
-        r.score,
-        highlightTerms(doc.title, terms.title, p.phrases, p.casePhrases),
-        matchReasonFor(r.match, p),
-        buildSnippet(doc.content, terms.content, p.phrases, p.casePhrases),
-      );
-    })
-    .filter((h): h is SearchHit => h !== null);
-}
-
-// Merge with three tiers:
-//   1. found by BOTH chainlog + search  (best snippet from search, highest priority)
-//   2. chainlog only
-//   3. search only  (sorted by score)
-function mergeChainlog(hits: SearchHit[], chainlog: ChainlogMatch): SearchHit[] {
-  const hitsById = new Map(hits.map((h) => [h.id, h]));
-
-  const both: SearchHit[] = [];
-  const chainlogOnly: SearchHit[] = [];
-  for (const [id, chainlogHit] of chainlog.hits) {
-    const hit = hitsById.get(id);
-    if (hit) {
-      both.push({
-        ...hit,
-        matchReason: "chainlog + " + hit.matchReason,
-        chainlogId: chainlog.id,
-        chainlogAddress: chainlog.addr,
-      });
-    } else {
-      chainlogOnly.push(chainlogHit);
-    }
-  }
-  const searchOnly = hits.filter((h: SearchHit) => !chainlog.hits.has(h.id));
-
-  both.sort((a, b) => b.score - a.score);
-  searchOnly.sort((a, b) => b.score - a.score);
-
-  return [...both, ...chainlogOnly, ...searchOnly];
-}
-
 
 // ─── semantic lane ──────────────────────────────────────────────────────────
 //
