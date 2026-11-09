@@ -14,6 +14,7 @@
 // sanitizeProps() trims each event to a tight allowlist — our own properties plus
 // a handful of PostHog internals. Widen KEEP_DOLLAR to bring a built-in back.
 import posthog from "posthog-js";
+import { readInternalMark, saveInternalMark } from "./internalMark";
 
 const KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
 export const analyticsEnabled = Boolean(KEY);
@@ -134,6 +135,10 @@ export function initAnalytics(): void {
     // country/city/lat-lon). Also enforced per-event in sanitizeProps.
     $geoip_disable: true,
   });
+  if (readInternalMark()) posthog.register({ internal: true });
+  // Playwright and other driven browsers set navigator.webdriver. Tag them so
+  // the test-account filter drops test runs, even ones aimed at production.
+  if (navigator.webdriver) posthog.register({ automated: true });
   // Uncaught errors + unhandled promise rejections are autocaptured by
   // capture_exceptions above. We still call captureException() explicitly for
   // *handled* errors (ErrorBoundary, worker onerror) that never go uncaught.
@@ -163,6 +168,13 @@ export function initAnalytics(): void {
 export function register(props: Record<string, unknown>): void {
   if (!analyticsEnabled) return;
   posthog.register(props);
+}
+
+/** Mark this browser as the team's and tag every later event `internal: true`.
+ *  Called when /api/auth/me says the signed-in user is internal. */
+export function markInternal(): void {
+  saveInternalMark();
+  register({ internal: true });
 }
 
 /** Fire a custom event. No-op when analytics is disabled. */

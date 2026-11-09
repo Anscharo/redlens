@@ -16,6 +16,11 @@ export const chatLimits: EnvGroup = {
       default: "",
     },
     {
+      name: "INTERNAL_GITHUB_LOGINS",
+      doc: "CSV of GitHub logins, case-insensitive, whose browsers tag every analytics event `internal: true` so PostHog can filter the team out. Only the github provider matches. The logins never reach the browser.",
+      default: "",
+    },
+    {
       name: "RATE_LIMIT_TOKENS_PER_WINDOW_BOOSTED",
       doc: "The boosted limit, an explicit token count so a person's limit can be read straight off the environment.",
       default: "3000000",

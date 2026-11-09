@@ -14,8 +14,9 @@
 // posthog-env.ts; PostHog has no separate server key). Absent → getPosthog()
 // returns null and llm.ts falls back to the plain, un-instrumented OpenAI
 // client — a silent no-op, never an error.
-import { PostHog } from "posthog-node";
+import { PostHog, type EventMessage } from "posthog-node";
 import { readPosthogEnv } from "./posthog-env.ts";
+import { openrouterEnvironment } from "./openrouter-attribution.ts";
 
 const { key: KEY, host: HOST } = readPosthogEnv();
 
@@ -23,9 +24,19 @@ const { key: KEY, host: HOST } = readPosthogEnv();
 // lets a keyless process cache the "off" decision instead of re-checking each call.
 let client: PostHog | null | undefined;
 
+// Every event this client sends carries `environment` ("production", a PR
+// environment's name, "development", "local" or "eval"), so PostHog's
+// test-account filter can drop test traffic. Events that the @posthog/mcp and
+// @posthog/ai wrappers build have no hook of their own, so this is the one
+// place that reaches them. A value the caller set already is kept.
+export function withEnvironment(event: EventMessage | null): EventMessage | null {
+  if (!event || event.properties?.environment != null) return event;
+  return { ...event, properties: { ...event.properties, environment: openrouterEnvironment() } };
+}
+
 export function getPosthog(): PostHog | null {
   if (client !== undefined) return client;
-  client = KEY ? new PostHog(KEY, { host: HOST }) : null;
+  client = KEY ? new PostHog(KEY, { host: HOST, before_send: withEnvironment }) : null;
   return client;
 }
 

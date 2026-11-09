@@ -103,7 +103,7 @@
     { "files": ["src/lib/riskRules.ts"], "rules": { "max-lines-per-function": ["error", { "max": 95, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/settlements.ts"], "rules": { "max-lines": ["error", { "max": 217, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/atlas-updater.ts"], "rules": { "max-lines": ["error", { "max": 345, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 53, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["src/server/auth.ts"], "rules": { "max-lines-per-function": ["error", { "max": 93, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["src/server/auth.ts"], "rules": { "max-lines-per-function": ["error", { "max": 80, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/bundle-store.ts"], "rules": { "max-lines": ["error", { "max": 293, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/teach/handle.ts"], "rules": { "max-lines-per-function": ["error", { "max": 97, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/tools/tools-graph.ts"], "rules": { "max-lines": ["error", { "max": 391, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 69, "skipBlankLines": true, "skipComments": true }] } },
