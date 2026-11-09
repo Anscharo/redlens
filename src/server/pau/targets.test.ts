@@ -21,7 +21,7 @@ const snap = (limits: LiveRateLimit[]): PauSnapshot => ({
 
 const ANSWERS: Record<string, Record<string, unknown>> = {
   [POOL]: { "coins:0": USDC.toUpperCase().replace("0X", "0x"), "coins:1": USDT },
-  [VAULT]: { owner: OWNER, curator: OWNER, [`isAllocator:${ALLOC}`]: true, [`isAllocator:${OTHER}`]: false },
+  [VAULT]: { owner: OWNER, curator: OWNER, guardian: ALLOC, [`isAllocator:${ALLOC}`]: true, [`isAllocator:${OTHER}`]: false },
 };
 const calls: ChainCall[] = [];
 const read = async (_chain: string, cs: ChainCall[]) => {
@@ -34,11 +34,11 @@ describe("withTargets", () => {
     const out = await withTargets(snap([lim("LIMIT_CURVE_SWAP", [POOL])]), read);
     expect(out.targets).toEqual({ [POOL]: { coins: [USDC, USDT] } });
   });
-  it("reads a vault's owner and curator, and its role for each claimed account", async () => {
+  it("reads a vault's owner, curator and guardian, and its role for each claimed account", async () => {
     calls.length = 0;
     const claims = new Map([[VAULT, { allocators: [ALLOC, OTHER], sentinels: [] }]]);
     const out = await withTargets(snap([lim("LIMIT_4626_DEPOSIT", [VAULT])]), read, claims);
-    expect(out.targets?.[VAULT]).toEqual({ owner: OWNER, curator: OWNER, allocators: { [ALLOC]: true, [OTHER]: false } });
+    expect(out.targets?.[VAULT]).toEqual({ owner: OWNER, curator: OWNER, guardian: ALLOC, allocators: { [ALLOC]: true, [OTHER]: false } });
     expect(calls.filter((c) => c.functionName === "isSentinel")).toEqual([]);
   });
   it("keeps no entry for a target that answers nothing, and reads nothing without one", async () => {

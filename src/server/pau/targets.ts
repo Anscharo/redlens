@@ -1,11 +1,12 @@
 // What the pools and vaults a deployment's keys name answer about themselves:
 // a Curve pool's coins, so an instance's underlying assets can be checked
-// against the pool, and a vault's owner() and curator(), and, for each account
-// the atlas names to its allocator or sentinel role (role-claims.ts), whether
-// the vault says that account holds it. Only what the chain answers is kept: a
+// against the pool, and a vault's owner(), curator() and guardian(), and, for
+// each account the atlas names to its allocator or sentinel role
+// (role-claims.ts), whether the vault says that account holds it. Only what the chain answers is kept: a
 // vault that is not a Morpho vault answers none of these and gets no entry, and
 // coins stop at the first index the pool does not answer.
 import type { PauSnapshot, TargetState } from "../../lib/pau.ts";
+import { SINGLE_HOLDER_ROLES } from "../../lib/vaultRoles.ts";
 import { EVM_ADDRESS_EXACT_RE } from "../../lib/patterns.ts";
 import { EXCHANGE_RATE_EVENTS } from "./param-subjects.ts";
 import type { RoleClaim, RoleClaims } from "./role-claims.ts";
@@ -43,15 +44,14 @@ const coinReads = (pool: string): TargetRead[] =>
 
 function vaultReads(vault: string, claim: RoleClaim | undefined): TargetRead[] {
   const call = (functionName: ChainCall["functionName"], args: readonly unknown[] = []): ChainCall => ({ address: vault, functionName, args });
-  const account = (key: "owner" | "curator") => (t: TargetState, v: unknown) => {
+  const account = (key: (typeof SINGLE_HOLDER_ROLES)[number]) => (t: TargetState, v: unknown) => {
     if (typeof v === "string") t[key] = v.toLowerCase();
   };
   const holds = (key: "allocators" | "sentinels", a: string) => (t: TargetState, v: unknown) => {
     if (typeof v === "boolean") t[key] = { ...t[key], [a]: v };
   };
   return [
-    { target: vault, call: call("owner"), put: account("owner") },
-    { target: vault, call: call("curator"), put: account("curator") },
+    ...SINGLE_HOLDER_ROLES.map((role) => ({ target: vault, call: call(role), put: account(role) })),
     ...(claim?.allocators ?? []).map((a) => ({ target: vault, call: call("isAllocator", [a]), put: holds("allocators", a) })),
     ...(claim?.sentinels ?? []).map((a) => ({ target: vault, call: call("isSentinel", [a]), put: holds("sentinels", a) })),
   ];

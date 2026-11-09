@@ -18,16 +18,22 @@ const check = (params: Record<string, string>, target: TargetState, name: string
 
 describe("vaultRoleOf", () => {
   it("names the role a param states, and nothing for any other param", () => {
-    expect(["Owner Role Address", "Allocator Role Addresses", "Sentinel Role Address", "Token Address", "Owner Timelock Contract Address"].map(vaultRoleOf)).toEqual(["owner", "allocator", "sentinel", null, null]);
+    expect(["Owner Role Address", "Guardian Role Address", "Allocator Role Addresses", "Sentinel Role Address", "Token Address", "Owner Timelock Contract Address"].map(vaultRoleOf)).toEqual(["owner", "guardian", "allocator", "sentinel", null, null]);
   });
 });
 
 describe("checkVaultRoles: owner and curator", () => {
   const target = { owner: OWNER, curator: CURATOR };
-  it("matches when the vault's account is among those the atlas states, and differs otherwise", () => {
+  it("matches when the vault's account is the holder the atlas names, and differs otherwise", () => {
     expect(check({ "Owner Role Address": `Held by its SubProxy at \`${OWNER}\`.` }, target, "Owner Role Address")?.status).toBe("match");
+    expect(check({ "Guardian Role Address": `Held through a multisig at \`${OWNER}\`.` }, { guardian: OWNER }, "Guardian Role Address")?.status).toBe("match");
     const off = check({ "Curator Role Address": OTHER }, target, "Curator Role Address");
     expect(off).toMatchObject({ status: "mismatch", lines: expect.arrayContaining([{ label: "Atlas", value: "0x5555…5555" }]) });
+  });
+  it("does not take a co-curator listed after the holder for the holder", () => {
+    const text = `Held through the Curator Multisig at \`${CURATOR}\`. The co-curator addresses are:\n| A | \`${OTHER}\` |`;
+    expect(check({ "Curator Role Address": text }, target, "Curator Role Address")?.status).toBe("match");
+    expect(check({ "Curator Role Address": text }, { curator: OTHER }, "Curator Role Address")).toMatchObject({ status: "mismatch", lines: expect.arrayContaining([{ label: "Atlas", value: "0x3333…3333" }]) });
   });
   it("flags an account the chain holds that the atlas leaves to be specified, but not an empty one", () => {
     expect(check({ "Owner Role Address": TBS }, target, "Owner Role Address")?.status).toBe("candidate");

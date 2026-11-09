@@ -176,6 +176,8 @@ export interface TargetState {
   coins?: string[];
   owner?: string;
   curator?: string;
+  /** A MetaMorpho vault's guardian. */
+  guardian?: string;
   /** For each account the atlas names to the role, whether the vault says it holds it. */
   allocators?: Record<string, boolean>;
   sentinels?: Record<string, boolean>;

@@ -31,7 +31,7 @@ export const PAU_STATE_ABI = parseAbi([
   "function UNDERLYING_ASSET_ADDRESS() view returns (address)",
   // A Curve pool's coins and a vault's roles (targets.ts)
   "function coins(uint256) view returns (address)",
-  "function owner() view returns (address)", "function curator() view returns (address)",
+  "function owner() view returns (address)", "function curator() view returns (address)", "function guardian() view returns (address)",
   "function isAllocator(address) view returns (bool)", "function isSentinel(address) view returns (bool)",
   // A DssSpell's own state (vote-archive.ts)
   "function done() view returns (bool)", "function expiration() view returns (uint256)",
