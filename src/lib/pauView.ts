@@ -26,6 +26,21 @@ export const inferDecimals = (maxAmount: string): 6 | 18 => (BigInt(maxAmount) >
 /** The decimals a limit's amounts are scaled by: its unit's when the worker found one, else inferred from its size. */
 export const limitDecimals = (unit: AmountUnit | undefined, maxAmount: string): number => unit?.decimals ?? inferDecimals(maxAmount);
 
+/**
+ * A slope as the chain holds it, per day in its token's units by `perDay`. It is
+ * always the slope's own value: beside an unlimited maxAmount it says so (the
+ * limit then never binds, whatever the slope), and since an unlimited maxAmount
+ * says nothing about the token's size, a nonzero slope with no unit is given
+ * raw rather than scaled by a guess.
+ */
+export function slopeText(slope: string, maxAmount: string, unit: AmountUnit | undefined, perDay: (raw: string, decimals: number) => string): string {
+  const unlimited = BigInt(maxAmount) === UNLIMITED;
+  const note = unlimited ? " (maxAmount unlimited)" : "";
+  if (unlimited && !unit && BigInt(slope) !== 0n) return `${slope} raw units per second, token not known${note}`;
+  const symbol = unit?.symbol ? ` ${unit.symbol}` : "";
+  return `${perDay(slope, limitDecimals(unit, maxAmount))}${symbol} per day${note}`;
+}
+
 /** Where a limit's decimals came from, in a few words ("6 decimals, read from USDC"). */
 export function unitNote(unit: AmountUnit | undefined, maxAmount: string): string {
   if (!unit) return `${inferDecimals(maxAmount)} decimals, inferred from the limit's size`;
