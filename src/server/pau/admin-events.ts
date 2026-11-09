@@ -35,6 +35,14 @@ const MONOLITH_CONTROLLER_EVENTS = [
   "event UniswapV3PoolUpperTickUpdated(address indexed pool, int24 upperTick)",
   "event UniswapV3PoolMaxTickDeltaSet(address indexed pool, uint24 maxTickDelta)",
   "event UniswapV3PoolTwapSecondsAgoUpdated(address indexed pool, uint32 twapSecondsAgo)",
+  // UniswapV4Lib keys a pool's tick limits by its id; its max slippage goes
+  // through MaxSlippageSet above, keyed by address(uint160(uint256(poolId))).
+  "event UniswapV4TickLimitsSet(bytes32 indexed poolId, int24 tickLowerMin, int24 tickUpperMax, uint24 maxTickSpacing)",
+  // The OTC desk's settings, with MainnetController's own arguments, which differ
+  // from the diamond OTCFacet's; its max slippage is MaxSlippageSet on the exchange.
+  "event OTCBufferSet(address indexed exchange, address indexed oldOTCBuffer, address indexed newOTCBuffer)",
+  "event OTCRechargeRateSet(address indexed exchange, uint256 oldRate18, uint256 newRate18)",
+  "event OTCWhitelistedAssetSet(address indexed exchange, address indexed asset, bool isWhitelisted)",
 ];
 
 const DIAMOND_CONTROLLER_EVENTS = [
@@ -127,6 +135,14 @@ const ALL = Object.values(BY_ROLE).flatMap((r) => Object.values(r).flat());
  * jsonb, which orders keys by length, not by the event's argument order.
  */
 export const subjectKey = (event: string): string | null => ALL.find((e) => e.name === event)?.inputs[0]?.name ?? null;
+
+/** Events whose setting is keyed by more than their subject: an OTC exchange whitelists each asset on its own. */
+const KEYED_BY: Record<string, string[]> = { OTCWhitelistedAssetSet: ["exchange", "asset"] };
+
+/** What one setting of a parameter event is keyed by: its subject, and any further argument KEYED_BY names. */
+export function settingKey(event: string, args: Record<string, unknown>): string {
+  return (KEYED_BY[event] ?? [subjectKey(event) ?? ""]).map((name) => String(args[name] ?? "")).join(":");
+}
 
 /** JSON-safe copy: bigints as decimal strings, addresses lowercased, tuples kept as objects. */
 export function jsonSafe(v: unknown): unknown {

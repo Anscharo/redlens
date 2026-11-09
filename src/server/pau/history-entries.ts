@@ -5,7 +5,7 @@
 // never entries. Pure.
 import type { ExecutiveRef, PauChange, PauHistoryEntry, PauOrigin } from "../../lib/pauHistory.ts";
 import { deploymentId, type PauRegistry } from "../../lib/pauRegistry.ts";
-import { subjectKey } from "./admin-events.ts";
+import { settingKey, subjectKey } from "./admin-events.ts";
 import { ORIGIN_EVENTS } from "./governance-events.ts";
 import { roleName } from "./replay.ts";
 
@@ -49,7 +49,7 @@ function changeMaker() {
   const last = new Map<string, Record<string, unknown>>();
   return (e: EventRow, owner: Owner | undefined): PauChange => {
     const subject = e.args[subjectKey(e.event) ?? ""];
-    const key = `${e.chain}:${e.contract}:${e.event}:${String(subject)}`;
+    const key = `${e.chain}:${e.contract}:${e.event}:${settingKey(e.event, e.args)}`;
     const before = SETS_VALUE(e.event) ? (last.get(key) ?? null) : null;
     if (SETS_VALUE(e.event)) last.set(key, e.args);
     const label = e.event.startsWith("Role") ? roleName(String(e.args.role)) : null;

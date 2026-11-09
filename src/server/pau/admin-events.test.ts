@@ -31,6 +31,13 @@ describe("adminTopics", () => {
     expect(adminTopics("monolithic", "starGuard").map((t) => t.name)).toEqual(["Plot", "Exec", "Drop"]);
     expect(adminTopics("diamond", "executor").map((t) => t.name)).toEqual(["ActionsSetQueued", "ActionsSetExecuted", "ActionsSetCanceled"]);
   });
+  it("polls a monolithic controller for its Uniswap v4 tick limits and its OTC desk's settings, with its own arguments", () => {
+    const names = adminTopics("monolithic", "controller").map((t) => t.name);
+    expect(names).toEqual(expect.arrayContaining(["UniswapV4TickLimitsSet", "OTCBufferSet", "OTCRechargeRateSet", "OTCWhitelistedAssetSet"]));
+    const topic = (kind: "monolithic" | "diamond", name: string) => adminTopics(kind, "controller").find((t) => t.name === name)?.topic0;
+    expect(topic("monolithic", "OTCRechargeRateSet")).not.toBe(topic("diamond", "OTCRechargeRateSet"));
+    expect(topic("monolithic", "UniswapV4TickLimitsSet")).toBe(topic("diamond", "UniswapV4TickLimitsSet"));
+  });
   it("keeps operational events out of the rate-limits list", () => {
     const names = adminTopics("monolithic", "rateLimits").map((t) => t.name);
     expect(names).toEqual(["RoleGranted", "RoleRevoked", "RateLimitDataSet"]);
@@ -94,5 +101,16 @@ describe("decodeAdminLog", () => {
 describe("jsonSafe", () => {
   it("stringifies bigints at any depth and leaves other values alone", () => {
     expect(jsonSafe({ a: [1n, { b: 2n }], c: "x", d: true, e: null })).toEqual({ a: ["1", { b: "2" }], c: "x", d: true, e: null });
+  });
+});
+
+describe("decodeAdminLog: the monolithic OTC desk", () => {
+  it("decodes MainnetController's OTCRechargeRateSet with its old and new rates", () => {
+    const [sig] = parseAbi(["event OTCRechargeRateSet(address indexed exchange, uint256 oldRate18, uint256 newRate18)"]);
+    const exchange = "0xd010b876696f345d9e0a1b70f573244fcc2e0a0e";
+    const topics = encodeEventTopics({ abi: [sig], eventName: "OTCRechargeRateSet", args: { exchange } }) as string[];
+    const data = encodeAbiParameters([{ type: "uint256" }, { type: "uint256" }], [0n, 578703703703703703n]);
+    expect(topics[0]).toBe(toEventSelector(sig));
+    expect(decodeAdminLog(topics, data)).toEqual({ event: "OTCRechargeRateSet", args: { exchange, oldRate18: "0", newRate18: "578703703703703703" } });
   });
 });
