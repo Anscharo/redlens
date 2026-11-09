@@ -2,7 +2,6 @@ import { explorerTxUrl } from "@/lib/explorer";
 import { atlasOnchainHref } from "@/lib/routes";
 import { AtlasLink } from "../AtlasLink";
 import { Tooltip } from "../Tooltip";
-import { MARK_TIP_MS } from "./PauAtlasMark";
 import type { ParamMark } from "../../lib/paramChecks";
 import type { RowMark, TipLine } from "../../lib/rowMark";
 
@@ -28,6 +27,9 @@ const LOOK: Record<ParamMark, { glyph: React.ReactNode; color: string }> = {
 };
 
 const dim = { color: "var(--tan-3)" };
+
+/** How long a pointer rests on a mark before its tooltip opens. */
+export const CHECK_TIP_MS = 550;
 
 function Line({ line }: { line: TipLine }) {
   if ("text" in line) return <p>{line.text}</p>;
@@ -71,7 +73,7 @@ export function ParamCheckMark({ mark }: { mark: RowMark | null }) {
   return (
     <span className={`${mark ? "relative z-10 " : ""}mono text-[10px] shrink-0 w-4 ml-2 text-center font-semibold`} data-check={mark?.mark}>
       {mark && (
-        <Tooltip content={<MarkTip mark={mark} />} delay={MARK_TIP_MS}>
+        <Tooltip content={<MarkTip mark={mark} />} delay={CHECK_TIP_MS}>
           {mark.docId ? (
             <AtlasLink to={atlasOnchainHref(mark.docId)} aria-label={mark.head}>{glyph}</AtlasLink>
           ) : (

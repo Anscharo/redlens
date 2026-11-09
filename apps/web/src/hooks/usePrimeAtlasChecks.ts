@@ -9,6 +9,7 @@ import { useLoaded } from "./useAtlasData";
 import { checkAtlasAddresses } from "@/lib/pauAddressChecks";
 import { checkAgentInstances } from "@/lib/agentChecks";
 import { checkGuardParams } from "@/lib/paramGuardChecks";
+import { checkVaultRoles } from "@/lib/vaultRoleChecks";
 import { loadChainState } from "../lib/chainstate";
 import { indexParamChecks } from "../lib/paramChecks";
 import { heldKeyId, type CardMarks } from "../lib/rowMark";
@@ -45,6 +46,6 @@ export function usePrimeCardMarks(primeId: string | undefined): CardMarks | null
     // A failed /api/pau resolves to no deployments at all: say nothing rather than mark every row unindexed.
     if (!res || res.deployments.length === 0 || !primeId || !sources) return null;
     const snaps = snapshotsForPrime(res, primeId);
-    return { values: indexParamChecks(checkAtlasValues(sources, snaps)), addresses: checkAtlasAddresses(sources, snaps), plain: new Map([...checkAgentInstances(sources, snaps, chain?.values ?? null), ...checkGuardParams(sources, snaps)]), held: heldKeys(snaps) };
+    return { values: indexParamChecks(checkAtlasValues(sources, snaps)), addresses: checkAtlasAddresses(sources, snaps), plain: new Map([...checkAgentInstances(sources, snaps, chain?.values ?? null), ...checkGuardParams(sources, snaps), ...checkVaultRoles(sources, snaps)]), held: heldKeys(snaps) };
   }, [res, graph, atlas, chain, primeId]);
 }

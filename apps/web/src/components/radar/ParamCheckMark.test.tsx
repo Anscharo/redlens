@@ -6,8 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { RowMark } from "../../lib/rowMark";
-import { ParamCheckMark } from "./ParamCheckMark";
-import { MARK_TIP_MS } from "./PauAtlasMark";
+import { CHECK_TIP_MS, ParamCheckMark } from "./ParamCheckMark";
 
 afterEach(() => {
   cleanup();
@@ -29,10 +28,19 @@ const mark: RowMark = {
 async function hover(el: HTMLElement) {
   vi.useFakeTimers();
   fireEvent.mouseEnter(el);
-  await act(async () => { vi.advanceTimersByTime(MARK_TIP_MS + 50); });
+  await act(async () => { vi.advanceTimersByTime(CHECK_TIP_MS + 50); });
 }
 
 describe("ParamCheckMark", () => {
+  it("opens its tooltip once the pointer has rested 550 ms", async () => {
+    render(<ParamCheckMark mark={mark} />);
+    vi.useFakeTimers();
+    fireEvent.mouseEnter(screen.getByRole("link", { name: "Differs from the atlas" }));
+    await act(async () => { vi.advanceTimersByTime(540); });
+    expect(screen.queryByText("150M USDS")).not.toBeInTheDocument();
+    await act(async () => { vi.advanceTimersByTime(20); });
+    expect(screen.getByText("150M USDS")).toBeInTheDocument();
+  });
   it("shows every line of the check on hover, the set date linked to its transaction", async () => {
     render(<ParamCheckMark mark={mark} />);
     await hover(screen.getByRole("link", { name: "Differs from the atlas" }));

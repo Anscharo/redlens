@@ -70,28 +70,35 @@ async function storedSpellMaterial(db, warn) {
   }
 }
 
+/** A loader reading `parse` from the published graph; an unreadable graph warns `failure` and yields an empty map. */
+function fromGraph(inputs, warn, parse, failure) {
+  return async () => {
+    try {
+      return parse((await inputs())["graph.json"]);
+    } catch (e) {
+      warn(`atlas-worker: pau atlas ${failure}: ${e.message}`);
+      return new Map();
+    }
+  };
+}
+
 /**
- * The rebuild's key namer and atlas keys, each built once and only when a
- * rebuild asks for it. An unreadable graph probes no key rather than failing
- * every deployment's rebuild.
+ * The rebuild's key namer, atlas keys and vault role claims, each built once
+ * and only when a rebuild asks for it. An unreadable graph probes no key and
+ * asks no vault, rather than failing every deployment's rebuild.
  */
 async function rebuildInputs(db, warn, reg) {
   const { keyNamer } = await import("../../../src/server/pau/diamond-derive.ts");
   const { atlasKeysByPrime } = await import("../../../src/server/pau/probe.ts");
+  const { atlasRoleClaims } = await import("../../../src/server/pau/role-claims.ts");
   const material = await storedSpellMaterial(db, warn);
   const retired = await retiredReader(warn);
   const inputs = atlasInputsOnce(db, warn);
   let namer;
   const nameKeys = async (...a) => (await (namer ??= inputs().then((p) => keyNamer([p["addresses.atlas.json"], "public/addresses.json"], reg, { retired, material }))))(...a);
-  const atlasKeys = async () => {
-    try {
-      return atlasKeysByPrime((await inputs())["graph.json"]);
-    } catch (e) {
-      warn(`atlas-worker: pau atlas RateLimitIDs not read, no key is probed: ${e.message}`);
-      return new Map();
-    }
-  };
-  return { nameKeys, atlasKeys };
+  const atlasKeys = fromGraph(inputs, warn, atlasKeysByPrime, "RateLimitIDs not read, no key is probed");
+  const atlasRoles = fromGraph(inputs, warn, atlasRoleClaims, "vault roles not read, no vault is asked about them");
+  return { nameKeys, atlasKeys, atlasRoles };
 }
 
 export default {

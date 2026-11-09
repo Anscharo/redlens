@@ -4,7 +4,8 @@
 // address some held key is derived from, or some controller parameter is set
 // on; an underlying asset against what the chain records the listed token
 // wraps (a vault's asset(), an aToken's UNDERLYING_ASSET_ADDRESS(), a max
-// exchange rate's asset). Nothing here is read live: it is the stored
+// exchange rate's asset, a Curve pool's coins). A vault's role accounts are
+// not integrations and are left to vaultRoleChecks.ts. Nothing here is read live: it is the stored
 // snapshot, so where it holds no answer the check says why instead.
 import type { LiveRateLimit, PauParam, StoredPauSnapshot } from "./pau.ts";
 import { RATE_LIMIT_ID_RE } from "./atlasHashes.ts";
@@ -12,6 +13,7 @@ import { VALUE_PARAM_RE } from "./pauParams.ts";
 import { chainInText, instanceChain } from "./pauInstanceChain.ts";
 import { instanceKeys, listedAddresses, sharedAddresses, type ValueSource } from "./pauInstanceKeys.ts";
 import { isUnstated, NOT_INDEXED } from "./plainCheck.ts";
+import { vaultRoleOf } from "./vaultRoles.ts";
 
 export { NOT_INDEXED };
 
@@ -95,7 +97,7 @@ function addressCheck(address: string, chain: string | null, snaps: StoredPauSna
   return { kind: "address", subject: address, status: found ? "match" : "unsure", chain, limits, params, onchain: [], symbols: symbolsOf([address], snaps), ...(reason ? { reason } : {}) };
 }
 
-/** What the chain records the listed tokens wrap: a key's unit when it is not the token itself, an aToken unit's underlying, a max exchange rate's asset. */
+/** What the chain records the listed tokens wrap: a key's unit when it is not the token itself, an aToken unit's underlying, a max exchange rate's asset, a Curve pool's coins. */
 function wrappedBy(tokens: Set<string>, snaps: StoredPauSnapshot[]): string[] {
   const units = limitsOf(snaps).flatMap((r) => {
     const t = r.unit?.token?.toLowerCase();
@@ -103,7 +105,8 @@ function wrappedBy(tokens: Set<string>, snaps: StoredPauSnapshot[]): string[] {
     return t && argsOf(r).some((a) => tokens.has(a)) ? [t] : [];
   });
   const assets = paramsOf(snaps).flatMap((p) => (tokens.has(p.subject.toLowerCase()) && p.asset?.token ? [p.asset.token.toLowerCase()] : []));
-  return [...new Set([...units, ...assets])];
+  const coins = snaps.flatMap((s) => [...tokens].flatMap((t) => s.targets?.[t]?.coins ?? []));
+  return [...new Set([...units, ...assets, ...coins])];
 }
 
 function underlyingCheck(address: string, src: ValueSource, chain: string | null, snaps: StoredPauSnapshot[]): AddressCheck {
@@ -113,8 +116,9 @@ function underlyingCheck(address: string, src: ValueSource, chain: string | null
   return { ...base, status: onchain.includes(address) ? "match" : "mismatch" };
 }
 
-/** One param's check, or null for a param that is neither an ID nor an address. */
+/** One param's check, or null for a param that is neither an ID nor an address, or names a vault role. */
 function paramCheck(src: ValueSource, name: string, value: string, all: StoredPauSnapshot[], shared: Set<string>): AddressCheck | null {
+  if (vaultRoleOf(name)) return null;
   const chain = chainInText(name) ?? instanceChain(src);
   const snaps = chain ? all.filter((s) => s.chain === chain) : [];
   const v = value.trim();

@@ -77,6 +77,15 @@ describe("checkAtlasAddresses: underlying assets", () => {
   it("flags an underlying the chain says the token does not wrap", () => {
     expect(get(src("w", { ...ids, "Token Address": VAULT, "Underlying Asset Address": OTHER }), "Underlying Asset Address")).toMatchObject({ status: "mismatch", onchain: [USDC] });
   });
+  it("matches a Curve pool's coins", () => {
+    const pooled = [{ ...snaps[0], targets: { [POOL]: { coins: [USDC, USDS] } } }];
+    const check = (u: string) => checkAtlasAddresses([src("c", { ...ids, "Pool Address": POOL, "Underlying Asset Address (USDS)": u })], pooled).get(addressCheckId("c", "Underlying Asset Address (USDS)"));
+    expect(check(USDS)).toMatchObject({ status: "match", onchain: expect.arrayContaining([USDC, USDS]) });
+    expect(check(OTHER)?.status).toBe("mismatch");
+  });
+  it("leaves a vault's role accounts to the role checks", () => {
+    expect(get(src("r", { ...ids, "Token Address": VAULT, "Allocator Role Address": STRAY }), "Allocator Role Address")).toBeUndefined();
+  });
   it("cannot compare where the chain records nothing the token wraps", () => {
     expect(get(src("s", { ...ids, "Token Address": STRAY, "Underlying Asset Address": USDC }), "Underlying Asset Address")?.status).toBe("unsure");
   });

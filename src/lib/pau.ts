@@ -166,6 +166,21 @@ export interface PauSnapshot {
   contracts: ContractState[];
   /** The stamp of what its keys were named from (src/server/pau/key-memo.ts), so the next rebuild reuses what it settled. */
   keysNamedWith?: string;
+  /** What the pools and vaults its keys name answer about themselves, by lowercased address (src/server/pau/targets.ts). */
+  targets?: Record<string, TargetState>;
+}
+
+/** An integration's own state, lowercased; a read the target does not answer is absent. */
+export interface TargetState {
+  /** A Curve pool's coins, in order. */
+  coins?: string[];
+  owner?: string;
+  curator?: string;
+  /** A MetaMorpho vault's guardian. */
+  guardian?: string;
+  /** For each account the atlas names to the role, whether the vault says it holds it. */
+  allocators?: Record<string, boolean>;
+  sentinels?: Record<string, boolean>;
 }
 
 export type StoredPauSnapshot = PauSnapshot & { fetchedAt: string };
