@@ -114,6 +114,16 @@ describe("PauRateLimits", () => {
     expect(within(none.container.querySelector("td")!).queryByRole("link")).toBeNull();
   });
 
+  it("links a key hashed with one token to the document naming its constant spelled with that token", () => {
+    const usdc = "0x0b2c639c533813f4aa9d7837caf62653d097ff85";
+    const row: ContractLimit = { ...limit(RL1), derived: { constant: "LIMIT_PSM_DEPOSIT", args: [usdc] }, unit: { decimals: 6, symbol: "USDC", token: usdc, source: "token" } };
+    const doc = { id: "dep-doc", title: "Optimism USDC Deposit Maximum", doc_no: "A.6.1" } as never;
+    const namedIn = (c: string) => (c === "LIMIT_PSM_DEPOSIT_USDC" ? doc : null);
+    const { container } = render(<PauRateLimits chain="optimism" limits={[row]} keyIndex={new Map()} namedIn={namedIn as never} verdicts={new Map()} anchor={{ id: "optimism", aliases: [] }} />);
+    const link = within(container).getByRole("link", { name: "Optimism USDC Deposit Maximum" });
+    expect([link.getAttribute("href"), link.getAttribute("title")]).toEqual(["/atlas?id=dep-doc", "A.6.1: the one document in this Prime's artifact that names LIMIT_PSM_DEPOSIT_USDC on this chain; this link does not compare a value"]);
+  });
+
   it("sorts by a column when its header is clicked, the other way on a second click, and says so with aria-sort", () => {
     const k = (n: number) => "0x" + String(n).repeat(64);
     const mk = (key: string, constant: string, maxAmount: string): ContractLimit => ({ ...limit(RL1), key, configured: { maxAmount, slope: "0" }, derived: { constant, args: [] } });

@@ -121,6 +121,28 @@ describe("a group heading between the chain and the leaf", () => {
   });
 });
 
+describe("a constant spelled with the token its key is hashed with", () => {
+  const psm: [string | null, AtlasNode[]][] = [
+    [null, [node("sp", "Spark")]],
+    ["sp", [node("prl", "RateLimits")]],
+    ["prl", [node("op", "Optimism (Deprecated)")]],
+    ["op", [node("dep", "Optimism USDC Deposit Maximum", "The maximum amount of USDC that can be deposited into the PSM (`LIMIT_PSM_DEPOSIT_USDC`) is specified in the document herein.\n\n- `maxAmount`: 0\n- `slope`: 0")]],
+  ];
+  const psmDocs: LimitDocs = { byParent: new Map(psm), docs: Object.fromEntries(psm.flatMap(([, kids]) => kids).map((n) => [n.id, n])) };
+  const [USDC, USDS] = ["0x0b2c639c533813f4aa9d7837caf62653d097ff85", "0x4f13a96ec5c4cf34e442b46bbd98a0791f20edc3"];
+  const keyed = (c: string, token: string, symbol: string, decimals: number, maxAmount: string) =>
+    ({ ...lim("0x" + c.repeat(64), maxAmount, "0", { constant: "LIMIT_PSM_DEPOSIT", args: [token] }), unit: { decimals, symbol, token, source: "token" as const } });
+  const checks = (...limits: LiveRateLimit[]) =>
+    checkAtlasValues(limitDocSources({ name: "Spark", docId: null, params: {} }, "sp", psmDocs), [snap("optimism", "monolithic", limits)]).map((c) => [c.field, c.key?.slice(0, 4), c.status]);
+
+  it("keys LIMIT_PSM_DEPOSIT_USDC by the LIMIT_PSM_DEPOSIT key hashed with USDC, among the other tokens' keys", () => {
+    expect(checks(keyed("a", USDC, "USDC", 6, "50000000000000"), keyed("b", USDS, "USDS", 18, UNL))).toEqual([["maxAmount", "0xaa", "mismatch"], ["slope", "0xaa", "match"]]);
+  });
+  it("names no key when no key of that constant is hashed with a token of that symbol", () => {
+    expect(checks(keyed("b", USDS, "USDS", 18, UNL)).map((c) => c[2])).toEqual(["no-key", "no-key"]);
+  });
+});
+
 describe("withInstanceLimitDocs", () => {
   const inst: [string | null, AtlasNode[]][] = [
     [null, [node("inst", "Ethereum Mainnet - Spark Savings v2 USDC Instance Configuration Document")]],

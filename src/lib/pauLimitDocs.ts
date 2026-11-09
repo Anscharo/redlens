@@ -10,7 +10,9 @@
 //    deployment kind the heading's ("Diamond PAU", "Monolithic"), when one is named;
 //  - its key is a hash the prime states under the same name ("CCTP To Ethereum
 //    Rate Limit ID"), else the one on-chain key a controller constant the text
-//    names (`LIMIT_USDS_MINT`) derives to, else none ("no rate-limit key").
+//    names (`LIMIT_USDS_MINT`, or `LIMIT_PSM_DEPOSIT_USDC` for a key hashed with
+//    USDC; pauInstanceKeys.ts constantNames) derives to, else none ("no
+//    rate-limit key").
 // The tree is walked by parent edges, never by doc_no. Pure.
 import type { AtlasNode } from "../types.ts";
 import type { AtlasBundle } from "./docsTypes.ts";

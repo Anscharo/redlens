@@ -37,6 +37,7 @@
 
 - Checked a Morpho vault's owner, curator, allocator and sentinel roles and a Curve pool's assets on a Prime Agent's instance cards against the chain
 - Showed address dollar values with two decimals, the same as the token amount
+- Compared PSM deposit and withdrawal limits named per token (like `LIMIT_PSM_DEPOSIT_USDC`) with the on-chain rate limits
 
 ## 2026-11-06
 
