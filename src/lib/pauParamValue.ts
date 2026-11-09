@@ -6,6 +6,7 @@
 // whole share only with both tokens' decimals; without them it stays raw and
 // says so. Pure.
 import type { PauParam } from "./pau.ts";
+import { formatPerDay } from "./pauView.ts";
 
 export type ParamValue = { kind: "text"; text: string; title: string } | { kind: "address"; address: string; title: string };
 
@@ -37,6 +38,9 @@ export function exchangeRateText(raw: string, shareDecimals?: number, asset?: { 
   return `≤ ${scaled(perShare, scale, 6)} ${asset.symbol ?? "assets"} per share`;
 }
 
+/** "50K per day" for an OTC recharge rate: an 18-decimal normalized amount per second, read as a rate limit's slope is. */
+export const rechargeRateText = (raw: string) => `${formatPerDay(raw, 18)} per day`;
+
 /** The address a bytes32 holds when it is one left-padded with zeros (a CCTP or LayerZero recipient), else null. */
 export function paddedAddress(v: string): string | null {
   const m = /^0x0{24}([0-9a-fA-F]{40})$/.exec(v);
@@ -47,6 +51,7 @@ const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 
 /** One argument's value: a guard as words, an address (padded or not) to render as one, else null (shown as is). */
 export function paramValue(p: PauParam, name: string, v: string): ParamValue | null {
+  if (/^(old|new)Rate18$/.test(name) && /^\d+$/.test(v)) return { kind: "text", text: rechargeRateText(v), title: `${name} ${v} (18-decimal normalized amount per second)` };
   if (name === "maxSlippage" && /^\d+$/.test(v)) return { kind: "text", text: slippageText(v), title: `maxSlippage ${v} (1e18 = nothing may be lost)` };
   if (name === "maxExchangeRate" && /^\d+$/.test(v)) {
     const text = exchangeRateText(v, p.subjectToken?.decimals, p.asset);

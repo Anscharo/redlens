@@ -15,12 +15,15 @@ type Row = { p: PauParam; use: ParamUse | null };
 /** The atlas document defining the PAU's parameters, max slippage among them (A.2.2.10.1.1.1.2.1). */
 const PARAM_DEFINITIONS_DOC = "a8a3e54d-18f0-451c-8ff0-4a66094650ae";
 
+/** A setting's identity in the list: its event and subject, and the asset where an OTC exchange whitelists each asset on its own (as the server's settingKey keys it). */
+const rowKey = ({ p }: Row) => `${p.event}:${p.subject}:${typeof p.args.asset === "string" ? p.args.asset : ""}`;
+
 const rowName = ({ p, use }: Row) => `${paramTitle(p.event)} ${use?.kind ?? ""} ${paramTarget(p.event, p.subject) ?? p.subjectToken?.symbol ?? p.subject}`;
 
 /** A contract's settings that act, by what they are called, what they are set on and its name. A guard no rate limit lets act is left out (pauParamUse.ts). */
 function rowsOf(snap: StoredPauSnapshot, params: PauParam[]): Row[] {
   const rows = params.map((p) => ({ p, use: isGuardParam(p.event) ? paramUse(snap, p) : null })).filter((r) => !r.use || r.use.state === "on");
-  return rows.sort((a, b) => rowName(a).localeCompare(rowName(b), "en", { numeric: true }) || a.p.subject.localeCompare(b.p.subject));
+  return rows.sort((a, b) => rowName(a).localeCompare(rowName(b), "en", { numeric: true }) || rowKey(a).localeCompare(rowKey(b)));
 }
 
 /** One contract's settings that act. */
@@ -31,7 +34,7 @@ function ContractParams({ c, rows, chain }: { c: ContractState; rows: Row[]; cha
         {contractLabel(c)} <Address address={c.address} chain={chain} noBalance />
       </h5>
       <ul className="space-y-0.5 pl-3">
-        {rows.map((r) => <PauParamRow key={`${r.p.event}:${r.p.subject}`} p={r.p} chain={chain} use={r.use} />)}
+        {rows.map((r) => <PauParamRow key={rowKey(r)} p={r.p} chain={chain} use={r.use} />)}
       </ul>
     </section>
   );
