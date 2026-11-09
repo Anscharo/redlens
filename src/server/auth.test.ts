@@ -75,6 +75,7 @@ mock.module("arctic", () => {
 });
 
 const { upsertUser, deleteAccount, handleAuth } = await import("./auth.ts");
+const { isInternalUser } = await import("./auth-me.ts");
 const { config } = await import("./config.ts");
 const { signSession, SESSION_COOKIE, STATE_COOKIE, VERIFIER_COOKIE } = await import("./session.ts");
 
@@ -385,6 +386,33 @@ describe("GET /api/auth/me", () => {
       provider: "github",
       email: "ada@x.example",
     });
+  });
+
+  it("adds internal: true for a github login on INTERNAL_GITHUB_LOGINS, matched case-insensitively", async () => {
+    const orig = config.internalGithubLogins;
+    config.internalGithubLogins = ["ada-team"];
+    try {
+      rows = [{ id: "user-1", provider: "github", name: "Ada", avatar_url: null, email: null, github_login: "Ada-Team" }];
+      const token = await signSession({ id: "user-1", provider: "github" });
+      const req = new Request("http://x/api/auth/me", { headers: { cookie: `${SESSION_COOKIE}=${token}` } });
+      const body = (await (await handleAuth(req, "/api/auth/me")).json()) as Record<string, unknown>;
+      expect(body.internal).toBe(true);
+      expect(JSON.stringify(body)).not.toContain("Ada-Team");
+    } finally {
+      config.internalGithubLogins = orig;
+    }
+  });
+
+  it("isInternalUser ignores other providers and unlisted logins", () => {
+    const orig = config.internalGithubLogins;
+    config.internalGithubLogins = ["ada-team"];
+    try {
+      expect(isInternalUser({ provider: "google", github_login: "ada-team" })).toBe(false);
+      expect(isInternalUser({ provider: "github", github_login: "someone-else" })).toBe(false);
+      expect(isInternalUser({ provider: "github", github_login: null })).toBe(false);
+    } finally {
+      config.internalGithubLogins = orig;
+    }
   });
 
   it("401s and clears the cookie when the session points at a deleted user", async () => {

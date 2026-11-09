@@ -16,6 +16,7 @@
 // client — a silent no-op, never an error.
 import { PostHog } from "posthog-node";
 import { readPosthogEnv } from "./posthog-env.ts";
+import { withEnvironment } from "./posthog-environment.ts";
 
 const { key: KEY, host: HOST } = readPosthogEnv();
 
@@ -25,7 +26,7 @@ let client: PostHog | null | undefined;
 
 export function getPosthog(): PostHog | null {
   if (client !== undefined) return client;
-  client = KEY ? new PostHog(KEY, { host: HOST }) : null;
+  client = KEY ? new PostHog(KEY, { host: HOST, before_send: withEnvironment }) : null;
   return client;
 }
 

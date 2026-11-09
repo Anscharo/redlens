@@ -211,6 +211,9 @@ export interface AuthUser {
   avatarUrl: string;
   provider: string;
   email: string | null;
+  // The server's verdict that this is a team account (INTERNAL_GITHUB_LOGINS).
+  // Absent for everyone else. See lib/internalMark.ts.
+  internal?: boolean;
 }
 
 export interface UsageWindow {

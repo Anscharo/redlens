@@ -6,7 +6,7 @@
 //   GET  /api/auth/github/callback  → verify state, exchange code, upsert user, set session
 //   GET  /api/auth/google           → 302 to Google, CSRF state + PKCE verifier in cookies
 //   GET  /api/auth/google/callback  → verify state, exchange code (PKCE), upsert user, set session
-//   GET  /api/auth/me               → { id, name, avatarUrl, provider, email } | 401
+//   GET  /api/auth/me               → { id, name, avatarUrl, provider, email, internal? } | 401
 //   POST /api/auth/signout          → clear session cookie
 import { GitHub, Google, decodeIdToken, generateCodeVerifier } from "arctic";
 import { sql } from "./db.ts";
@@ -26,6 +26,7 @@ import {
   type SessionUser,
 } from "./session.ts";
 import { json } from "./http.ts";
+import { handleMe } from "./auth-me.ts";
 
 const GITHUB_SCOPES = ["read:user", "user:email"];
 const GOOGLE_SCOPES = ["openid", "profile", "email"];
@@ -188,20 +189,7 @@ export async function handleAuth(req: Request, pathname: string): Promise<Respon
     }
   }
 
-  if (sub === "me" && req.method === "GET") {
-    const session = await getSessionUser(req);
-    if (!session) return json({ error: "unauthenticated" }, 401);
-    const rows = (await sql`
-      SELECT id, provider, name, avatar_url, email FROM users WHERE id = ${session.user.id}
-    `) as { id: string; provider: string; name: string | null; avatar_url: string | null; email: string | null }[];
-    if (!rows[0]) return json({ error: "unauthenticated" }, 401, [clearSessionCookie()]);
-    const u = rows[0];
-    return json(
-      { id: u.id, name: u.name, avatarUrl: u.avatar_url, provider: u.provider, email: u.email },
-      200,
-      session.refresh ? [session.refresh] : [],
-    );
-  }
+  if (sub === "me" && req.method === "GET") return handleMe(req);
 
   if (sub === "signout" && req.method === "POST") {
     return json({ ok: true }, 200, [clearSessionCookie()]);
