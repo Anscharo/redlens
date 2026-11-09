@@ -449,15 +449,14 @@ export const config = {
   // a `partial` option could not. "" disables it (no call, no event).
   chatAnswerCoverageModel: process.env.CHAT_ANSWER_COVERAGE_MODEL ?? JEV_DEFAULT,
   // Jev screen in front of the per-paragraph refute (verify/refute-screen.ts).
-  //   "shadow" (default) — Jev screens every paragraph and its verdict is
-  //       recorded beside gemma's; gemma still runs on every paragraph. This
-  //       is the measurement phase: the offline bakeoff (85/100 planted
-  //       contradictions at P ≥ 0.2, ~90% of clean paragraphs skippable) is
-  //       in-sample and was never compared against paragraph-mode gemma on
-  //       real traffic.
+  //   "off" (default) — no screen; gemma audits every paragraph. On real
+  //       traffic the screen flagged only half the paragraphs gemma found a
+  //       contradiction in, so gating would drop real catches, and recording
+  //       it beside gemma costs a Jev call per paragraph that changes nothing.
+  //   "shadow" — Jev screens every paragraph and its verdict is recorded
+  //       beside gemma's; gemma still runs on every paragraph.
   //   "gate" — gemma runs only on paragraphs Jev flags or cannot fit.
-  //   "off"  — no screen.
-  chatRefuteScreen: (process.env.CHAT_REFUTE_SCREEN ?? "shadow") as "off" | "shadow" | "gate",
+  chatRefuteScreen: (process.env.CHAT_REFUTE_SCREEN ?? "off") as "off" | "shadow" | "gate",
   chatRefuteScreenModel: process.env.CHAT_REFUTE_SCREEN_MODEL ?? JEV_DEFAULT,
   // Quote-attribution lane (verify/quote-attribution.ts): asks Jev, per
   // ungrounded quoted span, whether the answer PRESENTS it as wording taken
