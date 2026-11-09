@@ -15,7 +15,7 @@ export interface HeldBalance {
   // Present only when the address holds balances on more than one chain —
   // see heldAcross below.
   chain?: string;
-  // The holding's USD value (`$1.2K`), when a price is known for it.
+  // The holding's USD value (`$1.20K`), when a price is known for it.
   usd?: string;
 }
 
@@ -69,7 +69,7 @@ function heldAcross(key: string, chains: string[], balancesByAddress: Record<str
 
 /**
  * A single compact "headline" balance for an address, for the inline pill: the
- * USD value of everything it holds (`$3.2K`, or `≈$3.2K+` when some holding has
+ * USD value of everything it holds (`$3.20K`, or `≈$3.20K+` when some holding has
  * no price), otherwise, below $1, the top-ranked unpegged holding as a token
  * amount (`35.4M SKY`). Null when the address holds nothing worth showing.
  * Full detail still lives in the tooltip; this is only the teaser.

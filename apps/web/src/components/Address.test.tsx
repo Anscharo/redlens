@@ -108,7 +108,7 @@ describe("Address", () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(container.querySelector(".rl-addr-bal")).toHaveTextContent("$3.2K");
+    expect(container.querySelector(".rl-addr-bal")).toHaveTextContent("$3.20K");
   });
 
   it("shows the teaser when the address map loads after the pill first rendered", async () => {
@@ -123,7 +123,7 @@ describe("Address", () => {
       });
       await Promise.resolve();
     });
-    expect(container.querySelector(".rl-addr-bal")).toHaveTextContent("$3.2K");
+    expect(container.querySelector(".rl-addr-bal")).toHaveTextContent("$3.20K");
   });
 
   it("fetches balances on mount for a teaser pill", () => {

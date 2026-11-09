@@ -36,6 +36,7 @@
 ## 2026-11-09
 
 - Checked a Morpho vault's owner, curator, allocator and sentinel roles and a Curve pool's assets on a Prime Agent's instance cards against the chain
+- Showed address dollar values with two decimals, the same as the token amount
 
 ## 2026-11-06
 
