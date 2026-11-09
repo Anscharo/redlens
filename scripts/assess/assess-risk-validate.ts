@@ -8,6 +8,11 @@ import { stripFences, resolveUuid } from "./assess-common";
 
 const RATINGS = new Set<Rating>(["weak", "mid", "strong"]);
 
+const CATCH_ALL = new Set([
+  "c6c6f595-b29d-48b1-8196-79d15428e78c", // A.1.3.2.4 Reports Of Misalignment
+  "560e1024-0897-4f1e-ae71-3ba31e29ed57", // A.1.5.9 Adjudication Process
+]);
+
 export type RatingValidation =
   | { ok: true; value: RiskRating }
   // citationOnly carries the otherwise-valid rating so the caller can apply
@@ -61,6 +66,15 @@ export function validateRating(
       citationOnly: true,
       value: { ...value, mechanismUuids: [] },
       error: `enforcement rated ${r.enforcement} but no citation resolves to a real atlas doc uuid — cite a mechanism from the rubric's catalog or rate weak with "none found"`,
+    };
+  }
+  // Rubric: the catch-all mechanisms alone are always weak.
+  if (r.enforcement !== "weak" && resolved.every((u) => CATCH_ALL.has(u))) {
+    return {
+      ok: false,
+      citationOnly: true,
+      value,
+      error: `enforcement rated ${r.enforcement} citing only the misalignment/adjudication catch-all — the catch-all alone is always weak; cite a specific mechanism or rate weak`,
     };
   }
   return { ok: true, value };

@@ -41,6 +41,8 @@ export const MECHANISM_UUIDS: string[] = [
   "1d940c6d-02ce-4c17-8057-cef13c1cc7ad", // A.1.9 Emergency Response System
   "fd1f682c-2d8a-47c5-8c1d-d95a0a2f2021", // A.1.10.2.3.2.2.1.4.2.2 Risk-Based Pricing Of Insurance
   "d4bf73e7-2f9f-454c-8add-614dff784f78", // A.1.14.2.10 Agent Artifact Review By Core GovOps
+  "a578830d-18f0-451c-8ff0-4a66094650ae", // A.2.2.10.1.1.1.2.1.1 Rate Limiter
+  "2ae4b91a-6900-41e8-9718-32805b956550", // A.2.2.10.1.1.1.2.2 Liquidity Layer Role Definitions
   "c6c6f595-b29d-48b1-8196-79d15428e78c", // A.1.3.2.4 Reports Of Misalignment (catch-all)
   "560e1024-0897-4f1e-ae71-3ba31e29ed57", // A.1.5.9 Adjudication Process (catch-all)
 ];
@@ -80,7 +82,7 @@ Rules:
 - The two catch-all mechanisms alone always mean weak. Self-enforcement is always weak.
 - Step back for implicit enforcement: on-chain automatic mechanisms, capital at risk, and priced incentives count even when the paragraph never mentions them — but you must still cite the mechanism doc.
 - Rate the text the regulated party would be held to, not what the document probably intends.
-- A stub paragraph ("specified in a future iteration") is preciseness 1; rate its enforcement on what exists today.
+- A paragraph that is only a stub ("specified in a future iteration") is preciseness 1. One that states a real value and defers something else is rated on the value it states. Rate enforcement on what exists today.
 - description: neutral and concrete ("Requires Primes to hold 5% of collateral as ASC").`;
 }
 

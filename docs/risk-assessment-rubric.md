@@ -65,8 +65,9 @@ verifiable conditions.
   "respond appropriately", enumerated categories with no criteria). Compliance
   is arguable either way on the same facts.
 - **1** — Vague, aspirational, or absent. Posture statements, headings with no
-  operative text, or explicit stubs ("will be specified in a future
-  iteration"). Nothing to comply with yet.
+  operative text, or paragraphs that are only a stub ("will be specified in
+  a future iteration"). Nothing to comply with yet. A paragraph that states a
+  real value and defers something else is rated on the value it states.
 
 Tie-breaker: if a defender of the regulated party could plausibly argue both
 "we complied" and "this doesn't bind us yet" on the same facts, the score is at
@@ -124,10 +125,22 @@ human reference):
   penalties up to conservatorship to make losses whole.
 - `bce9331b-04ca-4c50-9783-098739fc72c8` — Liquidation Penalty
   (A.3.2.2.1.1.1.1.1.2.1): on-chain automatic cost when a position violates
-  collateral requirements — contract-enforced.
+  collateral requirements — contract-enforced. It applies to Sky Core vaults
+  only. It does not reach a Prime's off-chain collateralized lending, or a
+  Prime's choice of third-party lending market.
 - `0082c12d-f1a7-46ff-a4aa-5fe42ece1a4d` — Peg Stability Module
   (A.3.3.2.1.1): fixed-rate swaps make peg deviation directly arbitrageable —
-  on-chain self-enforcement of the peg itself.
+  on-chain self-enforcement of the peg itself. It does not enforce a rate limit
+  or cap on PSM swaps; cite the Rate Limiter for those.
+- `a578830d-18f0-451c-8ff0-4a66094650ae` — Rate Limiter
+  (A.2.2.10.1.1.1.2.1.1): the `RateLimits` contracts revert any controller
+  operation above its current rate limit — contract-enforced. It reaches every
+  paragraph that states a rate limit, a `maxAmount`/`slope`, or a deposit,
+  withdrawal or swap maximum on an Allocation System controller.
+- `2ae4b91a-6900-41e8-9718-32805b956550` — Liquidity Layer Role Definitions
+  (A.2.2.10.1.1.1.2.2): the Diamond PAU's access-control roles; a call from an
+  address without the required role reverts — contract-enforced. It reaches
+  paragraphs that say only a named role may call a function.
 - `3eb6f099-2736-4f62-9cb8-096a8fcca757` — Surplus Buffer and Smart Burn
   Engine (A.3.5): protocol-level loss absorption; economic backstop, not an
   actor-level incentive — alone at most mid.
@@ -176,6 +189,14 @@ Enforcement:
 - **strong** — vault-level collateral rules: violation is liquidated with an
   on-chain Liquidation Penalty (`bce9331b`) — contract-enforced, no human in
   the loop.
+- **strong** — controller rate limits (e.g. "The swap is subject to the
+  on-chain rate limit identified by `LIMIT_USDS_TO_USDC`"): a call above the
+  limit reverts — the Rate Limiter (`a578830d`), contract-enforced. Same for
+  "only an address holding `ALLOCATOR_ROLE` may call …" (`2ae4b91a`).
+- **mid** — multisig signing requirements ("The Freezer Multisig currently has
+  a 2/5 signing requirement"): the Safe enforces whatever threshold is set,
+  not the stated one, so a mismatch is caught only by artifact review
+  (`d4bf73e7`).
 - **mid** — A.3.3.2.2 Minimum ASC (`475fe222`): artifact review (`d4bf73e7`)
   and the penalty machinery (`b8ee2d12`) plausibly reach a violation, but no
   consequence is quantified for this specific rule.
