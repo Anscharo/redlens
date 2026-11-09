@@ -14,10 +14,11 @@ import { isUuidPrefix, matchUuidPrefix } from "../lib/uuidSearch";
 import { CHAINLOG_RE, cancelSemanticLeg } from "./searchSemanticLeg";
 import { parseQuery, type ParsedQuery } from "./searchQuery";
 import { mergeChainlog, toHits, type ChainlogMatch, type MiniResult } from "./searchHits";
+import { docFilterFor, type DocFilter } from "./searchFilter";
 import { docNoKey } from "@/lib/docNo";
 import { answerQuery, createLexicalMemo, hydrateSemantic, type QueryDeps } from "./searchWorkerLanes";
 import { MINISEARCH_OPTIONS, MINISEARCH_SEARCH_OPTIONS } from "@/lib/searchOptions";
-import { counterpartTerm, expandQueryTokens, partitionByOriginalTerms } from "@/lib/searchInflect";
+import { expandQueryTokens, partitionByOriginalTerms } from "@/lib/searchInflect";
 import { computeLabels } from "../lib/hitLabels";
 
 declare const self: DedicatedWorkerGlobalScope;
@@ -113,7 +114,7 @@ function search(q: string): SearchHit[] {
     parsed.casePhrases.push(chainlog.id);
   }
 
-  const results = runIndex(idx, parsed, docFilterFor(parsed));
+  const results = runIndex(idx, parsed, docFilterFor(parsed, docs));
   const hits = toHits(results, parsed, docs, hitFor);
   if (!chainlog || chainlog.hits.size === 0) return hits;
   return mergeChainlog(hits, chainlog);
@@ -164,68 +165,6 @@ function chainlogLookup(trimmed: string): ChainlogMatch | null {
     }
   }
   return { id: trimmed, addr, hits };
-}
-
-// field:term regexes — case-insensitive; doc_no uses simple includes.
-// Broad `title:subsidy` also accepts the singular/plural counterpart.
-function fieldTermRegexes(fieldScopedTerms: Map<string, string[]>): Map<string, RegExp[]> {
-  return new Map<string, RegExp[]>(
-    [...fieldScopedTerms.entries()].map(([f, terms]) => [
-      f,
-      terms.map((t) => {
-        const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const other = counterpartTerm(t);
-        const body = other ? `(?:${esc(t)}|${esc(other)})` : esc(t);
-        return new RegExp("\\b" + body + "\\b", "i");
-      }),
-    ]),
-  );
-}
-
-type DocFilter = (result: { id: unknown }) => boolean;
-
-// Single filter function passed to MiniSearch (and applied to the queryEmpty path).
-// Handles: type:, in:, field:term, phrase, case-phrase, and -exclusion.
-function docFilterFor(p: ParsedQuery): DocFilter | undefined {
-  const { typeFilters, inPrefix, casePhrases, excludeTerms } = p;
-  // Pre-compile once per search (not once per document). Phrase / case-phrase
-  // matching is a literal substring test — no \b anchors — per the documented
-  // "quoted phrase = literal substring" contract; a \b-anchored regex can never
-  // match a phrase that begins or ends with punctuation (e.g. "(USDS)"), since
-  // \b never holds between two non-word characters. See searchHighlight.ts for
-  // the (boundary-aware, for readable highlighting) highlight-side counterpart.
-  const lowerPhrases = p.phrases.map((ph) => ph.toLowerCase());
-  const fieldTermRes = fieldTermRegexes(p.fieldScopedTerms);
-  const hasFilters =
-    typeFilters.length > 0 ||
-    inPrefix !== null ||
-    fieldTermRes.size > 0 ||
-    lowerPhrases.length > 0 ||
-    casePhrases.length > 0 ||
-    excludeTerms.length > 0;
-  if (!hasFilters) return undefined;
-
-  return (result) => {
-    const doc = docs[result.id as string];
-    if (!doc) return false;
-    if (typeFilters.length > 0 && !typeFilters.includes(doc.type.toLowerCase())) return false;
-    if (inPrefix && doc.doc_no !== inPrefix && !doc.doc_no.startsWith(inPrefix + ".")) return false;
-    for (const [field, res] of fieldTermRes) {
-      const text = field === "title" ? doc.title : field === "content" ? doc.content : doc.doc_no;
-      if (res.some((re) => !re.test(text))) return false;
-    }
-    if (lowerPhrases.length > 0) {
-      const contentLower = doc.content.toLowerCase();
-      const titleLower = doc.title.toLowerCase();
-      if (lowerPhrases.some((ph) => !contentLower.includes(ph) && !titleLower.includes(ph))) return false;
-    }
-    if (casePhrases.some((ph) => !doc.content.includes(ph) && !doc.title.includes(ph))) return false;
-    if (excludeTerms.length > 0) {
-      const haystack = (doc.title + " " + doc.content).toLowerCase();
-      if (excludeTerms.some((t) => haystack.includes(t))) return false;
-    }
-    return true;
-  };
 }
 
 function runIndex(index: MiniSearch, p: ParsedQuery, docFilter: DocFilter | undefined): MiniResult[] {

@@ -48,7 +48,6 @@
     { "files": ["apps/web/src/test/workerFixtures.ts"], "rules": { "max-lines": ["error", { "max": 229, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 153, "skipBlankLines": true, "skipComments": true }] } },
     // The semantic lane's helpers live in searchWorkerLanes.ts, but binding
     // them to this worker's own index, corpus and hit renderer can only happen here.
-    { "files": ["apps/web/src/workers/search.worker.ts"], "rules": { "max-lines": ["error", { "max": 217, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/aux/atlas-history/enumerate-onchain-polls.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 73, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/aux/coverage-areas.mjs"], "rules": { "max-lines": ["error", { "max": 316, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 74, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/aux/identity-campaign-check.ts"], "rules": { "max-lines-per-function": ["error", { "max": 79, "skipBlankLines": true, "skipComments": true }] } },
