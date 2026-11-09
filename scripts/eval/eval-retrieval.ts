@@ -41,7 +41,8 @@
  *   pnpm eval:retrieval -- --backend openrouter --offline --briefings none,s1 --briefing-file public/doc-briefings.json
  *     ^ every embed goes through .cache/eval-vectors.bin (+ .idx.json), keyed model + sha256(text sent); --offline reads
  *       only that cache and exits 1 with a count when a vector is missing. --reuse-db also copies the DB vectors it
- *       uses into the cache, so a later --offline run needs no database. Briefing arms do not combine with --rerank;
+ *       uses into the cache, so a later --offline run needs no database. Briefing arms combine with a leaf --rerank
+ *       (jev*, qwen3: it reorders the final fused list) but not with --rerank bm25;
  *       --hybrid works with s2docs only (the chat's three-way fusion: whole corpus, exact +4.5 [1.7, 7.8] on
  *       questions and +3.4 [0.6, 6.7] on keywords).
  *   pnpm eval:retrieval -- --models google/gemini-embedding-2 --no-prefix --briefings none,s2docs --sample-scope 0.10 --sample-agent 0.08
