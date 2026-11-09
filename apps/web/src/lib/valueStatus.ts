@@ -5,7 +5,7 @@
 import type { ValueCheck, ValueStatus } from "@/lib/pauAtlasValues";
 import type { LiveRateLimit } from "@/lib/pau";
 import { NOT_INDEXED } from "@/lib/plainCheck";
-import { formatAmount, formatPerDay, limitDecimals } from "./pau";
+import { formatAmount, formatPerDay, limitDecimals, slopeText } from "./pau";
 
 export const VALUE_STATUS: Record<ValueStatus, { mark: string; text: string }> = {
   match: { mark: "✓", text: "matches the atlas" },
@@ -24,14 +24,19 @@ export const VALUE_STATUS: Record<ValueStatus, { mark: string; text: string }> =
 /** A check the contract was certainly compared on: its `limit.data` is read. */
 export const isCompared = (c: ValueCheck) => c.status === "match" || c.status === "mismatch";
 
-/** A held key's maxAmount or slope in its token's units, from its live read, else the last value its history set. */
+/**
+ * A held key's maxAmount or slope in its token's units, from its live read, else
+ * the last value its history set. A slope is always its own value, even beside
+ * an unlimited maxAmount.
+ */
 export function fieldValue(r: LiveRateLimit, field: ValueCheck["field"]): string {
   const { maxAmount, slope } = r.data ?? r.configured;
-  const dec = limitDecimals(r.unit, maxAmount);
-  const symbol = r.unit?.symbol ? ` ${r.unit.symbol}` : "";
-  const amount = formatAmount(maxAmount, dec);
-  if (amount === "unlimited") return amount;
-  return field === "maxAmount" ? `${amount}${symbol}` : `${formatPerDay(slope, dec)}${symbol} per day`;
+  if (field === "maxAmount") {
+    const symbol = r.unit?.symbol ? ` ${r.unit.symbol}` : "";
+    const amount = formatAmount(maxAmount, limitDecimals(r.unit, maxAmount));
+    return amount === "unlimited" ? amount : `${amount}${symbol}`;
+  }
+  return slopeText(slope, maxAmount, r.unit, formatPerDay);
 }
 
 /** What the contract holds for the value, in its token's units; call only for a compared check. */
