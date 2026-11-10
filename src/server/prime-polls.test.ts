@@ -15,15 +15,16 @@ function hub(polls: SnapshotProposal[], asked: string[][] = []): HubRead {
     const skip = Number(v.skip ?? 0);
     if (query.includes("space_in")) return polls.slice(skip, skip + 1000).map((p) => ({ id: p.id, state: p.state }));
     const ids = v.ids as string[];
-    if (skip === 0) asked.push(ids);
-    return polls.filter((p) => ids.includes(p.id)).slice(skip, skip + 1000);
+    if (ids.length > 100) throw new Error("snapshot hub → HTTP 500 (id_in over 100)");
+    asked.push(ids);
+    return polls.filter((p) => ids.includes(p.id));
   }) as HubRead;
 }
 
 beforeEach(resetPrimePolls);
 
 describe("readPrimePolls", () => {
-  it("reads page after page, and only the polls not settled yet in full", async () => {
+  it("reads page after page, the polls not settled yet in full in batches the hub takes, and only those", async () => {
     const many = Array.from({ length: 1001 }, (_, i) => proposal(i));
     const first = await readPrimePolls(["sparkfi.eth"], new Map(), hub(many));
     expect(first.size).toBe(1001);

@@ -17,12 +17,14 @@ const CACHE_MS = 10 * 60_000;
 const FAILED_MS = 5 * 60_000;
 /** The hub's page limit; a longer list is read in pages. */
 const PAGE = 1000;
+/** The most ids the hub takes in one `id_in`; more are read in batches of this size. */
+const IDS_PER_QUERY = 100;
 
 const LIST = `query ($spaces: [String], $skip: Int) {
   proposals(first: ${PAGE}, skip: $skip, where: { space_in: $spaces }, orderBy: "created", orderDirection: desc) { id state }
 }`;
-const FULL = `query ($ids: [String], $skip: Int) {
-  proposals(first: ${PAGE}, skip: $skip, where: { id_in: $ids }, orderBy: "created", orderDirection: desc) {
+const FULL = `query ($ids: [String]) {
+  proposals(first: ${IDS_PER_QUERY}, where: { id_in: $ids }, orderBy: "created", orderDirection: desc) {
     id title space { id } end state choices scores discussion body
   }
 }`;
@@ -53,7 +55,8 @@ export async function readPrimePolls(spaces: string[], known: ReadonlyMap<string
   const listed = await allPages<{ id: string; state: string }>(read, LIST, { spaces });
   const settled = (p: { id: string; state: string }) => p.state === "closed" && known.get(p.id.toLowerCase())?.passed != null;
   const toRead = listed.filter((p) => !settled(p)).map((p) => p.id);
-  const full = toRead.length ? await allPages<SnapshotProposal>(read, FULL, { ids: toRead }) : [];
+  const full: SnapshotProposal[] = [];
+  for (let i = 0; i < toRead.length; i += IDS_PER_QUERY) full.push(...(await read<SnapshotProposal>(FULL, { ids: toRead.slice(i, i + IDS_PER_QUERY) })));
   const out = new Map<string, PrimePoll>();
   for (const p of listed.filter(settled)) out.set(p.id.toLowerCase(), known.get(p.id.toLowerCase())!);
   for (const p of full.map(toPrimePoll)) out.set(p.id, p);
