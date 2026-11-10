@@ -24,6 +24,8 @@ export interface IndexedExecutive {
   cast: boolean;
   /** The deployed spell's address; null while the executive is drafted. Deployed is not cast: see `cast`. */
   spell: string | null;
+  /** When the portal says the spell executed, YYYY-MM-DD; null or absent when it has not, or the portal does not say. */
+  executed?: string | null;
   /** Title, summary and every action section, lowercased. */
   text: string;
 }
@@ -81,6 +83,7 @@ function indexExecutive(e: Executive): IndexedExecutive {
     outOfSchedule: e.outOfSchedule,
     cast: e.portal?.hasBeenCast === true,
     spell: e.address,
+    executed: e.portal?.dateExecuted?.slice(0, 10) ?? null,
     text: [e.title, e.summary, ...sections].join(" ").toLowerCase(),
   };
 }
@@ -90,7 +93,7 @@ function indexExecutive(e: Executive): IndexedExecutive {
  * (the out-of-schedule one when the claim says so), else the first filed
  * within SLIP_DAYS after it.
  */
-export function executiveFor(index: VoteIndex, iso: string, outOfSchedule: boolean): IndexedExecutive | null {
+export function executiveFor(index: { executives: readonly IndexedExecutive[] }, iso: string, outOfSchedule: boolean): IndexedExecutive | null {
   const latest = addDays(iso, SLIP_DAYS);
   const near = index.executives.filter((e) => e.date >= iso && e.date <= latest);
   const sameDay = near.filter((e) => e.date === iso);

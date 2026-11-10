@@ -6,7 +6,7 @@ import { loadGraph } from "../lib/graph";
 import { loadAtlas } from "../lib/docs";
 import { loadPau, snapshotsForPrime } from "../lib/pau";
 import { useLoaded } from "./useAtlasData";
-import { usePendingChecks } from "./usePendingChecks";
+import { useOnchainSteps } from "./useOnchainSteps";
 import { checkAtlasAddresses } from "@/lib/pauAddressChecks";
 import { checkAgentInstances } from "@/lib/agentChecks";
 import { checkGuardParams } from "@/lib/paramGuardChecks";
@@ -24,7 +24,7 @@ export function usePrimeAtlasChecks(primeId: string | undefined, snaps: StoredPa
     const sources = primeId ? graphPrimeSources(primeId, graph, atlas ?? undefined) : null;
     return sources ? checkAtlasValues(sources, snaps) : [];
   }, [graph, atlas, primeId, snaps]);
-  return usePendingChecks(checks, snaps);
+  return useOnchainSteps(checks, snaps);
 }
 
 /** Every key the snapshots hold, by chain and key. */

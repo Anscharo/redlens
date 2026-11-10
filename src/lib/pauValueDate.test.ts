@@ -2,7 +2,7 @@
 // without a diff as possibly the one, whole-value matching, and the fallback.
 import { describe, expect, it } from "vitest";
 import type { HistoryEntry } from "./history.ts";
-import { valueChangedAt } from "./pauValueDate.ts";
+import { valueChange, valueChangedAt } from "./pauValueDate.ts";
 
 const edit = (date: string, diff?: HistoryEntry["diff"]): HistoryEntry => ({ date, commitHash: date, changeType: "modified", changeKind: "semantic", ...(diff ? { diff } : {}) });
 
@@ -25,5 +25,11 @@ describe("valueChangedAt", () => {
   it("falls back to the last content change when no diff writes the value, ignoring cosmetic edits and moves", () => {
     expect(valueChangedAt([edit("2026-10-20", [["+", "something else"]])], "10,000,000 USDC")).toBe("2026-10-20");
     expect(valueChangedAt([{ ...edit("2026-10-20"), changeKind: "typo" }, { date: "2026-10-21", commitHash: "m", changeType: "moved" }], "x")).toBeNull();
+  });
+
+  it("marks a stand-in edit as not exact, and an edit that added the document as exact", () => {
+    expect(valueChange([edit("2026-10-20", [["+", "something else"]])], "10,000,000 USDC")?.exact).toBe(false);
+    expect(valueChange([{ ...edit("2026-10-20"), changeType: "added", changeKind: undefined }], "10,000,000 USDC")?.exact).toBe(true);
+    expect(valueChange([edit("2026-10-20", [["+", "| 10,000,000 USDC |"]])], "10,000,000 USDC")).toMatchObject({ exact: true, entry: { date: "2026-10-20" } });
   });
 });

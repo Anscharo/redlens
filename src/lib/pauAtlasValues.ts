@@ -11,7 +11,7 @@ import { paramQualifier, parseStated, VALUE_PARAM_RE, type StatedValue } from ".
 import { instanceKeys, sharedAddresses, valueSide, type InstanceKey, type ValueSource } from "./pauInstanceKeys.ts";
 import { chainSnaps, instanceChain } from "./pauInstanceChain.ts";
 import { verdict } from "./pauValueVerdict.ts";
-import type { PendingOnchain } from "./pauPending.ts";
+import type { OnchainStep } from "./pauPending.ts";
 
 export type { ValueSource };
 
@@ -55,8 +55,8 @@ export interface ValueCheck {
   limit: LiveRateLimit | null;
   /** When the worker read the contract. */
   readAt: string | null;
-  /** On a mismatch: the on-chain step the atlas change is still waiting for (pauPending.ts), set by `withPending`. */
-  pending?: PendingOnchain;
+  /** On a mismatch or a limit never set: what governance did about the atlas change, followed from its pull request's spell (pauPending.ts), set by `withOnchain`. */
+  onchain?: OnchainStep;
 }
 
 type Base = Omit<ValueCheck, "status" | "key" | "chain" | "kind" | "contract" | "limit" | "readAt"> & { src: ValueSource };

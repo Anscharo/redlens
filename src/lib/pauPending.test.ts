@@ -1,73 +1,56 @@
-// Pending on-chain updates, judged on the PAU history: a queued action set, an
-// uncast executive or the route's delay keeps a mismatch pending; past them, a
-// spell that changed the deployment late enough says it executed without the
-// change, never for an Operator key; the chain moving since says nothing.
+// What governance did about an atlas value, followed from the spell its pull
+// request names: not filed, not cast, its relay queued, its changes still read,
+// executed without the value, set to another value, or lapsed; nothing said
+// when the writing change is uncertain or its PR unread.
 import { describe, expect, it } from "vitest";
-import type { HistoryEntry } from "./history.ts";
-import { actionSet, check, ctx, exec, snap, spellEntry } from "./pauPending.fixture.ts";
-import { DEFAULT_LAG_DAYS } from "./pauPendingEvidence.ts";
-import { allPending, CYCLE_DAYS, nextSpell, onchainStep, pendingFor, SPELL_LEAD_DAYS, withPending } from "./pauPending.ts";
-import { addDays } from "./votes/vote-index.ts";
+import { actionSet, check, ctx, edit, exec, spellEntry } from "./pauPending.fixture.ts";
+import { allPending, onchainStep, withOnchain } from "./pauPending.ts";
 
-const WINDOW = CYCLE_DAYS + SPELL_LEAD_DAYS + DEFAULT_LAG_DAYS;
+const named = { atlasChanged: "2026-10-29", pr: 363, date: "2026-11-05" };
+const step = (spells: string[] | undefined, today: string, o = {}, c = check("mismatch")) => onchainStep(c, [edit("2026-10-29", spells)], ctx(today, o));
 
 describe("onchainStep", () => {
-  it("is pending within the route's delay of an atlas edit newer than the chain, and silent once the chain moved", () => {
-    const c = check("mismatch");
-    expect(onchainStep(c, "2026-10-20", ctx("2026-11-10"))).toEqual({ kind: "pending", pending: { atlasChanged: "2026-10-20", expectedBy: addDays("2026-10-20", WINDOW), route: "relayed", step: { kind: "window" } } });
-    expect(onchainStep(c, "2026-10-20", ctx(addDays("2026-10-20", WINDOW + 1)))).toBeNull();
-    expect(onchainStep(check("mismatch", "2026-10-20"), "2026-10-20", ctx("2026-10-21"))).toBeNull();
-    expect(onchainStep(c, null, ctx("2026-10-21"))).toBeNull();
+  it("says the PR names no spell, and nothing while the PR is unread or the writing change is unclear", () => {
+    expect(step([], "2026-11-10")).toEqual({ kind: "unnamed", atlasChanged: "2026-10-29", pr: 363 });
+    expect(step(undefined, "2026-11-10")).toBeNull();
+    expect(onchainStep(check("mismatch"), [edit("2026-10-29", ["2026-11-05"], [["+", "unrelated"]])], ctx("2026-11-10"))).toBeNull();
   });
-  it("widens the delay by how long this chain's spells have taken to land", () => {
-    const pau = { entries: [spellEntry("2026-06-04", "2026-06-24")], queued: [] };
-    const step = onchainStep(check("mismatch"), "2026-10-20", ctx("2026-11-10", { pau }));
-    expect(step?.kind === "pending" && step.pending.expectedBy).toBe(addDays("2026-10-20", CYCLE_DAYS + SPELL_LEAD_DAYS + 20));
+  it("waits for an executive not filed yet, then calls it lapsed", () => {
+    expect(step(["2026-11-05"], "2026-11-08")).toEqual({ kind: "pending", pending: { ...named, expectedBy: "2026-11-12", step: { kind: "unfiled" } } });
+    expect(step(["2026-11-05"], "2026-11-20")).toEqual({ kind: "lapsed", named, spell: null });
   });
-  it("names a queued action set on the deployment's Executor first, then an uncast executive naming the prime", () => {
-    const pau = { entries: [], queued: [actionSet("2026-12-01", "2026-12-03")] };
-    const late = "2027-01-01";
-    expect(onchainStep(check("mismatch"), "2026-08-01", ctx(late, { pau }))).toBeNull();
-    const queued = onchainStep(check("mismatch"), "2026-11-25", ctx("2026-12-02", { pau }));
-    expect(queued?.kind === "pending" && queued.pending.step).toEqual({ kind: "queued", chain: "base", tx: "0xqueue", at: "2026-12-03T00:00:00Z" });
-    const uncast = onchainStep(check("mismatch"), "2026-08-01", ctx("2026-10-01", { executives: [exec("2026-09-10", false), exec("2026-09-11", false, "grove")] }));
-    expect(uncast?.kind === "pending" && uncast.pending.step).toEqual({ kind: "uncast", spell: { title: "Executive 2026-09-10", date: "2026-09-10", url: "https://vote/2026-09-10" } });
+  it("waits for an executive not yet cast until it expires, and finds one filed within the slip", () => {
+    const executives = [exec("2026-11-06", false)];
+    expect(step(["2026-11-05"], "2026-11-10", { executives })).toMatchObject({ kind: "pending", pending: { expectedBy: "2026-12-06", step: { kind: "uncast", spell: { date: "2026-11-06" } } } });
+    expect(step(["2026-11-05"], "2026-12-07", { executives })).toMatchObject({ kind: "lapsed", spell: { date: "2026-11-06" } });
   });
-  it("says a spell executed without the change once past the delay, counting only spells dated late enough to carry it", () => {
-    const today = "2026-11-10";
-    const executed = onchainStep(check("mismatch"), "2026-08-01", ctx(today, { pau: { entries: [spellEntry("2026-08-06", "2026-08-10"), spellEntry("2026-09-03", "2026-09-08")], queued: [] } }));
-    expect(executed).toEqual({ kind: "executed", spell: { title: "Executive 2026-09-03", date: "2026-09-03", url: "https://vote/2026-09-03" }, chain: "base", tx: "0x2026-09-03" });
-    expect(onchainStep(check("mismatch"), "2026-08-01", ctx(today, { pau: { entries: [spellEntry("2026-08-06", "2026-08-10")], queued: [] } }))).toBeNull();
-    const relayed = { ...spellEntry("2026-09-03", "2026-09-20"), executive: null, origin: { ...spellEntry("x", "x").origin!, kind: "relayed" as const, spell: null, relay: { executor: "0xex", actionsSet: 12 } } };
-    expect(onchainStep(check("mismatch"), "2026-08-01", ctx(today, { pau: { entries: [relayed], queued: [] } }))).toMatchObject({ kind: "executed", actionsSet: 12, spell: { title: null } });
+  it("after the cast: still reading its changes, then executed without the value", () => {
+    const executives = [exec("2026-11-05", true, "2026-11-07")];
+    expect(step(["2026-11-05"], "2026-11-09", { executives })).toMatchObject({ kind: "pending", pending: { expectedBy: "2026-11-10", step: { kind: "reading", executed: "2026-11-07" } } });
+    expect(step(["2026-11-05"], "2026-11-20", { executives })).toEqual({ kind: "executed", named, spell: { title: "Executive 2026-11-05", date: "2026-11-05", url: "https://vote/2026-11-05" }, executed: "2026-11-07" });
   });
-  it("never blames a spell for a key the Operator may set, and dates a limit never set against the atlas alone", () => {
-    const pau = { entries: [spellEntry("2026-09-03", "2026-09-08")], queued: [] };
-    expect(onchainStep(check("mismatch"), "2026-08-01", ctx("2026-11-10", { pau, snaps: [snap(true)] }))).toBeNull();
-    const operator = onchainStep(check("mismatch"), "2026-11-01", ctx("2026-11-10", { snaps: [snap(true)] }));
-    expect(operator?.kind === "pending" && operator.pending.route).toBe("operator");
-    expect(onchainStep(check("not-set", "", { limit: null, kind: null, contract: null }), "2026-08-01", ctx("2026-11-10", { pau }))?.kind).toBe("executed");
+  it("waits on the relay an Executor holds queued since the cast", () => {
+    const pau = { entries: [], queued: [actionSet("2026-11-08", "2026-11-15")] };
+    expect(step(["2026-11-05"], "2026-11-20", { executives: [exec("2026-11-05", true, "2026-11-07")], pau })).toMatchObject({ kind: "pending", pending: { expectedBy: "2026-11-18", step: { kind: "queued", chain: "base", tx: "0xqueue" } } });
+  });
+  it("says the named spell set the key to another value, even where the chain moved since", () => {
+    const pau = { entries: [spellEntry("0xspell", "2026-11-08", "0xK")], queued: [] };
+    const executives = [exec("2026-11-05", true, "2026-11-07")];
+    expect(step(["2026-11-05"], "2026-11-20", { executives, pau }, check("mismatch", "2026-11-08"))).toMatchObject({ kind: "set", chain: "base", tx: "0x2026-11-08" });
+    expect(step(["2026-11-05"], "2026-11-20", { executives }, check("mismatch", "2026-11-08"))).toBeNull();
+  });
+  it("takes the most telling of several named spells", () => {
+    const executives = [exec("2026-10-08", true, "2026-10-10", "0xold"), exec("2026-11-05", false)];
+    expect(step(["2026-10-08", "2026-11-05"], "2026-11-10", { executives })?.kind).toBe("pending");
   });
 });
 
-describe("nextSpell", () => {
-  it("matches the prime's name as a word, and nothing without a prime", () => {
-    expect(nextSpell([exec("2026-11-01", false, "sparkle")], "2026-10-01", "Spark")).toBeNull();
-    expect(nextSpell([exec("2026-11-01", false)], "2026-10-01", null)).toBeNull();
-  });
-});
-
-describe("withPending", () => {
-  const edit = (date: string): HistoryEntry[] => [{ date, commitHash: date, changeType: "modified", changeKind: "semantic" }];
-  it("marks only the mismatches the history places, and allPending needs every one", () => {
-    const checks = withPending([check("mismatch"), check("match"), check("mismatch", "2026-07-01", { docId: "e" })], new Map([["d", edit("2026-10-20")]]), ctx("2026-11-01"));
-    expect(checks.map((c) => !!c.pending)).toEqual([true, false, false]);
-    expect(allPending(checks)).toBe(false);
-    expect(allPending(checks.slice(0, 2))).toBe(true);
-  });
-  it("leaves a slope stated on a limit both sides switch off a plain mismatch", () => {
-    const off = { ...check("mismatch"), field: "slope" as const, limit: { ...check("mismatch").limit!, data: { maxAmount: "0", slope: "0", lastAmount: "0", lastUpdated: "0" } } };
-    const max = { ...check("match"), limit: off.limit };
-    expect(pendingFor(off, [off, max], "2026-10-20", ctx("2026-11-01"))).toBeNull();
+describe("withOnchain", () => {
+  it("follows mismatches and limits never set, and allPending needs every mismatch pending", () => {
+    const history = new Map([["d", [edit("2026-10-29", ["2026-11-05"])]]]);
+    const checks = withOnchain([check("mismatch"), check("match"), check("not-set", "", { limit: null, kind: null, contract: null })], history, ctx("2026-11-08"));
+    expect(checks.map((c) => c.onchain?.kind)).toEqual(["pending", undefined, "pending"]);
+    expect(allPending(checks)).toBe(true);
+    expect(allPending([check("mismatch"), ...checks])).toBe(false);
   });
 });

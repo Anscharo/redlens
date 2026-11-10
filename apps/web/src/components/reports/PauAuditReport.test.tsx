@@ -16,7 +16,7 @@ const rows: AuditRow[] = [
   row({}),
   row({ item: "value:d2:maxAmount", group: "spell", reason: "atlas-newer", prime: "Grove", primeId: "p2", subject: "Morpho Vault", label: "Deposit maxAmount", docId: "d2", note: "The atlas document changed after the chain value was last set." }),
   row({ item: "value:d2:maxAmount", group: "spell", reason: "atlas-newer", prime: "Grove", primeId: "p2", subject: "Morpho Vault", label: "Deposit maxAmount", docId: "d2", kind: "diamond", note: "The atlas document changed after the chain value was last set." }),
-  row({ item: "value:d4:maxAmount", group: "spell-executed", reason: "spell-executed", prime: "Spark", subject: "Base PSM", label: "Deposit maxAmount", note: "A spell has changed this deployment since.", chain: "base", docId: "d4", step: { kind: "executed", spell: { title: "Spark Spell", date: "2026-09-03", url: null }, chain: "base", tx: "0xfeed" } }),
+  row({ item: "value:d4:maxAmount", group: "spell-executed", reason: "spell-executed", prime: "Spark", subject: "Base PSM", label: "Deposit maxAmount", note: "A spell has changed this deployment since.", chain: "base", docId: "d4", step: { kind: "executed", named: { atlasChanged: "2026-08-20", pr: 316, date: "2026-09-03" }, spell: { title: "Spark Spell", date: "2026-09-03", url: "https://vote.sky.money/executive/feed" }, executed: "2026-09-05" } }),
   row({ item: "claim:x", group: "registry", reason: "rejected-claim", prime: "Shared", primeId: null, subject: "Atlas role claim", label: "beacon", stated: "0x10e6593cdda8c58a1d0f14c5164b376352a55f2f", onchain: "", docId: "d3", note: "It is the Governance Relay." }),
 ];
 
@@ -41,7 +41,7 @@ describe("PauAuditReport", () => {
     expect(screen.queryByRole("region", { name: /Ambiguous/ })).toBeNull();
     expect(screen.getByText("4 items", { exact: false })).toBeInTheDocument();
     const executed = screen.getByRole("region", { name: /Spell executed without the change/ });
-    expect(within(executed).getByRole("link", { name: /the 2026-09-03 executive "Spark Spell" changed this deployment on Base without it/i })).toHaveAttribute("href", expect.stringContaining("0xfeed"));
+    expect(within(executed).getByRole("link", { name: /Atlas PR #316 \(2026-08-20\) names the 2026-09-03 spell, and the 2026-09-03 executive "Spark Spell" executed on 2026-09-05 without setting this limit/ })).toHaveAttribute("href", "https://vote.sky.money/executive/feed");
   });
 
   it("narrows by group and prime pills, and by the header search", async () => {

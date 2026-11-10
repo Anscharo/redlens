@@ -10,7 +10,7 @@ import { isOff } from "@/lib/pauLimitOrder";
 import { isUnstated } from "@/lib/plainCheck";
 import { heldKeyId, sentence, type RowMark, type TipLine } from "./rowMark";
 import { allPending } from "@/lib/pauPending";
-import { pendingStepText } from "@/lib/pauStepText";
+import { pendingStepText, stepText } from "@/lib/pauStepText";
 import { contractValue, fieldValue, isCompared, VALUE_STATUS } from "./valueStatus";
 
 export type ParamChecks = ReadonlyMap<string, ValueCheck[]>;
@@ -86,18 +86,20 @@ function checkLines(checks: ValueCheck[]): TipLine[] {
   });
 }
 
-/** A pending row's lines: when the atlas changed, what the chain is waiting on (src/lib/pauStepText.ts), and until when it may lag. */
-function pendingLines(checks: ValueCheck[]): TipLine[] {
-  const p = checks.find((c) => c.pending)!.pending!;
-  return [{ label: "Atlas changed", value: p.atlasChanged }, { text: sentence(pendingStepText(p.step, p.route)) }, { label: "Expected by", value: p.expectedBy }];
+/** What governance did about the row's atlas change (src/lib/pauStepText.ts): for a pending one, when the atlas changed, what it waits on and until when. */
+function onchainLines(checks: ValueCheck[]): TipLine[] {
+  const step = checks.find((c) => c.onchain)?.onchain;
+  if (!step) return [];
+  if (step.kind !== "pending") return [{ text: sentence(stepText(step)) }];
+  const p = step.pending;
+  return [{ label: "Atlas changed", value: `${p.atlasChanged}${p.pr ? ` · PR #${p.pr}` : ""}` }, { label: "Spell", value: p.date }, { text: sentence(pendingStepText(p.step)) }, { label: "Expected by", value: p.expectedBy }];
 }
 
 /** A maxAmount or slope row's mark: the verdict over its checks, each deployment's value, and the atlas's on a mismatch. */
 export function valueRowMark(checks: ValueCheck[]): RowMark {
   const mark = paramMark(checks)!;
   const atlas: TipLine[] = mark === "mismatch" || mark === "pending" ? [{ label: "Atlas", value: checks[0].stated }] : [];
-  const pending = mark === "pending" ? pendingLines(checks) : [];
-  return { mark, head: VALUE_HEAD[mark], lines: [...checkLines(checks), ...atlas, ...pending], docId: checks[0].docId };
+  return { mark, head: VALUE_HEAD[mark], lines: [...checkLines(checks), ...atlas, ...onchainLines(checks)], docId: checks[0].docId };
 }
 
 /**

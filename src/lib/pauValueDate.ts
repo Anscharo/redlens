@@ -2,7 +2,6 @@
 // date the chain is measured against when the two disagree (pauPending.ts,
 // the PAU values audit). Pure.
 import type { DiffLine, HistoryEntry } from "./history.ts";
-import { lastContentChange } from "./pauAudit.ts";
 
 const CONTENT = new Set(["added", "modified"]);
 const norm = (s: string) => s.replace(/\s+/g, " ").toLowerCase();
@@ -25,15 +24,29 @@ function writes(diff: DiffLine[], stated: string): boolean {
   return has(sideLines(diff, "+")) && !has(sideLines(diff, "-"));
 }
 
+/** The change that wrote a value, and whether it is certainly that change. */
+export interface ValueChange {
+  entry: HistoryEntry;
+  /** Its diff adds the value, or it added the document; false for a stand-in edit that cannot be told to have written it. */
+  exact: boolean;
+}
+
+const wrote = (e: HistoryEntry, stated: string) => (e.diff?.length ? writes(e.diff, stated) : e.changeType === "added");
+
 /**
- * When the document last wrote the stated value, YYYY-MM-DD: its newest content
- * change whose diff adds the value, or that carries no diff to tell by. An edit
- * whose diff leaves the value alone is passed over. Where no diff is found to
- * write it (the atlas writes it differently from the parsed value), the
- * document's last content change stands in; null when it has none.
+ * The change that last wrote the stated value: the document's newest content
+ * change whose diff adds the value, or that added the document. Where none can
+ * be shown to (no diff, or the atlas writes it differently from the parsed
+ * value), the newest content change stands in, not exact; null when it has none.
  */
-export function valueChangedAt(entries: readonly HistoryEntry[], stated: string): string | null {
+export function valueChange(entries: readonly HistoryEntry[], stated: string): ValueChange | null {
   const content = entries.filter((e) => CONTENT.has(e.changeType) && e.changeKind !== "lint" && e.changeKind !== "typo" && e.date);
   const newest = [...content].sort((a, b) => b.date.localeCompare(a.date));
-  return newest.find((e) => !e.diff?.length || writes(e.diff, stated))?.date.slice(0, 10) ?? lastContentChange(entries);
+  const exact = newest.find((e) => wrote(e, stated));
+  if (exact) return { entry: exact, exact: true };
+  const stand = newest.find((e) => !e.diff?.length) ?? newest[0];
+  return stand ? { entry: stand, exact: false } : null;
 }
+
+/** When the document last wrote the stated value, YYYY-MM-DD (`valueChange`); null when it has no content change. */
+export const valueChangedAt = (entries: readonly HistoryEntry[], stated: string): string | null => valueChange(entries, stated)?.entry.date.slice(0, 10) ?? null;

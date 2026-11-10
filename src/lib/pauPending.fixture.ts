@@ -1,6 +1,8 @@
-// Shared fixtures for the pending-change tests: one Spark deployment on Base
-// administered by its Executor, a key it holds, spell-made history entries,
-// queued steps and vote-record executives.
+// Shared fixtures for the on-chain step tests: one Spark deployment on Base
+// administered by its Executor, a key it holds, the atlas change that wrote a
+// value and the spells it names, a spell's PAU changes, queued action sets and
+// vote-record executives.
+import type { HistoryEntry } from "./history.ts";
 import type { StoredPauSnapshot } from "./pau.ts";
 import type { ValueCheck } from "./pauAtlasValues.ts";
 import type { PauHistoryEntry, PauQueuedStep } from "./pauHistory.ts";
@@ -30,20 +32,28 @@ export const snap = (beam = false): StoredPauSnapshot => ({
   }],
 });
 
-/** A change a spell of the `execDate` executive made to the deployment, landing on `landed`. */
-export const spellEntry = (execDate: string, landed: string, deployments = [DEP]): PauHistoryEntry => ({
-  chain: "base", tx: `0x${execDate}`, block: 1, time: `${landed}T00:00:00Z`, primes: ["spark"],
-  origin: { kind: "spell", path: "op-stack", spell: "0xspell", starSpell: null, l1Tx: null, from: null, to: null, relay: null, evidence: "e" },
-  executive: { title: `Executive ${execDate}`, date: execDate, url: `https://vote/${execDate}`, source: "vote-record" },
-  changes: [{ deployments, contract: "0xrl", role: "rateLimits", event: "RateLimitDataSet", args: {}, subject: "0xother", label: null, before: null }],
+/** The atlas change that wrote the stated value on `date`, by PR #363, naming `spells` (undefined: its PR record is not read). */
+export const edit = (date: string, spells?: string[], diff: HistoryEntry["diff"] = [["+", "| maxAmount | 10,000,000 USDC |"]]): HistoryEntry => ({
+  date, commitHash: date, changeType: "modified", changeKind: "semantic", pr: 363, diff, ...(spells ? { spells } : {}),
+});
+
+/** A change spell `spell` made on Base to `subject` on the RateLimits. */
+export const spellEntry = (spell: string, landed: string, subject = "0xother"): PauHistoryEntry => ({
+  chain: "base", tx: `0x${landed}`, block: 1, time: `${landed}T00:00:00Z`, primes: ["spark"],
+  origin: { kind: "spell", path: "op-stack", spell, starSpell: null, l1Tx: null, from: null, to: null, relay: null, evidence: "e" },
+  executive: null,
+  changes: [{ deployments: [DEP], contract: "0xrl", role: "rateLimits", event: "RateLimitDataSet", args: {}, subject, label: null, before: null }],
 });
 
 export const actionSet = (queued: string, executes: string | null, contract = "0xex"): PauQueuedStep => ({
   kind: "action-set", chain: "base", contract, id: "7", tx: "0xqueue", time: `${queued}T00:00:00Z`, at: executes && `${executes}T00:00:00Z`, primes: [],
 });
 
-export const exec = (date: string, cast: boolean, text = "spark proxy spell"): IndexedExecutive => ({ date, title: `Executive ${date}`, url: `https://vote/${date}`, outOfSchedule: false, cast, spell: null, text });
+/** The `date` executive; cast ones executed on `executed`. */
+export const exec = (date: string, cast: boolean, executed: string | null = null, spell = "0xspell"): IndexedExecutive => ({
+  date, title: `Executive ${date}`, url: `https://vote/${date}`, outOfSchedule: false, cast, spell, text: "", executed,
+});
 
 export const ctx = (today: string, o: Partial<PendingContext> = {}): PendingContext => ({
-  executives: [], pau: { entries: [], queued: [] }, snaps: [snap()], prime: "Spark", today, ...o,
+  executives: [], pau: { entries: [], queued: [] }, snaps: [snap()], today, ...o,
 });

@@ -19,9 +19,10 @@ import pau from "./pau.mjs";
 import pauOrigin from "./pau-origin.ts";
 import pauSpellSources from "./pau-spell-sources.ts";
 import voteArchive from "./vote-archive.ts";
+import prSpells from "./pr-spells.ts";
 import { TAIL_LANES } from "./tail.mjs";
 
-export const WORKER_STEPS = [prEnvCopy, prState, chainState, balances, pau, pauOrigin, pauSpellSources, voteArchive, forum, ...TAIL_LANES];
+export const WORKER_STEPS = [prEnvCopy, prState, chainState, balances, pau, pauOrigin, pauSpellSources, voteArchive, prSpells, forum, ...TAIL_LANES];
 
 export function stepsIn(steps, phase) {
   return steps.filter((s) => s.phase === phase);

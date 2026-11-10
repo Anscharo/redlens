@@ -6,6 +6,8 @@ import type { StoredPauSnapshot } from "./pau.ts";
 import type { ValueCheck } from "./pauAtlasValues.ts";
 import { auditRowsToCSV, auditSearchFields } from "./pauAuditCsv.ts";
 import { auditItemCount, buildPauAudit, docsToDate, groupDigits } from "./pauAuditIndex.ts";
+import type { PauHistoryEntry } from "./pauHistory.ts";
+import { exec } from "./pauPending.fixture.ts";
 
 const limit = (maxAmount: string, time: string) => ({ key: "0xk", configured: { maxAmount, slope: "0" }, setAt: { block: 1, time, tx: "0xt" }, changes: 1, data: { maxAmount, slope: "0", lastAmount: "0", lastUpdated: "0" }, available: maxAmount, unit: { decimals: 6, symbol: "USDC", source: "token" as const } });
 const check = (docId: string, status: ValueCheck["status"], extra: Partial<ValueCheck> = {}): ValueCheck => ({
@@ -50,20 +52,18 @@ describe("buildPauAudit", () => {
     expect(docsToDate(primes)).toEqual(["d1", "d2"]);
     expect(docsToDate([{ primeId: "p", prime: "Spark", checks: [check("d5", "not-set")] }])).toEqual(["d5"]);
   });
-  it("never says a spell may not have executed where the PAU history shows one changed the deployment since without the change", () => {
-    const entry = (execDate: string) => ({
-      chain: "ethereum", tx: `0x${execDate}`, block: 1, time: `${execDate}T12:00:00Z`, primes: ["p"],
-      origin: { kind: "spell" as const, path: "starguard" as const, spell: "0xs", starSpell: null, l1Tx: null, from: null, to: null, relay: null, evidence: "e" },
-      executive: { title: `Executive ${execDate}`, date: execDate, url: null, source: "vote-record" as const },
-      changes: [{ deployments: ["p:ethereum:diamond"], contract: "0xc", role: "rateLimits", event: "RateLimitDataSet", args: {}, subject: "0xother", label: null, before: null }],
-    });
-    const dsnap = { ...snap, deployment: "p:ethereum:diamond", chain: "ethereum", kind: "diamond" as const };
-    const audit = (entries: ReturnType<typeof entry>[]) =>
-      buildPauAudit({ primes, snaps: [dsnap], claims: [], history, votes: { executives: [], pau: { entries, queued: [] }, today: "2026-11-10" } }).filter((r) => r.docId === "d2");
-    const executed = audit([entry("2026-06-11"), entry("2026-07-09")]);
-    expect(executed.map((r) => [r.kind, r.group, r.reason])).toEqual([["monolithic", "spell", "atlas-newer"], ["diamond", "spell-executed", "spell-executed"]]);
-    expect(executed[1].step).toMatchObject({ kind: "executed", spell: { title: "Executive 2026-07-09" } });
-    expect(audit([entry("2026-06-11")]).map((r) => r.reason)).toEqual(["atlas-newer", "atlas-newer"]);
+  it("places a change the atlas moved last by what became of the spell its pull request names", () => {
+    const written = [{ date: "2026-06-01", commitHash: "c", changeType: "modified" as const, changeKind: "semantic" as const, pr: 316, spells: ["2026-06-11"], diff: [["+", "maxAmount 5,000,000 USDC"]] as [["+", string]] }];
+    const audit = (executives: ReturnType<typeof exec>[], entries: PauHistoryEntry[] = []) =>
+      buildPauAudit({ primes, snaps: [snap], claims: [], history: new Map([["d2", written]]), votes: { executives, pau: { entries, queued: [] }, today: "2026-11-10" } }).filter((r) => r.docId === "d2");
+    const executed = audit([exec("2026-06-11", true, "2026-06-12", "0xs")]);
+    expect(executed.map((r) => [r.group, r.reason])).toEqual([["spell-executed", "spell-executed"], ["spell-executed", "spell-executed"]]);
+    expect(executed[0].step).toMatchObject({ kind: "executed", named: { pr: 316, date: "2026-06-11" }, executed: "2026-06-12" });
+    expect(audit([exec("2026-06-11", false)]).map((r) => r.reason)).toEqual(["spell-lapsed", "spell-lapsed"]);
+    const set: PauHistoryEntry = { chain: "ethereum", tx: "0xt", block: 1, time: "2026-06-12T00:00:00Z", primes: ["p"], executive: null,
+      origin: { kind: "spell", path: "starguard", spell: "0xs", starSpell: null, l1Tx: null, from: null, to: null, relay: null, evidence: "e" },
+      changes: [{ deployments: [], contract: "0xc", role: "rateLimits", event: "RateLimitDataSet", args: {}, subject: "0xk", label: null, before: null }] };
+    expect(audit([exec("2026-06-11", true, "2026-06-12", "0xs")], [set]).map((r) => [r.group, r.reason])).toEqual([["ambiguous", "spell-set-differently"], ["ambiguous", "spell-set-differently"]]);
   });
 });
 
