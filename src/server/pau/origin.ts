@@ -7,14 +7,14 @@
 import type { PauOrigin } from "../../lib/pauHistory.ts";
 import type { PauRegistry } from "../../lib/pauRegistry.ts";
 import type { SqlTag } from "../sql-types.ts";
-import { OPERATOR_RULE, TX_RULE } from "./origin-direct.ts";
+import { OPERATOR_RULE, SVM_RULE, TX_RULE } from "./origin-direct.ts";
 import { RELAY_RULE } from "./origin-relay.ts";
 import { CAST_RULE, STAR_GUARD_RULE, origin, type OriginDeps, type OriginRule, type TxContext } from "./origin-rules.ts";
 import { cursorsPast, eventsOfTx, pendingTxs, plotOf, queuedOf, saveOrigin } from "./origin-store.ts";
 import { castIn } from "./casts.ts";
 import { eventTargets } from "./sync-events.ts";
 
-export const ORIGIN_RULES: OriginRule[] = [STAR_GUARD_RULE, RELAY_RULE, CAST_RULE, OPERATOR_RULE, TX_RULE];
+export const ORIGIN_RULES: OriginRule[] = [STAR_GUARD_RULE, RELAY_RULE, CAST_RULE, OPERATOR_RULE, SVM_RULE, TX_RULE];
 
 const GOVERNANCE_ROLES = new Set(["starGuard", "executor", "configurator"]);
 

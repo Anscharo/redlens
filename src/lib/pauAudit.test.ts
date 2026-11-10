@@ -19,6 +19,11 @@ describe("checkReason", () => {
     expect(checkReason(c, [c], at("2026-04-01", "2026-04-01"))).toBe("order-unknown");
     expect(checkReason(c, [c], at(null, "2026-04-01"))).toBe("order-unknown");
   });
+  it("reads a key set before its history's window as the chain moving first, whenever the atlas wrote", () => {
+    const c = check("mismatch");
+    for (const atlas of ["2025-12-01", "2026-05-01"]) expect(checkReason(c, [c], { ...at(null, atlas), chainBefore: "2026-01-03T07:37:02.000Z" })).toBe("atlas-newer");
+    expect(checkReason(c, [c], { ...at(null, null), chainBefore: "2026-01-03T07:37:02.000Z" })).toBe("order-unknown");
+  });
   it("maps the other statuses, and leaves out values that need no audit", () => {
     const reasons = (["not-set", "no-key", "ambiguous", "units-unknown", "match", "not-stated", "unread", "no-deployment", "unparsed", "unknown-chain"] as const).map((s) => checkReason(check(s), [], at(null, null)));
     expect(reasons).toEqual(["not-set", "no-key", "several-keys", "units-unknown", null, null, null, null, null, null]);

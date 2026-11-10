@@ -22,6 +22,7 @@ import type { KeyNamer } from "./diamond-derive.ts";
 import { svmSnapshot } from "./svm-snapshot.ts";
 import { svmAccounts, type SvmAccounts } from "./svm-reader.ts";
 import type { SvmProbe } from "./svm-probe.ts";
+import { svmHistory, svmSetTimes } from "./svm-history.ts";
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v));
 
@@ -126,9 +127,9 @@ async function refreshEach(db: SqlTag, reg: PauRegistry, read: ChainReader, opts
   const failed: { deployment: string; error: string }[] = [];
   for (const d of reg.deployments) {
     try {
-      // The Solana program is read from its accounts alone; the EVM controllers from their event history and live reads.
+      // The Solana program is read from its accounts, timed by its stored event window; the EVM controllers from their event history and live reads.
       const snap = d.kind === "svm"
-        ? await svmSnapshot(d, (opts.svmRead ?? svmAccounts)(d.chain), svmProbes.get(d.prime))
+        ? await svmSnapshot(d, (opts.svmRead ?? svmAccounts)(d.chain), svmProbes.get(d.prime), svmSetTimes(await svmHistory(db, d), now))
         : await snapshotOf(d, read, historyOf, await beamOf(d.chain), { nameKeys: opts.nameKeys, probe: atlasKeys.get(d.prime), prev: prevs.get(deploymentId(d)), roles });
       await upsertSnapshot(db, snap, new Date(now));
     } catch (e) {

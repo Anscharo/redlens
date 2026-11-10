@@ -1,6 +1,7 @@
 // sync:pau-rpc — the atlas worker tail that reads PAU admin-event history from
 // HyperSync or JSON-RPC (pau/rpc-sync.ts; scripts/lib/log-sources.ts says which
-// chains). Each run crawls
+// chains), then the Solana program's configuration events from HyperSync
+// (pau/svm-sync.ts). Each run crawls
 // until PAU_RPC_DEADLINE_MS after it starts, then stops between requests; the
 // next tick resumes from the stored cursors.
 //
@@ -12,6 +13,7 @@ import { deadlineMs, runPauRpc, withLock, type Reserved } from "./pau/rpc-lane.t
 import reg from "../data/pau-registry.json" with { type: "json" };
 import type { PauRegistry } from "../lib/pauRegistry.ts";
 import { logSourcesFor } from "../../scripts/lib/log-sources.ts";
+import { svmSourceFor } from "./pau/svm-hypersync.ts";
 
 // One run at a time across callers. Arbitrary fixed key; it only has to differ
 // from the others (sync-briefings.ts lists them).
@@ -21,7 +23,7 @@ const T0 = Date.now();
 async function run(): Promise<void> {
   await runMigrations();
   useDbCooldowns(sql);
-  const deps = { sources: logSourcesFor, deadline: T0 + deadlineMs() };
+  const deps = { sources: logSourcesFor, svmSource: svmSourceFor, deadline: T0 + deadlineMs() };
   await runPauRpc(sql, reg as unknown as PauRegistry, deps);
 }
 

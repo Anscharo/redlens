@@ -68,6 +68,7 @@ function LimitRow({ row: { r, shown, keyDocId, flag }, chain, keyIndex, namedIn 
             <PauOriginChip chain={chain} tx={r.setAt.tx} />
           </>
         )}
+        {!r.setAt.time && r.setAt.before && <span style={dim} title="The history read since then holds no change to this limit">before {r.setAt.before.slice(0, 10)}</span>}
       </td>
     </tr>
   );

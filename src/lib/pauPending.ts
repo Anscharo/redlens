@@ -35,7 +35,7 @@ import { isThreadRef } from "./atlasPrSpell.ts";
 import { chainLedStep, type OpenAtlasPr } from "./pauChainLed.ts";
 import { namedStep, pollStep } from "./pauSpellStep.ts";
 import { keyRoutes, type KeyRoutes } from "./pauKeyRoutes.ts";
-import { moveOrder, valueChange } from "./pauValueDate.ts";
+import { setOrder, valueChange } from "./pauValueDate.ts";
 import type { PrimePoll } from "./primePolls.ts";
 import type { IndexedExecutive } from "./votes/vote-index.ts";
 
@@ -142,7 +142,7 @@ export function onchainStep(c: ValueCheck, entries: readonly HistoryEntry[], ctx
   const spells = change.exact ? change.entry.spells : undefined;
   const linked = change.exact ? linkedStep(c, base, spells ?? [], ctx) : null;
   if (linked?.kind === "set") return linked;
-  if (moveOrder(c.limit?.setAt.time, change.entry.date) === "chain") return chainLedStep(c, entries, ctx);
+  if (setOrder(c.limit?.setAt, change.entry.date) === "chain") return chainLedStep(c, entries, ctx);
   const polled = base.pr != null && !!ctx.pollsByPr?.get(base.pr)?.length;
   if (linked || polled || !spells || !ctx.pollsByPr || spells.some(isThreadRef)) return linked;
   return { kind: "unnamed", ...base };

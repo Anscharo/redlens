@@ -12,7 +12,7 @@ import type { ValueCheck } from "./pauAtlasValues.ts";
 import type { KeyRoutes } from "./pauKeyRoutes.ts";
 import type { OnchainStep } from "./pauPending.ts";
 import { operatorFallsShort, operatorReaches } from "./pauRouteText.ts";
-import { moveOrder } from "./pauValueDate.ts";
+import { setOrder } from "./pauValueDate.ts";
 
 export const AUDIT_GROUPS = [
   { key: "atlas", label: "Atlas probably out of date", hint: "The chain moved after the atlas last stated the value, or the atlas contradicts itself." },
@@ -55,11 +55,13 @@ export type AuditReason = keyof typeof AUDIT_REASONS;
 export interface MoveDates {
   chain: string | null;
   atlas: string | null;
+  /** The chain set the key before this time, the start of the window its history was read over (`SetAt.before`). */
+  chainBefore?: string;
 }
 
-/** A disagreement placed by which side moved last (`moveOrder`, the rule the on-chain step follows too); an unknown time, or the same instant, places it nowhere. */
+/** A disagreement placed by which side moved last (`setOrder`, the rule the on-chain step follows too); an unknown time, or the same instant, places it nowhere. */
 function byOrder(d: MoveDates): AuditReason {
-  const order = moveOrder(d.chain, d.atlas);
+  const order = setOrder({ time: d.chain ?? "", before: d.chainBefore }, d.atlas);
   return order === "chain" ? "chain-newer" : order === "atlas" ? "atlas-newer" : "order-unknown";
 }
 
