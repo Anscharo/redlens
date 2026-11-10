@@ -29,7 +29,7 @@ export const CHANGE_INDICATOR: Record<string, string> = {
 };
 
 export function docHref(docId: string): string {
-  return `${ROUTES.ATLAS}?id=${docId}&view=history`;
+  return `${ROUTES.ATLAS}?id=${docId}`;
 }
 
 export function editTooltip(changeType: AffectedDoc["changeType"], changeKind?: ChangeKind): string {

@@ -64,11 +64,11 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "The right-hand panel",
-        what: "Context for whichever document is selected — notes, onchain, history, and glossary in one scrolling panel, with pills at the top to jump between them. A section with nothing for the document is left out; history always shows.",
+        what: "Context for whichever document is selected — history, notes, onchain, and glossary in one scrolling panel, with pills at the top to jump between them. A section with nothing for the document is left out; history always shows, and it is where you land by default.",
         how: [
-          "Notes — the Element Annotations attached to this document, linked documents, equivalent documents under the other Prime Agents, which documents cite this one, and extracted relations (where you land by default when the document has any).",
-          "Onchain — for a document that states a Prime Agent instance's rate limits (or is the instance, or is the Rate Limits heading over them, or is a limit document listed under a Rate Limits heading and a chain heading, like Spark's Diamond PAU CCTP limits, or a vault instance's Take Rate Limits), `Atlas vs contract`: each maxAmount and slope the Atlas states beside what the PAU contract holds now, ✗ where they differ and a note where they cannot be compared (contract not read yet, not set on the contract); then the Sky Executive Votes behind the document (each one that links it, and each one matched to one of its dates, labelled as on Stale Dates), linked to vote.sky.money and, once cast, to the spell contract, with how many PAU settings the spell changed on which chains and a link to each Prime Agent's PAU history; then the on-chain addresses the document names, each with its chain, labels, balances and live contract values.",
           "History — this document's change timeline, with the governance poll that approved each change where one links it (“approved by poll …”), and any Executive Vote that cites that poll (“cited by Executive Vote …”).",
+          "Notes — the Element Annotations attached to this document, linked documents, equivalent documents under the other Prime Agents, which documents cite this one, and extracted relations.",
+          "Onchain — for a document that states a Prime Agent instance's rate limits (or is the instance, or is the Rate Limits heading over them, or is a limit document listed under a Rate Limits heading and a chain heading, like Spark's Diamond PAU CCTP limits, or a vault instance's Take Rate Limits), `Atlas vs contract`: each maxAmount and slope the Atlas states beside what the PAU contract holds now, ✗ where they differ and a note where they cannot be compared (contract not read yet, not set on the contract); then the Sky Executive Votes behind the document (each one that links it, and each one matched to one of its dates, labelled as on Stale Dates), linked to vote.sky.money and, once cast, to the spell contract, with how many PAU settings the spell changed on which chains and a link to each Prime Agent's PAU history; then the on-chain addresses the document names, each with its chain, labels, balances and live contract values.",
           "Glossary — the defined terms this document uses, with their Atlas definitions.",
         ],
       },
@@ -98,7 +98,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "History & version diffs",
         what: "See how any document changed over time, with before/after diffs and links to the upstream commit and PR.",
         how: [
-          "Open the history tab in the right-hand panel to get the document's change timeline.",
+          "The history section opens first in the right-hand panel, with the document's change timeline.",
           "Each entry shows the diff; heavily rewritten sentences appear as before/after blocks instead of word-by-word.",
           "Pre-history covers the HTML-era reconstruction and the pre-git MIP/genesis origins, marked with provenance disclaimers.",
         ],

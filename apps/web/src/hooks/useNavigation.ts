@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { ROUTES } from "@/lib/routes";
 import { track } from "../lib/analytics";
 import { hiddenTargetHref, useFilterHides } from "../lib/atlasFilter";
-import type { AtlasTab } from "../lib/atlasTab";
+import { DEFAULT_ATLAS_TAB, type AtlasTab } from "../lib/atlasTab";
 
 // Copy params from the live URL at click time so they ride along on every
 // atlas-internal navigation (split stays open, active tab stays active).
@@ -46,14 +46,14 @@ function useNodeNavigator(navigate: Navigate): (id: string) => void {
   );
 }
 
-/** Switches the reader's right panel. Notes is the default panel, so it rides the URL with no ?view= param. */
+/** Switches the reader's right panel. The default panel rides the URL with no ?view= param. */
 function useViewChange(navigate: Navigate, nodeId: string | null): (v: AtlasTab) => void {
   return useCallback(
     (v: AtlasTab) => {
       track("atlas_view_tab", { node_id: nodeId, view: v });
       const params = new URLSearchParams();
       if (nodeId) params.set("id", nodeId);
-      if (v !== "notes") params.set("view", v);
+      if (v !== DEFAULT_ATLAS_TAB) params.set("view", v);
       navigate(`${ROUTES.ATLAS}?${carryParams(params, ["split", ...FILTER_PARAMS])}`);
     },
     [navigate, nodeId],
