@@ -32,7 +32,7 @@ export const snap = (beam = false): StoredPauSnapshot => ({
   }],
 });
 
-/** The atlas change that wrote the stated value on `date`, by PR #363, naming `spells` (undefined: its PR record is not read). */
+/** The atlas change that wrote the stated value on `date`, by a fixture pull request, naming `spells` (undefined: its PR record is not read). */
 export const edit = (date: string, spells?: string[], diff: HistoryEntry["diff"] = [["+", "| maxAmount | 10,000,000 USDC |"]]): HistoryEntry => ({
   date, commitHash: date, changeType: "modified", changeKind: "semantic", pr: 363, diff, ...(spells ? { spells } : {}),
 });

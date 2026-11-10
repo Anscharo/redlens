@@ -1,6 +1,6 @@
 // The spell an atlas pull request says it belongs to, read from its own words:
 // the forum thread it links ("…/september-24-2026-proposed-changes-to-grove-for-upcoming-spell/…"),
-// its title ("2026-11-05 Spell Updates", "October 8 spell changes") or the
+// its title ("October 8 spell changes", or an ISO date before "Spell Updates") or the
 // bullet that names a document's edit ("Update Grove Artifact For April 9
 // Spell"). Only a date written next to the word "spell" counts; a date beside
 // "Executive Vote" says when something takes effect, not which spell carries
