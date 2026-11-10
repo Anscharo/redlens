@@ -51,8 +51,7 @@ describe("rerankHead", () => {
   it("moves the pick up inside the pool and leaves the tail alone", async () => {
     answering({ c01: 0.01, c02: 0.0, c03: 0.97, none: 0.02 });
     const out = await rerankHead("which one", items, idOf, docMap);
-    expect(out.items.map(idOf)).toEqual(["c", "a", "b", "d"]);
-    expect(out.skipped).toBeUndefined();
+    expect(out.map(idOf)).toEqual(["c", "a", "b", "d"]);
     expect(Object.keys(lastBody!.state.candidates)).toEqual(["c01", "c02", "c03"]);
   });
 
@@ -61,37 +60,46 @@ describe("rerankHead", () => {
     await rerankHead("paged", items, idOf, docMap);
     const again = await rerankHead("paged", items, idOf, docMap);
     expect(calls).toBe(1);
-    expect(again.items.map(idOf)).toEqual(["b", "c", "a", "d"]);
+    expect(again.map(idOf)).toEqual(["b", "c", "a", "d"]);
   });
 
-  it("is off with an empty model and makes no call", async () => {
+  it("shares one call between pages fetched at the same time", async () => {
+    answering({ c01: 0.0, c02: 0.9, c03: 0.1, none: 0.0 });
+    const [first, second] = await Promise.all([rerankHead("together", items, idOf, docMap), rerankHead("together", items, idOf, docMap, 2)]);
+    expect(calls).toBe(1);
+    expect(first).toEqual(second);
+  });
+
+  it("makes no call for a page that starts past the head", async () => {
+    answering({ c01: 1 });
+    expect(await rerankHead("deep", items, idOf, docMap, 3)).toBe(items);
+    expect(calls).toBe(0);
+  });
+
+  it("is off with an empty model or no OpenRouter key and makes no call", async () => {
     answering({ c01: 1 });
     rerankConfig.model = "";
-    const out = await rerankHead("q", items, idOf, docMap);
-    expect(out).toEqual({ items, skipped: "off" });
-    expect(calls).toBe(0);
-  });
-
-  it("is off without an OpenRouter key and makes no call", async () => {
-    answering({ c01: 1 });
+    expect(await rerankHead("q", items, idOf, docMap)).toBe(items);
+    rerankConfig.model = "typesafe/jev-test";
     config.openrouterApiKey = "";
-    const out = await rerankHead("q", items, idOf, docMap);
-    expect(out).toEqual({ items, skipped: "off" });
+    expect(await rerankHead("q", items, idOf, docMap)).toBe(items);
     expect(calls).toBe(0);
   });
 
-  it("keeps the fused order when the call fails", async () => {
+  it("keeps the fused order when the call fails, and tries again on the next search", async () => {
     answering({}, 400);
-    const out = await rerankHead("fails", items, idOf, docMap);
-    expect(out.items).toBe(items);
-    expect(out.skipped).toMatch(/systemone 400/);
+    expect(await rerankHead("fails", items, idOf, docMap)).toBe(items);
+    expect(await rerankHead("fails", items, idOf, docMap)).toBe(items);
+    expect(calls).toBe(2);
   });
 
-  it("keeps the fused order at the deadline even when the transport ignores the abort", async () => {
-    globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
+  it("keeps the fused order at the deadline", async () => {
+    // A hung request that ends only when the wall-clock signal aborts it, as fetch does.
+    globalThis.fetch = ((_url: unknown, init: { signal: AbortSignal }) =>
+      new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(init.signal.reason)))) as unknown as typeof fetch;
     rerankConfig.deadlineMs = 20;
-    const out = await rerankHead("hangs", items, idOf, docMap);
-    expect(out.items).toBe(items);
-    expect(out.skipped).toMatch(/rerank timed out after 20ms/);
+    const t0 = performance.now();
+    expect(await rerankHead("hangs", items, idOf, docMap)).toBe(items);
+    expect(performance.now() - t0).toBeLessThan(1000);
   });
 });

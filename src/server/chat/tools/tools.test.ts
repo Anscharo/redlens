@@ -185,7 +185,9 @@ test("atlasSearch surfaces semantic_skipped when a hybrid search's embed leg tim
   const prevFetch = globalThis.fetch;
   config.openrouterApiKey = "test-key";
   config.semanticEmbedTimeoutMs = 20;
-  globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch; // hangs → timeout
+  // Hangs until its signal aborts, as fetch does: the embed times out, and a rerank call ends at its deadline.
+  globalThis.fetch = ((_u: unknown, init?: { signal?: AbortSignal }) =>
+    new Promise((_, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal!.reason)))) as unknown as typeof fetch;
   try {
     const { atlasSearch } = await import("./tools-search.ts");
     const ix = makeIx();

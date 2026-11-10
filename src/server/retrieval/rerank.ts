@@ -6,16 +6,14 @@
 // (scripts/eval/eval-rerankers.ts imports it); its numbers are in the
 // eval-retrieval.ts header.
 import type { AtlasNode } from "../../types.ts";
-import { askJev, withDeadline, type JevQuestion } from "../jev.ts";
-import { JEV } from "../env/chat.ts";
+import { askJev, choiceOf, jevReady, withDeadline, type JevQuestion } from "../jev.ts";
+import { JEV_DEFAULT } from "../config.ts";
 import { captureError } from "../posthog-node.ts";
-import { withTimeout } from "../retry.ts";
-import { config } from "../config.ts";
 import { createCache } from "../ttl-cache.ts";
 
 export const rerankConfig = {
   /** "" turns the reranker off. */
-  model: process.env.SEARCH_RERANK_MODEL ?? JEV,
+  model: process.env.SEARCH_RERANK_MODEL ?? JEV_DEFAULT,
   pool: Number(process.env.SEARCH_RERANK_POOL ?? 30),
   deadlineMs: Number(process.env.SEARCH_RERANK_DEADLINE_MS ?? 1500),
 };
@@ -73,69 +71,60 @@ export function sortByScore(ids: string[], scores: number[]): string[] {
     .map((x) => x.id);
 }
 
-export interface ChoiceRanking {
-  ids: string[];
-  /** One option probability per input id, in input order. */
-  scores: number[];
-  cost: number;
-  ms: number;
-}
-
-/** One Jev Choice over `ids`. Throws on a failed or timed-out call. */
+/**
+ * One Jev Choice over `ids`: the reordered ids, one option probability per
+ * input id (input order) and the call's cost. Throws on a failed call. The
+ * signal is the caller's wall clock, which askJev honours through its retries.
+ */
 export async function rankByChoice(
   query: string,
   ids: string[],
   docMap: Map<string, AtlasNode>,
-  opts: { model?: string; signal?: AbortSignal; lane: string },
-): Promise<ChoiceRanking> {
-  const t0 = performance.now();
+  opts: { model?: string; signal?: AbortSignal; timeoutMs?: number; lane: string },
+): Promise<{ ids: string[]; scores: number[]; cost: number }> {
   const req = choiceRequest(query, ids, docMap);
-  const run = await askJev({ lane: opts.lane, model: opts.model, state: req.state, questions: req.questions, signal: opts.signal });
-  const a = run.answers.best;
-  if (a?.type !== "choice") throw new Error("rerank: Jev returned no choice");
+  const run = await askJev({ lane: opts.lane, model: opts.model, state: req.state, questions: req.questions, signal: opts.signal, timeoutMs: opts.timeoutMs });
+  const a = choiceOf(run, "best");
+  if (!a) throw new Error("rerank: Jev returned no choice");
   const scores = req.keys.map((k) => a.probabilities[k] ?? 0);
-  return { ids: sortByScore(ids, scores), scores, cost: run.cost ?? 0, ms: performance.now() - t0 };
+  return { ids: sortByScore(ids, scores), scores, cost: run.cost ?? 0 };
 }
 
-// Order of each recent (model, query, head) — a later page of the same search
-// reads the order its first page used, so pages agree and Jev is paid once.
-const orderCache = createCache<string[]>({ max: 256, lru: true });
+// Order of each recent (model, query, head), held as the promise so a page
+// fetched while the first is still waiting shares its call. A later page of the
+// same search reads the order its first page used, so pages agree and Jev is
+// paid once. A failed call is dropped, so the next search tries again.
+const orderCache = createCache<Promise<string[]>>({ max: 256, lru: true });
 
-async function headOrder(query: string, ids: string[], docMap: Map<string, AtlasNode>): Promise<string[]> {
+function headOrder(query: string, ids: string[], docMap: Map<string, AtlasNode>): Promise<string[]> {
   const { model, deadlineMs } = rerankConfig;
   const key = JSON.stringify([model, query, ids]);
   const hit = orderCache.get(key);
   if (hit) return hit;
-  // The signal aborts the request; the race bounds the wait even when the
-  // transport ignores the abort.
-  const ranking = rankByChoice(query, ids, docMap, { model, lane: "search-rerank", signal: withDeadline(deadlineMs) });
-  const { ids: order } = await withTimeout(ranking, deadlineMs, "rerank");
+  const signal = withDeadline(deadlineMs);
+  const order = rankByChoice(query, ids, docMap, { model, lane: "search-rerank", signal, timeoutMs: deadlineMs }).then((r) => r.ids);
   orderCache.set(key, order);
+  order.catch(() => orderCache.delete(key));
   return order;
 }
 
 /**
- * Reorders the first `rerankConfig.pool` items of `items` by one Choice and
- * leaves the tail as it was. Never throws: with the reranker off (no model or
- * no OpenRouter key), fewer than two candidates, or a failed call, the items
- * come back unchanged with a reason. Only a failed call is captured.
+ * The page-ready list: the first `rerankConfig.pool` items reordered by one
+ * Choice, the tail as it was. A page starting at `offset` past the head reads
+ * only the tail, so it costs no call. Never throws: with the reranker off (no
+ * model or no OpenRouter key), fewer than two candidates, or a failed call, the
+ * items come back unchanged; only a failed call is captured.
  */
-export async function rerankHead<T>(
-  query: string,
-  items: T[],
-  idOf: (t: T) => string,
-  docMap: Map<string, AtlasNode>,
-): Promise<{ items: T[]; skipped?: string }> {
+export async function rerankHead<T>(query: string, items: T[], idOf: (t: T) => string, docMap: Map<string, AtlasNode>, offset = 0): Promise<T[]> {
   const { model, pool } = rerankConfig;
-  if (!model || !config.openrouterApiKey) return { items, skipped: "off" };
   const head = items.slice(0, pool);
-  if (head.length < 2) return { items };
+  if (!jevReady(model) || head.length < 2 || offset >= head.length) return items;
   try {
     const order = await headOrder(query, head.map(idOf), docMap);
     const byId = new Map(head.map((t) => [idOf(t), t]));
-    return { items: [...order.map((id) => byId.get(id)!), ...items.slice(pool)] };
+    return [...order.map((id) => byId.get(id)!), ...items.slice(pool)];
   } catch (err) {
     captureError(err, {}, { stage: "search_rerank", model, candidates: head.length });
-    return { items, skipped: (err as Error).message.slice(0, 200) };
+    return items;
   }
 }

@@ -92,7 +92,7 @@ const chatModelStrongList = modelIds(process.env.CHAT_MODEL_STRONG);
 // comment still claiming it was measured against the shipped one. Each lane
 // still reads its own env var, so `""` on any one of them disables that lane
 // alone (the repo's model-slot convention).
-const JEV_DEFAULT = "typesafe/jev-1.13";
+export const JEV_DEFAULT = "typesafe/jev-1.13";
 
 export const config = {
   port,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { candidateText, qwenPrompt, sortByScore, yesProbability } from "./eval-rerankers.ts";
+import { qwenPrompt, yesProbability } from "./eval-rerankers.ts";
+import { candidateText, sortByScore } from "../../src/server/retrieval/rerank.ts";
 import type { AtlasNode } from "../../src/types.ts";
 
 const node = (id: string, doc_no: string, title: string, parentId: string | null, content = ""): AtlasNode =>

@@ -7,9 +7,7 @@
 // is the reranker's ceiling; the eval prints it beside every arm.
 import type { AtlasNode } from "../../src/types.ts";
 import { askJev, withDeadline, type JevQuestion } from "../../src/server/jev.ts";
-import { candidateText, rankByChoice, rerankConfig, sortByScore } from "../../src/server/retrieval/rerank.ts";
-
-export { candidateText, sortByScore };
+import { candidateText, rankByChoice, rerankConfig, sortByScore, type CandidateText } from "../../src/server/retrieval/rerank.ts";
 
 export type Reranker = "none" | "bm25" | "jev" | "jev-neutral" | "jev-score" | "jev-choice" | "qwen3";
 
@@ -93,7 +91,7 @@ export async function rerankJevChoice(query: string, ids: string[], docMap: Map<
   const t0 = performance.now();
   try {
     const r = await rankByChoice(query, ids, docMap, { model: rerankConfig.model || undefined, lane: "eval-rerank", signal: withDeadline(60_000) });
-    return { ids: r.ids, scores: r.scores, ms: r.ms, cost: r.cost };
+    return { ...r, ms: performance.now() - t0 };
   } catch (err) {
     // One failed query keeps its retrieval order (production does the same)
     // rather than ending a run whose other queries are already paid for.
@@ -111,7 +109,7 @@ const QWEN_INSTRUCT = "Given a question about the Sky Atlas governance documents
 const QWEN_MODEL = process.env.EVAL_QWEN_RERANKER ?? "dengcao/Qwen3-Reranker-4B:Q8_0";
 const OLLAMA = process.env.OLLAMA_HOST ?? "http://localhost:11434";
 
-export function qwenPrompt(query: string, doc: { path: string; title: string; body: string }): string {
+export function qwenPrompt(query: string, doc: CandidateText): string {
   const document = `${doc.path}\n${doc.title}\n${doc.body}`;
   return (
     '<|im_start|>system\nJudge whether the Document meets the requirements based on the Query and the Instruct provided. Note that the answer can only be "yes" or "no".<|im_end|>\n' +
