@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-11-10
+
+- Marked an on-chain value with a grey clock instead of ✗ while the spell for a recent Atlas change is still expected
+
 ## 2026-11-09
 
 - Checked a Morpho vault's owner, curator, allocator and sentinel roles and a Curve pool's assets on a Prime Agent's instance cards against the chain

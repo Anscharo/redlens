@@ -4,6 +4,7 @@
 // so a mark means the same thing wherever it appears.
 import type { ValueCheck, ValueStatus } from "@/lib/pauAtlasValues";
 import type { LiveRateLimit } from "@/lib/pau";
+import type { PendingOnchain } from "@/lib/pauPending";
 import { NOT_INDEXED } from "@/lib/plainCheck";
 import { formatAmount, formatPerDay, limitDecimals, slopeText } from "./pau";
 
@@ -50,4 +51,13 @@ export function limitSummary(r: LiveRateLimit): string {
   const max = formatAmount(r.data.maxAmount, dec);
   if (max === "unlimited") return "unlimited";
   return `${max}${symbol} · ${formatPerDay(r.data.slope, dec)}${symbol}/day`;
+}
+
+/** A pending mismatch (src/lib/pauPending.ts), in one phrase. */
+export const PENDING_TEXT = "on-chain update pending";
+
+/** Why a mismatch reads as pending: when the atlas changed it, the spell expected to carry it, and until when it is expected. */
+export function pendingSummary(p: PendingOnchain): string {
+  const spell = p.spell ? `; the ${p.spell.date} executive "${p.spell.title}" is not yet cast` : "";
+  return `${PENDING_TEXT}: the atlas changed this value on ${p.atlasChanged}, after the chain last set it${spell}; expected on chain by ${p.expectedBy}`;
 }

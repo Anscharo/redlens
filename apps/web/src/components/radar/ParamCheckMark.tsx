@@ -2,6 +2,7 @@ import { explorerTxUrl } from "@/lib/explorer";
 import { atlasOnchainHref } from "@/lib/routes";
 import { AtlasLink } from "../AtlasLink";
 import { Tooltip } from "../Tooltip";
+import { ClockGlyph } from "../ClockGlyph";
 import type { ParamMark } from "../../lib/paramChecks";
 import type { RowMark, TipLine } from "../../lib/rowMark";
 
@@ -16,10 +17,12 @@ const CIRCLED_BANG = (
 
 // Red is kept for "the atlas is probably wrong" (the chain holds what the atlas
 // leaves unstated), because the reader updates the atlas. A disagreement could
-// be either side's, so it is amber; a key the contract never set is grey.
+// be either side's, so it is amber; a key the contract never set is grey, and
+// so is a difference the chain is still expected to catch up on (a clock).
 const LOOK: Record<ParamMark, { glyph: React.ReactNode; color: string }> = {
   match: { glyph: "✓", color: "var(--terminal-green)" },
   mismatch: { glyph: "✗", color: "var(--warn)" },
+  pending: { glyph: <ClockGlyph />, color: "var(--tan-3)" },
   "not-set": { glyph: "!", color: "var(--tan-3)" },
   "not-stated": { glyph: "–", color: "var(--tan-3)" },
   candidate: { glyph: CIRCLED_BANG, color: "var(--error-text)" },
@@ -63,7 +66,7 @@ function MarkTip({ mark }: { mark: RowMark }) {
 }
 
 /**
- * A card row's verdict against the chain, in the card's mark column: ✓ ✗ ! ?,
+ * A card row's verdict against the chain, in the card's mark column: ✓ ✗ ! ?, a clock (pending),
  * – or a circled ! (the chain holds an ID or value the atlas leaves unstated), linked to the stating document's Onchain tab. The column is kept empty
  * for a row with nothing to check, so every mark in a card lines up.
  */

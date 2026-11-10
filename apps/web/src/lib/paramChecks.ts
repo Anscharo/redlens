@@ -9,6 +9,7 @@ import type { LiveRateLimit } from "@/lib/pau";
 import { isOff } from "@/lib/pauLimitOrder";
 import { isUnstated } from "@/lib/plainCheck";
 import { heldKeyId, sentence, type RowMark, type TipLine } from "./rowMark";
+import { allPending } from "@/lib/pauPending";
 import { contractValue, fieldValue, isCompared, VALUE_STATUS } from "./valueStatus";
 
 export type ParamChecks = ReadonlyMap<string, ValueCheck[]>;
@@ -38,15 +39,18 @@ export function checksForParam(index: ParamChecks, instanceDocId: string | null,
  * value whose key is switched on (unstatedValueMark), or a RateLimitID where a
  * key derived from the instance's addresses is (addressMarks.ts).
  */
-export type ParamMark = "match" | "mismatch" | "not-set" | "not-stated" | "candidate" | "unsure";
+export type ParamMark = "match" | "mismatch" | "pending" | "not-set" | "not-stated" | "candidate" | "unsure";
 
 /**
- * Any certain difference is a mismatch; a match needs every deployment to
+ * Any certain difference is a mismatch, unless every one is an atlas change
+ * the chain is still expected to catch up on ("pending", src/lib/pauPending.ts);
+ * a match needs every deployment to
  * agree; a key read and never set is "not-set"; a value the atlas leaves unset
  * is "not-stated"; anything else cannot be told and says so.
  */
 export function paramMark(checks: ValueCheck[]): ParamMark | null {
   if (checks.length === 0) return null;
+  if (allPending(checks)) return "pending";
   if (checks.some((c) => c.status === "mismatch")) return "mismatch";
   if (checks.every((c) => c.status === "match")) return "match";
   if (checks.some((c) => c.status === "not-set")) return "not-set";
@@ -57,6 +61,7 @@ export function paramMark(checks: ValueCheck[]): ParamMark | null {
 const VALUE_HEAD: Record<ParamMark, string> = {
   match: "Matches the atlas",
   mismatch: "Differs from the atlas",
+  pending: "On-chain update pending",
   "not-set": "Not set on the contract",
   "not-stated": "The atlas sets no value yet",
   candidate: "The atlas sets no value yet",
@@ -80,11 +85,19 @@ function checkLines(checks: ValueCheck[]): TipLine[] {
   });
 }
 
+/** A pending row's lines: when the atlas changed, the executive expected to carry it, and until when the chain may lag. */
+function pendingLines(checks: ValueCheck[]): TipLine[] {
+  const p = checks.find((c) => c.pending)!.pending!;
+  const spell: TipLine[] = p.spell ? [{ label: "Spell", value: `${p.spell.title} (${p.spell.date}, not yet cast)` }] : [];
+  return [{ label: "Atlas changed", value: p.atlasChanged }, ...spell, { label: "Expected by", value: p.expectedBy }];
+}
+
 /** A maxAmount or slope row's mark: the verdict over its checks, each deployment's value, and the atlas's on a mismatch. */
 export function valueRowMark(checks: ValueCheck[]): RowMark {
   const mark = paramMark(checks)!;
-  const atlas: TipLine[] = mark === "mismatch" ? [{ label: "Atlas", value: checks[0].stated }] : [];
-  return { mark, head: VALUE_HEAD[mark], lines: [...checkLines(checks), ...atlas], docId: checks[0].docId };
+  const atlas: TipLine[] = mark === "mismatch" || mark === "pending" ? [{ label: "Atlas", value: checks[0].stated }] : [];
+  const pending = mark === "pending" ? pendingLines(checks) : [];
+  return { mark, head: VALUE_HEAD[mark], lines: [...checkLines(checks), ...atlas, ...pending], docId: checks[0].docId };
 }
 
 /**

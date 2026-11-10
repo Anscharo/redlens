@@ -14,7 +14,7 @@ vi.mock("../../hooks/useGraphEdges", () => ({
   useGraphEdges: () => ({ outbound: [], inbound: [] }),
 }));
 
-vi.mock("../../lib/votes", () => ({ loadVoteRecord: () => Promise.resolve({ index: null, overlay: null }) }));
+vi.mock("../../lib/votes", () => ({ loadVoteRecord: () => Promise.resolve({ index: null, overlay: null }), loadVoteIndex: () => Promise.resolve(null) }));
 
 import { AtlasAnnotations } from "./AtlasAnnotations";
 import type { AtlasTab } from "../../lib/atlasTab";

@@ -1,30 +1,42 @@
 // The right panel's "Atlas vs contract" table: each rate-limit value the open
 // document states (or its instance states), beside what the PAU contract holds
 // now (src/lib/pauAtlasValues.ts). A value the contract cannot be compared on
-// says why instead of reading as a mismatch.
+// says why instead of reading as a mismatch, and a mismatch the chain is still
+// expected to catch up on (src/lib/pauPending.ts) shows a grey clock, not a ✗.
 import { useMemo } from "react";
 import { explorerTxUrl } from "@/lib/explorer";
 import { checkAtlasValues, type ValueCheck } from "@/lib/pauAtlasValues";
 import type { DocValueSources } from "@/lib/pauDocSources";
 import { loadPau, unitNote } from "../../lib/pau";
-import { contractValue, isCompared, VALUE_STATUS as STATUS } from "../../lib/valueStatus";
+import { contractValue, isCompared, pendingSummary, VALUE_STATUS as STATUS } from "../../lib/valueStatus";
 import { useLoaded } from "../../hooks/useAtlasData";
+import { usePendingChecks } from "../../hooks/usePendingChecks";
+import { ClockGlyph } from "../ClockGlyph";
 import { SECTION_HEAD } from "./panelSections";
 
 /** The document's atlas-vs-contract rows: the values it, its instance or its direct children state; empty until the PAU snapshots load, and when there are none. */
 export function useAtlasVsContract(id: string, src: DocValueSources | null | undefined): ValueCheck[] {
   const res = useLoaded(loadPau, { soft: true });
-  return useMemo(() => {
+  const snaps = useMemo(() => (res && src ? res.deployments.filter((d) => d.prime === src.prime) : []), [res, src]);
+  const rows = useMemo(() => {
     if (!res || !src) return [];
-    const snaps = res.deployments.filter((d) => d.prime === src.prime);
     return checkAtlasValues(src.sources, snaps).filter((c) => c.docId === id || c.instanceDocId === id || src.children.includes(c.docId));
-  }, [res, src, id]);
+  }, [res, src, snaps, id]);
+  return usePendingChecks(rows, snaps[0]?.primeName ?? null);
+}
+
+/** The status cell's mark, its words and its colour: amber only for a mismatch the chain is not expected to catch up on. */
+function statusLook(c: ValueCheck): { mark: React.ReactNode; text: string; color: string } {
+  if (c.pending) return { mark: <ClockGlyph />, text: pendingSummary(c.pending), color: "var(--tan-3)" };
+  const s = STATUS[c.status];
+  return { mark: s.mark, text: s.text, color: c.status === "mismatch" ? "var(--warn)" : "var(--tan-3)" };
 }
 
 const dim = { color: "var(--tan-3)" };
 
 function Row({ c, label }: { c: ValueCheck; label: string }) {
   const s = STATUS[c.status];
+  const look = statusLook(c);
   const compared = isCompared(c);
   const max = c.limit?.data?.maxAmount ?? "0";
   return (
@@ -34,9 +46,9 @@ function Row({ c, label }: { c: ValueCheck; label: string }) {
       <td className="py-1 pr-2 mono" title={compared ? unitNote(c.limit!.unit, max) : undefined} style={compared ? undefined : dim}>
         {compared ? contractValue(c) : s.text}
       </td>
-      <td className="py-1 pr-2 text-center" title={s.text} style={{ color: c.status === "mismatch" ? "var(--warn)" : "var(--tan-3)" }}>
-        <span aria-hidden="true">{s.mark}</span>
-        <span className="sr-only">{s.text}</span>
+      <td className="py-1 pr-2 text-center" title={look.text} style={{ color: look.color }} data-pending={c.pending ? "" : undefined}>
+        <span aria-hidden="true">{look.mark}</span>
+        <span className="sr-only">{look.text}</span>
       </td>
       <td className="py-1 mono text-right">
         {c.limit && c.chain && (
