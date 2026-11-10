@@ -1,7 +1,7 @@
 // What the PAU history and snapshots prove about one spell and one value
-// (pauPending.ts): which deployments hold the value, whether the Operator may
-// set its key without a spell, whether the spell set the key, and what
-// governance is queued for the deployments. Pure.
+// (pauPending.ts): which deployments hold the value, whether the spell set the
+// key, and what governance is queued for the deployments. Who else may set the
+// key is pauKeyRoutes.ts. Pure.
 import type { StoredPauSnapshot } from "./pau.ts";
 import type { ValueCheck } from "./pauAtlasValues.ts";
 import { entriesOfSpell, type PauHistoryEntry, type PauHistoryResponse, type PauQueuedStep } from "./pauHistory.ts";
@@ -9,14 +9,6 @@ import { entriesOfSpell, type PauHistoryEntry, type PauHistoryResponse, type Pau
 /** The prime's deployments that hold the check's value: its own, or every one on its chain when no contract holds the key. */
 export const deploymentsOf = (c: ValueCheck, snaps: readonly StoredPauSnapshot[]): StoredPauSnapshot[] =>
   snaps.filter((s) => s.chain === c.chain && (!c.kind || s.kind === c.kind));
-
-/** Whether BeamState lets the Configurator set the key on the contract holding it: the RateLimits is registered and holds a default for the key. */
-export function operatorAdjustable(c: ValueCheck, deps: readonly StoredPauSnapshot[]): boolean {
-  const key = c.key?.toLowerCase();
-  if (!key || !c.contract) return false;
-  const rl = deps.flatMap((s) => s.contracts).find((x) => x.address.toLowerCase() === c.contract!.toLowerCase());
-  return !!rl?.beam?.defaults.some((d) => d.key.toLowerCase() === key);
-}
 
 /** The spell's change to the check's key on the contract holding it, latest first; null when the spell did not set it. */
 export function keySetBy(pau: PauHistoryResponse, spell: string, c: ValueCheck): PauHistoryEntry | null {

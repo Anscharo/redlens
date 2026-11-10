@@ -10,6 +10,7 @@ import { isOff } from "@/lib/pauLimitOrder";
 import { isUnstated } from "@/lib/plainCheck";
 import { heldKeyId, sentence, type RowMark, type TipLine } from "./rowMark";
 import { allPending } from "@/lib/pauPending";
+import { routesText } from "@/lib/pauRouteText";
 import { pendingStepText, pendingText, stepText } from "@/lib/pauStepText";
 import { contractValue, fieldValue, isCompared, VALUE_STATUS } from "./valueStatus";
 
@@ -100,7 +101,9 @@ export function valueRowMark(checks: ValueCheck[]): RowMark {
   const mark = paramMark(checks)!;
   const atlas: TipLine[] = mark === "mismatch" || mark === "pending" ? [{ label: "Atlas", value: checks[0].stated }] : [];
   const head = mark === "pending" && checks.every((c) => c.status !== "mismatch" || c.onchain?.kind === "recording") ? "Atlas update pending" : VALUE_HEAD[mark];
-  return { mark, head, lines: [...checkLines(checks), ...atlas, ...onchainLines(checks)], docId: checks[0].docId };
+  const routes = checks.find((c) => c.routes)?.routes;
+  const who: TipLine[] = routes && mark !== "match" ? [{ text: routesText(routes) }] : [];
+  return { mark, head, lines: [...checkLines(checks), ...atlas, ...onchainLines(checks), ...who], docId: checks[0].docId };
 }
 
 /**

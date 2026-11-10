@@ -86,8 +86,10 @@ async function snapshotOf(
 function beamSources(reg: PauRegistry, historyOf: (chain: string, contract: string) => Promise<ContractHistory>) {
   const cache = new Map<string, Promise<BeamSource | undefined>>();
   const load = async (chain: string) => {
-    const m = reg.shared.find((s) => s.chain === chain)?.members.find((x) => x.role === "beamState");
-    return m ? { address: m.address, history: await historyOf(chain, m.address) } : undefined;
+    const members = reg.shared.find((s) => s.chain === chain)?.members ?? [];
+    const m = members.find((x) => x.role === "beamState");
+    const configurator = members.find((x) => x.role === "configurator")?.address;
+    return m ? { address: m.address, history: await historyOf(chain, m.address), ...(configurator ? { configurator } : {}) } : undefined;
   };
   return (chain: string) => cache.get(chain) ?? cache.set(chain, load(chain)).get(chain)!;
 }

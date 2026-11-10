@@ -9,7 +9,9 @@
 // cannot judge yet (not read, no deployment, unparsed text, unknown chain) and
 // values that match or are not stated are not audit items.
 import type { ValueCheck } from "./pauAtlasValues.ts";
+import type { KeyRoutes } from "./pauKeyRoutes.ts";
 import type { OnchainStep } from "./pauPending.ts";
+import { operatorFallsShort, operatorReaches } from "./pauRouteText.ts";
 
 export const AUDIT_GROUPS = [
   { key: "atlas", label: "Atlas probably out of date", hint: "The chain moved after the atlas last stated the value, or the atlas contradicts itself." },
@@ -34,7 +36,8 @@ export const AUDIT_REASONS = {
   "spell-set-differently": { group: "ambiguous", text: "The spell the atlas change's pull request names set this limit, to a value other than the atlas states." },
   "atlas-recorded-differently": { group: "atlas", text: "The atlas change records a spell that had already executed, and that spell set this limit to a value other than the atlas states." },
   "atlas-recorded-unmade": { group: "atlas", text: "The atlas change records a spell that had already executed, and that spell did not set this value." },
-  "operator-not-applied": { group: "spell", text: "The atlas changed the value after the chain last set it, no spell carries the change, and the Operator may set this limit without one (BeamState holds a default for it) but has not." },
+  "operator-not-applied": { group: "spell", text: "The atlas changed the value after the chain last set it, no spell carries the change, and the Operator can bring the limit to the stated value through the Configurator but has not." },
+  "beyond-operator": { group: "atlas", text: "The atlas change is an item no spell carries, but the stated value is beyond what the Operator may set through the Configurator, so only a spell could set it." },
   "not-wired": { group: "spell", text: "The controller holds the CONTROLLER role on neither its ALM proxy nor its rate limits, so it cannot move funds." },
   "partly-wired": { group: "spell", text: "The controller holds the CONTROLLER role on only one of its ALM proxy and its rate limits." },
   "no-key": { group: "detail", text: "The atlas states no Rate Limit ID for this value, and nothing the document or its instance names derives a key the contract holds." },
@@ -64,36 +67,43 @@ export function switchedOffSlope(c: ValueCheck, all: ValueCheck[]): boolean {
   return all.some((o) => o.field === "maxAmount" && o.instance === c.instance && o.key === c.key && o.contract === c.contract && o.status === "match");
 }
 
+/** A change no spell carries (an off-spell item, or a PR that names no spell), placed by whether the Operator can reach the stated value. */
+function offSpell(step: OnchainStep | null, routes: KeyRoutes | undefined, otherwise: AuditReason): AuditReason {
+  if (operatorReaches(routes)) return "operator-not-applied";
+  if (step?.kind === "off-spell" && operatorFallsShort(routes)) return "beyond-operator";
+  return otherwise;
+}
+
 /** A disagreement the atlas moved last, placed by what became of the spell its pull request names. */
-function atlasNewer(step: OnchainStep | null, operator: boolean): AuditReason {
+function atlasNewer(step: OnchainStep | null, routes: KeyRoutes | undefined): AuditReason {
   if (step?.kind === "executed") return step.recorded ? "atlas-recorded-unmade" : "spell-executed";
   if (step?.kind === "lapsed") return "spell-lapsed";
   if (step?.kind === "rejected") return "poll-rejected";
-  if (step?.kind === "off-spell") return operator ? "operator-not-applied" : "off-spell";
-  return step?.kind === "unnamed" && operator ? "operator-not-applied" : "atlas-newer";
+  if (step?.kind === "off-spell") return offSpell(step, routes, "off-spell");
+  return step?.kind === "unnamed" ? offSpell(step, routes, "atlas-newer") : "atlas-newer";
 }
 
 /** A limit the chain never set, placed by what became of the spell its atlas change belongs to. */
-function notSetReason(step: OnchainStep | null): AuditReason {
+function notSetReason(step: OnchainStep | null, routes: KeyRoutes | undefined): AuditReason {
   if (step?.kind === "executed") return step.recorded ? "atlas-recorded-unmade" : "spell-executed";
   if (step?.kind === "lapsed") return "spell-lapsed";
   if (step?.kind === "rejected") return "poll-rejected";
-  return step?.kind === "off-spell" ? "off-spell" : "not-set";
+  return step?.kind === "off-spell" ? offSpell(step, routes, "off-spell") : "not-set";
 }
 
 /**
  * The audit reason for one checked value, or null when it needs no audit.
- * `step` is what became of the spell the atlas change names; `operator`,
- * whether the Operator may set the key without a spell.
+ * `step` is what became of the spell the atlas change names; `routes`, who can
+ * change the limit and whether the Operator can reach the stated value.
  */
-export function checkReason(c: ValueCheck, all: ValueCheck[], dates: MoveDates, step: OnchainStep | null = null, operator = false): AuditReason | null {
+export function checkReason(c: ValueCheck, all: ValueCheck[], dates: MoveDates, step: OnchainStep | null = null, routes?: KeyRoutes): AuditReason | null {
   if (c.status === "mismatch") {
     if (switchedOffSlope(c, all)) return "switched-off-slope";
     if (step?.kind === "set") return step.recorded ? "atlas-recorded-differently" : "spell-set-differently";
     const order = byOrder(dates);
-    return order === "atlas-newer" ? atlasNewer(step, operator) : order;
+    return order === "atlas-newer" ? atlasNewer(step, routes) : order;
   }
-  if (c.status === "not-set") return notSetReason(step);
+  if (c.status === "not-set") return notSetReason(step, routes);
   if (c.status === "no-key") return "no-key";
   if (c.status === "ambiguous") return "several-keys";
   if (c.status === "units-unknown") return "units-unknown";

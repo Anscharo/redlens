@@ -66,7 +66,7 @@ export const loadPauAudit = once(async () => {
   const [history, votes, pau, openPrs, polls] = await Promise.all([loadHistoryBatch(docsToDate(base.primes)), loadVoteIndex(), loadPauHistory(), loadOpenAtlasPrs(), loadPrimePolls()]);
   const today = new Date().toISOString().slice(0, 10);
   const links = { pollsByPr: polls ?? undefined, snapshots: votes?.snapshots };
-  return { value: buildPauAudit({ ...base, history, votes: { executives: votes?.executives ?? [], pau, today, openPrs, ...links } }), keep: base.snaps.length > 0 };
+  return { value: buildPauAudit({ ...base, history, votes: { executives: votes?.executives ?? [], pau, today, now: Date.now(), openPrs, ...links } }), keep: base.snaps.length > 0 };
 });
 
 /**

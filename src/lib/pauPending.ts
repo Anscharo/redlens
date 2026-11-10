@@ -34,6 +34,7 @@ import type { PauHistoryResponse } from "./pauHistory.ts";
 import { isThreadRef } from "./atlasPrSpell.ts";
 import { chainLedStep, type OpenAtlasPr } from "./pauChainLed.ts";
 import { namedStep, pollStep } from "./pauSpellStep.ts";
+import { keyRoutes } from "./pauKeyRoutes.ts";
 import { valueChange } from "./pauValueDate.ts";
 import type { PrimePoll } from "./primePolls.ts";
 import type { IndexedExecutive } from "./votes/vote-index.ts";
@@ -100,6 +101,8 @@ export interface PendingContext {
   snaps: readonly StoredPauSnapshot[];
   /** Today, YYYY-MM-DD. */
   today: string;
+  /** Now, in ms, for when the Operator may next raise a limit; the start of `today` when absent. */
+  now?: number;
   /** The open atlas pull requests; absent or empty when they could not be read. */
   openPrs?: readonly OpenAtlasPr[];
   /** The Prime Snapshot polls that link each atlas PR (primePolls.ts); absent when they could not be read. */
@@ -143,15 +146,19 @@ export function onchainStep(c: ValueCheck, entries: readonly HistoryEntry[], ctx
 const chainMoved = (c: ValueCheck, atlasChanged: string) => !!c.limit && c.limit.setAt.time.slice(0, 10) >= atlasChanged;
 
 /** The documents whose history places a value: those stating a mismatch or a limit never set. */
-export const datedDocs = (checks: ValueCheck[]): string[] => [...new Set(checks.filter((c) => c.status === "mismatch" || c.status === "not-set").map((c) => c.docId))];
+export const datedDocs = (checks: ValueCheck[]): string[] => [...new Set(checks.filter((c) => DATED.has(c.status)).map((c) => c.docId))];
 
-/** The checks, each mismatch or limit never set carrying what governance did about it (`onchain`). */
+const DATED = new Set<ValueCheck["status"]>(["mismatch", "not-set"]);
+
+/** The checks, each mismatch or limit never set carrying what governance did about it (`onchain`) and who can change it (`routes`). */
 export function withOnchain(checks: ValueCheck[], history: ReadonlyMap<string, readonly HistoryEntry[]>, ctx: PendingContext): ValueCheck[] {
+  const now = ctx.now ?? Date.parse(ctx.today);
   return checks.map((c) => {
-    const entries = c.status === "mismatch" || c.status === "not-set" ? history.get(c.docId) : undefined;
-    if (!entries || switchedOffSlope(c, checks)) return c;
-    const onchain = onchainStep(c, entries, ctx);
-    return onchain ? { ...c, onchain } : c;
+    if (!DATED.has(c.status)) return c;
+    const routes = keyRoutes(c, ctx.snaps, ctx.pau, now);
+    const entries = history.get(c.docId);
+    const onchain = entries && !switchedOffSlope(c, checks) ? onchainStep(c, entries, ctx) : null;
+    return { ...c, ...(onchain ? { onchain } : {}), ...(routes ? { routes } : {}) };
   });
 }
 

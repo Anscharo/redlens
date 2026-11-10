@@ -3,6 +3,7 @@
 import { AtlasLink } from "../AtlasLink";
 import { Address } from "../Address";
 import { atlasHref } from "@/lib/routes";
+import { routesText } from "@/lib/pauRouteText";
 import { stepHref, stepText } from "@/lib/pauStepText";
 import { sentence } from "../../lib/rowMark";
 import type { ReportQuery } from "@/lib/reportFilter";
@@ -44,6 +45,7 @@ function AuditRowView({ r, rq, docNo }: { r: AuditRow; rq: ReportQuery; docNo: s
         <Highlight text={r.note} rq={rq} />
         {dates(r) && <div className="mono text-[11px]" style={dim}>{dates(r)}</div>}
         <StepLine r={r} />
+        {r.routes && <div className="mono text-[11px]" style={dim}>{routesText(r.routes)}</div>}
       </td>
       <td className="py-2 align-top mono text-[11px]">
         {r.docId ? <AtlasLink to={atlasHref(r.docId)} className="text-accent hover:underline"><Highlight text={docNo || "Atlas doc"} rq={rq} /></AtlasLink> : <span style={dim}>no Atlas document</span>}

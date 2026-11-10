@@ -8,7 +8,7 @@ import { AUDIT_GROUPS, AUDIT_REASONS, checkReason, switchedOffSlope, type AuditG
 import type { ValueCheck } from "./pauAtlasValues.ts";
 import type { HistoryEntry } from "./history.ts";
 import { onchainStep, type OnchainStep, type PendingContext } from "./pauPending.ts";
-import { deploymentsOf, operatorAdjustable } from "./pauPendingEvidence.ts";
+import { keyRoutes, type KeyRoutes } from "./pauKeyRoutes.ts";
 import { valueChangedAt } from "./pauValueDate.ts";
 import { checkChainValue } from "./pauCheckValue.ts";
 import type { PauIgnored } from "./pauRegistry.ts";
@@ -39,6 +39,8 @@ export interface AuditRow {
   atlasChangedAt: string | null;
   /** What became of the spell the atlas change's pull request names (pauPending.ts); null when it cannot be followed. */
   step: OnchainStep | null;
+  /** Who can change the limit, and whether the Operator can reach the stated value; null for a row that is not a rate-limit value. */
+  routes: KeyRoutes | null;
 }
 
 export interface PrimeChecks {
@@ -67,12 +69,13 @@ function valueRows({ primeId, prime, checks }: PrimeChecks, input: AuditInput): 
     const entries = DATED.has(c.status) ? input.history.get(c.docId) : undefined;
     const dates = { chain: c.limit?.setAt?.time.slice(0, 10) ?? null, atlas: entries ? valueChangedAt(entries, c.stated) : null };
     const step = entries && !switchedOffSlope(c, checks) ? onchainStep(c, entries, ctx) : null;
-    const reason = checkReason(c, checks, dates, step, operatorAdjustable(c, deploymentsOf(c, ctx.snaps)));
+    const routes = keyRoutes(c, ctx.snaps, ctx.pau, ctx.now ?? Date.parse(ctx.today)) ?? undefined;
+    const reason = checkReason(c, checks, dates, step, routes);
     if (!reason) return [];
     return [{
       item: `value:${c.docId}:${c.field}`, group: AUDIT_REASONS[reason].group, reason, note: AUDIT_REASONS[reason].text, primeId, prime,
       chain: c.chain ?? "", kind: c.kind, subject: c.instance, label: c.label, stated: c.stated, onchain: onchainText(c),
-      docId: c.docId, key: c.key, contract: c.contract, chainSetAt: dates.chain, atlasChangedAt: dates.atlas, step,
+      docId: c.docId, key: c.key, contract: c.contract, chainSetAt: dates.chain, atlasChangedAt: dates.atlas, step, routes: routes ?? null,
     }];
   });
 }
@@ -87,7 +90,7 @@ function wiringRows(snaps: StoredPauSnapshot[]): AuditRow[] {
     return [{
       item: `wiring:${s.deployment}`, group: "spell", reason, note: AUDIT_REASONS[reason].text, primeId: s.prime, prime: s.primeName,
       chain: s.chain, kind: s.kind, subject: "Controller", label: "CONTROLLER role", stated: "on its ALM proxy and rate limits", onchain: holds ? `on its ${holds} only` : "on neither",
-      docId: controller.atlasDocs?.[0] ?? null, key: null, contract: controller.address, chainSetAt: null, atlasChangedAt: null, step: null,
+      docId: controller.atlasDocs?.[0] ?? null, key: null, contract: controller.address, chainSetAt: null, atlasChangedAt: null, step: null, routes: null,
     }];
   });
 }
@@ -98,7 +101,7 @@ function claimRows(claims: PauIgnored[], primeNames: Map<string, string>): Audit
     (g.docs?.length ? g.docs : [null]).map((docId) => ({
       item: `claim:${g.prime ?? "shared"}:${g.chain}:${g.role}:${g.address}`, group: "registry" as const, reason: "rejected-claim" as const, note: g.reason,
       primeId: g.prime, prime: g.prime ? (primeNames.get(g.prime) ?? "") : "Shared", chain: g.chain, kind: g.kind ?? null, subject: "Atlas role claim",
-      label: g.role, stated: g.address, onchain: "", docId, key: null, contract: g.address, chainSetAt: null, atlasChangedAt: null, step: null,
+      label: g.role, stated: g.address, onchain: "", docId, key: null, contract: g.address, chainSetAt: null, atlasChangedAt: null, step: null, routes: null,
     })),
   );
 }

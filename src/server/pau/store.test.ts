@@ -85,16 +85,17 @@ describe("a chain with a BeamState", () => {
   it("gives each RateLimits it manages its defaults and step limits, and units to the keys a rule covers", async () => {
     const BEAM = "0x" + "b".repeat(40);
     const RL = "0x" + "1".repeat(40);
+    const CONF = "0x" + "c".repeat(40);
     const withBeam = {
       ...reg,
-      shared: [{ chain: "ethereum", members: [{ role: "beamState", address: BEAM, provenance: [] }] }],
+      shared: [{ chain: "ethereum", members: [{ role: "beamState", address: BEAM, provenance: [] }, { role: "configurator", address: CONF, provenance: [] }] }],
       deployments: [{ ...reg.deployments[0], members: [{ role: "rateLimits", address: RL, provenance: [] }] }],
     } as unknown as PauRegistry;
     const chain = async (_c: string, calls: { functionName: string; args: readonly unknown[] }[]) =>
       calls.map((c) => (c.functionName === "rateLimits" ? 1n : c.functionName === "getHop" ? 57600n : c.functionName === "getMaxChange" ? 10n ** 18n : null));
     const { db, states } = fakeDb([]);
     await maybeRefreshPauState(db, withBeam, chain, { refreshSeconds: 3600, now: NOW });
-    expect((states[0] as { contracts: { beam?: object }[] }).contracts[0].beam).toEqual({ beamState: BEAM, hop: "57600", maxChange: "1000000000000000000", defaults: [], historyComplete: false });
+    expect((states[0] as { contracts: { beam?: object }[] }).contracts[0].beam).toEqual({ beamState: BEAM, configurator: CONF, hop: "57600", maxChange: "1000000000000000000", defaults: [], historyComplete: false });
   });
 });
 

@@ -12,6 +12,7 @@ import { instanceKeys, sharedAddresses, valueSide, type InstanceKey, type ValueS
 import { chainSnaps, instanceChain } from "./pauInstanceChain.ts";
 import { verdict } from "./pauValueVerdict.ts";
 import type { OnchainStep } from "./pauPending.ts";
+import type { KeyRoutes } from "./pauKeyRoutes.ts";
 
 export type { ValueSource };
 
@@ -57,6 +58,8 @@ export interface ValueCheck {
   readAt: string | null;
   /** On a mismatch or a limit never set: what governance did about the atlas change, followed from its pull request's spell (pauPending.ts), set by `withOnchain`. */
   onchain?: OnchainStep;
+  /** On a mismatch or a limit never set: who can change the limit, and whether the Operator can reach the stated value (pauKeyRoutes.ts), set by `withOnchain`. */
+  routes?: KeyRoutes;
 }
 
 type Base = Omit<ValueCheck, "status" | "key" | "chain" | "kind" | "contract" | "limit" | "readAt"> & { src: ValueSource };

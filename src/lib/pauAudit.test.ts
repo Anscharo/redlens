@@ -33,6 +33,19 @@ describe("checkReason", () => {
   });
 });
 
+describe("checkReason with the Operator's reach", () => {
+  const named = { atlasChanged: "2026-06-01", pr: 337, date: "2026-06-10", poll: { id: "0xp", title: "[Grove Artifact] Rate Limits", space: "grovefinance.eth" } };
+  const routes = (kind: "raise" | "beyond") => ({ admins: ["0xa"], operator: { reach: kind === "raise" ? { kind, raises: 1, first: "t", last: "t" } : { kind } } });
+  it("blames the Operator only where it can reach the value, and flags an off-spell item it cannot", () => {
+    const c = check("mismatch");
+    const offSpell = { kind: "off-spell" as const, named };
+    expect(checkReason(c, [c], at("2026-04-01", "2026-06-01"), offSpell, routes("raise"))).toBe("operator-not-applied");
+    expect(checkReason(c, [c], at("2026-04-01", "2026-06-01"), offSpell, routes("beyond"))).toBe("beyond-operator");
+    expect(checkReason(c, [c], at("2026-04-01", "2026-06-01"), offSpell)).toBe("off-spell");
+    expect(checkReason(c, [c], at("2026-04-01", "2026-06-01"), { kind: "unnamed", atlasChanged: "2026-06-01", pr: 1 }, routes("beyond"))).toBe("atlas-newer");
+  });
+});
+
 describe("lastContentChange", () => {
   it("takes the latest addition or real edit, ignoring moves and cosmetic edits", () => {
     expect(lastContentChange([

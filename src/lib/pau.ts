@@ -105,6 +105,8 @@ export interface BeamDefault {
 /** What BeamState lets the Configurator (cBEAM) do to one registered RateLimits without a spell. */
 export interface BeamLimits {
   beamState: string;
+  /** The chain's Configurator (registry `shared`), the account a cBEAM acts through; absent on a snapshot read before it was recorded. */
+  configurator?: string | null;
   /** Seconds one key must wait between two increases; null when unread. */
   hop: string | null;
   /** The factor one increase may multiply a limit by, in WAD (1e18 = 1×); null when unread. */

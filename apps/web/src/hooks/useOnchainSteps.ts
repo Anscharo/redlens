@@ -41,6 +41,6 @@ export function useOnchainSteps(checks: ValueCheck[], snaps: readonly StoredPauS
     if (!history || history.ids !== ids || !pau) return checks;
     const today = new Date().toISOString().slice(0, 10);
     const links = { pollsByPr: polls ?? undefined, snapshots: votes?.snapshots };
-    return withOnchain(checks, history.byDoc, { executives: votes?.executives ?? [], pau, snaps, today, openPrs: openPrs ?? [], ...links });
+    return withOnchain(checks, history.byDoc, { executives: votes?.executives ?? [], pau, snaps, today, now: Date.now(), openPrs: openPrs ?? [], ...links });
   }, [checks, history, ids, votes, pau, snaps, openPrs, polls]);
 }

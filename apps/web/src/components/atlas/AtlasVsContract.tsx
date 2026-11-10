@@ -10,6 +10,7 @@ import { checkAtlasValues, type ValueCheck } from "@/lib/pauAtlasValues";
 import type { DocValueSources } from "@/lib/pauDocSources";
 import { loadPau, unitNote } from "../../lib/pau";
 import { isPending } from "@/lib/pauPending";
+import { routesText } from "@/lib/pauRouteText";
 import { pendingText, stepText } from "@/lib/pauStepText";
 import { contractValue, isCompared, VALUE_STATUS as STATUS } from "../../lib/valueStatus";
 import { useLoaded } from "../../hooks/useAtlasData";
@@ -30,9 +31,10 @@ export function useAtlasVsContract(id: string, src: DocValueSources | null | und
 
 /** The status cell's mark, its words and its colour: a grey clock while the step one side waits on is still coming, amber for any other mismatch, with what governance did when it is known. */
 function statusLook(c: ValueCheck): { mark: React.ReactNode; text: string; color: string } {
-  if (c.onchain && isPending(c.onchain)) return { mark: <ClockGlyph />, text: pendingText(c.onchain), color: "var(--tan-3)" };
+  const routes = c.routes ? `. ${routesText(c.routes)}` : "";
+  if (c.onchain && isPending(c.onchain)) return { mark: <ClockGlyph />, text: pendingText(c.onchain) + routes, color: "var(--tan-3)" };
   const s = STATUS[c.status];
-  const text = c.onchain ? `${s.text}: ${stepText(c.onchain)}` : s.text;
+  const text = (c.onchain ? `${s.text}: ${stepText(c.onchain)}` : s.text) + routes;
   return { mark: s.mark, text, color: c.status === "mismatch" ? "var(--warn)" : "var(--tan-3)" };
 }
 

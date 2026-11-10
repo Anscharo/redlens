@@ -1,18 +1,14 @@
 // The PAU evidence a named spell is checked against: the deployments a value
-// sits on, Operator keys, whether the spell set the key, and a relay queued on
+// sits on, whether the spell set the key, and a relay queued on
 // the deployment's Executor.
 import { describe, expect, it } from "vitest";
 import { actionSet, check, DEP, snap, spellEntry } from "./pauPending.fixture.ts";
-import { deploymentsOf, keySetBy, operatorAdjustable, queuedRelay } from "./pauPendingEvidence.ts";
+import { deploymentsOf, keySetBy, queuedRelay } from "./pauPendingEvidence.ts";
 
-describe("deployments and Operator keys", () => {
+describe("deploymentsOf", () => {
   it("takes every deployment on the chain for a value no contract holds", () => {
     expect(deploymentsOf(check("not-set", "2026-07-01", { kind: null, contract: null }), [snap()]).map((s) => s.deployment)).toEqual([DEP]);
     expect(deploymentsOf(check("mismatch", "2026-07-01", { kind: "diamond" }), [snap()])).toEqual([]);
-  });
-  it("is the Operator's where BeamState holds a default for the key", () => {
-    expect(operatorAdjustable(check("mismatch"), [snap(true)])).toBe(true);
-    expect(operatorAdjustable(check("mismatch"), [snap()])).toBe(false);
   });
 });
 

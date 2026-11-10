@@ -4,6 +4,7 @@
 import { toCSV } from "./csv.ts";
 import { AUDIT_GROUPS } from "./pauAudit.ts";
 import type { AuditRow } from "./pauAuditIndex.ts";
+import { routesText } from "./pauRouteText.ts";
 import { stepText } from "./pauStepText.ts";
 import type { SearchField } from "./reportFilter.ts";
 import { atlasUrlOrEmpty } from "./routes.ts";
@@ -28,7 +29,7 @@ export const auditSearchFields = (r: AuditRow, docNo: string): SearchField[] => 
 
 const HEADERS = [
   "Group", "Reason", "Prime", "Chain", "Generation", "Subject", "Value", "Atlas states", "Chain holds",
-  "Chain last set", "Atlas last changed", "On-chain step", "Key", "Contract", "Doc No", "UUID", "Atlas Link",
+  "Chain last set", "Atlas last changed", "On-chain step", "Who can set it", "Key", "Contract", "Doc No", "UUID", "Atlas Link",
 ];
 
 /** The rows as CSV; `docNo` resolves a document's number for display only. */
@@ -37,7 +38,7 @@ export function auditRowsToCSV(rows: AuditRow[], docNo: (id: string) => string):
     HEADERS,
     rows.map((r) => [
       GROUP_LABEL.get(r.group), r.note, r.prime, r.chain, r.kind, r.subject, r.label, r.stated, r.onchain,
-      r.chainSetAt, r.atlasChangedAt, r.step ? stepText(r.step) : "", r.key, r.contract, r.docId ? docNo(r.docId) : "", r.docId ?? "", atlasUrlOrEmpty(r.docId),
+      r.chainSetAt, r.atlasChangedAt, r.step ? stepText(r.step) : "", r.routes ? routesText(r.routes) : "", r.key, r.contract, r.docId ? docNo(r.docId) : "", r.docId ?? "", atlasUrlOrEmpty(r.docId),
     ]),
   );
 }
