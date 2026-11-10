@@ -533,9 +533,15 @@ each of `production`, `development` and `prod`, the base environment the
 `redlens-pr-<n>` environments are forked from (which is not production). A
 clean run afterwards reports that the configuration is already up to date.
 
-Railway no longer reads `railway.toml` / `railway.json` (Config as Code), and
-the repo has none: `.railway/railway.ts` is the only place these settings
-live. A new environment forked from one of the three inherits their settings;
+The repo has no `railway.toml` / `railway.json` (Config as Code):
+`.railway/railway.ts` is the only place these settings live. A service that
+already had a **Config file path** keeps reading it, and a deploy whose path
+names a missing file fails with `service config at '/railway.worker.toml' not
+found` while the cron keeps starting containers that run nothing. So on every
+existing service in every environment, clear **Settings → Config file path**
+(after an apply, so the dashboard carries the settings the file did) and
+redeploy; the worker's next log should begin `atlas-worker: PR-environment
+mode`. A new environment forked from one of the three inherits their settings;
 any other new long-lived environment gets them from an apply.
 
 ## Ongoing operation
