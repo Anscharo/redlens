@@ -3,7 +3,6 @@
 // other direct call. These run after the spell rules, so a keeper's or gas
 // station's transaction that carries a spell is never read as a direct call.
 import type { PauOrigin } from "../../lib/pauHistory.ts";
-import { isSvmChain } from "../../lib/pauRegistry.ts";
 import { origin, type OriginDeps, type OriginRule, type TxContext } from "./origin-rules.ts";
 
 const configurator = (c: TxContext, d: OriginDeps) => c.events.find((e) => d.roleOf(c.chain, e.contract) === "configurator");
@@ -36,11 +35,4 @@ async function viaTx(c: TxContext, d: OriginDeps): Promise<PauOrigin> {
 }
 
 export const OPERATOR_RULE: OriginRule = { id: "operator", applies: (c, d) => !!configurator(c, d), resolve: viaConfigurator };
-// Governance reaches a Solana program over LayerZero, which is not read, so a
-// change there is never called direct: it stays unknown.
-export const SVM_RULE: OriginRule = {
-  id: "svm",
-  applies: (c) => isSvmChain(c.chain),
-  resolve: async () => origin({ kind: "unknown", evidence: "a Solana change's origin is not traced: governance reaches the program over LayerZero, which is not read" }),
-};
 export const TX_RULE: OriginRule = { id: "tx", applies: () => true, resolve: viaTx };

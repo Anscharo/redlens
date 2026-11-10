@@ -3,12 +3,19 @@
 // runs in the same sync:pau-rpc tail, after it, on the same deadline and the
 // same HyperSync budget. One pau_svm_cursor row per program: one query reads
 // every event the program emits, and only events of a controller the registry
-// lists are stored.
+// lists are stored. The same query reads every LzReceive of the chain's
+// LayerZero governance programs (registry `shared`, role `lzGovernance`;
+// svm-receipts.ts), whatever program the message calls, stored as an
+// `LzReceive` row of the governance program with a negative `log_index` (-1
+// for the transaction's first), so it orders before the changes it ran and
+// never takes their places; origin-svm.ts and history-queued.ts read them.
 //
 // A cold cursor starts at the first slot HyperSync holds (svm-hypersync.ts),
 // so the history is a window that starts there, not the program's whole life;
 // svm-history.ts says when it is long enough to judge. When the registry's
-// controllers change, the cursor re-reads from the same start. Reads stop
+// controllers or governance programs change (the cursor's `controllers`
+// stamp holds both: `stampOf`), the cursor re-reads from the same start,
+// adding what it now reads to the rows it holds. Reads stop
 // SVM_CONFIRMATIONS slots behind HyperSync's head. Each pass that reaches the
 // head stamps `reached_at`; a failure other than a rate limit is stored in
 // `last_error` until a later pass reaches the head, and a rate limit only
@@ -17,6 +24,7 @@ import { membersOf, type PauRegistry } from "../../lib/pauRegistry.ts";
 import { isRateLimited } from "../../lib/upstreamBackoff.ts";
 import type { SqlTag } from "../sql-types.ts";
 import { decodeEmitEvent } from "./svm-events.ts";
+import { decodeLzReceive } from "./svm-receipts.ts";
 import type { SvmEmit, SvmEventSource } from "./svm-hypersync.ts";
 
 /** Slots left unread behind HyperSync's head, so a fork it rolls back leaves no stored event. */
@@ -42,7 +50,13 @@ interface Program {
   chain: string;
   program: string;
   controllers: string[];
+  /** The chain's LayerZero governance programs, whose receipts are read beside the changes. */
+  governance: string[];
 }
+
+/** What a cursor has read for: the sorted controllers, then `|` and the governance programs when there are any. */
+export const stampOf = (p: Pick<Program, "controllers" | "governance">): string =>
+  p.controllers.join(",") + (p.governance.length ? `|${p.governance.join(",")}` : "");
 
 interface Cursor {
   controllers: string;
@@ -56,7 +70,8 @@ export function svmPrograms(reg: PauRegistry): Program[] {
   const out = new Map<string, Program>();
   for (const d of reg.deployments.filter((x) => x.kind === "svm")) {
     for (const { address } of membersOf(d, "program")) {
-      const p = out.get(`${d.chain}:${address}`) ?? { chain: d.chain, program: address, controllers: [] };
+      const governance = reg.shared.filter((s) => s.chain === d.chain).flatMap((s) => s.members.filter((m) => m.role === "lzGovernance").map((m) => m.address)).sort();
+      const p = out.get(`${d.chain}:${address}`) ?? { chain: d.chain, program: address, controllers: [], governance };
       p.controllers = [...new Set([...p.controllers, ...membersOf(d, "rateLimits").map((m) => m.address)])].sort();
       out.set(`${d.chain}:${address}`, p);
     }
@@ -64,9 +79,9 @@ export function svmPrograms(reg: PauRegistry): Program[] {
   return [...out.values()];
 }
 
-/** The program's cursor; a cold one starts at the first slot HyperSync holds, and one whose controllers changed re-reads from its start. */
+/** The program's cursor; a cold one starts at the first slot HyperSync holds, and one whose stamp changed re-reads from its start. */
 async function cursorFor(db: SqlTag, p: Program, src: SvmEventSource, height: number): Promise<Cursor> {
-  const controllers = p.controllers.join(",");
+  const controllers = stampOf(p);
   const [row] = (await db`SELECT controllers, start_slot, start_time, next_slot, reached_at FROM pau_svm_cursor WHERE chain = ${p.chain} AND program = ${p.program}`) as Record<string, unknown>[];
   if (row?.controllers === controllers) return { controllers, startSlot: Number(row.start_slot), next: Number(row.next_slot), reachedAt: row.reached_at ? new Date(row.reached_at as string) : null };
   const start = row ? { slot: Number(row.start_slot), time: new Date(row.start_time as string) } : await src.firstHeld(height).then((f) => ({ slot: f.slot, time: new Date(f.time * 1000) }));
@@ -92,6 +107,14 @@ async function storeEmit(db: SqlTag, p: Program, e: SvmEmit): Promise<boolean> {
   return true;
 }
 
+/** Stores one LayerZero governance receipt (svm-receipts.ts), whatever program its message calls. */
+async function storeReceipt(db: SqlTag, p: Program, r: SvmEmit): Promise<void> {
+  await db`
+    INSERT INTO pau_events (chain, tx_hash, log_index, contract, event, args, block, block_time)
+    VALUES (${p.chain}, ${r.signature}, ${-1 - r.index}, ${r.program}, ${"LzReceive"}, ${{ ...decodeLzReceive(r.data) }}::jsonb, ${r.slot}, ${new Date(r.time * 1000)})
+    ON CONFLICT DO NOTHING`;
+}
+
 /** Reads one program from its cursor towards the confirmed head until the deadline. */
 async function syncProgram(db: SqlTag, p: Program, src: SvmEventSource, deps: SvmSyncDeps): Promise<SvmSyncResult> {
   const clock = deps.now ?? Date.now;
@@ -101,8 +124,9 @@ async function syncProgram(db: SqlTag, p: Program, src: SvmEventSource, deps: Sv
     const tip = (await src.height()) - SVM_CONFIRMATIONS;
     c = await cursorFor(db, p, src, tip);
     while (c.next <= tip && clock() < deps.deadline) {
-      const r = await src.emits(p.program, c.next, tip);
+      const r = await src.emits(p.program, p.governance, c.next, tip);
       res.queries++;
+      for (const x of r.receipts) await storeReceipt(db, p, x);
       for (const e of r.emits) if (await storeEmit(db, p, e)) res.events++;
       c.next = r.next;
       if (c.next > tip) c.reachedAt = new Date(clock());

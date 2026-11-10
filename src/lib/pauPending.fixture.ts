@@ -50,6 +50,29 @@ export const actionSet = (queued: string, executes: string | null, contract = "0
   kind: "action-set", chain: "base", contract, id: "7", tx: "0xqueue", time: `${queued}T00:00:00Z`, at: executes && `${executes}T00:00:00Z`, primes: [],
 });
 
+/** Keel's Solana deployment: its limits on the controller, keyed by account, and its admin and Freezer Permissions. */
+export const SVM_ADMIN = "FDFsoboECfazAq1eLvwBLZXhoxjPvTy4wCzPdbqnk7Zk";
+export const SVM_ACCOUNT = "3vFbJmcbVrGTzZM1rZUBnpvWkkvKpbJEy6ZqgaGMBAJt";
+export const svmSnap = (adminHolds = true): StoredPauSnapshot => {
+  const perm = (address: string, account: string, name: string, holds: boolean) => ({ role: "permission" as const, address, events: 0, historyComplete: true, roles: [{ role: "permission", account, name, since: null, holds }] });
+  return {
+    deployment: "bc6aed17-2969-4d04-9af6-c7bf3e4497e6:solana:svm", prime: "bc6aed17-2969-4d04-9af6-c7bf3e4497e6", primeName: "Keel", chain: "solana", kind: "svm", fetchedAt: "2026-11-10T00:00:00Z",
+    contracts: [
+      { role: "rateLimits", address: "EeobZr57FSmNvw8Hs719iULJNqv3XLrTB5uPezvC2ND3", events: 0, historyComplete: true, rateLimits: [{ ...limit("2026-07-01"), key: SVM_ACCOUNT }] },
+      perm("Gwn4JH8UZYxtx1w5WAwapJSFw97Pwo6gzRF3hSvCmC81", SVM_ADMIN, "DEFAULT_ADMIN_ROLE", adminHolds),
+      perm("EREEUH114dTibhZcgdQfL8gRgfDA8psNkqrkqdrd7btk", "PcJcgdWmFZznhhfN28i6T8GHcwA6jmFGuUeNNGvcSY2", "DEFAULT_ADMIN_ROLE", false),
+      perm("B24DtbKAV25fcZ6e3buqfB8CSuuiFLRsHHojBGigntff", "FreezerKey11111111111111111111111111111111", "FREEZER", true),
+    ],
+  };
+};
+/** A Solana Integration's limit the atlas states, as the check keys it (the account, lowercased). */
+export const svmCheck = (status: ValueCheck["status"], extra: Partial<ValueCheck> = {}): ValueCheck =>
+  check(status, "2026-07-01", { chain: "solana", kind: "svm", contract: "EeobZr57FSmNvw8Hs719iULJNqv3XLrTB5uPezvC2ND3", key: SVM_ACCOUNT.toLowerCase(), ...extra });
+/** A LayerZero governance message sent on `sent` that no Solana receipt holds. */
+export const lzMessage = (sent: string): PauQueuedStep => ({
+  kind: "lz-message", chain: "ethereum", contract: "0x27fc1dd771817b53be48dc28789533bea53c9cca", id: "0xguid", tx: "0xsend", time: `${sent}T00:00:00Z`, at: null, primes: [],
+});
+
 /** A Prime Snapshot poll linking PR 363 (the fixture's writing change), proposed in the `threadDate` spell's thread. */
 export const poll = (id: string, o: Partial<PrimePoll> = {}): PrimePoll => ({
   id, space: "grovefinance.eth", title: "[Base] Raise the deposit rate limit", end: "2026-10-29", passed: true, threadDate: "2026-11-05", prs: [363], ...o,

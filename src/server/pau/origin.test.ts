@@ -22,6 +22,7 @@ function deps(over: Partial<OriginDeps> = {}): OriginDeps {
     ethereumEvents: async () => [{ contract: SG, event: "Exec", args: { addr: STAR } }],
     tx: async () => ({ from: "0xkeeper", to: "0xsafe" }),
     evidenceRead: async () => true,
+    lzSent: async () => null,
     ...over,
   };
 }

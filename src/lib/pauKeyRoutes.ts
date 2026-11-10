@@ -13,11 +13,14 @@
 // the text to cite. The stated value is read in the key's units only where the
 // chain gave them: a guessed scale would make the reach a guess. Whether a
 // cBEAM is paired with the RateLimits and whether the Configurator is halted
-// are not read. Pure.
+// are not read. A Solana limit has the spell route alone, relayed over
+// LayerZero governance (pauSvmRoutes.ts). Pure.
 import type { BeamLimits, StoredPauSnapshot } from "./pau.ts";
 import type { ValueCheck } from "./pauAtlasValues.ts";
 import type { PauHistoryResponse } from "./pauHistory.ts";
 import { parseStated, shiftDecimal } from "./pauParams.ts";
+import { isSvmChain } from "./pauRegistry.ts";
+import { svmKeyRoutes } from "./pauSvmRoutes.ts";
 
 const UNLIMITED = (1n << 256n) - 1n;
 const WAD = 10n ** 18n;
@@ -50,6 +53,8 @@ export interface KeyRoutes {
   admins: string[];
   /** Null when BeamState does not manage the RateLimits, the Configurator holds no admin role on it, or the snapshot carries no Configurator; `reach` is null where the stated value's units or BeamState's bounds are not read. `cites` holds the doc_no of each rule the reach rests on, where the documents are at hand. */
   operator: { reach: Reach | null; cites?: string[] } | null;
+  /** A Solana limit (pauSvmRoutes.ts): the spell's call reaches the admins over LayerZero governance; `cites` holds the doc_nos the route rests on. */
+  relay?: { via: "layerzero"; cites?: string[] };
 }
 
 const rateLimitsOf = (c: ValueCheck, snaps: readonly StoredPauSnapshot[]) =>
@@ -125,6 +130,7 @@ function reachOf(c: ValueCheck, beam: BeamLimits, pau: PauHistoryResponse, now: 
 
 /** Who can change the check's rate limit, and how far the Operator can take it; null when no snapshot holds the key's contract or no admin of it is read. */
 export function keyRoutes(c: ValueCheck, snaps: readonly StoredPauSnapshot[], pau: PauHistoryResponse, now: number, docNo?: (uuid: string) => string | null): KeyRoutes | null {
+  if (c.chain && isSvmChain(c.chain)) return svmKeyRoutes(c, snaps, docNo);
   const rl = rateLimitsOf(c, snaps);
   if (!rl) return null;
   const all = admins(rl.roles);

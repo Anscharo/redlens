@@ -1,7 +1,8 @@
 // The Solana HyperSync source against a stubbed fetch, with HyperSync's real
 // answer shapes (tables as arrays of batches, a bare slot for /height).
 // Pinned: the query selects the program's successful inner EmitEvent calls
-// with their signatures and block times, up to the window's end; calls come in
+// with their signatures and block times, and the governance programs' LzReceive
+// calls apart from them, up to the window's end; calls come in
 // execution order, each numbered within its transaction; the cursor moves to
 // next_slot and never past the window; no progress, or a call without its
 // signature or time, throws; the first held slot is found by bisecting
@@ -24,7 +25,7 @@ function stub(answer: (body: Record<string, unknown> | null, url: string) => unk
   }) as unknown as typeof fetch;
 }
 const src = () => svmEventSource("solana", "tok", FAST)!;
-const call = (slot: number, tx: number, address: number[], data = "00") => ({ slot, transaction_index: tx, instruction_address: address, data });
+const call = (slot: number, tx: number, address: number[], data = "00", program = PROGRAM) => ({ slot, transaction_index: tx, instruction_address: address, data, executing_account: program });
 
 afterEach(() => {
   globalThis.fetch = real;
@@ -39,24 +40,38 @@ describe("svmEventSource", () => {
       transactions: [[{ slot: 400, transaction_index: 7, transaction_id: "sigB" }, { slot: 300, transaction_index: 1, transaction_id: "sigA" }]],
       blocks: [[{ slot: 300, block_time: 1_000 }, { slot: 400, block_time: 2_000 }]],
     }));
-    const out = await src().emits(PROGRAM, 100, 900);
+    const out = await src().emits(PROGRAM, [], 100, 900);
     expect(bodies[0]).toMatchObject({ from_slot: 100, to_slot: 901, instruction_calls: [{ executing_account: [PROGRAM], d1: ["00"], is_inner: true, tx_success: true }] });
     expect(out).toEqual({
       next: 501,
       emits: [
-        { slot: 300, time: 1_000, signature: "sigA", index: 0, data: "03" },
-        { slot: 400, time: 2_000, signature: "sigB", index: 0, data: "01" },
-        { slot: 400, time: 2_000, signature: "sigB", index: 1, data: "02" },
+        { slot: 300, time: 1_000, signature: "sigA", index: 0, program: PROGRAM, data: "03" },
+        { slot: 400, time: 2_000, signature: "sigB", index: 0, program: PROGRAM, data: "01" },
+        { slot: 400, time: 2_000, signature: "sigB", index: 1, program: PROGRAM, data: "02" },
       ],
+      receipts: [],
     });
+  });
+  it("reads the governance programs' LzReceive calls in the same query, apart from the program's", async () => {
+    const GOV = "SKYGRikJcGSa3jC5HDyzDrVsmkCk3e5SqAurycny8PW";
+    stub(() => ({
+      next_slot: 501,
+      instruction_calls: [[call(400, 7, [3, 0, 0], "01"), call(400, 7, [3], "08b3786d2176bd50", GOV)]],
+      transactions: [[{ slot: 400, transaction_index: 7, transaction_id: "sigB" }]],
+      blocks: [[{ slot: 400, block_time: 2_000 }]],
+    }));
+    const out = await src().emits(PROGRAM, [GOV], 100, 900);
+    expect((bodies[0].instruction_calls as unknown[])[1]).toEqual({ executing_account: [GOV], d8: ["08b3786d2176bd50"], tx_success: true });
+    expect(out.emits.map((e) => e.data)).toEqual(["01"]);
+    expect(out.receipts).toEqual([{ slot: 400, time: 2_000, signature: "sigB", index: 0, program: GOV, data: "08b3786d2176bd50" }]);
   });
   it("never moves past the window, and throws on no progress or a call it cannot place", async () => {
     stub(() => ({ next_slot: 2_000, instruction_calls: [], transactions: [], blocks: [] }));
-    expect((await src().emits(PROGRAM, 100, 900)).next).toBe(901);
+    expect((await src().emits(PROGRAM, [], 100, 900)).next).toBe(901);
     stub(() => ({ next_slot: 100 }));
-    await expect(src().emits(PROGRAM, 100, 900)).rejects.toThrow(/no progress/);
+    await expect(src().emits(PROGRAM, [], 100, 900)).rejects.toThrow(/no progress/);
     stub(() => ({ next_slot: 200, instruction_calls: [[call(150, 1, [0, 0])]], transactions: [], blocks: [[{ slot: 150, block_time: 9 }]] }));
-    await expect(src().emits(PROGRAM, 100, 900)).rejects.toThrow(/no signature or time/);
+    await expect(src().emits(PROGRAM, [], 100, 900)).rejects.toThrow(/no signature or time/);
   });
   it("reads the bare slot /height answers", async () => {
     stub(() => 467_783_434);

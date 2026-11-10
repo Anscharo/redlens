@@ -1,5 +1,6 @@
 // Queued governance steps: an action set stays queued until executed or
-// canceled, a star spell until a later Exec or Drop, each with its times.
+// canceled, a star spell until a later Exec or Drop, each with its times, and a
+// LayerZero message until a Solana receipt holds its guid.
 import { describe, expect, it } from "bun:test";
 import type { EventRow } from "./history-entries.ts";
 import { queuedSteps } from "./history-queued.ts";
@@ -29,5 +30,16 @@ describe("queuedSteps", () => {
       sg("Drop", "0xb", "2026-11-04T00:00:00.000Z"),
     ];
     expect(queuedSteps(rows, owners)).toEqual([{ kind: "star-spell", chain: "ethereum", contract: "0xsg", id: "0xa", tx: "0xq", time: "2026-11-02T00:00:00.000Z", at: new Date(1763000000 * 1000).toISOString(), primes: ["spark"] }]);
+  });
+  it("lists a LayerZero message no Solana receipt holds, only once receipts are read and only from their window on", () => {
+    const sent = (guid: string, time: string) => row({ chain: "ethereum", contract: "0xlz", event: "GovernanceCallSent", tx: `0x${guid}`, time, args: { guid } });
+    const rows = [
+      sent("0xold", "2025-11-03T00:00:00.000Z"),
+      sent("0xAA", "2026-05-11T00:00:00.000Z"),
+      sent("0xbb", "2026-11-09T00:00:00.000Z"),
+      row({ chain: "solana", contract: "SKYGRik", event: "LzReceive", time: "2026-05-11T00:01:00.000Z", args: { guid: "0xaa" } }),
+    ];
+    expect(queuedSteps(rows, owners)).toEqual([]);
+    expect(queuedSteps(rows, owners, "2026-01-03T00:00:00.000Z")).toEqual([{ kind: "lz-message", chain: "ethereum", contract: "0xlz", id: "0xbb", tx: "0x0xbb", time: "2026-11-09T00:00:00.000Z", at: null, primes: [] }]);
   });
 });

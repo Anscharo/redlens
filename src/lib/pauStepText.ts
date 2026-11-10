@@ -29,6 +29,7 @@ export function pendingStepText(step: PendingStep): string {
     case "uncast":
       return `${spellName(step.spell)}, which carries it, is not yet cast`;
     case "queued":
+      if (step.via === "layerzero") return `${spellName(step.spell)} has executed and a LayerZero governance message sent since has not been received on Solana yet`;
       return `${spellName(step.spell)} has executed and an action set is queued on the ${chainName(step.chain)} Executor, executable from ${when(step.at)}`;
     default:
       return `${spellName(step.spell)} executed on ${step.executed}; its changes are still being read`;

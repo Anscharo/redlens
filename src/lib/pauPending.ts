@@ -60,7 +60,8 @@ export type PendingStep =
   | { kind: "polling" }
   | { kind: "unfiled" }
   | { kind: "uncast"; spell: SpellRef }
-  | { kind: "queued"; spell: SpellRef; chain: string; tx: string; at: string | null }
+  /** `chain` and `tx` are where the relay is held: an L2 Executor's queue, or, `via` "layerzero", the Ethereum transaction that sent the message to Solana. */
+  | { kind: "queued"; spell: SpellRef; chain: string; tx: string; at: string | null; via?: "layerzero" }
   | { kind: "reading"; spell: SpellRef; executed: string };
 
 export interface PendingOnchain extends Named {

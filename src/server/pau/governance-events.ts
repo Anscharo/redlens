@@ -7,7 +7,10 @@
 //   - an L2 Executor (spark-gov-relay): a bridge message queues an action set,
 //     anyone executes it;
 //   - the Configurator: an operator changes a rate limit within BeamState's
-//     bounds, or calls a controller action, without a spell.
+//     bounds, or calls a controller action, without a spell;
+//   - the LayerZero Governance Sender: a spell's SubProxy sends a call to
+//     another chain, named by its LayerZero guid, which the receiving
+//     program's LzReceive carries (svm-receipts.ts).
 
 export const STAR_GUARD_EVENTS = [
   "event Plot(address indexed addr, bytes32 tag, uint256 deadline)",
@@ -26,5 +29,7 @@ export const CONFIGURATOR_EVENTS = [
   "event CallControllerAction(address indexed controller, bytes data)",
 ];
 
-/** Event names that are evidence of origin, never a configuration change of their own. */
-export const ORIGIN_EVENTS = new Set(["Plot", "Exec", "Drop", "ActionsSetQueued", "ActionsSetExecuted", "ActionsSetCanceled", "SetRateLimit", "CallControllerAction"]);
+export const LZ_SENDER_EVENTS = ["event GovernanceCallSent(bytes32 indexed guid)"];
+
+/** Event names that are evidence of origin, never a configuration change of their own; `LzReceive` is a Solana governance receipt (svm-receipts.ts). */
+export const ORIGIN_EVENTS = new Set(["Plot", "Exec", "Drop", "ActionsSetQueued", "ActionsSetExecuted", "ActionsSetCanceled", "SetRateLimit", "CallControllerAction", "GovernanceCallSent", "LzReceive"]);

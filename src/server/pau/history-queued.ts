@@ -1,7 +1,8 @@
 // The governance steps the stored events hold scheduled and not yet run, for
 // GET /api/pau/history's `queued`: an L2 Executor's ActionsSetQueued with no
 // ActionsSetExecuted or ActionsSetCanceled of the same id, and a StarGuard's
-// Plot with no later Exec or Drop of the same star spell. A step is listed
+// Plot with no later Exec or Drop of the same star spell, and a LayerZero
+// GovernanceCallSent no Solana receipt holds the guid of. A step is listed
 // only from events stored; an Executor whose events are not read yet lists
 // nothing, which a reader must not take as "nothing queued". Pure.
 import type { PauQueuedStep } from "../../lib/pauHistory.ts";
@@ -38,7 +39,21 @@ function starSpells(rows: EventRow[], owners: Owners): PauQueuedStep[] {
   }));
 }
 
+/**
+ * The LayerZero governance messages sent on or after `receiptsFrom` (the start
+ * of the Solana window a pass has read receipts over, svm-sync.ts) that no
+ * stored receipt holds. None before a pass has read receipts, and none sent
+ * before the window, whose receipts were never read.
+ */
+function lzMessages(rows: EventRow[], receiptsFrom: string | null): PauQueuedStep[] {
+  if (!receiptsFrom) return [];
+  const received = new Set(rows.filter((r) => r.event === "LzReceive").map((r) => lower(r.args.guid)));
+  return rows
+    .filter((r) => r.event === "GovernanceCallSent" && r.time >= receiptsFrom && !received.has(lower(r.args.guid)))
+    .map((r) => ({ kind: "lz-message", chain: r.chain, contract: r.contract, id: lower(r.args.guid), tx: r.tx, time: r.time, at: null, primes: [] }));
+}
+
 /** Every step still to run, oldest first; `rows` are in chain order, as `pau_events` is read. */
-export function queuedSteps(rows: EventRow[], owners: Owners): PauQueuedStep[] {
-  return [...actionSets(rows), ...starSpells(rows, owners)].sort((a, b) => a.time.localeCompare(b.time));
+export function queuedSteps(rows: EventRow[], owners: Owners, receiptsFrom: string | null = null): PauQueuedStep[] {
+  return [...actionSets(rows), ...starSpells(rows, owners), ...lzMessages(rows, receiptsFrom)].sort((a, b) => a.time.localeCompare(b.time));
 }
