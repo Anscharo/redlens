@@ -139,6 +139,25 @@ The chat's hybrid lane fuses three lists in one RRF stage: lexical, attributed s
 - Its replies fail more often (4 of 31 pilot chunks needed a retry), which the chunk-failure rule absorbs.
 - `BRIEFING_MODEL=""` turns the write pass off. Seed and embed still run, so search over the committed rows works with no model configured.
 
+## The reranker
+
+**A hybrid `atlas_search` (chat and MCP) ends with one Jev Choice over its first 30 fused results** (`rerank.ts`, called from `atlasSearch` in `src/server/chat/tools/tools-search.ts`).
+
+- The state holds every candidate (ancestor path, title, 1,200 characters of body) and the options are the candidates plus `none`. Jev puts nearly all the mass on one or two of them, so it picks the best answer rather than re-sorting: below the pick the order stays the fusion's.
+- **It stays comparative.** Every pairwise arm (a Noul or Score per candidate, which never sees the others) lost exact recall and ICD disambiguation in the eval.
+- The eval imports `rankByChoice` and `candidateText`, so it scores the shipped request.
+- A failed call or one past `SEARCH_RERANK_DEADLINE_MS` (1.5 s) returns the fused order unchanged and is captured to PostHog as `search_rerank`. The deadline is raced on a timer as well as the abort signal.
+- The order is cached per (model, query, head), so every page of one search sees the same order and Jev is paid once.
+- `SEARCH_RERANK_MODEL=""` turns it off. The reader lane (`GET /api/search/semantic`) does not rerank.
+
+Measured with `pnpm eval:retrieval --policies kv_records_breadcrumbs --models google/gemini-embedding-2 --briefings s2docs --briefing-text both --pool all --hybrid --rerank jev-choice --rerank-pool 30`, exact recall@10 paired per query against the same 30-list unreranked:
+
+- Questions 0.642 → 0.810, +16.8 [11.7, 22.3], 30 gained and 0 lost. Keyword-shaped queries 0.587 → 0.693, +10.6 [6.1, 15.6], 19 gained and 0 lost.
+- ICD disambiguation carries it (+35.0 on questions, +30.0 on keywords): briefings bring the exact leaf into the 30 without lifting it into the top 10, and the Choice lifts it.
+- Without briefings the same reranker gains only +3.4, so it is measured against the stack it runs on.
+- 170 ms median and 265 ms p95 per query, about $0.00025 a query.
+- The semantic-only lane gained +11.7 [6.1, 17.3] but lost 3 queries, which is why the reader lane is not reranked yet.
+
 ## `pnpm sync:briefings`
 
 This is the atlas worker's fourth post-sync tail (`src/server/sync-briefings.ts`, beside embeddings, history and doc versions). `dev-preflight` also runs it after the worker step. It runs three passes under an advisory lock, each writing as it goes.

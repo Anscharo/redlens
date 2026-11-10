@@ -484,6 +484,9 @@ Search is **hybrid RAG**: a lexical leg (in-memory MiniSearch / BM25, boosting
 title, doc_no, and type) and a semantic leg (query embedded, then pgvector
 cosine search over `atlas_doc_embeddings` with a relevance floor, degrading to
 lexical-only on embed timeout), merged via Reciprocal Rank Fusion (`RRF_K = 60`).
+In `hybrid` mode one Jev Choice over the first 30 fused results then moves the
+best answer up (`src/server/retrieval/rerank.ts`, `SEARCH_RERANK_MODEL`); a
+failed or slow call leaves the fused order.
 
 Every tool result is budget-capped. Two budgets exist deliberately
 (`output-budget.ts`): `MCP_MAX_RESULT_CHARS` is the larger client-facing budget

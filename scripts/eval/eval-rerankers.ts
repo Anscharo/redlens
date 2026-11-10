@@ -7,6 +7,9 @@
 // is the reranker's ceiling; the eval prints it beside every arm.
 import type { AtlasNode } from "../../src/types.ts";
 import { askJev, withDeadline, type JevQuestion } from "../../src/server/jev.ts";
+import { candidateText, rankByChoice, sortByScore } from "../../src/server/retrieval/rerank.ts";
+
+export { candidateText, sortByScore };
 
 export type Reranker = "none" | "bm25" | "jev" | "jev-neutral" | "jev-score" | "jev-choice" | "qwen3";
 
@@ -17,38 +20,6 @@ export interface RerankOutcome {
   ms: number;
   /** Dollars, Jev only (the endpoint reports it inline). */
   cost: number;
-}
-
-const BODY_CHARS = 1200;
-const PATH_DEPTH = 4;
-
-/**
- * What a reranker reads for one candidate. Ancestor titles first: the ICD
- * disambiguation slice is decided by a product name that lives 2-3 levels up,
- * and a thin parameter leaf carries nothing on its own.
- */
-export function candidateText(id: string, docMap: Map<string, AtlasNode>): { path: string; title: string; body: string } {
-  const n = docMap.get(id);
-  if (!n) return { path: "", title: id, body: "" };
-  const crumbs: string[] = [];
-  let p = n.parentId ? docMap.get(n.parentId) : undefined;
-  while (p && crumbs.length < PATH_DEPTH) {
-    crumbs.unshift(p.title);
-    p = p.parentId ? docMap.get(p.parentId) : undefined;
-  }
-  return {
-    path: crumbs.join(" › "),
-    title: `${n.doc_no} ${n.title}`,
-    body: (n.content ?? "").replace(/\s+/g, " ").trim().slice(0, BODY_CHARS),
-  };
-}
-
-/** Stable: equal scores keep the incoming (retrieval) order. */
-export function sortByScore(ids: string[], scores: number[]): string[] {
-  return ids
-    .map((id, i) => ({ id, s: scores[i] ?? 0, i }))
-    .sort((a, b) => b.s - a.s || a.i - b.i)
-    .map((x) => x.id);
 }
 
 const JEV_QUESTION = {
@@ -115,38 +86,12 @@ export async function rerankJev(query: string, ids: string[], docMap: Map<string
 
 /**
  * Comparative: ONE request per query with every candidate in the state and a
- * Choice whose options are the candidates. Candidates are judged against each
- * other, which pairwise scoring cannot do, and the request count drops from 30
- * to 1 per query. Ranked by the option probabilities; `none` absorbs the mass
- * when nothing fits so the distribution is not forced onto a wrong candidate.
+ * Choice whose options are the candidates — the shipped request
+ * (src/server/retrieval/rerank.ts), so the eval scores what production runs.
  */
 export async function rerankJevChoice(query: string, ids: string[], docMap: Map<string, AtlasNode>): Promise<RerankOutcome> {
-  const t0 = performance.now();
-  const keys = ids.map((_, i) => `c${String(i + 1).padStart(2, "0")}`);
-  const candidates: Record<string, { path: string; title: string; body: string }> = {};
-  const criteria: Record<string, string> = {};
-  ids.forEach((id, i) => {
-    const t = candidateText(id, docMap);
-    candidates[keys[i]!] = t;
-    criteria[keys[i]!] = `\`candidates.${keys[i]}\` — ${t.path ? `${t.path} › ` : ""}${t.title}`;
-  });
-  criteria.none = "No candidate answers the query.";
-  const run = await askJev({
-    lane: "eval-rerank",
-    state: { query, candidates },
-    questions: {
-      best: {
-        type: "choice",
-        instructions: "Which candidate best answers `query`? Each option names an entry in `candidates`; read its `path` and `title` for which product or scope it belongs to, and its `body` for what it says.",
-        criteria,
-      },
-    },
-    signal: withDeadline(60_000),
-  });
-  const a = run.answers.best;
-  const probs = a?.type === "choice" ? a.probabilities : {};
-  const scores = keys.map((k) => probs[k] ?? 0);
-  return { ids: sortByScore(ids, scores), scores, ms: performance.now() - t0, cost: run.cost ?? 0 };
+  const r = await rankByChoice(query, ids, docMap, { lane: "eval-rerank", signal: withDeadline(60_000) });
+  return { ids: r.ids, scores: r.scores, ms: r.ms, cost: r.cost };
 }
 
 // Qwen3-Reranker's own template (model card): a system line fixing the answer

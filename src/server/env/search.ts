@@ -1,3 +1,4 @@
+import { JEV } from "./chat.ts";
 import type { EnvGroup } from "./types.ts";
 
 export const openrouter: EnvGroup = {
@@ -60,6 +61,17 @@ export const openrouter: EnvGroup = {
       name: "SEARCH_SEMANTIC_USER_PER_HOUR",
       doc: "Each signed-in reader's own hourly budget for the meaning lane; it never draws on SEARCH_SEMANTIC_RPM. 600 is one search every 6 s for a whole hour. 0 disables the gate. In process, like the shared budget.",
       default: "600",
+    },
+    {
+      name: "SEARCH_RERANK_MODEL",
+      doc: "Jev model that picks the best answer among the first SEARCH_RERANK_POOL results of a hybrid atlas_search (chat and MCP), one request per search. \"\" turns it off and results keep their fused order.",
+      default: JEV,
+    },
+    { name: "SEARCH_RERANK_POOL", doc: "Results the reranker reads; the rest keep their order.", default: "30" },
+    {
+      name: "SEARCH_RERANK_DEADLINE_MS",
+      doc: "Wall-clock cap on the rerank call. A miss returns the fused order unchanged.",
+      default: "1500",
     },
   ],
 };
