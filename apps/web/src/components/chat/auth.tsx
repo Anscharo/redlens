@@ -3,6 +3,7 @@ import { apiUrl, type AuthUser } from "./api";
 import { usersEnabled } from "../../lib/usersEnabled";
 import { authProviders } from "../../lib/authProviders";
 import { stashAuthReturn } from "../../lib/authReturn";
+import { markInternal } from "../../lib/analytics";
 
 export type AuthProvider = "github" | "google";
 
@@ -63,7 +64,10 @@ function useAuthBoot() {
     let alive = true;
     fetch(apiUrl("auth/me"), { credentials: "same-origin" })
       .then((res) => (res.ok ? (res.json() as Promise<AuthUser>) : null))
-      .then((u) => alive && setUser(u))
+      .then((u) => {
+        if (u?.internal) markInternal();
+        if (alive) setUser(u);
+      })
       .catch(() => alive && setUser(null))
       .finally(() => alive && setLoading(false));
     return () => {

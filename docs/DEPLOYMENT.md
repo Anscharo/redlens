@@ -533,9 +533,8 @@ each of `production`, `development` and `prod`, the base environment the
 `redlens-pr-<n>` environments are forked from (which is not production). A
 clean run afterwards reports that the configuration is already up to date.
 
-Railway no longer reads `railway.toml` / `railway.json` (Config as Code), and
-the repo has none: `.railway/railway.ts` is the only place these settings
-live. A new environment forked from one of the three inherits their settings;
+The repo has no `railway.toml` / `railway.json` (Config as Code):
+`.railway/railway.ts` is the only place these settings live. A new environment forked from one of the three inherits their settings;
 any other new long-lived environment gets them from an apply.
 
 ## Ongoing operation

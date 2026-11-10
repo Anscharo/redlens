@@ -17,6 +17,8 @@ const embedModel = process.env.EMBED_MODEL ?? "google/gemini-embedding-2";
 // sit in their own range (see `semanticMinScore`).
 const SEMANTIC_FLOORS: Record<string, number> = { "google/gemini-embedding-2": 0.55, "qwen/qwen3-embedding-8b": 0.3 };
 const port = Number(process.env.PORT ?? 3000);
+// A CSV of GitHub logins, lowercased because logins are case-insensitive.
+const loginList = (csv?: string) => (csv ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
 
 // Login/chat gating, resolved once. `usersRequested` is the raw operator intent;
 // the surface only becomes available (`usersEnabled`) when a JWT secret also
@@ -698,10 +700,12 @@ export const config = {
   // github provider can match: a Google account whose name happens to equal a
   // GitHub login must never inherit that login's budget.
   rateLimitTokensPerWindowBoosted: Number(process.env.RATE_LIMIT_TOKENS_PER_WINDOW_BOOSTED ?? 3_000_000),
-  rateLimitBoostLogins: (process.env.RATE_LIMIT_BOOST_LOGINS ?? "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean),
+  rateLimitBoostLogins: loginList(process.env.RATE_LIMIT_BOOST_LOGINS),
+
+  // GitHub logins of the team. /api/auth/me answers `internal: true` for them,
+  // and the browser then tags its analytics events (apps/web/src/lib/internalMark.ts).
+  // Lowercased and github-only, for the same reasons as rateLimitBoostLogins.
+  internalGithubLogins: loginList(process.env.INTERNAL_GITHUB_LOGINS),
 
   // Per-user in-flight cap — a SECOND, independent gate (chat/concurrency.ts),
   // checked before the token window above. The token budget only knows PAST

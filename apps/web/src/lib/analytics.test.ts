@@ -57,7 +57,41 @@ describe("analytics (enabled — VITE_POSTHOG_KEY set)", () => {
   beforeEach(() => {
     vi.stubEnv("VITE_POSTHOG_KEY", "test-key-123");
     sessionStorage.removeItem("rl-forced-reload-from");
+    localStorage.removeItem("rl-internal");
     delete (window as unknown as { __ATLAS_SHA__?: string }).__ATLAS_SHA__;
+  });
+
+  it("markInternal stores the mark and tags later events internal", async () => {
+    const a = await freshModule();
+    a.markInternal();
+    expect(localStorage.getItem("rl-internal")).toBe("1");
+    expect(mockRegister).toHaveBeenCalledWith({ internal: true });
+  });
+
+  it("initAnalytics tags events internal when this browser carries the mark", async () => {
+    localStorage.setItem("rl-internal", "1");
+    const a = await freshModule();
+    a.initAnalytics();
+    expect(mockRegister).toHaveBeenCalledWith({ internal: true });
+  });
+
+  it("initAnalytics leaves events untagged without the mark", async () => {
+    const a = await freshModule();
+    a.initAnalytics();
+    expect(mockRegister).not.toHaveBeenCalledWith({ internal: true });
+    expect(mockRegister).not.toHaveBeenCalledWith({ automated: true });
+  });
+
+  it("initAnalytics tags events automated in a driven browser", async () => {
+    // jsdom has no navigator.webdriver, so define it on the instance and remove it after.
+    Object.defineProperty(navigator, "webdriver", { value: true, configurable: true });
+    try {
+      const a = await freshModule();
+      a.initAnalytics();
+      expect(mockRegister).toHaveBeenCalledWith({ automated: true });
+    } finally {
+      delete (navigator as { webdriver?: boolean }).webdriver;
+    }
   });
 
   it("initAnalytics inits posthog exactly once and registers super properties", async () => {
