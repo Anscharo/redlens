@@ -107,9 +107,6 @@
     { "files": ["src/server/chat/teach/handle.ts"], "rules": { "max-lines-per-function": ["error", { "max": 97, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/tools/tools-graph.ts"], "rules": { "max-lines": ["error", { "max": 391, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 69, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/tools/tools-history.ts"], "rules": { "max-lines": ["error", { "max": 450, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 97, "skipBlankLines": true, "skipComments": true }] } },
-    // atlasSearch runs the lexical leg first and threads its residual into runSemantic,
-    // which is the call site itself — see retrieval/leaf-attribution.ts.
-    { "files": ["src/server/chat/tools/tools.ts"], "rules": { "max-lines": ["error", { "max": 182, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/citation-marks.ts"], "rules": { "max-lines": ["error", { "max": 195, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 84, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/definition-block-gate.ts"], "rules": { "max-lines-per-function": ["error", { "max": 79, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/paragraph-refute.ts"], "rules": { "max-lines": ["error", { "max": 190, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 147, "skipBlankLines": true, "skipComments": true }] } },

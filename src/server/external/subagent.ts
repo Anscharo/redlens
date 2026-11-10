@@ -66,9 +66,11 @@ export async function runMscSubagent(opts: {
   view: Record<string, unknown>;
   jsonCall?: JsonCall;
   signal?: AbortSignal;
+  /** Defaults to config.chatExternalSubagentModel; "" skips the model call. */
+  model?: string;
 }): Promise<MscBrief> {
   const fallback = briefFromView(opts.view) as unknown as MscBrief;
-  const model = config.chatExternalSubagentModel || (opts.jsonCall ? "msc-subagent" : "");
+  const model = opts.model ?? config.chatExternalSubagentModel;
   if (!opts.jsonCall || !model) return { ...fallback, subagent: "skipped" };
   try {
     const res = await callWithTimeout(

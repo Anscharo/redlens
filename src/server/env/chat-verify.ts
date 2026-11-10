@@ -35,8 +35,8 @@ export const chatVerify: EnvGroup = {
     },
     {
       name: "CHAT_REFUTE_SCREEN",
-      doc: "Jev screen in front of the per-paragraph refute. shadow: recorded beside the audit, which still runs on every paragraph. gate: the audit runs only on flagged paragraphs. off: no screen.",
-      default: "shadow",
+      doc: "Jev screen in front of the per-paragraph refute. off: no screen. shadow: recorded beside the audit, which still runs on every paragraph. gate: the audit runs only on flagged paragraphs; on real traffic the screen missed half of the audit's catches.",
+      default: "off",
     },
     { name: "CHAT_REFUTE_SCREEN_MODEL", doc: "Model of that screen.", default: JEV },
     {

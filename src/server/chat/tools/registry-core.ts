@@ -1,6 +1,7 @@
 // Document lookup tools: schema, fetch, search, and address lookup.
 import { z } from "zod";
-import { atlasDescribe, atlasGet, atlasSearch, atlasGetAddress, type SearchArgs } from "./tools.ts";
+import { atlasDescribe, atlasGet, atlasGetAddress } from "./tools.ts";
+import { atlasSearch, type SearchArgs } from "./tools-search.ts";
 import { readOnlyAtlasTool, type AtlasTool } from "./tool-types.ts";
 import { withOnchain } from "../../onchain/enrich.ts";
 import { pageShape } from "../../retrieval/result-page.ts";
@@ -50,8 +51,8 @@ export const CORE_TOOLS: AtlasTool[] = [
     annotations: readOnlyAtlasTool("Atlas Search"),
     description:
       'Search the Sky Atlas. mode="lexical" uses minisearch BM25 (good for exact terms, IDs, addresses). ' +
-      'mode="semantic" uses Qwen3 embeddings via pgvector (paraphrase / concept queries; it ranks only the nearest few dozen docs, so list a whole class with hybrid or lexical). ' +
-      'mode="hybrid" (default) merges both via reciprocal rank fusion. Quoted phrases ("...") are ' +
+      'mode="semantic" uses embeddings via pgvector (paraphrase / concept queries; it ranks only the nearest few dozen docs, so list a whole class with hybrid or lexical). ' +
+      'mode="hybrid" (default) merges both via reciprocal rank fusion, and a reranker may move the best answer among the top results to the top. Quoted phrases ("...") are ' +
       "post-filtered to require an exact substring match in title or content.",
     shape: {
       query: z.string().describe('Query. Quote phrases for exact-substring match: foo "USDS PSM" bar'),

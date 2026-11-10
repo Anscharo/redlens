@@ -109,9 +109,11 @@ export const NEEDS_BRIEFINGS = BRIEFING_ARMS.some((a) => a !== "none");
 // lane (lexical, attributed semantic and briefing lists fused in ONE RRF stage,
 // search.ts `rrfMerge`), and the reason the arm is measured here at all. The
 // eval's lexical leg is TF-IDF, not MiniSearch, so the number is a proxy for
-// the shape of the effect, not production's exact figure.
-if (NEEDS_BRIEFINGS && (RERANK !== "none" || (HYBRID && BRIEFING_ARMS.some((a) => a !== "none" && a !== "s2docs")))) {
-  die("briefing arms do not support --rerank; --hybrid is supported for s2docs only (the chat's three-way fusion).");
+// the shape of the effect, not production's exact figure. A leaf reranker
+// (jev*, qwen3) reorders the final fused list, so it combines with any arm;
+// bm25 reranks the anchor pool before the briefing fusion and does not.
+if (NEEDS_BRIEFINGS && (RERANK === "bm25" || (HYBRID && BRIEFING_ARMS.some((a) => a !== "none" && a !== "s2docs")))) {
+  die("briefing arms do not support --rerank bm25; --hybrid is supported for s2docs only (the chat's three-way fusion).");
 }
 if (SAMPLE_SCOPE !== undefined && POOL_FLAG === "covered") die("--sample-scope sets its own pool; drop --pool covered.");
 if (OFFLINE && BACKEND === "tfidf") die("--offline reads a vector cache; pass --backend openrouter, ternlight or ollama.");

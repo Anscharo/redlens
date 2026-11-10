@@ -35,6 +35,7 @@
 
 ## 2026-11-10
 
+- Improved how the chat and MCP search pick the best matching document among similar ones
 - Opened the reader's side panel on History by default, with History as the first section
 
 ## 2026-11-09

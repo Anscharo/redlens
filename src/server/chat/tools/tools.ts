@@ -6,10 +6,7 @@
 // address / query land alongside in Task #6 once the pg + embedding layers
 // exist; they take the same Indexes plus a SQL handle.
 import { type Indexes, ancestorChain, resolveNode, type AtlasNode } from "../../retrieval/indexes.ts";
-import { runLexical, runSemantic, mergeForMode, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type MergedHit, type SemanticResult } from "../../retrieval/search.ts";
-import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "../../retrieval/leaf-attribution.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
-import { pageOf, poolSize } from "../../retrieval/result-page.ts";
 import { statsSection } from "./tools-stats.ts";
 import { countBy } from "../../../lib/collections.ts";
 import { byDocNo } from "../../../lib/docNo.ts";
@@ -130,79 +127,6 @@ export function atlasGet(ix: Indexes, id: string | string[]): ToolResult {
   const { kept, truncated } = fitToBudget(results);
   const envelope = { count: kept.length, ...(truncated ? { requested: results.length, truncated: true, hint: TRUNCATION_HINT } : {}), results: kept };
   return withLivenessHint(envelope, kept);
-}
-
-// ── atlas_search (lexical | semantic | hybrid) ───────────────────────────────
-export interface SearchArgs {
-  query: string;
-  k: number;
-  offset?: number;
-  type?: string;
-  mode: "lexical" | "semantic" | "hybrid";
-}
-
-// Pages are cut whole to the call's result budget (output-budget.ts resultBudget).
-export async function atlasSearch(ix: Indexes, { query, k, offset = 0, type, mode }: SearchArgs): Promise<ToolResult> {
-  const { phrases, casePhrases } = extractPhrases(query);
-  const hasPhrases = phrases.length > 0 || casePhrases.length > 0;
-  const fetchK = poolSize(offset, k, mode === "lexical" && !hasPhrases);
-
-  // The lexical leg is synchronous in-memory MiniSearch, so nothing is lost by
-  // running it first — and leaf attribution's residual, built from its titles,
-  // then rides in the query's own embed round trip rather than buying a second
-  // one (see `lexicalResidual`). `semantic` mode still computes it for that
-  // residual, and still keeps it out of the results.
-  const lexAll = runLexical(ix, query, type, fetchK);
-  const lex = mode === "semantic" ? [] : lexAll;
-  const semResult =
-    mode === "lexical"
-      ? ({ hits: [], briefingHits: [], skipped: null } satisfies SemanticResult)
-      : await runSemantic(
-          ix, query, type, fetchK, undefined, lexicalResidual(query, lexAll, ix.docMap),
-          // runSemantic reports a degraded leg in `skipped` rather than
-          // throwing, so this catch is defensive only — and it keeps the reason
-          // instead of discarding it.
-        ).catch((err): SemanticResult => ({ hits: [], briefingHits: [], skipped: (err as Error).message }));
-  const sem = attributeSemanticHits(query, lex, semResult.hits, ix, await buildLeafScorer(semResult.hits, semResult.vecs));
-
-  const merged = filterByType(mergeForMode(mode, lex, sem, semResult.briefingHits), ix, type);
-
-  const resolved = merged
-    .map((m) => ({ m, n: ix.docMap.get(m.id) }))
-    .filter((r): r is { m: MergedHit; n: AtlasNode } => !!r.n);
-
-  const filtered = !hasPhrases
-    ? resolved
-    : resolved.filter(({ n }) => matchesPhrases(n.title, n.content, phrases, casePhrases));
-
-  // poolCut: the lexical leg filled its pool. Semantic mode reports no cut: its
-  // legs stop at hnsw.ef_search whatever the pool, so a larger k ranks no
-  // deeper; the tool description says so instead.
-  const { rows: results, fields } = pageOf(filtered, { offset, k }, ({ m, n }) => ({
-    id: n.id,
-    doc_no: n.doc_no,
-    title: n.title,
-    type: n.type,
-    depth: n.depth,
-    // Verbatim: this is a tool result an agent quotes from and is graded on.
-    snippet: buildAgentSnippet(n.content, query),
-    score: m.rrf_score || m.score,
-    sources: m.sources,
-    ...(m.via ? { via: m.via } : {}),
-    ...livenessOf(ix, n.id),
-  }), { poolCut: mode !== "semantic" && lexAll.length >= fetchK });
-  // Only present when the requested mode actually wanted a semantic leg (a
-  // pure lexical search never runs one, so there's nothing to report skipping).
-  const wantedSemantic = mode === "semantic" || mode === "hybrid";
-  const envelope = {
-    count: results.length,
-    ...fields,
-    mode,
-    phrase_filter: [...phrases, ...casePhrases],
-    ...(wantedSemantic && semResult.skipped ? { semantic_skipped: semResult.skipped } : {}),
-    results,
-  };
-  return withLivenessHint(envelope, results);
 }
 
 // ── atlas_get_address ─────────────────────────────────────────────────────────

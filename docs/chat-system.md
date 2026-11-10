@@ -484,6 +484,9 @@ Search is **hybrid RAG**: a lexical leg (in-memory MiniSearch / BM25, boosting
 title, doc_no, and type) and a semantic leg (query embedded, then pgvector
 cosine search over `atlas_doc_embeddings` with a relevance floor, degrading to
 lexical-only on embed timeout), merged via Reciprocal Rank Fusion (`RRF_K = 60`).
+In `hybrid` mode one Jev Choice over the first 30 fused results then moves the
+best answer up (`src/server/retrieval/rerank.ts`, `SEARCH_RERANK_MODEL`); a
+failed or slow call leaves the fused order.
 
 Every tool result is budget-capped. Two budgets exist deliberately
 (`output-budget.ts`): `MCP_MAX_RESULT_CHARS` is the larger client-facing budget
@@ -742,7 +745,8 @@ every row as cited-matching and spent tool-record slots on rows already in the
 state). Each statement gets a Choice over
 consistent / contradicted / unsupported, and a paragraph is flagged at
 P(contradicted) ≥ 0.2. The modes:
-- `shadow` (the default): the screen runs beside gemma and changes nothing the
+- `off` (the default): no screen; gemma audits every paragraph.
+- `shadow`: the screen runs beside gemma and changes nothing the
   reader sees. Its verdict is recorded per paragraph at
   `message_checks.verdict->'paragraphs'->'screen'` on the `verify` row, next to
   what gemma did on the same paragraph, plus a PostHog `chat_refute_screen`
@@ -750,8 +754,6 @@ P(contradicted) ≥ 0.2. The modes:
 - `gate`: gemma runs only on paragraphs the screen flags, can't fit, or fails
   on. A clean screen counts as audited, so it never turns the badge
   "unverified".
-- `off`: no screen.
-
 Jev cannot replace refute: it returns no verbatim evidence span, and `confirm`
 needs one. So the screen only decides whether gemma looks.
 
@@ -767,8 +769,11 @@ paragraph-mode gemma, over 248 cases:
   the gate cuts calls and cost, not timeouts.
 - Blind spot: list completeness (a phantom or duplicate member).
 
-Shadow stays the default until its recorded verdicts have been compared with
-gemma's on real traffic.
+Real traffic did not hold that up. Over 515 shadow-screened paragraphs
+(2026-09-23 to 2026-11-06, PostHog `chat_refute_screen`), gemma found a
+candidate contradiction in 6 and the screen had flagged only 3 of them, so the
+gate would have dropped half of gemma's real catches. The default is `off`:
+a shadow screen costs one Jev call per paragraph and changes nothing.
 
 ### 6.2 The absence contract (`verify/absence.ts`)
 
