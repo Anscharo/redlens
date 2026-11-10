@@ -36,6 +36,13 @@ export interface SvmIntegration extends SvmLimitState {
   config: SvmIntegrationConfig;
 }
 
+export interface SvmController {
+  id: number;
+  status: "Frozen" | "Active" | "PushPullFrozen" | "AtomicSwapLock";
+  /** The controller's authority PDA, which signs its token moves. */
+  authority: string;
+}
+
 export interface SvmPermission {
   controller: string;
   authority: string;
@@ -43,9 +50,10 @@ export interface SvmPermission {
   flags: string[];
 }
 
-const SIZES = { permission: 105, integration: 508, reserve: 274 } as const;
-const DISCRIMINATOR = { permission: 2, integration: 3, reserve: 4 } as const;
+const SIZES = { controller: 166, permission: 105, integration: 508, reserve: 274 } as const;
+const DISCRIMINATOR = { controller: 1, permission: 2, integration: 3, reserve: 4 } as const;
 const STATUS = ["Suspended", "Active"] as const;
+const CONTROLLER_STATUS = ["Frozen", "Active", "PushPullFrozen", "AtomicSwapLock"] as const;
 const CONFIG = ["Undefined", "SplTokenExternal", "CctpBridge", "LzBridge", "AtomicSwap", "Drift", "Kamino"] as const;
 const FLAGS = ["can_manage_permissions", "can_invoke_external_transfer", "can_execute_swap", "can_reallocate", "can_freeze_controller", "can_unfreeze_controller", "can_manage_reserves_and_integrations", "can_suspend_permissions", "can_liquidate"];
 
@@ -108,6 +116,14 @@ export function decodeIntegration(b: Uint8Array): SvmIntegration {
   const state = limitState(r);
   r.at(1 + 32 + 32 + 32 + 1 + 6 * 8);
   return { controller, description, ...state, config: config(r) };
+}
+
+/** A Controller: id, bump, status, authority, authority bump, then padding. */
+export function decodeController(b: Uint8Array): SvmController {
+  const r = open(b, "controller");
+  const id = r.u16();
+  r.skip(1);
+  return { id, status: CONTROLLER_STATUS[r.u8()], authority: r.pk() };
 }
 
 export function decodePermission(b: Uint8Array): SvmPermission {

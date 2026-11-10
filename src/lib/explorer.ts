@@ -61,7 +61,7 @@ export function explorerUrl(
   return (EXPLORER[chain] ?? EXPLORER.ethereum) + addr;
 }
 
-/** A transaction on an EVM chain's explorer: each registered EVM explorer serves `/tx/<hash>` beside `/address/`. */
+/** A transaction on a chain's explorer: each registered explorer serves `/tx/<hash>` beside `/address/` (Solscan beside `/account/`, for a Solana signature). */
 export function explorerTxUrl(chain: string, tx: string): string {
-  return (EXPLORER[chain] ?? EXPLORER.ethereum).replace(/address\/$/, "tx/") + tx;
+  return (EXPLORER[chain] ?? EXPLORER.ethereum).replace(/(address|account)\/$/, "tx/") + tx;
 }

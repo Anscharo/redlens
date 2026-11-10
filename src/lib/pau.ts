@@ -8,6 +8,12 @@ export interface SetAt {
   block: number;
   time: string;
   tx: string;
+  /**
+   * Set at some time before this one (ISO), with `time` and `tx` empty: the
+   * start of a history read over a recent window only (a Solana limit,
+   * src/server/pau/svm-history.ts) that holds no change of the value.
+   */
+  before?: string;
 }
 
 export interface RoleHolder {

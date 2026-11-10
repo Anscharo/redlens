@@ -9,13 +9,17 @@
 //
 // Not set: a stated Integration account, or the Reserve of a stated mint, that
 // does not exist (svm-probe.ts), lowercased as every reader compares keys; a
-// missing Reserve is keyed "reserve:<mint>", since its address is derived. No history is read, so nothing has a `setAt`
-// time and `historyComplete` is false.
+// missing Reserve is keyed "reserve:<mint>", since its address is derived.
+//
+// When each limit and Permission was last set comes from the stored history
+// (svm-history.ts): a recent window, complete only once it covers every change
+// that can still be pending; until then `historyComplete` is false.
 import { decodeBase58, encodeBase58, findProgramAddress } from "../../../scripts/lib/solana-pda.mjs";
-import type { ContractState, LiveRateLimit, PauSnapshot, SetAt } from "../../lib/pau.ts";
+import type { ContractState, LiveRateLimit, PauSnapshot } from "../../lib/pau.ts";
 import { deploymentId, membersOf, type PauDeployment, type PauRole } from "../../lib/pauRegistry.ts";
 import { decodeIntegration, decodePermission, decodeReserve, mintDecimals, U64_MAX, type SvmIntegration, type SvmLimitState, type SvmReserve } from "./svm-layout.ts";
 import type { SvmProbe } from "./svm-probe.ts";
+import { svmSetTimes, type SvmSetTimes } from "./svm-history.ts";
 import type { SvmAccounts } from "./svm-reader.ts";
 
 const UNLIMITED = ((1n << 256n) - 1n).toString();
@@ -23,7 +27,6 @@ const DAY = 86_400n;
 const DRIFT = "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH";
 /** A Drift SpotMarket's mint: after its 8-byte discriminator, its own address and its oracle. */
 const DRIFT_MINT_AT = 8 + 32 + 32;
-const NO_HISTORY: SetAt = { block: 0, time: "", tx: "" };
 const utf8 = (s: string) => new TextEncoder().encode(s);
 
 /** Where the controller's Reserve for a mint lives (seeds "reserve", controller, mint). */
@@ -52,12 +55,12 @@ function decodeAll<T extends { controller: string }>(acc: Map<string, Uint8Array
   }));
 }
 
-/** A limit in the EVM controllers' terms. */
-function limit(address: string, s: SvmLimitState, svm: NonNullable<LiveRateLimit["svm"]>, decimals: number | null): LiveRateLimit {
+/** A limit in the EVM controllers' terms, with its last set from the history. */
+function limit(address: string, s: SvmLimitState, svm: NonNullable<LiveRateLimit["svm"]>, decimals: number | null, times: SvmSetTimes): LiveRateLimit {
   const maxAmount = s.maxOutflow === U64_MAX ? UNLIMITED : s.maxOutflow.toString();
   const slope = (s.slope / DAY).toString();
   return {
-    key: address, configured: { maxAmount, slope }, setAt: NO_HISTORY, changes: 0,
+    key: address, configured: { maxAmount, slope }, ...times.limit(address),
     data: { maxAmount, slope, lastAmount: s.available.toString(), lastUpdated: "0" }, available: s.available.toString(), svm,
     ...(decimals !== null && svm.mint ? { unit: { decimals, symbol: null, token: svm.mint, source: "token" as const } } : {}),
   };
@@ -67,14 +70,14 @@ function limit(address: string, s: SvmLimitState, svm: NonNullable<LiveRateLimit
 const roleName = (flags: string[]) =>
   flags.includes("can_manage_reserves_and_integrations") ? "DEFAULT_ADMIN_ROLE" : flags.includes("can_freeze_controller") ? "FREEZER" : flags.includes("can_execute_swap") ? "RELAYER" : flags.join(" ") || "NONE";
 
-const contract = (role: PauRole, address: string, extra: Partial<ContractState> = {}): ContractState => ({ role, address, events: 0, historyComplete: false, ...extra });
+const contract = (times: SvmSetTimes, role: PauRole, address: string, extra: Partial<ContractState> = {}): ContractState => ({ role, address, events: times.events(address), historyComplete: times.complete, ...extra });
 
 /** Each Permission as its own contract, its authority holding the role its flags grant while it is Active. */
-const permissionContracts = (acc: Map<string, Uint8Array | null>, perms: string[]): ContractState[] =>
+const permissionContracts = (acc: Map<string, Uint8Array | null>, perms: string[], times: SvmSetTimes): ContractState[] =>
   perms.flatMap((a) => {
     const b = acc.get(a);
     const p = b ? decodePermission(b) : null;
-    return p ? [contract("permission", a, { roles: [{ role: "permission", account: p.authority, since: null, name: roleName(p.flags), holds: p.status === "Active" }] })] : [];
+    return p ? [contract(times, "permission", a, { roles: [{ role: "permission", account: p.authority, since: times.since(a), name: roleName(p.flags), holds: p.status === "Active" }] })] : [];
   });
 
 /** Each Integration's mint: its own, else, for Drift, its spot market's. */
@@ -88,7 +91,7 @@ async function integrationMints(read: SvmAccounts, ints: Map<string, SvmIntegrat
 }
 
 /** The deployment's snapshot, read live. */
-export async function svmSnapshot(d: PauDeployment, read: SvmAccounts, probe: SvmProbe = { integrations: [], mints: [] }): Promise<PauSnapshot> {
+export async function svmSnapshot(d: PauDeployment, read: SvmAccounts, probe: SvmProbe = { integrations: [], mints: [] }, times: SvmSetTimes = svmSetTimes(null, 0)): Promise<PauSnapshot> {
   const program = only(d, "program");
   const controller = only(d, "rateLimits");
   const reserveOf = new Map(probe.mints.map((m) => [m, reserveAddress(program, controller, m)]));
@@ -103,10 +106,10 @@ export async function svmSnapshot(d: PauDeployment, read: SvmAccounts, probe: Sv
   const mintAcc = await read(mints);
   const dec = (m: string | undefined) => (m && mintAcc.get(m) ? mintDecimals(mintAcc.get(m)!) : null);
   const limits = [
-    ...[...reserves].map(([a, r]) => limit(a, r, { account: "reserve", type: "Reserve", mint: r.mint, status: r.status }, dec(r.mint))),
-    ...[...ints].map(([a, x]) => limit(a, x, { account: "integration", type: x.config.type, description: x.description, mint: intMint.get(a), ...(x.config.output ? { output: x.config.output } : {}), status: x.status }, dec(intMint.get(a)))),
+    ...[...reserves].map(([a, r]) => limit(a, r, { account: "reserve", type: "Reserve", mint: r.mint, status: r.status }, dec(r.mint), times)),
+    ...[...ints].map(([a, x]) => limit(a, x, { account: "integration", type: x.config.type, description: x.description, mint: intMint.get(a), ...(x.config.output ? { output: x.config.output } : {}), status: x.status }, dec(intMint.get(a)), times)),
   ];
   const unsetKeys = [...probe.integrations.filter((a) => acc.get(a) === null), ...[...reserveOf].filter(([, a]) => acc.get(a) === null).map(([m]) => `reserve:${m}`)].map((k) => k.toLowerCase());
-  const contracts = [contract("program", program), contract("rateLimits", controller, { rateLimits: limits, unsetKeys }), ...permissionContracts(acc, perms)];
+  const contracts = [contract(times, "program", program), contract(times, "rateLimits", controller, { rateLimits: limits, unsetKeys }), ...permissionContracts(acc, perms, times)];
   return { deployment: deploymentId(d), prime: d.prime, primeName: d.primeName, chain: d.chain, kind: d.kind, contracts };
 }

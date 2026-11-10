@@ -65,7 +65,7 @@ export const docsToDate = (primes: PrimeChecks[]): string[] => [...new Set(prime
 function valueRows({ primeId, prime, checks }: PrimeChecks, input: AuditInput): AuditRow[] {
   return checks.flatMap((c) => {
     const entries = DATED.has(c.status) ? input.history.get(c.docId) : undefined;
-    const at = { chain: c.limit?.setAt?.time ?? null, atlas: (entries && valueChange(entries, c.stated)?.entry.date) || null };
+    const at = { chain: c.limit?.setAt?.time || null, atlas: (entries && valueChange(entries, c.stated)?.entry.date) || null, chainBefore: c.limit?.setAt?.before };
     const dates = { chain: at.chain?.slice(0, 10) ?? null, atlas: at.atlas?.slice(0, 10) ?? null };
     const step = c.onchain ?? null;
     const routes = c.routes;

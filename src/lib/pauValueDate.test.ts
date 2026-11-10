@@ -2,7 +2,7 @@
 // without a diff as possibly the one, whole-value matching, and the fallback.
 import { describe, expect, it } from "vitest";
 import type { HistoryEntry } from "./history.ts";
-import { valueChange, valueChangedAt } from "./pauValueDate.ts";
+import { setOrder, valueChange, valueChangedAt } from "./pauValueDate.ts";
 
 const edit = (date: string, diff?: HistoryEntry["diff"]): HistoryEntry => ({ date, commitHash: date, changeType: "modified", changeKind: "semantic", ...(diff ? { diff } : {}) });
 
@@ -31,5 +31,14 @@ describe("valueChangedAt", () => {
     expect(valueChange([edit("2026-10-20", [["+", "something else"]])], "10,000,000 USDC")?.exact).toBe(false);
     expect(valueChange([{ ...edit("2026-10-20"), changeType: "added", changeKind: undefined }], "10,000,000 USDC")?.exact).toBe(true);
     expect(valueChange([edit("2026-10-20", [["+", "| 10,000,000 USDC |"]])], "10,000,000 USDC")).toMatchObject({ exact: true, entry: { date: "2026-10-20" } });
+  });
+});
+
+describe("setOrder", () => {
+  it("orders by full timestamp, and a key set before its read window before any atlas change", () => {
+    expect(setOrder({ time: "2026-05-01T00:00:00Z" }, "2026-04-01")).toBe("chain");
+    expect(setOrder({ time: "", before: "2026-01-03T00:00:00Z" }, "2025-06-01")).toBe("atlas");
+    expect(setOrder({ time: "", before: "2026-01-03T00:00:00Z" }, null)).toBeNull();
+    expect(setOrder({ time: "" }, "2026-04-01")).toBeNull();
   });
 });

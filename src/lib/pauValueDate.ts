@@ -2,6 +2,7 @@
 // date the chain is measured against when the two disagree (pauPending.ts,
 // the PAU values audit). Pure.
 import type { DiffLine, HistoryEntry } from "./history.ts";
+import type { SetAt } from "./pau.ts";
 
 const CONTENT = new Set(["added", "modified"]);
 const norm = (s: string) => s.replace(/\s+/g, " ").toLowerCase();
@@ -62,4 +63,15 @@ export function moveOrder(chainAt: string | null | undefined, atlasAt: string | 
   const atlas = atlasAt ? Date.parse(atlasAt) : NaN;
   if (Number.isNaN(chain) || Number.isNaN(atlas) || chain === atlas) return null;
   return chain > atlas ? "chain" : "atlas";
+}
+
+/**
+ * `moveOrder` from a key's last set. A key set before the window its history
+ * was read over (`SetAt.before`) moved before any atlas change: the window
+ * covers every change a step can still wait on, so an older one is past
+ * pending either way.
+ */
+export function setOrder(set: Pick<SetAt, "time" | "before"> | null | undefined, atlasAt: string | null | undefined): "chain" | "atlas" | null {
+  if (set?.before) return atlasAt && !Number.isNaN(Date.parse(atlasAt)) ? "atlas" : null;
+  return moveOrder(set?.time, atlasAt);
 }
