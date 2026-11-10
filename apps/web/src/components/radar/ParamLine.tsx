@@ -90,16 +90,20 @@ interface ParamLineProps {
   mark?: RowMark | null;
   /** Whether the card keeps a mark column, so its marks line up even on rows with none. */
   markCol?: boolean;
+  /** A sub-row of a param that lists several holders (ParamTableLine.tsx), set in under its param. */
+  indent?: boolean;
+  /** Hover text for the key: the sentence a param's holder table follows. */
+  keyTitle?: string;
 }
 
-export function ParamLine({ p, colWidth, instanceHint, mark = null, markCol = false }: ParamLineProps) {
+export function ParamLine({ p, colWidth, instanceHint, mark = null, markCol = false, indent = false, keyTitle }: ParamLineProps) {
   return (
     <div className="group relative flex py-0.5 px-1 -mx-1 items-baseline rounded hover:bg-[var(--row-hover)]">
-      <span className="mono text-[10px] shrink-0" style={{ color: "var(--tan-3)" }}>
+      <span className={`mono text-[10px] shrink-0${indent ? " pl-4" : ""}`} style={{ color: "var(--tan-3)" }} title={keyTitle}>
         {p.key}
       </span>
       {p.srcDocId && <ParamDocLink docId={p.srcDocId} name={p.key} />}
-      <span className="flex-1 min-w-0" style={{ borderBottom: "1px dotted color-mix(in srgb, var(--tan-3) 25%, transparent)", margin: "0 4px 3px" }} />
+      <span className="flex-1 min-w-0" style={p.value ? { borderBottom: "1px dotted color-mix(in srgb, var(--tan-3) 25%, transparent)", margin: "0 4px 3px" } : undefined} />
       <span
         className={`mono text-[10px] shrink-0 text-right leading-relaxed${isInteractive(p.value) ? " relative z-10" : ""}`}
         style={{ maxWidth: `calc(100% - ${colWidth}px)`, wordBreak: "break-word", color: "var(--tan-2)" }}

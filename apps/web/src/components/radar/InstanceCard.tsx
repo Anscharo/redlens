@@ -3,6 +3,8 @@ import { AtlasLink } from "../AtlasLink";
 import { prepareWithSegments, measureNaturalWidth } from "@chenglou/pretext";
 import type { RadarInstance } from "../../lib/actorIndex";
 import { ParamLine } from "./ParamLine";
+import { ParamTableLine } from "./ParamTableLine";
+import { paramTable } from "@/lib/paramTable";
 import { ParamAddressKeys, type PauPrime } from "./ParamAddressKeys";
 import { listedAddress } from "../../lib/pau";
 import { atlasHref } from "@/lib/routes";
@@ -26,12 +28,13 @@ export function statusLabel(status: string): string {
   return isInvocationStatus(status) ? `${INVOCATION_STATUS_LABEL[status]} Invocation` : `${status} Instance`;
 }
 
-/** A param line, with the on-chain keys derived from it when it lists an address where a RateLimitID belongs. */
+/** A param line (a holder table as one line per holder), with the on-chain keys derived from it when it lists an address where a RateLimitID belongs. */
 function ParamRow({ prime, ...line }: ComponentProps<typeof ParamLine> & { prime?: PauPrime }) {
   const { p } = line;
+  const table = paramTable(p.value);
   return (
     <div>
-      <ParamLine {...line} />
+      {table ? <ParamTableLine {...line} table={table} /> : <ParamLine {...line} />}
       {prime && listedAddress(p.key, p.value) && <ParamAddressKeys prime={prime} paramKey={p.key} value={p.value} />}
     </div>
   );
