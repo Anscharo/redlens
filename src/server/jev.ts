@@ -91,11 +91,6 @@ export function withDeadline(ms: number, parent?: AbortSignal): AbortSignal {
   return parent ? AbortSignal.any([parent, deadline]) : deadline;
 }
 
-/** Whether a Jev lane configured with `model` can call at all: "" turns a lane off, and no key means no call. */
-export function jevReady(model: string): boolean {
-  return model !== "" && config.openrouterApiKey !== "";
-}
-
 export interface AskJevParams {
   state: unknown;
   questions: Record<string, JevQuestion>;

@@ -6,16 +6,18 @@
 // (scripts/eval/eval-rerankers.ts imports it); its numbers are in the
 // eval-retrieval.ts header.
 import type { AtlasNode } from "../../types.ts";
-import { askJev, choiceOf, jevReady, withDeadline, type JevQuestion } from "../jev.ts";
-import { JEV_DEFAULT } from "../config.ts";
+import { askJev, choiceOf, withDeadline, type JevQuestion } from "../jev.ts";
+import { config, JEV_DEFAULT } from "../config.ts";
 import { captureError } from "../posthog-node.ts";
 import { createCache } from "../ttl-cache.ts";
 
 export const rerankConfig = {
   /** "" turns the reranker off. */
   model: process.env.SEARCH_RERANK_MODEL ?? JEV_DEFAULT,
-  pool: Number(process.env.SEARCH_RERANK_POOL ?? 30),
-  deadlineMs: Number(process.env.SEARCH_RERANK_DEADLINE_MS ?? 1500),
+  /** Results the Choice reads, the size the eval measured. */
+  pool: 30,
+  /** Wall clock on the call; a miss keeps the fused order. */
+  deadlineMs: 1500,
 };
 
 const BODY_CHARS = 1200;
@@ -118,7 +120,7 @@ function headOrder(query: string, ids: string[], docMap: Map<string, AtlasNode>)
 export async function rerankHead<T>(query: string, items: T[], idOf: (t: T) => string, docMap: Map<string, AtlasNode>, offset = 0): Promise<T[]> {
   const { model, pool } = rerankConfig;
   const head = items.slice(0, pool);
-  if (!jevReady(model) || head.length < 2 || offset >= head.length) return items;
+  if (!model || !config.openrouterApiKey || head.length < 2 || offset >= head.length) return items;
   try {
     const order = await headOrder(query, head.map(idOf), docMap);
     const byId = new Map(head.map((t) => [idOf(t), t]));

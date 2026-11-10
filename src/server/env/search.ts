@@ -64,14 +64,8 @@ export const openrouter: EnvGroup = {
     },
     {
       name: "SEARCH_RERANK_MODEL",
-      doc: "Jev model that picks the best answer among the first SEARCH_RERANK_POOL results of a hybrid atlas_search (chat and MCP), one request per search. \"\" turns it off and results keep their fused order.",
+      doc: "Jev model that picks the best answer among the first 30 results of a hybrid atlas_search (chat and MCP), one request per search. \"\" turns it off and results keep their fused order.",
       default: JEV,
-    },
-    { name: "SEARCH_RERANK_POOL", doc: "Results the reranker reads; the rest keep their order.", default: "30" },
-    {
-      name: "SEARCH_RERANK_DEADLINE_MS",
-      doc: "Wall-clock cap on the rerank call. A miss returns the fused order unchanged.",
-      default: "1500",
     },
   ],
 };
