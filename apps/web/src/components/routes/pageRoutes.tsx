@@ -1,6 +1,6 @@
 import { useLocation, useSearchParams } from "wouter";
 import { homeSearchHref } from "@/lib/routes";
-import { ATLAS_TABS } from "../../lib/atlasTab";
+import { ATLAS_TABS, DEFAULT_ATLAS_TAB } from "../../lib/atlasTab";
 import { urlEnum } from "../../hooks/useUrlState";
 import { useAtlasNodeId } from "../../hooks/useAtlasNodeId";
 import { useNavigation } from "../../hooks/useNavigation";
@@ -12,8 +12,8 @@ import { SearchHintsPage } from "../SearchHints";
 import { HomePage } from "../HomePage";
 import { DevPanel } from "../../DevPanel";
 
-// Notes is the default panel, so an absent (or unrecognized) ?view= lands there.
-const ATLAS_TAB_CODEC = urlEnum("notes", ATLAS_TABS);
+// An absent (or unrecognized) ?view= lands on the default panel.
+const ATLAS_TAB_CODEC = urlEnum(DEFAULT_ATLAS_TAB, ATLAS_TABS);
 
 /** `/`: the home page, or the search results once there is a query. */
 export function HomeRoute({ search }: { search: SearchInput }) {

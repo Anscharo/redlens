@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-11-10
+
+- Opened the reader's side panel on History by default, with History as the first section
+
 ## 2026-11-09
 
 - Checked a Morpho vault's owner, curator, allocator and sentinel roles and a Curve pool's assets on a Prime Agent's instance cards against the chain
