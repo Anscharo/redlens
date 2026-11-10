@@ -9,10 +9,28 @@ import path from "node:path";
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 export const SUBMODULE = path.join(ROOT, "vendor/next-gen-atlas");
 
-/** Runs a command to completion; throws on a non-zero exit. */
+// execFileSync blocks the event loop, so no timer (the worker's hard cap
+// included) can fire while a child runs: a child that never exits would keep
+// the run alive for good, and Railway starts no cron tick while one is running.
+// So each run() child gets whatever is left before this deadline as its own
+// timeout, and is killed when it is spent.
+let deadlineAt = null;
+
+/** Every later run() child is killed once `atMs` (epoch ms) passes; null lifts it. */
+export function setRunDeadline(atMs) {
+  deadlineAt = atMs;
+}
+
+/** Runs a command to completion; throws on a non-zero exit, or when the run deadline kills it. */
 export function run(cmd, args, opts = {}) {
   console.log(`$ ${cmd} ${args.join(" ")}`);
-  execFileSync(cmd, args, { stdio: "inherit", cwd: ROOT, ...opts });
+  const timeout = deadlineAt === null ? undefined : Math.max(1000, deadlineAt - Date.now());
+  try {
+    execFileSync(cmd, args, { stdio: "inherit", cwd: ROOT, timeout, killSignal: "SIGKILL", ...opts });
+  } catch (e) {
+    if (e?.code === "ETIMEDOUT") throw new Error(`${cmd} ${args.join(" ")} killed at the run deadline`);
+    throw e;
+  }
 }
 
 /** Spawns a command; resolves on exit 0, rejects on any other exit or a spawn error. */

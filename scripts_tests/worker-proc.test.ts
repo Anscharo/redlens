@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { ROOT, SUBMODULE, readUpstreamSha, run, runAsync } from "../scripts/lib/worker-proc.mjs";
+import { ROOT, SUBMODULE, readUpstreamSha, run, runAsync, setRunDeadline } from "../scripts/lib/worker-proc.mjs";
 
 const node = process.execPath;
 
@@ -16,6 +16,19 @@ describe("worker process plumbing", () => {
   it("run completes a zero exit and throws on a non-zero one", () => {
     expect(() => run(node, ["-e", "process.exit(0)"])).not.toThrow();
     expect(() => run(node, ["-e", "process.exit(3)"], { stdio: "ignore" })).toThrow();
+  });
+
+  // execFileSync blocks the event loop, so the worker's hard-cap timer cannot
+  // kill a hung child: the child must carry the deadline itself.
+  it("run kills a child still running at the run deadline", () => {
+    setRunDeadline(Date.now() + 300);
+    try {
+      const t = Date.now();
+      expect(() => run(node, ["-e", "setTimeout(() => {}, 30000)"], { stdio: "ignore" })).toThrow(/killed at the run deadline/);
+      expect(Date.now() - t).toBeLessThan(10_000);
+    } finally {
+      setRunDeadline(null);
+    }
   });
 
   it("runAsync resolves on exit 0, rejects with the exit code otherwise, and rejects a spawn error", async () => {

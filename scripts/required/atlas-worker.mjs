@@ -59,7 +59,7 @@ import { SQL } from "bun";
 import { touchSyncHeartbeat } from "../lib/worker-heartbeat.mjs";
 import { stepsFor } from "../lib/build-steps.mjs";
 import { inspectStructuralSnapshot } from "../lib/atlas-sync-health.mjs";
-import { SUBMODULE, readUpstreamSha, run, runAsync } from "../lib/worker-proc.mjs";
+import { SUBMODULE, readUpstreamSha, run, runAsync, setRunDeadline } from "../lib/worker-proc.mjs";
 import { logRebuildReason, readDriftState } from "../lib/worker-drift.mjs";
 import { WORKER_STEPS, runTailSteps, runTickSteps, stepsIn } from "../lib/worker-steps/index.mjs";
 import { currentPrEnvGate } from "../../src/server/pr-env/gate.ts";
@@ -146,6 +146,10 @@ function armHardCap() {
     process.exit(1);
   }, HARD_CAP_MS);
   cap.unref();
+  // The timer cannot fire while a synchronous run() child holds the event loop
+  // (git fetch, the build steps, sync.ts, publish-artifacts), so those children
+  // carry the same deadline themselves (worker-proc.mjs).
+  setRunDeadline(t0 + HARD_CAP_MS);
 }
 
 // Call right after touchSyncHeartbeat() on BOTH paths (fast-exit and rebuild):
