@@ -1,7 +1,7 @@
 // A key the chain set after the atlas last wrote its value: who set it, from
 // the PAU history, and the open atlas pull request that names that spell.
 import { describe, expect, it } from "vitest";
-import { check, ctx, edit, spellEntry } from "./pauPending.fixture.ts";
+import { check, ctx, edit, exec, poll, spellEntry } from "./pauPending.fixture.ts";
 import { chainLedStep, recordingPr, type OpenAtlasPr } from "./pauChainLed.ts";
 import { onchainStep } from "./pauPending.ts";
 
@@ -34,7 +34,11 @@ describe("chainLedStep", () => {
 
 describe("recordingPr", () => {
   it("reads a year-less reference against the PR's own date", () => {
-    expect(recordingPr([pr(355, "November 5 spell changes")], "2026-11-05")?.number).toBe(355);
-    expect(recordingPr([pr(355, "Grove proposal", "https://forum.skyeco.com/t/november-19-2026-proposed-changes-to-grove-for-upcoming-spell/1")], "2026-11-05")).toBeNull();
+    expect(recordingPr([pr(355, "November 5 spell changes")], "2026-11-05", ctx("2026-11-12"))?.number).toBe(355);
+    expect(recordingPr([pr(356, "Grove proposal", "https://forum.skyeco.com/t/november-5-2026-proposed-changes-to-grove-for-upcoming-spell/1")], "2026-11-05", ctx("2026-11-12"))).toBeNull();
+  });
+  it("finds an open PR whose Prime poll the spell's executive carries", () => {
+    const links = { pollsByPr: new Map([[356, [poll("0xp", { prs: [356] })]]]), snapshots: new Map([["0xp", [exec("2026-11-05", true, "2026-11-07")]]]) };
+    expect(recordingPr([pr(356, "Grove proposal")], "2026-11-05", ctx("2026-11-12", links))?.number).toBe(356);
   });
 });

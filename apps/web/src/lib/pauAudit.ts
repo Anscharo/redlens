@@ -10,6 +10,7 @@ import { loadGraph } from "./graph";
 import { loadPau, loadPauHistory, snapshotsForPrime, type PauResponse } from "./pau";
 import { loadVoteIndex } from "./votes";
 import { loadOpenAtlasPrs } from "./openAtlasPrs";
+import { loadPrimePolls } from "./primePolls";
 
 export * from "@/lib/pauAudit";
 export * from "@/lib/pauAuditIndex";
@@ -53,8 +54,8 @@ const loadBase = once(async () => {
 
 /**
  * The PAU values audit rows (pauAuditIndex.ts), built once per page load from
- * the graph, GET /api/pau, the PAU change history, the vote record, the open
- * atlas pull requests and the
+ * the graph, GET /api/pau, the PAU change history, the vote record, the Prime
+ * Snapshot polls, the open atlas pull requests and the
  * history of every document stating a disagreement or a limit never set. A
  * failed history read leaves those disagreements undated (ambiguous), never
  * guessed, and a failed PAU history or vote record read leaves the on-chain
@@ -62,9 +63,10 @@ const loadBase = once(async () => {
  */
 export const loadPauAudit = once(async () => {
   const base = await loadBase();
-  const [history, votes, pau, openPrs] = await Promise.all([loadHistoryBatch(docsToDate(base.primes)), loadVoteIndex(), loadPauHistory(), loadOpenAtlasPrs()]);
+  const [history, votes, pau, openPrs, polls] = await Promise.all([loadHistoryBatch(docsToDate(base.primes)), loadVoteIndex(), loadPauHistory(), loadOpenAtlasPrs(), loadPrimePolls()]);
   const today = new Date().toISOString().slice(0, 10);
-  return { value: buildPauAudit({ ...base, history, votes: { executives: votes?.executives ?? [], pau, today, openPrs } }), keep: base.snaps.length > 0 };
+  const links = { pollsByPr: polls ?? undefined, snapshots: votes?.snapshots };
+  return { value: buildPauAudit({ ...base, history, votes: { executives: votes?.executives ?? [], pau, today, openPrs, ...links } }), keep: base.snaps.length > 0 };
 });
 
 /**

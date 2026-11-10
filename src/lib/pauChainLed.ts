@@ -2,9 +2,10 @@
 // before the atlas is edited (a spell-update pull request waits for the spell
 // to execute, then records it). The key's last change is read from the PAU
 // history (who made it: a spell and its executive, the Operator, or something
-// else). A merged pull request that names that spell and edited the value's
-// document without changing the value says the atlas passed it by; an open one
-// that names the spell is the atlas update still to come. Pure.
+// else). A merged pull request that belongs to that spell (it names it, or its
+// Prime poll is one that spell's executive carries) and edited the value's
+// document without changing the value says the atlas passed it by; an open
+// one that belongs to it is the atlas update still to come. Pure.
 import { prSpellRefs, resolveSpellRefs } from "./atlasPrSpell.ts";
 import type { HistoryEntry } from "./history.ts";
 import type { ValueCheck } from "./pauAtlasValues.ts";
@@ -29,14 +30,20 @@ function madeBy(e: PauHistoryEntry | undefined): ChainChange["by"] {
   return { kind: "spell", spell: x?.date ? { title: x.title, date: x.date, url: x.url } : null };
 }
 
-/** The open pull request naming the spell dated `date`, if one does. */
-export function recordingPr(prs: readonly OpenAtlasPr[], date: string): OpenAtlasPr | null {
-  return prs.find((p) => resolveSpellRefs(prSpellRefs(p.title, p.body), (p.updatedAt || date).slice(0, 10)).includes(date)) ?? null;
+/** Whether a PR belongs to the spell dated `date`: its own words name it, or an executive of that date carries one of its Prime polls. */
+function belongsTo(pr: number, spells: readonly string[], date: string, ctx: PendingContext): boolean {
+  if (spells.includes(date)) return true;
+  return (ctx.pollsByPr?.get(pr) ?? []).some((p) => (ctx.snapshots?.get(p.id) ?? []).some((x) => x.date === date));
 }
 
-/** The change to the value's document, on or after the chain change, by a PR that names the spell dated `date`. */
-const passedBy = (entries: readonly HistoryEntry[], date: string, setOn: string) =>
-  entries.find((e) => e.pr && e.date.slice(0, 10) >= setOn && e.spells?.includes(date) && (e.changeType === "added" || e.changeType === "modified"));
+/** The open pull request that belongs to the spell dated `date`, if one does. */
+export function recordingPr(prs: readonly OpenAtlasPr[], date: string, ctx: PendingContext): OpenAtlasPr | null {
+  return prs.find((p) => belongsTo(p.number, resolveSpellRefs(prSpellRefs(p.title, p.body), (p.updatedAt || date).slice(0, 10)), date, ctx)) ?? null;
+}
+
+/** The change to the value's document, on or after the chain change, by a PR that belongs to the spell dated `date`. */
+const passedBy = (entries: readonly HistoryEntry[], date: string, setOn: string, ctx: PendingContext) =>
+  entries.find((e) => e.pr && e.date.slice(0, 10) >= setOn && (e.changeType === "added" || e.changeType === "modified") && belongsTo(e.pr, e.spells ?? [], date, ctx));
 
 /**
  * The step for a key the chain set on or after the atlas last wrote its value:
@@ -48,8 +55,8 @@ export function chainLedStep(c: ValueCheck, entries: readonly HistoryEntry[], ct
   const { tx, time } = c.limit.setAt;
   const change: ChainChange = { chain: c.chain, tx, setOn: time.slice(0, 10), by: madeBy(entryOf(ctx.pau, c.chain, tx)) };
   const date = change.by.kind === "spell" ? change.by.spell?.date : null;
-  const missed = date ? passedBy(entries, date, change.setOn) : undefined;
+  const missed = date ? passedBy(entries, date, change.setOn, ctx) : undefined;
   if (missed) return { kind: "unrecorded", change, missedBy: { pr: missed.pr!, date: missed.date.slice(0, 10) } };
-  const pr = date ? recordingPr(ctx.openPrs ?? [], date) : null;
+  const pr = date ? recordingPr(ctx.openPrs ?? [], date, ctx) : null;
   return pr ? { kind: "recording", change, pr: { number: pr.number, title: pr.title, url: pr.url } } : { kind: "unrecorded", change };
 }

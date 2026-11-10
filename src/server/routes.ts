@@ -19,6 +19,7 @@ import { handleSemanticSearch } from "./search-semantic.ts";
 import { handleModCounts } from "./history/mod-counts.ts";
 import { handleModTimeline } from "./history/mod-timeline.ts";
 import { handleVoteEvidence } from "./vote-evidence/store.ts";
+import { handlePrimePolls } from "./prime-polls.ts";
 
 export type RouteHandler = (req: Request) => Response | Promise<Response>;
 
@@ -52,6 +53,7 @@ const PUBLIC_ROUTES = {
   // the UI can say why the lane is missing.
   "/api/search/semantic": (req: Request) => handleSemanticSearch(req),
   "/api/vote-evidence": () => handleVoteEvidence(),
+  "/api/prime-polls": () => handlePrimePolls(),
 };
 
 function usersRoutes() {

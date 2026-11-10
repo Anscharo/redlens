@@ -1,33 +1,42 @@
-// What governance has done about an atlas value the chain does not hold,
-// followed link by link and never guessed. Governance runs vote → atlas edit →
-// spell, and each atlas pull request names the spell it belongs to
-// (atlasPrSpell.ts, served as HistoryEntry.spells). So for a value the chain
-// lacks, the change that wrote it names a spell date; the vote record holds
-// that date's executive and its spell; the PAU history holds what the spell
-// changed. The step is:
-//   - "set" when that spell set the key, to a value other than the atlas states;
-//   - pending while the spell is not filed yet, filed and not cast, or cast with
-//     its relay queued on the deployment's Executor or its changes still being
-//     read (READ_DAYS);
-//   - "executed" when it ran and did not set the key;
-//   - "lapsed" when its executive never appeared or expired uncast;
-//   - "unnamed" when the pull request names no spell.
-// Nothing is said when the writing change cannot be told apart, or its PR
-// record is not read yet. Pure.
+// What governance did about an atlas value the chain does not hold, followed
+// link by link and never guessed. Either side can move first: most edits merge
+// once their vote passes and a spell carries them out later, while a
+// spell-update PR waits for its spell to execute and then records it.
+//
+// When the atlas wrote the value after the chain last set the key, the change
+// that wrote it is linked to its spell directly (pauSpellStep.ts):
+//   - a Prime proposal's PR through the Snapshot poll that links it
+//     (primePolls.ts), which an executive's Prime Agent Proxy Spells section
+//     links in turn, item by item;
+//   - any other PR by the spell date its own words name (atlasPrSpell.ts,
+//     HistoryEntry.spells), through that date's executive.
+// The spell is pending while its poll is open, its executive is not filed or
+// not cast, or its relay is queued or its changes are still being read; else
+// it set the key to another value ("set"), executed without setting it, never
+// carried it ("lapsed"), or there is no spell to carry it: an artifact or Sky
+// Core item ("off-spell"), or a poll that did not pass ("rejected").
+// `recorded` marks a spell that had executed before the edit merged: the edit
+// records it, so a disagreement is the atlas recording what the spell did not do.
+//
+// When the chain set the key on or after the atlas last wrote the value, the
+// key's last change says who made it (pauChainLed.ts): "recording" while an
+// open atlas PR belongs to that spell, else "unrecorded" (with the merged PR
+// that belonged to it and left this value, when one did).
+//
+// Nothing is said when the writing change cannot be told apart, its PR record
+// or the polls are not read yet, or its PR links only a forum thread, whose
+// items can belong to different spells. Pure.
 import type { HistoryEntry } from "./history.ts";
 import type { StoredPauSnapshot } from "./pau.ts";
 import type { ValueCheck } from "./pauAtlasValues.ts";
 import { switchedOffSlope } from "./pauAudit.ts";
 import type { PauHistoryResponse } from "./pauHistory.ts";
+import { isThreadRef } from "./atlasPrSpell.ts";
 import { chainLedStep, type OpenAtlasPr } from "./pauChainLed.ts";
-import { deploymentsOf, keySetBy, queuedRelay } from "./pauPendingEvidence.ts";
+import { namedStep, pollStep } from "./pauSpellStep.ts";
 import { valueChange } from "./pauValueDate.ts";
-import { addDays, executiveFor, SLIP_DAYS, type IndexedExecutive } from "./votes/vote-index.ts";
-
-/** An executive not cast this many days after its date has expired. */
-export const SPELL_EXPIRY_DAYS = 30;
-/** How long after a spell executes its changes may still be unread or unattributed: the worker retries an unproven origin every six hours, and a relay waits its Executor's delay. */
-export const READ_DAYS = 3;
+import type { PrimePoll } from "./primePolls.ts";
+import type { IndexedExecutive } from "./votes/vote-index.ts";
 
 /** An executive as the vote record names it. */
 export interface SpellRef {
@@ -36,14 +45,16 @@ export interface SpellRef {
   url: string;
 }
 
-/** The change that wrote the value: its pull request, when, and the spell date it names. */
+/** The change that wrote the value: its pull request, when, the spell date it names, and the Prime Snapshot poll it was named through. */
 export interface Named {
   atlasChanged: string;
   pr: number | null;
   date: string;
+  poll?: { id: string; title: string; space: string };
 }
 
 export type PendingStep =
+  | { kind: "polling" }
   | { kind: "unfiled" }
   | { kind: "uncast"; spell: SpellRef }
   | { kind: "queued"; spell: SpellRef; chain: string; tx: string; at: string | null }
@@ -68,7 +79,12 @@ export type OnchainStep =
   | { kind: "pending"; pending: PendingOnchain }
   | { kind: "set"; named: Named; spell: SpellRef; chain: string; tx: string; recorded: boolean }
   | { kind: "executed"; named: Named; spell: SpellRef; executed: string | null; recorded: boolean }
-  | { kind: "lapsed"; named: Named; spell: SpellRef | null }
+  /** The spell never carried it: its executive expired uncast, was filed without the change's poll, or the vote record has none. */
+  | { kind: "lapsed"; named: Named; spell: SpellRef | null; why: "expired" | "not-carried" | "none" }
+  /** The change's poll is an artifact or Sky Core item, which no Prime spell carries. */
+  | { kind: "off-spell"; named: Named }
+  /** The change's poll did not pass. */
+  | { kind: "rejected"; named: Named }
   | { kind: "unnamed"; atlasChanged: string; pr: number | null }
   | { kind: "recording"; change: ChainChange; pr: { number: number; title: string; url: string } }
   | { kind: "unrecorded"; change: ChainChange; missedBy?: { pr: number; date: string } };
@@ -86,58 +102,41 @@ export interface PendingContext {
   today: string;
   /** The open atlas pull requests; absent or empty when they could not be read. */
   openPrs?: readonly OpenAtlasPr[];
+  /** The Prime Snapshot polls that link each atlas PR (primePolls.ts); absent when they could not be read. */
+  pollsByPr?: ReadonlyMap<number, readonly PrimePoll[]>;
+  /** The executives linking each Snapshot poll (VoteIndex.snapshots). */
+  snapshots?: ReadonlyMap<string, readonly IndexedExecutive[]>;
 }
 
-const ref = (e: IndexedExecutive): SpellRef => ({ title: e.title, date: e.date, url: e.url });
-const pending = (named: Named, expectedBy: string, step: PendingStep): OnchainStep => ({ kind: "pending", pending: { ...named, expectedBy, step } });
+const RANK: Record<OnchainStep["kind"], number> = { set: 0, pending: 1, recording: 1, executed: 2, rejected: 2, "off-spell": 2, lapsed: 3, unnamed: 4, unrecorded: 4 };
 
-/** What became of a cast spell: it set the key, its relay or its changes are still coming, or it ran without the change. */
-function afterCast(c: ValueCheck, named: Named, x: IndexedExecutive, ctx: PendingContext): OnchainStep {
-  const spell = ref(x);
-  const executed = x.executed ?? null;
-  const recorded = !!executed && executed <= named.atlasChanged;
-  const set = x.spell ? keySetBy(ctx.pau, x.spell, c) : null;
-  if (set) return { kind: "set", named, spell, chain: set.chain, tx: set.tx, recorded };
-  const since = executed ?? x.date;
-  const relay = c.chain === "ethereum" ? null : queuedRelay(ctx.pau.queued ?? [], deploymentsOf(c, ctx.snaps), since);
-  if (relay) return pending(named, addDays((relay.at ?? relay.time).slice(0, 10), READ_DAYS), { kind: "queued", spell, chain: relay.chain, tx: relay.tx, at: relay.at });
-  if (ctx.today <= addDays(since, READ_DAYS)) return pending(named, addDays(since, READ_DAYS), { kind: "reading", spell, executed: since });
-  return { kind: "executed", named, spell, executed, recorded };
+const mostTelling = (steps: OnchainStep[]) => steps.sort((a, b) => RANK[a.kind] - RANK[b.kind])[0] ?? null;
+
+/** What the change names its spell by: the Prime polls that link its PR, else the spell dates its own words name; null when it names none. */
+function linkedStep(c: ValueCheck, base: Omit<Named, "date">, spells: readonly string[], ctx: PendingContext): OnchainStep | null {
+  const polls = base.pr != null ? (ctx.pollsByPr?.get(base.pr) ?? []) : [];
+  if (polls.length) return mostTelling(polls.map((p) => pollStep(c, base, p, ctx)));
+  return mostTelling(spells.filter((d) => !isThreadRef(d)).map((date) => namedStep(c, { ...base, date }, ctx)));
 }
-
-/** What became of the spell one change names. */
-export function namedStep(c: ValueCheck, named: Named, ctx: PendingContext): OnchainStep {
-  const x = executiveFor(ctx, named.date, false);
-  if (!x) return ctx.today <= addDays(named.date, SLIP_DAYS) ? pending(named, addDays(named.date, SLIP_DAYS), { kind: "unfiled" }) : { kind: "lapsed", named, spell: null };
-  if (x.cast) return afterCast(c, named, x, ctx);
-  const until = addDays(x.date, SPELL_EXPIRY_DAYS);
-  return ctx.today <= until ? pending(named, until, { kind: "uncast", spell: ref(x) }) : { kind: "lapsed", named, spell: ref(x) };
-}
-
-const RANK: Record<OnchainStep["kind"], number> = { set: 0, pending: 1, recording: 1, executed: 2, lapsed: 3, unnamed: 4, unrecorded: 4 };
-
-/** The most telling step among the spells a change names. */
-const namedSteps = (c: ValueCheck, named: Omit<Named, "date">, dates: readonly string[], ctx: PendingContext) =>
-  dates.map((date) => namedStep(c, { ...named, date }, ctx)).sort((a, b) => RANK[a.kind] - RANK[b.kind])[0] ?? null;
 
 /**
  * The step for a value the chain does not hold, from its document's history.
- * A named spell that set the key comes first; then, where the chain set the key
- * on or after the atlas last wrote the value, who made that change; else the
- * spells the writing change names. Null when the writing change cannot be told
- * apart, or its PR is not read yet.
+ * A linked spell that set the key comes first; then, where the chain set the
+ * key on or after the atlas last wrote the value, who made that change; else
+ * the spell the writing change is linked to. Null when the writing change
+ * cannot be told apart, its PR or the polls are not read yet, or its PR links
+ * only a forum thread (whose items can belong to different spells).
  */
 export function onchainStep(c: ValueCheck, entries: readonly HistoryEntry[], ctx: PendingContext): OnchainStep | null {
   const change = valueChange(entries, c.stated);
   if (!change) return null;
-  const atlasChanged = change.entry.date.slice(0, 10);
-  const pr = change.entry.pr ?? null;
+  const base = { atlasChanged: change.entry.date.slice(0, 10), pr: change.entry.pr ?? null };
   const spells = change.exact ? change.entry.spells : undefined;
-  const named = spells?.length ? namedSteps(c, { atlasChanged, pr }, spells, ctx) : null;
-  if (named?.kind === "set") return named;
-  if (chainMoved(c, atlasChanged)) return chainLedStep(c, entries, ctx);
-  if (!spells) return null;
-  return named ?? { kind: "unnamed", atlasChanged, pr };
+  const linked = spells ? linkedStep(c, base, spells, ctx) : null;
+  if (linked?.kind === "set") return linked;
+  if (chainMoved(c, base.atlasChanged)) return chainLedStep(c, entries, ctx);
+  if (linked || !spells || !ctx.pollsByPr || spells.some(isThreadRef)) return linked;
+  return { kind: "unnamed", ...base };
 }
 
 /** Whether the chain set the key on or after the atlas change. */

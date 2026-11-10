@@ -6,13 +6,13 @@
 // it. A reference without a year is kept as "--MM-DD" and given the year that
 // puts it nearest the edit (`resolveSpellRefs`).
 //
-// The forum thread a Prime proposal links names a spell date in its slug
-// ("…/september-24-2026-proposed-changes-to-grove-for-upcoming-spell/…"), but
-// that is the thread's spell, not each item's: an item can be an artifact
-// change no spell carries, or move to another spell. `threadSpellDate` reads it
-// apart for the item path (forumSpellItems.ts), which follows each item's own
-// Snapshot poll; until that path is wired in, a PR's spells still include it.
-// Pure.
+// A Prime proposal links its forum thread, whose slug names a spell date
+// ("…/september-24-2026-proposed-changes-to-grove-for-upcoming-spell/…"). That
+// is the thread's spell, not the PR's: a thread lists several items, an
+// artifact item is carried by no spell, and an item can be re-proposed for
+// another. So it is kept as "thread:YYYY-MM-DD", which says only that the PR
+// links such a thread; the PR's own spell comes from its Snapshot poll
+// (primePolls.ts). Pure.
 
 const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
 const MONTH = MONTHS.join("|");
@@ -33,13 +33,11 @@ export function threadSpellDate(slug: string): string | null {
   return m ? ref(m[1], m[2], m[3]) : null;
 }
 
-/** The forum topics a text links, by id, each once. */
-export const forumTopics = (text: string | null | undefined): number[] =>
-  [...new Set([...(text ?? "").matchAll(/forum\.(?:skyeco|sky\.money|makerdao)\.com\/t\/(?:(?!\d+(?:[/\s)]|$))[^/\s)]+\/)?(\d+)/g)].map((m) => Number(m[1])))];
+/** Whether a reference is a linked forum thread's date, not a spell the PR names. */
+export const isThreadRef = (r: string): boolean => r.startsWith("thread:");
 
 const PATTERNS: Array<{ re: RegExp; read: (m: RegExpExecArray) => string[] }> = [
-  // The thread's spell, until each item's own spell is read from its Snapshot poll (forumSpellItems.ts).
-  { re: new RegExp(`/t/(${MONTH})-(\\d{1,2})-(\\d{4})-proposed-changes-to-[a-z0-9-]+-for-upcoming-spell`, "gi"), read: (m) => [ref(m[1], m[2], m[3])] },
+  { re: new RegExp(`/t/(${MONTH})-(\\d{1,2})-(\\d{4})-proposed-changes-to-[a-z0-9-]+-for-upcoming-spell`, "gi"), read: (m) => [`thread:${ref(m[1], m[2], m[3])}`] },
   { re: /\b(\d{4})-(\d{2})-(\d{2})(?:\s+executive\s+vote)?\s+spell\b/gi, read: (m) => [`${m[1]}-${m[2]}-${m[3]}`] },
   // "April 9 Spell", "September 24, 2026 spell", "July 6, August 17 spell changes"
   {
@@ -48,7 +46,7 @@ const PATTERNS: Array<{ re: RegExp; read: (m: RegExpExecArray) => string[] }> = 
   },
 ];
 
-/** Every spell the text names, as "YYYY-MM-DD" or "--MM-DD", in the order written, each once. */
+/** Every spell the text names, as "YYYY-MM-DD" or "--MM-DD", and every spell thread it links, as "thread:YYYY-MM-DD", in the order written, each once. */
 export function spellRefs(text: string | null | undefined): string[] {
   if (!text) return [];
   const found: { at: number; refs: string[] }[] = [];

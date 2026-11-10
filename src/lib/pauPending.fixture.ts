@@ -7,6 +7,7 @@ import type { StoredPauSnapshot } from "./pau.ts";
 import type { ValueCheck } from "./pauAtlasValues.ts";
 import type { PauHistoryEntry, PauQueuedStep } from "./pauHistory.ts";
 import type { PendingContext } from "./pauPending.ts";
+import type { PrimePoll } from "./primePolls.ts";
 import type { IndexedExecutive } from "./votes/vote-index.ts";
 
 export const DEP = "spark:base:monolithic";
@@ -49,11 +50,16 @@ export const actionSet = (queued: string, executes: string | null, contract = "0
   kind: "action-set", chain: "base", contract, id: "7", tx: "0xqueue", time: `${queued}T00:00:00Z`, at: executes && `${executes}T00:00:00Z`, primes: [],
 });
 
+/** A Prime Snapshot poll linking PR 363 (the fixture's writing change), proposed in the `threadDate` spell's thread. */
+export const poll = (id: string, o: Partial<PrimePoll> = {}): PrimePoll => ({
+  id, space: "grovefinance.eth", title: "[Base] Raise the deposit rate limit", end: "2026-10-29", passed: true, threadDate: "2026-11-05", prs: [363], ...o,
+});
+
 /** The `date` executive; cast ones executed on `executed`. */
 export const exec = (date: string, cast: boolean, executed: string | null = null, spell = "0xspell"): IndexedExecutive => ({
   date, title: `Executive ${date}`, url: `https://vote/${date}`, outOfSchedule: false, cast, spell, text: "", executed,
 });
 
 export const ctx = (today: string, o: Partial<PendingContext> = {}): PendingContext => ({
-  executives: [], pau: { entries: [], queued: [] }, snaps: [snap()], today, ...o,
+  executives: [], pau: { entries: [], queued: [] }, snaps: [snap()], today, pollsByPr: new Map(), snapshots: new Map(), ...o,
 });

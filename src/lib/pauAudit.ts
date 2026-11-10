@@ -28,11 +28,13 @@ export const AUDIT_REASONS = {
   "atlas-newer": { group: "spell", text: "The atlas document changed after the chain value was last set, and they disagree." },
   "not-set": { group: "spell", text: "The atlas states a limit no RateLimits contract on the chain has ever set." },
   "spell-executed": { group: "spell-executed", text: "The spell the atlas change's pull request names has executed, and did not set this value." },
-  "spell-lapsed": { group: "spell", text: "The spell the atlas change's pull request names never executed: its executive expired uncast, or the vote record has none for that date." },
+  "spell-lapsed": { group: "spell", text: "The spell the atlas change belongs to never carried it: its executive expired uncast, was filed without the change's Prime poll, or the vote record has none." },
+  "off-spell": { group: "spell", text: "The atlas change went through a Prime poll for an artifact or Sky Core item, which no Prime spell carries, and the chain does not hold the value." },
+  "poll-rejected": { group: "atlas", text: "The Prime poll the atlas change went through did not pass, yet the atlas states the value." },
   "spell-set-differently": { group: "ambiguous", text: "The spell the atlas change's pull request names set this limit, to a value other than the atlas states." },
   "atlas-recorded-differently": { group: "atlas", text: "The atlas change records a spell that had already executed, and that spell set this limit to a value other than the atlas states." },
   "atlas-recorded-unmade": { group: "atlas", text: "The atlas change records a spell that had already executed, and that spell did not set this value." },
-  "operator-not-applied": { group: "spell", text: "The atlas changed the value after the chain last set it, its pull request names no spell, and the Operator may set this limit without one (BeamState holds a default for it) but has not." },
+  "operator-not-applied": { group: "spell", text: "The atlas changed the value after the chain last set it, no spell carries the change, and the Operator may set this limit without one (BeamState holds a default for it) but has not." },
   "not-wired": { group: "spell", text: "The controller holds the CONTROLLER role on neither its ALM proxy nor its rate limits, so it cannot move funds." },
   "partly-wired": { group: "spell", text: "The controller holds the CONTROLLER role on only one of its ALM proxy and its rate limits." },
   "no-key": { group: "detail", text: "The atlas states no Rate Limit ID for this value, and nothing the document or its instance names derives a key the contract holds." },
@@ -66,7 +68,17 @@ export function switchedOffSlope(c: ValueCheck, all: ValueCheck[]): boolean {
 function atlasNewer(step: OnchainStep | null, operator: boolean): AuditReason {
   if (step?.kind === "executed") return step.recorded ? "atlas-recorded-unmade" : "spell-executed";
   if (step?.kind === "lapsed") return "spell-lapsed";
+  if (step?.kind === "rejected") return "poll-rejected";
+  if (step?.kind === "off-spell") return operator ? "operator-not-applied" : "off-spell";
   return step?.kind === "unnamed" && operator ? "operator-not-applied" : "atlas-newer";
+}
+
+/** A limit the chain never set, placed by what became of the spell its atlas change belongs to. */
+function notSetReason(step: OnchainStep | null): AuditReason {
+  if (step?.kind === "executed") return step.recorded ? "atlas-recorded-unmade" : "spell-executed";
+  if (step?.kind === "lapsed") return "spell-lapsed";
+  if (step?.kind === "rejected") return "poll-rejected";
+  return step?.kind === "off-spell" ? "off-spell" : "not-set";
 }
 
 /**
@@ -81,7 +93,7 @@ export function checkReason(c: ValueCheck, all: ValueCheck[], dates: MoveDates, 
     const order = byOrder(dates);
     return order === "atlas-newer" ? atlasNewer(step, operator) : order;
   }
-  if (c.status === "not-set") return step?.kind === "executed" ? (step.recorded ? "atlas-recorded-unmade" : "spell-executed") : step?.kind === "lapsed" ? "spell-lapsed" : "not-set";
+  if (c.status === "not-set") return notSetReason(step);
   if (c.status === "no-key") return "no-key";
   if (c.status === "ambiguous") return "several-keys";
   if (c.status === "units-unknown") return "units-unknown";

@@ -25,7 +25,7 @@ describe("fillPrSpells", () => {
     const r = await fillPrSpells(db as never, async (pr) => records[pr] ?? null, 10);
     expect(r).toEqual({ read: 2, named: 1, missing: 1 });
     const writes = calls.slice(1);
-    expect(writes.map((w) => w.values)).toEqual([[["2026-11-05"], records[363].title, "u363", "a", 363], [[], records[362].title, "u362", "b", 362], [999]]);
+    expect(writes.map((w) => w.values)).toEqual([[["thread:2026-11-05"], records[363].title, "u363", "a", 363], [[], records[362].title, "u362", "b", 362], [999]]);
     expect(writes[2].sql).not.toContain("spell_refs");
   });
 });

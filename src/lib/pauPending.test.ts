@@ -17,7 +17,7 @@ describe("onchainStep", () => {
   });
   it("waits for an executive not filed yet, then calls it lapsed", () => {
     expect(step(["2026-11-05"], "2026-11-08")).toEqual({ kind: "pending", pending: { ...named, expectedBy: "2026-11-12", step: { kind: "unfiled" } } });
-    expect(step(["2026-11-05"], "2026-11-20")).toEqual({ kind: "lapsed", named, spell: null });
+    expect(step(["2026-11-05"], "2026-11-20")).toEqual({ kind: "lapsed", named, spell: null, why: "none" });
   });
   it("waits for an executive not yet cast until it expires, and finds one filed within the slip", () => {
     const executives = [exec("2026-11-06", false)];

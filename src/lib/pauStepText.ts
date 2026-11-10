@@ -1,7 +1,7 @@
 // The words for what governance did about an atlas change (pauPending.ts),
 // shared by the reader's "Atlas vs contract" table, the Radar marks, the PAU
 // values audit and its CSV, so each says the same thing, naming the pull
-// request and the spell it links. Pure.
+// request, the Prime poll it went through and the spell that carries it. Pure.
 import { explorerTxUrl } from "./explorer.ts";
 import type { ChainChange, Named, OnchainStep, PendingOnchain, PendingStep, SpellRef } from "./pauPending.ts";
 
@@ -12,16 +12,22 @@ const prName = (pr: number | null) => (pr ? `atlas PR #${pr}` : "the atlas chang
 /** An executive by date and title. */
 export const spellName = (s: SpellRef): string => `the ${s.date} executive "${s.title}"`;
 
-/** Which spell the change that wrote the value names. */
-const namedText = (n: Named) => `${prName(n.pr)} (${n.atlasChanged}) names the ${n.date} spell`;
+/** A Prime Snapshot poll's page. */
+export const pollUrl = (p: NonNullable<Named["poll"]>) => `https://snapshot.box/#/s:${p.space}/proposal/${p.id}`;
+
+/** How the change that wrote the value is linked to its spell: through its Prime poll, or by the date its PR names. */
+const namedText = (n: Named) =>
+  n.poll ? `${prName(n.pr)} (${n.atlasChanged}) went through the ${n.poll.space} poll "${n.poll.title}"` : `${prName(n.pr)} (${n.atlasChanged}) names the ${n.date} spell`;
 
 /** What a pending change is waiting on, as a clause. */
 export function pendingStepText(step: PendingStep): string {
   switch (step.kind) {
+    case "polling":
+      return "its poll is still open";
     case "unfiled":
-      return "its executive is not filed yet";
+      return "the executive for its spell is not filed yet";
     case "uncast":
-      return `${spellName(step.spell)} is not yet cast`;
+      return `${spellName(step.spell)}, which carries it, is not yet cast`;
     case "queued":
       return `${spellName(step.spell)} has executed and an action set is queued on the ${chainName(step.chain)} Executor, executable from ${when(step.at)}`;
     default:
@@ -42,7 +48,13 @@ function changeText(ch: ChainChange): string {
 
 /** What a spell that ran did to the value: as an edit that recorded it (it had executed first), or as the spell carrying the edit. */
 const ranText = (step: Extract<OnchainStep, { kind: "set" | "executed" }>, what: string) =>
-  step.recorded ? `${namedText(step.named)}, which had already executed: the atlas records it, but it ${what}` : `${namedText(step.named)}, and ${spellName(step.spell)} ${what}`;
+  step.recorded ? `${namedText(step.named)}; ${spellName(step.spell)} had already executed: the atlas records it, but it ${what}` : `${namedText(step.named)}, and ${spellName(step.spell)} ${what}`;
+
+const LAPSED: Record<Extract<OnchainStep, { kind: "lapsed" }>["why"], (s: SpellRef | null) => string> = {
+  expired: (s) => `${s ? spellName(s) : "its executive"} expired without being cast`,
+  "not-carried": (s) => `${s ? spellName(s) : "its spell's executive"} was filed without it`,
+  none: () => "the vote record has no executive for it",
+};
 
 /** A step as one clause. */
 export function stepText(step: OnchainStep): string {
@@ -54,15 +66,19 @@ export function stepText(step: OnchainStep): string {
     case "executed":
       return ranText(step, `executed${step.executed ? ` on ${step.executed}` : ""} without setting this limit`);
     case "lapsed":
-      return step.spell ? `${namedText(step.named)}, and ${spellName(step.spell)} expired without being cast` : `${namedText(step.named)}, and the vote record has no executive for it`;
+      return `${namedText(step.named)}, and ${LAPSED[step.why](step.spell)}`;
+    case "off-spell":
+      return `${namedText(step.named)}, an artifact or Sky Core item that no Prime spell carries`;
+    case "rejected":
+      return `${namedText(step.named)}, which did not pass`;
     case "recording":
-      return `${changeText(step.change)}, after the atlas last wrote it; open atlas PR #${step.pr.number} names that spell and is still to merge`;
+      return `${changeText(step.change)}, after the atlas last wrote it; open atlas PR #${step.pr.number} belongs to that spell and is still to merge`;
     case "unrecorded":
       return step.missedBy
-        ? `${changeText(step.change)}, and atlas PR #${step.missedBy.pr} (${step.missedBy.date}), which names that spell, changed this document but not this value`
-        : `${changeText(step.change)}, after the atlas last wrote it, and no open atlas PR names ${step.change.by.kind === "spell" ? "that spell" : "the change"}`;
+        ? `${changeText(step.change)}, and atlas PR #${step.missedBy.pr} (${step.missedBy.date}), which belongs to that spell, changed this document but not this value`
+        : `${changeText(step.change)}, after the atlas last wrote it, and no open atlas PR belongs to ${step.change.by.kind === "spell" ? "that spell" : "the change"}`;
     default:
-      return `${prName(step.pr)} (${step.atlasChanged}), which wrote this value, names no spell`;
+      return `${prName(step.pr)} (${step.atlasChanged}), which wrote this value, names no spell and went through no Prime poll`;
   }
 }
 
@@ -70,12 +86,21 @@ export function stepText(step: OnchainStep): string {
 export const pendingText = (step: OnchainStep): string =>
   step.kind === "pending" ? pendingSummary(step.pending) : step.kind === "recording" ? `atlas update pending: ${stepText(step)}` : stepText(step);
 
-/** Where a step can be checked: the transaction that set or queued it, else the executive's page; null where neither exists. */
+/** The page a pending step can be checked on. */
+function pendingHref(p: PendingOnchain): string | null {
+  const s = p.step;
+  if (s.kind === "queued") return explorerTxUrl(s.chain, s.tx);
+  if (s.kind === "uncast" || s.kind === "reading") return s.spell.url;
+  return p.poll ? pollUrl(p.poll) : null;
+}
+
+/** Where a step can be checked: the transaction that set or queued it, else the executive's or the poll's page; null where none exists. */
 export function stepHref(step: OnchainStep): string | null {
   if (step.kind === "set") return explorerTxUrl(step.chain, step.tx);
   if (step.kind === "recording") return step.pr.url;
   if (step.kind === "unrecorded") return explorerTxUrl(step.change.chain, step.change.tx);
-  if (step.kind === "pending") return step.pending.step.kind === "queued" ? explorerTxUrl(step.pending.step.chain, step.pending.step.tx) : step.pending.step.kind === "unfiled" ? null : step.pending.step.spell.url;
+  if (step.kind === "pending") return pendingHref(step.pending);
   if (step.kind === "executed") return step.spell.url;
-  return step.kind === "lapsed" ? (step.spell?.url ?? null) : null;
+  if (step.kind === "lapsed" && step.spell) return step.spell.url;
+  return step.kind !== "unnamed" && step.named.poll ? pollUrl(step.named.poll) : null;
 }

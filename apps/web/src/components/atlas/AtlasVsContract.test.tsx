@@ -64,6 +64,6 @@ describe("AtlasVsContract", () => {
     const cell = screen.getByRole("table").querySelector('[data-onchain="pending"]')!;
     expect(cell).toHaveStyle({ color: "var(--tan-3)" });
     expect(cell).not.toHaveTextContent("✗");
-    expect(cell).toHaveTextContent(/on-chain update pending: atlas PR #363 \(2026-01-05\) names the 2026-01-15 spell; the 2026-01-15 executive "Spark Spell" is not yet cast; expected by 2026-02-14/);
+    expect(cell).toHaveTextContent(/on-chain update pending: atlas PR #363 \(2026-01-05\) names the 2026-01-15 spell; the 2026-01-15 executive "Spark Spell", which carries it, is not yet cast; expected by 2026-02-14/);
   });
 });
