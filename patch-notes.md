@@ -35,7 +35,7 @@
 
 ## 2026-11-10
 
-- Marked an on-chain value with a grey clock instead of ✗ while the spell for a recent Atlas change is still expected
+- Marked an on-chain value with a grey clock instead of ✗ while the spell for a recent Atlas change is still expected, and listed values a spell executed without
 
 ## 2026-11-09
 

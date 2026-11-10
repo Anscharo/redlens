@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import type { HistoryEntry } from "./history.ts";
 import type { ValueCheck } from "./pauAtlasValues.ts";
-import { allPending, nextSpell, pendingFor, PENDING_DAYS, valueChangedAt, withPending, type PendingContext } from "./pauPending.ts";
+import { allPending, lastCastSpell, nextSpell, pendingFor, PENDING_DAYS, spellState, valueChangedAt, withPending, type PendingContext } from "./pauPending.ts";
 import type { IndexedExecutive } from "./votes/vote-index.ts";
 
 const limit = (setOn: string) => ({
@@ -34,6 +34,13 @@ describe("valueChangedAt", () => {
   it("ignores cosmetic edits and moves, and is null when nothing wrote the value", () => {
     expect(valueChangedAt([{ ...edit("2026-10-20"), changeKind: "typo" }, { date: "2026-10-21", commitHash: "m", changeType: "moved" }], "x")).toBeNull();
   });
+  it("matches the value whole, so 0 is not found inside 20,000,000", () => {
+    const entries = [edit("2026-10-20", [["-", "| maxAmount | 10,000,000 |"], ["+", "| maxAmount | 20,000,000 |"]]), edit("2026-09-01", [["-", "| maxAmount | 5 |"], ["+", "| maxAmount | 0 |"]])];
+    expect(valueChangedAt(entries, "0")).toBe("2026-09-01");
+  });
+  it("falls back to the last content change when no diff is found to write the value", () => {
+    expect(valueChangedAt([edit("2026-10-20", [["+", "something else"]])], "10,000,000 USDC")).toBe("2026-10-20");
+  });
 });
 
 describe("pendingFor", () => {
@@ -56,6 +63,20 @@ describe("pendingFor", () => {
     const p = pendingFor(c, [c], "2026-10-20", ctx("2026-12-20", spells));
     expect(p?.spell).toEqual({ title: "Executive 2026-12-10", date: "2026-12-10", url: "https://vote/2026-12-10" });
     expect(p?.expectedBy).toBe("2027-01-09");
+  });
+});
+
+describe("spellState", () => {
+  const spells = [exec("2026-08-06", true), exec("2026-09-03", true), exec("2026-10-01", true, "grove spell")];
+  it("says a spell executed without the change once the delay has passed and one naming the prime was cast since", () => {
+    expect(spellState("2026-08-01", "2026-07-01", ctx("2026-11-10", spells))).toEqual({ kind: "executed", spell: { title: "Executive 2026-09-03", date: "2026-09-03", url: "https://vote/2026-09-03" } });
+    expect(lastCastSpell(spells, "2026-08-01", null)).toBeNull();
+  });
+  it("is pending inside the delay even when a spell was cast since, and silent when the record names none, or the chain moved", () => {
+    expect(spellState("2026-11-01", "2026-07-01", ctx("2026-11-10", [exec("2026-11-05", true)]))?.kind).toBe("pending");
+    expect(spellState("2026-08-01", "2026-07-01", ctx("2026-11-10"))).toBeNull();
+    expect(spellState("2026-08-01", "2026-08-02", ctx("2026-11-10", spells))).toBeNull();
+    expect(spellState("2026-08-01", null, ctx("2026-11-10", spells))?.kind).toBe("executed");
   });
 });
 

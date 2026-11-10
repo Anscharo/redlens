@@ -10,7 +10,7 @@ import type { AuditRow } from "@/lib/pauAuditIndex";
 const row = (over: Partial<AuditRow>): AuditRow => ({
   item: "value:d1:slope", group: "atlas", reason: "switched-off-slope", note: "The limit is switched off on both sides.", primeId: "p1", prime: "Spark",
   chain: "ethereum", kind: "monolithic", subject: "Ethereum Mainnet - Aave Core USDC", label: "Inflow slope", stated: "25,000,000 USDC per day", onchain: "0 USDC per day",
-  docId: "d1", key: "0xk", contract: "0xc", chainSetAt: "2026-04-01", atlasChangedAt: "2026-03-01", ...over,
+  docId: "d1", key: "0xk", contract: "0xc", chainSetAt: "2026-04-01", atlasChangedAt: "2026-03-01", spell: null, spellPending: null, ...over,
 });
 const rows: AuditRow[] = [
   row({}),

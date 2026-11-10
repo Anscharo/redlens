@@ -28,7 +28,10 @@ const snap: StoredPauSnapshot = {
   ],
 };
 const claims = [{ prime: null, chain: "arbitrum", role: "beacon" as const, address: "0xb", docs: ["e1", "e2"], reason: "It is the Governance Relay." }];
-const rows = buildPauAudit({ primes, snaps: [snap], claims, atlasChanged: new Map([["d1", "2026-04-01"], ["d2", "2026-06-01"]]) });
+const edit = (date: string) => [{ date, commitHash: date, changeType: "modified" as const, changeKind: "semantic" as const }];
+const history = new Map([["d1", edit("2026-04-01")], ["d2", edit("2026-06-01")]]);
+const noVotes = { executives: [], today: "2026-11-10" };
+const rows = buildPauAudit({ primes, snaps: [snap], claims, history, votes: noVotes });
 
 describe("buildPauAudit", () => {
   it("groups values by which side moved, then controllers, then claims, and counts items once", () => {
@@ -43,8 +46,20 @@ describe("buildPauAudit", () => {
     expect(rows.find((r) => r.reason === "not-wired")).toMatchObject({ onchain: "on neither", contract: "0xctrl" });
     expect(rows.at(-1)).toMatchObject({ prime: "Shared", note: "It is the Governance Relay.", stated: "0xb" });
   });
-  it("dates only the documents stating a mismatch", () => {
+  it("dates only the documents stating a mismatch or a limit never set", () => {
     expect(docsToDate(primes)).toEqual(["d1", "d2"]);
+    expect(docsToDate([{ primeId: "p", prime: "Spark", checks: [check("d5", "not-set")] }])).toEqual(["d5"]);
+  });
+  it("never says a spell may not have executed where one naming the prime executed since without the change", () => {
+    const exec = (date: string, cast: boolean, text = "spark spell") => ({ date, title: `Executive ${date}`, url: `https://vote/${date}`, outOfSchedule: false, cast, spell: null, text });
+    const spells = (...executives: ReturnType<typeof exec>[]) => buildPauAudit({ primes, snaps: [], claims: [], history, votes: { executives, today: "2026-11-10" } }).filter((r) => r.docId === "d2");
+    const executed = spells(exec("2026-06-11", true), exec("2026-07-09", true), exec("2026-08-06", true, "grove spell"));
+    expect(executed.map((r) => [r.group, r.reason])).toEqual([["spell-executed", "spell-executed"], ["spell-executed", "spell-executed"]]);
+    expect(executed[0]).toMatchObject({ spell: { title: "Executive 2026-07-09", date: "2026-07-09" }, spellPending: false });
+    const expected = spells(exec("2026-06-11", true), exec("2026-11-12", false));
+    expect(expected.map((r) => r.reason)).toEqual(["atlas-newer", "atlas-newer"]);
+    expect(expected[0]).toMatchObject({ spell: { title: "Executive 2026-11-12" }, spellPending: true });
+    expect(spells(exec("2026-05-01", true)).map((r) => [r.reason, r.spell])).toEqual([["atlas-newer", null], ["atlas-newer", null]]);
   });
 });
 

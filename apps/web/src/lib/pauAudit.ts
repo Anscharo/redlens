@@ -1,5 +1,4 @@
 import { buildPauAudit, docsToDate, type AuditInput, type AuditRow, type PrimeChecks } from "@/lib/pauAuditIndex";
-import { lastContentChange } from "@/lib/pauAudit";
 import { checkAtlasValues } from "@/lib/pauAtlasValues";
 import { graphPrimeSources } from "@/lib/pauDocSources";
 import type { LimitDocs } from "@/lib/pauLimitDocs";
@@ -8,6 +7,7 @@ import type { GraphData } from "@/lib/graphData";
 import { loadAtlas } from "./docs";
 import { loadGraph } from "./graph";
 import { loadPau, snapshotsForPrime, type PauResponse } from "./pau";
+import { loadVoteIndex } from "./votes";
 
 export * from "@/lib/pauAudit";
 export * from "@/lib/pauAuditIndex";
@@ -23,7 +23,7 @@ function primeChecks(graph: GraphData, docs: LimitDocs, res: PauResponse): Prime
     });
 }
 
-type AuditBase = Omit<AuditInput, "atlasChanged">;
+type AuditBase = Omit<AuditInput, "history" | "votes">;
 
 /** Caches a load once it succeeds and says to keep it; a failure, or a load that says not to, is asked again next time. */
 function once<T>(load: () => Promise<{ value: T; keep: boolean }>): () => Promise<T> {
@@ -51,18 +51,16 @@ const loadBase = once(async () => {
 
 /**
  * The PAU values audit rows (pauAuditIndex.ts), built once per page load from
- * the graph, GET /api/pau and the history of every document stating a
- * disagreement. A failed history read leaves those disagreements undated
- * (ambiguous), never guessed; no snapshots yet is asked again.
+ * the graph, GET /api/pau, the vote record and the history of every document
+ * stating a disagreement or a limit never set. A failed history read leaves
+ * those disagreements undated (ambiguous), never guessed, and a missing vote
+ * record leaves every spell unknown; no snapshots yet is asked again.
  */
 export const loadPauAudit = once(async () => {
   const base = await loadBase();
-  const history = await loadHistoryBatch(docsToDate(base.primes));
-  const atlasChanged = new Map([...history].flatMap(([id, entries]) => {
-    const day = lastContentChange(entries);
-    return day ? [[id, day] as const] : [];
-  }));
-  return { value: buildPauAudit({ ...base, atlasChanged }), keep: base.snaps.length > 0 };
+  const [history, votes] = await Promise.all([loadHistoryBatch(docsToDate(base.primes)), loadVoteIndex()]);
+  const today = new Date().toISOString().slice(0, 10);
+  return { value: buildPauAudit({ ...base, history, votes: { executives: votes?.executives ?? [], today } }), keep: base.snaps.length > 0 };
 });
 
 /**
@@ -71,5 +69,5 @@ export const loadPauAudit = once(async () => {
  * in does, so these rows' groups are not to be shown.
  */
 export async function loadPauAuditItems(): Promise<AuditRow[]> {
-  return buildPauAudit({ ...(await loadBase()), atlasChanged: new Map() });
+  return buildPauAudit({ ...(await loadBase()), history: new Map(), votes: { executives: [], today: "" } });
 }

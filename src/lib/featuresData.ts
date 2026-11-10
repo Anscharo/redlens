@@ -265,11 +265,11 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "Diamond PAU and Monolithic Controller to Review",
-        what: "Every Prime Agent PAU value, controller and Atlas role claim an expert should look at, grouped by why: the Atlas is probably out of date, a spell may not have executed yet, the Atlas lacks the detail to check, a registry conflict, or ambiguous.",
+        what: "Every Prime Agent PAU value, controller and Atlas role claim an expert should look at, grouped by why: the Atlas is probably out of date, a spell may not have executed yet, a spell executed without the change, the Atlas lacks the detail to check, a registry conflict, or ambiguous.",
         how: [
           "Open it from Reports, or click `N values to review` under a chain's `Rate limits` heading on a Prime Agent's Liquidity Layer Arch. (PAUs) page (it counts that deployment's) to see only that Prime's.",
           "Filter with the Group and Prime pills; each row shows what the Atlas states, what the chain holds, why it is listed, and the Atlas document stating it.",
-          "Where a value is placed by which side moved last, the row shows both dates: when the chain last set it and when its Atlas document last changed.",
+          "Where a value is placed by which side moved last, the row shows both dates: when the chain last set it and when the Atlas last wrote the value. Where the Atlas moved later, the row names the Executive Vote it rests on: the one for that Prime still expected to carry the change, or, once the expected delay has passed, the latest one cast since that left it out (listed under `Spell executed without the change`).",
         ],
         note: "Values that match, values the Atlas marks as not set, and values the reader has not read yet are left out. Without the server's document history, every disagreement is listed as ambiguous.",
       },

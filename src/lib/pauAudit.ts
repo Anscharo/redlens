@@ -1,15 +1,19 @@
 // Why a PAU value needs an expert's attention, and which group of the PAU
 // values audit report (pauAuditIndex.ts) it belongs to. A group is a judgement
 // the data supports, never more: which side moved last is read from dates (the
-// chain's last set against the atlas document's last change), and a value the
-// dates cannot place is ambiguous rather than guessed. Values the reader itself
+// chain's last set against when the atlas wrote the value), a value the dates
+// cannot place is ambiguous rather than guessed, and "a spell may not have
+// executed yet" is never said where the vote record shows a spell for the
+// prime executed since without the change (pauPending.ts `spellState`). Values the reader itself
 // cannot judge yet (not read, no deployment, unparsed text, unknown chain) and
 // values that match or are not stated are not audit items.
 import type { ValueCheck } from "./pauAtlasValues.ts";
+import type { SpellState } from "./pauPending.ts";
 
 export const AUDIT_GROUPS = [
   { key: "atlas", label: "Atlas probably out of date", hint: "The chain moved after the atlas last stated the value, or the atlas contradicts itself." },
-  { key: "spell", label: "Spell may not have executed yet", hint: "The atlas moved after the chain was last set, or states something the chain has not done." },
+  { key: "spell", label: "Spell may not have executed yet", hint: "The atlas moved after the chain was last set, or states something the chain has not done, and no spell for the Prime is known to have executed since without it." },
+  { key: "spell-executed", label: "Spell executed without the change", hint: "The atlas moved after the chain was last set, and a spell for the Prime has executed since without making the change: the atlas may be ahead of what was done, or the spell left it out." },
   { key: "detail", label: "Atlas lacks the detail to check", hint: "The atlas does not say enough to find the value on chain." },
   { key: "registry", label: "Registry conflicts", hint: "Atlas statements about which contract plays which role that the chain contradicts." },
   { key: "ambiguous", label: "Ambiguous", hint: "The chain and the atlas disagree, but the data cannot say which side is wrong." },
@@ -22,6 +26,7 @@ export const AUDIT_REASONS = {
   "chain-newer": { group: "atlas", text: "The chain value was set after the atlas document last changed, and they disagree." },
   "atlas-newer": { group: "spell", text: "The atlas document changed after the chain value was last set, and they disagree." },
   "not-set": { group: "spell", text: "The atlas states a limit no RateLimits contract on the chain has ever set." },
+  "spell-executed": { group: "spell-executed", text: "A spell naming this Prime executed after the atlas wrote the value, past the expected delay, and the chain still does not hold it." },
   "not-wired": { group: "spell", text: "The controller holds the CONTROLLER role on neither its ALM proxy nor its rate limits, so it cannot move funds." },
   "partly-wired": { group: "spell", text: "The controller holds the CONTROLLER role on only one of its ALM proxy and its rate limits." },
   "no-key": { group: "detail", text: "The atlas states no Rate Limit ID for this value, and nothing the document or its instance names derives a key the contract holds." },
@@ -51,10 +56,15 @@ export function switchedOffSlope(c: ValueCheck, all: ValueCheck[]): boolean {
   return all.some((o) => o.field === "maxAmount" && o.instance === c.instance && o.key === c.key && o.contract === c.contract && o.status === "match");
 }
 
-/** The audit reason for one checked value, or null when it needs no audit. */
-export function checkReason(c: ValueCheck, all: ValueCheck[], dates: MoveDates): AuditReason | null {
-  if (c.status === "mismatch") return switchedOffSlope(c, all) ? "switched-off-slope" : byOrder(dates);
-  if (c.status === "not-set") return "not-set";
+/** The audit reason for one checked value, or null when it needs no audit; `spell` is what the vote record says of the atlas change. */
+export function checkReason(c: ValueCheck, all: ValueCheck[], dates: MoveDates, spell: SpellState | null = null): AuditReason | null {
+  const executed = spell?.kind === "executed";
+  if (c.status === "mismatch") {
+    if (switchedOffSlope(c, all)) return "switched-off-slope";
+    const order = byOrder(dates);
+    return order === "atlas-newer" && executed ? "spell-executed" : order;
+  }
+  if (c.status === "not-set") return executed ? "spell-executed" : "not-set";
   if (c.status === "no-key") return "no-key";
   if (c.status === "ambiguous") return "several-keys";
   if (c.status === "units-unknown") return "units-unknown";
@@ -64,7 +74,7 @@ export function checkReason(c: ValueCheck, all: ValueCheck[], dates: MoveDates):
 const CONTENT = new Set(["added", "modified"]);
 
 /** A document's last content change (added, or a non-cosmetic edit) as YYYY-MM-DD, from its history entries; null when none. */
-export function lastContentChange(entries: { date: string; changeType: string; changeKind?: string }[]): string | null {
+export function lastContentChange(entries: readonly { date: string; changeType: string; changeKind?: string }[]): string | null {
   const days = entries.filter((e) => CONTENT.has(e.changeType) && e.changeKind !== "lint" && e.changeKind !== "typo").map((e) => e.date.slice(0, 10));
   return days.length ? days.sort().at(-1)! : null;
 }

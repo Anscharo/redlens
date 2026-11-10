@@ -18,6 +18,7 @@ export const auditSearchFields = (r: AuditRow, docNo: string): SearchField[] => 
   { label: "atlas", value: r.stated },
   { label: "chain value", value: r.onchain },
   { label: "why", value: r.note },
+  { label: "spell", value: r.spell?.title ?? "" },
   { label: "group", value: GROUP_LABEL.get(r.group) ?? "", hidden: true },
   { label: "doc no", value: docNo },
   { label: "key", value: r.key ?? "", hidden: true },
@@ -26,7 +27,7 @@ export const auditSearchFields = (r: AuditRow, docNo: string): SearchField[] => 
 
 const HEADERS = [
   "Group", "Reason", "Prime", "Chain", "Generation", "Subject", "Value", "Atlas states", "Chain holds",
-  "Chain last set", "Atlas last changed", "Key", "Contract", "Doc No", "UUID", "Atlas Link",
+  "Chain last set", "Atlas last changed", "Spell", "Spell date", "Spell cast", "Key", "Contract", "Doc No", "UUID", "Atlas Link",
 ];
 
 /** The rows as CSV; `docNo` resolves a document's number for display only. */
@@ -35,7 +36,7 @@ export function auditRowsToCSV(rows: AuditRow[], docNo: (id: string) => string):
     HEADERS,
     rows.map((r) => [
       GROUP_LABEL.get(r.group), r.note, r.prime, r.chain, r.kind, r.subject, r.label, r.stated, r.onchain,
-      r.chainSetAt, r.atlasChangedAt, r.key, r.contract, r.docId ? docNo(r.docId) : "", r.docId ?? "", atlasUrlOrEmpty(r.docId),
+      r.chainSetAt, r.atlasChangedAt, r.spell?.title ?? "", r.spell?.date ?? "", r.spellPending === null ? "" : r.spellPending ? "no" : "yes", r.key, r.contract, r.docId ? docNo(r.docId) : "", r.docId ?? "", atlasUrlOrEmpty(r.docId),
     ]),
   );
 }

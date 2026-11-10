@@ -6,6 +6,8 @@
 import type { StoredPauSnapshot } from "./pau.ts";
 import { AUDIT_GROUPS, AUDIT_REASONS, checkReason, type AuditGroup, type AuditReason } from "./pauAudit.ts";
 import type { ValueCheck } from "./pauAtlasValues.ts";
+import type { HistoryEntry } from "./history.ts";
+import { spellState, valueChangedAt, type PendingContext, type SpellRef, type SpellState } from "./pauPending.ts";
 import { checkChainValue } from "./pauCheckValue.ts";
 import type { PauIgnored } from "./pauRegistry.ts";
 import { controllerWiring } from "./pauWiring.ts";
@@ -33,6 +35,10 @@ export interface AuditRow {
   contract: string | null;
   chainSetAt: string | null;
   atlasChangedAt: string | null;
+  /** The executive the row's placing rests on: the one still expected to carry the change, or the latest cast since it without it. */
+  spell: SpellRef | null;
+  /** Whether `spell` is still to be cast (true) or cast already (false); null without one. */
+  spellPending: boolean | null;
 }
 
 export interface PrimeChecks {
@@ -47,18 +53,32 @@ export const groupDigits = (s: string): string => s.replace(/^\d+/, (n) => BigIn
 /** What the chain holds for a checked value, in the atlas's own style. */
 const onchainText = (c: ValueCheck): string => (c.status === "not-set" ? "never set" : c.limit ? groupDigits(checkChainValue(c)) : "");
 
-/** The atlas documents whose last change places a disagreement: those stating a mismatch. */
-export const docsToDate = (primes: PrimeChecks[]): string[] => [...new Set(primes.flatMap((p) => p.checks.filter((c) => c.status === "mismatch").map((c) => c.docId)))];
+const DATED = new Set<ValueCheck["status"]>(["mismatch", "not-set"]);
 
-function valueRows({ primeId, prime, checks }: PrimeChecks, atlasChanged: Map<string, string>): AuditRow[] {
+/** The atlas documents whose history places an item: those stating a mismatch or a limit never set. */
+export const docsToDate = (primes: PrimeChecks[]): string[] => [...new Set(primes.flatMap((p) => p.checks.filter((c) => DATED.has(c.status)).map((c) => c.docId)))];
+
+/** The vote record and today, for what a row says of the spell. */
+export type AuditVotes = Omit<PendingContext, "prime">;
+
+/** The spell a row names: only where it decides the row's placing, a spell-executed row or a pending change in the spell group. */
+function rowSpell(reason: AuditReason, state: SpellState | null): Pick<AuditRow, "spell" | "spellPending"> {
+  if (state?.kind === "executed" && reason === "spell-executed") return { spell: state.spell, spellPending: false };
+  if (state?.kind === "pending" && state.pending.spell && AUDIT_REASONS[reason].group === "spell") return { spell: state.pending.spell, spellPending: true };
+  return { spell: null, spellPending: null };
+}
+
+function valueRows({ primeId, prime, checks }: PrimeChecks, history: AuditInput["history"], votes: AuditVotes): AuditRow[] {
   return checks.flatMap((c) => {
-    const dates = { chain: c.limit?.setAt?.time.slice(0, 10) ?? null, atlas: atlasChanged.get(c.docId) ?? null };
-    const reason = checkReason(c, checks, dates);
+    const entries = DATED.has(c.status) ? history.get(c.docId) : undefined;
+    const dates = { chain: c.limit?.setAt?.time.slice(0, 10) ?? null, atlas: entries ? valueChangedAt(entries, c.stated) : null };
+    const state = spellState(dates.atlas, dates.chain, { ...votes, prime });
+    const reason = checkReason(c, checks, dates, state);
     if (!reason) return [];
     return [{
       item: `value:${c.docId}:${c.field}`, group: AUDIT_REASONS[reason].group, reason, note: AUDIT_REASONS[reason].text, primeId, prime,
       chain: c.chain ?? "", kind: c.kind, subject: c.instance, label: c.label, stated: c.stated, onchain: onchainText(c),
-      docId: c.docId, key: c.key, contract: c.contract, chainSetAt: dates.chain, atlasChangedAt: dates.atlas,
+      docId: c.docId, key: c.key, contract: c.contract, chainSetAt: dates.chain, atlasChangedAt: dates.atlas, ...rowSpell(reason, state),
     }];
   });
 }
@@ -73,7 +93,7 @@ function wiringRows(snaps: StoredPauSnapshot[]): AuditRow[] {
     return [{
       item: `wiring:${s.deployment}`, group: "spell", reason, note: AUDIT_REASONS[reason].text, primeId: s.prime, prime: s.primeName,
       chain: s.chain, kind: s.kind, subject: "Controller", label: "CONTROLLER role", stated: "on its ALM proxy and rate limits", onchain: holds ? `on its ${holds} only` : "on neither",
-      docId: controller.atlasDocs?.[0] ?? null, key: null, contract: controller.address, chainSetAt: null, atlasChangedAt: null,
+      docId: controller.atlasDocs?.[0] ?? null, key: null, contract: controller.address, chainSetAt: null, atlasChangedAt: null, spell: null, spellPending: null,
     }];
   });
 }
@@ -84,7 +104,7 @@ function claimRows(claims: PauIgnored[], primeNames: Map<string, string>): Audit
     (g.docs?.length ? g.docs : [null]).map((docId) => ({
       item: `claim:${g.prime ?? "shared"}:${g.chain}:${g.role}:${g.address}`, group: "registry" as const, reason: "rejected-claim" as const, note: g.reason,
       primeId: g.prime, prime: g.prime ? (primeNames.get(g.prime) ?? "") : "Shared", chain: g.chain, kind: g.kind ?? null, subject: "Atlas role claim",
-      label: g.role, stated: g.address, onchain: "", docId, key: null, contract: g.address, chainSetAt: null, atlasChangedAt: null,
+      label: g.role, stated: g.address, onchain: "", docId, key: null, contract: g.address, chainSetAt: null, atlasChangedAt: null, spell: null, spellPending: null,
     })),
   );
 }
@@ -98,14 +118,15 @@ export interface AuditInput {
   primes: PrimeChecks[];
   snaps: StoredPauSnapshot[];
   claims: PauIgnored[];
-  /** Atlas document id → its last content change, YYYY-MM-DD. */
-  atlasChanged: Map<string, string>;
+  /** Atlas document id → its history, for the documents `docsToDate` names. */
+  history: ReadonlyMap<string, readonly HistoryEntry[]>;
+  votes: AuditVotes;
 }
 
 /** Every audit row, sorted by group, then prime, chain, subject and value. */
-export function buildPauAudit({ primes, snaps, claims, atlasChanged }: AuditInput): AuditRow[] {
+export function buildPauAudit({ primes, snaps, claims, history, votes }: AuditInput): AuditRow[] {
   const primeNames = new Map(primes.map((p) => [p.primeId, p.prime]));
-  return [...primes.flatMap((p) => valueRows(p, atlasChanged)), ...wiringRows(snaps), ...claimRows(claims, primeNames)].sort(cmp);
+  return [...primes.flatMap((p) => valueRows(p, history, votes)), ...wiringRows(snaps), ...claimRows(claims, primeNames)].sort(cmp);
 }
 
 /** How many items (values, controllers, claims) the rows hold. */

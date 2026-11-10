@@ -11,6 +11,17 @@ const dim = { color: "var(--tan-3)" };
 const chainLabel = (r: AuditRow) => [r.chain.charAt(0).toUpperCase() + r.chain.slice(1), r.kind].filter(Boolean).join(" · ");
 const dates = (r: AuditRow) => [r.chainSetAt && `chain set ${r.chainSetAt}`, r.atlasChangedAt && `atlas changed ${r.atlasChangedAt}`].filter(Boolean).join(" · ");
 
+/** The executive a row's placing rests on, linked to vote.sky.money, and whether it is cast. */
+function SpellLine({ r }: { r: AuditRow }) {
+  if (!r.spell) return null;
+  return (
+    <div className="mono text-[11px]" style={dim}>
+      {r.spellPending ? "expected in " : "executed without it: "}
+      <a href={r.spell.url} target="_blank" rel="noopener" className="hover:underline">{r.spell.title}</a> ({r.spell.date}){r.spellPending ? ", not yet cast" : ""}
+    </div>
+  );
+}
+
 function AuditRowView({ r, rq, docNo }: { r: AuditRow; rq: ReportQuery; docNo: string }) {
   return (
     <tr className="border-t border-[var(--border)] text-[12px]" data-reason={r.reason}>
@@ -29,6 +40,7 @@ function AuditRowView({ r, rq, docNo }: { r: AuditRow; rq: ReportQuery; docNo: s
       <td className="py-2 pr-3 align-top">
         <Highlight text={r.note} rq={rq} />
         {dates(r) && <div className="mono text-[11px]" style={dim}>{dates(r)}</div>}
+        <SpellLine r={r} />
       </td>
       <td className="py-2 align-top mono text-[11px]">
         {r.docId ? <AtlasLink to={atlasHref(r.docId)} className="text-accent hover:underline"><Highlight text={docNo || "Atlas doc"} rq={rq} /></AtlasLink> : <span style={dim}>no Atlas document</span>}
