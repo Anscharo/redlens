@@ -54,7 +54,7 @@ export function paramMark(checks: ValueCheck[]): ParamMark | null {
   if (checks.length === 0) return null;
   if (allPending(checks)) return "pending";
   if (checks.some((c) => c.status === "mismatch")) return "mismatch";
-  if (checks.every((c) => c.status === "match")) return "match";
+  if (checks.every((c) => c.status === "match" || c.status === "no-limit")) return "match";
   if (checks.some((c) => c.status === "not-set")) return "not-set";
   if (checks.every((c) => c.status === "not-stated")) return "not-stated";
   return "unsure";
@@ -71,7 +71,7 @@ const VALUE_HEAD: Record<ParamMark, string> = {
 };
 
 /** A deployment as a card tooltip names it, in plain words: not every controller is a PAU. */
-const KIND_LABEL: Record<NonNullable<ValueCheck["kind"]>, string> = { monolithic: "monolithic controller", diamond: "diamond controller" };
+const KIND_LABEL: Record<NonNullable<ValueCheck["kind"]>, string> = { monolithic: "monolithic controller", diamond: "diamond controller", svm: "Solana ALM controller" };
 
 /** Each deployment's lines: the value it holds and when it was set, or why there is none, said once per deployment. */
 function checkLines(checks: ValueCheck[]): TipLine[] {

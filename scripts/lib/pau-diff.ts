@@ -43,6 +43,11 @@ export const EXPECTED_NAME: Record<PauRole, RegExp> = {
   relayer: /Safe/,
   starGuard: /^StarGuard$/,
   executor: /^Executor$/,
+  // Solana accounts carry no verified explorer contract name.
+  program: /^$/,
+  reserve: /^$/,
+  integration: /^$/,
+  permission: /^$/,
 };
 
 const has = (members: PauMember[], o: PauObservation) => members.some((m) => m.role === o.role && m.address === o.address);

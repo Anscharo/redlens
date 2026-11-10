@@ -118,6 +118,8 @@ const BY_ROLE: Record<PauKind, Partial<Record<PauRole, AbiEvent[]>>> = {
     beacon: events([...INTEGRATION_EVENTS, ...ROLE_EVENTS]),
     beamState: events(BEAM_STATE_EVENTS),
   },
+  // A Solana program emits no EVM logs: its accounts are read live (svm-snapshot.ts).
+  svm: {},
 };
 
 /** The admin events a contract in `role` emits, one entry per distinct topic0. */

@@ -7,7 +7,8 @@
 //            the child's promise; a rejection never fails the run.
 // In a PR environment (ctx.inert, src/server/pr-env/gate.ts) noFetch is also
 // set, and skipWhenInert is the line logged instead of a step that would still
-// call an outside API under --no-fetch. An onlyWhenInert step runs nowhere else
+// call an outside API under --no-fetch, or would find nothing to read there (its
+// inputs are not in the image). An onlyWhenInert step runs nowhere else
 // and is skipped silently.
 // ctx: { db, full, noFetch, inert, env, runAsync(cmd, args, opts?), log(line), warn(line) }
 import prEnvCopy from "./pr-env-copy.ts";

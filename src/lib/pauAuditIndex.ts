@@ -13,6 +13,7 @@ import { valueChange } from "./pauValueDate.ts";
 import { checkChainValue } from "./pauCheckValue.ts";
 import type { PauIgnored } from "./pauRegistry.ts";
 import { controllerWiring } from "./pauWiring.ts";
+import { roleRows } from "./pauAuditRoles.ts";
 
 export interface AuditRow {
   /** One value, controller or claim; several rows can share it. */
@@ -121,7 +122,7 @@ export interface AuditInput {
 export function buildPauAudit(input: AuditInput): AuditRow[] {
   const { primes, snaps, claims } = input;
   const primeNames = new Map(primes.map((p) => [p.primeId, p.prime]));
-  return [...primes.flatMap((p) => valueRows(p, input)), ...wiringRows(snaps), ...claimRows(claims, primeNames)].sort(cmp);
+  return [...primes.flatMap((p) => valueRows(p, input)), ...wiringRows(snaps), ...claimRows(claims, primeNames), ...roleRows(snaps)].sort(cmp);
 }
 
 /** How many items (values, controllers, claims) the rows hold. */

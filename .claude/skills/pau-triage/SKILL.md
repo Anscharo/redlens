@@ -57,7 +57,7 @@ For each item, prefer the chain over the atlas for *what is deployed*, and keep 
 - **Chain confirms the atlas**: accept the observation (copy it from the draft, keep its `atlas` provenance).
 - **Chain contradicts the atlas**: put the chain's address in the registry with `onchain` provenance and a note naming the call; add the atlas claim to `ignored` with the reason.
 - **Neither can be confirmed** (no explorer history, a contract that reverts, a chain with no RPC): keep the atlas claim and say so in the PR; the wiring check keeps flagging it.
-- **Non-EVM** (Keel's Solana ALM program): out of scope for this registry; discovery skips non-0x addresses.
+- **Non-EVM** (Keel's Solana ALM program): kind `svm`, chain `solana`, addresses base58 as written. List every account: the program (`program`), the controller's state account (`rateLimits`, label `Controller`), and each Reserve (`reserve`), Integration (`integration`) and Permission (`permission`, labelled with the role the atlas gives it). Discovery skips non-0x addresses, so a new account is added by hand; the snapshot reads only what is listed, plus the Integration accounts and mints the atlas states (`src/server/pau/svm-probe.ts`).
 
 Then re-run `pnpm pau:candidates --rpc` until "missing" is zero and every remaining failed check is one you can explain in the PR body. Run `pnpm vitest run scripts_tests/pau-registry.test.ts`: it validates the file and checks every member's verified contract name (committed `.cache/etherscan/`) against its role.
 

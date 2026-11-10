@@ -57,7 +57,7 @@ function Row({ c, label }: { c: ValueCheck; label: string }) {
         <span className="sr-only">{look.text}</span>
       </td>
       <td className="py-1 mono text-right">
-        {c.limit && c.chain && (
+        {c.limit?.setAt.time && c.chain && (
           <a href={explorerTxUrl(c.chain, c.limit.setAt.tx)} target="_blank" rel="noopener" className="hover:underline" style={dim}>
             {c.limit.setAt.time.slice(0, 10)}
           </a>

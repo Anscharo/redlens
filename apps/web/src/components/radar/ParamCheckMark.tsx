@@ -44,13 +44,16 @@ function Line({ line }: { line: TipLine }) {
       </p>
     );
   }
+  const read = line.readAt && `read ${line.readAt.slice(0, 16).replace("T", " ")} UTC`;
+  // A limit read live with no history (a Solana account) has no set time.
+  if (!line.set.time) return read ? <p style={dim}>{read}</p> : null;
   return (
     <p style={dim}>
       set{" "}
       <a href={explorerTxUrl(line.chain, line.set.tx)} target="_blank" rel="noopener" className="hover:underline">
         {line.set.time.slice(0, 10)}
       </a>
-      {line.readAt && ` · read ${line.readAt.slice(0, 16).replace("T", " ")} UTC`}
+      {read && ` · ${read}`}
     </p>
   );
 }

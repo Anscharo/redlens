@@ -43,6 +43,7 @@ export const AUDIT_REASONS = {
   "partly-wired": { group: "spell", text: "The controller holds the CONTROLLER role on only one of its ALM proxy and its rate limits." },
   "no-key": { group: "detail", text: "The atlas states no Rate Limit ID for this value, and nothing the document or its instance names derives a key the contract holds." },
   "rejected-claim": { group: "registry", text: "The atlas names this address for a role the chain contradicts." },
+  "role-not-held": { group: "registry", text: "The atlas names this account to a role, and the chain says it does not hold it now: its Permission is suspended." },
   "several-keys": { group: "ambiguous", text: "More than one key could be this value's, and they do not all agree with the atlas." },
   "units-unknown": { group: "ambiguous", text: "The limit's token units cannot be pinned down, and the stated amount fits the chain value at more than one scale." },
   "order-unknown": { group: "ambiguous", text: "The atlas and the chain disagree, and the dates cannot say which changed last." },
