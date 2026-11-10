@@ -52,7 +52,7 @@ export const CORE_TOOLS: AtlasTool[] = [
     description:
       'Search the Sky Atlas. mode="lexical" uses minisearch BM25 (good for exact terms, IDs, addresses). ' +
       'mode="semantic" uses embeddings via pgvector (paraphrase / concept queries; it ranks only the nearest few dozen docs, so list a whole class with hybrid or lexical). ' +
-      'mode="hybrid" (default) merges both via reciprocal rank fusion, then moves the best answer among the first 30 to the top. Quoted phrases ("...") are ' +
+      'mode="hybrid" (default) merges both via reciprocal rank fusion, and a reranker may move the best answer among the top results to the top. Quoted phrases ("...") are ' +
       "post-filtered to require an exact substring match in title or content.",
     shape: {
       query: z.string().describe('Query. Quote phrases for exact-substring match: foo "USDS PSM" bar'),

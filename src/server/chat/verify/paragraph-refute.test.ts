@@ -315,13 +315,15 @@ test("gate calls gemma when the screen flags, doesn't fit, judged nothing, or fa
   }
 });
 
-test("an unrecognised mode normalizes to shadow; a missing screen means off", async () => {
+test("an unrecognised mode normalizes to off; a missing screen means off", async () => {
   const g = gemma(CONTRA);
-  const r = withScreen("gated" as "gate", g.call, async () => screenOf({}));
+  let screens = 0;
+  const r = withScreen("gated" as "gate", g.call, async () => (screens++, screenOf({})));
   r.submit(0, PARA);
   const [out] = await r.settle(5000);
   expect(g.calls()).toBe(1);
-  expect(out.screen?.mode).toBe("shadow");
+  expect(screens).toBe(0);
+  expect(out.screen).toBeUndefined();
   const prevKey = config.openrouterApiKey;
   config.openrouterApiKey = ""; // the default screen needs a key — without one the screen is off
   try {

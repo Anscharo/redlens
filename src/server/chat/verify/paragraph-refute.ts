@@ -88,10 +88,10 @@ const uncheckedRefute = (index: number, text: string): ParagraphRefute => ({
   ...blankRefute(index, text), parsed: true,
 });
 
-/** Normalizes the mode; a typo'd value falls to "shadow", which never changes what the reader sees. */
+/** Normalizes the mode; a typo'd value falls to "off", which neither changes what the reader sees nor spends a screen call. */
 function resolveMode(mode: string | undefined, fn: ScreenFn | null): RefuteScreenMode {
-  if (!fn || mode === "off") return "off";
-  return mode === "gate" ? "gate" : "shadow";
+  if (!fn) return "off";
+  return mode === "gate" || mode === "shadow" ? mode : "off";
 }
 
 export function createParagraphRefuter(opts: {

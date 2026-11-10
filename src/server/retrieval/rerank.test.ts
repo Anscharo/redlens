@@ -72,6 +72,14 @@ describe("rerankHead", () => {
     expect(calls).toBe(0);
   });
 
+  it("is off without an OpenRouter key and makes no call", async () => {
+    answering({ c01: 1 });
+    config.openrouterApiKey = "";
+    const out = await rerankHead("q", items, idOf, docMap);
+    expect(out).toEqual({ items, skipped: "off" });
+    expect(calls).toBe(0);
+  });
+
   it("keeps the fused order when the call fails", async () => {
     answering({}, 400);
     const out = await rerankHead("fails", items, idOf, docMap);

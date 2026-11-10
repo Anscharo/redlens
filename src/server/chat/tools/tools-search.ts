@@ -4,7 +4,7 @@ import type { Indexes, AtlasNode } from "../../retrieval/indexes.ts";
 import { runLexical, runSemantic, mergeForMode, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type MergedHit, type SemanticResult } from "../../retrieval/search.ts";
 import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "../../retrieval/leaf-attribution.ts";
 import { pageOf, poolSize } from "../../retrieval/result-page.ts";
-import { rerankHead } from "../../retrieval/rerank.ts";
+import { rerankConfig, rerankHead } from "../../retrieval/rerank.ts";
 import { livenessOf, withLivenessHint, type ToolResult } from "./tools.ts";
 
 export interface SearchArgs {
@@ -62,9 +62,11 @@ export async function atlasSearch(ix: Indexes, { query, k, offset = 0, type, mod
   const fetchK = poolSize(offset, k, mode === "lexical" && !hasPhrases);
   const { rows, lexCount, semanticSkipped } = await fusedHits(ix, query, type, mode, fetchK);
   const filtered = hasPhrases ? rows.filter(({ n }) => matchesPhrases(n.title, n.content, phrases, casePhrases)) : rows;
-  // Hybrid only: the measured lane (rerank.ts). Every page reorders the same
-  // head the same way, so a document promoted onto page one is not repeated.
-  const ordered = mode === "hybrid" ? (await rerankHead(query, filtered, ({ m }) => m.id, ix.docMap)).items : filtered;
+  // Hybrid only: the measured lane (rerank.ts). A page starting past the pool
+  // is untouched by it, so it pays no call. Pages fetched with the same k fuse
+  // the same head and read its cached order, so they agree.
+  const rerank = mode === "hybrid" && offset < rerankConfig.pool;
+  const ordered = rerank ? (await rerankHead(query, filtered, ({ m }) => m.id, ix.docMap)).items : filtered;
   // poolCut: the lexical leg filled its pool. Semantic mode reports no cut: its
   // legs stop at hnsw.ef_search whatever the pool, so a larger k ranks no
   // deeper; the tool description says so instead.

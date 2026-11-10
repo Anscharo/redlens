@@ -7,7 +7,7 @@
 // is the reranker's ceiling; the eval prints it beside every arm.
 import type { AtlasNode } from "../../src/types.ts";
 import { askJev, withDeadline, type JevQuestion } from "../../src/server/jev.ts";
-import { candidateText, rankByChoice, sortByScore } from "../../src/server/retrieval/rerank.ts";
+import { candidateText, rankByChoice, rerankConfig, sortByScore } from "../../src/server/retrieval/rerank.ts";
 
 export { candidateText, sortByScore };
 
@@ -90,8 +90,16 @@ export async function rerankJev(query: string, ids: string[], docMap: Map<string
  * (src/server/retrieval/rerank.ts), so the eval scores what production runs.
  */
 export async function rerankJevChoice(query: string, ids: string[], docMap: Map<string, AtlasNode>): Promise<RerankOutcome> {
-  const r = await rankByChoice(query, ids, docMap, { lane: "eval-rerank", signal: withDeadline(60_000) });
-  return { ids: r.ids, scores: r.scores, ms: r.ms, cost: r.cost };
+  const t0 = performance.now();
+  try {
+    const r = await rankByChoice(query, ids, docMap, { model: rerankConfig.model || undefined, lane: "eval-rerank", signal: withDeadline(60_000) });
+    return { ids: r.ids, scores: r.scores, ms: r.ms, cost: r.cost };
+  } catch (err) {
+    // One failed query keeps its retrieval order (production does the same)
+    // rather than ending a run whose other queries are already paid for.
+    console.warn(`  rerank failed, retrieval order kept: ${(err as Error).message.slice(0, 160)}`);
+    return { ids, scores: ids.map(() => 0), ms: performance.now() - t0, cost: 0 };
+  }
 }
 
 // Qwen3-Reranker's own template (model card): a system line fixing the answer

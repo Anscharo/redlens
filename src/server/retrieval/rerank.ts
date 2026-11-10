@@ -10,6 +10,8 @@ import { askJev, withDeadline, type JevQuestion } from "../jev.ts";
 import { JEV } from "../env/chat.ts";
 import { captureError } from "../posthog-node.ts";
 import { withTimeout } from "../retry.ts";
+import { config } from "../config.ts";
+import { createCache } from "../ttl-cache.ts";
 
 export const rerankConfig = {
   /** "" turns the reranker off. */
@@ -97,8 +99,7 @@ export async function rankByChoice(
 
 // Order of each recent (model, query, head) — a later page of the same search
 // reads the order its first page used, so pages agree and Jev is paid once.
-const ORDER_CACHE_MAX = 256;
-const orderCache = new Map<string, string[]>();
+const orderCache = createCache<string[]>({ max: 256, lru: true });
 
 async function headOrder(query: string, ids: string[], docMap: Map<string, AtlasNode>): Promise<string[]> {
   const { model, deadlineMs } = rerankConfig;
@@ -109,15 +110,15 @@ async function headOrder(query: string, ids: string[], docMap: Map<string, Atlas
   // transport ignores the abort.
   const ranking = rankByChoice(query, ids, docMap, { model, lane: "search-rerank", signal: withDeadline(deadlineMs) });
   const { ids: order } = await withTimeout(ranking, deadlineMs, "rerank");
-  if (orderCache.size >= ORDER_CACHE_MAX) orderCache.delete(orderCache.keys().next().value!);
   orderCache.set(key, order);
   return order;
 }
 
 /**
  * Reorders the first `rerankConfig.pool` items of `items` by one Choice and
- * leaves the tail as it was. Never throws: with the reranker off, fewer than
- * two candidates, or a failed call, the items come back unchanged with a reason.
+ * leaves the tail as it was. Never throws: with the reranker off (no model or
+ * no OpenRouter key), fewer than two candidates, or a failed call, the items
+ * come back unchanged with a reason. Only a failed call is captured.
  */
 export async function rerankHead<T>(
   query: string,
@@ -126,7 +127,7 @@ export async function rerankHead<T>(
   docMap: Map<string, AtlasNode>,
 ): Promise<{ items: T[]; skipped?: string }> {
   const { model, pool } = rerankConfig;
-  if (!model) return { items, skipped: "off" };
+  if (!model || !config.openrouterApiKey) return { items, skipped: "off" };
   const head = items.slice(0, pool);
   if (head.length < 2) return { items };
   try {
