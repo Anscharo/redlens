@@ -41,7 +41,9 @@ async function fusedHits(ix: Indexes, query: string, type: string | undefined, m
   return { rows, lexCount: lexAll.length, semanticSkipped: semResult.skipped };
 }
 
-const toResult = (ix: Indexes, query: string) => ({ m, n }: Row) => ({
+// A hybrid row carries no score: the reranker reorders the head, so the array
+// order is the ranking and a fusion score would contradict it.
+const toResult = (ix: Indexes, query: string, mode: Mode) => ({ m, n }: Row) => ({
   id: n.id,
   doc_no: n.doc_no,
   title: n.title,
@@ -49,7 +51,7 @@ const toResult = (ix: Indexes, query: string) => ({ m, n }: Row) => ({
   depth: n.depth,
   // Verbatim: this is a tool result an agent quotes from and is graded on.
   snippet: buildAgentSnippet(n.content, query),
-  score: m.rrf_score || m.score,
+  ...(mode === "hybrid" ? {} : { score: m.rrf_score || m.score }),
   sources: m.sources,
   ...(m.via ? { via: m.via } : {}),
   ...livenessOf(ix, n.id),
@@ -64,11 +66,11 @@ export async function atlasSearch(ix: Indexes, { query, k, offset = 0, type, mod
   const filtered = hasPhrases ? rows.filter(({ n }) => matchesPhrases(n.title, n.content, phrases, casePhrases)) : rows;
   // Hybrid only: the measured lane (rerank.ts). Pages fetched with the same k
   // fuse the same head and read its cached order, so they agree.
-  const ordered = mode === "hybrid" ? await rerankHead(query, filtered, ({ m }) => m.id, ix.docMap, offset) : filtered;
+  const ordered = mode === "hybrid" ? await rerankHead(query, filtered, ({ m }) => m.id, ix, offset) : filtered;
   // poolCut: the lexical leg filled its pool. Semantic mode reports no cut: its
   // legs stop at hnsw.ef_search whatever the pool, so a larger k ranks no
   // deeper; the tool description says so instead.
-  const { rows: results, fields } = pageOf(ordered, { offset, k }, toResult(ix, query), { poolCut: mode !== "semantic" && lexCount >= fetchK });
+  const { rows: results, fields } = pageOf(ordered, { offset, k }, toResult(ix, query, mode), { poolCut: mode !== "semantic" && lexCount >= fetchK });
   // Never set in lexical mode: that mode runs no semantic leg (fusedHits).
   const skipped = semanticSkipped ? { semantic_skipped: semanticSkipped } : {};
   const envelope = { count: results.length, ...fields, mode, phrase_filter: [...phrases, ...casePhrases], ...skipped, results };

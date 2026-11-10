@@ -248,13 +248,17 @@ test("atlasSearch reranks a hybrid search's head and leaves lexical order alone"
   try {
     const { atlasSearch } = await import("./tools-search.ts");
     const ix = makeIx();
-    const ids = async (mode: "lexical" | "hybrid") =>
-      ((await atlasSearch(ix, { query: "USDS", k: 5, mode })) as { results: Array<{ id: string }> }).results.map((r) => r.id);
-    const lexical = await ids("lexical");
+    const rows = async (mode: "lexical" | "hybrid") =>
+      ((await atlasSearch(ix, { query: "USDS", k: 5, mode })) as { results: Array<{ id: string; score?: number }> }).results;
+    const lexical = await rows("lexical");
     expect(lexical.length).toBe(2);
     expect(jevCalls).toBe(0);
-    expect(await ids("hybrid")).toEqual([lexical[1]!, lexical[0]!]);
+    const hybrid = await rows("hybrid");
+    expect(hybrid.map((r) => r.id)).toEqual([lexical[1]!.id, lexical[0]!.id]);
     expect(jevCalls).toBe(1);
+    // The order is the ranking: a hybrid row carries no fusion score to contradict it.
+    expect(lexical.every((r) => typeof r.score === "number")).toBe(true);
+    expect(hybrid.some((r) => "score" in r)).toBe(false);
   } finally {
     config.openrouterApiKey = prevKey;
     config.semanticEmbedTimeoutMs = prevTimeout;

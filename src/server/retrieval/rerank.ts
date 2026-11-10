@@ -6,6 +6,7 @@
 // (scripts/eval/eval-rerankers.ts imports it); its numbers are in the
 // eval-retrieval.ts header.
 import type { AtlasNode } from "../../types.ts";
+import type { Indexes } from "./indexes.ts";
 import { askJev, choiceOf, withDeadline, type JevQuestion } from "../jev.ts";
 import { config, JEV_DEFAULT } from "../config.ts";
 import { captureError } from "../posthog-node.ts";
@@ -92,21 +93,25 @@ export async function rankByChoice(
   return { ids: sortByScore(ids, scores), scores, cost: run.cost ?? 0 };
 }
 
-// Order of each recent (model, query, head), held as the promise so a page
-// fetched while the first is still waiting shares its call. A later page of the
-// same search reads the order its first page used, so pages agree and Jev is
-// paid once. A failed call is dropped, so the next search tries again.
+type RerankIndex = Pick<Indexes, "docMap" | "meta">;
+
+// Order of each recent (atlas commit, model, query, head), held as the promise
+// so a page fetched while the first is still waiting shares its call. A later
+// page of the same search reads the order its first page used, so pages agree
+// and Jev is paid once. The commit is in the key because the order was judged
+// from the documents' text, which an atlas update can change under the same
+// ids. A failed call is dropped, so the next search tries again.
 const orderCache = createCache<Promise<string[]>>({ max: 256, lru: true });
 
-function headOrder(query: string, ids: string[], docMap: Map<string, AtlasNode>): Promise<string[]> {
+function headOrder(query: string, ids: string[], ix: RerankIndex): Promise<string[]> {
   const { model, deadlineMs } = rerankConfig;
-  const key = JSON.stringify([model, query, ids]);
+  const key = JSON.stringify([ix.meta.atlasCommit, model, query, ids]);
   const hit = orderCache.get(key);
   if (hit) return hit;
   const signal = withDeadline(deadlineMs);
-  const order = rankByChoice(query, ids, docMap, { model, lane: "search-rerank", signal, timeoutMs: deadlineMs }).then((r) => r.ids);
+  const order = rankByChoice(query, ids, ix.docMap, { model, lane: "search-rerank", signal, timeoutMs: deadlineMs }).then((r) => r.ids);
   orderCache.set(key, order);
-  order.catch(() => orderCache.delete(key));
+  order.catch(() => orderCache.get(key) === order && orderCache.delete(key));
   return order;
 }
 
@@ -117,12 +122,12 @@ function headOrder(query: string, ids: string[], docMap: Map<string, AtlasNode>)
  * model or no OpenRouter key), fewer than two candidates, or a failed call, the
  * items come back unchanged; only a failed call is captured.
  */
-export async function rerankHead<T>(query: string, items: T[], idOf: (t: T) => string, docMap: Map<string, AtlasNode>, offset = 0): Promise<T[]> {
+export async function rerankHead<T>(query: string, items: T[], idOf: (t: T) => string, ix: RerankIndex, offset = 0): Promise<T[]> {
   const { model, pool } = rerankConfig;
   const head = items.slice(0, pool);
   if (!model || !config.openrouterApiKey || head.length < 2 || offset >= head.length) return items;
   try {
-    const order = await headOrder(query, head.map(idOf), docMap);
+    const order = await headOrder(query, head.map(idOf), ix);
     const byId = new Map(head.map((t) => [idOf(t), t]));
     return [...order.map((id) => byId.get(id)!), ...items.slice(pool)];
   } catch (err) {

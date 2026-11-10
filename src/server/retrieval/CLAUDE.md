@@ -147,7 +147,8 @@ The chat's hybrid lane fuses three lists in one RRF stage: lexical, attributed s
 - **It stays comparative.** Every pairwise arm (a Noul or Score per candidate, which never sees the others) lost exact recall and ICD disambiguation in the eval.
 - The eval imports `rankByChoice` and `candidateText`, so it scores the shipped request.
 - A failed call or one past its 1.5 s deadline (`rerankConfig.deadlineMs`, a `withDeadline` signal that `askJev` honours through its retries) returns the fused order unchanged and is captured to PostHog as `search_rerank`.
-- The order is cached per (model, query, head) as the in-flight promise, so pages of one search fetched with the same `k` agree, and a page fetched while the first waits shares its call. A page starting past the head costs no call.
+- The order is cached per (atlas commit, model, query, head) as the in-flight promise, so pages of one search fetched with the same `k` agree, and a page fetched while the first waits shares its call. The commit is in the key because the order was judged from the documents' text, which an atlas update can change under the same ids. A page starting past the head costs no call.
+- Hybrid rows carry no `score`: the array order is the ranking, and the fusion score of a promoted row would contradict it.
 - `SEARCH_RERANK_MODEL=""` or no OpenRouter key turns it off. The reader lane (`GET /api/search/semantic`) does not rerank.
 
 Measured with `pnpm eval:retrieval --policies kv_records_breadcrumbs --models google/gemini-embedding-2 --briefings s2docs --briefing-text both --pool all --hybrid --rerank jev-choice --rerank-pool 30`, exact recall@10 paired per query against the same 30-list unreranked:
