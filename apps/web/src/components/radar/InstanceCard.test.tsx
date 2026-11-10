@@ -107,4 +107,9 @@ describe("InstanceCard on-chain marks", () => {
     expect(screen.getByText("Both sign.")).toBeInTheDocument();
     expect(container.textContent).not.toContain("| Entity |");
   });
+  it("states the value a param's sentence names, keeping the sentence on hover", () => {
+    const sentence = "The maximum allocation for this Instance is 20,000,000 USD.";
+    render(<InstanceCard inst={{ ...inst, signalParams: [{ key: "Maximum Allocation", value: sentence, srcDocId: "inst-doc" }] }} />);
+    expect(screen.getByText("20,000,000 USD")).toHaveAttribute("title", sentence);
+  });
 });

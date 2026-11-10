@@ -94,9 +94,11 @@ interface ParamLineProps {
   indent?: boolean;
   /** Hover text for the key: the sentence a param's holder table follows. */
   keyTitle?: string;
+  /** Hover text for the value: the full sentence a shown gist was read from (paramGist.ts). */
+  valueTitle?: string;
 }
 
-export function ParamLine({ p, colWidth, instanceHint, mark = null, markCol = false, indent = false, keyTitle }: ParamLineProps) {
+export function ParamLine({ p, colWidth, instanceHint, mark = null, markCol = false, indent = false, keyTitle, valueTitle }: ParamLineProps) {
   return (
     <div className="group relative flex py-0.5 px-1 -mx-1 items-baseline rounded hover:bg-[var(--row-hover)]">
       <span className={`mono text-[10px] shrink-0${indent ? " pl-4" : ""}`} style={{ color: "var(--tan-3)" }} title={keyTitle}>
@@ -107,6 +109,7 @@ export function ParamLine({ p, colWidth, instanceHint, mark = null, markCol = fa
       <span
         className={`mono text-[10px] shrink-0 text-right leading-relaxed${isInteractive(p.value) ? " relative z-10" : ""}`}
         style={{ maxWidth: `calc(100% - ${colWidth}px)`, wordBreak: "break-word", color: "var(--tan-2)" }}
+        title={valueTitle}
       >
         {/* Param key first: it's the more specific signal (e.g. "Token Address
             (Avalanche)" on an instance whose name says "Ethereum Mainnet - …"

@@ -40,7 +40,7 @@
 - Marked an on-chain value with a grey clock instead of ✗ while the spell its Atlas pull request names, or the Atlas update recording a spell, is still coming
 - Showed who can change each differing rate limit, and whether the Operator can reach the Atlas value without a spell
 - Compared Keel's Solana rate limits with the Atlas, and flagged Atlas-named relayers that are suspended on chain
-- Listed each holder of a role on instance cards as its own name and address, instead of one block of text
+- Tidied instance cards: each holder of a role on its own line, and a value stated in a sentence shown as just the value, with the sentence on hover
 
 ## 2026-11-09
 
