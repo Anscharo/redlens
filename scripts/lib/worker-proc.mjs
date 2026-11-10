@@ -21,9 +21,8 @@ export function setRunDeadline(atMs) {
   deadlineAt = atMs;
 }
 
-/** Runs a command to completion; throws on a non-zero exit, or when the run deadline kills it. */
-export function run(cmd, args, opts = {}) {
-  console.log(`$ ${cmd} ${args.join(" ")}`);
+/** execFileSync with the time left before the run deadline as its timeout; a child still running then is killed. */
+function execBeforeDeadline(cmd, args, opts) {
   const timeout = deadlineAt === null ? undefined : Math.max(1000, deadlineAt - Date.now());
   try {
     execFileSync(cmd, args, { stdio: "inherit", cwd: ROOT, timeout, killSignal: "SIGKILL", ...opts });
@@ -31,6 +30,12 @@ export function run(cmd, args, opts = {}) {
     if (e?.code === "ETIMEDOUT") throw new Error(`${cmd} ${args.join(" ")} killed at the run deadline`);
     throw e;
   }
+}
+
+/** Runs a command to completion; throws on a non-zero exit, or when the run deadline kills it. */
+export function run(cmd, args, opts = {}) {
+  console.log(`$ ${cmd} ${args.join(" ")}`);
+  execBeforeDeadline(cmd, args, opts);
 }
 
 /** Spawns a command; resolves on exit 0, rejects on any other exit or a spawn error. */
