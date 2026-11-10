@@ -34,12 +34,13 @@ describe("pollStep", () => {
 });
 
 describe("onchainStep through polls", () => {
-  it("takes the PR's polls over the dates it names, and says nothing for a PR that only links a thread", () => {
+  it("takes the PR's polls over the dates it names, even before the PR record is read, and says nothing for a PR that only links a thread", () => {
     const x = exec("2026-11-05", true, "2026-11-07");
     const links = { pollsByPr: new Map([[363, [poll("0xp")]]]), snapshots: new Map([["0xp", [x]]]), executives: [x] };
     expect(onchainStep(check("mismatch"), [edit("2026-10-29", ["thread:2026-11-05"])], ctx("2026-11-20", links))?.kind).toBe("executed");
     expect(onchainStep(check("mismatch"), [edit("2026-10-29", ["thread:2026-11-05"])], ctx("2026-11-20", { executives: [x] }))).toBeNull();
     expect(onchainStep(check("mismatch"), [edit("2026-10-29", [])], ctx("2026-11-20", { pollsByPr: undefined }))).toBeNull();
+    expect(onchainStep(check("mismatch"), [edit("2026-10-29")], ctx("2026-11-20", links))?.kind).toBe("executed");
     const unknown = { pollsByPr: new Map([[363, [poll("0xp", { threadDate: null })]]]) };
     expect(onchainStep(check("mismatch"), [edit("2026-10-29", [])], ctx("2026-11-20", unknown))).toBeNull();
   });

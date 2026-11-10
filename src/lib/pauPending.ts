@@ -130,16 +130,17 @@ function linkedStep(c: ValueCheck, base: Omit<Named, "date">, spells: readonly s
  * The step for a value the chain does not hold, from its document's history.
  * A linked spell that set the key comes first; then, where the chain set the
  * key after the atlas last wrote the value, who made that change; else
- * the spell the writing change is linked to. Null when the writing change
- * cannot be told apart, its PR or the polls are not read yet, or its PR links
- * only a forum thread (whose items can belong to different spells).
+ * the spell the writing change is linked to: through its PR's poll even while
+ * the PR's own record is unread. Null when the writing change cannot be told
+ * apart, neither a poll nor the PR record links it yet, or its PR links only a
+ * forum thread (whose items can belong to different spells).
  */
 export function onchainStep(c: ValueCheck, entries: readonly HistoryEntry[], ctx: PendingContext): OnchainStep | null {
   const change = valueChange(entries, c.stated);
   if (!change) return null;
   const base = { atlasChanged: change.entry.date.slice(0, 10), at: change.entry.date, pr: change.entry.pr ?? null };
   const spells = change.exact ? change.entry.spells : undefined;
-  const linked = spells ? linkedStep(c, base, spells, ctx) : null;
+  const linked = change.exact ? linkedStep(c, base, spells ?? [], ctx) : null;
   if (linked?.kind === "set") return linked;
   if (moveOrder(c.limit?.setAt.time, change.entry.date) === "chain") return chainLedStep(c, entries, ctx);
   const polled = base.pr != null && !!ctx.pollsByPr?.get(base.pr)?.length;
