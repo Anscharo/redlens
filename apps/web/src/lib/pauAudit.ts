@@ -3,10 +3,11 @@ import { checkAtlasValues } from "@/lib/pauAtlasValues";
 import { graphPrimeSources } from "@/lib/pauDocSources";
 import type { LimitDocs } from "@/lib/pauLimitDocs";
 import { loadHistoryBatch } from "@/lib/history";
+import { EMPTY_PAU_HISTORY } from "@/lib/pauHistory";
 import type { GraphData } from "@/lib/graphData";
 import { loadAtlas } from "./docs";
 import { loadGraph } from "./graph";
-import { loadPau, snapshotsForPrime, type PauResponse } from "./pau";
+import { loadPau, loadPauHistory, snapshotsForPrime, type PauResponse } from "./pau";
 import { loadVoteIndex } from "./votes";
 
 export * from "@/lib/pauAudit";
@@ -51,16 +52,17 @@ const loadBase = once(async () => {
 
 /**
  * The PAU values audit rows (pauAuditIndex.ts), built once per page load from
- * the graph, GET /api/pau, the vote record and the history of every document
- * stating a disagreement or a limit never set. A failed history read leaves
- * those disagreements undated (ambiguous), never guessed, and a missing vote
- * record leaves every spell unknown; no snapshots yet is asked again.
+ * the graph, GET /api/pau, the PAU change history, the vote record and the
+ * history of every document stating a disagreement or a limit never set. A
+ * failed history read leaves those disagreements undated (ambiguous), never
+ * guessed, and a failed PAU history or vote record read leaves the on-chain
+ * step unknown; no snapshots yet is asked again.
  */
 export const loadPauAudit = once(async () => {
   const base = await loadBase();
-  const [history, votes] = await Promise.all([loadHistoryBatch(docsToDate(base.primes)), loadVoteIndex()]);
+  const [history, votes, pau] = await Promise.all([loadHistoryBatch(docsToDate(base.primes)), loadVoteIndex(), loadPauHistory()]);
   const today = new Date().toISOString().slice(0, 10);
-  return { value: buildPauAudit({ ...base, history, votes: { executives: votes?.executives ?? [], today } }), keep: base.snaps.length > 0 };
+  return { value: buildPauAudit({ ...base, history, votes: { executives: votes?.executives ?? [], pau, today } }), keep: base.snaps.length > 0 };
 });
 
 /**
@@ -69,5 +71,5 @@ export const loadPauAudit = once(async () => {
  * in does, so these rows' groups are not to be shown.
  */
 export async function loadPauAuditItems(): Promise<AuditRow[]> {
-  return buildPauAudit({ ...(await loadBase()), history: new Map(), votes: { executives: [], today: "" } });
+  return buildPauAudit({ ...(await loadBase()), history: new Map(), votes: { executives: [], pau: EMPTY_PAU_HISTORY, today: "" } });
 }

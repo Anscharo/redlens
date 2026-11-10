@@ -3,6 +3,8 @@
 import { AtlasLink } from "../AtlasLink";
 import { Address } from "../Address";
 import { atlasHref } from "@/lib/routes";
+import { stepHref, stepText } from "@/lib/pauStepText";
+import { sentence } from "../../lib/rowMark";
 import type { ReportQuery } from "@/lib/reportFilter";
 import { AUDIT_GROUPS, auditItemCount, type AuditRow } from "../../lib/pauAudit";
 import { Highlight } from "./Highlight";
@@ -11,13 +13,14 @@ const dim = { color: "var(--tan-3)" };
 const chainLabel = (r: AuditRow) => [r.chain.charAt(0).toUpperCase() + r.chain.slice(1), r.kind].filter(Boolean).join(" · ");
 const dates = (r: AuditRow) => [r.chainSetAt && `chain set ${r.chainSetAt}`, r.atlasChangedAt && `atlas changed ${r.atlasChangedAt}`].filter(Boolean).join(" · ");
 
-/** The executive a row's placing rests on, linked to vote.sky.money, and whether it is cast. */
-function SpellLine({ r }: { r: AuditRow }) {
-  if (!r.spell) return null;
+/** What a row's placing rests on (src/lib/pauStepText.ts), linked to the transaction or the executive that shows it. */
+function StepLine({ r }: { r: AuditRow }) {
+  if (!r.step) return null;
+  const link = stepHref(r.step);
+  const text = sentence(stepText(r.step));
   return (
     <div className="mono text-[11px]" style={dim}>
-      {r.spellPending ? "expected in " : "executed without it: "}
-      <a href={r.spell.url} target="_blank" rel="noopener" className="hover:underline">{r.spell.title}</a> ({r.spell.date}){r.spellPending ? ", not yet cast" : ""}
+      {link ? <a href={link} target="_blank" rel="noopener" className="hover:underline">{text}</a> : text}
     </div>
   );
 }
@@ -40,7 +43,7 @@ function AuditRowView({ r, rq, docNo }: { r: AuditRow; rq: ReportQuery; docNo: s
       <td className="py-2 pr-3 align-top">
         <Highlight text={r.note} rq={rq} />
         {dates(r) && <div className="mono text-[11px]" style={dim}>{dates(r)}</div>}
-        <SpellLine r={r} />
+        <StepLine r={r} />
       </td>
       <td className="py-2 align-top mono text-[11px]">
         {r.docId ? <AtlasLink to={atlasHref(r.docId)} className="text-accent hover:underline"><Highlight text={docNo || "Atlas doc"} rq={rq} /></AtlasLink> : <span style={dim}>no Atlas document</span>}

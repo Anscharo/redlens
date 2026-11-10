@@ -8,7 +8,8 @@ import { explorerTxUrl } from "@/lib/explorer";
 import { checkAtlasValues, type ValueCheck } from "@/lib/pauAtlasValues";
 import type { DocValueSources } from "@/lib/pauDocSources";
 import { loadPau, unitNote } from "../../lib/pau";
-import { contractValue, isCompared, pendingSummary, VALUE_STATUS as STATUS } from "../../lib/valueStatus";
+import { pendingSummary } from "@/lib/pauStepText";
+import { contractValue, isCompared, VALUE_STATUS as STATUS } from "../../lib/valueStatus";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { usePendingChecks } from "../../hooks/usePendingChecks";
 import { ClockGlyph } from "../ClockGlyph";
@@ -22,7 +23,7 @@ export function useAtlasVsContract(id: string, src: DocValueSources | null | und
     if (!res || !src) return [];
     return checkAtlasValues(src.sources, snaps).filter((c) => c.docId === id || c.instanceDocId === id || src.children.includes(c.docId));
   }, [res, src, snaps, id]);
-  return usePendingChecks(rows, snaps[0]?.primeName ?? null);
+  return usePendingChecks(rows, snaps);
 }
 
 /** The status cell's mark, its words and its colour: amber only for a mismatch the chain is not expected to catch up on. */

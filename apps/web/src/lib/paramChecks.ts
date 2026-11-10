@@ -10,6 +10,7 @@ import { isOff } from "@/lib/pauLimitOrder";
 import { isUnstated } from "@/lib/plainCheck";
 import { heldKeyId, sentence, type RowMark, type TipLine } from "./rowMark";
 import { allPending } from "@/lib/pauPending";
+import { pendingStepText } from "@/lib/pauStepText";
 import { contractValue, fieldValue, isCompared, VALUE_STATUS } from "./valueStatus";
 
 export type ParamChecks = ReadonlyMap<string, ValueCheck[]>;
@@ -85,11 +86,10 @@ function checkLines(checks: ValueCheck[]): TipLine[] {
   });
 }
 
-/** A pending row's lines: when the atlas changed, the executive expected to carry it, and until when the chain may lag. */
+/** A pending row's lines: when the atlas changed, what the chain is waiting on (src/lib/pauStepText.ts), and until when it may lag. */
 function pendingLines(checks: ValueCheck[]): TipLine[] {
   const p = checks.find((c) => c.pending)!.pending!;
-  const spell: TipLine[] = p.spell ? [{ label: "Spell", value: `${p.spell.title} (${p.spell.date}, not yet cast)` }] : [];
-  return [{ label: "Atlas changed", value: p.atlasChanged }, ...spell, { label: "Expected by", value: p.expectedBy }];
+  return [{ label: "Atlas changed", value: p.atlasChanged }, { text: sentence(pendingStepText(p.step, p.route)) }, { label: "Expected by", value: p.expectedBy }];
 }
 
 /** A maxAmount or slope row's mark: the verdict over its checks, each deployment's value, and the atlas's on a mismatch. */

@@ -30,7 +30,7 @@ const snap: StoredPauSnapshot = {
 const claims = [{ prime: null, chain: "arbitrum", role: "beacon" as const, address: "0xb", docs: ["e1", "e2"], reason: "It is the Governance Relay." }];
 const edit = (date: string) => [{ date, commitHash: date, changeType: "modified" as const, changeKind: "semantic" as const }];
 const history = new Map([["d1", edit("2026-04-01")], ["d2", edit("2026-06-01")]]);
-const noVotes = { executives: [], today: "2026-11-10" };
+const noVotes = { executives: [], pau: { entries: [], queued: [] }, today: "2026-11-10" };
 const rows = buildPauAudit({ primes, snaps: [snap], claims, history, votes: noVotes });
 
 describe("buildPauAudit", () => {
@@ -50,16 +50,20 @@ describe("buildPauAudit", () => {
     expect(docsToDate(primes)).toEqual(["d1", "d2"]);
     expect(docsToDate([{ primeId: "p", prime: "Spark", checks: [check("d5", "not-set")] }])).toEqual(["d5"]);
   });
-  it("never says a spell may not have executed where one naming the prime executed since without the change", () => {
-    const exec = (date: string, cast: boolean, text = "spark spell") => ({ date, title: `Executive ${date}`, url: `https://vote/${date}`, outOfSchedule: false, cast, spell: null, text });
-    const spells = (...executives: ReturnType<typeof exec>[]) => buildPauAudit({ primes, snaps: [], claims: [], history, votes: { executives, today: "2026-11-10" } }).filter((r) => r.docId === "d2");
-    const executed = spells(exec("2026-06-11", true), exec("2026-07-09", true), exec("2026-08-06", true, "grove spell"));
-    expect(executed.map((r) => [r.group, r.reason])).toEqual([["spell-executed", "spell-executed"], ["spell-executed", "spell-executed"]]);
-    expect(executed[0]).toMatchObject({ spell: { title: "Executive 2026-07-09", date: "2026-07-09" }, spellPending: false });
-    const expected = spells(exec("2026-06-11", true), exec("2026-11-12", false));
-    expect(expected.map((r) => r.reason)).toEqual(["atlas-newer", "atlas-newer"]);
-    expect(expected[0]).toMatchObject({ spell: { title: "Executive 2026-11-12" }, spellPending: true });
-    expect(spells(exec("2026-05-01", true)).map((r) => [r.reason, r.spell])).toEqual([["atlas-newer", null], ["atlas-newer", null]]);
+  it("never says a spell may not have executed where the PAU history shows one changed the deployment since without the change", () => {
+    const entry = (execDate: string) => ({
+      chain: "ethereum", tx: `0x${execDate}`, block: 1, time: `${execDate}T12:00:00Z`, primes: ["p"],
+      origin: { kind: "spell" as const, path: "starguard" as const, spell: "0xs", starSpell: null, l1Tx: null, from: null, to: null, relay: null, evidence: "e" },
+      executive: { title: `Executive ${execDate}`, date: execDate, url: null, source: "vote-record" as const },
+      changes: [{ deployments: ["p:ethereum:diamond"], contract: "0xc", role: "rateLimits", event: "RateLimitDataSet", args: {}, subject: "0xother", label: null, before: null }],
+    });
+    const dsnap = { ...snap, deployment: "p:ethereum:diamond", chain: "ethereum", kind: "diamond" as const };
+    const audit = (entries: ReturnType<typeof entry>[]) =>
+      buildPauAudit({ primes, snaps: [dsnap], claims: [], history, votes: { executives: [], pau: { entries, queued: [] }, today: "2026-11-10" } }).filter((r) => r.docId === "d2");
+    const executed = audit([entry("2026-06-11"), entry("2026-07-09")]);
+    expect(executed.map((r) => [r.kind, r.group, r.reason])).toEqual([["monolithic", "spell", "atlas-newer"], ["diamond", "spell-executed", "spell-executed"]]);
+    expect(executed[1].step).toMatchObject({ kind: "executed", spell: { title: "Executive 2026-07-09" } });
+    expect(audit([entry("2026-06-11")]).map((r) => r.reason)).toEqual(["atlas-newer", "atlas-newer"]);
   });
 });
 

@@ -1,137 +1,122 @@
-// Whether a disagreement between the atlas and the chain is only the on-chain
-// step still to come, or a step a spell has already passed by. Governance runs
-// vote → atlas edit → spell, so for a while after the atlas changes a value the
-// chain still holds the old one. When the atlas wrote the stated value after
-// the chain last set the key, the change is pending while an executive not yet
-// cast, filed on or after that edit, names the prime (the spell expected to
-// carry it), or while the edit is younger than PENDING_DAYS. Past both, an
-// executive naming the prime that has been cast since says a spell executed
-// without the change; with none, nothing is known about the spell. Pure.
-import type { DiffLine, HistoryEntry } from "./history.ts";
+// Whether a disagreement between the atlas and the chain is the on-chain step
+// still to come, or one governance has already passed by. Governance runs
+// vote → atlas edit → on-chain change, so for a while after the atlas changes
+// a value the chain still holds the old one. When the atlas wrote the value
+// after the chain last set the key, the PAU history decides
+// (pauPendingEvidence.ts):
+//   - pending while a governance step that can reach the deployment is queued
+//     (an action set on its Executor, a star spell on the prime's StarGuard),
+//     an executive naming the prime is not yet cast, or the change is younger
+//     than the route's expected delay;
+//   - else "executed" when governance has changed the deployment since (a spell,
+//     or a relayed action set whose spell is not proven yet), dated late enough
+//     to have carried the change, and the key is still as it was. Never for a
+//     key the Operator may set without a spell.
+// With neither, nothing is known about the on-chain step. Pure.
+import type { HistoryEntry } from "./history.ts";
+import type { StoredPauSnapshot } from "./pau.ts";
 import type { ValueCheck } from "./pauAtlasValues.ts";
-import { lastContentChange, switchedOffSlope } from "./pauAudit.ts";
+import { switchedOffSlope } from "./pauAudit.ts";
+import type { PauHistoryResponse } from "./pauHistory.ts";
+import { deploymentsOf, landingLag, queuedFor, routeOf, spellSince, type Route } from "./pauPendingEvidence.ts";
+import { escapeRegExp, valueChangedAt } from "./pauValueDate.ts";
 import { addDays, type IndexedExecutive } from "./votes/vote-index.ts";
 
-/**
- * How long after an atlas edit the chain may still lag it. Executive Votes run
- * about every two weeks (de178e9a, A.1.11.1.4.1), and a Prime Agent submits its
- * spell items by Monday of week 0 for the vote that cycle builds
- * (20ff0ea2, A.1.10.2.3.2.2.3.1.1), so an edit that just misses one cycle's
- * submission lands in the next: two cycles.
- */
-export const PENDING_DAYS = 28;
-/** An executive not cast this many days after its filing date has expired. */
+export type { Route };
+
+/** Executive Votes run about every two weeks (de178e9a, A.1.11.1.4.1): an edit that just misses one cycle waits for the next. */
+export const CYCLE_DAYS = 14;
+/** From a cycle's Prime Spell Form, due Monday of week 0 (20ff0ea2, A.1.10.2.3.2.2.3.1.1), to its Executive Vote in week 2 (0dbdbcca, A.1.10.2.3.2.2.3.3.7), a Thursday. */
+export const SPELL_LEAD_DAYS = 17;
+/** An executive not cast this many days after its date has expired. */
 export const SPELL_EXPIRY_DAYS = 30;
+/** How long past its execution time a queued action set is still taken as coming; the Executor's own grace period is not read. */
+export const ACTION_SET_SLACK_DAYS = 7;
+
+/** An executive as the history or the vote record names it; title, date and url are null for a spell older than every record. */
+export interface SpellRef {
+  title: string | null;
+  date: string | null;
+  url: string | null;
+}
+
+/** What the change is waiting on, strongest evidence first. */
+export type PendingStep =
+  | { kind: "queued"; chain: string; tx: string; at: string | null }
+  | { kind: "plotted"; starSpell: string; tx: string; at: string | null }
+  | { kind: "uncast"; spell: SpellRef }
+  | { kind: "window" };
 
 export interface PendingOnchain {
   /** When the atlas last wrote the stated value, YYYY-MM-DD. */
   atlasChanged: string;
   /** The last day the chain is expected to still lag; after it the mismatch stands. */
   expectedBy: string;
-  /** The executive expected to carry the change: not yet cast, filed on or after the edit, naming the prime. */
-  spell: SpellRef | null;
+  route: Route;
+  step: PendingStep;
 }
 
-/** An executive as a pending or executed spell names it. */
-export interface SpellRef {
-  title: string;
-  date: string;
-  url: string;
-}
-
-/**
- * What the vote record says about a change the chain does not hold yet:
- * "pending", still expected; "executed", a spell naming the prime was cast
- * since the edit and past the expected delay, without the change.
- */
-export type SpellState = { kind: "pending"; pending: PendingOnchain } | { kind: "executed"; spell: SpellRef };
+/** "executed": governance changed the deployment since without the change: a spell, or `actionsSet`, an action set relayed whose spell is not proven yet. */
+export type OnchainStep = { kind: "pending"; pending: PendingOnchain } | { kind: "executed"; spell: SpellRef; chain: string; tx: string; actionsSet?: number };
 
 export interface PendingContext {
+  /** The vote record's executives, for one not yet cast. */
   executives: readonly IndexedExecutive[];
+  pau: PauHistoryResponse;
+  /** The prime's snapshots. */
+  snaps: readonly StoredPauSnapshot[];
   /** The prime's name, as executives name it ("Spark"); null when not known. */
   prime: string | null;
   /** Today, YYYY-MM-DD. */
   today: string;
 }
 
-const CONTENT = new Set(["added", "modified"]);
-const norm = (s: string) => s.replace(/\s+/g, " ").toLowerCase();
-const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-/** The stated text as a whole value: not a digit run's middle ("0" is not in "20,000"). */
-const valuePattern = (stated: string) => new RegExp(`(?<![\\w.,])${escape(norm(stated))}(?![\\w]|[.,]\\d)`);
-
-/** One side of a diff: the lines an edit added ("+") or removed ("-"), a word-level line rebuilt for that side. */
-function sideLines(diff: DiffLine[], keep: "+" | "-"): string[] {
-  return diff.flatMap((l) => {
-    if (l[0] === "~") return [l[1].filter(([k]) => k === "=" || k === keep).map(([, t]) => t).join("")];
-    return l[0] === keep ? [l[1]] : [];
-  });
-}
-
-/** Whether an edit wrote the stated text: a line it added holds it and no line it removed did. */
-function writes(diff: DiffLine[], stated: string): boolean {
-  const re = valuePattern(stated);
-  const has = (lines: string[]) => lines.some((t) => re.test(norm(t)));
-  return has(sideLines(diff, "+")) && !has(sideLines(diff, "-"));
-}
-
-/**
- * When the document last wrote the stated value, YYYY-MM-DD: its newest content
- * change whose diff adds the value, or that carries no diff to tell by. An edit
- * whose diff leaves the value alone is passed over. Where no diff is found to
- * write it (the atlas writes it differently from the parsed value), the
- * document's last content change stands in; null when it has none.
- */
-export function valueChangedAt(entries: readonly HistoryEntry[], stated: string): string | null {
-  const content = entries.filter((e) => CONTENT.has(e.changeType) && e.changeKind !== "lint" && e.changeKind !== "typo" && e.date);
-  const newest = [...content].sort((a, b) => b.date.localeCompare(a.date));
-  return newest.find((e) => !e.diff?.length || writes(e.diff, stated))?.date.slice(0, 10) ?? lastContentChange(entries);
-}
-
-const ref = (e: IndexedExecutive): SpellRef => ({ title: e.title, date: e.date, url: e.url });
-const namesPrime = (prime: string) => new RegExp(`\\b${escape(prime.toLowerCase())}\\b`);
-
-/** The first executive not yet cast, filed on or after `since`, whose text names the prime. */
+/** The first executive not yet cast, dated on or after `since`, whose text names the prime. */
 export function nextSpell(executives: readonly IndexedExecutive[], since: string, prime: string | null): IndexedExecutive | null {
   if (!prime) return null;
-  const names = namesPrime(prime);
+  const names = new RegExp(`\\b${escapeRegExp(prime.toLowerCase())}\\b`);
   return executives.find((e) => !e.cast && e.date >= since && names.test(e.text)) ?? null;
 }
 
-/** The latest executive already cast, filed on or after `since`, whose text names the prime. */
-export function lastCastSpell(executives: readonly IndexedExecutive[], since: string, prime: string | null): IndexedExecutive | null {
-  if (!prime) return null;
-  const names = namesPrime(prime);
-  return executives.filter((e) => e.cast && e.date >= since && names.test(e.text)).at(-1) ?? null;
-}
+const day = (iso: string | null, fallback: string) => (iso ?? fallback).slice(0, 10);
 
-/** The change's pending step: while the window runs, or the spell expected to carry it is not cast or expired. */
-function pendingSince(atlasChanged: string, ctx: PendingContext): PendingOnchain | null {
+/** Every step the change could be waiting on, each with the last day it is expected by, strongest first. */
+function candidates(c: ValueCheck, atlasChanged: string, deps: StoredPauSnapshot[], ctx: PendingContext): { step: PendingStep; until: string }[] {
+  const lag = landingLag(ctx.pau.entries, c.chain);
+  const queued = queuedFor(ctx.pau.queued ?? [], deps, atlasChanged).map((q) =>
+    q.kind === "action-set"
+      ? { step: { kind: "queued" as const, chain: q.chain, tx: q.tx, at: q.at }, until: addDays(day(q.at, q.time), ACTION_SET_SLACK_DAYS) }
+      : { step: { kind: "plotted" as const, starSpell: q.id, tx: q.tx, at: q.at }, until: q.at ? day(q.at, q.time) : addDays(day(null, q.time), SPELL_EXPIRY_DAYS) },
+  );
   const spell = nextSpell(ctx.executives, atlasChanged, ctx.prime);
-  const byWindow = addDays(atlasChanged, PENDING_DAYS);
-  const bySpell = spell ? addDays(spell.date, SPELL_EXPIRY_DAYS) : "";
-  const expectedBy = bySpell > byWindow ? bySpell : byWindow;
-  return ctx.today > expectedBy ? null : { atlasChanged, expectedBy, spell: spell && ref(spell) };
+  const uncast = spell ? [{ step: { kind: "uncast" as const, spell: { title: spell.title, date: spell.date, url: spell.url } }, until: addDays(spell.date, SPELL_EXPIRY_DAYS + lag) }] : [];
+  return [...queued, ...uncast, { step: { kind: "window" }, until: addDays(atlasChanged, CYCLE_DAYS + SPELL_LEAD_DAYS + lag) }];
 }
 
 /**
- * What the vote record says of an atlas change the chain lacks, given when the
- * chain last set the key (null: never). Null when the chain moved on or after
- * the change, the change is not dated, or the record says nothing either way.
+ * What the record says of an atlas change the chain lacks, for one check. Null
+ * when the chain set the key on or after the change, the change is not dated,
+ * or nothing is known either way.
  */
-export function spellState(atlasChanged: string | null, chainSet: string | null, ctx: PendingContext): SpellState | null {
+export function onchainStep(c: ValueCheck, atlasChanged: string | null, ctx: PendingContext): OnchainStep | null {
+  const chainSet = c.limit?.setAt.time.slice(0, 10) ?? null;
   if (!atlasChanged || (chainSet && chainSet >= atlasChanged)) return null;
-  const pending = pendingSince(atlasChanged, ctx);
-  if (pending) return { kind: "pending", pending };
-  const cast = lastCastSpell(ctx.executives, atlasChanged, ctx.prime);
-  return cast ? { kind: "executed", spell: ref(cast) } : null;
+  const deps = deploymentsOf(c, ctx.snaps);
+  const route = routeOf(c, deps);
+  const live = candidates(c, atlasChanged, deps, ctx).find((x) => ctx.today <= x.until);
+  if (live) return { kind: "pending", pending: { atlasChanged, expectedBy: live.until, route, step: live.step } };
+  if (route === "operator") return null;
+  const e = spellSince(ctx.pau.entries, deps, addDays(atlasChanged, SPELL_LEAD_DAYS));
+  if (!e) return null;
+  const relayed = e.origin?.kind === "relayed" && e.origin.relay ? { actionsSet: e.origin.relay.actionsSet } : {};
+  return { kind: "executed", spell: { title: e.executive?.title ?? null, date: e.executive?.date ?? null, url: e.executive?.url ?? null }, chain: e.chain, tx: e.tx, ...relayed };
 }
 
 /** A mismatch's pending on-chain step, or null when the chain is not waiting on the atlas or is past due. */
 export function pendingFor(c: ValueCheck, all: ValueCheck[], atlasChanged: string | null, ctx: PendingContext): PendingOnchain | null {
   if (c.status !== "mismatch" || !c.limit || switchedOffSlope(c, all)) return null;
-  const state = spellState(atlasChanged, c.limit.setAt.time.slice(0, 10), ctx);
-  return state?.kind === "pending" ? state.pending : null;
+  const step = onchainStep(c, atlasChanged, ctx);
+  return step?.kind === "pending" ? step.pending : null;
 }
 
 /** The documents whose history places a mismatch: those stating one. */

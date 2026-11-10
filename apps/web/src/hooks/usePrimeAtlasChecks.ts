@@ -24,7 +24,7 @@ export function usePrimeAtlasChecks(primeId: string | undefined, snaps: StoredPa
     const sources = primeId ? graphPrimeSources(primeId, graph, atlas ?? undefined) : null;
     return sources ? checkAtlasValues(sources, snaps) : [];
   }, [graph, atlas, primeId, snaps]);
-  return usePendingChecks(checks, snaps[0]?.primeName ?? null);
+  return usePendingChecks(checks, snaps);
 }
 
 /** Every key the snapshots hold, by chain and key. */

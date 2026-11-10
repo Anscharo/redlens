@@ -54,7 +54,7 @@ describe("paramMark", () => {
 });
 
 describe("paramMark pending", () => {
-  const pending = { atlasChanged: "2026-10-20", expectedBy: "2026-11-17", spell: null };
+  const pending = { atlasChanged: "2026-10-20", expectedBy: "2026-11-17", route: "relayed" as const, step: { kind: "window" as const } };
   it("reads as pending only when every certain difference is pending", () => {
     expect(paramMark([check({ status: "mismatch", pending }), check({ status: "match" })])).toBe("pending");
     expect(paramMark([check({ status: "mismatch", pending }), check({ status: "mismatch" })])).toBe("mismatch");

@@ -2,7 +2,8 @@
 // change, one entry per transaction, with its origin (origin.ts) and, for a
 // spell, its executive. Titles come from the vote record (votes.json) and, for
 // spells older than it, from the verified executive archive (vote-archive.ts);
-// a spell in neither keeps its address alone.
+// a spell in neither keeps its address alone. `queued` lists the governance
+// steps scheduled and not yet run (history-queued.ts).
 import type { ExecutiveRef, PauHistoryResponse, PauOrigin } from "../../lib/pauHistory.ts";
 import type { PauRegistry } from "../../lib/pauRegistry.ts";
 import registry from "../../data/pau-registry.json" with { type: "json" };
@@ -12,6 +13,7 @@ import type { SqlTag } from "../sql-types.ts";
 import { loadVoteIndexFromDisk } from "../votes.ts";
 import { ARCHIVE_BLOB } from "./vote-archive.ts";
 import { buildEntries, ownersOf, type EventRow } from "./history-entries.ts";
+import { queuedSteps } from "./history-queued.ts";
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v));
 const parse = (v: unknown) => (typeof v === "string" ? JSON.parse(v) : v);
@@ -49,7 +51,8 @@ async function executives(db: SqlTag, votes: VoteRecord): Promise<(spell: string
 /** Every change to a prime's PAU; changes to shared contracts alone (a Beacon's setup) belong to no prime's history. */
 export async function readPauHistory(db: SqlTag = sql, votes: VoteRecord = loadVoteIndexFromDisk, reg = registry as PauRegistry): Promise<PauHistoryResponse> {
   const [rows, origins, executiveOf] = await Promise.all([eventRows(db), originRows(db), executives(db, votes)]);
-  return { entries: buildEntries(rows, ownersOf(reg), origins, executiveOf).filter((e) => e.primes.length > 0) };
+  const owners = ownersOf(reg);
+  return { entries: buildEntries(rows, owners, origins, executiveOf).filter((e) => e.primes.length > 0), queued: queuedSteps(rows, owners) };
 }
 
 const HEADERS = { "Cache-Control": "public, max-age=300", Vary: "Accept-Encoding" };
