@@ -3,7 +3,7 @@
 // values audit and its CSV, so each says the same thing, naming the pull
 // request and the spell it links. Pure.
 import { explorerTxUrl } from "./explorer.ts";
-import type { Named, OnchainStep, PendingOnchain, PendingStep, SpellRef } from "./pauPending.ts";
+import type { ChainChange, Named, OnchainStep, PendingOnchain, PendingStep, SpellRef } from "./pauPending.ts";
 
 const chainName = (chain: string) => chain.charAt(0).toUpperCase() + chain.slice(1);
 const when = (iso: string | null) => (iso ? iso.slice(0, 16).replace("T", " ") + " UTC" : "a time not read");
@@ -32,25 +32,49 @@ export function pendingStepText(step: PendingStep): string {
 /** A pending change in one sentence: the link from the atlas to the spell, what the chain is waiting on, and until when. */
 export const pendingSummary = (p: PendingOnchain): string => `on-chain update pending: ${namedText(p)}; ${pendingStepText(p.step)}; expected by ${p.expectedBy}`;
 
+/** Who made a chain change the atlas has not recorded, and when. */
+function changeText(ch: ChainChange): string {
+  const on = `on ${chainName(ch.chain)} on ${ch.setOn}`;
+  if (ch.by.kind === "operator") return `the Operator set this limit ${on}`;
+  if (ch.by.kind === "spell") return ch.by.spell ? `the ${ch.by.spell.date} spell set this limit ${on}` : `a spell set this limit ${on}`;
+  return `the chain set this limit ${on}`;
+}
+
+/** What a spell that ran did to the value: as an edit that recorded it (it had executed first), or as the spell carrying the edit. */
+const ranText = (step: Extract<OnchainStep, { kind: "set" | "executed" }>, what: string) =>
+  step.recorded ? `${namedText(step.named)}, which had already executed: the atlas records it, but it ${what}` : `${namedText(step.named)}, and ${spellName(step.spell)} ${what}`;
+
 /** A step as one clause. */
 export function stepText(step: OnchainStep): string {
   switch (step.kind) {
     case "pending":
       return `${namedText(step.pending)}; ${pendingStepText(step.pending.step)}; expected by ${step.pending.expectedBy}`;
     case "set":
-      return `${namedText(step.named)}, and ${spellName(step.spell)} set this limit on ${chainName(step.chain)}, to a value other than the atlas states`;
+      return ranText(step, `set this limit on ${chainName(step.chain)}, to a value other than the atlas states`);
     case "executed":
-      return `${namedText(step.named)}, and ${spellName(step.spell)} executed${step.executed ? ` on ${step.executed}` : ""} without setting this limit`;
+      return ranText(step, `executed${step.executed ? ` on ${step.executed}` : ""} without setting this limit`);
     case "lapsed":
       return step.spell ? `${namedText(step.named)}, and ${spellName(step.spell)} expired without being cast` : `${namedText(step.named)}, and the vote record has no executive for it`;
+    case "recording":
+      return `${changeText(step.change)}, after the atlas last wrote it; open atlas PR #${step.pr.number} names that spell and is still to merge`;
+    case "unrecorded":
+      return step.missedBy
+        ? `${changeText(step.change)}, and atlas PR #${step.missedBy.pr} (${step.missedBy.date}), which names that spell, changed this document but not this value`
+        : `${changeText(step.change)}, after the atlas last wrote it, and no open atlas PR names ${step.change.by.kind === "spell" ? "that spell" : "the change"}`;
     default:
       return `${prName(step.pr)} (${step.atlasChanged}), which wrote this value, names no spell`;
   }
 }
 
+/** A pending step in one sentence, either side: the on-chain update still coming, or the atlas update. */
+export const pendingText = (step: OnchainStep): string =>
+  step.kind === "pending" ? pendingSummary(step.pending) : step.kind === "recording" ? `atlas update pending: ${stepText(step)}` : stepText(step);
+
 /** Where a step can be checked: the transaction that set or queued it, else the executive's page; null where neither exists. */
 export function stepHref(step: OnchainStep): string | null {
   if (step.kind === "set") return explorerTxUrl(step.chain, step.tx);
+  if (step.kind === "recording") return step.pr.url;
+  if (step.kind === "unrecorded") return explorerTxUrl(step.change.chain, step.change.tx);
   if (step.kind === "pending") return step.pending.step.kind === "queued" ? explorerTxUrl(step.pending.step.chain, step.pending.step.tx) : step.pending.step.kind === "unfiled" ? null : step.pending.step.spell.url;
   if (step.kind === "executed") return step.spell.url;
   return step.kind === "lapsed" ? (step.spell?.url ?? null) : null;

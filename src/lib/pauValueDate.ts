@@ -37,15 +37,16 @@ const wrote = (e: HistoryEntry, stated: string) => (e.diff?.length ? writes(e.di
  * The change that last wrote the stated value: the document's newest content
  * change whose diff adds the value, or that added the document. Where none can
  * be shown to (no diff, or the atlas writes it differently from the parsed
- * value), the newest content change stands in, not exact; null when it has none.
+ * value), the newest content change stands in, not exact: the value was written
+ * on or before it, so a chain change on or after it is after the write too.
+ * Null when the document has no content change.
  */
 export function valueChange(entries: readonly HistoryEntry[], stated: string): ValueChange | null {
   const content = entries.filter((e) => CONTENT.has(e.changeType) && e.changeKind !== "lint" && e.changeKind !== "typo" && e.date);
   const newest = [...content].sort((a, b) => b.date.localeCompare(a.date));
   const exact = newest.find((e) => wrote(e, stated));
   if (exact) return { entry: exact, exact: true };
-  const stand = newest.find((e) => !e.diff?.length) ?? newest[0];
-  return stand ? { entry: stand, exact: false } : null;
+  return newest[0] ? { entry: newest[0], exact: false } : null;
 }
 
 /** When the document last wrote the stated value, YYYY-MM-DD (`valueChange`); null when it has no content change. */

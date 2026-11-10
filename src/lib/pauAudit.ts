@@ -30,6 +30,8 @@ export const AUDIT_REASONS = {
   "spell-executed": { group: "spell-executed", text: "The spell the atlas change's pull request names has executed, and did not set this value." },
   "spell-lapsed": { group: "spell", text: "The spell the atlas change's pull request names never executed: its executive expired uncast, or the vote record has none for that date." },
   "spell-set-differently": { group: "ambiguous", text: "The spell the atlas change's pull request names set this limit, to a value other than the atlas states." },
+  "atlas-recorded-differently": { group: "atlas", text: "The atlas change records a spell that had already executed, and that spell set this limit to a value other than the atlas states." },
+  "atlas-recorded-unmade": { group: "atlas", text: "The atlas change records a spell that had already executed, and that spell did not set this value." },
   "operator-not-applied": { group: "spell", text: "The atlas changed the value after the chain last set it, its pull request names no spell, and the Operator may set this limit without one (BeamState holds a default for it) but has not." },
   "not-wired": { group: "spell", text: "The controller holds the CONTROLLER role on neither its ALM proxy nor its rate limits, so it cannot move funds." },
   "partly-wired": { group: "spell", text: "The controller holds the CONTROLLER role on only one of its ALM proxy and its rate limits." },
@@ -62,7 +64,7 @@ export function switchedOffSlope(c: ValueCheck, all: ValueCheck[]): boolean {
 
 /** A disagreement the atlas moved last, placed by what became of the spell its pull request names. */
 function atlasNewer(step: OnchainStep | null, operator: boolean): AuditReason {
-  if (step?.kind === "executed") return "spell-executed";
+  if (step?.kind === "executed") return step.recorded ? "atlas-recorded-unmade" : "spell-executed";
   if (step?.kind === "lapsed") return "spell-lapsed";
   return step?.kind === "unnamed" && operator ? "operator-not-applied" : "atlas-newer";
 }
@@ -75,11 +77,11 @@ function atlasNewer(step: OnchainStep | null, operator: boolean): AuditReason {
 export function checkReason(c: ValueCheck, all: ValueCheck[], dates: MoveDates, step: OnchainStep | null = null, operator = false): AuditReason | null {
   if (c.status === "mismatch") {
     if (switchedOffSlope(c, all)) return "switched-off-slope";
-    if (step?.kind === "set") return "spell-set-differently";
+    if (step?.kind === "set") return step.recorded ? "atlas-recorded-differently" : "spell-set-differently";
     const order = byOrder(dates);
     return order === "atlas-newer" ? atlasNewer(step, operator) : order;
   }
-  if (c.status === "not-set") return step?.kind === "executed" ? "spell-executed" : step?.kind === "lapsed" ? "spell-lapsed" : "not-set";
+  if (c.status === "not-set") return step?.kind === "executed" ? (step.recorded ? "atlas-recorded-unmade" : "spell-executed") : step?.kind === "lapsed" ? "spell-lapsed" : "not-set";
   if (c.status === "no-key") return "no-key";
   if (c.status === "ambiguous") return "several-keys";
   if (c.status === "units-unknown") return "units-unknown";

@@ -60,6 +60,8 @@ describe("buildPauAudit", () => {
     expect(executed.map((r) => [r.group, r.reason])).toEqual([["spell-executed", "spell-executed"], ["spell-executed", "spell-executed"]]);
     expect(executed[0].step).toMatchObject({ kind: "executed", named: { pr: 316, date: "2026-06-11" }, executed: "2026-06-12" });
     expect(audit([exec("2026-06-11", false)]).map((r) => r.reason)).toEqual(["spell-lapsed", "spell-lapsed"]);
+    const recordedAfter = audit([exec("2026-05-28", true, "2026-05-30", "0xs")].map((x) => ({ ...x, date: "2026-06-11" })));
+    expect(recordedAfter.map((r) => [r.group, r.reason])).toEqual([["atlas", "atlas-recorded-unmade"], ["atlas", "atlas-recorded-unmade"]]);
     const set: PauHistoryEntry = { chain: "ethereum", tx: "0xt", block: 1, time: "2026-06-12T00:00:00Z", primes: ["p"], executive: null,
       origin: { kind: "spell", path: "starguard", spell: "0xs", starSpell: null, l1Tx: null, from: null, to: null, relay: null, evidence: "e" },
       changes: [{ deployments: [], contract: "0xc", role: "rateLimits", event: "RateLimitDataSet", args: {}, subject: "0xk", label: null, before: null }] };

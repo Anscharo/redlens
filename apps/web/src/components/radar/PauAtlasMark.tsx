@@ -14,7 +14,7 @@ const MARK: Record<Exclude<AtlasVerdict["mark"], "elsewhere">, { mark: React.Rea
   mismatch: { mark: "✗", text: "differs from the atlas: a value the atlas states for this key is not what the chain holds" },
   pending: {
     mark: <ClockGlyph />,
-    text: "on-chain update pending: the atlas changed this key's value after the chain last set it, recently enough that the spell carrying it is still expected; open the document for when",
+    text: "update pending: the atlas and the chain differ only by a step still coming, a spell the atlas change names or an atlas pull request recording a spell; open the document for which",
   },
   unsure: { mark: "?", text: "the atlas states a value for this key, but it cannot be told whether it matches" },
 };

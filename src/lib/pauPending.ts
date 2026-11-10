@@ -19,6 +19,7 @@ import type { StoredPauSnapshot } from "./pau.ts";
 import type { ValueCheck } from "./pauAtlasValues.ts";
 import { switchedOffSlope } from "./pauAudit.ts";
 import type { PauHistoryResponse } from "./pauHistory.ts";
+import { chainLedStep, type OpenAtlasPr } from "./pauChainLed.ts";
 import { deploymentsOf, keySetBy, queuedRelay } from "./pauPendingEvidence.ts";
 import { valueChange } from "./pauValueDate.ts";
 import { addDays, executiveFor, SLIP_DAYS, type IndexedExecutive } from "./votes/vote-index.ts";
@@ -54,12 +55,26 @@ export interface PendingOnchain extends Named {
   step: PendingStep;
 }
 
+/** A change the chain made that the atlas has not recorded: where, when, and who made it. */
+export interface ChainChange {
+  chain: string;
+  tx: string;
+  setOn: string;
+  /** A spell (its executive when the record names it), the Operator, or anything else (a deployment, a direct call, not attributed yet). */
+  by: { kind: "spell"; spell: { title: string | null; date: string; url: string | null } | null } | { kind: "operator" } | { kind: "other" };
+}
+
 export type OnchainStep =
   | { kind: "pending"; pending: PendingOnchain }
-  | { kind: "set"; named: Named; spell: SpellRef; chain: string; tx: string }
-  | { kind: "executed"; named: Named; spell: SpellRef; executed: string | null }
+  | { kind: "set"; named: Named; spell: SpellRef; chain: string; tx: string; recorded: boolean }
+  | { kind: "executed"; named: Named; spell: SpellRef; executed: string | null; recorded: boolean }
   | { kind: "lapsed"; named: Named; spell: SpellRef | null }
-  | { kind: "unnamed"; atlasChanged: string; pr: number | null };
+  | { kind: "unnamed"; atlasChanged: string; pr: number | null }
+  | { kind: "recording"; change: ChainChange; pr: { number: number; title: string; url: string } }
+  | { kind: "unrecorded"; change: ChainChange; missedBy?: { pr: number; date: string } };
+
+/** Whether the step is still coming on one side or the other: the clock, not a ✗. */
+export const isPending = (s: OnchainStep | undefined | null): boolean => s?.kind === "pending" || s?.kind === "recording";
 
 export interface PendingContext {
   /** The vote record's executives, oldest first. */
@@ -69,6 +84,8 @@ export interface PendingContext {
   snaps: readonly StoredPauSnapshot[];
   /** Today, YYYY-MM-DD. */
   today: string;
+  /** The open atlas pull requests; absent or empty when they could not be read. */
+  openPrs?: readonly OpenAtlasPr[];
 }
 
 const ref = (e: IndexedExecutive): SpellRef => ({ title: e.title, date: e.date, url: e.url });
@@ -77,14 +94,15 @@ const pending = (named: Named, expectedBy: string, step: PendingStep): OnchainSt
 /** What became of a cast spell: it set the key, its relay or its changes are still coming, or it ran without the change. */
 function afterCast(c: ValueCheck, named: Named, x: IndexedExecutive, ctx: PendingContext): OnchainStep {
   const spell = ref(x);
-  const set = x.spell ? keySetBy(ctx.pau, x.spell, c) : null;
-  if (set) return { kind: "set", named, spell, chain: set.chain, tx: set.tx };
   const executed = x.executed ?? null;
+  const recorded = !!executed && executed <= named.atlasChanged;
+  const set = x.spell ? keySetBy(ctx.pau, x.spell, c) : null;
+  if (set) return { kind: "set", named, spell, chain: set.chain, tx: set.tx, recorded };
   const since = executed ?? x.date;
   const relay = c.chain === "ethereum" ? null : queuedRelay(ctx.pau.queued ?? [], deploymentsOf(c, ctx.snaps), since);
   if (relay) return pending(named, addDays((relay.at ?? relay.time).slice(0, 10), READ_DAYS), { kind: "queued", spell, chain: relay.chain, tx: relay.tx, at: relay.at });
   if (ctx.today <= addDays(since, READ_DAYS)) return pending(named, addDays(since, READ_DAYS), { kind: "reading", spell, executed: since });
-  return { kind: "executed", named, spell, executed };
+  return { kind: "executed", named, spell, executed, recorded };
 }
 
 /** What became of the spell one change names. */
@@ -96,22 +114,30 @@ export function namedStep(c: ValueCheck, named: Named, ctx: PendingContext): Onc
   return ctx.today <= until ? pending(named, until, { kind: "uncast", spell: ref(x) }) : { kind: "lapsed", named, spell: ref(x) };
 }
 
-const RANK: Record<OnchainStep["kind"], number> = { set: 0, pending: 1, executed: 2, lapsed: 3, unnamed: 4 };
+const RANK: Record<OnchainStep["kind"], number> = { set: 0, pending: 1, recording: 1, executed: 2, lapsed: 3, unnamed: 4, unrecorded: 4 };
+
+/** The most telling step among the spells a change names. */
+const namedSteps = (c: ValueCheck, named: Omit<Named, "date">, dates: readonly string[], ctx: PendingContext) =>
+  dates.map((date) => namedStep(c, { ...named, date }, ctx)).sort((a, b) => RANK[a.kind] - RANK[b.kind])[0] ?? null;
 
 /**
- * The step for a value the chain does not hold, from its document's history:
- * the change that wrote it and every spell that change names, the most telling
- * first. Null when the chain set the key on or after that change (and no named
- * spell set it), the change cannot be told apart, or its PR is not read yet.
+ * The step for a value the chain does not hold, from its document's history.
+ * A named spell that set the key comes first; then, where the chain set the key
+ * on or after the atlas last wrote the value, who made that change; else the
+ * spells the writing change names. Null when the writing change cannot be told
+ * apart, or its PR is not read yet.
  */
 export function onchainStep(c: ValueCheck, entries: readonly HistoryEntry[], ctx: PendingContext): OnchainStep | null {
   const change = valueChange(entries, c.stated);
-  if (!change?.exact || !change.entry.spells) return null;
+  if (!change) return null;
   const atlasChanged = change.entry.date.slice(0, 10);
   const pr = change.entry.pr ?? null;
-  if (change.entry.spells.length === 0) return chainMoved(c, atlasChanged) ? null : { kind: "unnamed", atlasChanged, pr };
-  const steps = change.entry.spells.map((date) => namedStep(c, { atlasChanged, pr, date }, ctx)).sort((a, b) => RANK[a.kind] - RANK[b.kind]);
-  return steps[0].kind !== "set" && chainMoved(c, atlasChanged) ? null : steps[0];
+  const spells = change.exact ? change.entry.spells : undefined;
+  const named = spells?.length ? namedSteps(c, { atlasChanged, pr }, spells, ctx) : null;
+  if (named?.kind === "set") return named;
+  if (chainMoved(c, atlasChanged)) return chainLedStep(c, entries, ctx);
+  if (!spells) return null;
+  return named ?? { kind: "unnamed", atlasChanged, pr };
 }
 
 /** Whether the chain set the key on or after the atlas change. */
@@ -133,5 +159,5 @@ export function withOnchain(checks: ValueCheck[], history: ReadonlyMap<string, r
 /** Whether every certain difference among the checks is pending, and there is at least one. */
 export const allPending = (checks: ValueCheck[]): boolean => {
   const off = checks.filter((c) => c.status === "mismatch");
-  return off.length > 0 && off.every((c) => c.onchain?.kind === "pending");
+  return off.length > 0 && off.every((c) => isPending(c.onchain));
 };

@@ -10,7 +10,7 @@ import { isOff } from "@/lib/pauLimitOrder";
 import { isUnstated } from "@/lib/plainCheck";
 import { heldKeyId, sentence, type RowMark, type TipLine } from "./rowMark";
 import { allPending } from "@/lib/pauPending";
-import { pendingStepText, stepText } from "@/lib/pauStepText";
+import { pendingStepText, pendingText, stepText } from "@/lib/pauStepText";
 import { contractValue, fieldValue, isCompared, VALUE_STATUS } from "./valueStatus";
 
 export type ParamChecks = ReadonlyMap<string, ValueCheck[]>;
@@ -90,7 +90,7 @@ function checkLines(checks: ValueCheck[]): TipLine[] {
 function onchainLines(checks: ValueCheck[]): TipLine[] {
   const step = checks.find((c) => c.onchain)?.onchain;
   if (!step) return [];
-  if (step.kind !== "pending") return [{ text: sentence(stepText(step)) }];
+  if (step.kind !== "pending") return [{ text: sentence(step.kind === "recording" ? pendingText(step) : stepText(step)) }];
   const p = step.pending;
   return [{ label: "Atlas changed", value: `${p.atlasChanged}${p.pr ? ` · PR #${p.pr}` : ""}` }, { label: "Spell", value: p.date }, { text: sentence(pendingStepText(p.step)) }, { label: "Expected by", value: p.expectedBy }];
 }
@@ -99,7 +99,8 @@ function onchainLines(checks: ValueCheck[]): TipLine[] {
 export function valueRowMark(checks: ValueCheck[]): RowMark {
   const mark = paramMark(checks)!;
   const atlas: TipLine[] = mark === "mismatch" || mark === "pending" ? [{ label: "Atlas", value: checks[0].stated }] : [];
-  return { mark, head: VALUE_HEAD[mark], lines: [...checkLines(checks), ...atlas, ...onchainLines(checks)], docId: checks[0].docId };
+  const head = mark === "pending" && checks.every((c) => c.status !== "mismatch" || c.onchain?.kind === "recording") ? "Atlas update pending" : VALUE_HEAD[mark];
+  return { mark, head, lines: [...checkLines(checks), ...atlas, ...onchainLines(checks)], docId: checks[0].docId };
 }
 
 /**

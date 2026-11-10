@@ -27,7 +27,7 @@ describe("onchainStep", () => {
   it("after the cast: still reading its changes, then executed without the value", () => {
     const executives = [exec("2026-11-05", true, "2026-11-07")];
     expect(step(["2026-11-05"], "2026-11-09", { executives })).toMatchObject({ kind: "pending", pending: { expectedBy: "2026-11-10", step: { kind: "reading", executed: "2026-11-07" } } });
-    expect(step(["2026-11-05"], "2026-11-20", { executives })).toEqual({ kind: "executed", named, spell: { title: "Executive 2026-11-05", date: "2026-11-05", url: "https://vote/2026-11-05" }, executed: "2026-11-07" });
+    expect(step(["2026-11-05"], "2026-11-20", { executives })).toEqual({ kind: "executed", named, spell: { title: "Executive 2026-11-05", date: "2026-11-05", url: "https://vote/2026-11-05" }, executed: "2026-11-07", recorded: false });
   });
   it("waits on the relay an Executor holds queued since the cast", () => {
     const pau = { entries: [], queued: [actionSet("2026-11-08", "2026-11-15")] };
@@ -37,7 +37,12 @@ describe("onchainStep", () => {
     const pau = { entries: [spellEntry("0xspell", "2026-11-08", "0xK")], queued: [] };
     const executives = [exec("2026-11-05", true, "2026-11-07")];
     expect(step(["2026-11-05"], "2026-11-20", { executives, pau }, check("mismatch", "2026-11-08"))).toMatchObject({ kind: "set", chain: "base", tx: "0x2026-11-08" });
-    expect(step(["2026-11-05"], "2026-11-20", { executives }, check("mismatch", "2026-11-08"))).toBeNull();
+    expect(step(["2026-11-05"], "2026-11-20", { executives }, check("mismatch", "2026-11-08"))).toMatchObject({ kind: "unrecorded", change: { setOn: "2026-11-08", by: { kind: "other" } } });
+  });
+  it("marks a spell that had executed before the edit merged as recorded by it", () => {
+    const executives = [exec("2026-11-05", true, "2026-11-07")];
+    const recorded = onchainStep(check("mismatch"), [edit("2026-11-09", ["2026-11-05"])], ctx("2026-11-20", { executives }));
+    expect(recorded).toMatchObject({ kind: "executed", recorded: true, executed: "2026-11-07" });
   });
   it("takes the most telling of several named spells", () => {
     const executives = [exec("2026-10-08", true, "2026-10-10", "0xold"), exec("2026-11-05", false)];

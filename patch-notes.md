@@ -35,7 +35,7 @@
 
 ## 2026-11-10
 
-- Marked an on-chain value with a grey clock instead of ✗ while the spell its Atlas pull request names is still coming, and listed values that spell left out
+- Marked an on-chain value with a grey clock instead of ✗ while the spell its Atlas pull request names, or the Atlas update recording a spell, is still coming
 
 ## 2026-11-09
 
