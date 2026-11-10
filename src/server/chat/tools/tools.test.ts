@@ -125,7 +125,7 @@ test("atlasGet(bulk) tags flagged results and adds one envelope-level hint cover
 // ── atlas_search: modes + phrase filter ──────────────────────────────────────
 test("atlasSearch mode=lexical finds a doc by keyword", async () => {
   mockDb([]);
-  const { atlasSearch } = await import("./tools.ts");
+  const { atlasSearch } = await import("./tools-search.ts");
   const ix = makeIx();
   const res = (await atlasSearch(ix, { query: "governance", k: 10, mode: "lexical" })) as {
     count: number;
@@ -139,7 +139,7 @@ test("atlasSearch mode=lexical finds a doc by keyword", async () => {
 
 test("atlasSearch honors a quoted phrase post-filter", async () => {
   mockDb([]);
-  const { atlasSearch } = await import("./tools.ts");
+  const { atlasSearch } = await import("./tools-search.ts");
   const ix = makeIx();
   const res = (await atlasSearch(ix, { query: '"USDS PSM"', k: 10, mode: "lexical" })) as {
     phrase_filter: string[];
@@ -153,7 +153,7 @@ test("atlasSearch honors a quoted phrase post-filter", async () => {
 
 test("atlasSearch mode=hybrid merges lexical + (empty, keyless) semantic legs", async () => {
   mockDb([]);
-  const { atlasSearch } = await import("./tools.ts");
+  const { atlasSearch } = await import("./tools-search.ts");
   const ix = makeIx();
   const res = (await atlasSearch(ix, { query: "governance", k: 5, mode: "hybrid" })) as { mode: string; count: number };
   expect(res.mode).toBe("hybrid");
@@ -162,7 +162,7 @@ test("atlasSearch mode=hybrid merges lexical + (empty, keyless) semantic legs", 
 
 test("atlasSearch mode=semantic returns no results with no embedding API key configured", async () => {
   mockDb([]);
-  const { atlasSearch } = await import("./tools.ts");
+  const { atlasSearch } = await import("./tools-search.ts");
   const ix = makeIx();
   const res = (await atlasSearch(ix, { query: "governance", k: 5, mode: "semantic" })) as {
     mode: string;
@@ -185,9 +185,11 @@ test("atlasSearch surfaces semantic_skipped when a hybrid search's embed leg tim
   const prevFetch = globalThis.fetch;
   config.openrouterApiKey = "test-key";
   config.semanticEmbedTimeoutMs = 20;
-  globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch; // hangs → timeout
+  // Hangs until its signal aborts, as fetch does: the embed times out, and a rerank call ends at its deadline.
+  globalThis.fetch = ((_u: unknown, init?: { signal?: AbortSignal }) =>
+    new Promise((_, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal!.reason)))) as unknown as typeof fetch;
   try {
-    const { atlasSearch } = await import("./tools.ts");
+    const { atlasSearch } = await import("./tools-search.ts");
     const ix = makeIx();
     const res = (await atlasSearch(ix, { query: "governance", k: 5, mode: "hybrid" })) as {
       mode: string;
@@ -213,7 +215,7 @@ test("atlasSearch mode=lexical never surfaces semantic_skipped, even if the sema
   config.semanticEmbedTimeoutMs = 20;
   globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
   try {
-    const { atlasSearch } = await import("./tools.ts");
+    const { atlasSearch } = await import("./tools-search.ts");
     const ix = makeIx();
     const res = (await atlasSearch(ix, { query: "governance", k: 5, mode: "lexical" })) as {
       semantic_skipped?: string;
@@ -227,9 +229,46 @@ test("atlasSearch mode=lexical never surfaces semantic_skipped, even if the sema
   }
 });
 
+// ── atlas_search: the Jev Choice reranker (retrieval/rerank.ts) ──────────────
+test("atlasSearch reranks a hybrid search's head and leaves lexical order alone", async () => {
+  mockDb([]);
+  const prevKey = config.openrouterApiKey;
+  const prevTimeout = config.semanticEmbedTimeoutMs;
+  const prevFetch = globalThis.fetch;
+  config.openrouterApiKey = "test-key";
+  config.semanticEmbedTimeoutMs = 20;
+  let jevCalls = 0;
+  // The embed hangs (lexical-only fusion); the Choice picks the second candidate.
+  globalThis.fetch = ((url: string) => {
+    if (!String(url).endsWith("/systemone")) return new Promise(() => {});
+    jevCalls++;
+    const answers = { best: { type: "choice", choice: "c02", probabilities: { c01: 0.02, c02: 0.96, none: 0.02 }, confidence: 0.9 } };
+    return Promise.resolve(new Response(JSON.stringify({ answers, usage: null, id: "gen-dec-t" }), { status: 200 }));
+  }) as unknown as typeof fetch;
+  try {
+    const { atlasSearch } = await import("./tools-search.ts");
+    const ix = makeIx();
+    const rows = async (mode: "lexical" | "hybrid") =>
+      ((await atlasSearch(ix, { query: "USDS", k: 5, mode })) as { results: Array<{ id: string; score?: number }> }).results;
+    const lexical = await rows("lexical");
+    expect(lexical.length).toBe(2);
+    expect(jevCalls).toBe(0);
+    const hybrid = await rows("hybrid");
+    expect(hybrid.map((r) => r.id)).toEqual([lexical[1]!.id, lexical[0]!.id]);
+    expect(jevCalls).toBe(1);
+    // The order is the ranking: a hybrid row carries no fusion score to contradict it.
+    expect(lexical.every((r) => typeof r.score === "number")).toBe(true);
+    expect(hybrid.some((r) => "score" in r)).toBe(false);
+  } finally {
+    config.openrouterApiKey = prevKey;
+    config.semanticEmbedTimeoutMs = prevTimeout;
+    globalThis.fetch = prevFetch;
+  }
+});
+
 test("atlasSearch supports a type filter", async () => {
   mockDb([]);
-  const { atlasSearch } = await import("./tools.ts");
+  const { atlasSearch } = await import("./tools-search.ts");
   const ix = makeIx();
   const res = (await atlasSearch(ix, { query: "governance", k: 5, type: "Core", mode: "lexical" })) as { count: number };
   expect(res.count).toBeGreaterThan(0);
@@ -237,7 +276,7 @@ test("atlasSearch supports a type filter", async () => {
 
 test("atlasSearch tags a liveness-flagged hit and adds ONE envelope-level hint, not one per row", async () => {
   mockDb([]);
-  const { atlasSearch } = await import("./tools.ts");
+  const { atlasSearch } = await import("./tools-search.ts");
   const ix = makeIx();
   const res = (await atlasSearch(ix, { query: "D3", k: 10, mode: "lexical" })) as {
     results: Array<{ id: string; liveness?: string }>;

@@ -35,6 +35,8 @@
 
 ## 2026-11-10
 
+- Improved how the chat and MCP search pick the best matching document among similar ones
+- Opened the reader's side panel on History by default, with History as the first section
 - Marked an on-chain value with a grey clock instead of ✗ while the spell its Atlas pull request names, or the Atlas update recording a spell, is still coming
 - Showed who can change each differing rate limit, and whether the Operator can reach the Atlas value without a spell
 

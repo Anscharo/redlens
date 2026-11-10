@@ -29,6 +29,7 @@ test("subagent input is only the question + view JSON — no conversation/tool h
     question: "how much to sky?",
     view,
     jsonCall,
+    model: "test-model",
   });
   expect(brief.subagent).toBe("ok");
   expect(brief.not_atlas).toBe(true);
@@ -53,6 +54,7 @@ test("subagent fail-closed returns deterministic figures without notes", async (
       three_way: { to_sky: 9, supply_kept: 1, demand_side: 0 },
     },
     jsonCall,
+    model: "test-model",
   });
   expect(brief.subagent).toBe("failed");
   expect((brief.figures as { name: string }[])[0]!.name).toBe("To Sky");
@@ -80,6 +82,7 @@ test("an 'ok' sub-model answer with nothing usable still yields the aggregate vi
       by_prime: [{ prime: "spark", to_sky: 30, supply_kept: 20, demand_side: 1 }],
     },
     jsonCall,
+    model: "test-model",
   });
   expect(brief.subagent).toBe("ok");
   expect(brief.figures.map((f) => f.name)).toEqual([
@@ -90,4 +93,21 @@ test("an 'ok' sub-model answer with nothing usable still yields the aggregate vi
     "To Sky 2026-08 (6 primes)",
     "spark To Sky 2026-07..2026-08",
   ]);
+});
+
+test("no configured model skips the call and returns the deterministic brief", async () => {
+  let calls = 0;
+  const jsonCall: JsonCall = async () => {
+    calls++;
+    return { text: "{}", usage: { input: 1, output: 1 }, generationId: null, latencyMs: 1 };
+  };
+  const brief = await runMscSubagent({
+    question: "q",
+    view: { required_disclaimer: MSC_REQUIRED_DISCLAIMER, sources: [], three_way: { to_sky: 9, supply_kept: 1, demand_side: 0 } },
+    jsonCall,
+    model: "",
+  });
+  expect(calls).toBe(0);
+  expect(brief.subagent).toBe("skipped");
+  expect((brief.figures as { name: string }[])[0]!.name).toBe("To Sky");
 });

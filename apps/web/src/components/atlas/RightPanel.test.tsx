@@ -137,20 +137,20 @@ describe("RightPanel section visibility", () => {
     expect(screen.getByTestId("history-panel")).toBeInTheDocument();
   });
 
-  it("lists shown sections in pill order: notes, onchain, history, glossary", () => {
+  it("lists shown sections in pill order: history, notes, onchain, glossary", () => {
     setup({
       linkedNodes: [makeNode()],
       targetAddresses: { "0xabc": makeAddressInfo() },
       glossaryTerms: [[makeGlossaryEntry()]],
     });
     const pills = within(screen.getByRole("navigation", { name: "Panel sections" })).getAllByRole("button");
-    expect(pills.map((b) => b.textContent?.split("·")[0].trim())).toEqual(["notes", "onchain", "history", "glossary"]);
+    expect(pills.map((b) => b.textContent?.split("·")[0].trim())).toEqual(["history", "notes", "onchain", "glossary"]);
   });
 
   it("falls back to the first shown section when the requested one is hidden", () => {
     setup({ tab: "notes", targetAddresses: { "0xabc": makeAddressInfo() } });
     expect(screen.queryByRole("button", { name: /notes/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /onchain/ })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("button", { name: /history/ })).toHaveAttribute("aria-current", "true");
   });
 
   it("falls back to history when the requested section is hidden and nothing else shows", () => {
