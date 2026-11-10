@@ -61,5 +61,5 @@ export const exec = (date: string, cast: boolean, executed: string | null = null
 });
 
 export const ctx = (today: string, o: Partial<PendingContext> = {}): PendingContext => ({
-  executives: [], pau: { entries: [], queued: [] }, snaps: [snap()], today, pollsByPr: new Map(), snapshots: new Map(), ...o,
+  executives: [], pau: { entries: [], queued: [] }, snaps: [snap()], today, now: Date.parse(`${today}T12:00:00Z`), openPrs: [], pollsByPr: new Map(), snapshots: new Map(), ...o,
 });

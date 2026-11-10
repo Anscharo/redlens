@@ -9,7 +9,7 @@ import type { LiveRateLimit } from "@/lib/pau";
 import { isOff } from "@/lib/pauLimitOrder";
 import { isUnstated } from "@/lib/plainCheck";
 import { heldKeyId, sentence, type RowMark, type TipLine } from "./rowMark";
-import { allPending } from "@/lib/pauPending";
+import { allPending, isPending } from "@/lib/pauPending";
 import { routesText } from "@/lib/pauRouteText";
 import { pendingStepText, pendingText, stepText } from "@/lib/pauStepText";
 import { contractValue, fieldValue, isCompared, VALUE_STATUS } from "./valueStatus";
@@ -87,9 +87,16 @@ function checkLines(checks: ValueCheck[]): TipLine[] {
   });
 }
 
+/** The check whose step explains the mark: on a ✗, a mismatch that is not pending; else a mismatch's step, then any. */
+const deciding = (checks: ValueCheck[], mark: ParamMark) => {
+  const off = checks.filter((c) => c.status === "mismatch" && c.onchain);
+  const fits = mark === "pending" ? off.find((c) => isPending(c.onchain)) : off.find((c) => !isPending(c.onchain));
+  return (fits ?? off[0] ?? checks.find((c) => c.onchain))?.onchain;
+};
+
 /** What governance did about the row's atlas change (src/lib/pauStepText.ts): for a pending one, when the atlas changed, what it waits on and until when. */
-function onchainLines(checks: ValueCheck[]): TipLine[] {
-  const step = checks.find((c) => c.onchain)?.onchain;
+function onchainLines(checks: ValueCheck[], mark: ParamMark): TipLine[] {
+  const step = deciding(checks, mark);
   if (!step) return [];
   if (step.kind !== "pending") return [{ text: sentence(step.kind === "recording" ? pendingText(step) : stepText(step)) }];
   const p = step.pending;
@@ -103,7 +110,7 @@ export function valueRowMark(checks: ValueCheck[]): RowMark {
   const head = mark === "pending" && checks.every((c) => c.status !== "mismatch" || c.onchain?.kind === "recording") ? "Atlas update pending" : VALUE_HEAD[mark];
   const routes = checks.find((c) => c.routes)?.routes;
   const who: TipLine[] = routes && mark !== "match" ? [{ text: routesText(routes) }] : [];
-  return { mark, head, lines: [...checkLines(checks), ...atlas, ...onchainLines(checks), ...who], docId: checks[0].docId };
+  return { mark, head, lines: [...checkLines(checks), ...atlas, ...onchainLines(checks, mark), ...who], docId: checks[0].docId };
 }
 
 /**

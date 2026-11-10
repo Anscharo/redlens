@@ -26,7 +26,7 @@ export function useAtlasVsContract(id: string, src: DocValueSources | null | und
     if (!res || !src) return [];
     return checkAtlasValues(src.sources, snaps).filter((c) => c.docId === id || c.instanceDocId === id || src.children.includes(c.docId));
   }, [res, src, snaps, id]);
-  return useOnchainSteps(rows, snaps);
+  return useOnchainSteps(rows);
 }
 
 /** The status cell's mark, its words and its colour: a grey clock while the step one side waits on is still coming, amber for any other mismatch, with what governance did when it is known. */

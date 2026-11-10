@@ -51,9 +51,14 @@ function limitDocs(ix: Indexes): LimitDocs {
   return built;
 }
 
+/** Every value one prime's instances and limit documents state, checked against its snapshots, as the reader checks them. */
+export function primeValueChecks(ix: Indexes, prime: string, snaps: StoredPauSnapshot[]): ValueCheck[] {
+  const primeEntity = ix.entityById.get(prime);
+  return checkAtlasValues(primeValueSources(ix.entities.map(rowView), prime, primeEntity && rowView(primeEntity), limitDocs(ix)), snaps);
+}
+
 /** One fact per value the chain can be compared on, or lacks on a read chain, for one prime. */
 export function valueFacts(ix: Indexes, prime: string, snaps: StoredPauSnapshot[]): OnchainFact[] {
   const name = snaps[0]?.primeName ?? ix.entityById.get(prime)?.name ?? "";
-  const primeEntity = ix.entityById.get(prime);
-  return checkAtlasValues(primeValueSources(ix.entities.map(rowView), prime, primeEntity && rowView(primeEntity), limitDocs(ix)), snaps).flatMap((c) => deploymentsOf(c, snaps).map((s) => valueFact(c, name, prime, s)));
+  return primeValueChecks(ix, prime, snaps).flatMap((c) => deploymentsOf(c, snaps).map((s) => valueFact(c, name, prime, s)));
 }

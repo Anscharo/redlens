@@ -3,7 +3,8 @@
 // and left unread, and stored changes given the PR their commit names. The
 // SQL itself is checked against a real Postgres (src/server/history/CLAUDE.md).
 import { describe, expect, it } from "bun:test";
-import { backfillPrNumbers, fillPrSpells } from "./pr-spells.ts";
+import { SPELL_REFS_VERSION } from "../../lib/atlasPrSpell.ts";
+import { backfillPrNumbers, fillPrSpells, prBackfillDue } from "./pr-spells.ts";
 
 function fakeDb(answer: (sql: string) => unknown[]) {
   const calls: { sql: string; values: unknown[] }[] = [];
@@ -24,9 +25,27 @@ describe("fillPrSpells", () => {
     };
     const r = await fillPrSpells(db as never, async (pr) => records[pr] ?? null, 10);
     expect(r).toEqual({ read: 2, named: 1, missing: 1 });
+    expect(calls[0].values).toEqual([SPELL_REFS_VERSION, 10]);
     const writes = calls.slice(1);
-    expect(writes.map((w) => w.values)).toEqual([[["thread:2026-11-05"], records[363].title, "u363", "a", 363], [[], records[362].title, "u362", "b", 362], [999]]);
+    expect(writes.map((w) => w.values)).toEqual([
+      [["thread:2026-11-05"], SPELL_REFS_VERSION, records[363].title, "u363", "a", null, null, null, 363],
+      [[], SPELL_REFS_VERSION, records[362].title, "u362", "b", null, null, null, 362],
+      [999],
+    ]);
     expect(writes[2].sql).not.toContain("spell_refs");
+  });
+  it("ends the run at the first record it cannot read, when told to", async () => {
+    const { db } = fakeDb((sql) => (sql.startsWith("SELECT") ? [{ pr_number: 1 }, { pr_number: 2 }] : []));
+    const asked: number[] = [];
+    expect(await fillPrSpells(db as never, async (pr) => (asked.push(pr), null), 10, true)).toEqual({ read: 0, named: 0, missing: 1 });
+    expect(asked).toEqual([1]);
+  });
+});
+
+describe("prBackfillDue", () => {
+  it("is the atlas commit until the backfill has run at it", async () => {
+    expect(await prBackfillDue(fakeDb(() => [{ atlas_sha: "abc", pr_backfill_sha: null }]).db as never)).toBe("abc");
+    expect(await prBackfillDue(fakeDb(() => [{ atlas_sha: "abc", pr_backfill_sha: "abc" }]).db as never)).toBeNull();
   });
 });
 

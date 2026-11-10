@@ -4,12 +4,9 @@ import { filenameDate } from "./executive.ts";
 import { ATLAS_FAMILIES, extractLinks, readFrontmatter } from "./markdown.ts";
 import type { Poll } from "../../../src/lib/votes/types.ts";
 
-const ATLAS_PR_RE = /next-gen-atlas\/pull\/(\d+)(?!\d)/g;
+import { atlasPullRequests } from "../../../src/lib/votes/atlas-prs.ts";
 
-/** The next-gen-atlas pull request numbers `text` links, deduplicated and ascending. */
-export function atlasPullRequests(text: string): number[] {
-  return [...new Set([...text.matchAll(ATLAS_PR_RE)].map((m) => Number(m[1])))].sort((a, b) => a - b);
-}
+export { atlasPullRequests };
 
 export function parsePoll(file: string, md: string): Poll {
   const { fields, body } = readFrontmatter(md);

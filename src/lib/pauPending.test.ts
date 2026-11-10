@@ -6,12 +6,12 @@ import { describe, expect, it } from "vitest";
 import { actionSet, check, ctx, edit, exec, spellEntry } from "./pauPending.fixture.ts";
 import { allPending, onchainStep, withOnchain } from "./pauPending.ts";
 
-const named = { atlasChanged: "2026-10-29", pr: 363, date: "2026-11-05" };
+const named = { atlasChanged: "2026-10-29", at: "2026-10-29", pr: 363, date: "2026-11-05" };
 const step = (spells: string[] | undefined, today: string, o = {}, c = check("mismatch")) => onchainStep(c, [edit("2026-10-29", spells)], ctx(today, o));
 
 describe("onchainStep", () => {
   it("says the PR names no spell, and nothing while the PR is unread or the writing change is unclear", () => {
-    expect(step([], "2026-11-10")).toEqual({ kind: "unnamed", atlasChanged: "2026-10-29", pr: 363 });
+    expect(step([], "2026-11-10")).toEqual({ kind: "unnamed", atlasChanged: "2026-10-29", at: "2026-10-29", pr: 363 });
     expect(step(undefined, "2026-11-10")).toBeNull();
     expect(onchainStep(check("mismatch"), [edit("2026-10-29", ["2026-11-05"], [["+", "unrelated"]])], ctx("2026-11-10"))).toBeNull();
   });
@@ -29,9 +29,18 @@ describe("onchainStep", () => {
     expect(step(["2026-11-05"], "2026-11-09", { executives })).toMatchObject({ kind: "pending", pending: { expectedBy: "2026-11-10", step: { kind: "reading", executed: "2026-11-07" } } });
     expect(step(["2026-11-05"], "2026-11-20", { executives })).toEqual({ kind: "executed", named, spell: { title: "Executive 2026-11-05", date: "2026-11-05", url: "https://vote/2026-11-05" }, executed: "2026-11-07", recorded: false });
   });
-  it("waits on the relay an Executor holds queued since the cast", () => {
+  it("waits on the relay an Executor holds queued since the cast, until it is overdue or belongs to the next spell", () => {
     const pau = { entries: [], queued: [actionSet("2026-11-08", "2026-11-15")] };
-    expect(step(["2026-11-05"], "2026-11-20", { executives: [exec("2026-11-05", true, "2026-11-07")], pau })).toMatchObject({ kind: "pending", pending: { expectedBy: "2026-11-18", step: { kind: "queued", chain: "base", tx: "0xqueue" } } });
+    const executives = [exec("2026-11-05", true, "2026-11-07")];
+    expect(step(["2026-11-05"], "2026-11-16", { executives, pau })).toMatchObject({ kind: "pending", pending: { expectedBy: "2026-11-18", step: { kind: "queued", chain: "base", tx: "0xqueue" } } });
+    expect(step(["2026-11-05"], "2026-11-20", { executives, pau })?.kind).toBe("executed");
+    const later = [...executives, exec("2026-11-07", true, "2026-11-07T12:00:00Z", "0xnext")];
+    expect(step(["2026-11-05"], "2026-11-16", { executives: later, pau })?.kind).toBe("executed");
+  });
+  it("orders a spell executed the same day as the edit by time", () => {
+    const executives = [{ ...exec("2026-11-05", true, "2026-11-05"), executedAt: "2026-11-05T18:00:00Z" }];
+    const sameDay = onchainStep(check("mismatch"), [edit("2026-11-05T09:00:00Z", ["2026-11-05"])], ctx("2026-11-20", { executives }));
+    expect(sameDay).toMatchObject({ kind: "executed", recorded: false });
   });
   it("says the named spell set the key to another value, even where the chain moved since", () => {
     const pau = { entries: [spellEntry("0xspell", "2026-11-08", "0xK")], queued: [] };

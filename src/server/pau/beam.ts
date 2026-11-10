@@ -13,11 +13,10 @@ const ZERO = `0x${"0".repeat(40)}`;
 type Scope = BeamDefault["scope"];
 type Pair = { maxAmount: string; slope: string };
 
-/** A chain's BeamState and its stored admin history, and the chain's Configurator, the account a cBEAM acts through. */
+/** A chain's BeamState and its stored admin history. */
 export interface BeamSource {
   address: string;
   history: ContractHistory;
-  configurator?: string;
 }
 
 export interface ReplayedBeam {
@@ -76,5 +75,5 @@ export async function beamLimits(read: ChainReader, chain: string, beam: BeamSou
   if (!(live.registered ?? replayed.registered)) return null;
   const keys = [...new Set([...heldKeys, ...[...replayed.defaults.keys()].map((k) => k.split(":")[0])])];
   const defaults = await liveDefaults(read, chain, beam.address, rl, keys, replayed);
-  return { beamState: beam.address, configurator: beam.configurator ?? null, hop: live.hop, maxChange: live.maxChange, defaults, historyComplete: beam.history.complete };
+  return { beamState: beam.address, hop: live.hop, maxChange: live.maxChange, defaults, historyComplete: beam.history.complete };
 }

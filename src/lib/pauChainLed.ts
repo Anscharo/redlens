@@ -46,9 +46,10 @@ const passedBy = (entries: readonly HistoryEntry[], date: string, setOn: string,
   entries.find((e) => e.pr && e.date.slice(0, 10) >= setOn && (e.changeType === "added" || e.changeType === "modified") && belongsTo(e.pr, e.spells ?? [], date, ctx));
 
 /**
- * The step for a key the chain set on or after the atlas last wrote its value:
- * the atlas update an open PR holds, or none; `missedBy` names a merged PR
- * that records the spell and edited the document without the value.
+ * The step for a key the chain set after the atlas last wrote its value: the
+ * atlas update an open PR holds, or none; `missedBy` names a merged PR that
+ * records the spell and edited the document without the value. Null when the
+ * open PRs are not read and no merged PR passed it by.
  */
 export function chainLedStep(c: ValueCheck, entries: readonly HistoryEntry[], ctx: PendingContext): OnchainStep | null {
   if (!c.limit || !c.chain) return null;
@@ -57,6 +58,7 @@ export function chainLedStep(c: ValueCheck, entries: readonly HistoryEntry[], ct
   const date = change.by.kind === "spell" ? change.by.spell?.date : null;
   const missed = date ? passedBy(entries, date, change.setOn, ctx) : undefined;
   if (missed) return { kind: "unrecorded", change, missedBy: { pr: missed.pr!, date: missed.date.slice(0, 10) } };
-  const pr = date ? recordingPr(ctx.openPrs ?? [], date, ctx) : null;
+  if (!ctx.openPrs) return null;
+  const pr = date ? recordingPr(ctx.openPrs, date, ctx) : null;
   return pr ? { kind: "recording", change, pr: { number: pr.number, title: pr.title, url: pr.url } } : { kind: "unrecorded", change };
 }

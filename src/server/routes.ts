@@ -14,12 +14,12 @@ import { handleChainState } from "./chain-state.ts";
 import { handleForumTopics } from "./forum.ts";
 import { handlePau } from "./pau/store.ts";
 import { handlePauHistory } from "./pau/history.ts";
+import { handleValueSteps } from "./pau/value-steps.ts";
 import { handleReportsSearch } from "./reports-search.ts";
 import { handleSemanticSearch } from "./search-semantic.ts";
 import { handleModCounts } from "./history/mod-counts.ts";
 import { handleModTimeline } from "./history/mod-timeline.ts";
 import { handleVoteEvidence } from "./vote-evidence/store.ts";
-import { handlePrimePolls } from "./prime-polls.ts";
 
 export type RouteHandler = (req: Request) => Response | Promise<Response>;
 
@@ -48,12 +48,12 @@ const PUBLIC_ROUTES = {
   "/api/forum-topics": (req: Request) => handleForumTopics(req),
   "/api/pau": () => handlePau(),
   "/api/pau/history": (req: Request) => handlePauHistory(req),
+  "/api/pau/steps": () => handleValueSteps(),
   "/api/reports/search": (req: Request) => handleReportsSearch(req),
   // An unconfigured deployment answers `available: false` rather than 404 so
   // the UI can say why the lane is missing.
   "/api/search/semantic": (req: Request) => handleSemanticSearch(req),
   "/api/vote-evidence": () => handleVoteEvidence(),
-  "/api/prime-polls": () => handlePrimePolls(),
 };
 
 function usersRoutes() {

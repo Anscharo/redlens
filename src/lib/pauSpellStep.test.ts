@@ -27,6 +27,10 @@ describe("pollStep", () => {
     expect(step(poll("0xp"), "2026-11-20", [exec("2026-11-05", true, "2026-11-07")])).toMatchObject({ kind: "lapsed", why: "not-carried", spell: { date: "2026-11-05" } });
     expect(step(poll("0xp"), "2026-11-20")).toMatchObject({ kind: "lapsed", why: "none", spell: null });
   });
+  it("says nothing of a passed item no executive links when its thread names no spell, and calls a Spark SAEP item off-spell", () => {
+    expect(step(poll("0xp", { threadDate: null, end: "2026-10-22" }), "2026-11-20", [exec("2026-10-22", true, "2026-10-23")])).toBeNull();
+    expect(step(poll("0xp", { title: "SAEP-25: Update the Allocation System Primitive" }), "2026-11-20")).toMatchObject({ kind: "off-spell" });
+  });
 });
 
 describe("onchainStep through polls", () => {
@@ -36,5 +40,7 @@ describe("onchainStep through polls", () => {
     expect(onchainStep(check("mismatch"), [edit("2026-10-29", ["thread:2026-11-05"])], ctx("2026-11-20", links))?.kind).toBe("executed");
     expect(onchainStep(check("mismatch"), [edit("2026-10-29", ["thread:2026-11-05"])], ctx("2026-11-20", { executives: [x] }))).toBeNull();
     expect(onchainStep(check("mismatch"), [edit("2026-10-29", [])], ctx("2026-11-20", { pollsByPr: undefined }))).toBeNull();
+    const unknown = { pollsByPr: new Map([[363, [poll("0xp", { threadDate: null })]]]) };
+    expect(onchainStep(check("mismatch"), [edit("2026-10-29", [])], ctx("2026-11-20", unknown))).toBeNull();
   });
 });

@@ -1,9 +1,10 @@
 // The words for who can change a rate limit (pauKeyRoutes.ts), shared by the
 // reader's "Atlas vs contract" table, the Radar marks and the PAU values audit.
+// What the Operator may do cites the atlas rule it rests on, next to the claim.
 // Pure.
 import type { KeyRoutes, Reach } from "./pauKeyRoutes.ts";
+import { shortAddress } from "./plainCheck.ts";
 
-const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 const when = (iso: string) => iso.slice(0, 16).replace("T", " ") + " UTC";
 
 const REACH: Record<Reach["kind"], (r: Reach) => string> = {
@@ -19,9 +20,10 @@ const REACH: Record<Reach["kind"], (r: Reach) => string> = {
 
 /** Who can set the value, as one clause: a spell through its admins, and what the Operator can do. */
 export function routesText(r: KeyRoutes): string {
-  const spell = r.admins.length ? `a spell, through ${r.admins.map(short).join(" or ")}` : "no spell (only the Configurator holds the admin role)";
+  const spell = r.admins.length ? `a spell, through ${r.admins.map(shortAddress).join(" or ")}` : "no spell (only the Configurator holds the admin role)";
   if (!r.operator) return `Set by ${spell}; the Operator has no route to this limit`;
-  const op = r.operator.reach ? `the Operator ${REACH[r.operator.reach.kind](r.operator.reach)}` : "the Operator may adjust it, but whether it reaches the stated value is not known (units or bounds not read)";
+  const cite = r.operator.cites?.length ? ` (Atlas ${r.operator.cites.join(", ")})` : "";
+  const op = r.operator.reach ? `the Operator ${REACH[r.operator.reach.kind](r.operator.reach)}${cite}` : "the Operator may adjust it, but whether it reaches the stated value is not known (units or bounds not read)";
   return `Set by ${spell}, or through the Configurator, where ${op} (whether a cBEAM is paired and the Configurator is running are not read)`;
 }
 

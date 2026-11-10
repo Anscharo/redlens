@@ -105,7 +105,7 @@ export interface BeamDefault {
 /** What BeamState lets the Configurator (cBEAM) do to one registered RateLimits without a spell. */
 export interface BeamLimits {
   beamState: string;
-  /** The chain's Configurator (registry `shared`), the account a cBEAM acts through; absent on a snapshot read before it was recorded. */
+  /** The chain's Configurator (registry `shared`), the account a cBEAM acts through: attached when the steps are worked out (src/server/pau/value-steps.ts), never stored, so a registry edit shows at once. */
   configurator?: string | null;
   /** Seconds one key must wait between two increases; null when unread. */
   hop: string | null;

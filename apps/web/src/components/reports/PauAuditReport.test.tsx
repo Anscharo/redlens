@@ -36,7 +36,7 @@ describe("PauAuditReport", () => {
     const spell = await screen.findByRole("region", { name: /Spell or Operator may not have acted yet/ });
     expect(within(spell).getByRole("heading", { level: 2 })).toHaveTextContent("· 1");
     expect(within(spell).getAllByRole("row")).toHaveLength(3);
-    expect(screen.getByRole("region", { name: /Atlas probably out of date/ })).toHaveTextContent("chain set 2026-04-01 · atlas changed 2026-03-01");
+    expect(screen.getByRole("region", { name: /Atlas probably out of date/ })).toHaveTextContent("chain set 2026-04-01 · atlas wrote it 2026-03-01");
     expect(screen.getByRole("link", { name: "A.6.1" })).toHaveAttribute("href", expect.stringContaining("d1"));
     expect(screen.queryByRole("region", { name: /Ambiguous/ })).toBeNull();
     expect(screen.getByText("4 items", { exact: false })).toBeInTheDocument();

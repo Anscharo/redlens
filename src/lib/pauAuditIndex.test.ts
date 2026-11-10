@@ -7,7 +7,8 @@ import type { ValueCheck } from "./pauAtlasValues.ts";
 import { auditRowsToCSV, auditSearchFields } from "./pauAuditCsv.ts";
 import { auditItemCount, buildPauAudit, docsToDate, groupDigits } from "./pauAuditIndex.ts";
 import type { PauHistoryEntry } from "./pauHistory.ts";
-import { exec } from "./pauPending.fixture.ts";
+import { ctx, exec } from "./pauPending.fixture.ts";
+import { withOnchain } from "./pauPending.ts";
 
 const limit = (maxAmount: string, time: string) => ({ key: "0xk", configured: { maxAmount, slope: "0" }, setAt: { block: 1, time, tx: "0xt" }, changes: 1, data: { maxAmount, slope: "0", lastAmount: "0", lastUpdated: "0" }, available: maxAmount, unit: { decimals: 6, symbol: "USDC", source: "token" as const } });
 const check = (docId: string, status: ValueCheck["status"], extra: Partial<ValueCheck> = {}): ValueCheck => ({
@@ -32,8 +33,7 @@ const snap: StoredPauSnapshot = {
 const claims = [{ prime: null, chain: "arbitrum", role: "beacon" as const, address: "0xb", docs: ["e1", "e2"], reason: "It is the Governance Relay." }];
 const edit = (date: string) => [{ date, commitHash: date, changeType: "modified" as const, changeKind: "semantic" as const }];
 const history = new Map([["d1", edit("2026-04-01")], ["d2", edit("2026-06-01")]]);
-const noVotes = { executives: [], pau: { entries: [], queued: [] }, today: "2026-11-10" };
-const rows = buildPauAudit({ primes, snaps: [snap], claims, history, votes: noVotes });
+const rows = buildPauAudit({ primes, snaps: [snap], claims, history });
 
 describe("buildPauAudit", () => {
   it("groups values by which side moved, then controllers, then claims, and counts items once", () => {
@@ -54,8 +54,12 @@ describe("buildPauAudit", () => {
   });
   it("places a change the atlas moved last by what became of the spell its pull request names", () => {
     const written = [{ date: "2026-06-01", commitHash: "c", changeType: "modified" as const, changeKind: "semantic" as const, pr: 316, spells: ["2026-06-11"], diff: [["+", "maxAmount 5,000,000 USDC"]] as [["+", string]] }];
-    const audit = (executives: ReturnType<typeof exec>[], entries: PauHistoryEntry[] = []) =>
-      buildPauAudit({ primes, snaps: [snap], claims: [], history: new Map([["d2", written]]), votes: { executives, pau: { entries, queued: [] }, today: "2026-11-10" } }).filter((r) => r.docId === "d2");
+    const history = new Map([["d2", written]]);
+    const audit = (executives: ReturnType<typeof exec>[], entries: PauHistoryEntry[] = []) => {
+      const c = ctx("2026-11-10", { executives, pau: { entries, queued: [] }, snaps: [snap] });
+      const stepped = primes.map((p) => ({ ...p, checks: withOnchain(p.checks, history, c) }));
+      return buildPauAudit({ primes: stepped, snaps: [snap], claims: [], history }).filter((r) => r.docId === "d2");
+    };
     const executed = audit([exec("2026-06-11", true, "2026-06-12", "0xs")]);
     expect(executed.map((r) => [r.group, r.reason])).toEqual([["spell-executed", "spell-executed"], ["spell-executed", "spell-executed"]]);
     expect(executed[0].step).toMatchObject({ kind: "executed", named: { pr: 316, date: "2026-06-11" }, executed: "2026-06-12" });

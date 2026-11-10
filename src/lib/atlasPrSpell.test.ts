@@ -19,6 +19,13 @@ describe("spellRefs", () => {
     expect(spellRefs("October 8 spell changes")).toEqual(["--10-08"]);
     expect(spellRefs("Grove Artifact update (July 6, August 17 spell changes)")).toEqual(["--07-06", "--08-17"]);
   });
+  it("reads cut-short months, ordinals, an Executive Spell, and an ISO date after the word spell", () => {
+    expect(spellRefs("Aug 13 Spell Update")).toEqual(["--08-13"]);
+    expect(spellRefs("Oct 16th Spell updates")).toEqual(["--10-16"]);
+    expect(spellRefs("Sept. 4 spell")).toEqual(["--09-04"]);
+    expect(spellRefs("2026-11-19 Executive Spell")).toEqual(["2026-11-19"]);
+    expect(spellRefs("changes for spell 2025-08-21")).toEqual(["2025-08-21"]);
+  });
   it("does not take a date beside Executive Vote alone, or a technical-scope thread", () => {
     expect(spellRefs("noncompliant vaults carry a 100% CRR after the October 8, 2026 Executive Vote")).toEqual([]);
     expect(spellRefs("https://forum.skyeco.com/t/technical-scope-morpho-vault-timelock-compliance/28302")).toEqual([]);

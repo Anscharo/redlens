@@ -21,9 +21,10 @@ describe("keySetBy", () => {
 });
 
 describe("queuedRelay", () => {
-  it("finds an action set queued since the date on an Executor administering the deployment", () => {
+  it("finds an action set queued on an Executor administering the deployment between the spell's execution and the next one's", () => {
     const steps = [actionSet("2026-09-01", "2026-09-03"), actionSet("2026-11-01", null, "0xstranger"), actionSet("2026-11-02", "2026-11-04")];
-    expect(queuedRelay(steps, [snap()], "2026-10-15")?.time).toBe("2026-11-02T00:00:00Z");
-    expect(queuedRelay(steps.slice(0, 2), [snap()], "2026-10-15")).toBeNull();
+    expect(queuedRelay(steps, [snap()], "2026-10-15", null)?.time).toBe("2026-11-02T00:00:00Z");
+    expect(queuedRelay(steps.slice(0, 2), [snap()], "2026-10-15", null)).toBeNull();
+    expect(queuedRelay(steps, [snap()], "2026-10-15", "2026-10-30")).toBeNull();
   });
 });

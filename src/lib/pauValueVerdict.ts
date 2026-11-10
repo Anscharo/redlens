@@ -17,7 +17,7 @@ const SCALES = Array.from({ length: 19 }, (_, i) => i);
 const SYMBOL_DECIMALS: Record<string, number> = { usdc: 6, usdt: 6, usdt0: 6, pyusd: 6, ausd: 6, usdg: 6, usds: 18, dai: 18, usde: 18, susds: 18, fsusds: 18, rlusd: 18 };
 
 /** The decimals of every token the atlas names ("USDC/AUSD", "RLUSD or USDC"), or null when one is not known. */
-export function namedDecimals(symbol: string | null): number[] | null {
+function namedDecimals(symbol: string | null): number[] | null {
   if (!symbol) return null;
   const parts = symbol.toLowerCase().split(/\s*(?:\/|\bor\b)\s*/).filter(Boolean);
   const decimals = parts.map((p) => SYMBOL_DECIMALS[p]);

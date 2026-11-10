@@ -4,12 +4,12 @@
 // an item is one value, one controller or one rejected claim, and the report
 // counts items. Pure.
 import type { StoredPauSnapshot } from "./pau.ts";
-import { AUDIT_GROUPS, AUDIT_REASONS, checkReason, switchedOffSlope, type AuditGroup, type AuditReason } from "./pauAudit.ts";
+import { AUDIT_GROUPS, AUDIT_REASONS, checkReason, type AuditGroup, type AuditReason } from "./pauAudit.ts";
 import type { ValueCheck } from "./pauAtlasValues.ts";
 import type { HistoryEntry } from "./history.ts";
-import { onchainStep, type OnchainStep, type PendingContext } from "./pauPending.ts";
-import { keyRoutes, type KeyRoutes } from "./pauKeyRoutes.ts";
-import { valueChangedAt } from "./pauValueDate.ts";
+import type { OnchainStep } from "./pauPending.ts";
+import type { KeyRoutes } from "./pauKeyRoutes.ts";
+import { valueChange } from "./pauValueDate.ts";
 import { checkChainValue } from "./pauCheckValue.ts";
 import type { PauIgnored } from "./pauRegistry.ts";
 import { controllerWiring } from "./pauWiring.ts";
@@ -37,7 +37,7 @@ export interface AuditRow {
   contract: string | null;
   chainSetAt: string | null;
   atlasChangedAt: string | null;
-  /** What became of the spell the atlas change's pull request names (pauPending.ts); null when it cannot be followed. */
+  /** What became of the spell the atlas change's pull request names (pauPending.ts, the check's `onchain`); null when it cannot be followed. */
   step: OnchainStep | null;
   /** Who can change the limit, and whether the Operator can reach the stated value; null for a row that is not a rate-limit value. */
   routes: KeyRoutes | null;
@@ -60,17 +60,15 @@ const DATED = new Set<ValueCheck["status"]>(["mismatch", "not-set"]);
 /** The atlas documents whose history places an item: those stating a mismatch or a limit never set. */
 export const docsToDate = (primes: PrimeChecks[]): string[] => [...new Set(primes.flatMap((p) => p.checks.filter((c) => DATED.has(c.status)).map((c) => c.docId)))];
 
-/** The vote record, the PAU history and today, for what a row says of the spell. */
-export type AuditVotes = Omit<PendingContext, "snaps">;
-
+/** A row's values, each disagreement carrying the step and routes `withOnchain` attached (`onchain`, `routes`), the same the reader shows. */
 function valueRows({ primeId, prime, checks }: PrimeChecks, input: AuditInput): AuditRow[] {
-  const ctx = { ...input.votes, snaps: input.snaps.filter((s) => s.prime === primeId) };
   return checks.flatMap((c) => {
     const entries = DATED.has(c.status) ? input.history.get(c.docId) : undefined;
-    const dates = { chain: c.limit?.setAt?.time.slice(0, 10) ?? null, atlas: entries ? valueChangedAt(entries, c.stated) : null };
-    const step = entries && !switchedOffSlope(c, checks) ? onchainStep(c, entries, ctx) : null;
-    const routes = keyRoutes(c, ctx.snaps, ctx.pau, ctx.now ?? Date.parse(ctx.today)) ?? undefined;
-    const reason = checkReason(c, checks, dates, step, routes);
+    const at = { chain: c.limit?.setAt?.time ?? null, atlas: (entries && valueChange(entries, c.stated)?.entry.date) || null };
+    const dates = { chain: at.chain?.slice(0, 10) ?? null, atlas: at.atlas?.slice(0, 10) ?? null };
+    const step = c.onchain ?? null;
+    const routes = c.routes;
+    const reason = checkReason(c, checks, at, step, routes);
     if (!reason) return [];
     return [{
       item: `value:${c.docId}:${c.field}`, group: AUDIT_REASONS[reason].group, reason, note: AUDIT_REASONS[reason].text, primeId, prime,
@@ -117,7 +115,6 @@ export interface AuditInput {
   claims: PauIgnored[];
   /** Atlas document id → its history, for the documents `docsToDate` names. */
   history: ReadonlyMap<string, readonly HistoryEntry[]>;
-  votes: AuditVotes;
 }
 
 /** Every audit row, sorted by group, then prime, chain, subject and value. */

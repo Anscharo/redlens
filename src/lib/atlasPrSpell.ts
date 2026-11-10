@@ -1,5 +1,6 @@
 // The spell an atlas pull request says it belongs to, in its own words: its
-// title ("October 8 spell changes", or an ISO date before "Spell Updates"), or
+// title ("October 8 spell changes", "Aug 13 Spell Update", an ISO date before
+// "Spell Updates" or after "spell"), or
 // the bullet that names a document's edit ("Update Grove Artifact For April 9
 // Spell"). Only a date written next to the word "spell" counts; a date beside
 // "Executive Vote" says when something takes effect, not which spell carries
@@ -14,16 +15,22 @@
 // links such a thread; the PR's own spell comes from its Snapshot poll
 // (primePolls.ts). Pure.
 
-const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
-const MONTH = MONTHS.join("|");
+/** Raised when the parser below reads a PR differently, so every stored PR is read again (src/server/history/pr-spells.ts). */
+export const SPELL_REFS_VERSION = 2;
+
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+/** A month, written out or cut short ("Aug", "Sept.", "October"). */
+const MONTH = "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?";
 const pad = (n: number) => String(n).padStart(2, "0");
 const ref = (month: string | number, day: string, year?: string) => {
-  const m = typeof month === "number" ? month : MONTHS.indexOf(month.toLowerCase()) + 1;
+  const m = typeof month === "number" ? month : MONTHS.indexOf(month.slice(0, 3).toLowerCase()) + 1;
   return `${year ?? "-"}-${pad(m)}-${pad(Number(day))}`;
 };
+/** What may stand between a date and the word "spell": "Executive", "Executive Vote". */
+const BEFORE_SPELL = "(?:\\s+executive(?:\\s+vote)?)?\\s+spells?\\b";
 
-const ONE_DATE = `(?:${MONTH})\\s+\\d{1,2}(?:st|nd|rd|th)?(?:,\\s*\\d{4})?`;
-const DATE_PARTS = new RegExp(`(${MONTH})\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,\\s*(\\d{4}))?`, "gi");
+const ONE_DATE = `(?:${MONTH})\\.?\\s+\\d{1,2}(?:st|nd|rd|th)?(?:,\\s*\\d{4})?`;
+const DATE_PARTS = new RegExp(`(${MONTH})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,\\s*(\\d{4}))?`, "gi");
 
 const THREAD = new RegExp(`(${MONTH})-(\\d{1,2})-(\\d{4})-proposed-changes-to-[a-z0-9-]+-for-upcoming-spell`, "i");
 
@@ -38,10 +45,12 @@ export const isThreadRef = (r: string): boolean => r.startsWith("thread:");
 
 const PATTERNS: Array<{ re: RegExp; read: (m: RegExpExecArray) => string[] }> = [
   { re: new RegExp(`/t/(${MONTH})-(\\d{1,2})-(\\d{4})-proposed-changes-to-[a-z0-9-]+-for-upcoming-spell`, "gi"), read: (m) => [`thread:${ref(m[1], m[2], m[3])}`] },
-  { re: /\b(\d{4})-(\d{2})-(\d{2})(?:\s+executive\s+vote)?\s+spell\b/gi, read: (m) => [`${m[1]}-${m[2]}-${m[3]}`] },
-  // "April 9 Spell", "September 24, 2026 spell", "July 6, August 17 spell changes"
+  // An ISO date before "Spell Updates" or "Executive Spell", or after the word "spell"
+  { re: new RegExp(`\\b(\\d{4})-(\\d{2})-(\\d{2})${BEFORE_SPELL}`, "gi"), read: (m) => [`${m[1]}-${m[2]}-${m[3]}`] },
+  { re: /\bspell\s+(?:of\s+)?(\d{4})-(\d{2})-(\d{2})\b/gi, read: (m) => [`${m[1]}-${m[2]}-${m[3]}`] },
+  // "April 9 Spell", "Aug 13 Spell Update", "Oct 16th spell", "September 24, 2026 spell", "July 6, August 17 spell changes"
   {
-    re: new RegExp(`\\b(${ONE_DATE}(?:\\s*(?:,|and|&)\\s*${ONE_DATE})*)(?:\\s+executive\\s+vote)?\\s+spells?\\b`, "gi"),
+    re: new RegExp(`\\b(${ONE_DATE}(?:\\s*(?:,|and|&)\\s*${ONE_DATE})*)${BEFORE_SPELL}`, "gi"),
     read: (m) => [...m[1].matchAll(DATE_PARTS)].map((d) => ref(d[1], d[2], d[3])),
   },
 ];

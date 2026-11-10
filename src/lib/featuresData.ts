@@ -270,6 +270,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Open it from Reports, or click `N values to review` under a chain's `Rate limits` heading on a Prime Agent's Liquidity Layer Arch. (PAUs) page (it counts that deployment's) to see only that Prime's.",
           "Filter with the Group and Prime pills; each row shows what the Atlas states, what the chain holds, why it is listed, and the Atlas document stating it.",
           "Where a value is placed by which side moved last, the row shows both dates: when the chain last set it and when the Atlas last wrote the value. Where the Atlas moved later, the row follows the Atlas pull request that wrote the value to the spell it names, linked to the evidence: what that spell is still waiting on, or that it executed without the value (listed under `Spell executed without the change`), set it to another value (`Ambiguous`) or never executed; a pull request that names no spell is said so.",
+          "A rate-limit row also says who can change the limit: a spell through its admin and, where BeamState and the Configurator allow it, the Operator, with how far the Operator can take it and the Atlas rule that says so. The Group pills, search and CSV (`Who can set it`) include it.",
         ],
         note: "Values that match, values the Atlas marks as not set, and values the reader has not read yet are left out. Without the server's document history, every disagreement is listed as ambiguous.",
       },

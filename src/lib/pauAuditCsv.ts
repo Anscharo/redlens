@@ -21,6 +21,7 @@ export const auditSearchFields = (r: AuditRow, docNo: string): SearchField[] => 
   { label: "chain value", value: r.onchain },
   { label: "why", value: r.note },
   { label: "on-chain step", value: r.step ? stepText(r.step) : "" },
+  { label: "who can set it", value: r.routes ? routesText(r.routes) : "" },
   { label: "group", value: GROUP_LABEL.get(r.group) ?? "", hidden: true },
   { label: "doc no", value: docNo },
   { label: "key", value: r.key ?? "", hidden: true },
@@ -29,7 +30,7 @@ export const auditSearchFields = (r: AuditRow, docNo: string): SearchField[] => 
 
 const HEADERS = [
   "Group", "Reason", "Prime", "Chain", "Generation", "Subject", "Value", "Atlas states", "Chain holds",
-  "Chain last set", "Atlas last changed", "On-chain step", "Who can set it", "Key", "Contract", "Doc No", "UUID", "Atlas Link",
+  "Chain last set", "Atlas wrote value", "On-chain step", "Who can set it", "Key", "Contract", "Doc No", "UUID", "Atlas Link",
 ];
 
 /** The rows as CSV; `docNo` resolves a document's number for display only. */

@@ -19,16 +19,37 @@ export const READ_DAYS = 3;
 const ref = (e: IndexedExecutive): SpellRef => ({ title: e.title, date: e.date, url: e.url });
 const pending = (named: Named, expectedBy: string, step: PendingStep): OnchainStep => ({ kind: "pending", pending: { ...named, expectedBy, step } });
 
+/**
+ * Whether the spell had executed before the atlas change merged, by full
+ * timestamp where both are known, else by day, where the same day says no.
+ */
+function executedBefore(x: IndexedExecutive, named: Named): boolean {
+  if (x.executedAt && named.at) return Date.parse(x.executedAt) < Date.parse(named.at);
+  return !!x.executed && x.executed < named.atlasChanged;
+}
+
+/** When the next spell after `since` executed; null while none has. */
+const nextExecution = (executives: readonly IndexedExecutive[], since: string): string | null =>
+  executives.map((e) => e.executedAt ?? e.executed ?? "").filter((t) => t > since).sort()[0] ?? null;
+
+/** The relay to the check's chain queued between the spell's execution and the next one's, while it is still due. */
+function dueRelay(c: ValueCheck, since: string, ctx: PendingContext) {
+  if (c.chain === "ethereum") return null;
+  const relay = queuedRelay(ctx.pau.queued ?? [], deploymentsOf(c, ctx.snaps), since, nextExecution(ctx.executives, since));
+  const expectedBy = relay && addDays((relay.at ?? relay.time).slice(0, 10), READ_DAYS);
+  return relay && expectedBy && ctx.today <= expectedBy ? { relay, expectedBy } : null;
+}
+
 /** What became of a cast spell: it set the key, its relay or its changes are still coming, or it ran without the change. */
 function afterCast(c: ValueCheck, named: Named, x: IndexedExecutive, ctx: PendingContext): OnchainStep {
   const spell = ref(x);
   const executed = x.executed ?? null;
-  const recorded = !!executed && executed <= named.atlasChanged;
+  const recorded = executedBefore(x, named);
   const set = x.spell ? keySetBy(ctx.pau, x.spell, c) : null;
   if (set) return { kind: "set", named, spell, chain: set.chain, tx: set.tx, recorded };
   const since = executed ?? x.date;
-  const relay = c.chain === "ethereum" ? null : queuedRelay(ctx.pau.queued ?? [], deploymentsOf(c, ctx.snaps), since);
-  if (relay) return pending(named, addDays((relay.at ?? relay.time).slice(0, 10), READ_DAYS), { kind: "queued", spell, chain: relay.chain, tx: relay.tx, at: relay.at });
+  const due = dueRelay(c, x.executedAt ?? since, ctx);
+  if (due) return pending(named, due.expectedBy, { kind: "queued", spell, chain: due.relay.chain, tx: due.relay.tx, at: due.relay.at });
   if (ctx.today <= addDays(since, READ_DAYS)) return pending(named, addDays(since, READ_DAYS), { kind: "reading", spell, executed: since });
   return { kind: "executed", named, spell, executed, recorded };
 }
@@ -40,11 +61,14 @@ function carriedBy(c: ValueCheck, named: Named, x: IndexedExecutive, ctx: Pendin
   return ctx.today <= until ? pending(named, until, { kind: "uncast", spell: ref(x) }) : { kind: "lapsed", named, spell: ref(x), why: "expired" };
 }
 
+/** A spell no executive is filed for: still coming within the slip, else lapsed. */
+const unfiled = (named: Named, ctx: PendingContext): OnchainStep =>
+  ctx.today <= addDays(named.date, SLIP_DAYS) ? pending(named, addDays(named.date, SLIP_DAYS), { kind: "unfiled" }) : { kind: "lapsed", named, spell: null, why: "none" };
+
 /** What became of the spell one change names by date. */
 export function namedStep(c: ValueCheck, named: Named, ctx: PendingContext): OnchainStep {
   const x = executiveFor(ctx, named.date, false);
-  if (x) return carriedBy(c, { ...named, date: x.date }, x, ctx);
-  return ctx.today <= addDays(named.date, SLIP_DAYS) ? pending(named, addDays(named.date, SLIP_DAYS), { kind: "unfiled" }) : { kind: "lapsed", named, spell: null, why: "none" };
+  return x ? carriedBy(c, { ...named, date: x.date }, x, ctx) : unfiled(named, ctx);
 }
 
 /**
@@ -54,17 +78,21 @@ export function namedStep(c: ValueCheck, named: Named, ctx: PendingContext): Onc
  */
 function unlinked(named: Named, ctx: PendingContext): OnchainStep {
   const x = executiveFor(ctx, named.date, false);
-  if (x) return { kind: "lapsed", named, spell: ref(x), why: "not-carried" };
-  return ctx.today <= addDays(named.date, SLIP_DAYS) ? pending(named, addDays(named.date, SLIP_DAYS), { kind: "unfiled" }) : { kind: "lapsed", named, spell: null, why: "none" };
+  return x ? { kind: "lapsed", named, spell: ref(x), why: "not-carried" } : unfiled(named, ctx);
 }
 
-/** What became of the spell item one Snapshot poll stands for. */
-export function pollStep(c: ValueCheck, base: Omit<Named, "date">, poll: PrimePoll, ctx: PendingContext): OnchainStep {
+/**
+ * What became of the spell item one Snapshot poll stands for. A passed item no
+ * executive links yet is measured against the spell its upcoming-spell thread
+ * names; with no such thread its spell is unknown, and nothing is said.
+ */
+export function pollStep(c: ValueCheck, base: Omit<Named, "date">, poll: PrimePoll, ctx: PendingContext): OnchainStep | null {
   const named: Named = { ...base, date: poll.threadDate ?? poll.end, poll: { id: poll.id, title: poll.title, space: poll.space } };
   const xs = ctx.snapshots?.get(poll.id) ?? [];
   const x = xs.find((e) => e.cast) ?? xs.at(-1);
   if (x) return carriedBy(c, { ...named, date: x.date }, x, ctx);
   if (poll.passed === null) return pending(named, poll.end, { kind: "polling" });
   if (!poll.passed) return { kind: "rejected", named };
-  return offSpellPoll(poll) ? { kind: "off-spell", named } : unlinked(named, ctx);
+  if (offSpellPoll(poll)) return { kind: "off-spell", named };
+  return poll.threadDate ? unlinked(named, ctx) : null;
 }

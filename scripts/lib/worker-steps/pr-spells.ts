@@ -1,18 +1,18 @@
 // The link from atlas changes to their pull requests and the spells those name
-// (src/server/history/pr-spells.ts): first every stored change whose commit
-// names a PR it was stored without, from the atlas git log; then a few PR
-// records a tick, from the committed cache where it holds them, else fetched
-// with `gh` (fetchPr). Under --no-fetch only the cache is read.
+// (src/server/history/pr-spells.ts): once per atlas commit, every stored change
+// whose commit names a PR it was stored without, from the atlas git log; then a
+// few PR records a tick, from the committed cache where it holds them, else
+// fetched with `gh` (fetchPr), the first that cannot be fetched ending the tick.
+// Under --no-fetch (a PR environment too) only the cache is read.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
 const PRS_PER_TICK = 30;
 
-type PrRecord = { title: string | null; body: string | null; url?: string | null; author?: string | null };
 
 /** The cached record of one PR, without fetching; null when the cache lacks it. */
-async function cachedPr(pr: number): Promise<PrRecord | null> {
+async function cachedPr(pr: number): Promise<import("../../../src/server/history/pr-spells.ts").PrRecord | null> {
   const { PR_CACHE_DIR } = await import("../github-pr-cache.mjs");
   const file = path.join(PR_CACHE_DIR, `${pr}.json`);
   return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : null;
@@ -35,14 +35,15 @@ export default {
   id: "pr-spells",
   phase: "tick" as const,
   label: "atlas PR spells step",
-  skipWhenInert: "atlas PR spells skipped (PR environment) — its image holds no PR records",
   async run({ db, noFetch }: { db: unknown; noFetch: boolean }): Promise<string> {
-    const { backfillPrNumbers, fillPrSpells } = await import("../../../src/server/history/pr-spells.ts");
+    const { backfillPrNumbers, fillPrSpells, markPrBackfill, prBackfillDue } = await import("../../../src/server/history/pr-spells.ts");
     const { fetchPr } = await import("../github-pr-cache.mjs");
     const sql = db as Parameters<typeof fillPrSpells>[0];
-    const linked = await backfillPrNumbers(sql, await prsByCommit());
-    const record = noFetch ? cachedPr : async (pr: number) => (await fetchPr(pr)) as PrRecord | null;
-    const r = await fillPrSpells(sql, record, PRS_PER_TICK);
+    const due = await prBackfillDue(sql);
+    const linked = due ? await backfillPrNumbers(sql, await prsByCommit()) : 0;
+    if (due) await markPrBackfill(sql, due);
+    const record = noFetch ? cachedPr : async (pr: number) => (await fetchPr(pr)) as Awaited<ReturnType<typeof cachedPr>>;
+    const r = await fillPrSpells(sql, record, PRS_PER_TICK, !noFetch);
     return `atlas PR spells: ${linked} changes given their PR, ${r.read} PRs read (${r.named} name a spell), ${r.missing} without a record`;
   },
 };

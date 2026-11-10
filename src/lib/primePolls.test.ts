@@ -15,6 +15,7 @@ describe("toPrimePoll", () => {
     expect(toPrimePoll(proposal())).toEqual({ id: "0xabc", space: "grovefinance.eth", title: "[Base] Raise the deposit rate limit", end: "2025-10-29", passed: true, threadDate: "2026-11-05", prs: [363] });
     expect(toPrimePoll(proposal({ scores: [1, 5, 0] })).passed).toBe(false);
     expect(toPrimePoll(proposal({ state: "active" })).passed).toBeNull();
+    expect(toPrimePoll(proposal({ scores: [] })).passed).toBe(false);
     expect(toPrimePoll(proposal({ discussion: null })).threadDate).toBeNull();
   });
   it("indexes polls by PR and tells artifact and Sky Core items apart", () => {

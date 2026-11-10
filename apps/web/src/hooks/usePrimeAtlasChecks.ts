@@ -24,7 +24,7 @@ export function usePrimeAtlasChecks(primeId: string | undefined, snaps: StoredPa
     const sources = primeId ? graphPrimeSources(primeId, graph, atlas ?? undefined) : null;
     return sources ? checkAtlasValues(sources, snaps) : [];
   }, [graph, atlas, primeId, snaps]);
-  return useOnchainSteps(checks, snaps);
+  return useOnchainSteps(checks);
 }
 
 /** Every key the snapshots hold, by chain and key. */
@@ -45,10 +45,11 @@ export function usePrimeCardMarks(primeId: string | undefined): CardMarks | null
   const chain = useLoaded(loadChainState, { soft: true });
   const snaps = useMemo(() => (res && primeId ? snapshotsForPrime(res, primeId) : []), [res, primeId]);
   const values = usePrimeAtlasChecks(primeId, snaps);
-  return useMemo(() => {
+  const rest = useMemo(() => {
     const sources = res && primeId ? graphPrimeSources(primeId, graph, atlas ?? undefined) : null;
     // A failed /api/pau resolves to no deployments at all: say nothing rather than mark every row unindexed.
     if (!res || res.deployments.length === 0 || !primeId || !sources) return null;
-    return { values: indexParamChecks(values), addresses: checkAtlasAddresses(sources, snaps), plain: new Map([...checkAgentInstances(sources, snaps, chain?.values ?? null), ...checkGuardParams(sources, snaps), ...checkVaultRoles(sources, snaps)]), held: heldKeys(snaps) };
-  }, [res, graph, atlas, chain, primeId, snaps, values]);
+    return { addresses: checkAtlasAddresses(sources, snaps), plain: new Map([...checkAgentInstances(sources, snaps, chain?.values ?? null), ...checkGuardParams(sources, snaps), ...checkVaultRoles(sources, snaps)]), held: heldKeys(snaps) };
+  }, [res, graph, atlas, chain, primeId, snaps]);
+  return useMemo(() => (rest ? { ...rest, values: indexParamChecks(values) } : null), [rest, values]);
 }

@@ -24,11 +24,14 @@ const admins = (deps: readonly StoredPauSnapshot[]) =>
   new Set(deps.flatMap((s) => s.contracts.flatMap((x) => (x.roles ?? []).filter((r) => r.holds !== false).map((r) => r.account.toLowerCase()))));
 
 /**
- * An action set queued on or after `since` on an Executor holding a role on the
- * deployments' contracts: the relay of a spell cast on Ethereum to their chain.
- * Which settings it changes is not decoded.
+ * An action set queued on an Executor holding a role on the deployments'
+ * contracts after the spell executed (`since`) and before the next spell did
+ * (`until`, null while none has): the relay of that spell to their chain. The
+ * window, not a bridge message, ties the set to the spell, so a later spell's
+ * relay is never taken for this one's. Which settings it changes is not decoded.
  */
-export function queuedRelay(queued: readonly PauQueuedStep[], deps: readonly StoredPauSnapshot[], since: string): PauQueuedStep | null {
+export function queuedRelay(queued: readonly PauQueuedStep[], deps: readonly StoredPauSnapshot[], since: string, until: string | null): PauQueuedStep | null {
   const roles = admins(deps);
-  return queued.find((q) => q.kind === "action-set" && q.time.slice(0, 10) >= since && deps.some((s) => s.chain === q.chain) && roles.has(q.contract.toLowerCase())) ?? null;
+  const inWindow = (t: string) => t >= since && (!until || t < until);
+  return queued.find((q) => q.kind === "action-set" && inWindow(q.time) && deps.some((s) => s.chain === q.chain) && roles.has(q.contract.toLowerCase())) ?? null;
 }

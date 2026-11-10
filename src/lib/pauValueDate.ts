@@ -5,7 +5,7 @@ import type { DiffLine, HistoryEntry } from "./history.ts";
 
 const CONTENT = new Set(["added", "modified"]);
 const norm = (s: string) => s.replace(/\s+/g, " ").toLowerCase();
-export const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 /** The stated text as a whole value: not a digit run's middle ("0" is not in "20,000"). */
 const valuePattern = (stated: string) => new RegExp(`(?<![\\w.,])${escapeRegExp(norm(stated))}(?![\\w]|[.,]\\d)`);
 
@@ -51,3 +51,15 @@ export function valueChange(entries: readonly HistoryEntry[], stated: string): V
 
 /** When the document last wrote the stated value, YYYY-MM-DD (`valueChange`); null when it has no content change. */
 export const valueChangedAt = (entries: readonly HistoryEntry[], stated: string): string | null => valueChange(entries, stated)?.entry.date.slice(0, 10) ?? null;
+
+/**
+ * Which side moved last, by full timestamp: "chain" when the chain set the key
+ * after the atlas wrote the value, "atlas" when the atlas wrote it after; null
+ * when either time is unknown or they are the same instant.
+ */
+export function moveOrder(chainAt: string | null | undefined, atlasAt: string | null | undefined): "chain" | "atlas" | null {
+  const chain = chainAt ? Date.parse(chainAt) : NaN;
+  const atlas = atlasAt ? Date.parse(atlasAt) : NaN;
+  if (Number.isNaN(chain) || Number.isNaN(atlas) || chain === atlas) return null;
+  return chain > atlas ? "chain" : "atlas";
+}

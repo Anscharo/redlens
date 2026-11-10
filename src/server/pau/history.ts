@@ -75,6 +75,7 @@ async function inputsVersion(db: SqlTag): Promise<string> {
 }
 
 interface Built {
+  body: PauHistoryResponse;
   json: string;
   gzip: () => Uint8Array;
 }
@@ -82,7 +83,7 @@ interface Built {
 function build(body: PauHistoryResponse): Built {
   const json = JSON.stringify(body);
   let gz: Uint8Array | undefined;
-  return { json, gzip: () => (gz ??= Bun.gzipSync(json)) };
+  return { body, json, gzip: () => (gz ??= Bun.gzipSync(json)) };
 }
 
 let cache: { version: string; checkedAt: number; built: Promise<Built> } | null = null;
@@ -107,6 +108,9 @@ async function currentHistory(): Promise<Built> {
   });
   return checking;
 }
+
+/** The history as GET /api/pau/history serves it, from the same cache; throws when it cannot be built. */
+export const currentPauHistory = async (): Promise<PauHistoryResponse> => (await currentHistory()).body;
 
 /** Forgets the built history (tests). */
 export function resetPauHistoryCache(): void {

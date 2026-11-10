@@ -26,6 +26,8 @@ export interface IndexedExecutive {
   spell: string | null;
   /** When the portal says the spell executed, YYYY-MM-DD; null or absent when it has not, or the portal does not say. */
   executed?: string | null;
+  /** The same, as the portal's full timestamp, to order it against an atlas merge on the same day. */
+  executedAt?: string | null;
   /** Title, summary and every action section, lowercased. */
   text: string;
 }
@@ -107,6 +109,7 @@ function indexExecutive(e: Executive): IndexedExecutive {
     cast: e.portal?.hasBeenCast === true,
     spell: e.address,
     executed: e.portal?.dateExecuted?.slice(0, 10) ?? null,
+    executedAt: e.portal?.dateExecuted ?? null,
     text: [e.title, e.summary, ...sections].join(" ").toLowerCase(),
   };
 }

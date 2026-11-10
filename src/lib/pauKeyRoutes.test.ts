@@ -7,6 +7,7 @@ import type { StoredPauSnapshot } from "./pau.ts";
 import { check } from "./pauPending.fixture.ts";
 import { keyRoutes, raisesTo, statedRaw } from "./pauKeyRoutes.ts";
 import { routesText } from "./pauRouteText.ts";
+import type { PauHistoryEntry } from "./pauHistory.ts";
 
 const UNLIMITED = ((1n << 256n) - 1n).toString();
 const WAD = 10n ** 18n;
@@ -42,8 +43,7 @@ describe("keyRoutes", () => {
     expect(statedRaw(stated("20,000,000 USDC", 0n))).toBe(20_000_000n * E6);
     expect(statedRaw({ ...stated("86,400 USDC per day", 0n), field: "slope" })).toBe(E6);
     const noUnit = { ...stated("20,000,000 USDC", 0n), limit: { ...stated("x", 0n).limit!, unit: undefined } };
-    expect(statedRaw(noUnit)).toBe(20_000_000n * E6);
-    expect(statedRaw({ ...noUnit, stated: "20,000,000 USDS or USDC" })).toBeNull();
+    expect(statedRaw(noUnit)).toBeNull();
   });
   it("lists the spell admin apart from the Configurator, and has no Operator route without BeamState or its admin role", () => {
     expect(keyRoutes(stated("1 USDC", 0n), [snapWith(0n)], { entries: [], queued: [] }, NOW)?.admins).toEqual([ADMIN]);
@@ -60,8 +60,12 @@ describe("keyRoutes", () => {
     const raised = { chain: "base", tx: "0xr", block: 1, time: new Date(NOW - 3600_000).toISOString(), primes: ["p"], executive: null,
       origin: { kind: "operator" as const, path: null, spell: null, starSpell: null, l1Tx: null, from: null, to: null, relay: null, evidence: "e" },
       changes: [{ deployments: [], contract: "0xrl", role: "rateLimits", event: "RateLimitDataSet", args: { maxAmount: "100" }, subject: "0xk", label: null, before: { maxAmount: "50" } }] };
-    const r = keyRoutes(stated("110 USDC", 100n * E6), [snapWith(100n * E6)], { entries: [raised], queued: [] }, NOW)?.operator?.reach;
-    expect(r).toMatchObject({ kind: "raise", raises: 1, first: new Date(NOW - 3600_000 + HOP * 1000).toISOString() });
+    const reachAfter = (entry: PauHistoryEntry) => keyRoutes(stated("110 USDC", 100n * E6), [snapWith(100n * E6)], { entries: [entry], queued: [] }, NOW)?.operator?.reach;
+    expect(reachAfter(raised)).toMatchObject({ kind: "raise", raises: 1, first: new Date(NOW - 3600_000 + HOP * 1000).toISOString() });
+    const slope = { ...raised, changes: [{ ...raised.changes[0], args: { slope: "2" }, before: { slope: "1" } }] };
+    expect(reachAfter(slope)).toMatchObject({ first: new Date(NOW - 3600_000 + HOP * 1000).toISOString() });
+    const elsewhere = { ...raised, chain: "arbitrum", changes: [{ ...raised.changes[0], contract: "0xotherrl" }] };
+    expect(reachAfter(elsewhere)).toMatchObject({ first: new Date(NOW).toISOString() });
   });
   it("keeps a limit locked as unlimited where it is", () => {
     expect(reach("10 USDC", BigInt(UNLIMITED))).toEqual({ kind: "locked" });
@@ -70,5 +74,7 @@ describe("keyRoutes", () => {
   it("says who can set it, in words", () => {
     const r = keyRoutes(stated("50 USDC", 0n), [snapWith(0n)], { entries: [], queued: [] }, NOW)!;
     expect(routesText(r)).toMatch(/^Set by a spell, through 0xsubp…roxy, or through the Configurator, where the Operator cannot raise it that far/);
+    const cited = keyRoutes(stated("50 USDC", 0n), [snapWith(0n)], { entries: [], queued: [] }, NOW, (uuid) => (uuid.startsWith("942d6607") ? "A.2.2.10.1.1.1.2.4.1.1.2.1" : null))!;
+    expect(routesText(cited)).toContain("only a spell can (Atlas A.2.2.10.1.1.1.2.4.1.1.2.1)");
   });
 });

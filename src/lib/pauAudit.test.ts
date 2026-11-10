@@ -3,7 +3,7 @@
 // need no audit (match, not stated, not read) left out.
 import { describe, expect, it } from "vitest";
 import type { ValueCheck } from "./pauAtlasValues.ts";
-import { checkReason, lastContentChange, switchedOffSlope } from "./pauAudit.ts";
+import { checkReason, switchedOffSlope } from "./pauAudit.ts";
 
 const data = (maxAmount: string, slope: string) => ({ maxAmount, slope, lastAmount: "0", lastUpdated: "0" });
 const check = (status: ValueCheck["status"], extra: Partial<ValueCheck> = {}): ValueCheck => ({
@@ -43,17 +43,5 @@ describe("checkReason with the Operator's reach", () => {
     expect(checkReason(c, [c], at("2026-04-01", "2026-06-01"), offSpell, routes("beyond"))).toBe("beyond-operator");
     expect(checkReason(c, [c], at("2026-04-01", "2026-06-01"), offSpell)).toBe("off-spell");
     expect(checkReason(c, [c], at("2026-04-01", "2026-06-01"), { kind: "unnamed", atlasChanged: "2026-06-01", pr: 1 }, routes("beyond"))).toBe("atlas-newer");
-  });
-});
-
-describe("lastContentChange", () => {
-  it("takes the latest addition or real edit, ignoring moves and cosmetic edits", () => {
-    expect(lastContentChange([
-      { date: "2026-01-01T10:00:00Z", changeType: "added" },
-      { date: "2026-03-01", changeType: "modified", changeKind: "semantic" },
-      { date: "2026-04-01", changeType: "modified", changeKind: "typo" },
-      { date: "2026-05-01", changeType: "moved" },
-    ])).toBe("2026-03-01");
-    expect(lastContentChange([])).toBeNull();
   });
 });

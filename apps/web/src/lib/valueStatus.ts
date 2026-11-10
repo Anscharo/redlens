@@ -51,6 +51,3 @@ export function limitSummary(r: LiveRateLimit): string {
   if (max === "unlimited") return "unlimited";
   return `${max}${symbol} · ${formatPerDay(r.data.slope, dec)}${symbol}/day`;
 }
-
-/** A pending mismatch (src/lib/pauPending.ts), in one phrase; its full sentence is `pendingSummary` (src/lib/pauStepText.ts). */
-export const PENDING_TEXT = "on-chain update pending";
