@@ -7,7 +7,8 @@
 // re-proposed for another spell. Pure.
 import type { ValueCheck } from "./pauAtlasValues.ts";
 import type { Named, OnchainStep, PendingContext, PendingStep, SpellRef } from "./pauPending.ts";
-import { deploymentsOf, keySetBy, queuedRelay } from "./pauPendingEvidence.ts";
+import { deploymentsOf, keySetBy, messageInFlight, queuedRelay } from "./pauPendingEvidence.ts";
+import { isSvmChain } from "./pauRegistry.ts";
 import { offSpellPoll, type PrimePoll } from "./primePolls.ts";
 import { addDays, executiveFor, SLIP_DAYS, type IndexedExecutive } from "./votes/vote-index.ts";
 
@@ -32,10 +33,16 @@ function executedBefore(x: IndexedExecutive, named: Named): boolean {
 const nextExecution = (executives: readonly IndexedExecutive[], since: string): string | null =>
   executives.map((e) => e.executedAt ?? e.executed ?? "").filter((t) => t > since).sort()[0] ?? null;
 
-/** The relay to the check's chain queued between the spell's execution and the next one's, while it is still due. */
+/**
+ * The relay to the check's chain made between the spell's execution and the
+ * next one's, while it is still due: an action set queued on an L2 Executor,
+ * or, for Solana, a LayerZero governance message not yet received.
+ */
 function dueRelay(c: ValueCheck, since: string, ctx: PendingContext) {
-  if (c.chain === "ethereum") return null;
-  const relay = queuedRelay(ctx.pau.queued ?? [], deploymentsOf(c, ctx.snaps), since, nextExecution(ctx.executives, since));
+  if (!c.chain || c.chain === "ethereum") return null;
+  const until = nextExecution(ctx.executives, since);
+  const queued = ctx.pau.queued ?? [];
+  const relay = isSvmChain(c.chain) ? messageInFlight(queued, since, until) : queuedRelay(queued, deploymentsOf(c, ctx.snaps), since, until);
   const expectedBy = relay && addDays((relay.at ?? relay.time).slice(0, 10), READ_DAYS);
   return relay && expectedBy && ctx.today <= expectedBy ? { relay, expectedBy } : null;
 }
@@ -49,7 +56,7 @@ function afterCast(c: ValueCheck, named: Named, x: IndexedExecutive, ctx: Pendin
   if (set) return { kind: "set", named, spell, chain: set.chain, tx: set.tx, recorded };
   const since = executed ?? x.date;
   const due = dueRelay(c, x.executedAt ?? since, ctx);
-  if (due) return pending(named, due.expectedBy, { kind: "queued", spell, chain: due.relay.chain, tx: due.relay.tx, at: due.relay.at });
+  if (due) return pending(named, due.expectedBy, { kind: "queued", spell, chain: due.relay.chain, tx: due.relay.tx, at: due.relay.at, ...(due.relay.kind === "lz-message" ? { via: "layerzero" as const } : {}) });
   if (ctx.today <= addDays(since, READ_DAYS)) return pending(named, addDays(since, READ_DAYS), { kind: "reading", spell, executed: since });
   return { kind: "executed", named, spell, executed, recorded };
 }

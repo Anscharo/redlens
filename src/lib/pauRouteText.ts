@@ -1,6 +1,7 @@
 // The words for who can change a rate limit (pauKeyRoutes.ts), shared by the
 // reader's "Atlas vs contract" table, the Radar marks and the PAU values audit.
-// What the Operator may do cites the atlas rule it rests on, next to the claim.
+// What the Operator may do, and a Solana limit's route, cite the atlas rules
+// they rest on, next to the claim.
 // Pure.
 import type { KeyRoutes, Reach } from "./pauKeyRoutes.ts";
 import { shortAddress } from "./plainCheck.ts";
@@ -18,8 +19,15 @@ const REACH: Record<Reach["kind"], (r: Reach) => string> = {
   locked: () => "cannot move it: the limit is locked as unlimited",
 };
 
+/** A Solana limit's route: a spell alone, relayed through LayerZero governance to the admin it signs as. */
+function relayText(r: KeyRoutes): string {
+  const cite = r.relay?.cites?.length ? ` (Atlas ${r.relay.cites.join(", ")})` : "";
+  return `Set by spell, relayed to Solana through LayerZero governance and signed by ${r.admins.map(shortAddress).join(" or ")}${cite}; the Operator has no route to a Solana limit`;
+}
+
 /** Who can set the value, as one clause: a spell through its admins, and what the Operator can do. */
 export function routesText(r: KeyRoutes): string {
+  if (r.relay) return relayText(r);
   const spell = r.admins.length ? `a spell, through ${r.admins.map(shortAddress).join(" or ")}` : "no spell (only the Configurator holds the admin role)";
   if (!r.operator) return `Set by ${spell}; the Operator has no route to this limit`;
   const cite = r.operator.cites?.length ? ` (Atlas ${r.operator.cites.join(", ")})` : "";

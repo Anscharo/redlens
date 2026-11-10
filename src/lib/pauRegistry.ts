@@ -27,6 +27,9 @@ export const PAU_ROLES = [
   "relayer",
   "starGuard",
   "executor",
+  // LayerZero governance: the Ethereum sender a spell's SubProxy calls, and the Solana program that runs each message it delivers.
+  "lzGovSender",
+  "lzGovernance",
   // An svm deployment: the program, its Reserve and Integration accounts (each holds one rate limit), and its Permission accounts (each one authority's role).
   "program",
   "reserve",

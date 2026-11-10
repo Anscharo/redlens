@@ -48,11 +48,17 @@ async function executives(db: SqlTag, votes: VoteRecord): Promise<(spell: string
   return (spell) => record.get(spell) ?? archive.get(spell) ?? { title: null, date: null, url: null, source: null };
 }
 
+/** Where the Solana window a full pass has read LayerZero receipts over starts (svm-sync.ts `stampOf`); null before one has. */
+async function receiptsFrom(db: SqlTag): Promise<string | null> {
+  const rows = (await db`SELECT min(start_time) AS start FROM pau_svm_cursor WHERE position('|' in controllers) > 0 AND reached_at IS NOT NULL`) as { start: unknown }[];
+  return rows[0]?.start ? iso(rows[0].start) : null;
+}
+
 /** Every change to a prime's PAU; changes to shared contracts alone (a Beacon's setup) belong to no prime's history. */
 export async function readPauHistory(db: SqlTag = sql, votes: VoteRecord = loadVoteIndexFromDisk, reg = registry as PauRegistry): Promise<PauHistoryResponse> {
-  const [rows, origins, executiveOf] = await Promise.all([eventRows(db), originRows(db), executives(db, votes)]);
+  const [rows, origins, executiveOf, from] = await Promise.all([eventRows(db), originRows(db), executives(db, votes), receiptsFrom(db)]);
   const owners = ownersOf(reg);
-  return { entries: buildEntries(rows, owners, origins, executiveOf).filter((e) => e.primes.length > 0), queued: queuedSteps(rows, owners) };
+  return { entries: buildEntries(rows, owners, origins, executiveOf).filter((e) => e.primes.length > 0), queued: queuedSteps(rows, owners, from) };
 }
 
 const HEADERS = { "Cache-Control": "public, max-age=300", Vary: "Accept-Encoding" };

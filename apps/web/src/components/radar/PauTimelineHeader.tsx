@@ -40,6 +40,14 @@ export function PauTimelineHeader({ g, beam }: { g: TimelineGroup; beam?: BeamLi
       </span>
     );
   }
+  if (g.kind === "relayed" && o?.relay?.via === "layerzero") {
+    return (
+      <h3 className="text-[13px]" style={{ color: "var(--tan)" }}>
+        Relayed from Ethereum · LayerZero governance message {o.relay.actionsSet} run by <Address address={o.relay.executor} chain={first.chain} noBalance />
+        <span className="mono text-[11px]" style={dim}> · {o.l1Tx ? "the transaction that sent it proves no spell" : "the Ethereum transaction that sent it is not stored yet"}</span>
+      </h3>
+    );
+  }
   if (g.kind === "relayed") {
     return (
       <h3 className="text-[13px]" style={{ color: "var(--tan)" }}>

@@ -289,6 +289,17 @@
               "doc": "5e1f82c7-bcd6-46f8-aec0-3e767e55a93c"
             }
           ]
+        },
+        {
+          "role": "lzGovSender",
+          "address": "0x27fc1dd771817b53be48dc28789533bea53c9cca",
+          "label": "LayerZero Governance Sender",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "GovernanceOAppSender (Sourcify exact match): sendTx emits GovernanceCallSent(guid) for each governance call it sends over LayerZero. Its CanCallTargetSet log lets the Keel SubProxy call the Solana ALM program on eid 30168, the whitelisting the atlas requires (b319a7e6-d484-44e7-b622-6df9754c5973)."
+            }
+          ]
         }
       ]
     },
@@ -526,6 +537,22 @@
             {
               "source": "onchain",
               "note": "holds DEFAULT_ADMIN_ROLE on Spark's X Layer PAU contracts; actionsSetCount() and GUARDIAN_ROLE() answer as a spark-gov-relay Executor"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "chain": "solana",
+      "members": [
+        {
+          "role": "lzGovernance",
+          "address": "SKYGRikJcGSa3jC5HDyzDrVsmkCk3e5SqAurycny8PW",
+          "label": "Sky LayerZero Governance",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "The Solana peer of the LayerZero Governance Sender (ElodinLTD/crosschain-gov-solana-spell-payloads src/constants.ts SKY_LZ_GOVERNANCE_PROGRAM_ID). Its LzReceive instruction carries each message's guid and runs the call, signing as the sending SubProxy's CPI authority."
             }
           ]
         }
