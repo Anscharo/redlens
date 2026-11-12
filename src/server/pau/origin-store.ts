@@ -65,6 +65,25 @@ export async function cursorsPast(db: SqlTag, chain: string, contracts: string[]
   return rows[0]?.total === expected && rows[0].read === expected;
 }
 
+/** The Ethereum GovernanceCallSent that names a LayerZero guid. */
+export const lzSentOf = (db: SqlTag, guid: string) =>
+  first(db`
+    SELECT tx_hash, block FROM pau_events WHERE chain = 'ethereum' AND event = 'GovernanceCallSent'
+      AND args->>'guid' = ${guid.toLowerCase()} ORDER BY block LIMIT 1`);
+
+/**
+ * Whether an svm cursor on `chain` reads the governance programs' receipts (its
+ * stamp has a `|` part, svm-sync.ts `stampOf`) and has read past `slot` without
+ * an error. One is enough: each query carries every governance program of the
+ * chain, so a cursor of a program the registry dropped holds nothing up.
+ */
+export async function receiptsPast(db: SqlTag, chain: string, slot: number): Promise<boolean> {
+  const rows = (await db`
+    SELECT count(*)::int AS read FROM pau_svm_cursor
+    WHERE chain = ${chain} AND next_slot > ${slot} AND last_error IS NULL AND position('|' in controllers) > 0`) as { read: number }[];
+  return (rows[0]?.read ?? 0) > 0;
+}
+
 export async function saveOrigin(db: SqlTag, p: PendingTx, o: PauOrigin, at: Date): Promise<void> {
   await db`
     INSERT INTO pau_tx_origin (chain, tx_hash, kind, path, spell, star_spell, l1_tx, tx_from, tx_to, relay, evidence, resolved_at)

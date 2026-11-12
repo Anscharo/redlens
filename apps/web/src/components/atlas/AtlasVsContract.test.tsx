@@ -56,4 +56,14 @@ describe("AtlasVsContract", () => {
     expect(within(rows[0]).getByRole("link")).toHaveAttribute("href", `https://etherscan.io/tx/${at.tx}`);
     expect(screen.getByText("contract read 2026-10-08 12:00 UTC")).toBeInTheDocument();
   });
+  it("shows a grey clock, not a ✗, for a mismatch the chain is still expected to catch up on", async () => {
+    const { result } = renderHook(() => useAtlasVsContract("doc-max", sources));
+    await waitFor(() => expect(result.current).toHaveLength(1));
+    const pending = { atlasChanged: "2026-01-05", pr: 363, date: "2026-01-15", expectedBy: "2026-02-14", step: { kind: "uncast" as const, spell: { title: "Spark Spell", date: "2026-01-15", url: "https://vote.sky.money/executive/x" } } };
+    render(<AtlasVsContract rows={[{ ...result.current[0], onchain: { kind: "pending", pending } }]} />);
+    const cell = screen.getByRole("table").querySelector('[data-onchain="pending"]')!;
+    expect(cell).toHaveStyle({ color: "var(--tan-3)" });
+    expect(cell).not.toHaveTextContent("✗");
+    expect(cell).toHaveTextContent(/on-chain update pending: atlas PR #363 \(2026-01-05\) names the 2026-01-15 spell; the 2026-01-15 executive "Spark Spell", which carries it, is not yet cast; expected by 2026-02-14/);
+  });
 });

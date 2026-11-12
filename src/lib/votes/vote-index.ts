@@ -24,6 +24,10 @@ export interface IndexedExecutive {
   cast: boolean;
   /** The deployed spell's address; null while the executive is drafted. Deployed is not cast: see `cast`. */
   spell: string | null;
+  /** When the portal says the spell executed, YYYY-MM-DD; null or absent when it has not, or the portal does not say. */
+  executed?: string | null;
+  /** The same, as the portal's full timestamp, to order it against an atlas merge on the same day. */
+  executedAt?: string | null;
   /** Title, summary and every action section, lowercased. */
   text: string;
 }
@@ -41,6 +45,10 @@ export interface VoteIndex {
   links: Map<string, LinkedVote[]>;
   /** The earliest passed poll linking each next-gen-atlas pull request: the poll that approved that edit. */
   approvals: Map<number, ApprovingPoll>;
+  /** The executives whose sections link each Snapshot proposal (a Prime's poll), by its lowercased id: the spells carrying that poll's item. */
+  snapshots?: Map<string, IndexedExecutive[]>;
+  /** The Snapshot spaces those links name ("sparkfi.eth"), sorted. */
+  snapshotSpaces?: string[];
 }
 
 const EXECUTIVES_REPO = "https://github.com/sky-ecosystem/executive-votes/blob/main/";
@@ -55,7 +63,26 @@ export function buildVoteIndex(a: VotesArtifact): VoteIndex {
     corpus: new SubjectCorpus(executives.map((e) => e.text)),
     links: linkIndex(a, indexed),
     approvals: buildApprovals(a.polls, a.executives, indexed),
+    ...snapshotIndex(a, indexed),
   };
+}
+
+const SNAPSHOT_LINK = /s:([a-z0-9.-]+)\/proposal\/(0x[0-9a-f]{64})/i;
+
+/** Every executive by the Snapshot proposals its sections link, and the spaces those live in; `indexed[i]` is `a.executives[i]` indexed. */
+function snapshotIndex(a: VotesArtifact, indexed: readonly IndexedExecutive[]): Pick<VoteIndex, "snapshots" | "snapshotSpaces"> {
+  const snapshots = new Map<string, IndexedExecutive[]>();
+  const spaces = new Set<string>();
+  a.executives.forEach((e, i) => {
+    for (const l of e.sections.flatMap((s) => [...s.authorization, ...s.proposal])) {
+      const m = l.family === "snapshot" ? SNAPSHOT_LINK.exec(l.url) : null;
+      if (!m) continue;
+      spaces.add(m[1].toLowerCase());
+      const list = snapshots.get(m[2].toLowerCase()) ?? [];
+      if (!list.includes(indexed[i])) snapshots.set(m[2].toLowerCase(), [...list, indexed[i]]);
+    }
+  });
+  return { snapshots, snapshotSpaces: [...spaces].sort() };
 }
 
 /** Every vote by the atlas uuids it links; `indexed[i]` is `a.executives[i]` indexed. */
@@ -81,6 +108,8 @@ function indexExecutive(e: Executive): IndexedExecutive {
     outOfSchedule: e.outOfSchedule,
     cast: e.portal?.hasBeenCast === true,
     spell: e.address,
+    executed: e.portal?.dateExecuted?.slice(0, 10) ?? null,
+    executedAt: e.portal?.dateExecuted ?? null,
     text: [e.title, e.summary, ...sections].join(" ").toLowerCase(),
   };
 }
@@ -90,7 +119,7 @@ function indexExecutive(e: Executive): IndexedExecutive {
  * (the out-of-schedule one when the claim says so), else the first filed
  * within SLIP_DAYS after it.
  */
-export function executiveFor(index: VoteIndex, iso: string, outOfSchedule: boolean): IndexedExecutive | null {
+export function executiveFor(index: { executives: readonly IndexedExecutive[] }, iso: string, outOfSchedule: boolean): IndexedExecutive | null {
   const latest = addDays(iso, SLIP_DAYS);
   const near = index.executives.filter((e) => e.date >= iso && e.date <= latest);
   const sameDay = near.filter((e) => e.date === iso);

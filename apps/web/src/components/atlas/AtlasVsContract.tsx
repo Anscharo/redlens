@@ -1,30 +1,48 @@
 // The right panel's "Atlas vs contract" table: each rate-limit value the open
 // document states (or its instance states), beside what the PAU contract holds
 // now (src/lib/pauAtlasValues.ts). A value the contract cannot be compared on
-// says why instead of reading as a mismatch.
+// says why instead of reading as a mismatch, and a mismatch whose other side is
+// still coming, a spell or an atlas pull request (src/lib/pauPending.ts), shows
+// a grey clock, not a ✗.
 import { useMemo } from "react";
 import { explorerTxUrl } from "@/lib/explorer";
 import { checkAtlasValues, type ValueCheck } from "@/lib/pauAtlasValues";
 import type { DocValueSources } from "@/lib/pauDocSources";
 import { loadPau, unitNote } from "../../lib/pau";
+import { isPending } from "@/lib/pauPending";
+import { routesText } from "@/lib/pauRouteText";
+import { pendingText, stepText } from "@/lib/pauStepText";
 import { contractValue, isCompared, VALUE_STATUS as STATUS } from "../../lib/valueStatus";
 import { useLoaded } from "../../hooks/useAtlasData";
+import { useOnchainSteps } from "../../hooks/useOnchainSteps";
+import { ClockGlyph } from "../ClockGlyph";
 import { SECTION_HEAD } from "./panelSections";
 
 /** The document's atlas-vs-contract rows: the values it, its instance or its direct children state; empty until the PAU snapshots load, and when there are none. */
 export function useAtlasVsContract(id: string, src: DocValueSources | null | undefined): ValueCheck[] {
   const res = useLoaded(loadPau, { soft: true });
-  return useMemo(() => {
+  const snaps = useMemo(() => (res && src ? res.deployments.filter((d) => d.prime === src.prime) : []), [res, src]);
+  const rows = useMemo(() => {
     if (!res || !src) return [];
-    const snaps = res.deployments.filter((d) => d.prime === src.prime);
     return checkAtlasValues(src.sources, snaps).filter((c) => c.docId === id || c.instanceDocId === id || src.children.includes(c.docId));
-  }, [res, src, id]);
+  }, [res, src, snaps, id]);
+  return useOnchainSteps(rows);
+}
+
+/** The status cell's mark, its words and its colour: a grey clock while the step one side waits on is still coming, amber for any other mismatch, with what governance did when it is known. */
+function statusLook(c: ValueCheck): { mark: React.ReactNode; text: string; color: string } {
+  const routes = c.routes ? `. ${routesText(c.routes)}` : "";
+  if (c.onchain && isPending(c.onchain)) return { mark: <ClockGlyph />, text: pendingText(c.onchain) + routes, color: "var(--tan-3)" };
+  const s = STATUS[c.status];
+  const text = (c.onchain ? `${s.text}: ${stepText(c.onchain)}` : s.text) + routes;
+  return { mark: s.mark, text, color: c.status === "mismatch" ? "var(--warn)" : "var(--tan-3)" };
 }
 
 const dim = { color: "var(--tan-3)" };
 
 function Row({ c, label }: { c: ValueCheck; label: string }) {
   const s = STATUS[c.status];
+  const look = statusLook(c);
   const compared = isCompared(c);
   const max = c.limit?.data?.maxAmount ?? "0";
   return (
@@ -34,12 +52,12 @@ function Row({ c, label }: { c: ValueCheck; label: string }) {
       <td className="py-1 pr-2 mono" title={compared ? unitNote(c.limit!.unit, max) : undefined} style={compared ? undefined : dim}>
         {compared ? contractValue(c) : s.text}
       </td>
-      <td className="py-1 pr-2 text-center" title={s.text} style={{ color: c.status === "mismatch" ? "var(--warn)" : "var(--tan-3)" }}>
-        <span aria-hidden="true">{s.mark}</span>
-        <span className="sr-only">{s.text}</span>
+      <td className="py-1 pr-2 text-center" title={look.text} style={{ color: look.color }} data-onchain={c.onchain?.kind}>
+        <span aria-hidden="true">{look.mark}</span>
+        <span className="sr-only">{look.text}</span>
       </td>
       <td className="py-1 mono text-right">
-        {c.limit && c.chain && (
+        {c.limit?.setAt.time && c.chain && (
           <a href={explorerTxUrl(c.chain, c.limit.setAt.tx)} target="_blank" rel="noopener" className="hover:underline" style={dim}>
             {c.limit.setAt.time.slice(0, 10)}
           </a>

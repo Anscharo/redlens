@@ -3,13 +3,15 @@
 import { AtlasLink } from "../AtlasLink";
 import { Address } from "../Address";
 import { atlasHref } from "@/lib/routes";
+import { routesText } from "@/lib/pauRouteText";
 import type { ReportQuery } from "@/lib/reportFilter";
 import { AUDIT_GROUPS, auditItemCount, type AuditRow } from "../../lib/pauAudit";
 import { Highlight } from "./Highlight";
+import { AuditStepLine } from "./AuditStepLine";
 
 const dim = { color: "var(--tan-3)" };
 const chainLabel = (r: AuditRow) => [r.chain.charAt(0).toUpperCase() + r.chain.slice(1), r.kind].filter(Boolean).join(" · ");
-const dates = (r: AuditRow) => [r.chainSetAt && `chain set ${r.chainSetAt}`, r.atlasChangedAt && `atlas changed ${r.atlasChangedAt}`].filter(Boolean).join(" · ");
+const dates = (r: AuditRow) => [r.chainSetAt && `chain set ${r.chainSetAt}`, r.atlasChangedAt && `atlas wrote it ${r.atlasChangedAt}`].filter(Boolean).join(" · ");
 
 function AuditRowView({ r, rq, docNo }: { r: AuditRow; rq: ReportQuery; docNo: string }) {
   return (
@@ -29,6 +31,8 @@ function AuditRowView({ r, rq, docNo }: { r: AuditRow; rq: ReportQuery; docNo: s
       <td className="py-2 pr-3 align-top">
         <Highlight text={r.note} rq={rq} />
         {dates(r) && <div className="mono text-[11px]" style={dim}>{dates(r)}</div>}
+        <AuditStepLine step={r.step} />
+        {r.routes && <div className="mono text-[11px]" style={dim}>{routesText(r.routes)}</div>}
       </td>
       <td className="py-2 align-top mono text-[11px]">
         {r.docId ? <AtlasLink to={atlasHref(r.docId)} className="text-accent hover:underline"><Highlight text={docNo || "Atlas doc"} rq={rq} /></AtlasLink> : <span style={dim}>no Atlas document</span>}

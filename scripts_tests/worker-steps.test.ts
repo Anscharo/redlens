@@ -31,7 +31,7 @@ describe("worker step registry", () => {
   });
 
   it("runs the tick steps and tail lanes in their declared order", () => {
-    expect(stepsIn(WORKER_STEPS, "tick").map((s) => s.id)).toEqual(["pr-env-copy", "pr-state", "chain-state", "balances", "pau", "pau-origin", "pau-spell-sources", "vote-archive", "forum"]);
+    expect(stepsIn(WORKER_STEPS, "tick").map((s) => s.id)).toEqual(["pr-env-copy", "pr-state", "chain-state", "balances", "pau", "pau-origin", "pau-spell-sources", "vote-archive", "pr-spells", "forum"]);
     expect(stepsIn(WORKER_STEPS, "tail").map((s) => s.id)).toEqual(["embeddings", "history", "doc-versions", "briefings", "pau-rpc", "vote-evidence"]);
   });
 
@@ -60,6 +60,7 @@ describe("in a PR environment", () => {
       "atlas-worker: pau origin skipped (--no-fetch) — it reads block explorers and RPCs",
       "atlas-worker: pau spell sources skipped (--no-fetch) — it reads block explorers",
       "atlas-worker: vote archive skipped (--no-fetch) — it reads GitHub",
+      "atlas-worker: atlas PR spells skipped (PR environment) — its image holds no PR records",
       "atlas-worker: forum sync skipped (--no-fetch)",
     ]);
   });

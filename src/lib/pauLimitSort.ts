@@ -26,7 +26,7 @@ export interface SortableLimit {
 /** Clicking a column sorts by it ascending; clicking it again flips the direction. */
 export const nextSort = (cur: LimitSort | null, by: LimitColumn): LimitSort => ({ by, desc: cur?.by === by ? !cur.desc : false });
 
-/** The Atlas column's rank, by what its cell shows (PauAtlasMark.tsx): ✗, then ⚑, then ?, then ✓, then blank. */
+/** The Atlas column's rank, by what its cell shows (PauAtlasMark.tsx): ✗, then ⚑, then ? and the pending clock, then ✓, then blank. */
 export function atlasRank(shown: AtlasVerdict | undefined, keyDocId: string | null | undefined, flagged: boolean): number {
   if (shown?.mark === "mismatch") return 0;
   if (!shown && !keyDocId) return flagged ? 1 : 4;

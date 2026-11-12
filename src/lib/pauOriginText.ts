@@ -16,7 +16,7 @@ export function chipText(e: PauHistoryEntry): string {
     case "spell":
       return e.executive?.date ? `exec ${e.executive.date}` : `spell ${short(o.spell ?? "")}`;
     case "relayed":
-      return `relayed · set ${o.relay?.actionsSet ?? "?"}`;
+      return o.relay?.via === "layerzero" ? `relayed · LayerZero ${o.relay.actionsSet}` : `relayed · set ${o.relay?.actionsSet ?? "?"}`;
     case "operator":
       return "operator";
     case "deployment":
@@ -31,9 +31,16 @@ export function chipText(e: PauHistoryEntry): string {
 /** Why a change is not attributed yet: the worker has not checked it, or what it is still waiting on. */
 export const pendingReason = (o: PauOrigin | null) => (o ? o.evidence || "no rule has proven its origin yet" : "the worker has not checked this transaction yet");
 
+/** A change a LayerZero governance message carried: proven to its Ethereum send by the message's guid, or not yet. */
+const layerZeroText = (o: PauOrigin, chain: string) =>
+  o.kind === "spell"
+    ? `relayed to ${chainName(chain)} by LayerZero governance message ${o.relay!.actionsSet} (guid proven)`
+    : `relayed from Ethereum by LayerZero governance message ${o.relay!.actionsSet}${o.l1Tx ? "" : "; its Ethereum send is not stored yet"}`;
+
 /** How one entry's changes reached the chain: the spell path, the relay that carried it, or why that is not known yet. */
 export function routeText(o: PauOrigin | null, chain: string): string {
   if (!o || o.kind === "unknown") return `not yet attributed: ${pendingReason(o)}`;
+  if (o.relay?.via === "layerzero") return layerZeroText(o, chain);
   const set = o.relay ? `${chainName(chain)} action set ${o.relay.actionsSet}` : "";
   if (o.kind === "spell" && o.path === "direct") return "cast directly";
   if (o.kind === "spell" && o.path === "starguard") return "through the StarGuard";

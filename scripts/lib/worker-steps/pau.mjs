@@ -1,4 +1,5 @@
-// PAU admin events and live state (src/server/pau/). Events are read under a
+// PAU admin events and live state (src/server/pau/); a Solana deployment (kind
+// svm) is read from its accounts alone, with no events (svm-snapshot.ts). Events are read under a
 // per-tick time budget, so a cold database backfills over several ticks; the
 // snapshots rebuild only past PAU_REFRESH_SECONDS. Both read only the
 // contracts listed in src/data/pau-registry.json. A rebuild names each
@@ -91,6 +92,7 @@ async function rebuildInputs(db, warn, reg) {
   const { keyNamer } = await import("../../../src/server/pau/diamond-derive.ts");
   const { atlasKeysByPrime } = await import("../../../src/server/pau/probe.ts");
   const { atlasRoleClaims } = await import("../../../src/server/pau/role-claims.ts");
+  const { atlasSvmProbe } = await import("../../../src/server/pau/svm-probe.ts");
   const material = await storedSpellMaterial(db, warn);
   const retired = await retiredReader(warn);
   const inputs = atlasInputsOnce(db, warn);
@@ -98,7 +100,8 @@ async function rebuildInputs(db, warn, reg) {
   const nameKeys = async (...a) => (await (namer ??= inputs().then((p) => keyNamer([p["addresses.atlas.json"], "public/addresses.json"], reg, { retired, material }))))(...a);
   const atlasKeys = fromGraph(inputs, warn, atlasKeysByPrime, "RateLimitIDs not read, no key is probed");
   const atlasRoles = fromGraph(inputs, warn, atlasRoleClaims, "vault roles not read, no vault is asked about them");
-  return { nameKeys, atlasKeys, atlasRoles };
+  const svmProbe = fromGraph(inputs, warn, atlasSvmProbe, "Solana instances not read, no Solana limit can read as not set");
+  return { nameKeys, atlasKeys, atlasRoles, svmProbe };
 }
 
 export default {

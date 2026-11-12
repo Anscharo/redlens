@@ -5,14 +5,22 @@
 // Radar timeline share one declaration.
 
 export type OriginKind = "spell" | "relayed" | "operator" | "deployment" | "direct" | "unknown";
-export type OriginPath = "direct" | "starguard" | "op-stack" | "arbitrum";
+export type OriginPath = "direct" | "starguard" | "op-stack" | "arbitrum" | "layerzero";
 
+/**
+ * What carried a change from Ethereum: an L2 Executor's action set, or, `via`
+ * "layerzero", a LayerZero governance message, whose `executor` is the
+ * program that ran it and `actionsSet` its path's nonce.
+ */
 export interface RelayRef {
   executor: string;
   actionsSet: number;
   queueTx?: string;
-  /** The bridge message id that proves the L1 link: an OP-stack sourceHash or an Arbitrum request id. */
+  /** The bridge message id that proves the L1 link: an OP-stack sourceHash, an Arbitrum request id or a LayerZero guid. */
   messageId?: string;
+  via?: "layerzero";
+  /** A LayerZero message's caller on Ethereum (the SubProxy that sent it). */
+  sender?: string;
 }
 
 /** Where one transaction's changes came from, as the chain proves it. */
@@ -66,11 +74,38 @@ export interface PauHistoryEntry {
   changes: PauChange[];
 }
 
-export interface PauHistoryResponse {
-  entries: PauHistoryEntry[];
+/**
+ * A governance step the chain holds scheduled and has not run: an L2 Executor's
+ * action set queued by a bridge message and neither executed nor canceled, or
+ * a star spell a prime's StarGuard has plotted and neither executed nor dropped,
+ * or a LayerZero governance message the Ethereum sender sent that no Solana
+ * receipt holds yet (its destination is not read: the sender's event names only
+ * its guid). Which settings it changes is not decoded; it is evidence that one
+ * is coming.
+ */
+export interface PauQueuedStep {
+  kind: "action-set" | "star-spell" | "lz-message";
+  chain: string;
+  /** The Executor, StarGuard or LayerZero sender holding it. */
+  contract: string;
+  /** The action set's id, the star spell's address, or the message's guid. */
+  id: string;
+  /** The transaction that queued or plotted it, and when. */
+  tx: string;
+  time: string;
+  /** An action set: the earliest it may execute. A star spell: the last moment it may still execute. ISO; null when unread. */
+  at: string | null;
+  /** Prime entity UUIDs whose registry deployments list the contract (a StarGuard); empty for a shared Executor. */
+  primes: string[];
 }
 
-export const EMPTY_PAU_HISTORY: PauHistoryResponse = { entries: [] };
+export interface PauHistoryResponse {
+  entries: PauHistoryEntry[];
+  /** Absent from a server that predates it, which a reader treats as nothing queued. */
+  queued?: PauQueuedStep[];
+}
+
+export const EMPTY_PAU_HISTORY: PauHistoryResponse = { entries: [], queued: [] };
 
 const INDEX = new WeakMap<PauHistoryResponse, Map<string, PauHistoryEntry>>();
 

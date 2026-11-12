@@ -19,6 +19,7 @@ export const VALUE_STATUS: Record<ValueStatus, { mark: string; text: string }> =
   "no-key": { mark: "–", text: "no rate-limit key found" },
   "not-stated": { mark: "–", text: "the atlas sets no value yet" },
   unparsed: { mark: "?", text: "atlas value not read" },
+  "no-limit": { mark: "✓", text: "unlimited on both sides: the program sets no limit here" },
 };
 
 /** A check the contract was certainly compared on: its `limit.data` is read. */
