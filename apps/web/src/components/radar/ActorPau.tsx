@@ -16,6 +16,7 @@ import { Callout } from "../Callout";
 import type { GraphEntity } from "@/types";
 import { PauDeployment } from "./ActorPauDeployment";
 import { ActorPauTimeline } from "./ActorPauTimeline";
+import { PauChangePaths } from "./PauChangePaths";
 
 interface Props {
   /** The prime agent: the PAU registry keys deployments by its id, and its params name its controller-wide keys. */
@@ -55,9 +56,12 @@ export function ActorPau(props: Props) {
   const { loaded, snaps, keyIndex, named, verdicts, groups, anchors } = usePauPage(props);
   if (snaps.length === 0) {
     return (
-      <p className="mono text-[11px]" style={{ color: "var(--tan-3)" }}>
-        {loaded ? "no PAU contracts have been read for this Prime yet" : "loading PAU snapshots…"}
-      </p>
+      <>
+        <p className="mono text-[11px]" style={{ color: "var(--tan-3)" }}>
+          {loaded ? "no PAU contracts have been read for this Prime yet" : "loading PAU snapshots…"}
+        </p>
+        <PauChangePaths className="mt-8" />
+      </>
     );
   }
 
@@ -71,6 +75,7 @@ export function ActorPau(props: Props) {
       {snaps.map((s) => (
         <PauDeployment key={s.deployment} snap={s} keyIndex={keyIndex} namedIn={named} verdicts={verdicts} anchor={anchors.get(s.deployment)!} />
       ))}
+      <PauChangePaths className="mt-8" />
       <ActorPauTimeline groups={groups} snaps={snaps} keyIndex={keyIndex} />
     </section>
   );

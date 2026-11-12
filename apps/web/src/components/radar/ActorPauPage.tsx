@@ -4,7 +4,6 @@ import { AtlasLink } from "../AtlasLink";
 import { Callout } from "../Callout";
 import { ActorPageShell } from "./ActorPageShell";
 import { ActorPau } from "./ActorPau";
-import { PauChangePaths } from "./PauChangePaths";
 import { PauPlumbing } from "./PauPlumbing";
 
 export interface ActorPauPageProps {
@@ -24,7 +23,6 @@ export function ActorPauPage({ profile }: ActorPauPageProps) {
         parameters of its controllers on each chain. On a chain, a Prime Agent runs a monolithic ALM Controller, a Diamond PAU (a controller that dispatches to facets), or both.
       </Callout>
       <PauPlumbing />
-      <PauChangePaths />
       <ActorPau prime={profile.entity} instances={profile.instances} />
     </ActorPageShell>
   );

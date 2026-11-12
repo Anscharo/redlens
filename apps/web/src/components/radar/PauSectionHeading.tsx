@@ -7,7 +7,7 @@ const aliasAttr = (a: Anchor) => (a.aliases.length ? a.aliases.join(" ") : undef
 /** The fragment attributes of a linkable PAU page element: its id, the aliases that also reach it (pauAnchors.ts), and room under the sticky header. */
 export const anchorProps = (a: Anchor) => ({ id: a.id, "data-anchor-alias": aliasAttr(a), style: { scrollMarginTop: "64px" } });
 
-/** One of the page's two parts' h2, `#current-state` or `#change-history`, with its copy link. */
+/** The h2 of one of the page's parts (pauAnchors.ts PAU_ANCHOR), with its copy link. */
 export function PauPartHeading({ anchor, children }: { anchor: Anchor; children: string }) {
   return (
     <div className="relative mb-2">

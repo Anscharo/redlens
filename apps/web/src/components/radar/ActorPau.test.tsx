@@ -173,11 +173,12 @@ describe("ActorPau", () => {
     expect(rows[5]).toHaveTextContent("off");
   });
 
-  it("heads the page's two parts at h2, each chain and history group at h3, and a chain's parts at h4", async () => {
+  it("heads the page's parts at h2, the change diagram between them, each chain and history group at h3, and a chain's parts at h4", async () => {
     render(<ActorPau prime={prime} instances={instances} />);
     await screen.findByRole("region", { name: "Change history" });
     expect(screen.getAllByRole("heading", { level: 2 })).toEqual([
       screen.getByRole("heading", { level: 2, name: "Current state" }),
+      screen.getByRole("heading", { level: 2, name: "How it changes" }),
       screen.getByRole("heading", { level: 2, name: "Change history" }),
     ]);
     const h3 = screen.getAllByRole("heading", { level: 3 });
