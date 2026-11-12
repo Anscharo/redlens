@@ -24,9 +24,11 @@ const markPrBackfill = vi.fn();
 const fillPrSpells = vi.fn();
 vi.mock("../src/server/history/pr-spells.ts", () => ({ prBackfillDue, backfillPrNumbers, markPrBackfill, fillPrSpells }));
 
-const { default: step } = await import("../scripts/lib/worker-steps/pr-spells.ts");
+const { WORKER_STEPS } = await import("../scripts/lib/worker-steps/index.mjs");
+const step = WORKER_STEPS.find((s) => s.id === "pr-spells")!;
 
 const db = {};
+const ctx = (noFetch: boolean) => ({ db, full: false, noFetch, inert: false, env: {}, runAsync: async () => {}, log: () => {}, warn: () => {} });
 const SHA_A = "a".repeat(40);
 const SHA_B = "b".repeat(40);
 
@@ -40,7 +42,7 @@ describe("pr-spells worker step", () => {
     prBackfillDue.mockResolvedValue("abc1234");
     backfillPrNumbers.mockResolvedValue(3);
     execFileSync.mockReturnValue(`${SHA_A} Add Keel limits (#369)\n${SHA_B} Fix a typo\n`);
-    expect(await step.run({ db, noFetch: false })).toBe("atlas PR spells: 3 changes given their PR, 2 PRs read (1 name a spell), 0 without a record");
+    expect(await step.run(ctx(false))).toBe("atlas PR spells: 3 changes given their PR, 2 PRs read (1 name a spell), 0 without a record");
     expect(execFileSync.mock.calls[0][2]).toMatchObject({ cwd: path.join("/repo", "vendor/next-gen-atlas") });
     expect(backfillPrNumbers).toHaveBeenCalledWith(db, new Map([["aaaaaaa", 369]]));
     expect(markPrBackfill).toHaveBeenCalledWith(db, "abc1234");
@@ -48,7 +50,7 @@ describe("pr-spells worker step", () => {
 
   it("reads no git log when the atlas has not moved", async () => {
     prBackfillDue.mockResolvedValue(null);
-    expect(await step.run({ db, noFetch: false })).toMatch(/^atlas PR spells: 0 changes given their PR/);
+    expect(await step.run(ctx(false))).toMatch(/^atlas PR spells: 0 changes given their PR/);
     expect(execFileSync).not.toHaveBeenCalled();
     expect(markPrBackfill).not.toHaveBeenCalled();
   });
@@ -59,7 +61,7 @@ describe("pr-spells worker step", () => {
     execFileSync.mockImplementation(() => {
       throw new Error("not a git repository");
     });
-    await step.run({ db, noFetch: false });
+    await step.run(ctx(false));
     expect(backfillPrNumbers).toHaveBeenCalledWith(db, new Map());
     expect(markPrBackfill).toHaveBeenCalledWith(db, "abc1234");
   });
@@ -67,7 +69,7 @@ describe("pr-spells worker step", () => {
   it("fetches records and stops at the first miss", async () => {
     prBackfillDue.mockResolvedValue(null);
     fetchPr.mockResolvedValue({ title: "t", body: "b" });
-    await step.run({ db, noFetch: false });
+    await step.run(ctx(false));
     const [, record, limit, stopOnMiss] = fillPrSpells.mock.calls[0];
     expect([limit, stopOnMiss]).toEqual([30, true]);
     expect(await record(7)).toEqual({ title: "t", body: "b" });
@@ -76,7 +78,7 @@ describe("pr-spells worker step", () => {
 
   it("reads only the cache under --no-fetch, a missing record being null", async () => {
     prBackfillDue.mockResolvedValue(null);
-    await step.run({ db, noFetch: true });
+    await step.run(ctx(true));
     const [, record, , stopOnMiss] = fillPrSpells.mock.calls[0];
     expect(stopOnMiss).toBe(false);
     expect(await record(369)).toEqual({ title: "Spell 2026-01-15", body: "" });
