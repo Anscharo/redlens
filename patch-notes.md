@@ -35,7 +35,7 @@
 
 ## 2026-11-12
 
-- Added a diagram to a Prime Agent's Liquidity Layer Architecture page showing how its relayers, controller, rate limits, ALM proxy, admin and freezers connect, for a monolithic controller or a Diamond PAU
+- Added two diagrams to a Prime Agent's Liquidity Layer Architecture page: how its relayers, controller, rate limits, ALM proxy, admin and freezers connect, for a monolithic controller or a Diamond PAU, and the ways its settings change
 
 ## 2026-11-10
 

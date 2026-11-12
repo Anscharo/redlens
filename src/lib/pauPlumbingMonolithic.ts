@@ -1,9 +1,12 @@
 // A monolithic ALM Controller's plumbing: one controller contract holds the
 // whole menu of moves and its own RELAYER and FREEZER roles. Each `rule` is the
 // modifier in MainnetController / ForeignController, ALMProxy and RateLimits.
-import { SHARED, type Plumbing } from "./pauPlumbingParts.ts";
+import { PLUMBING_H, SHARED, type Plumbing } from "./pauPlumbingParts.ts";
 
 export const MONOLITHIC_PLUMBING: Plumbing = {
+  id: "pau-plumbing-monolithic",
+  h: PLUMBING_H,
+  frameLabel: "PAU · one set per chain",
   w: 960,
   frame: { x: 270, y: 138, w: 460, h: 290 },
   summary:

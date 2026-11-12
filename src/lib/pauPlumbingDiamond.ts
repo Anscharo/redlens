@@ -2,9 +2,12 @@
 // in a shared facet, relayers reach it through an AdministeredAgent, and its
 // roles sit in AccessControls. Each `rule` is the check in the diamond-pau
 // Controller, AdministeredAgent and facet sources, and in ALMProxy and RateLimits.
-import { SHARED, type Plumbing } from "./pauPlumbingParts.ts";
+import { PLUMBING_H, SHARED, type Plumbing } from "./pauPlumbingParts.ts";
 
 export const DIAMOND_PLUMBING: Plumbing = {
+  id: "pau-plumbing-diamond",
+  h: PLUMBING_H,
+  frameLabel: "PAU · one set per chain",
   w: 1160,
   frame: { x: 220, y: 138, w: 730, h: 290 },
   summary:

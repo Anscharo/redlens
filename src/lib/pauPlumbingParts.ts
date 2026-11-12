@@ -14,6 +14,8 @@ export interface PlumbingNode {
   x: number;
   y: number;
   w: number;
+  /** Taller than PLUMBING_NODE_H, for a part several rows reach. */
+  h?: number;
   /** A part the other generation does not have. */
   own?: boolean;
 }
@@ -37,9 +39,20 @@ export interface PlumbingEdge {
   optional?: boolean;
 }
 
+/** A row's name in the left gutter, for a diagram read as lanes. */
+export interface PlumbingLane {
+  y: number;
+  title: string;
+  sub: string;
+}
+
 export interface Plumbing {
-  /** The viewBox width; every diagram is PLUMBING_H tall. */
+  /** Names its SVG's title and arrowheads, unique on the page. */
+  id: string;
   w: number;
+  h: number;
+  frameLabel: string;
+  lanes?: PlumbingLane[];
   /** The contracts that are the PAU itself, framed together. */
   frame: { x: number; y: number; w: number; h: number };
   nodes: PlumbingNode[];

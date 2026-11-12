@@ -17,8 +17,6 @@ export const PLUMBING_KINDS: { kind: PauKind; label: string }[] = [
   { kind: "diamond", label: "Diamond PAU" },
 ];
 
-export const PLUMBING_FRAME_LABEL = "PAU · one set per chain";
-
 export const PLUMBING_KEY: Record<PlumbingKind, string> = {
   flow: "a move on its way to the funds",
   rule: "sets the rules",
