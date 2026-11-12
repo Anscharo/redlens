@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-11-12
+
+- Added a diagram to a Prime Agent's Liquidity Layer Architecture page showing how its relayers, controller, rate limits, ALM proxy, admin and freezers connect
+
 ## 2026-11-10
 
 - Improved how the chat and MCP search pick the best matching document among similar ones
