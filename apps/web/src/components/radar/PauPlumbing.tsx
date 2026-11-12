@@ -1,19 +1,18 @@
 import type { ComponentProps } from "react";
 import { urlEnum, useUrlState } from "../../hooks/useUrlState";
-import { PLUMBING, PLUMBING_KEY, PLUMBING_KINDS } from "@/lib/pauPlumbing";
+import { PLUMBING, PLUMBING_KEY, PLUMBING_KINDS, type PlumbingArch } from "@/lib/pauPlumbing";
 import { PAU_ANCHOR } from "@/lib/pauAnchors";
-import type { PauKind } from "@/lib/pauRegistry";
 import { PauPartHeading } from "./PauSectionHeading";
 import { PLUMBING_COLOR } from "./PauPlumbingParts";
 import { PLUMBING_EDGE_KINDS, PlumbingSvg } from "./PauPlumbingSvg";
 
 interface KindToggleProps {
-  kind: PauKind;
-  onKindChange: (kind: PauKind) => void;
+  kind: PlumbingArch;
+  onKindChange: (kind: PlumbingArch) => void;
 }
 
 /** `?arch=diamond` draws the Diamond PAU, so a link can carry the choice. */
-const ARCH = urlEnum<PauKind>("monolithic", ["monolithic", "diamond"]);
+const ARCH = urlEnum<PlumbingArch>("monolithic", ["monolithic", "diamond"]);
 
 /** The two generations as a pair of buttons; the pressed one is drawn. */
 function PlumbingKindToggle({ kind, onKindChange }: KindToggleProps) {

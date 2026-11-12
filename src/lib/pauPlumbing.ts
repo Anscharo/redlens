@@ -9,10 +9,13 @@ import type { Plumbing, PlumbingKind } from "./pauPlumbingParts.ts";
 
 export * from "./pauPlumbingParts.ts";
 
-export const PLUMBING: Record<PauKind, Plumbing> = { monolithic: MONOLITHIC_PLUMBING, diamond: DIAMOND_PLUMBING };
+/** The generations the plumbing diagram draws: the EVM ones. */
+export type PlumbingArch = Exclude<PauKind, "svm">;
+
+export const PLUMBING: Record<PlumbingArch, Plumbing> = { monolithic: MONOLITHIC_PLUMBING, diamond: DIAMOND_PLUMBING };
 
 /** The toggle's order and wording. */
-export const PLUMBING_KINDS: { kind: PauKind; label: string }[] = [
+export const PLUMBING_KINDS: { kind: PlumbingArch; label: string }[] = [
   { kind: "monolithic", label: "Monolithic controller" },
   { kind: "diamond", label: "Diamond PAU" },
 ];
