@@ -11,15 +11,19 @@ export interface AffectedDoc {
   docNo: string | null;
   title: string | null;
   category: Category;
-  changeType: "added" | "modified" | "removed" | "moved";
+  changeType: HistoryEntry["changeType"];
   /** Edit significance for modified entries — lets the UI mute trivial rows */
   changeKind?: ChangeKind;
-  /** For a genuine `moved` (renumber/atomization) event: the doc_no before and
+  /** For a genuine `moved` event: the path (or html-era doc_no) before and
    *  after. Absent for a self-move (movedFrom === movedTo — only the title or
    *  ancestors changed, not the doc_no) so the UI never renders a nonsense
    *  "moved from X to X". */
   movedFrom?: string;
   movedTo?: string;
+  /** For a `renumbered` event: the doc number before and after. */
+  renumbered?: [string, string];
+  /** For a `retyped` event: the `[Type]` before and after. */
+  retyped?: [string, string];
 }
 
 export interface MergedEntry {
@@ -36,14 +40,17 @@ export interface MergedEntry {
   docs: AffectedDoc[];
 }
 
-// "moved" events (renumbers, atomization) surface like any other structural
+// Structural events (moves, renumberings, type changes) surface like any other
 // change, but guard the self-move quirk: some rows record movedFrom === movedTo
 // because only the title/ancestors changed, not the doc_no, so the from/to
-// detail is attached only when the paths differ. It merges onto `affected`
-// whether the row was just created or already existed (e.g. created by a
-// same-commit "modified" event), so a doc's move detail survives whichever of
-// its two same-commit events is processed first.
+// detail is attached only when the paths differ. Each detail merges onto
+// `affected` whether the row was just created or already existed (e.g. created
+// by a same-commit "modified" event), so it survives whichever of a doc's
+// same-commit events is processed first.
 function attachMoveDetail(affected: AffectedDoc, entry: HistoryEntry): void {
+  const pair = entry.movedFrom && entry.movedTo ? ([entry.movedFrom, entry.movedTo] as [string, string]) : undefined;
+  if (entry.changeType === "renumbered") affected.renumbered = pair;
+  if (entry.changeType === "retyped") affected.retyped = pair;
   if (entry.changeType !== "moved") return;
   const move = movePaths(entry);
   if (move?.from && move.to && move.from !== move.to) {
@@ -53,10 +60,9 @@ function attachMoveDetail(affected: AffectedDoc, entry: HistoryEntry): void {
 }
 
 // Rows are keyed per commit (mirroring byCommit's own keying). A doc can carry
-// BOTH a "modified" and a "moved" event in the same commit — the history builder
-// emits both when a node is edited and renumbered together
-// (scripts/required/build-history.mjs: "A node can appear twice ... both entries
-// are emitted"). Keying rows through this map lets the second event for a
+// several events in the same commit — the history builder emits a "modified", a
+// "moved", a "renumbered" and a "retyped" event independently
+// (scripts/lib/history-events.ts). Keying rows through this map lets the second event for a
 // (commit, docId) pair merge onto the first one's row instead of being dropped,
 // so neither the changeKind nor the movedFrom/movedTo detail is lost whichever
 // event the batch query returns first.
@@ -109,18 +115,20 @@ function newAffected(doc: DocRef, entry: HistoryEntry): AffectedDoc {
   };
 }
 
+// Which of a doc's same-commit events names its row: a content event beats a
+// type change, which beats a renumbering, which beats a bare move (edit
+// significance says more than a structural change).
+const RANK: Record<HistoryEntry["changeType"], number> = { moved: 0, renumbered: 1, retyped: 2, added: 3, modified: 3, removed: 3 };
+
 function upsertAffected({ commitEntry, rows }: CommitGroup, doc: DocRef, entry: HistoryEntry): void {
   let affected = rows.get(doc.docId);
   if (!affected) {
     affected = newAffected(doc, entry);
     rows.set(doc.docId, affected);
     commitEntry.docs.push(affected);
-  } else if (entry.changeType !== "moved") {
-    // A content-edit event landing on a row a same-commit "moved" event
-    // already created: the edit is the more informative primary indicator
-    // (edit significance beats a bare "renumbered"), so it takes over
-    // changeType/changeKind. The move detail is merged below independently
-    // of this branch, so arrival order does not matter.
+  } else if (RANK[entry.changeType] > RANK[affected.changeType]) {
+    // The details are merged below independently of this branch, so arrival
+    // order does not matter.
     affected.changeType = entry.changeType;
     affected.changeKind = entry.changeKind;
   }

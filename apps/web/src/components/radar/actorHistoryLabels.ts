@@ -26,6 +26,8 @@ export const CHANGE_INDICATOR: Record<string, string> = {
   modified: "~",
   removed: "−",
   moved: "→",
+  renumbered: "#",
+  retyped: "T",
 };
 
 export function docHref(docId: string): string {

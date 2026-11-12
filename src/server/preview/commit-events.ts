@@ -1,15 +1,13 @@
 // What one branch commit did to each document, as rows the reader's history
 // tab renders. Built on the live history's own engine (history-events.ts), so a
-// commit row here means what it means on the live atlas, with two additions a
-// branch needs: a renumbering and a `[Type]` change are each their own event
-// (inside a composed bucket file neither changes content, title or path, so the
-// shared engine never reports them), and a merge commit keeps only the documents where both sides' edits met.
+// commit row here means what it means on the live atlas, with one addition a
+// branch needs: a merge commit keeps only the documents where both sides' edits met.
 
-import { diffSnapshots, eventDiff, snapshotEvents, type ChangeType, type EventDiff } from "../../../scripts/lib/history-events.ts";
+import { diffSnapshots, eventDiff, snapshotEvents, type ChangeType, type EventDiff, type SnapshotEvent } from "../../../scripts/lib/history-events.ts";
 import type { GitSnapshot, GitSnapshotEntry } from "../../../scripts/lib/atlas-git-parse.ts";
 
 export interface CommitEntry extends EventDiff {
-  changeType: ChangeType | "renumbered" | "retyped";
+  changeType: ChangeType;
   docNo: string;
   title: string;
   prevDocNo?: string;
@@ -29,23 +27,22 @@ function push(out: CommitEntries, id: string, e: CommitEntry): void {
   (out[id] ??= []).push(e);
 }
 
+/** One event as a row. The wire names a renumbering's and a type change's two
+ *  values for what they are, not as the engine's movedFrom/movedTo. */
+function entryOf(ev: SnapshotEvent, prev: GitSnapshot, curr: GitSnapshot): CommitEntry {
+  const { doc_no, title, prevTitle, prevDocNo, prevType, type } = ev.node;
+  const base = { changeType: ev.changeType, docNo: doc_no, title };
+  if (ev.changeType === "renumbered") return { ...base, prevDocNo };
+  if (ev.changeType === "retyped") return { ...base, docType: type, prevDocType: prevType };
+  const entry: CommitEntry = { ...base, ...eventDiff(ev, prev, curr, { midHistory: true }) };
+  if (prevTitle !== undefined && prevTitle !== title) entry.prevTitle = prevTitle;
+  return entry;
+}
+
 /** Every document event from `prev` to `curr`. */
 export function commitEntries(prev: GitSnapshot, curr: GitSnapshot): CommitEntries {
   const out: CommitEntries = {};
-  for (const ev of snapshotEvents(diffSnapshots(prev, curr))) {
-    const { id, doc_no, title, prevTitle } = ev.node;
-    const entry: CommitEntry = { changeType: ev.changeType, docNo: doc_no, title, ...eventDiff(ev, prev, curr, { midHistory: true }) };
-    if (prevTitle !== undefined && prevTitle !== title) entry.prevTitle = prevTitle;
-    push(out, id, entry);
-  }
-  for (const [id, node] of curr) {
-    const old = prev.get(id);
-    if (!old) continue;
-    if (old.doc_no !== node.doc_no) push(out, id, { changeType: "renumbered", docNo: node.doc_no, title: node.title, prevDocNo: old.doc_no });
-    if (old.type && node.type && old.type !== node.type) {
-      push(out, id, { changeType: "retyped", docNo: node.doc_no, title: node.title, docType: node.type, prevDocType: old.type });
-    }
-  }
+  for (const ev of snapshotEvents(diffSnapshots(prev, curr))) push(out, ev.node.id, entryOf(ev, prev, curr));
   return out;
 }
 

@@ -35,8 +35,8 @@
 
 ## 2026-11-12
 
-- Highlighted the parts of a doc number that changed when a preview's history shows a renumbering
-- Showed a change to a document's type in a preview's history
+- Added renumberings and document type changes to every document's history
+- Highlighted the parts of a doc number that changed in a renumbering
 
 ## 2026-11-10
 

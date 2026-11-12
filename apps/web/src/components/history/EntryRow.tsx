@@ -9,6 +9,7 @@ import {
   type HistoryEntry,
 } from "@/lib/history";
 import { DiffView } from "./DiffView";
+import { DocNoDiff, TypeDiff } from "./ChangePair";
 import { LINE1_H, TimelineRow } from "./Timeline";
 import { Tooltip } from "../Tooltip";
 import { HtmlEraDisclaimer, PreGitDisclaimer } from "./HistoryDisclaimers";
@@ -30,6 +31,8 @@ const CHANGE_LABEL: Record<string, string> = {
   modified: "edited",
   removed: "removed",
   moved: "moved",
+  renumbered: "renumbered",
+  retyped: "type changed",
 };
 
 interface Props {
@@ -165,7 +168,8 @@ export function EntryRow({ entry, labelOverride, isFirst }: Props) {
         ) : null}
 
         {/* Line 3: the type of edit — a move reads as one sentence, folding its
-            from/to paths into the label rather than a separate arrow line. */}
+            from/to paths into the label rather than a separate arrow line; a
+            renumbering or type change shows its two values, the changed parts marked. */}
         {!hideChangeLabel && (
           <p className="mono text-[12px] mt-1 break-all" style={{ color }}>
             {labelOverride ?? CHANGE_LABEL[entry.changeType]}
@@ -180,6 +184,12 @@ export function EntryRow({ entry, labelOverride, isFirst }: Props) {
                 {" to "}
                 <span style={{ color: "var(--tan-2)" }}>{move.to}</span>
               </>
+            )}
+            {entry.movedFrom && entry.movedTo && entry.changeType === "renumbered" && (
+              <> <DocNoDiff prev={entry.movedFrom} next={entry.movedTo} /></>
+            )}
+            {entry.movedFrom && entry.movedTo && entry.changeType === "retyped" && (
+              <> <TypeDiff prev={entry.movedFrom} next={entry.movedTo} /></>
             )}
           </p>
         )}

@@ -4,7 +4,11 @@ import { z } from "zod";
 import { atlasHistory, atlasRecentChanges, atlasHistoryStats, atlasPr, atlasChangedBetween } from "./tools-history.ts";
 import { readOnlyAtlasTool, type AtlasTool } from "./tool-types.ts";
 
-const CHANGE_TYPE = () => z.enum(["added", "modified", "removed", "moved"]).optional();
+const CHANGE_TYPE = () =>
+  z
+    .enum(["added", "modified", "removed", "moved", "renumbered", "retyped"])
+    .optional()
+    .describe("added | modified (text or title change) | removed | moved (file move) | renumbered (doc number changed; moved_from/moved_to hold the old and new number) | retyped ([Type] changed; moved_from/moved_to hold the old and new type).");
 
 export const HISTORY_TOOLS: AtlasTool[] = [
   {

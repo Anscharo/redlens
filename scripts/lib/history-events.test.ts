@@ -18,6 +18,21 @@ describe("diffSnapshots / snapshotEvents", () => {
     expect(events[3].node).toMatchObject({ movedFrom: "content/A.md", movedTo: "content/B.md" });
   });
 
+  it("reports a renumbering and a type change as their own events, carrying both values", () => {
+    const prev = snap(["a", "A.1.2", "same"]);
+    const curr: GitSnapshot = new Map([["a", { ...prev.get("a")!, doc_no: "A.1.3", type: "Section" }]]);
+    const events = snapshotEvents(diffSnapshots(prev, curr));
+    expect(events.map((e) => e.changeType)).toEqual(["renumbered", "retyped"]);
+    expect(eventDiff(events[0], prev, curr, { midHistory: true })).toEqual({ movedFrom: "A.1.2", movedTo: "A.1.3" });
+    expect(eventDiff(events[1], prev, curr, { midHistory: true })).toEqual({ movedFrom: "Core", movedTo: "Section" });
+  });
+
+  it("a side with no type is never a type change", () => {
+    const prev = snap(["a", "A.1", "same"]);
+    const curr: GitSnapshot = new Map([["a", { ...prev.get("a")!, type: "" }]]);
+    expect(snapshotEvents(diffSnapshots(prev, curr))).toEqual([]);
+  });
+
   it("a title change alone is a modification", () => {
     const prev = snap(["a", "A.1", "body"]);
     const curr: GitSnapshot = new Map([["a", { ...prev.get("a")!, title: "Renamed" }]]);

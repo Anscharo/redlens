@@ -11,7 +11,8 @@ export type DiffLine = ["=" | "+" | "-", string] | ["~", WordSegment[]] | ["…"
 export interface HistoryEntry {
   date: string;
   commitHash: string;
-  changeType: "added" | "modified" | "removed" | "moved";
+  /** `renumbered`: the doc number changed. `retyped`: the heading's `[Type]` changed. */
+  changeType: "added" | "modified" | "removed" | "moved" | "renumbered" | "retyped";
   pr?: number;
   prTitle?: string;
   prAuthor?: string;
@@ -31,9 +32,10 @@ export interface HistoryEntry {
    *  it is stricter than "≤8 chars", which this comment used to claim). Only set for
    *  `changeType: "modified"`. */
   changeKind?: "lint" | "typo" | "semantic";
-  /** Source path for `changeType: "moved"` */
+  /** The value before: the source path of a `moved` entry, the old doc number of
+   *  a `renumbered` one, the old type of a `retyped` one. */
   movedFrom?: string;
-  /** Destination path for `changeType: "moved"` */
+  /** The value after, for the same three change types. */
   movedTo?: string;
   /** Reconstruction era. "html" = a pre-#117 entry auto-translated from the
    *  original HTML tables, with lineage traced (deterministic matching + AI
@@ -133,7 +135,29 @@ export const CHANGE_COLOR: Record<string, string> = {
   // color) nor --warn/--error-text (which carry their own meaning); it just has to
   // be distinct from added-green, removed-pink and modified-tan. 6.1:1 on --bg.
   moved: "var(--depth-4)",
+  // A renumbering and a type change: the lilac the preview's renumber note uses,
+  // so the two histories colour them alike.
+  renumbered: "var(--lilac)",
+  retyped: "var(--lilac)",
 };
+
+/** `content/A/1/9/document.md` holds doc A.1.9: in the atomized layout a path
+ *  spells out its document's number. */
+const numberInPath = (path: string, docNo: string) => path.includes(`/${docNo.split(".").join("/")}/`);
+
+/** Drop each `moved` entry that only restates a same-commit renumbering: in the
+ *  atomized layout a document's path spelled out its number, so every
+ *  renumbering of that era also moved its file. The renumbered entry says it
+ *  better; a move between files that is more than that stays. */
+export function foldRenumberMoves(entries: HistoryEntry[]): HistoryEntry[] {
+  const renumbers = new Map<string, HistoryEntry>();
+  for (const e of entries) if (e.changeType === "renumbered") renumbers.set(e.commitHash, e);
+  return entries.filter((e) => {
+    const r = e.changeType === "moved" ? renumbers.get(e.commitHash) : undefined;
+    if (!r?.movedFrom || !r.movedTo || !e.movedFrom || !e.movedTo) return true;
+    return !(numberInPath(e.movedFrom, r.movedFrom) && numberInPath(e.movedTo, r.movedTo));
+  });
+}
 
 // Shared shape for every /api/history/* GET below: a 404 (no backend on this
 // deploy, or no such doc) is a stable outcome and IS cached; any other

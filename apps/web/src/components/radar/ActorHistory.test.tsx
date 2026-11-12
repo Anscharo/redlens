@@ -179,6 +179,26 @@ describe("ActorHistory", () => {
     expect(screen.getAllByText("A.2")).toHaveLength(1);
   });
 
+  it("merges an edit, a file move, a renumbering and a type change in one commit into one row", async () => {
+    historyByDoc = new Map<string, HistoryEntry[]>([
+      ["def-1", [
+        { date: "2025-05-01", commitHash: "numb001", changeType: "moved", movedFrom: "content/A/1/9/document.md", movedTo: "content/A/1/10/document.md" },
+        { date: "2025-05-01", commitHash: "numb001", changeType: "renumbered", movedFrom: "A.1.9", movedTo: "A.1.10" },
+        { date: "2025-05-01", commitHash: "numb001", changeType: "retyped", movedFrom: "Core", movedTo: "Section" },
+        { date: "2025-05-01", commitHash: "numb001", changeType: "modified", changeKind: "typo" },
+      ]],
+    ]);
+    renderHistory();
+    fireEvent.click(await screen.findByRole("button", { name: /2025-05-01/ }));
+    expect(screen.getByText("typo")).toBeInTheDocument();
+    // The renumbering's numbers replace the file paths, with the changed segment marked.
+    expect(screen.getByText((_c, el) => el?.className === "mono" && el.textContent === "A.1.9 → A.1.10")).toBeInTheDocument();
+    expect(screen.queryByText(/document\.md/)).toBeNull();
+    expect(screen.getByText("9").tagName).toBe("DEL");
+    expect(screen.getByText("Section").tagName).toBe("INS");
+    expect(screen.getAllByText("A.2")).toHaveLength(1);
+  });
+
   it("shows a severed-era month range instead of a blank heading when the date is empty (H3)", async () => {
     historyByDoc = new Map<string, HistoryEntry[]>([
       ["def-1", [{ date: "", commitHash: "severed:2024-09-02..2025-05-28", changeType: "removed", era: "severed" }]],

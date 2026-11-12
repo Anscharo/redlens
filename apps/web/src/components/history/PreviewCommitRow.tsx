@@ -7,8 +7,7 @@ import { LINE1_H } from "./Timeline";
 import { TitleDiff } from "./TitleDiff";
 import { TimelineBranch } from "./TimelineBranch";
 
-const RENAME_TYPES = new Set<Row["changeType"]>(["renumbered", "retyped"]);
-const rowColor = (r: Row) => CHANGE_COLOR[RENAME_TYPES.has(r.changeType) ? "moved" : r.changeType] ?? "var(--tan-3)";
+const rowColor = (r: Row) => CHANGE_COLOR[r.changeType] ?? "var(--tan-3)";
 
 /** What one commit did to this document: its change line, its title change
  *  if any, then its diff. */

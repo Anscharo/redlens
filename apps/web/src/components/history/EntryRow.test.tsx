@@ -116,6 +116,18 @@ describe("EntryRow change label", () => {
     expect(container.textContent).toContain("moved from Sky Atlas.html to Sky Atlas.md");
   });
 
+  it("shows a renumbering's two numbers with only the changed segment marked", () => {
+    const { container } = render(<EntryRow entry={entry({ changeType: "renumbered", movedFrom: "A.2.2.8.1", movedTo: "A.2.3.8.1" })} />);
+    expect(container.textContent).toContain("renumbered A.2.2.8.1 → A.2.3.8.1");
+    expect(container.querySelector("del")).toHaveTextContent("2");
+    expect(container.querySelector("ins")).toHaveTextContent("3");
+  });
+
+  it("shows a type change with both types", () => {
+    const { container } = render(<EntryRow entry={entry({ changeType: "retyped", movedFrom: "Core", movedTo: "Section" })} />);
+    expect(container.textContent).toContain("type changed [Core] → [Section]");
+  });
+
   it("says just 'moved' when there are no paths to show", () => {
     render(<EntryRow entry={entry({ changeType: "moved", pr: 236 })} />);
     expect(screen.getByText("moved")).toBeInTheDocument();

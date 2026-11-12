@@ -44,7 +44,9 @@ import { runMigrations } from "../../src/server/migrate.ts";
 import {
   eventToRow,
   gitCommitSeq,
+  hasNumberingRows,
   htmlEraRows,
+  NUMBERING_CHANGE_TYPES,
   preEraRows,
   readHistoryCursor,
   stampMigrationSeam,
@@ -159,6 +161,21 @@ async function main() {
     }
   }
 
+  // Renumberings and type changes became events after most databases were
+  // written, so the incremental cursor alone would never reach the commits that
+  // made them. A database with a cursor but none of those rows walks the whole
+  // log once, keeping only those events below the cursor: they are new keys, so
+  // the upsert adds rows and rewrites none. Only commits that carry one fetch PR
+  // metadata (58 of ~200 today).
+  let numberingOnlyBelow = 0;
+  if (!OUT_JSON && startIndex > 0 && !(await hasNumberingRows(sql))) {
+    console.error(`  no renumbering or type-change rows yet: walking all ${allCommits.length} commits once to add them`);
+    numberingOnlyBelow = startIndex;
+    startIndex = 0;
+    prevSnapshot = new Map();
+  }
+  const NUMBERING = new Set(NUMBERING_CHANGE_TYPES);
+
   const commits = allCommits.slice(startIndex);
 
   if (commits.length === 0) {
@@ -188,9 +205,10 @@ async function main() {
 
     const changed = diffSnapshots(prevSnapshot, snapshot);
     const { added, modified, removed } = changed;
-    // A node can appear twice (once as "modified", once as "moved") — both
-    // entries are emitted.
-    const events = snapshotEvents(changed);
+    // A node can appear more than once (modified, moved, renumbered, retyped) —
+    // every entry is emitted.
+    const backfilling = startIndex + i < numberingOnlyBelow;
+    const events = snapshotEvents(changed).filter((ev) => !backfilling || NUMBERING.has(ev.changeType));
 
     // The HTML→Markdown migration commit (PR #117, "Migrate To Markdown File")
     // is the very first commit that touches Sky Atlas.md, so every doc shows

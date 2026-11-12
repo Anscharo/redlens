@@ -10,6 +10,9 @@ This file covers how the atlas change history is built and stored. It holds the 
   - **`--out-json`:** writes the legacy `public/history/<uuid>.json` files. This sink needs no database and serves the canary and artifact tests.
 - The shared DB write path lives in `src/server/history/history-db.ts` (`eventToRow`, `upsertHistory`, `gitCommitSeq`, `readHistoryCursor`).
 - It reads each commit through `lib/atlas-git-source.ts` and turns two snapshots into events and diff bodies with `lib/history-events.ts`, which a preview's commit history shares, so a commit row means the same on both. PR metadata and bullet matching stay in the script.
+- **Renumberings and type changes are events of their own** (`change_type` `renumbered` / `retyped`), because inside a consolidated bucket file neither changes content, title or path. Their old and new doc number or `[Type]` sit in `moved_from` / `moved_to`. They never count as modifications (`mod-counts`, `mod-timeline` read `content` rows only).
+  - **A database whose cursor predates them backfills itself.** When the cursor is set but `hasNumberingRows` finds none, the run walks the whole log once (~30s), keeping only those two event types below the cursor. They are new keys, so the upsert adds rows and rewrites none, and only the ~58 commits that carry one look up PR metadata. Nothing has to be run by hand in any environment.
+  - In the atomized layout (#236–#294) a path spelled out its doc number, so each renumbering of that era also left a `moved` row. Those rows stay; the reader folds a `moved` row that only restates a same-commit renumbering (`foldRenumberMoves`, `src/lib/history.ts`), and the radar actor history merges the two into one row.
 
 ## History commands
 
@@ -31,7 +34,7 @@ This file covers how the atlas change history is built and stored. It holds the 
   - It writes one row each time a document's FINGERPRINT changes. The fingerprint is the cleaned body, the title and the doc number (`scripts/lib/doc-fingerprint.mjs`). It writes a null row when the document is removed. A document's version is live over [its row's commit_seq, the next row's).
   - **Why it exists:** a preview of a repo that shares no git history with nga main (every private mirror, because nga main is squash-merged) needs to find the upstream commit its CONTENT was last in sync with. Without this table, the preview is redlined against live main, and everything upstream changed since is counted as its own change.
   - It is its own pass with its own cursor in its own table. The first run after migration 034 walks the whole history unprompted (~20s). Later runs only read new commits. The atlas worker runs it as a third parallel tail beside embeddings and history.
-  - **It is NOT read off the events of `atlas_history`.** Since the consolidated layout, a renumbering inside one bucket file produces no event at all, and renumberings are most of what a stale fork shows as phantom changes.
+  - **It is NOT read off the events of `atlas_history`.** It needs every state a document's fingerprint passed through, keyed by commit, in its own table with its own cursor; history events describe changes, and renumberings are most of what a stale fork shows as phantom changes.
   - **The fingerprint must be identical** whether a state is read from git (`atlas-git-source`, raw body) or from a checkout or `docs.json` (`atlas-parser`, cleaned body). `scripts_tests/doc-fingerprint.test.ts` holds that to the checked-out atlas.
   - `--full` discards and rewalks. `--dry-run` walks and reports without a DB.
 
@@ -48,7 +51,7 @@ These scripts are about history, but they are off the `pnpm build` chain.
 
 **`atlas_history.change_kind` is backfilled — done 2026-09, do not re-run it.** The migration-006 walk landed: 7,494 of ~7,635 `modified` rows carry a `lint` / `typo` / `semantic` label. The ~141 without one are rows whose diff is empty, which `classifyDiff` returns `null` for by design.
 
-`change_kind` is NULL on every `added` / `removed` / `moved` row **by design**, because the classifier needs a diff. So the ~51.5k NULLs in a bare `GROUP BY change_kind` are not a backlog. Count with `COUNT(change_kind)` grouped by `change_type` instead.
+`change_kind` is NULL on every `added` / `removed` / `moved` / `renumbered` / `retyped` row **by design**, because the classifier needs a diff. So the ~51.5k NULLs in a bare `GROUP BY change_kind` are not a backlog. Count with `COUNT(change_kind)` grouped by `change_type` instead.
 
 Two consequences:
 
