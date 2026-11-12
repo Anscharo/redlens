@@ -8,12 +8,19 @@ export interface SetAt {
   block: number;
   time: string;
   tx: string;
+  /**
+   * Set at some time before this one (ISO), with `time` and `tx` empty: the
+   * start of a history read over a recent window only (a Solana limit,
+   * src/server/pau/svm-history.ts) that holds no change of the value.
+   */
+  before?: string;
 }
 
 export interface RoleHolder {
   role: string;
   account: string;
-  since: SetAt;
+  /** When it was granted; null where no history is read (a Solana Permission, read live only). */
+  since: SetAt | null;
 }
 
 /** A replayed role holder, confirmed on-chain: `holds` is null when hasRole could not be read. */
@@ -86,6 +93,22 @@ export interface LiveRateLimit extends RateLimitKey {
   /** Set when an address `derived` takes is one an earlier atlas commit lists and the current one does not: the limit is for an integration the atlas dropped. */
   retired?: RetiredAddress;
   unit?: AmountUnit;
+  /** On an svm deployment: the account the limit lives on and what it moves (svm-snapshot.ts); its `key` is that account's address. */
+  svm?: SvmLimitInfo;
+}
+
+/** A Solana ALM limit: a Reserve's (outflow of one mint) or an Integration's (a swap, a bridge, a lending market). */
+export interface SvmLimitInfo {
+  account: "reserve" | "integration";
+  /** The Integration's config type (AtomicSwap, CctpBridge, LzBridge, Kamino, Drift), or "Reserve". */
+  type: string;
+  /** The Integration's own description, as the program stores it. */
+  description?: string;
+  /** The mint the limit counts out: a Reserve's, a swap's input, a bridge's or a market's. */
+  mint?: string;
+  /** A swap's output mint. */
+  output?: string;
+  status: "Active" | "Suspended";
 }
 
 /** A BeamState default ("init") rate limit: the most the Configurator may set the key to without a spell. */
@@ -105,6 +128,8 @@ export interface BeamDefault {
 /** What BeamState lets the Configurator (cBEAM) do to one registered RateLimits without a spell. */
 export interface BeamLimits {
   beamState: string;
+  /** The chain's Configurator (registry `shared`), the account a cBEAM acts through: attached when the steps are worked out (src/server/pau/value-steps.ts), never stored, so a registry edit shows at once. */
+  configurator?: string | null;
   /** Seconds one key must wait between two increases; null when unread. */
   hop: string | null;
   /** The factor one increase may multiply a limit by, in WAD (1e18 = 1×); null when unread. */
@@ -195,4 +220,4 @@ export interface PauResponse {
 export const EMPTY_PAU: PauResponse = { deployments: [] };
 
 /** How a deployment's controller design reads on the page: the Atlas calls the single-contract controller "monolithic" and the facet-based one the Diamond PAU. */
-export const PAU_KIND_LABEL: Record<PauKind, string> = { monolithic: "monolithic ALM Controller", diamond: "Diamond PAU" };
+export const PAU_KIND_LABEL: Record<PauKind, string> = { monolithic: "monolithic ALM Controller", diamond: "Diamond PAU", svm: "Solana ALM Controller" };

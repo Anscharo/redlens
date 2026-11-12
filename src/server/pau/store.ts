@@ -19,6 +19,10 @@ import { withUnits } from "./units.ts";
 import { withTargets } from "./targets.ts";
 import type { RoleClaims } from "./role-claims.ts";
 import type { KeyNamer } from "./diamond-derive.ts";
+import { svmSnapshot } from "./svm-snapshot.ts";
+import { svmAccounts, type SvmAccounts } from "./svm-reader.ts";
+import type { SvmProbe } from "./svm-probe.ts";
+import { svmHistory, svmSetTimes } from "./svm-history.ts";
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v));
 
@@ -100,7 +104,13 @@ export interface StateRefresh {
   failed?: { deployment: string; error: string }[];
 }
 
-type RefreshOpts = { nameKeys?: KeyNamer; atlasKeys?: () => Promise<Map<string, string[]>>; atlasRoles?: () => Promise<RoleClaims> };
+type RefreshOpts = {
+  nameKeys?: KeyNamer;
+  atlasKeys?: () => Promise<Map<string, string[]>>;
+  atlasRoles?: () => Promise<RoleClaims>;
+  svmProbe?: () => Promise<Map<string, SvmProbe>>;
+  svmRead?: (chain: string) => SvmAccounts;
+};
 
 /**
  * Rebuilds each deployment on its own: one that throws keeps its stored
@@ -113,10 +123,14 @@ async function refreshEach(db: SqlTag, reg: PauRegistry, read: ChainReader, opts
   const prevs = opts.nameKeys ? await storedSnapshots(db) : new Map<string, PauSnapshot>();
   const atlasKeys = (await opts.atlasKeys?.()) ?? new Map<string, string[]>();
   const roles = await opts.atlasRoles?.();
+  const svmProbes = reg.deployments.some((d) => d.kind === "svm") ? ((await opts.svmProbe?.()) ?? new Map<string, SvmProbe>()) : new Map<string, SvmProbe>();
   const failed: { deployment: string; error: string }[] = [];
   for (const d of reg.deployments) {
     try {
-      const snap = await snapshotOf(d, read, historyOf, await beamOf(d.chain), { nameKeys: opts.nameKeys, probe: atlasKeys.get(d.prime), prev: prevs.get(deploymentId(d)), roles });
+      // The Solana program is read from its accounts, timed by its stored event window; the EVM controllers from their event history and live reads.
+      const snap = d.kind === "svm"
+        ? await svmSnapshot(d, (opts.svmRead ?? svmAccounts)(d.chain), svmProbes.get(d.prime), svmSetTimes(await svmHistory(db, d), now), now)
+        : await snapshotOf(d, read, historyOf, await beamOf(d.chain), { nameKeys: opts.nameKeys, probe: atlasKeys.get(d.prime), prev: prevs.get(deploymentId(d)), roles });
       await upsertSnapshot(db, snap, new Date(now));
     } catch (e) {
       failed.push({ deployment: deploymentId(d), error: (e as Error).message });
@@ -143,6 +157,10 @@ export async function maybeRefreshPauState(
     atlasKeys?: () => Promise<Map<string, string[]>>;
     /** The accounts the atlas names to each vault's allocator and sentinel roles (role-claims.ts), asked of the vault; loaded like `atlasKeys`. */
     atlasRoles?: () => Promise<RoleClaims>;
+    /** The Integration accounts and mints the atlas states for each prime's Solana instances (svm-probe.ts), read live; loaded like `atlasKeys`. */
+    svmProbe?: () => Promise<Map<string, SvmProbe>>;
+    /** The Solana account reader (svm-reader.ts), replaceable in tests. */
+    svmRead?: (chain: string) => SvmAccounts;
   },
 ): Promise<StateRefresh> {
   const now = opts.now ?? Date.now();

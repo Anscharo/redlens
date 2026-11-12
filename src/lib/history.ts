@@ -67,6 +67,8 @@ export interface HistoryEntry {
    *   · "created" — a reviewed verdict that the pre-migration HTML holds no earlier
    *     version (public/history-decisions.json). */
   seam?: string;
+  /** The spells this change belongs to, as YYYY-MM-DD: the ones its PR bullet or its pull request names (src/lib/atlasPrSpell.ts). Empty: it names none. Absent: its PR record is not read yet, or the server predates it. */
+  spells?: string[];
 }
 
 /** Reconstructed (non-git-native) history eras — every era whose entries carry a

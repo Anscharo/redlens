@@ -123,6 +123,8 @@ function noControllerDetail(d: PauDeployment): string {
 export async function checkRegistryWiring(reg: PauRegistry, read: Reader, logs: LogFetcher | null): Promise<WiringReport> {
   const report: WiringReport = { checks: [], proposals: [] };
   for (const d of reg.deployments) {
+    // An svm deployment holds no EVM contracts; its accounts are read by src/server/pau/svm-snapshot.ts.
+    if (d.kind === "svm") continue;
     const parts = [await controllerChecks(d, read, logs)];
     // Every listed controller is checked: a draft can hold the old and the newly listed one side by side.
     for (const { address } of membersOf(d, "controller")) {

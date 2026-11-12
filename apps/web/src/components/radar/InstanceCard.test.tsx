@@ -98,4 +98,18 @@ describe("InstanceCard on-chain marks", () => {
     expect(screen.getByRole("link", { name: "Open the document stating Inflow Rate Limit / maxAmount" })).toHaveAttribute("href", expect.stringContaining("inflow-doc"));
     expect(screen.getByRole("link", { name: "Open the document stating Network" })).toHaveAttribute("href", expect.stringContaining("inst-doc"));
   });
+  it("sets each holder a role param's table lists in beneath it as its own key and address, the lead's address as the param's value", () => {
+    const curator = "The Curator role is held jointly by Soter Labs and Steakhouse Financial through the Curator Multisig at `0x622E19d6903BD4507cfc70b31d5B99535114C0FC`.\n\nThe co-curator addresses are:\n\n| Entity | Address |\n| --- | --- |\n| Soter Labs | `0xbCc126c3b6E2EbF0C895bb38c96D8afbEC126Ab3` |\n| Steakhouse Financial | `0x827e86072B06674a077f592A531dcE4590aDeCdB` |\n\nBoth sign.";
+    const { container } = render(<InstanceCard inst={{ ...inst, signalParams: [{ key: "Curator Role Address", value: curator, srcDocId: "inst-doc" }] }} />);
+    expect(screen.getByText("Curator Role Address")).toHaveAttribute("title", expect.stringContaining("Curator Multisig"));
+    expect(screen.getByText("Soter Labs")).toHaveClass("pl-4");
+    expect(screen.getByText("Steakhouse Financial")).toHaveClass("pl-4");
+    expect(screen.getByText("Both sign.")).toBeInTheDocument();
+    expect(container.textContent).not.toContain("| Entity |");
+  });
+  it("states the value a param's sentence names, keeping the sentence on hover", () => {
+    const sentence = "The maximum allocation for this Instance is 20,000,000 USD.";
+    render(<InstanceCard inst={{ ...inst, signalParams: [{ key: "Maximum Allocation", value: sentence, srcDocId: "inst-doc" }] }} />);
+    expect(screen.getByText("20,000,000 USD")).toHaveAttribute("title", sentence);
+  });
 });

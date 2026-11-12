@@ -16,6 +16,7 @@ export const PR_ENV_COPY_TABLES: CopyTable[] = [
   { table: "pau_events" },
   { table: "pau_cursor" },
   { table: "pau_rpc_cursor" },
+  { table: "pau_svm_cursor" },
   { table: "chain_state" },
   // The change history: spell casts, transaction origins and the vote archive (src/server/pau/CLAUDE.md).
   { table: "spell_casts" },

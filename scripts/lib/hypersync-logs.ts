@@ -59,8 +59,8 @@ async function send(url: string, token: string, body: unknown, t: HypersyncTimin
   return politeFetch(url, init, { cooldownKey: ACCOUNT });
 }
 
-/** One HyperSync request, with a busy (503) answer asked again after each of `busyWaitsMs`. */
-async function call(url: string, token: string, body: unknown, t: HypersyncTiming): Promise<Record<string, unknown>> {
+/** One HyperSync request on the account's clock and cooldown, with a busy (503) answer asked again after each of `busyWaitsMs`; every HyperSync reader (the Solana one too, svm-hypersync.ts) sends through it. */
+export async function hypersyncCall(url: string, token: string, body: unknown, t: HypersyncTiming = { gapMs: GAP_MS, busyWaitsMs: BUSY_WAITS_MS }): Promise<Record<string, unknown>> {
   let res = await send(url, token, body, t);
   for (const wait of t.busyWaitsMs) {
     if (res.status !== 503) break;
@@ -93,7 +93,7 @@ function toLog(l: Row, times: Map<number, number>): SourceLog {
 
 /** The chain's indexed height; an answer without a positive one throws, so the crawl never runs against a NaN tip. */
 async function readHeight(base: string, token: string, t: HypersyncTiming): Promise<number> {
-  const j = await call(`${base}/height`, token, null, t);
+  const j = await hypersyncCall(`${base}/height`, token, null, t);
   const height = Number(j.height);
   if (!Number.isFinite(height) || height <= 0) throw new Error(`hypersync: no height in ${JSON.stringify(j).slice(0, 120)}`);
   return height;
@@ -102,7 +102,7 @@ async function readHeight(base: string, token: string, t: HypersyncTiming): Prom
 /** Logs in [from, to] as far as one query reaches, and the last block it covered. */
 async function readLogs(base: string, token: string, t: HypersyncTiming, q: { addresses: string[]; topic0s: string[]; from: number; to: number }) {
   const body = { from_block: q.from, to_block: q.to + 1, logs: [{ address: q.addresses, topics: [q.topic0s] }], field_selection: FIELDS };
-  const j = await call(`${base}/query`, token, body, t);
+  const j = await hypersyncCall(`${base}/query`, token, body, t);
   const next = Number(j.next_block);
   if (!(next > q.from)) throw new Error(`hypersync: no progress from block ${q.from} (next_block ${String(j.next_block)})`);
   const batches = (j.data ?? []) as { logs?: Row[]; blocks?: Row[] }[];

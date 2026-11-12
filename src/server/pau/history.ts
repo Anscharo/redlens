@@ -2,7 +2,8 @@
 // change, one entry per transaction, with its origin (origin.ts) and, for a
 // spell, its executive. Titles come from the vote record (votes.json) and, for
 // spells older than it, from the verified executive archive (vote-archive.ts);
-// a spell in neither keeps its address alone.
+// a spell in neither keeps its address alone. `queued` lists the governance
+// steps scheduled and not yet run (history-queued.ts).
 import type { ExecutiveRef, PauHistoryResponse, PauOrigin } from "../../lib/pauHistory.ts";
 import type { PauRegistry } from "../../lib/pauRegistry.ts";
 import registry from "../../data/pau-registry.json" with { type: "json" };
@@ -12,6 +13,7 @@ import type { SqlTag } from "../sql-types.ts";
 import { loadVoteIndexFromDisk } from "../votes.ts";
 import { ARCHIVE_BLOB } from "./vote-archive.ts";
 import { buildEntries, ownersOf, type EventRow } from "./history-entries.ts";
+import { queuedSteps, type ReceiptsRead } from "./history-queued.ts";
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v));
 const parse = (v: unknown) => (typeof v === "string" ? JSON.parse(v) : v);
@@ -46,10 +48,17 @@ async function executives(db: SqlTag, votes: VoteRecord): Promise<(spell: string
   return (spell) => record.get(spell) ?? archive.get(spell) ?? { title: null, date: null, url: null, source: null };
 }
 
+/** The Solana window a full pass has read LayerZero receipts over (svm-sync.ts `stampOf`): its start, and when a pass last reached the head; null before one has. */
+async function receiptsRead(db: SqlTag): Promise<ReceiptsRead | null> {
+  const rows = (await db`SELECT min(start_time) AS start, max(reached_at) AS through FROM pau_svm_cursor WHERE position('|' in controllers) > 0 AND reached_at IS NOT NULL`) as { start: unknown; through: unknown }[];
+  return rows[0]?.start && rows[0].through ? { from: iso(rows[0].start), through: iso(rows[0].through) } : null;
+}
+
 /** Every change to a prime's PAU; changes to shared contracts alone (a Beacon's setup) belong to no prime's history. */
 export async function readPauHistory(db: SqlTag = sql, votes: VoteRecord = loadVoteIndexFromDisk, reg = registry as PauRegistry): Promise<PauHistoryResponse> {
-  const [rows, origins, executiveOf] = await Promise.all([eventRows(db), originRows(db), executives(db, votes)]);
-  return { entries: buildEntries(rows, ownersOf(reg), origins, executiveOf).filter((e) => e.primes.length > 0) };
+  const [rows, origins, executiveOf, from] = await Promise.all([eventRows(db), originRows(db), executives(db, votes), receiptsRead(db)]);
+  const owners = ownersOf(reg);
+  return { entries: buildEntries(rows, owners, origins, executiveOf).filter((e) => e.primes.length > 0), queued: queuedSteps(rows, owners, from) };
 }
 
 const HEADERS = { "Cache-Control": "public, max-age=300", Vary: "Accept-Encoding" };
@@ -59,19 +68,20 @@ const RECHECK_MS = 60_000;
 
 /**
  * What the history is built from, as one string a change to any input moves:
- * an event added, an origin resolved again, an archive entry checked. The vote
- * record is read from disk and changes only with a deploy, which restarts the
- * process.
+ * an event added, an origin resolved again, an archive entry checked, a Solana
+ * pass reaching the head (which moves what `queued` may list). The vote record
+ * is read from disk and changes only with a deploy, which restarts the process.
  */
 async function inputsVersion(db: SqlTag): Promise<string> {
   const rows = (await db`SELECT
     (SELECT count(*) FROM pau_events)::text AS events_version, (SELECT max(block) FROM pau_events)::text AS head,
     (SELECT count(*) FROM pau_tx_origin)::text AS origins, (SELECT max(resolved_at) FROM pau_tx_origin)::text AS resolved,
-    (SELECT max(checked_at) FROM executive_archive)::text AS archive`) as Record<string, unknown>[];
+    (SELECT max(checked_at) FROM executive_archive)::text AS archive, (SELECT max(reached_at) FROM pau_svm_cursor)::text AS svm_reached`) as Record<string, unknown>[];
   return Object.values(rows[0] ?? {}).join("|");
 }
 
 interface Built {
+  body: PauHistoryResponse;
   json: string;
   gzip: () => Uint8Array;
 }
@@ -79,7 +89,7 @@ interface Built {
 function build(body: PauHistoryResponse): Built {
   const json = JSON.stringify(body);
   let gz: Uint8Array | undefined;
-  return { json, gzip: () => (gz ??= Bun.gzipSync(json)) };
+  return { body, json, gzip: () => (gz ??= Bun.gzipSync(json)) };
 }
 
 let cache: { version: string; checkedAt: number; built: Promise<Built> } | null = null;
@@ -104,6 +114,9 @@ async function currentHistory(): Promise<Built> {
   });
   return checking;
 }
+
+/** The history as GET /api/pau/history serves it, from the same cache; throws when it cannot be built. */
+export const currentPauHistory = async (): Promise<PauHistoryResponse> => (await currentHistory()).body;
 
 /** Forgets the built history (tests). */
 export function resetPauHistoryCache(): void {

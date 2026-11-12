@@ -250,8 +250,10 @@ async function main() {
         ...eventDiff(ev, prevSnapshot, snapshot, { midHistory: startIndex + i > 0, kindHint: prKindHint }),
       };
 
+      // The commit names its PR even when the record cannot be fetched; the
+      // worker's pr-spells step fills the PR's metadata and spells later.
+      if (prNum) entry.pr = prNum;
       if (pr) {
-        entry.pr = pr.number;
         entry.prTitle = pr.title;
         entry.prAuthor = pr.author;
         entry.prUrl = pr.url;
