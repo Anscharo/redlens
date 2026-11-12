@@ -1,10 +1,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useDataSource } from "./dataSource";
 import { usePreviewView } from "./previewView";
-import type { ActiveBase, PreviewBaseKey, PreviewBases } from "./previewMetaCopy";
+import type { ActiveBase, PreviewBaseKey } from "./previewMetaCopy";
 import type { DiffLine } from "@/lib/history";
+import { fetchPreviewDiff } from "./previewDiffLoad";
 import { loadIdentityVerdict } from "./previewIdentity";
-import { loadPreviewMeta } from "./previewMeta";
 
 // Doc ids the preview adds / changes vs current main (from GET diff.json).
 // Drives the green new/changed redline indicators. `renumbered` maps a changed
@@ -84,99 +84,40 @@ export function usePreviewDiff(): PreviewDiff {
   return useContext(PreviewDiffContext);
 }
 
-/** Reconcile a `?base=` override against what the bundle's meta.json actually
- *  offers: an override wins when that candidate exists; otherwise (including
- *  entirely old bundles with no `bases`) fall back to the server's automatic
- *  pick, which is what plain diff.json/patches.json always mirror. */
-function resolveBase(
-  baseKey: PreviewBaseKey | null,
-  bases: PreviewBases | undefined,
-): { fetchKey: PreviewBaseKey | null; activeBase: ActiveBase | null } {
-  if (!bases) return { fetchKey: null, activeBase: null };
-
-  const requested = baseKey ?? bases.auto;
-  if ((requested === "sky" || requested === "repo") && bases[requested]) {
-    const cand = bases[requested]!;
-    return {
-      fetchKey: requested,
-      activeBase: { key: requested, repo: cand.repo, ref: cand.ref, auto: baseKey === null || baseKey === bases.auto },
-    };
-  }
-
-  if (bases.auto === "sky" && bases.sky) {
-    return { fetchKey: null, activeBase: { key: "sky", repo: bases.sky.repo, ref: bases.sky.ref, auto: true } };
-  }
-  if (bases.auto === "repo" && bases.repo) {
-    return { fetchKey: null, activeBase: { key: "repo", repo: bases.repo.repo, ref: bases.repo.ref, auto: true } };
-  }
-  return { fetchKey: null, activeBase: { key: "live-main", auto: true } };
-}
-
 export function PreviewDiffProvider({ children }: { children: ReactNode }) {
   const { base, preview } = useDataSource();
   const { baseKey } = usePreviewView();
   const [diff, setDiff] = useState<PreviewDiff>(preview ? PENDING : EMPTY);
   useEffect(() => {
-    if (!preview) {
-      setDiff(EMPTY);
-      return;
-    }
+    if (!preview) return setDiff(EMPTY);
     let live = true;
     const gone = new AbortController();
-    async function run() {
-      const meta = await loadPreviewMeta(base);
-      if (!live) return;
-      const { fetchKey, activeBase } = resolveBase(baseKey, meta?.bases);
-      const url = fetchKey ? `${base}diff.${fetchKey}.json` : `${base}diff.json`;
-      // Which pair answered: a keyed 404 falls back to the `auto` pair, and the
-      // identity verdict loaded below must describe the same comparison.
-      let usedKey = fetchKey;
-      const d = await fetch(url)
-        .then((r) => {
-          if (r.ok) return r.json();
-          if (!fetchKey) return null;
-          usedKey = null;
-          return fetch(`${base}diff.json`).then((r2) => (r2.ok ? r2.json() : null));
-        })
-        .catch(() => null);
-      if (!live) return;
-      // A diff that cannot be read ends `pending`: changed-only then
-      // shows nothing, and the reader's notice offers "show all".
-      if (!d) {
-        setDiff(EMPTY);
-        return;
-      }
-      setDiff({
-        added: new Set<string>(d.added ?? []),
-        changed: new Set<string>(d.changed ?? []),
-        renumbered: d.renumbered ?? {},
-        renumberedOnly: d.renumberedOnly ? new Set<string>(d.renumberedOnly) : undefined,
-        // Absent on bundles built before retitle detection shipped.
-        retitled: d.retitled ?? {},
-        // Absent on bundles built before type changes were recorded.
-        retyped: d.retyped ?? {},
-        // Older bundles shipped reusedSlot as a bare id array — normalize.
-        reusedSlot: Array.isArray(d.reusedSlot)
-          ? Object.fromEntries((d.reusedSlot as string[]).map((id) => [id, {}]))
-          : (d.reusedSlot ?? {}),
-        // Both absent on bundles built before identity-swap detection shipped.
-        identitySwap: d.identitySwap ?? {},
-        formerUuid: d.formerUuid ?? {},
-        activeBase,
-      });
-      // diff.json judged identity by lines and words so that the build did
-      // not wait on document vectors. The verdict by meaning arrives later
-      // and replaces it; with none coming, what is shown stands.
-      const verdict = await loadIdentityVerdict(base, usedKey, { signal: gone.signal });
-      if (live && verdict) setDiff((now) => ({ ...now, ...verdict }));
-    }
-    run();
+    showPreviewDiff(base, baseKey, () => live, gone.signal, setDiff);
     return () => {
       live = false;
       gone.abort();
     };
   }, [base, preview, baseKey]);
   return <PreviewDiffContext.Provider value={diff}>{children}</PreviewDiffContext.Provider>;
+}
+
+function showPreviewDiff(
+  base: string,
+  baseKey: ReturnType<typeof usePreviewView>["baseKey"],
+  live: () => boolean,
+  signal: AbortSignal,
+  setDiff: (next: PreviewDiff | ((now: PreviewDiff) => PreviewDiff)) => void,
+) {
+  fetchPreviewDiff(base, baseKey).then(async (loaded) => {
+    if (!live()) return;
+    if (!loaded) {
+      setDiff(EMPTY);
+      return;
+    }
+    setDiff(loaded.diff);
+    const verdict = await loadIdentityVerdict(base, loaded.usedKey, { signal });
+    if (live() && verdict) setDiff((now) => ({ ...now, ...verdict }));
+  });
 }
 
 // ---------------------------------------------------------------------------

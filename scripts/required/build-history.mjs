@@ -22,365 +22,40 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  ATLAS_FILE,
-  CONTENT_DIR,
-  makeAtlasGitSource,
-} from "../lib/atlas-git-source.ts";
-import { diffSnapshots, eventDiff, snapshotEvents } from "../lib/history-events.ts";
+import { ATLAS_FILE, CONTENT_DIR, makeAtlasGitSource } from "../lib/atlas-git-source.ts";
 import { loadAgentNamePrefixes } from "../lib/history-agent-scopes.ts";
-import {
-  classifyPrTitle,
-  cleanDescription,
-  matchBulletsToNodes,
-  parsePrBullets,
-} from "../lib/history-classify.mjs";
-import {
-  extractPrNumber,
-  fetchPr,
-  PR_CACHE_DIR,
-} from "../lib/github-pr-cache.mjs";
-import { sql, waitForDb } from "../../src/server/db.ts";
-import { runMigrations } from "../../src/server/migrate.ts";
-import {
-  eventToRow,
-  gitCommitSeq,
-  hasBackfilledRows,
-  htmlEraRows,
-  BACKFILLED_CHANGE_TYPES,
-  preEraRows,
-  readHistoryCursor,
-  stampMigrationSeam,
-  upsertHistory,
-} from "../../src/server/history/history-db.ts";
+import { PR_CACHE_DIR } from "../lib/github-pr-cache.mjs";
+import { openHistoryWalk } from "./history-cursor.mjs";
+import { walkCommits } from "./history-walk.mjs";
+import { writeDbSink, writeJsonSink } from "./history-sink.mjs";
 
-// Two sinks: default writes history straight to Postgres (atlas_history);
-// `--out-json` writes the legacy per-node public/history/<uuid>.json files
-// (DB-less — used by the canary/artifact tests). `--full` forces a full walk.
 const OUT_JSON = process.argv.includes("--out-json");
 const FULL = process.argv.includes("--full");
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, "../..");
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const ATLAS_REPO = path.join(ROOT, "vendor/next-gen-atlas");
 const OUT_DIR = path.join(ROOT, "public/history");
-
-// ---------------------------------------------------------------------------
-// Git helpers
-//
-// Layout detection and per-commit snapshot loading live in atlas-git-source.ts
-// — one seam covering all three layouts the atlas has shipped (monolithic,
-// atomized, consolidated), so nothing below needs to know which one a commit is in.
-// ---------------------------------------------------------------------------
-
 const { atlasCommits, loadSnapshot } = makeAtlasGitSource(ATLAS_REPO);
-
-/** All commits (oldest-first) that touch the atlas — shared with
- *  build-doc-versions via atlas-git-source, so the two walks agree. */
-const getCommits = () => atlasCommits();
-
-
-// ---------------------------------------------------------------------------
-// Per-commit events and their diff bodies live in history-events.ts, shared
-// with a preview's commit history, so a commit row means the same on both.
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
-
-/** A history entry's PR fields: the number the commit names, then the fetched
- *  record's title, author and url, and its review, approval and comment counts
- *  when nonzero. */
-function prEntryFields(prNum, pr) {
-  if (!pr) return prNum ? { pr: prNum } : {};
-  const out = { pr: prNum ?? pr.number, prTitle: pr.title, prAuthor: pr.author, prUrl: pr.url };
-  if (pr.reviewCount > 0) out.reviewCount = pr.reviewCount;
-  if (pr.approvalCount > 0) out.approvalCount = pr.approvalCount;
-  if (pr.commentCount > 0) out.commentCount = pr.commentCount;
-  return out;
-}
 
 async function main() {
   fs.mkdirSync(PR_CACHE_DIR, { recursive: true });
   if (OUT_JSON) fs.mkdirSync(OUT_DIR, { recursive: true });
   const agentNamePrefixes = loadAgentNamePrefixes(ROOT);
   console.error(`  ${agentNamePrefixes.length} agent name → doc_no scopes`);
-
-  const lastCommitFile = path.join(OUT_DIR, "_last_commit.txt");
-  const manifestFile = path.join(OUT_DIR, "_manifest.json");
-
-  // Incremental cursor: the short sha of the newest commit already recorded.
-  // DB sink reads it from atlas_history; --out-json reads the checkpoint files.
-  // `--full` forces a full walk in either mode.
-  let lastCommitHash = null;
-  let existingManifest = {};
-  let prevSnapshot = new Map();
-  let startIndex = 0;
-  // Commits below this index keep only BACKFILLED_CHANGE_TYPES events (see below).
-  let backfillBelow = 0;
-
-  if (!OUT_JSON) {
-    await waitForDb();
-    await runMigrations();
-    if (!FULL) lastCommitHash = await readHistoryCursor(sql);
-    console.error(`db sink: history cursor = ${lastCommitHash ? lastCommitHash.slice(0, 7) : "none (full)"}`);
-  } else if (!FULL && fs.existsSync(lastCommitFile) && fs.existsSync(manifestFile)) {
-    lastCommitHash = fs.readFileSync(lastCommitFile, "utf8").trim();
-    existingManifest = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
-    console.error(
-      `incremental mode: last processed commit ${lastCommitHash.slice(0, 7)}, ${Object.keys(existingManifest).length} nodes in manifest`,
-    );
-  }
-
   console.error("loading commits…");
-  const allCommits = getCommits();
-  console.error(`  ${allCommits.length} commits touch ${ATLAS_FILE} or ${CONTENT_DIR}/`);
-
-  if (lastCommitHash) {
-    // Cursor may be a 7-char short sha (DB) or a full sha (legacy file); the
-    // full commit hashes start with either, so prefix-match handles both.
-    const idx = allCommits.findIndex((c) => c.hash.startsWith(lastCommitHash));
-    // A database with a cursor but no row of BACKFILLED_CHANGE_TYPES holds none
-    // of those events below its cursor, and the incremental walk never revisits
-    // those commits. Such a run walks the whole log once, keeping only those
-    // events below the cursor: they are new keys, so the upsert adds rows and
-    // rewrites none, and only commits that carry one fetch PR metadata.
-    if (idx >= 0 && !OUT_JSON && !(await hasBackfilledRows(sql))) {
-      backfillBelow = idx + 1;
-      console.error(`  no retitle, renumbering or type-change rows yet: walking all ${allCommits.length} commits once to add them`);
-    } else if (idx >= 0) {
-      startIndex = idx + 1;
-      // Reconstruct prevSnapshot from the last processed commit so diffs are correct
-      prevSnapshot = await loadSnapshot(allCommits[idx].hash);
-      console.error(
-        `  skipping ${startIndex} already-processed commits, ${allCommits.length - startIndex} new`,
-      );
-    } else {
-      console.error(`  last commit not found in history, falling back to full rebuild`);
-      lastCommitHash = null;
-      existingManifest = {};
-    }
-  }
-
-  const commits = allCommits.slice(startIndex);
-
-  if (commits.length === 0) {
+  const commits = atlasCommits();
+  console.error(`  ${commits.length} commits touch ${ATLAS_FILE} or ${CONTENT_DIR}/`);
+  const opened = await openHistoryWalk({ outJson: OUT_JSON, full: FULL, outDir: OUT_DIR, loadSnapshot, commits });
+  if (opened.commits.length === 0 && OUT_JSON) {
     console.error("no new commits to process");
-    // The --out-json sink derives everything it writes from these commits, so with none
-    // there is nothing left to do. The DB sink must NOT stop here: the frozen pre-#117
-    // artifacts below are ingested idempotently on every run and change INDEPENDENTLY of
-    // the atlas git log — a re-freeze (htmlhist:apply / prehist:*) ships new rows without
-    // any new upstream commit. Returning here stranded a re-freeze until some unrelated
-    // atlas commit happened to trigger a cycle, which on a current cursor is never.
-    if (OUT_JSON) return;
-  }
-
-  // nodeId → new entries added in this run only
-  const newHistory = new Map();
-  let totalChanges = 0;
-
-  for (let i = 0; i < commits.length; i++) {
-    const commit = commits[i];
-    const pct = (((i + 1) / commits.length) * 100).toFixed(0);
-    console.error(`[${pct}%] ${commit.hash.slice(0, 7)} ${commit.message.slice(0, 60)}`);
-
-    const snapshot = await loadSnapshot(commit.hash);
-
-    // On the very first atlas commit, prevSnapshot is empty so every node is "added".
-    // This records the creation of all nodes that haven't changed since.
-
-    const changed = diffSnapshots(prevSnapshot, snapshot);
-    const { added, retitled, modified, removed } = changed;
-    // A node can appear more than once (retitled, modified, moved, renumbered,
-    // retyped) — every entry is emitted.
-    const backfilling = i < backfillBelow;
-    const events = snapshotEvents(changed).filter((ev) => !backfilling || BACKFILLED_CHANGE_TYPES.includes(ev.changeType));
-
-    // The HTML→Markdown migration commit (PR #117, "Migrate To Markdown File")
-    // is the very first commit that touches Sky Atlas.md, so every doc shows
-    // up as "added" in the diff. Semantically these docs existed in the prior
-    // HTML era and were just translated to markdown — not new additions. Re-
-    // tag as "moved" so downstream views (ActorHistory etc.) treat the
-    // migration as renumbering noise rather than a wave of new creations.
-    const isMdMigration =
-      /migrate.*to.*markdown/i.test(commit.message) || extractPrNumber(commit.message) === 117;
-    if (isMdMigration) {
-      for (const ev of events) if (ev.changeType === "added") ev.changeType = "moved";
-    }
-
-    if (events.length === 0) {
-      prevSnapshot = snapshot;
-      lastCommitHash = commit.hash;
-      continue;
-    }
-
-    // Fetch PR metadata
-    const prNum = extractPrNumber(commit.message);
-    const pr = prNum ? await fetchPr(prNum) : null;
-    // PR-title-derived kind hint — overrides per-diff classification below
-    // for the whole commit. "fix typos PR" stays typo even when individual
-    // entries have a cascade of >4-char letter edits.
-    const prKindHint = pr ? classifyPrTitle(pr.title) : null;
-
-    // Try to match bullets to nodes for edit proposals. Pass the unique nodes
-    // (added ∪ retitled ∪ modified ∪ removed) so a node in two lists isn't scored twice.
-    let bulletMatches = new Map();
-    let prHasInlineBullets = false;
-    if (pr?.body) {
-      const prBullets = parsePrBullets(pr.body);
-      prHasInlineBullets = prBullets.length > 0;
-      if (prBullets.length > 0) {
-        // Each node is scored on its own, so a backfill only scores the nodes it keeps.
-        const kept = backfilling ? new Set(events.map((ev) => ev.node.id)) : null;
-        const matchTargets = [...new Map([...added, ...retitled, ...modified, ...removed].map((n) => [n.id, n])).values()].filter((n) => !kept || kept.has(n.id));
-        bulletMatches = matchBulletsToNodes(prBullets, matchTargets, snapshot, {
-          agentNamePrefixes,
-        });
-        if (matchTargets.length > 0) {
-          const rate = ((bulletMatches.size / matchTargets.length) * 100).toFixed(0);
-          console.error(
-            `    bullets: ${bulletMatches.size}/${matchTargets.length} matched (${rate}%)`,
-          );
-        }
-      }
-    }
-
-    // Record history entries
-    for (const ev of events) {
-      const { node, changeType } = ev;
-      const entry = {
-        date: commit.date.slice(0, 10),
-        commitHash: commit.hash.slice(0, 7),
-        commitSeq: 1000 + startIndex + i,
-        changeType,
-        ...eventDiff(ev, prevSnapshot, snapshot, { midHistory: startIndex + i > 0, kindHint: prKindHint }),
-      };
-
-      // The commit names its PR even when the record cannot be fetched; the
-      // worker's pr-spells step fills the PR's metadata and spells later.
-      Object.assign(entry, prEntryFields(prNum, pr));
-
-      const bulletMatch = bulletMatches.get(node.id);
-      if (bulletMatch) {
-        entry.summary = bulletMatch.bulletTitle;
-        const cleaned = cleanDescription(bulletMatch.bulletDescription);
-        if (cleaned) entry.description = cleaned;
-        // matchScore omitted from output — internal quality signal only
-      } else if (pr?.body && !prHasInlineBullets && pr.body.length < 500) {
-        // No-bullet-match fallback: plain non-bulleted PRs (Spark proposals,
-        // single-fix commits) where the whole body is the summary.
-        entry.summary = pr.title;
-        const cleaned = cleanDescription(pr.body);
-        if (cleaned) entry.description = cleaned;
-      }
-
-      if (!newHistory.has(node.id)) newHistory.set(node.id, []);
-      newHistory.get(node.id).push(entry);
-      totalChanges++;
-    }
-
-    prevSnapshot = snapshot;
-    lastCommitHash = commit.hash;
-  }
-
-  if (!OUT_JSON) {
-    // ── DB sink: upsert straight into atlas_history ──────────────────────────
-    // commit_seq comes from the full submodule log (same numbering the table
-    // already uses), keyed by short sha. The upsert's (doc_id, commit_sha,
-    // change_type) conflict key makes re-runs idempotent — no per-file dedup.
-    const seqByCommit = gitCommitSeq();
-    const rows = [];
-    for (const [nodeId, newEntries] of newHistory) {
-      for (const e of newEntries) {
-        const row = eventToRow(nodeId, e, seqByCommit);
-        if (row) rows.push(row);
-      }
-    }
-    await upsertHistory(sql, rows);
-
-    // ── HTML-era (pre-#117) frozen history ───────────────────────────────────
-    // The committed artifact (public/history-html-era.json) carries the human/auto
-    // curation decisions baked in (scripts/htmlhist/prepare-html-history.mjs). Upsert it
-    // idempotently on every sync — same (doc_id, commit_sha, change_type) conflict key —
-    // so BOTH dev (preflight) and Railway (atlas worker) serve the applied reconstruction
-    // from atlas_history. Every html-era event's commitHash is a REAL git sha, so its
-    // commit_seq always reconciles via seqByCommit; the baked seq is never reached for
-    // these rows. Absent (un-applied) → skipped, markdown era unaffected.
-    let htmlEraCount = 0, seamStamped = 0;
-    const htmlEraPath = path.join(ROOT, "public/history-html-era.json");
-    if (fs.existsSync(htmlEraPath)) {
-      const artifact = JSON.parse(fs.readFileSync(htmlEraPath, "utf8"));
-      const htmlRows = htmlEraRows(artifact, seqByCommit);
-      await upsertHistory(sql, htmlRows);
-      htmlEraCount = htmlRows.length;
-      seamStamped = await stampMigrationSeam(sql, artifact);
-    }
-
-    // ── Pre-git origins (mip / genesis / severed) ─────────────────────────────
-    // The committed artifact (public/history-pre-era.json — scripts/prehist/, docs/plans/
-    // pre-git-history.md) carries synthetic (non-git) commitHash tags with a BAKED negative
-    // commit_seq — there is no real commit to reconcile against, so (unlike html-era rows
-    // above) the baked seq is what lands in the DB. Same idempotent upsert; absent → skipped.
-    let preEraCount = 0, supersededCount = 0;
-    const preEraPath = path.join(ROOT, "public/history-pre-era.json");
-    if (fs.existsSync(preEraPath)) {
-      const artifact = JSON.parse(fs.readFileSync(preEraPath, "utf8"));
-      // Curated AEP upgrades (prehist:aep) replace a row's commit_sha, so the OLD
-      // (docId, commit_sha, change_type) key is untouched by the upsert below — it's
-      // a different conflict target, not an update. Delete each superseded row first
-      // so a doc never ends up carrying both the generic placeholder and its upgrade.
-      for (const s of artifact.supersedes || []) {
-        const { count } = await sql`
-          DELETE FROM atlas_history
-          WHERE doc_id = ${s.docId} AND commit_sha = ${s.commitHash} AND change_type = ${s.changeType}
-        `;
-        supersededCount += count ?? 0;
-      }
-      const preRows = preEraRows(artifact, seqByCommit);
-      await upsertHistory(sql, preRows);
-      preEraCount = preRows.length;
-    }
-
-    await sql.end();
-    console.error(
-      `\ndone: upserted ${rows.length} markdown-era change entries across ${newHistory.size} nodes` +
-      `${htmlEraCount ? ` + ${htmlEraCount} html-era rows from the frozen artifact` : ""}` +
-      `${seamStamped ? ` (seam verdict stamped on ${seamStamped} migration rows)` : ""}` +
-      `${preEraCount ? ` + ${preEraCount} pre-git origin rows from the frozen artifact` : ""}` +
-      `${supersededCount ? ` (deleted ${supersededCount} superseded row(s) first)` : ""} into atlas_history`,
-    );
     return;
   }
-
-  // ── --out-json sink: per-node files, append + dedup on (commitHash, changeType)
-  // so a node can carry both a "modified" and a "moved" entry from one commit.
-  let fileCount = 0;
-  for (const [nodeId, newEntries] of newHistory) {
-    const filePath = path.join(OUT_DIR, `${nodeId}.json`);
-    const existing = fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, "utf8")) : [];
-    const seen = new Set(existing.map((e) => `${e.commitHash}:${e.changeType}`));
-    const dedupedNew = newEntries.filter((e) => !seen.has(`${e.commitHash}:${e.changeType}`));
-    if (dedupedNew.length === 0) continue;
-    fs.writeFileSync(filePath, JSON.stringify([...existing, ...dedupedNew], null, 2) + "\n");
-    fileCount++;
+  const walked = await walkCommits({ ...opened, loadSnapshot, agentNamePrefixes });
+  if (!OUT_JSON) {
+    await writeDbSink(ROOT, walked.newHistory);
+    return;
   }
-
-  console.error(
-    `\ndone: ${fileCount} node history files updated, ${totalChanges} new change entries`,
-  );
-
-  // Merge new counts into existing manifest and write
-  const manifest = { ...existingManifest };
-  for (const [nodeId, newEntries] of newHistory) {
-    manifest[nodeId] = (manifest[nodeId] ?? 0) + newEntries.length;
-  }
-  fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2) + '\n');
-  console.error(`manifest: ${Object.keys(manifest).length} nodes with history`);
-
-  // Checkpoint: record the last processed commit for next incremental run
-  fs.writeFileSync(lastCommitFile, lastCommitHash);
-  console.error(`checkpoint: ${lastCommitHash}`);
+  writeJsonSink(OUT_DIR, opened.existingManifest, walked);
 }
 
 main().catch((e) => {

@@ -8,6 +8,10 @@ import { join } from "node:path";
 import { config } from "../config.ts";
 import { type HistoryInsert } from "./history-rows.ts";
 import type { ChangeType } from "../../lib/changeTypes.ts";
+import { prRowsFromHistory, upsertAtlasPrs } from "./history-prs.ts";
+
+export { stampMigrationSeam } from "./history-seam.ts";
+export { upsertAtlasPrs, type AtlasPrInsert } from "./history-prs.ts";
 
 export { eventToRow, htmlEraRows, preEraRows, type HistoryEvent } from "./history-rows.ts";
 export type { HistoryInsert };
@@ -34,16 +38,6 @@ export const HISTORY_COLS = [
   "source_url",
 ] as const;
 
-export interface AtlasPrInsert {
-  pr_number: number;
-  title: string | null;
-  url: string | null;
-  author: string | null;
-  review_count: number | null;
-  approval_count: number | null;
-  comment_count: number | null;
-}
-
 /** Topological commit order (oldest = 1) of the atlas submodule, keyed by the
  *  7-char short sha that history events carry. commit_seq drives the read-side
  *  `ORDER BY` and the incremental cursor (MAX(commit_seq)). */
@@ -63,128 +57,9 @@ export function gitCommitSeq(): Map<string, number> {
   }
 }
 
-/** The HTML→markdown migration (PR #117). build-history re-tags every doc's birth at
- *  this commit as `moved` (they existed in the HTML era), which Postgres stores as
- *  `structural` — so this is the one row every doc alive at the seam is guaranteed to
- *  have, and the only place to hang a per-doc seam verdict that has no event of its own. */
-const MIGRATION_COMMIT = "22cc27b5";
-const MIGRATION_CHANGE_TYPE = "structural";
-
-/**
- * Stamp each doc's #117 seam verdict (`kept` / `split` / `merged` / `reintroduced` /
- * `untraced` / `created`) onto its migration row, from the frozen artifact's `docMeta`.
- *
- * Not done in build-history's git walk on purpose: that walk is incremental and will
- * never re-visit #117 again, so a verdict written there would only reach the DB on a
- * `--full` rebuild. docMeta rides the html-era upsert instead, which runs on every sync.
- *
- * The verdict can't come from the event stream either — the docs that most need it
- * (`untraced`, `created`) have NO html-era events at all; docMeta is the only record
- * that they were looked at and not threaded.
- */
-export async function stampMigrationSeam(
-  sql: SQL,
-  artifact: {
-    meta?: { migrationCommit?: string };
-    docMeta?: Record<string, { seam?: string; extractedFrom?: string }>;
-  },
-  chunkSize = 1000,
-): Promise<number> {
-  const sha = (artifact.meta?.migrationCommit ?? MIGRATION_COMMIT).slice(0, 7);
-  const entries = Object.entries(artifact.docMeta ?? {}).filter(([, m]) => m?.seam);
-  let stamped = 0;
-  for (let i = 0; i < entries.length; i += chunkSize) {
-    const params: unknown[] = [sha];
-    const values = entries
-      .slice(i, i + chunkSize)
-      .map(([id, m]) => {
-        params.push(id, m.seam, m.extractedFrom ?? null);
-        return `($${params.length - 2}::uuid, $${params.length - 1}, $${params.length}::uuid)`;
-      })
-      .join(",");
-    // extracted_from rides along: a `split` doc with no reconstructed event of its own
-    // (34 in the committed artifact) has its source-document pointer ONLY in docMeta, so
-    // without this the lineage the reconstruction recovered never reaches the DB. COALESCE
-    // so a doc whose own event already carried the pointer is never blanked by a docMeta
-    // row that lacks one.
-    const res = await sql.unsafe(
-      `UPDATE atlas_history h SET seam = v.seam, extracted_from = COALESCE(v.extracted_from, h.extracted_from)
-       FROM (VALUES ${values}) AS v(doc_id, seam, extracted_from)
-       WHERE h.doc_id = v.doc_id AND h.commit_sha = $1 AND h.change_type = '${MIGRATION_CHANGE_TYPE}'`,
-      params,
-    );
-    stamped += res.count ?? 0;
-  }
-  // Everything else alive at the seam: docs the reconstruction has no docMeta row for
-  // at all. "No verdict" and "untraced" mean the same thing to a reader, and leaving
-  // NULL would make the reader unable to tell them apart from an un-synced row.
-  const rest = await sql.unsafe(
-    `UPDATE atlas_history SET seam = 'untraced'
-     WHERE commit_sha = $1 AND change_type = '${MIGRATION_CHANGE_TYPE}' AND seam IS NULL`,
-    [sha],
-  );
-  return stamped + (rest.count ?? 0);
-}
-
 const SET_CLAUSE = HISTORY_COLS.filter((c) => c !== "doc_id" && c !== "commit_sha" && c !== "change_type")
   .map((c) => `${c} = excluded.${c}`)
   .join(", ");
-
-function prRowsFromHistory(rows: HistoryInsert[]): AtlasPrInsert[] {
-  const byPr = new Map<number, AtlasPrInsert>();
-  for (const row of rows) {
-    if (row.pr_number == null) continue;
-    const existing = byPr.get(row.pr_number);
-    byPr.set(row.pr_number, {
-      pr_number: row.pr_number,
-      title: row.pr_title ?? existing?.title ?? null,
-      url: row.pr_url ?? existing?.url ?? null,
-      author: row.pr_author ?? existing?.author ?? null,
-      review_count: row.review_count ?? existing?.review_count ?? null,
-      approval_count: row.approval_count ?? existing?.approval_count ?? null,
-      comment_count: row.comment_count ?? existing?.comment_count ?? null,
-    });
-  }
-  return [...byPr.values()];
-}
-
-export async function upsertAtlasPrs(sql: SQL, rows: AtlasPrInsert[], chunkSize = 1000): Promise<void> {
-  for (let i = 0; i < rows.length; i += chunkSize) {
-    const chunk = rows.slice(i, i + chunkSize);
-    const params: unknown[] = [];
-    const valuesSql = chunk
-      .map((r) => {
-        const cols = [
-          r.pr_number,
-          r.title,
-          r.url,
-          r.author,
-          r.review_count,
-          r.approval_count,
-          r.comment_count,
-        ];
-        const ph = cols.map((value) => {
-          params.push(value);
-          return `$${params.length}`;
-        });
-        return `(${ph.join(",")})`;
-      })
-      .join(",");
-    await sql.unsafe(
-      `INSERT INTO atlas_prs (pr_number, title, url, author, review_count, approval_count, comment_count)
-       VALUES ${valuesSql}
-       ON CONFLICT (pr_number) DO UPDATE SET
-         title = COALESCE(excluded.title, atlas_prs.title),
-         url = COALESCE(excluded.url, atlas_prs.url),
-         author = COALESCE(excluded.author, atlas_prs.author),
-         review_count = COALESCE(excluded.review_count, atlas_prs.review_count),
-         approval_count = COALESCE(excluded.approval_count, atlas_prs.approval_count),
-         comment_count = COALESCE(excluded.comment_count, atlas_prs.comment_count),
-         updated_at = now()`,
-      params,
-    );
-  }
-}
 
 /** Upsert rows in chunks. `diff` carries an explicit `$N::jsonb` cast with the
  *  RAW array passed through — Bun.sql JSON-encodes it once. Pre-stringifying

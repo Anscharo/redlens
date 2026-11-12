@@ -57,7 +57,16 @@ export function buildPreviewDiff(ix: Indexes, open: Extract<ToolOpen, { status: 
   const patches = readPreviewPatches(sha);
   const all = collectRows(ix, docs, diff).filter((r) => !a.change || r.change === a.change);
   const page = all.slice(a.offset, a.offset + a.limit);
-  const documents = page.map(({ change, node }) => ({
+  const documents = page.map((row) => previewDocument(row, { sha, diff, docs, ix, patches, patchLines: a.patch_lines }));
+  return previewPage(meta, id, diff, documents, a.offset + page.length, all.length);
+}
+
+function previewDocument(
+  { change, node }: Row,
+  ctx: { sha: string; diff: NonNullable<ReturnType<typeof readPreviewDiff>>; docs: PreviewDocs; ix: Indexes; patches: ReturnType<typeof readPreviewPatches>; patchLines: number },
+) {
+  const { sha, diff, docs, ix, patches, patchLines } = ctx;
+  return {
     change,
     id: node.id,
     doc_no: node.doc_no,
@@ -69,10 +78,12 @@ export function buildPreviewDiff(ix: Indexes, open: Extract<ToolOpen, { status: 
     ...(diff.retyped?.[node.id] ? { retyped: diff.retyped[node.id] } : {}),
     ...(diff.reusedSlot[node.id] ? { reused_slot: diff.reusedSlot[node.id] } : {}),
     ...(diff.identitySwap[node.id] ? { identity_swap: diff.identitySwap[node.id] } : {}),
-    ...(a.patch_lines > 0 && patches[node.id] ? { patch: renderPatch(patches[node.id], a.patch_lines) } : {}),
+    ...(patchLines > 0 && patches[node.id] ? { patch: renderPatch(patches[node.id], patchLines) } : {}),
     cite: change === "removed" ? `/atlas/${node.id}` : previewCite(sha, node.id),
-  }));
-  const next = a.offset + page.length;
+  };
+}
+
+function previewPage(meta: Extract<ToolOpen, { status: "ready" }>["meta"], id: string, diff: NonNullable<ReturnType<typeof readPreviewDiff>>, documents: unknown[], next: number, total: number): ToolResult {
   return {
     source_class: PREVIEW_SOURCE_CLASS,
     preview: previewHeader(meta, id),
@@ -85,8 +96,8 @@ export function buildPreviewDiff(ix: Indexes, open: Extract<ToolOpen, { status: 
       identity_swaps: Object.keys(diff.identitySwap).length,
     },
     documents,
-    has_more: next < all.length,
-    ...(next < all.length ? { next_offset: next } : {}),
+    has_more: next < total,
+    ...(next < total ? { next_offset: next } : {}),
     ...(diff.removed ? {} : { removed_note: "Removed documents were not recorded for this build." }),
     citation_note: CITATION_NOTE,
   };

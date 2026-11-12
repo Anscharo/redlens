@@ -48,8 +48,37 @@ export function PreviewChangeNotes({ nodeId, meta, source, hasPatch, status }: P
   const silent = status === "Changed" && !hasPatch && !renumber && !retitle && !retype && !swap;
   return (
     <>
-      {/* ⚠ only where the displaced content was found (movedTo). Without that
-          the swap is described, not accused — the same rule as PreviewMark. */}
+      <IdentityNotes swap={swap} former={former} source={source} />
+      {renumber && (
+        <p className="mt-1" style={{ color: "var(--lilac)" }}>
+          {CHANGE_LABEL.renumbered} <DocNoDiff prev={renumber[0]} next={renumber[1]} />
+        </p>
+      )}
+      {retype && (
+        <p className="mt-1" style={{ color: "var(--lilac)" }}>
+          {CHANGE_LABEL.retyped} <TypeDiff prev={retype[0]} next={retype[1]} />
+        </p>
+      )}
+      {silent && (
+        <p className="mt-1" style={{ color: "var(--tan-3)" }}>
+          No visible difference from {label}.
+        </p>
+      )}
+    </>
+  );
+}
+
+function IdentityNotes({
+  swap,
+  former,
+  source,
+}: {
+  swap: ReturnType<typeof docChanges>["swap"];
+  former: ReturnType<typeof docChanges>["former"];
+  source: string;
+}) {
+  return (
+    <>
       {isReassigned(swap) && (
         <p className="my-2 leading-snug" style={{ color: "var(--warn)" }}>
           <span style={WARN_GLYPH}>⚠</span> Identity changed — this UUID now holds a different document: “{swap.oldTitle}” <span className="enlargen">→</span> “{swap.newTitle}”.{" "}
@@ -65,21 +94,6 @@ export function PreviewChangeNotes({ nodeId, meta, source, hasPatch, status }: P
       {former && (
         <p className="my-2 leading-snug" style={{ color: "var(--warn)" }}>
           <span style={WARN_GLYPH}>⚠</span> This content previously appeared under a different UUID — {former.previousId} (“{former.previousTitle}” at {former.previousDocNo}).
-        </p>
-      )}
-      {renumber && (
-        <p className="mt-1" style={{ color: "var(--lilac)" }}>
-          {CHANGE_LABEL.renumbered} <DocNoDiff prev={renumber[0]} next={renumber[1]} />
-        </p>
-      )}
-      {retype && (
-        <p className="mt-1" style={{ color: "var(--lilac)" }}>
-          {CHANGE_LABEL.retyped} <TypeDiff prev={retype[0]} next={retype[1]} />
-        </p>
-      )}
-      {silent && (
-        <p className="mt-1" style={{ color: "var(--tan-3)" }}>
-          No visible difference from {label}.
         </p>
       )}
     </>
