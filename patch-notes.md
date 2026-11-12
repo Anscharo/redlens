@@ -35,6 +35,7 @@
 
 ## 2026-11-12
 
+- Let Chat and MCP read a Prime's Liquidity Layer page: its rate limits, parameters and spells, and where each Atlas number matches or differs
 - Marked an on-chain value with a grey clock instead of ✗ while the spell its Atlas pull request names, or the Atlas update recording a spell, is still coming
 - Showed who can change each differing rate limit, and whether the Operator can reach the Atlas value without a spell
 - Compared Keel's Solana rate limits with the Atlas, showed when each last changed, which spell changed it and who can change it, and flagged Atlas-named relayers that are suspended on chain

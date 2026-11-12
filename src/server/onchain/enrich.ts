@@ -6,6 +6,7 @@ import type { AtlasHandler } from "../chat/tools/tool-types.ts";
 import type { ToolResult } from "../chat/tools/tools.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { factIndex, SOURCES_FAILED_NOTE, type FactIndex, type OnchainFact } from "./facts.ts";
+import { factRelation } from "./relation.ts";
 
 const MAX_FACTS = 15;
 const HASH_RE = /0x[0-9a-fA-F]{64}(?![0-9a-fA-F])/g;
@@ -27,7 +28,7 @@ export function factsNamedIn(text: string, idx: FactIndex): OnchainFact[] {
 }
 
 const brief = (f: OnchainFact) => ({
-  entity: f.entity, chain: f.chain, kind: f.kind, name: f.name, name_source: f.name_source, contract: f.contract,
+  entity: f.entity, chain: f.chain, kind: f.kind, relation: factRelation(f), name: f.name, name_source: f.name_source, contract: f.contract,
   ...f.summary,
   set_tx_url: f.set_at?.url ?? null, history_complete: f.history_complete,
 });

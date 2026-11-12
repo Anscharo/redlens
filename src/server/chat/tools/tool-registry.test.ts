@@ -186,6 +186,7 @@ const ARGS: Record<string, Record<string, unknown>> = {
   atlas_preview_diff: { preview_id: 1 },
   atlas_preview_get: { preview_id: "pull-1", ids: ["D1"] },
   atlas_onchain: { query: "deposit" },
+  atlas_pau_changes: { limit: 1 },
   ...Object.fromEntries(REPORT_TOOLS.map((t) => [t.name, {}])),
 };
 
@@ -263,6 +264,7 @@ test("the opt-in list is exactly this, and changing it is a deliberate act", () 
     "atlas_first_seen",
     "atlas_history",
     "atlas_onchain",
+    "atlas_pau_changes",
     "atlas_preview_diff",
     "atlas_query",
     "atlas_recent_changes",

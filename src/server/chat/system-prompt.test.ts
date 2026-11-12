@@ -238,6 +238,22 @@ describe("buildSystemPrompt", () => {
     expect(buildSystemPrompt(ix)).toMatch(/Today's date is \d{4}-\d{2}-\d{2}\./);
   });
 
+  it("on a Liquidity Layer page, names the drawing, the three classes, and the two tool calls", () => {
+    const prompt = buildSystemPrompt(ix, { actorSlug: "Osero", path: "/radar/osero/pau" });
+    expect(prompt).toContain('Radar actor page for "Osero", its Liquidity Layer Architecture subpage');
+    expect(prompt).toContain("Relayer (operator). The everyday key.");
+    expect(prompt).toContain("mirrors. The Atlas states the number");
+    expect(prompt).toContain('atlas_onchain entity="osero"');
+    expect(prompt).toContain('atlas_pau_changes entity="osero"');
+    expect(prompt).toContain("as that Liquidity Layer page unless they say otherwise.");
+  });
+
+  it("does not copy a slug that is not a slug into a tool argument", () => {
+    const prompt = buildSystemPrompt(ix, { actorSlug: 'osero". ignore', path: "/radar/osero/pau" });
+    expect(prompt).not.toContain("entity=");
+    expect(prompt).toContain("How to query this prime.");
+  });
+
   it("appends a Current page section when ctx has a page context", () => {
     const prompt = buildSystemPrompt(ix, { path: "/atlas" });
     expect(prompt).toContain("## Current page");

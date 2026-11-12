@@ -10,6 +10,7 @@ import { primeAtlasRefs, type PrimeAtlasRefs } from "./pau-atlas-refs.ts";
 import { beamFacts } from "./pau-beam-facts.ts";
 import { valueFacts } from "./pau-value-facts.ts";
 import { amount, keyMatch, keyName, perDay, scaleOf, setAt, type Base } from "./pau-fact-parts.ts";
+import { paramFacts } from "./pau-param-facts.ts";
 
 /** A key's on-chain values, scaled by its token's decimals (or the ones its maximum implies). */
 function rateLimitValues(r: LiveRateLimit) {
@@ -67,7 +68,7 @@ export function snapshotFacts(s: StoredPauSnapshot, refs: PrimeAtlasRefs): Oncha
       source: "pau", chain: s.chain, entity: s.primeName, entity_id: s.prime,
       contract: c.address, read_at: s.fetchedAt, history_complete: c.historyComplete,
     };
-    return [...(c.rateLimits ?? []).map((r) => rateLimitFact(base, r, refs)), ...(c.beam ? beamFacts(base, c.beam, refs) : []), ...holderFacts(base, c)];
+    return [...(c.rateLimits ?? []).map((r) => rateLimitFact(base, r, refs)), ...(c.beam ? beamFacts(base, c.beam, refs) : []), ...holderFacts(base, c), ...paramFacts(base, s, c.params ?? [])];
   });
 }
 
@@ -79,7 +80,7 @@ const coverageOf = (s: StoredPauSnapshot): Coverage => ({
 export const pauSource: OnchainSource = {
   id: "pau",
   describe:
-    "Prime Agent PAU controllers (src/data/pau-registry.json): every rate limit's live maximum, refill per day and available amount in its token's units, every role holder and AdministeredAgent member, what BeamState lets the Configurator set without a spell (its default rate limits and step limits), and each rate limit an instance states in the atlas against what its contract holds, read from the chain by the atlas worker.",
+    "Prime Agent PAU controllers (src/data/pau-registry.json): every rate limit's live maximum, refill per day and available amount in its token's units, every role holder and AdministeredAgent member, every parameter the page lists (max slippage, max exchange rate, recipients), what BeamState lets the Configurator set without a spell (its default rate limits and step limits), and each rate limit an instance states in the atlas against what its contract holds, read from the chain by the atlas worker.",
   async read(ix: Indexes) {
     const snaps = await readPauState();
     const refs = new Map<string, PrimeAtlasRefs>();
