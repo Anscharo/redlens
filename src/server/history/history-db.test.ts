@@ -12,7 +12,7 @@
 
 import { describe, it, expect } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
-import { eventToRow, HISTORY_COLS, upsertAtlasPrs, upsertHistory, readHistoryCursor, gitCommitSeq } from "./history-db.ts";
+import { eventToRow, HISTORY_COLS, upsertAtlasPrs, upsertHistory, readHistoryCursor, gitCommitSeq, hasBackfilledRows, BACKFILLED_CHANGE_TYPES } from "./history-db.ts";
 import * as db from "./history-db.ts"; // namespace ref so a not-yet-built export is `undefined`, not a link error
 
 const NEW_COLS = ["era", "seam", "extracted_from", "merged_into", "move_kind"] as const;
@@ -361,5 +361,38 @@ describe("readHistoryCursor", () => {
     const fakeSql = Object.assign(() => Promise.reject(new Error("no such table")), {});
     const result = await readHistoryCursor(fakeSql as any);
     expect(result).toBeNull();
+  });
+});
+
+/** A stand-in for Bun's `sql`: an array argument is the `IN ${sql([...])}` helper;
+ *  a tagged call is the query. */
+function backfillSql(result: { one: number }[] | Error) {
+  const lists: unknown[] = [];
+  const sql = (first: unknown) => {
+    const tagged = Array.isArray(first) && "raw" in first;
+    if (!tagged) {
+      lists.push(first);
+      return first;
+    }
+    return result instanceof Error ? Promise.reject(result) : Promise.resolve(result);
+  };
+  return { sql, lists };
+}
+
+describe("hasBackfilledRows", () => {
+  it("is true when any retitle, renumbering or type-change row exists", async () => {
+    const { sql, lists } = backfillSql([{ one: 1 }]);
+    expect(await hasBackfilledRows(sql as any)).toBe(true);
+    expect(lists).toEqual([[...BACKFILLED_CHANGE_TYPES]]);
+  });
+
+  it("is false when the table holds none of those rows", async () => {
+    const { sql } = backfillSql([]);
+    expect(await hasBackfilledRows(sql as any)).toBe(false);
+  });
+
+  it("is true when the read fails, so a broken probe never starts the full walk", async () => {
+    const { sql } = backfillSql(new Error("no such table"));
+    expect(await hasBackfilledRows(sql as any)).toBe(true);
   });
 });
