@@ -8,9 +8,9 @@ import { readOnlyAtlasTool, type AtlasTool } from "./tool-types.ts";
 
 export const ONCHAIN_TOOLS: AtlasTool[] = [
   {
-    name: "atlas_onchain",
+    name: "redline_onchain",
     whenToUse:
-      "The question is about what is set ON-CHAIN now — live or current rate limits, default/init rate limits, deposit/withdrawal/mint limits, how much is available, who holds a controller role, a max slippage or exchange rate — for one agent or across all of them, or whether an atlas number matches the contract. Use this instead of reading an RPC or inferring from atlas text; the atlas says what should be set, this says what is. Which spell changed a value is atlas_liquidity_changes, not this tool.",
+      "The question is about what is set ON-CHAIN now — live or current rate limits, default/init rate limits, deposit/withdrawal/mint limits, how much is available, who holds a controller role, a max slippage or exchange rate — for one agent or across all of them, or whether an atlas number matches the contract. Use this instead of reading an RPC or inferring from atlas text; the atlas says what should be set, this says what is. Which spell changed a value is redline_liquidity_changes, not this tool.",
     annotations: readOnlyAtlasTool("On-chain State"),
     description:
       "Values read from the chain and stored by the atlas worker — today every Prime Liquidity Layer controller, a monolithic ALM Controller or a Diamond PAU: each rate limit's " +
@@ -42,7 +42,7 @@ export const ONCHAIN_TOOLS: AtlasTool[] = [
     handler: (ix, a) => onchainState(ix, a as unknown as OnchainQuery),
   },
   {
-    name: "atlas_liquidity_changes",
+    name: "redline_liquidity_changes",
     whenToUse:
       "The question is about which spell, operator, or other transaction changed a Prime's Liquidity Layer — a rate limit, a role, a parameter — or what is queued and not yet run. Also the question of how those contracts relate (relayer, controller, ALM proxy, rate limits, freezer, admin). PAU names only the Diamond design.",
     annotations: readOnlyAtlasTool("Liquidity Layer Changes"),

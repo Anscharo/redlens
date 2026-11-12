@@ -1,4 +1,4 @@
-// atlas_liquidity_changes: one prime's configuration changes, newest first, and the
+// redline_liquidity_changes: one prime's configuration changes, newest first, and the
 // queued steps that belong to it. The history is injected; no database.
 import { afterAll, describe, expect, it, mock } from "bun:test";
 import type { PauHistoryEntry, PauHistoryResponse } from "../../lib/pauHistory.ts";

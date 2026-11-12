@@ -53,8 +53,14 @@ const SOURCE_TAGS: Partial<Record<SourceClass, string>> = {
   user: " [USER NOTE, not Atlas]",
   history: " [CHANGE LOG, not Atlas text]",
   preview: " [PROPOSED PR TEXT, not the live Atlas]",
+  chain: " [CHAIN, not Atlas]",
   unknown: " [NOT ATLAS]",
 };
+
+// Appended only when a chain reading is in the evidence, for the same
+// byte-identical-prompt reason as CHANGE_LOG_RULE.
+const CHAIN_RULE =
+  "Entries marked [CHAIN, not Atlas] are values Redline Portal read from the chain. They say what a contract holds. A claim about the Atlas is contradicted only by Atlas text; a claim about the chain, only by these entries.";
 
 // Appended only when a PR preview's text is in the evidence, for the same
 // byte-identical-prompt reason as CHANGE_LOG_RULE.
@@ -82,6 +88,7 @@ export function buildRefutePrompt(params: { question: string; answer: string; ev
         REFUTE_PROMPT,
         ...(evidence.some((e) => e.sourceClass === "history") ? [CHANGE_LOG_RULE] : []),
         ...(evidence.some((e) => e.sourceClass === "preview") ? [PROPOSAL_RULE] : []),
+        ...(evidence.some((e) => e.sourceClass === "chain") ? [CHAIN_RULE] : []),
       ].join("\n"),
     },
     {

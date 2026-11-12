@@ -141,7 +141,7 @@ export function budgetEvidence(entries: EvidenceEntry[], maxChars: number): Evid
 
 // Pull the turn's tool calls + results out of the loop transcript, labeled
 // [E1..En] in chronological order, then budgeted (see budgetEvidence).
-export type SourceClass = "atlas" | "history" | "preview" | "external" | "reference" | "user" | "unknown";
+export type SourceClass = "atlas" | "history" | "preview" | "chain" | "external" | "reference" | "user" | "unknown";
 
 // The registry tools that return COMMIT METADATA rather than document text:
 // dates, pull-request titles, commit messages, change counts. A document's
@@ -161,6 +161,12 @@ const HISTORY_TOOLS = new Set([
 // text, but of an atlas that does not exist yet. Grounding may certify a quote
 // of it; refute.ts marks it so the judge never reads it as the live Atlas.
 const PREVIEW_TOOLS = new Set(["atlas_preview_diff", "atlas_preview_get"]);
+
+// Chain readings Redline stored. The names sit outside atlas_ on purpose:
+// a live maximum is not an atlas statement. Grounding still admits the text,
+// on the same call as history — a quoted figure has to be findable — and
+// refute.ts marks the entries so the judge never reads them as the Atlas.
+const CHAIN_TOOLS = new Set(["redline_onchain", "redline_liquidity_changes"]);
 
 /**
  * What KIND of text a tool result is. Atlas provenance is an ALLOWLIST —
@@ -187,6 +193,7 @@ export function classifyToolSource(tool: string): SourceClass {
   if (isUserTeachingTool(tool)) return "user";
   if (HISTORY_TOOLS.has(tool)) return "history";
   if (PREVIEW_TOOLS.has(tool)) return "preview";
+  if (CHAIN_TOOLS.has(tool)) return "chain";
   return TOOLS_BY_NAME.has(tool) ? "atlas" : "unknown";
 }
 
@@ -208,7 +215,9 @@ export function classifyToolSource(tool: string): SourceClass {
  * never reads a change log as retrieved atlas text, and cite-pairs.ts drops
  * history CLAIMS before the citation judge ever sees them. "preview" is admitted
  * on the same reasoning: a correct quote of a PR's proposed text must ground,
- * and refute.ts marks those entries as proposals.
+ * and refute.ts marks those entries as proposals. "chain" is admitted on
+ * the same call: a quoted live figure has to be findable in the tool result,
+ * and refute.ts marks those entries so they never read as the Atlas.
  *
  * An ALLOWLIST on purpose, and every caller in chat-orchestrator.ts goes
  * through it. The three filters that used to spell this out inline were
@@ -216,7 +225,7 @@ export function classifyToolSource(tool: string): SourceClass {
  * silently admitted it to the grounding pool at all three sites at once.
  */
 export function isAtlasText(cls: SourceClass | undefined): boolean {
-  return cls === "atlas" || cls === "reference" || cls === "history" || cls === "preview";
+  return cls === "atlas" || cls === "reference" || cls === "history" || cls === "preview" || cls === "chain";
 }
 
 // The review round (review-round.ts) is NOT evidence and is dropped from

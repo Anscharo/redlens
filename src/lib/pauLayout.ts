@@ -25,6 +25,6 @@ export const PAU_CLASSES = [
   "chain-only. A rate limit the Atlas does not name. name_source is derived or null. Say that the Atlas does not name it.",
 ].join("\n");
 
-/** What atlas_liquidity_changes returns, beside the rows. Chain evidence, not Atlas text. */
+/** What redline_liquidity_changes returns, beside the rows. Chain evidence, not Atlas text. */
 export const PAU_CHANGES_NOTE =
   "Configuration changes read from the chain, not Atlas text. A spell is named only where the chain proves one. Cite the row's url, never an atlas document. origin spell is an executive spell. origin operator is the Configurator, without a spell. origin relayed is an action set whose Ethereum spell is not proven. origin deployment is contract setup. queued lists steps that are scheduled and not yet run. An empty queued list is not proof that nothing is queued while a governance contract is still being read. A queued step on a shared executor names no prime, so an entity filter leaves it out.";

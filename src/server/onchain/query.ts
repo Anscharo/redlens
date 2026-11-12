@@ -1,4 +1,4 @@
-// atlas_onchain: the stored on-chain facts filtered by entity, chain, kind,
+// redline_onchain: the stored on-chain facts filtered by entity, chain, kind,
 // address and words, with how far each deployment has been read. The question
 // "what is set on-chain" is answered from the chain side, so it also lists what
 // the atlas never mentions.

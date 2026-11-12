@@ -1,4 +1,4 @@
-// Which class a stored on-chain fact is, for atlas_onchain's relation filter
+// Which class a stored on-chain fact is, for redline_onchain's relation filter
 // and the relation field on each returned fact. The Liquidity Layer page map
 // (src/lib/pauLayout.ts) is the wording the model is given for these names.
 import type { OnchainFact } from "./facts.ts";

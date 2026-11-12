@@ -14,8 +14,8 @@ function calls(slug: string | null): string {
   const who = slug ?? "this prime";
   return [
     `How to query ${who}. Copy these arguments.`,
-    `- Live readings and the classes above: atlas_onchain${entity} with relation "mirrors", "differs", "pointed" or "chain-only". kind is rate-limit, parameter, role, member, beam-state, rate-limit-default or atlas-vs-contract. chain narrows to one chain. include_off lists a limit whose maximum is 0.`,
-    `- Spells and every other configuration change, the value it replaced, and steps queued and not yet run: atlas_liquidity_changes${entity}. origin "spell" keeps spells. Cite each row's url.`,
+    `- Live readings and the classes above: redline_onchain${entity} with relation "mirrors", "differs", "pointed" or "chain-only". kind is rate-limit, parameter, role, member, beam-state, rate-limit-default or atlas-vs-contract. chain narrows to one chain. include_off lists a limit whose maximum is 0.`,
+    `- Spells and every other configuration change, the value it replaced, and steps queued and not yet run: redline_liquidity_changes${entity}. origin "spell" keeps spells. Cite each row's url.`,
     "- A Diamond's facets are on the page. They are not their own tool rows. The limits and parameters those facets enforce are the rate-limit and parameter facts.",
   ].join("\n");
 }

@@ -1,6 +1,6 @@
 // On-chain facts for the tools: which atlas documents a PAU key belongs to,
 // the facts a snapshot becomes, the `onchain` block a tool result carries for
-// the keys, documents and addresses it names, and atlas_onchain's filters.
+// the keys, documents and addresses it names, and redline_onchain's filters.
 import { describe, expect, it, mock } from "bun:test";
 import type { AtlasNode } from "../../types.ts";
 import type { StoredPauSnapshot } from "../../lib/pau.ts";
@@ -194,7 +194,7 @@ describe("a source that cannot be read", () => {
   });
 });
 
-describe("atlas_onchain", () => {
+describe("redline_onchain", () => {
   it("takes a chain by full, abbreviated or qualified name", async () => {
     for (const chain of ["ethereum", "eth", "Ethereum Mainnet"]) {
       const res = (await onchainState(ix, { chain, kind: "role", limit: 5 })) as { count: number; coverage: unknown[] };

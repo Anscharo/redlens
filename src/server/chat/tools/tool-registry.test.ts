@@ -185,8 +185,8 @@ const ARGS: Record<string, Record<string, unknown>> = {
   atlas_open_prs: {},
   atlas_preview_diff: { preview_id: 1 },
   atlas_preview_get: { preview_id: "pull-1", ids: ["D1"] },
-  atlas_onchain: { query: "deposit" },
-  atlas_liquidity_changes: { limit: 1 },
+  redline_onchain: { query: "deposit" },
+  redline_liquidity_changes: { limit: 1 },
   ...Object.fromEntries(REPORT_TOOLS.map((t) => [t.name, {}])),
 };
 
@@ -263,11 +263,11 @@ test("the opt-in list is exactly this, and changing it is a deliberate act", () 
     "atlas_filter",
     "atlas_first_seen",
     "atlas_history",
-    "atlas_liquidity_changes",
-    "atlas_onchain",
     "atlas_preview_diff",
     "atlas_query",
     "atlas_recent_changes",
+    "redline_liquidity_changes",
+    "redline_onchain",
   ]);
 });
 
