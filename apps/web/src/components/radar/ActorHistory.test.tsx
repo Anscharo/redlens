@@ -208,7 +208,7 @@ describe("ActorHistory", () => {
     ]);
     renderHistory();
     fireEvent.click(await screen.findByRole("button", { name: /2025-07-01/ }));
-    expect(screen.getAllByText("Aa").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("T").length).toBeGreaterThan(0);
     expect(screen.queryByText("~")).toBeNull();
     expect(screen.getByText("was “Bootstrapping Phase”")).toBeInTheDocument();
   });

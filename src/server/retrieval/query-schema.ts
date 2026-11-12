@@ -2,6 +2,7 @@
 // MCP tool (mcp.ts, zod-v3 raw shape) AND the chat agentic loop (llm-tools.ts,
 // converted to JSON Schema for the OpenAI tool-calling API). Keep descriptions
 // terse-but-complete — the model reads them to decide how to call the tool.
+import { CHANGE_TYPES } from "../../lib/changeTypes.ts";
 import { z } from "zod";
 import { pageShape } from "./result-page.ts";
 
@@ -25,7 +26,7 @@ export const atlasQueryShape = {
   // content/structural names, and a model that learned one got silent 0-row
   // answers from the other.
   change_type: z
-    .enum(["added", "modified", "removed", "moved", "retitled", "renumbered", "retyped", "content", "structural"])
+    .enum([...CHANGE_TYPES, "content", "structural"] as const)
     .optional()
     .describe("added | modified (text change) | moved (file move) | retitled (title changed) | renumbered (doc number changed) | retyped ([Type] changed) | removed — same values as the history tools."),
   status: z.string().optional().describe("Filter by instance status: Active, Suspended, Completed, Inactive."),

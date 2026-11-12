@@ -4,22 +4,13 @@ import { sql } from "../db.ts";
 import { json } from "../http.ts";
 import { BATCH_MAX, type HistoryEntry, type DiffLine } from "../../lib/history.ts";
 import { UUID_RE } from "../../lib/patterns.ts";
+import { userType } from "./change-type.ts";
 
 // Every non-2xx below carries the `{ error }` envelope the rest of the API uses
 // (auth.ts, collections.ts, conversations.ts) instead of an empty body, so a
 // client can read one shape everywhere. The STATUS codes are unchanged and
 // remain the contract: src/lib/history.ts's fetchCached treats 404 as a stable
 // "no data" (cached) and anything else as transient (evicted, retried).
-
-// Postgres stores "content" / "structural" (chatbot-plan vocabulary — see
-// docs/plans/archive/chatbot-plan.md); the frontend HistoryEntry uses
-// "modified" / "moved".
-const CHANGE_TYPE_REVERSE: Record<string, HistoryEntry["changeType"]> = {
-  content: "modified",
-  structural: "moved",
-  added: "added",
-  removed: "removed",
-};
 
 interface HistoryQueryRow {
   commit_sha: string;
@@ -75,7 +66,7 @@ export function toEntry(row: HistoryQueryRow): HistoryEntry {
   const entry: HistoryEntry = {
     date: toIsoDate(row.committed_at),
     commitHash: row.commit_sha,
-    changeType: CHANGE_TYPE_REVERSE[row.change_type] ?? (row.change_type as HistoryEntry["changeType"]),
+    changeType: userType(row.change_type) as HistoryEntry["changeType"],
   };
   if (row.pr_number != null) entry.pr = row.pr_number;
   if (row.pr_title) entry.prTitle = row.pr_title;

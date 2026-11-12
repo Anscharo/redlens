@@ -19,6 +19,7 @@ import path from "node:path";
 // .mjs from scripts/lib — the same loader the build pipeline uses, so a preview
 // and a real build can never disagree about what a checkout contains.
 import { loadAtlasSource } from "../../../scripts/lib/atlas-source.mjs";
+import { typeChanged } from "../../../scripts/lib/history-events.ts";
 
 export interface SnapshotDoc {
   /** Structurally compatible with identity.ts's SwapNode, so the live atlas's
@@ -93,11 +94,6 @@ export async function loadBaseSnapshot(
   } finally {
     fs.rmSync(scratchDir, { recursive: true, force: true });
   }
-}
-
-/** The document's `[Type]` differs. A side that carries no type is not a change. */
-export function typeChanged(before: SnapshotDoc, after: SnapshotDoc): boolean {
-  return !!before.type && !!after.type && before.type !== after.type;
 }
 
 /**

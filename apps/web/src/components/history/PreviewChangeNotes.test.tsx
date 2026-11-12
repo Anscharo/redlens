@@ -16,7 +16,7 @@ const REPO_META = { bases: { auto: "repo", repo: { repo: "acme/fork", ref: "main
 /** The notes for doc n1, with `over` as its slice of the preview diff. */
 function notes(props: { hasPatch: boolean; status: "Added" | "Changed"; meta?: PreviewMeta }, over: Partial<PreviewDiff> = {}) {
   vi.mocked(usePreviewDiff).mockReturnValue({
-    added: new Set(), changed: new Set(), renumbered: {}, retitled: {}, reusedSlot: {}, identitySwap: {}, formerUuid: {}, activeBase: null,
+    added: new Set(), changed: new Set(), renumbered: {}, retitled: {}, retyped: {}, reusedSlot: {}, identitySwap: {}, formerUuid: {}, activeBase: null,
     ...over,
   });
   return render(<PreviewChangeNotes nodeId="n1" meta={props.meta ?? null} source="pull request" hasPatch={props.hasPatch} status={props.status} />);

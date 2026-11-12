@@ -21,15 +21,6 @@ export const CATEGORY_TOOLTIP: Record<Category, string> = {
   config: "A configuration document nested inside one of this agent's instances (e.g. rate limits, contract addresses, off-chain parameters).",
 };
 
-export const CHANGE_INDICATOR: Record<string, string> = {
-  added: "+",
-  modified: "~",
-  removed: "−",
-  moved: "→",
-  retitled: "Aa",
-  renumbered: "#",
-  retyped: "T",
-};
 
 export function docHref(docId: string): string {
   return `${ROUTES.ATLAS}?id=${docId}`;

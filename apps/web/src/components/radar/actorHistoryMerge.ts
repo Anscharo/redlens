@@ -1,5 +1,6 @@
 // React-free half of the Radar actor history panel: how per-doc history merges
 // into per-commit rows (which docs count as relevant is actorHistoryCategories.ts).
+import { CHANGE_RANK } from "@/lib/changeTypes";
 import { foldRestatedEntries, movePaths, type HistoryEntry } from "@/lib/history";
 import type { AtlasNode } from "@/types";
 
@@ -50,11 +51,11 @@ export interface MergedEntry {
 // by a same-commit "modified" event), so it survives whichever of a doc's
 // same-commit events is processed first.
 function attachMoveDetail(affected: AffectedDoc, entry: HistoryEntry): void {
-  const pair = entry.movedFrom && entry.movedTo ? ([entry.movedFrom, entry.movedTo] as [string, string]) : undefined;
-  if (entry.changeType === "retitled") affected.retitled = pair;
-  if (entry.changeType === "renumbered") affected.renumbered = pair;
-  if (entry.changeType === "retyped") affected.retyped = pair;
-  if (entry.changeType !== "moved") return;
+  const type = entry.changeType;
+  if (entry.movedFrom && entry.movedTo && (type === "retitled" || type === "renumbered" || type === "retyped")) {
+    affected[type] = [entry.movedFrom, entry.movedTo];
+  }
+  if (type !== "moved") return;
   const move = movePaths(entry);
   if (move?.from && move.to && move.from !== move.to) {
     affected.movedFrom = move.from;
@@ -118,18 +119,13 @@ function newAffected(doc: DocRef, entry: HistoryEntry): AffectedDoc {
   };
 }
 
-// Which of a doc's same-commit events names its row: a content event beats a
-// retitling, which beats a type change, which beats a renumbering, which beats a
-// bare move (edit significance says more than a structural change).
-const RANK: Record<HistoryEntry["changeType"], number> = { moved: 0, renumbered: 1, retyped: 2, retitled: 3, added: 4, modified: 4, removed: 4 };
-
 function upsertAffected({ commitEntry, rows }: CommitGroup, doc: DocRef, entry: HistoryEntry): void {
   let affected = rows.get(doc.docId);
   if (!affected) {
     affected = newAffected(doc, entry);
     rows.set(doc.docId, affected);
     commitEntry.docs.push(affected);
-  } else if (RANK[entry.changeType] > RANK[affected.changeType]) {
+  } else if (CHANGE_RANK[entry.changeType] > CHANGE_RANK[affected.changeType]) {
     // The details are merged below independently of this branch, so arrival
     // order does not matter.
     affected.changeType = entry.changeType;

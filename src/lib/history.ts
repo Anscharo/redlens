@@ -1,3 +1,5 @@
+import type { ChangeType } from "./changeTypes";
+
 /** Word-level segment within an intraline diff */
 export type WordSegment = ["=" | "+" | "-", string];
 
@@ -13,7 +15,7 @@ export interface HistoryEntry {
   commitHash: string;
   /** `modified`: the body changed. `retitled`: the title changed. `renumbered`:
    *  the doc number changed. `retyped`: the heading's `[Type]` changed. */
-  changeType: "added" | "modified" | "removed" | "moved" | "retitled" | "renumbered" | "retyped";
+  changeType: ChangeType;
   pr?: number;
   prTitle?: string;
   prAuthor?: string;
@@ -125,24 +127,9 @@ export function movePaths(e: HistoryEntry): { from?: string; to: string } | null
   return e.pr === PRE_MD_PR ? PRE_MD_MOVE : null;
 }
 
-/** Single source of truth for change-type → CSS color, shared by the atlas
- *  history panel (EntryRow) and the radar actor history (ActorHistory).
- *  added/removed reuse the diff-view tokens so the label color matches the
- *  diff body; modified/moved have no diff equivalent. */
-export const CHANGE_COLOR: Record<string, string> = {
-  added: "var(--diff-added-fg)",
-  modified: "var(--tan-3)",
-  removed: "var(--diff-removed-fg)",
-  // Blue from the decorative depth cycle — deliberately NOT --accent (the link
-  // color) nor --warn/--error-text (which carry their own meaning); it just has to
-  // be distinct from added-green, removed-pink and modified-tan. 6.1:1 on --bg.
-  moved: "var(--depth-4)",
-  // A retitling, a renumbering and a type change: the lilac the preview's
-  // renumber note uses, so the two histories colour them alike.
-  retitled: "var(--lilac)",
-  renumbered: "var(--lilac)",
-  retyped: "var(--lilac)",
-};
+/** Change-type → CSS colour (src/lib/changeTypes.ts), shared by the atlas
+ *  history panel and the radar actor history. */
+export { CHANGE_COLOR } from "./changeTypes";
 
 /** `content/A/1/9/document.md` holds doc A.1.9: in the atomized layout a path
  *  spells out its document's number. */
@@ -161,7 +148,7 @@ function restatesRenumber(e: HistoryEntry, r: HistoryEntry | undefined): boolean
  *  retitling, which records nothing the retitling does not. A move between
  *  files that is more than a renumbering, and any edit with a diff, stay. */
 export function foldRestatedEntries(entries: HistoryEntry[]): HistoryEntry[] {
-  const by = (type: HistoryEntry["changeType"]) => new Map(entries.filter((e) => e.changeType === type).map((e) => [e.commitHash, e]));
+  const by = (type: ChangeType) => new Map(entries.filter((e) => e.changeType === type).map((e) => [e.commitHash, e]));
   const renumbers = by("renumbered");
   const retitles = by("retitled");
   return entries.filter(

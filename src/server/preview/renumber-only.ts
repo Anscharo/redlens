@@ -6,7 +6,8 @@
 //
 // The reader's Exclude › "Renumber-only changes" filter reads this list; patches are loaded
 // lazily, so the browser cannot work it out itself.
-import { typeChanged, type Snapshot, type SnapshotDoc } from "./snapshot.ts";
+import type { Snapshot, SnapshotDoc } from "./snapshot.ts";
+import { typeChanged } from "../../../scripts/lib/history-events.ts";
 
 // Same shape the votes subject parser uses for doc numbers in prose: a scope
 // letter, dotted segments, ending on a digit (so a trailing full stop is not

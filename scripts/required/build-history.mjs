@@ -89,17 +89,6 @@ const getCommits = () => atlasCommits();
 // Main
 // ---------------------------------------------------------------------------
 
-// A database with a cursor but no row of BACKFILLED_CHANGE_TYPES holds none of
-// those events below its cursor, and the incremental walk never revisits those
-// commits. Such a run walks the whole log once, keeping only those events below
-// the cursor: they are new keys, so the upsert adds rows and rewrites none. Only
-// commits that carry one fetch PR metadata. Returns the cursor's index, or 0 for no backfill.
-async function backfillFrom(startIndex, commitCount) {
-  if (await hasBackfilledRows(sql)) return 0;
-  console.error(`  no retitle, renumbering or type-change rows yet: walking all ${commitCount} commits once to add them`);
-  return startIndex;
-}
-
 /** A history entry's PR fields; review, approval and comment counts only when nonzero. */
 function prEntryFields(pr) {
   const out = { pr: pr.number, prTitle: pr.title, prAuthor: pr.author, prUrl: pr.url };
@@ -125,6 +114,8 @@ async function main() {
   let existingManifest = {};
   let prevSnapshot = new Map();
   let startIndex = 0;
+  // Commits below this index keep only BACKFILLED_CHANGE_TYPES events (see below).
+  let backfillBelow = 0;
 
   if (!OUT_JSON) {
     await waitForDb();
@@ -147,7 +138,15 @@ async function main() {
     // Cursor may be a 7-char short sha (DB) or a full sha (legacy file); the
     // full commit hashes start with either, so prefix-match handles both.
     const idx = allCommits.findIndex((c) => c.hash.startsWith(lastCommitHash));
-    if (idx >= 0) {
+    // A database with a cursor but no row of BACKFILLED_CHANGE_TYPES holds none
+    // of those events below its cursor, and the incremental walk never revisits
+    // those commits. Such a run walks the whole log once, keeping only those
+    // events below the cursor: they are new keys, so the upsert adds rows and
+    // rewrites none, and only commits that carry one fetch PR metadata.
+    if (idx >= 0 && !OUT_JSON && !(await hasBackfilledRows(sql))) {
+      backfillBelow = idx + 1;
+      console.error(`  no retitle, renumbering or type-change rows yet: walking all ${allCommits.length} commits once to add them`);
+    } else if (idx >= 0) {
       startIndex = idx + 1;
       // Reconstruct prevSnapshot from the last processed commit so diffs are correct
       prevSnapshot = await loadSnapshot(allCommits[idx].hash);
@@ -161,11 +160,6 @@ async function main() {
     }
   }
 
-  const backfillBelow = !OUT_JSON && startIndex > 0 ? await backfillFrom(startIndex, allCommits.length) : 0;
-  if (backfillBelow) {
-    startIndex = 0;
-    prevSnapshot = new Map();
-  }
   const commits = allCommits.slice(startIndex);
 
   if (commits.length === 0) {
@@ -197,7 +191,7 @@ async function main() {
     const { added, retitled, modified, removed } = changed;
     // A node can appear more than once (retitled, modified, moved, renumbered,
     // retyped) — every entry is emitted.
-    const backfilling = startIndex + i < backfillBelow;
+    const backfilling = i < backfillBelow;
     const events = snapshotEvents(changed).filter((ev) => !backfilling || BACKFILLED_CHANGE_TYPES.includes(ev.changeType));
 
     // The HTML→Markdown migration commit (PR #117, "Migrate To Markdown File")
@@ -234,7 +228,9 @@ async function main() {
       const prBullets = parsePrBullets(pr.body);
       prHasInlineBullets = prBullets.length > 0;
       if (prBullets.length > 0) {
-        const matchTargets = [...new Map([...added, ...retitled, ...modified, ...removed].map((n) => [n.id, n])).values()];
+        // Each node is scored on its own, so a backfill only scores the nodes it keeps.
+        const kept = backfilling ? new Set(events.map((ev) => ev.node.id)) : null;
+        const matchTargets = [...new Map([...added, ...retitled, ...modified, ...removed].map((n) => [n.id, n])).values()].filter((n) => !kept || kept.has(n.id));
         bulletMatches = matchBulletsToNodes(prBullets, matchTargets, snapshot, {
           agentNamePrefixes,
         });

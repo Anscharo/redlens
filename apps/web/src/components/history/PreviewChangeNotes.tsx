@@ -1,6 +1,7 @@
 import { usePreviewDiff, type PreviewDiff } from "../../lib/previewDiff";
 import { isReassigned } from "../../lib/identitySwap";
 import { diffBaseLabel, type PreviewMeta } from "../../lib/previewMetaCopy";
+import { CHANGE_LABEL } from "@/lib/changeTypes";
 import { DocNoDiff, TypeDiff } from "./ChangePair";
 
 // The ⚠ glyph renders small for its weight next to 11px mono — size it up 25%.
@@ -26,7 +27,7 @@ function docChanges(diff: PreviewDiff, nodeId: string) {
     // A changed doc whose title differs from the live atlas.
     retitle: diff.retitled[nodeId],
     // A changed doc whose [Type] differs ([live, preview]).
-    retype: diff.retyped?.[nodeId],
+    retype: diff.retyped[nodeId],
   };
 }
 
@@ -68,12 +69,12 @@ export function PreviewChangeNotes({ nodeId, meta, source, hasPatch, status }: P
       )}
       {renumber && (
         <p className="mt-1" style={{ color: "var(--lilac)" }}>
-          renumbered <DocNoDiff prev={renumber[0]} next={renumber[1]} />
+          {CHANGE_LABEL.renumbered} <DocNoDiff prev={renumber[0]} next={renumber[1]} />
         </p>
       )}
       {retype && (
         <p className="mt-1" style={{ color: "var(--lilac)" }}>
-          type changed <TypeDiff prev={retype[0]} next={retype[1]} />
+          {CHANGE_LABEL.retyped} <TypeDiff prev={retype[0]} next={retype[1]} />
         </p>
       )}
       {silent && (

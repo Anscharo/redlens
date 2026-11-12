@@ -7,7 +7,7 @@ import { track } from "../../lib/analytics";
 import { mergeByCommit, type MergedEntry } from "./actorHistoryMerge";
 import { buildDocCategoryMap } from "./actorHistoryCategories";
 import { DocTable } from "./ActorHistoryDocTable";
-import { CHANGE_INDICATOR } from "./actorHistoryLabels";
+import { CHANGE_MARK } from "@/lib/changeTypes";
 
 interface Props {
   profile: ActorProfile;
@@ -118,7 +118,7 @@ function Entry({
           <div className="flex items-baseline gap-2 flex-wrap mono text-[10px] mb-2">
             {changeTypes.map((ct) => (
               <span key={ct} style={{ color: CHANGE_COLOR[ct] }}>
-                {CHANGE_INDICATOR[ct]}
+                {CHANGE_MARK[ct]}
               </span>
             ))}
             {entry.pr && (

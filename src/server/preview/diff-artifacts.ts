@@ -19,7 +19,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { contentDiff } from "./patch-diff.ts";
-import { diffSnapshots, typeChanged, type Snapshot } from "./snapshot.ts";
+import { diffSnapshots, type Snapshot } from "./snapshot.ts";
+import { typeChanged } from "../../../scripts/lib/history-events.ts";
 import type { DiffLine } from "../../lib/history";
 import { detectIdentitySwaps, type IdentitySwap, type FormerUuid } from "./identity.ts";
 import { diffSides, findRenumberedOnly } from "./renumber-only.ts";

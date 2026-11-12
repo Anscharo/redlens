@@ -9,6 +9,7 @@
  */
 
 import { lineDiff } from "../../src/lib/diffCore.ts";
+import { CHANGE_TYPES, type ChangeType } from "../../src/lib/changeTypes.ts";
 import type { DiffLine } from "../../src/lib/history.ts";
 import type { GitSnapshot, GitSnapshotEntry } from "./atlas-git-parse.ts";
 import { classifyDiff } from "./history-classify.mjs";
@@ -16,19 +17,17 @@ import { classifyDiff } from "./history-classify.mjs";
 /** `modified`: the body changed. `retitled`: the title changed. `renumbered`: the
  *  doc number changed. `retyped`: the heading's `[Type]` changed. Each is its own
  *  event, beside any other change to the same document in the same commit. */
-export type ChangeType = "added" | "retitled" | "modified" | "removed" | "moved" | "renumbered" | "retyped";
+export type { ChangeType };
 
-export type EventNode = GitSnapshotEntry & {
-  id: string;
-  /** On a `retitled` node: the title before. */
-  prevTitle?: string;
-  movedFrom?: string;
-  movedTo?: string;
-  /** On a `renumbered` node: the doc number before. */
-  prevDocNo?: string;
-  /** On a `retyped` node: the `[Type]` before. */
-  prevType?: string;
-};
+/** On a moved, retitled, renumbered or retyped node, `movedFrom` / `movedTo` hold
+ *  the path, title, doc number or `[Type]` before and after. */
+export type EventNode = GitSnapshotEntry & { id: string; movedFrom?: string; movedTo?: string };
+
+/** The `[Type]` differs. A side that carries no type (an unparsed heading) is
+ *  never a change. Shared with the preview diff, so both call the same thing a retype. */
+export function typeChanged(before: { type?: string }, after: { type?: string }): boolean {
+  return !!before.type && !!after.type && before.type !== after.type;
+}
 
 export interface SnapshotEvent {
   node: EventNode;
@@ -49,8 +48,7 @@ const WHOLE_BODY_MAX_LINES = 20;
 /** prev → curr as seven lists. Only `added` and `removed` exclude the rest: a
  *  document renumbered AND edited in one commit is in `modified` and
  *  `renumbered`, and yields two events, so a renumbering is visible even when
- *  the content did not change. A document with no type on either side (an
- *  unparsed heading) is never `retyped`. */
+ *  the content did not change. */
 export function diffSnapshots(prev: GitSnapshot, curr: GitSnapshot) {
   const added: EventNode[] = [], modified: EventNode[] = [], removed: EventNode[] = [], moved: EventNode[] = [];
   const retitled: EventNode[] = [], renumbered: EventNode[] = [], retyped: EventNode[] = [];
@@ -60,28 +58,19 @@ export function diffSnapshots(prev: GitSnapshot, curr: GitSnapshot) {
       added.push({ id, ...node });
       continue;
     }
-    if (old.title !== node.title) retitled.push({ id, ...node, prevTitle: old.title });
+    if (old.title !== node.title) retitled.push({ id, ...node, movedFrom: old.title, movedTo: node.title });
     if (old.contentHash !== node.contentHash) modified.push({ id, ...node });
     if (old.path && node.path && old.path !== node.path) moved.push({ id, ...node, movedFrom: old.path, movedTo: node.path });
-    if (old.doc_no !== node.doc_no) renumbered.push({ id, ...node, prevDocNo: old.doc_no });
-    if (old.type && node.type && old.type !== node.type) retyped.push({ id, ...node, prevType: old.type });
+    if (old.doc_no !== node.doc_no) renumbered.push({ id, ...node, movedFrom: old.doc_no, movedTo: node.doc_no });
+    if (typeChanged(old, node)) retyped.push({ id, ...node, movedFrom: old.type, movedTo: node.type });
   }
   for (const [id, node] of prev) if (!curr.has(id)) removed.push({ id, ...node });
   return { added, retitled, modified, removed, moved, renumbered, retyped };
 }
 
-/** The seven lists as one event list, in added → retitled → modified → removed →
- *  moved → renumbered → retyped order: a title change reads before its body's. */
+/** The seven lists as one event list, in CHANGE_TYPES order. */
 export function snapshotEvents(d: ReturnType<typeof diffSnapshots>): SnapshotEvent[] {
-  return [
-    ...d.added.map((node) => ({ node, changeType: "added" as const })),
-    ...d.retitled.map((node) => ({ node, changeType: "retitled" as const })),
-    ...d.modified.map((node) => ({ node, changeType: "modified" as const })),
-    ...d.removed.map((node) => ({ node, changeType: "removed" as const })),
-    ...d.moved.map((node) => ({ node, changeType: "moved" as const })),
-    ...d.renumbered.map((node) => ({ node, changeType: "renumbered" as const })),
-    ...d.retyped.map((node) => ({ node, changeType: "retyped" as const })),
-  ];
+  return CHANGE_TYPES.flatMap((changeType) => d[changeType].map((node) => ({ node, changeType })));
 }
 
 function wholeBody(text: string, sign: "+" | "-"): DiffLine[] {
@@ -119,8 +108,5 @@ export function eventDiff(
     const body = prev.get(id)?.content ?? "";
     return body ? { diff: wholeBody(body, "-") } : {};
   }
-  if (ev.changeType === "retitled") return { movedFrom: ev.node.prevTitle, movedTo: ev.node.title };
-  if (ev.changeType === "renumbered") return { movedFrom: ev.node.prevDocNo, movedTo: ev.node.doc_no };
-  if (ev.changeType === "retyped") return { movedFrom: ev.node.prevType, movedTo: ev.node.type };
   return { movedFrom: ev.node.movedFrom, movedTo: ev.node.movedTo };
 }

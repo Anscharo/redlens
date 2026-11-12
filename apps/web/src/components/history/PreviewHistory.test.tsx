@@ -35,6 +35,7 @@ function setDiff(over: Partial<PreviewDiff>) {
     changed: new Set(),
     renumbered: {},
     retitled: {},
+    retyped: {},
     reusedSlot: {},
     identitySwap: {},
     formerUuid: {},

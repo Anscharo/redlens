@@ -41,7 +41,7 @@ interface Props {
 const PRE_GIT_ADDED_ERAS = new Set(["mip", "genesis", "severed"]);
 
 export function EntryRow({ entry, labelOverride, isFirst }: Props) {
-  const color = CHANGE_COLOR[entry.changeType] ?? "var(--tan-3)";
+  const color = CHANGE_COLOR[entry.changeType];
   const hasPr = !!entry.pr;
   const gitSha = isGitSha(entry.commitHash);
   const hideChangeLabel =

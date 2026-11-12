@@ -7,6 +7,7 @@ import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { config } from "../config.ts";
 import { type HistoryInsert } from "./history-rows.ts";
+import type { ChangeType } from "../../lib/changeTypes.ts";
 
 export { eventToRow, htmlEraRows, preEraRows, type HistoryEvent } from "./history-rows.ts";
 export type { HistoryInsert };
@@ -228,7 +229,7 @@ export async function readHistoryCursor(sql: SQL): Promise<string | null> {
 
 /** The change types history-events.ts added after most databases were written:
  *  a retitling, a renumbering and a `[Type]` change. */
-export const BACKFILLED_CHANGE_TYPES = ["retitled", "renumbered", "retyped"] as const;
+export const BACKFILLED_CHANGE_TYPES: readonly ChangeType[] = ["retitled", "renumbered", "retyped"];
 
 /** Whether this database holds any row of those types. A database whose cursor
  *  predates them holds none, and build-history walks the whole log once to add

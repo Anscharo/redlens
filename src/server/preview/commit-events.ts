@@ -31,11 +31,11 @@ function push(out: CommitEntries, id: string, e: CommitEntry): void {
 /** One event as a row. The wire names a retitling's, a renumbering's and a type
  *  change's two values for what they are, not as the engine's movedFrom/movedTo. */
 function entryOf(ev: SnapshotEvent, prev: GitSnapshot, curr: GitSnapshot): CommitEntry {
-  const { doc_no, title, prevTitle, prevDocNo, prevType, type } = ev.node;
+  const { doc_no, title, type, movedFrom } = ev.node;
   const base = { changeType: ev.changeType, docNo: doc_no, title };
-  if (ev.changeType === "retitled") return { ...base, prevTitle };
-  if (ev.changeType === "renumbered") return { ...base, prevDocNo };
-  if (ev.changeType === "retyped") return { ...base, docType: type, prevDocType: prevType };
+  if (ev.changeType === "retitled") return { ...base, prevTitle: movedFrom };
+  if (ev.changeType === "renumbered") return { ...base, prevDocNo: movedFrom };
+  if (ev.changeType === "retyped") return { ...base, docType: type, prevDocType: movedFrom };
   return { ...base, ...eventDiff(ev, prev, curr, { midHistory: true }) };
 }
 
