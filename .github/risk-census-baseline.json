@@ -1,10 +1,790 @@
 {
   "backlog": [
     {
+      "taskKey": "u:de0cc370-de9c-48a4-b10e-91782df7abcd",
+      "uuid": "de0cc370-de9c-48a4-b10e-91782df7abcd",
+      "docNo": "A.1.10",
+      "title": "Sky Core Governance Security"
+    },
+    {
+      "taskKey": "u:4a6e09e6-9e9d-45f0-923a-9c842faa7708",
+      "uuid": "4a6e09e6-9e9d-45f0-923a-9c842faa7708",
+      "docNo": "A.1.10.1.3.3",
+      "title": "Recognized Audit Firms"
+    },
+    {
+      "taskKey": "u:97eee131-b5d6-4246-8631-fb077616b671",
+      "uuid": "97eee131-b5d6-4246-8631-fb077616b671",
+      "docNo": "A.1.10.1.3.3.1",
+      "title": "Audit Firm Categories"
+    },
+    {
+      "taskKey": "u:6ada67c6-0cf1-4456-b280-57e8ae7edc13",
+      "uuid": "6ada67c6-0cf1-4456-b280-57e8ae7edc13",
+      "docNo": "A.1.10.1.3.3.2.1",
+      "title": "List Of Category 1 Audit Firms"
+    },
+    {
+      "taskKey": "u:dea3a182-4b89-4fda-9eed-232562e5f057",
+      "uuid": "dea3a182-4b89-4fda-9eed-232562e5f057",
+      "docNo": "A.1.10.1.3.3.2.2",
+      "title": "List Of Category 2 Audit Firms"
+    },
+    {
+      "taskKey": "u:0919d4bd-2050-43dc-a1b9-8cdfdf0cba54",
+      "uuid": "0919d4bd-2050-43dc-a1b9-8cdfdf0cba54",
+      "docNo": "A.1.10.2.1.5",
+      "title": "Sky Governance Voting Portal"
+    },
+    {
+      "taskKey": "u:3d031b7c-1b1f-4f84-8668-1cdf43cb2ab2",
+      "uuid": "3d031b7c-1b1f-4f84-8668-1cdf43cb2ab2",
+      "docNo": "A.1.10.2.3.2.1.2.1.2.1",
+      "title": "Requirements For Forum Post"
+    },
+    {
+      "taskKey": "u:6457578f-cf6f-4caa-8abb-9774c560dfcf",
+      "uuid": "6457578f-cf6f-4caa-8abb-9774c560dfcf",
+      "docNo": "A.1.10.2.3.2.2.3.3.2",
+      "title": "Governance Vote"
+    },
+    {
+      "taskKey": "u:b9ba6658-87a9-4421-9d20-386df8cea450",
+      "uuid": "b9ba6658-87a9-4421-9d20-386df8cea450",
+      "docNo": "A.1.10.2.5.2.1",
+      "title": "Technical Scope Template"
+    },
+    {
+      "taskKey": "u:f82537ec-50d1-44a0-ae01-0270cc091793",
+      "uuid": "f82537ec-50d1-44a0-ae01-0270cc091793",
+      "docNo": "A.1.10.2.5.2.4",
+      "title": "Morpho Vault Change Note Template"
+    },
+    {
+      "taskKey": "u:94f3fede-b2b2-4bc3-a3c7-f455e200508f",
+      "uuid": "94f3fede-b2b2-4bc3-a3c7-f455e200508f",
+      "docNo": "A.1.10.2.5.2.4.1",
+      "title": "Morpho Vault Change Note Submission Requirements"
+    },
+    {
+      "taskKey": "u:c99d8ec4-dda5-4340-9c2e-ad5e358ae00f",
+      "uuid": "c99d8ec4-dda5-4340-9c2e-ad5e358ae00f",
+      "docNo": "A.1.10.2.5.2.4.2",
+      "title": "Morpho Vault Change Note Template Update Process"
+    },
+    {
+      "taskKey": "u:610c8780-178b-4055-9387-373e014c8202",
+      "uuid": "610c8780-178b-4055-9387-373e014c8202",
+      "docNo": "A.1.10.2.7.7",
+      "title": "Audit Recordkeeping"
+    },
+    {
+      "taskKey": "u:1832a6e8-63e6-4b84-a2dd-d3904044ffca",
+      "uuid": "1832a6e8-63e6-4b84-a2dd-d3904044ffca",
+      "docNo": "A.1.10.6",
+      "title": "Governance Poll Process Definition"
+    },
+    {
+      "taskKey": "u:416c18a1-f11a-4158-b00f-29f8822ca170",
+      "uuid": "416c18a1-f11a-4158-b00f-29f8822ca170",
+      "docNo": "A.1.10.6.1.1",
+      "title": "Governance Poll"
+    },
+    {
+      "taskKey": "u:2b6151d3-22a1-4209-b5a7-85adb811e2fc",
+      "uuid": "2b6151d3-22a1-4209-b5a7-85adb811e2fc",
+      "docNo": "A.1.10.6.1.2",
+      "title": "Binding And Non-Binding Governance Polls"
+    },
+    {
+      "taskKey": "u:4fce74d7-1f87-41bf-8fa6-f49864f92e17",
+      "uuid": "4fce74d7-1f87-41bf-8fa6-f49864f92e17",
+      "docNo": "A.1.10.6.1.3",
+      "title": "Polls Repository"
+    },
+    {
+      "taskKey": "u:10e33d9c-5f4a-422d-bdfc-2a4f33bd4d27",
+      "uuid": "10e33d9c-5f4a-422d-bdfc-2a4f33bd4d27",
+      "docNo": "A.1.10.6.1.4.1",
+      "title": "Binary Voting"
+    },
+    {
+      "taskKey": "u:353949b3-4365-4aa7-8095-c0c347bab3d1",
+      "uuid": "353949b3-4365-4aa7-8095-c0c347bab3d1",
+      "docNo": "A.1.10.6.1.4.2",
+      "title": "Plurality Voting"
+    },
+    {
+      "taskKey": "u:ddfd94f8-ee7f-497b-924f-b0ccc52d49ca",
+      "uuid": "ddfd94f8-ee7f-497b-924f-b0ccc52d49ca",
+      "docNo": "A.1.10.6.1.4.3",
+      "title": "Instant-Runoff Voting"
+    },
+    {
+      "taskKey": "u:30b91e2a-9880-49e4-be7a-bb9d1ba5b9d6",
+      "uuid": "30b91e2a-9880-49e4-be7a-bb9d1ba5b9d6",
+      "docNo": "A.1.10.6.1.4.4",
+      "title": "Approval Voting"
+    },
+    {
+      "taskKey": "u:ea3b3184-4b2f-405a-9522-13a46fb782ec",
+      "uuid": "ea3b3184-4b2f-405a-9522-13a46fb782ec",
+      "docNo": "A.1.10.6.2.1",
+      "title": "Poll Administrator"
+    },
+    {
+      "taskKey": "u:46141a9b-bc82-4793-b01b-7721bf26fc2c",
+      "uuid": "46141a9b-bc82-4793-b01b-7721bf26fc2c",
+      "docNo": "A.1.10.6.2.2",
+      "title": "Poll Creator"
+    },
+    {
+      "taskKey": "u:fea766f6-7f1e-4b91-8c78-ae8a803c6d59",
+      "uuid": "fea766f6-7f1e-4b91-8c78-ae8a803c6d59",
+      "docNo": "A.1.10.6.2.3",
+      "title": "Poll Reviewer"
+    },
+    {
+      "taskKey": "u:a93837a1-0582-4d54-b510-a1d195265201",
+      "uuid": "a93837a1-0582-4d54-b510-a1d195265201",
+      "docNo": "A.1.10.6.3",
+      "title": "Principles For Governance Polls"
+    },
+    {
+      "taskKey": "u:d49bb0d8-b043-4a7e-866b-ef32077be9db",
+      "uuid": "d49bb0d8-b043-4a7e-866b-ef32077be9db",
+      "docNo": "A.1.10.6.3.1",
+      "title": "Clarity"
+    },
+    {
+      "taskKey": "u:467ec6d6-7b75-46ad-8c74-051c6476579e",
+      "uuid": "467ec6d6-7b75-46ad-8c74-051c6476579e",
+      "docNo": "A.1.10.6.3.2",
+      "title": "Transparency"
+    },
+    {
+      "taskKey": "u:4c385bf6-29cd-4295-9340-bd8ff8776c43",
+      "uuid": "4c385bf6-29cd-4295-9340-bd8ff8776c43",
+      "docNo": "A.1.10.6.3.3",
+      "title": "Impartiality"
+    },
+    {
+      "taskKey": "u:ecf12bc7-fd52-4659-a8b4-ec48f4bffc11",
+      "uuid": "ecf12bc7-fd52-4659-a8b4-ec48f4bffc11",
+      "docNo": "A.1.10.6.3.4",
+      "title": "Informed Decision-Making"
+    },
+    {
+      "taskKey": "u:69af8737-9c12-4b4b-b1c4-1d7eb0dd605a",
+      "uuid": "69af8737-9c12-4b4b-b1c4-1d7eb0dd605a",
+      "docNo": "A.1.10.6.4",
+      "title": "Structure Of A Governance Poll"
+    },
+    {
+      "taskKey": "u:714dd0ec-269d-4bf4-aebc-38f1e8b38ab7",
+      "uuid": "714dd0ec-269d-4bf4-aebc-38f1e8b38ab7",
+      "docNo": "A.1.10.6.4.1",
+      "title": "Poll Metadata Block"
+    },
+    {
+      "taskKey": "u:1c5d1d1b-37eb-4340-a979-fe1ad22d595e",
+      "uuid": "1c5d1d1b-37eb-4340-a979-fe1ad22d595e",
+      "docNo": "A.1.10.6.4.2",
+      "title": "Title"
+    },
+    {
+      "taskKey": "u:236513b4-2a86-4a55-904f-23bc9e9c4644",
+      "uuid": "236513b4-2a86-4a55-904f-23bc9e9c4644",
+      "docNo": "A.1.10.6.4.3",
+      "title": "Preamble"
+    },
+    {
+      "taskKey": "u:9bba0011-67eb-479d-b625-ab7f8930173a",
+      "uuid": "9bba0011-67eb-479d-b625-ab7f8930173a",
+      "docNo": "A.1.10.6.4.4",
+      "title": "Review Section"
+    },
+    {
+      "taskKey": "u:614f2db9-38d7-416b-a469-032761b51fa7",
+      "uuid": "614f2db9-38d7-416b-a469-032761b51fa7",
+      "docNo": "A.1.10.6.4.5",
+      "title": "Outcomes Section"
+    },
+    {
+      "taskKey": "u:6df740c5-7eac-4d7f-b348-f7be442c2fb4",
+      "uuid": "6df740c5-7eac-4d7f-b348-f7be442c2fb4",
+      "docNo": "A.1.10.6.4.6",
+      "title": "Resources Section"
+    },
+    {
+      "taskKey": "u:a86cd594-a3ec-4eb6-aaee-58bfff907d84",
+      "uuid": "a86cd594-a3ec-4eb6-aaee-58bfff907d84",
+      "docNo": "A.1.10.6.5",
+      "title": "Governance Poll Process Breakdown"
+    },
+    {
+      "taskKey": "u:5dc6eea5-e68e-4cef-b444-a706be2bf4ea",
+      "uuid": "5dc6eea5-e68e-4cef-b444-a706be2bf4ea",
+      "docNo": "A.1.10.6.5.1",
+      "title": "Submission Of Proposal (Step 1)"
+    },
+    {
+      "taskKey": "u:03b01f17-f334-444b-9037-8649d746a17e",
+      "uuid": "03b01f17-f334-444b-9037-8649d746a17e",
+      "docNo": "A.1.10.6.5.2",
+      "title": "Creation And Review Of Governance Poll (Step 2)"
+    },
+    {
+      "taskKey": "u:09bf8622-e8df-425a-a99b-8406d22ed7f1",
+      "uuid": "09bf8622-e8df-425a-a99b-8406d22ed7f1",
+      "docNo": "A.1.10.6.5.2.1",
+      "title": "Identify Items To Include"
+    },
+    {
+      "taskKey": "u:1927e8cf-22b5-4796-a8d9-6a11748326ea",
+      "uuid": "1927e8cf-22b5-4796-a8d9-6a11748326ea",
+      "docNo": "A.1.10.6.5.2.2",
+      "title": "Choose Voting Method And Template"
+    },
+    {
+      "taskKey": "u:05743ab4-c279-41d2-833f-cc20a9a441cb",
+      "uuid": "05743ab4-c279-41d2-833f-cc20a9a441cb",
+      "docNo": "A.1.10.6.5.2.3",
+      "title": "Create Poll File"
+    },
+    {
+      "taskKey": "u:11edd603-6109-4473-b4c3-512da887df1c",
+      "uuid": "11edd603-6109-4473-b4c3-512da887df1c",
+      "docNo": "A.1.10.6.5.2.4",
+      "title": "Complete Poll File"
+    },
+    {
+      "taskKey": "u:0258dd91-07ec-4855-94ad-e62324fcefe6",
+      "uuid": "0258dd91-07ec-4855-94ad-e62324fcefe6",
+      "docNo": "A.1.10.6.5.2.5",
+      "title": "Inform Affected Parties"
+    },
+    {
+      "taskKey": "u:addaf11f-2a1a-498c-8486-35ee2330d3a5",
+      "uuid": "addaf11f-2a1a-498c-8486-35ee2330d3a5",
+      "docNo": "A.1.10.6.5.2.6",
+      "title": "Self-Review And Request For Review"
+    },
+    {
+      "taskKey": "u:e8579703-60f0-4750-b252-873665999110",
+      "uuid": "e8579703-60f0-4750-b252-873665999110",
+      "docNo": "A.1.10.6.5.2.7",
+      "title": "Review Of Governance Poll"
+    },
+    {
+      "taskKey": "u:737a6dd7-a064-47b3-a727-12ba5481bf2c",
+      "uuid": "737a6dd7-a064-47b3-a727-12ba5481bf2c",
+      "docNo": "A.1.10.6.5.3",
+      "title": "Publication Of Governance Poll (Step 3)"
+    },
+    {
+      "taskKey": "u:76ed67d8-bdb2-4d49-b554-fee4839dc4dd",
+      "uuid": "76ed67d8-bdb2-4d49-b554-fee4839dc4dd",
+      "docNo": "A.1.10.6.5.3.1",
+      "title": "Merge Pull Request"
+    },
+    {
+      "taskKey": "u:1105fdda-b7c3-4d6f-b453-021502897a81",
+      "uuid": "1105fdda-b7c3-4d6f-b453-021502897a81",
+      "docNo": "A.1.10.6.5.3.2",
+      "title": "Submit Governance Poll On Voting Portal"
+    },
+    {
+      "taskKey": "u:0b63ea51-36bc-4f21-b0db-8ef5b43e7856",
+      "uuid": "0b63ea51-36bc-4f21-b0db-8ef5b43e7856",
+      "docNo": "A.1.10.6.5.3.3",
+      "title": "Tag Governance Polls And Update Index"
+    },
+    {
+      "taskKey": "u:233b6920-7498-4183-9a0a-7b0f4c2e21b4",
+      "uuid": "233b6920-7498-4183-9a0a-7b0f4c2e21b4",
+      "docNo": "A.1.10.6.5.3.4",
+      "title": "Confirm Governance Poll Is Live"
+    },
+    {
+      "taskKey": "u:37cbf08e-bb3a-4302-8b62-4c875e5fbae8",
+      "uuid": "37cbf08e-bb3a-4302-8b62-4c875e5fbae8",
+      "docNo": "A.1.10.6.5.4",
+      "title": "Voting On Governance Poll (Step 4)"
+    },
+    {
+      "taskKey": "u:f53911a4-c11a-4cff-959d-e2337bcd867c",
+      "uuid": "f53911a4-c11a-4cff-959d-e2337bcd867c",
+      "docNo": "A.1.10.6.5.4.1",
+      "title": "Voting Period"
+    },
+    {
+      "taskKey": "u:c968c501-b955-4cdb-b06a-fa4c97a3a44f",
+      "uuid": "c968c501-b955-4cdb-b06a-fa4c97a3a44f",
+      "docNo": "A.1.10.6.5.4.2",
+      "title": "Valid Votes"
+    },
+    {
+      "taskKey": "u:e7bc5a58-beba-4d63-8eca-266585d69c4b",
+      "uuid": "e7bc5a58-beba-4d63-8eca-266585d69c4b",
+      "docNo": "A.1.10.6.5.4.3",
+      "title": "Minimum Positive Participation"
+    },
+    {
+      "taskKey": "u:9f46e9fc-d906-4083-ad74-6b043925e44f",
+      "uuid": "9f46e9fc-d906-4083-ad74-6b043925e44f",
+      "docNo": "A.1.10.6.5.5",
+      "title": "Carrying Out Governance Poll Outcomes (Step 5)"
+    },
+    {
+      "taskKey": "u:ae250978-4ce0-4495-9132-0ed23c1964c4",
+      "uuid": "ae250978-4ce0-4495-9132-0ed23c1964c4",
+      "docNo": "A.1.10.6.5.5.1",
+      "title": "Inclusion In An Executive Vote"
+    },
+    {
+      "taskKey": "u:869f3f98-eff8-4bef-b166-cd6aa3533fc6",
+      "uuid": "869f3f98-eff8-4bef-b166-cd6aa3533fc6",
+      "docNo": "A.1.10.6.5.5.2",
+      "title": "Edits To The Atlas"
+    },
+    {
+      "taskKey": "u:6826881b-b85a-43bc-a9fd-3a576261e2b2",
+      "uuid": "6826881b-b85a-43bc-a9fd-3a576261e2b2",
+      "docNo": "A.1.10.6.5.5.3",
+      "title": "Other Actions Specified In The Atlas"
+    },
+    {
+      "taskKey": "u:862b6d83-f464-4125-8259-233b7de75ec4",
+      "uuid": "862b6d83-f464-4125-8259-233b7de75ec4",
+      "docNo": "A.2.2.4.3",
+      "title": "Demand Side Buffer"
+    },
+    {
+      "taskKey": "u:f489f6b8-67a9-49bd-ad98-a543757214b8",
+      "uuid": "f489f6b8-67a9-49bd-ad98-a543757214b8",
+      "docNo": "A.2.2.4.3.4",
+      "title": "Demand Side Buffer Multisig Usage Standards"
+    },
+    {
+      "taskKey": "u:dfc22e9d-139b-498c-a3d0-408503632f77",
+      "uuid": "dfc22e9d-139b-498c-a3d0-408503632f77",
+      "docNo": "A.2.2.4.3.6",
+      "title": "Demand Side Buffer Auxiliary Accounts"
+    },
+    {
+      "taskKey": "u:b76195f2-7494-43a4-919e-fa823303ad06",
+      "uuid": "b76195f2-7494-43a4-919e-fa823303ad06",
+      "docNo": "A.2.2.10.1.1.1.2.2.1",
+      "title": "Default Admin Role"
+    },
+    {
+      "taskKey": "u:eb4e8e2e-2a55-4c67-aa11-d26b07a481d9",
+      "uuid": "eb4e8e2e-2a55-4c67-aa11-d26b07a481d9",
+      "docNo": "A.2.2.10.1.1.1.2.3.3.1",
+      "title": "Beacon"
+    },
+    {
+      "taskKey": "u:7a8d1c7d-60cd-4126-853d-28f5e8433fb6",
+      "uuid": "7a8d1c7d-60cd-4126-853d-28f5e8433fb6",
+      "docNo": "A.2.2.10.1.1.1.2.3.3.2.2",
+      "title": "ERC-4626 Facet"
+    },
+    {
+      "taskKey": "u:e30ab84f-80f9-4933-b7f1-98c1adb8a001",
+      "uuid": "e30ab84f-80f9-4933-b7f1-98c1adb8a001",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.2.1",
+      "title": "Spark Diamond PAU"
+    },
+    {
+      "taskKey": "u:24c2fc14-448d-48be-a416-86bfad6f33fe",
+      "uuid": "24c2fc14-448d-48be-a416-86bfad6f33fe",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.2.2",
+      "title": "Osero Diamond PAU"
+    },
+    {
+      "taskKey": "u:b52fe20e-2927-4191-967f-73934e61a8af",
+      "uuid": "b52fe20e-2927-4191-967f-73934e61a8af",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.3.2",
+      "title": "Operator For The Osero Diamond PAU"
+    },
+    {
+      "taskKey": "u:0385ad19-8751-41bd-8ed7-9553e419d489",
+      "uuid": "0385ad19-8751-41bd-8ed7-9553e419d489",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.3.2.1",
+      "title": "Osero Operator Multisig Usage Standards"
+    },
+    {
+      "taskKey": "u:b513d299-d79e-4388-a479-d411e8af10dd",
+      "uuid": "b513d299-d79e-4388-a479-d411e8af10dd",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.4.2",
+      "title": "Controller For The Osero Diamond PAU"
+    },
+    {
+      "taskKey": "u:6afb04c4-7884-48b5-a36e-faf1c53e7d0b",
+      "uuid": "6afb04c4-7884-48b5-a36e-faf1c53e7d0b",
+      "docNo": "A.2.2.10.1.1.1.2.5.2.7.1.1",
+      "title": "Allocator Role"
+    },
+    {
+      "taskKey": "u:d12344e4-c166-4b71-83ca-bcecdefac5f6",
+      "uuid": "d12344e4-c166-4b71-83ca-bcecdefac5f6",
+      "docNo": "A.2.2.10.1.1.1.2.5.2.7.1.2",
+      "title": "Rate Limit"
+    },
+    {
+      "taskKey": "u:b99a4221-8f17-4290-84b1-f93ad5279027",
+      "uuid": "b99a4221-8f17-4290-84b1-f93ad5279027",
+      "docNo": "A.2.2.10.1.1.1.2.5.2.7.1.3",
+      "title": "Burn USDC Through CCTP"
+    },
+    {
+      "taskKey": "u:38470c3e-d4d1-4497-a362-46610fb000be",
+      "uuid": "38470c3e-d4d1-4497-a362-46610fb000be",
+      "docNo": "A.2.2.10.1.1.1.2.5.2.7.2.1",
+      "title": "Default Admin Role"
+    },
+    {
+      "taskKey": "u:2e717b5e-77b1-4028-ba03-6f35e555d06c",
+      "uuid": "2e717b5e-77b1-4028-ba03-6f35e555d06c",
+      "docNo": "A.2.2.10.1.1.1.2.5.2.7.2.2",
+      "title": "Record Domain Parameters For CCTP"
+    },
+    {
+      "taskKey": "u:1dd13ef2-ee4a-4487-8fc3-0e9d83a3bbd1",
+      "uuid": "1dd13ef2-ee4a-4487-8fc3-0e9d83a3bbd1",
+      "docNo": "A.2.2.10.1.1.1.2.5.4.2.2",
+      "title": "Withdraw All Positions From ERC-4626 Facet"
+    },
+    {
+      "taskKey": "u:fe70a940-5ada-48c5-8826-b361ef33275f",
+      "uuid": "fe70a940-5ada-48c5-8826-b361ef33275f",
+      "docNo": "A.2.2.10.1.1.1.3.2.2",
+      "title": "Eligible Collateral And Liquidation Loan-To-Value Limits"
+    },
+    {
+      "taskKey": "u:fe7c0ccf-c570-471a-815a-6b4b9cda5e29",
+      "uuid": "fe7c0ccf-c570-471a-815a-6b4b9cda5e29",
+      "docNo": "A.2.2.10.1.1.1.3.2.3.2",
+      "title": "Eligible Collateral Oracle Methodologies"
+    },
+    {
+      "taskKey": "u:c48c0416-46a3-47ee-845b-4b5f365bbf1c",
+      "uuid": "c48c0416-46a3-47ee-845b-4b5f365bbf1c",
+      "docNo": "A.2.2.10.1.1.1.3.2.5",
+      "title": "weETH Exposure Cap"
+    },
+    {
+      "taskKey": "u:751d8b2e-72dc-4c6b-bed3-38823763cfb1",
+      "uuid": "751d8b2e-72dc-4c6b-bed3-38823763cfb1",
+      "docNo": "A.2.2.10.1.1.1.3.2.5.1",
+      "title": "weETH Exposure Counting"
+    },
+    {
+      "taskKey": "u:d016e915-eea9-4dc1-8abf-6da358943c4f",
+      "uuid": "d016e915-eea9-4dc1-8abf-6da358943c4f",
+      "docNo": "A.2.2.10.1.1.1.3.2.5.2",
+      "title": "weETH Allocation"
+    },
+    {
+      "taskKey": "u:1a75baf4-4bd6-467f-9661-4ae66bd01973",
+      "uuid": "1a75baf4-4bd6-467f-9661-4ae66bd01973",
+      "docNo": "A.2.2.10.1.1.1.3.2.5.3",
+      "title": "weETH Allocation Enforcement"
+    },
+    {
+      "taskKey": "u:b18e5038-16b7-4168-9382-622bc7ac1994",
+      "uuid": "b18e5038-16b7-4168-9382-622bc7ac1994",
+      "docNo": "A.2.2.10.1.1.1.3.2.5.4",
+      "title": "weETH Excess Exposure"
+    },
+    {
+      "taskKey": "u:bc82068a-967d-474e-baf6-d5b2f79c89b3",
+      "uuid": "bc82068a-967d-474e-baf6-d5b2f79c89b3",
+      "docNo": "A.2.2.10.1.1.1.3.2.5.5",
+      "title": "Unused weETH Capacity"
+    },
+    {
+      "taskKey": "u:4f81276e-01d0-4403-a91b-4604a00045ac",
+      "uuid": "4f81276e-01d0-4403-a91b-4604a00045ac",
+      "docNo": "A.2.2.10.1.1.1.3.6",
+      "title": "Morpho Vault Curation Governance Process"
+    },
+    {
+      "taskKey": "u:2f9246e7-b8db-41da-b887-2174acc67276",
+      "uuid": "2f9246e7-b8db-41da-b887-2174acc67276",
+      "docNo": "A.2.2.10.1.1.1.3.6.1",
+      "title": "Morpho Vault Change Categories"
+    },
+    {
+      "taskKey": "u:f68aa50e-0eb4-4fb4-b145-616a06d8b646",
+      "uuid": "f68aa50e-0eb4-4fb4-b145-616a06d8b646",
+      "docNo": "A.2.2.10.1.1.1.3.6.1.1",
+      "title": "Morpho Vault Changes Requiring Governance Approval"
+    },
+    {
+      "taskKey": "u:cd925225-9ff5-4efc-9e72-45d5bee862aa",
+      "uuid": "cd925225-9ff5-4efc-9e72-45d5bee862aa",
+      "docNo": "A.2.2.10.1.1.1.3.6.1.2",
+      "title": "Morpho Vault Changes Requiring Disclosure Only"
+    },
+    {
+      "taskKey": "u:61280f9b-b183-4a9f-bb19-0a44b747c90e",
+      "uuid": "61280f9b-b183-4a9f-bb19-0a44b747c90e",
+      "docNo": "A.2.2.10.1.1.1.3.6.1.3",
+      "title": "Morpho Vault Urgent And Emergency Actions"
+    },
+    {
+      "taskKey": "u:d2876b82-becc-4222-bfbe-33cfebd365aa",
+      "uuid": "d2876b82-becc-4222-bfbe-33cfebd365aa",
+      "docNo": "A.2.2.10.1.1.1.3.6.2",
+      "title": "Morpho Vault Disclosure And Reporting Requirements"
+    },
+    {
+      "taskKey": "u:bf77c136-f7bb-45d6-b624-a3220d92ec23",
+      "uuid": "bf77c136-f7bb-45d6-b624-a3220d92ec23",
+      "docNo": "A.2.2.10.1.1.1.3.6.2.1",
+      "title": "Morpho Vault Change Announcement"
+    },
+    {
+      "taskKey": "u:9fd23d82-efac-447b-a8bb-59cdcc974aa2",
+      "uuid": "9fd23d82-efac-447b-a8bb-59cdcc974aa2",
+      "docNo": "A.2.2.10.1.1.1.3.6.2.2",
+      "title": "Morpho Vault Execution Report"
+    },
+    {
+      "taskKey": "u:315fb6f3-2e15-445e-bfd5-4974a8bdfe2e",
+      "uuid": "315fb6f3-2e15-445e-bfd5-4974a8bdfe2e",
+      "docNo": "A.2.2.10.1.1.1.3.6.3",
+      "title": "Relationship To Prime Agent Artifacts"
+    },
+    {
+      "taskKey": "u:7a36f228-0438-43da-ae5f-a43af70c0121",
+      "uuid": "7a36f228-0438-43da-ae5f-a43af70c0121",
+      "docNo": "A.2.2.10.1.1.2.2.1",
+      "title": "Agent Inputs"
+    },
+    {
+      "taskKey": "u:dbae3918-75f7-469d-b623-8faa5ea7aa70",
+      "uuid": "dbae3918-75f7-469d-b623-8faa5ea7aa70",
+      "docNo": "A.2.2.10.1.1.2.2.2",
+      "title": "Validation And Off-Chain Vote"
+    },
+    {
+      "taskKey": "u:648bcae7-9723-4282-81fe-fcc77fd6f90e",
+      "uuid": "648bcae7-9723-4282-81fe-fcc77fd6f90e",
+      "docNo": "A.2.2.10.1.1.2.3.2",
+      "title": "Initial Deployment and Required Risk Capital / Asset Liability Management Execution"
+    },
+    {
+      "taskKey": "u:4eac2c9e-2718-4881-a3f1-ed10fb3f4d13",
+      "uuid": "4eac2c9e-2718-4881-a3f1-ed10fb3f4d13",
+      "docNo": "A.2.2.10.1.1.3.2.1.1",
+      "title": "Sky Core Required Risk Capital (RRC) Dashboard"
+    },
+    {
+      "taskKey": "u:7e95efa7-e409-48dc-9b5a-96edce54bf31",
+      "uuid": "7e95efa7-e409-48dc-9b5a-96edce54bf31",
+      "docNo": "A.2.2.10.1.1.3.2.1.2.3.1",
+      "title": "Mandate and Rationale"
+    },
+    {
+      "taskKey": "u:c09435ff-d876-442a-899c-ad494175500b",
+      "uuid": "c09435ff-d876-442a-899c-ad494175500b",
+      "docNo": "A.2.3.1.2.1",
+      "title": "Step 0: Net Revenue"
+    },
+    {
+      "taskKey": "u:1760b35f-da5a-4504-a014-dd7a611b4c0e",
+      "uuid": "1760b35f-da5a-4504-a014-dd7a611b4c0e",
+      "docNo": "A.2.3.1.2.2.2.1.6.4",
+      "title": "Expense Recognition For Legacy Account Consolidation"
+    },
+    {
+      "taskKey": "u:075ac7f9-4c78-4dd1-a9b2-225071c09cd2",
+      "uuid": "075ac7f9-4c78-4dd1-a9b2-225071c09cd2",
+      "docNo": "A.2.4.1.2.1.5.5",
+      "title": "Transition To Demand Side Buffer Replenishment"
+    },
+    {
+      "taskKey": "u:00be9ea2-5227-4ce3-9a33-a58b8944c50c",
+      "uuid": "00be9ea2-5227-4ce3-9a33-a58b8944c50c",
+      "docNo": "A.2.8.2.2.2.4.5.2.6",
+      "title": "Grove Foundation Grant Authorization: November 2026"
+    },
+    {
+      "taskKey": "u:0016d78c-66e7-447f-9691-eaff8ea68d6d",
+      "uuid": "0016d78c-66e7-447f-9691-eaff8ea68d6d",
+      "docNo": "A.3.2.2.1.2.2.5",
+      "title": "Audit Factor"
+    },
+    {
+      "taskKey": "u:ade75eba-ac08-465c-a8a1-4ccaf5b99109",
+      "uuid": "ade75eba-ac08-465c-a8a1-4ccaf5b99109",
+      "docNo": "A.3.2.2.1.2.2.5.1",
+      "title": "Effective Audit Value"
+    },
+    {
+      "taskKey": "u:d281c572-ff98-43ba-a01d-e54657b50ab9",
+      "uuid": "d281c572-ff98-43ba-a01d-e54657b50ab9",
+      "docNo": "A.3.2.2.1.2.2.5.1.2",
+      "title": "Effectiveness Coefficient"
+    },
+    {
+      "taskKey": "u:b4a13cfc-1fef-47da-a350-6e81346203f4",
+      "uuid": "b4a13cfc-1fef-47da-a350-6e81346203f4",
+      "docNo": "A.3.2.2.1.2.2.5.1.2.1",
+      "title": "Category 1 Effectiveness Coefficient"
+    },
+    {
+      "taskKey": "u:18e07645-44c3-4175-8941-d7010233288a",
+      "uuid": "18e07645-44c3-4175-8941-d7010233288a",
+      "docNo": "A.3.2.2.1.2.2.5.1.2.2",
+      "title": "Category 2 Effectiveness Coefficient"
+    },
+    {
+      "taskKey": "u:33ef06d4-6ee3-4302-943d-1b932d8c88b4",
+      "uuid": "33ef06d4-6ee3-4302-943d-1b932d8c88b4",
+      "docNo": "A.3.2.2.4.3.3",
+      "title": "Bidding Process"
+    },
+    {
       "taskKey": "u:47d69b3d-a650-4dcd-a8f7-0c4f6bf5e8d2",
       "uuid": "47d69b3d-a650-4dcd-a8f7-0c4f6bf5e8d2",
       "docNo": "A.3.7.1.2.1.1",
       "title": "ALLOCATOR-SPARK-A Parameters"
+    },
+    {
+      "taskKey": "u:d79aed30-65e9-4eae-858c-1a1a63caa6d9",
+      "uuid": "d79aed30-65e9-4eae-858c-1a1a63caa6d9",
+      "docNo": "A.6.1.1.2.3.7.2",
+      "title": "Operational Process"
+    },
+    {
+      "taskKey": "u:76612d55-7c9a-45d6-8fea-8a949d869102",
+      "uuid": "76612d55-7c9a-45d6-8fea-8a949d869102",
+      "docNo": "A.6.1.1.2.3.7.4",
+      "title": "Parameters"
+    },
+    {
+      "taskKey": "u:2e9207c7-4fae-4bd7-a0b2-83c14e62825a",
+      "uuid": "2e9207c7-4fae-4bd7-a0b2-83c14e62825a",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.1.1.2.2.5",
+      "title": "AdministeredAgent Contract"
+    },
+    {
+      "taskKey": "u:1830fb80-a44b-4aaf-b72c-7c4997cb9486",
+      "uuid": "1830fb80-a44b-4aaf-b72c-7c4997cb9486",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.1",
+      "title": "Osero Relayer Multisig"
+    },
+    {
+      "taskKey": "u:d39e8188-807c-4cf1-8952-e02e455e255b",
+      "uuid": "d39e8188-807c-4cf1-8952-e02e455e255b",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.1.1",
+      "title": "Address"
+    },
+    {
+      "taskKey": "u:4721045a-46d0-42b9-b763-9826b7c88735",
+      "uuid": "4721045a-46d0-42b9-b763-9826b7c88735",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.1.4",
+      "title": "Usage Standards"
+    },
+    {
+      "taskKey": "u:da68307c-23cb-48fa-b6cc-52a31f812dc5",
+      "uuid": "da68307c-23cb-48fa-b6cc-52a31f812dc5",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.1.5",
+      "title": "Modification"
+    },
+    {
+      "taskKey": "u:f48b14c7-6dd1-4d10-b546-a604be45758c",
+      "uuid": "f48b14c7-6dd1-4d10-b546-a604be45758c",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.2",
+      "title": "Core Operator Relayer Multisig"
+    },
+    {
+      "taskKey": "u:92ed192c-7019-4864-b06d-c56fec8d3414",
+      "uuid": "92ed192c-7019-4864-b06d-c56fec8d3414",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.2.1",
+      "title": "Address"
+    },
+    {
+      "taskKey": "u:5c9542e5-bd8c-4c9d-a6d2-c2f8382f13d1",
+      "uuid": "5c9542e5-bd8c-4c9d-a6d2-c2f8382f13d1",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.2.4",
+      "title": "Usage Standards"
+    },
+    {
+      "taskKey": "u:7c52496f-8863-44a1-8e62-119f755fc038",
+      "uuid": "7c52496f-8863-44a1-8e62-119f755fc038",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.2.5",
+      "title": "Modification"
+    },
+    {
+      "taskKey": "u:51460bc2-f5fb-4302-912a-ed3e6943aae0",
+      "uuid": "51460bc2-f5fb-4302-912a-ed3e6943aae0",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.3",
+      "title": "Freezer Multisig"
+    },
+    {
+      "taskKey": "u:3b22b5f4-3cc4-4c47-9b84-a64fb4f3b159",
+      "uuid": "3b22b5f4-3cc4-4c47-9b84-a64fb4f3b159",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.3.1",
+      "title": "Address"
+    },
+    {
+      "taskKey": "u:0af92fed-3b01-40b2-95c7-a3726241906b",
+      "uuid": "0af92fed-3b01-40b2-95c7-a3726241906b",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.3.4",
+      "title": "Usage Standards"
+    },
+    {
+      "taskKey": "u:72931c13-0cd1-44c9-80b7-eb9a83463758",
+      "uuid": "72931c13-0cd1-44c9-80b7-eb9a83463758",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.3.5",
+      "title": "Modification"
+    },
+    {
+      "taskKey": "u:aae0e1ba-4ed0-4484-9187-3e53f3695ae8",
+      "uuid": "aae0e1ba-4ed0-4484-9187-3e53f3695ae8",
+      "docNo": "A.6.1.1.7.2.6.1.2.2.1.1",
+      "title": "Role Hierarchies And Permissions"
+    },
+    {
+      "taskKey": "t:seven-day timelocks|risk",
+      "uuid": "4c4b9e64-7733-4982-b6f0-fda89c61526b",
+      "docNo": "A.6.1.1.7.2.6.1.3.1.1.1.4.3.1",
+      "title": "Seven-Day Timelocks"
+    },
+    {
+      "taskKey": "t:three-day timelocks|risk",
+      "uuid": "beba0d1e-2d47-4578-ac76-307d959724ef",
+      "docNo": "A.6.1.1.7.2.6.1.3.1.1.1.4.3.2",
+      "title": "Three-Day Timelocks"
+    },
+    {
+      "taskKey": "t:functions without a timelock|risk",
+      "uuid": "7ebf0b52-130b-461c-a07c-84ad794f6835",
+      "docNo": "A.6.1.1.7.2.6.1.3.1.1.1.4.3.3",
+      "title": "Functions Without A Timelock"
+    },
+    {
+      "taskKey": "t:abdicated functions|risk",
+      "uuid": "789e37c6-e8b9-44c2-9b7e-05269aa1e2ab",
+      "docNo": "A.6.1.1.7.2.6.1.3.1.1.1.4.3.4",
+      "title": "Abdicated Functions"
+    },
+    {
+      "taskKey": "u:52aa69e0-fcba-42f4-b47d-f17235bab1fa",
+      "uuid": "52aa69e0-fcba-42f4-b47d-f17235bab1fa",
+      "docNo": "A.6.1.1.7.2.6.1.3.2.1.1.4.1.2",
+      "title": "Curator Role Address"
+    },
+    {
+      "taskKey": "u:2e1ab72b-bbd1-4b39-aa6f-f56bc89c32ff",
+      "uuid": "2e1ab72b-bbd1-4b39-aa6f-f56bc89c32ff",
+      "docNo": "A.6.1.1.7.2.6.1.3.2.1.1.4.3",
+      "title": "Timelocks"
     }
   ]
 }

@@ -82,7 +82,7 @@
       ]
     },
     "Core|addr": {
-      "total": 430,
+      "total": 437,
       "uncovered": 0,
       "samples": []
     },
@@ -92,7 +92,7 @@
       "samples": []
     },
     "Core|addr,s:addr-of-is": {
-      "total": 200,
+      "total": 204,
       "uncovered": 0,
       "samples": []
     },
@@ -107,7 +107,7 @@
       "samples": []
     },
     "Core|addr,s:addr-of-is,uuid-link": {
-      "total": 10,
+      "total": 13,
       "uncovered": 0,
       "samples": []
     },
@@ -117,12 +117,12 @@
       "samples": []
     },
     "Core|addr,s:role-held-by": {
-      "total": 25,
+      "total": 26,
       "uncovered": 0,
       "samples": []
     },
     "Core|addr,s:role-held-by,table": {
-      "total": 10,
+      "total": 11,
       "uncovered": 0,
       "samples": []
     },
@@ -142,13 +142,13 @@
       "samples": []
     },
     "Core|addr,uuid-link": {
-      "total": 34,
+      "total": 36,
       "uncovered": 0,
       "samples": []
     },
     "Core|bullet-kv": {
-      "total": 397,
-      "uncovered": 146,
+      "total": 404,
+      "uncovered": 149,
       "samples": [
         "A.2.2.10.1.1.1.2.3.1.2.1.1",
         "A.2.2.10.1.1.1.2.3.1.2.16.1",
@@ -158,13 +158,13 @@
       ]
     },
     "Core|bullet-kv,uuid-link": {
-      "total": 13,
+      "total": 15,
       "uncovered": 0,
       "samples": []
     },
     "Core|plain": {
-      "total": 8190,
-      "uncovered": 6288,
+      "total": 8254,
+      "uncovered": 6349,
       "samples": [
         "A.0.1.1.1",
         "A.0.1.1.10",
@@ -195,7 +195,12 @@
       "samples": []
     },
     "Core|s:modify-signers": {
-      "total": 30,
+      "total": 28,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|s:modify-signers,s:signing-req": {
+      "total": 2,
       "uncovered": 0,
       "samples": []
     },
@@ -216,7 +221,7 @@
       "samples": []
     },
     "Core|s:role-for-is": {
-      "total": 52,
+      "total": 51,
       "uncovered": 26,
       "samples": [
         "A.1.10.2.1.9",
@@ -227,7 +232,7 @@
       ]
     },
     "Core|s:role-for-is,uuid-link": {
-      "total": 35,
+      "total": 36,
       "uncovered": 0,
       "samples": []
     },
@@ -242,13 +247,13 @@
       ]
     },
     "Core|s:role-held-by,uuid-link": {
-      "total": 3,
+      "total": 7,
       "uncovered": 0,
       "samples": []
     },
     "Core|s:serves-as": {
-      "total": 14,
-      "uncovered": 11,
+      "total": 13,
+      "uncovered": 10,
       "samples": [
         "A.1.10.2.1.5",
         "A.1.10.2.2.2",
@@ -263,9 +268,11 @@
       "samples": []
     },
     "Core|s:signing-req": {
-      "total": 33,
-      "uncovered": 0,
-      "samples": []
+      "total": 34,
+      "uncovered": 1,
+      "samples": [
+        "A.6.1.1.7.2.6.1.2.1.2.1.3.5"
+      ]
     },
     "Core|s:signing-req,uuid-link": {
       "total": 1,
@@ -305,7 +312,7 @@
       "samples": []
     },
     "Core|uuid-link": {
-      "total": 1729,
+      "total": 1779,
       "uncovered": 0,
       "samples": []
     },
@@ -356,8 +363,8 @@
       ]
     },
     "Section|plain": {
-      "total": 109,
-      "uncovered": 83,
+      "total": 108,
+      "uncovered": 82,
       "samples": [
         "A.0.1.1",
         "A.0.1.2",
@@ -367,7 +374,7 @@
       ]
     },
     "Section|uuid-link": {
-      "total": 13,
+      "total": 15,
       "uncovered": 0,
       "samples": []
     },
