@@ -3,13 +3,12 @@ import {
   CHANGE_COLOR,
   RECONSTRUCTED_ERAS,
   isGitSha,
-  movePaths,
   prHref,
   severedRange,
   type HistoryEntry,
 } from "@/lib/history";
 import { DiffView } from "./DiffView";
-import { DocNoDiff, TypeDiff } from "./ChangePair";
+import { ChangeLabel } from "./ChangeLabel";
 import { LINE1_H, TimelineRow } from "./Timeline";
 import { Tooltip } from "../Tooltip";
 import { HtmlEraDisclaimer, PreGitDisclaimer } from "./HistoryDisclaimers";
@@ -25,15 +24,6 @@ function InfoIcon() {
     </svg>
   );
 }
-
-const CHANGE_LABEL: Record<string, string> = {
-  added: "added",
-  modified: "edited",
-  removed: "removed",
-  moved: "moved",
-  renumbered: "renumbered",
-  retyped: "type changed",
-};
 
 interface Props {
   entry: HistoryEntry;
@@ -59,7 +49,6 @@ export function EntryRow({ entry, labelOverride, isFirst }: Props) {
 
   // Title of the unit (line 2): the matched PR-body bullet, else the PR title.
   const title = entry.summary ?? (hasPr ? entry.prTitle : undefined);
-  const move = movePaths(entry);
   const range = entry.date ? null : severedRange(entry.commitHash);
 
   return (
@@ -167,32 +156,8 @@ export function EntryRow({ entry, labelOverride, isFirst }: Props) {
           </p>
         ) : null}
 
-        {/* Line 3: the type of edit — a move reads as one sentence, folding its
-            from/to paths into the label rather than a separate arrow line; a
-            renumbering or type change shows its two values, the changed parts marked. */}
-        {!hideChangeLabel && (
-          <p className="mono text-[12px] mt-1 break-all" style={{ color }}>
-            {labelOverride ?? CHANGE_LABEL[entry.changeType]}
-            {move && (
-              <>
-                {move.from && (
-                  <>
-                    {" from "}
-                    <span style={{ color: "var(--tan-3)" }}>{move.from}</span>
-                  </>
-                )}
-                {" to "}
-                <span style={{ color: "var(--tan-2)" }}>{move.to}</span>
-              </>
-            )}
-            {entry.movedFrom && entry.movedTo && entry.changeType === "renumbered" && (
-              <> <DocNoDiff prev={entry.movedFrom} next={entry.movedTo} /></>
-            )}
-            {entry.movedFrom && entry.movedTo && entry.changeType === "retyped" && (
-              <> <TypeDiff prev={entry.movedFrom} next={entry.movedTo} /></>
-            )}
-          </p>
-        )}
+        {/* Line 3: the type of edit. */}
+        {!hideChangeLabel && <ChangeLabel entry={entry} label={labelOverride} />}
 
         {entry.diff && <DiffView lines={entry.diff} />}
       </TimelineRow>

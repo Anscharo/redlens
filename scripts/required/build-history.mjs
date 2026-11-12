@@ -28,6 +28,7 @@ import {
   makeAtlasGitSource,
 } from "../lib/atlas-git-source.ts";
 import { diffSnapshots, eventDiff, snapshotEvents } from "../lib/history-events.ts";
+import { loadAgentNamePrefixes } from "../lib/history-agent-scopes.ts";
 import {
   classifyPrTitle,
   cleanDescription,
@@ -88,31 +89,31 @@ const getCommits = () => atlasCommits();
 // Main
 // ---------------------------------------------------------------------------
 
-/** Build [name, doc_no-prefix] pairs for prime agents (and operational
- *  executors when they map to atlas subtrees). Read once at startup from
- *  public/relations.json + docs.json. */
-function loadAgentNamePrefixes() {
-  const relsPath = path.join(ROOT, "public/relations.json");
-  const docsPath = path.join(ROOT, "public/docs.json");
-  if (!fs.existsSync(relsPath) || !fs.existsSync(docsPath)) return [];
-  const rels = JSON.parse(fs.readFileSync(relsPath, "utf8"));
-  const docs = JSON.parse(fs.readFileSync(docsPath, "utf8")).nodes;
-  const out = [];
-  for (const e of rels.entities ?? []) {
-    if (e.et !== "agent" || !e.did) continue;
-    const doc = docs[e.did];
-    if (!doc?.doc_no) continue;
-    if (e.name) out.push([e.name, doc.doc_no]);
-  }
-  // Sort by name length DESC so "Launch Agent 7" matches before "Launch Agent"
-  // would (no such conflict today, but keeps multi-token names safe).
-  return out.sort((a, b) => b[0].length - a[0].length);
+// Renumberings and type changes became events after most databases were
+// written, so the incremental cursor alone would never reach the commits that
+// made them. A database with a cursor but none of those rows walks the whole
+// log once, keeping only those events below the cursor: they are new keys, so
+// the upsert adds rows and rewrites none. Only commits that carry one fetch PR
+// metadata (58 of ~200 today). Returns the cursor's index, or 0 for no backfill.
+async function numberingBackfillFrom(startIndex, commitCount) {
+  if (await hasNumberingRows(sql)) return 0;
+  console.error(`  no renumbering or type-change rows yet: walking all ${commitCount} commits once to add them`);
+  return startIndex;
+}
+
+/** A history entry's PR fields; review, approval and comment counts only when nonzero. */
+function prEntryFields(pr) {
+  const out = { pr: pr.number, prTitle: pr.title, prAuthor: pr.author, prUrl: pr.url };
+  if (pr.reviewCount > 0) out.reviewCount = pr.reviewCount;
+  if (pr.approvalCount > 0) out.approvalCount = pr.approvalCount;
+  if (pr.commentCount > 0) out.commentCount = pr.commentCount;
+  return out;
 }
 
 async function main() {
   fs.mkdirSync(PR_CACHE_DIR, { recursive: true });
   if (OUT_JSON) fs.mkdirSync(OUT_DIR, { recursive: true });
-  const agentNamePrefixes = loadAgentNamePrefixes();
+  const agentNamePrefixes = loadAgentNamePrefixes(ROOT);
   console.error(`  ${agentNamePrefixes.length} agent name → doc_no scopes`);
 
   const lastCommitFile = path.join(OUT_DIR, "_last_commit.txt");
@@ -161,21 +162,11 @@ async function main() {
     }
   }
 
-  // Renumberings and type changes became events after most databases were
-  // written, so the incremental cursor alone would never reach the commits that
-  // made them. A database with a cursor but none of those rows walks the whole
-  // log once, keeping only those events below the cursor: they are new keys, so
-  // the upsert adds rows and rewrites none. Only commits that carry one fetch PR
-  // metadata (58 of ~200 today).
-  let numberingOnlyBelow = 0;
-  if (!OUT_JSON && startIndex > 0 && !(await hasNumberingRows(sql))) {
-    console.error(`  no renumbering or type-change rows yet: walking all ${allCommits.length} commits once to add them`);
-    numberingOnlyBelow = startIndex;
+  const numberingOnlyBelow = !OUT_JSON && startIndex > 0 ? await numberingBackfillFrom(startIndex, allCommits.length) : 0;
+  if (numberingOnlyBelow) {
     startIndex = 0;
     prevSnapshot = new Map();
   }
-  const NUMBERING = new Set(NUMBERING_CHANGE_TYPES);
-
   const commits = allCommits.slice(startIndex);
 
   if (commits.length === 0) {
@@ -208,7 +199,7 @@ async function main() {
     // A node can appear more than once (modified, moved, renumbered, retyped) —
     // every entry is emitted.
     const backfilling = startIndex + i < numberingOnlyBelow;
-    const events = snapshotEvents(changed).filter((ev) => !backfilling || NUMBERING.has(ev.changeType));
+    const events = snapshotEvents(changed).filter((ev) => !backfilling || NUMBERING_CHANGE_TYPES.includes(ev.changeType));
 
     // The HTML→Markdown migration commit (PR #117, "Migrate To Markdown File")
     // is the very first commit that touches Sky Atlas.md, so every doc shows
@@ -268,15 +259,7 @@ async function main() {
         ...eventDiff(ev, prevSnapshot, snapshot, { midHistory: startIndex + i > 0, kindHint: prKindHint }),
       };
 
-      if (pr) {
-        entry.pr = pr.number;
-        entry.prTitle = pr.title;
-        entry.prAuthor = pr.author;
-        entry.prUrl = pr.url;
-        if (pr.reviewCount > 0) entry.reviewCount = pr.reviewCount;
-        if (pr.approvalCount > 0) entry.approvalCount = pr.approvalCount;
-        if (pr.commentCount > 0) entry.commentCount = pr.commentCount;
-      }
+      if (pr) Object.assign(entry, prEntryFields(pr));
 
       const bulletMatch = bulletMatches.get(node.id);
       if (bulletMatch) {
