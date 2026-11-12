@@ -56,12 +56,9 @@ export function ActorPau(props: Props) {
   const { loaded, snaps, keyIndex, named, verdicts, groups, anchors } = usePauPage(props);
   if (snaps.length === 0) {
     return (
-      <>
-        <p className="mono text-[11px]" style={{ color: "var(--tan-3)" }}>
-          {loaded ? "no PAU contracts have been read for this Prime yet" : "loading PAU snapshots…"}
-        </p>
-        <PauChangePaths className="mt-8" />
-      </>
+      <p className="mono text-[11px]" style={{ color: "var(--tan-3)" }}>
+        {loaded ? "no PAU contracts have been read for this Prime yet" : "loading PAU snapshots…"}
+      </p>
     );
   }
 
@@ -75,7 +72,7 @@ export function ActorPau(props: Props) {
       {snaps.map((s) => (
         <PauDeployment key={s.deployment} snap={s} keyIndex={keyIndex} namedIn={named} verdicts={verdicts} anchor={anchors.get(s.deployment)!} />
       ))}
-      <PauChangePaths className="mt-8" />
+      <PauChangePaths className="mt-8" kinds={snaps.map((s) => s.kind)} />
       <ActorPauTimeline groups={groups} snaps={snaps} keyIndex={keyIndex} />
     </section>
   );

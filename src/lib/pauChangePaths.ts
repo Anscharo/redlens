@@ -3,6 +3,8 @@
 // change. Each `rule` is the check in the StarGuard, Executor, Configurator and
 // controller sources; the change history credits every stored change to one of
 // these paths (src/server/pau/origin.ts). Pure.
+import { SVM_CHANGE_PLUMBING } from "./pauChangePathsSvm.ts";
+import type { PauKind } from "./pauRegistry.ts";
 import type { Plumbing, PlumbingNode } from "./pauPlumbingParts.ts";
 
 const COL = [170, 360, 550, 740] as const;
@@ -12,6 +14,7 @@ const target = (id: string, name: string, lines: [string, string], row: number, 
 
 export const CHANGE_PLUMBING: Plumbing = {
   id: "pau-change-paths",
+  title: "EVM chains",
   w: 1150,
   h: 440,
   frame: { x: 938, y: 6, w: 204, h: 424 },
@@ -55,3 +58,9 @@ export const CHANGE_PLUMBING: Plumbing = {
     { from: "freezer", to: "relayers", kind: "stop", label: "", rule: "onlyRole(FREEZER) on removeRelayer; on a Diamond, a revoker's removeActor on the AdministeredAgent", d: "M900 381 H944", lx: 0, ly: 0 },
   ],
 };
+
+/** The change diagrams a Prime's page shows: one per family of controller it runs, EVM first. */
+export function changePlumbings(kinds: readonly PauKind[]): Plumbing[] {
+  const evm = kinds.some((k) => k !== "svm") ? [CHANGE_PLUMBING] : [];
+  return kinds.includes("svm") ? [...evm, { ...SVM_CHANGE_PLUMBING, title: "Solana" }] : evm;
+}

@@ -9,9 +9,9 @@
 import type { PauSnapshot } from "./pau.ts";
 import type { TimelineGroup } from "./pauTimeline.ts";
 
-export const PAU_ANCHOR = { plumbing: "how-it-fits", changePaths: "how-it-changes", currentState: "current-state", changeHistory: "change-history" } as const;
+export const PAU_ANCHOR = { changePaths: "how-it-changes", currentState: "current-state", changeHistory: "change-history" } as const;
 
-export type PauSection = "roles" | "facets" | "rate-limits" | "configurator-limits" | "parameters";
+export type PauSection = "how-it-fits" | "roles" | "facets" | "rate-limits" | "configurator-limits" | "parameters";
 
 export interface Anchor {
   id: string;

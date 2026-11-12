@@ -8,6 +8,7 @@ export const DIAMOND_PLUMBING: Plumbing = {
   id: "pau-plumbing-diamond",
   h: PLUMBING_H,
   frameLabel: "PAU · one set per chain",
+  ownNote: "a part a monolithic controller does not have",
   w: 1160,
   frame: { x: 220, y: 138, w: 730, h: 290 },
   summary:

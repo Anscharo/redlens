@@ -6,6 +6,7 @@ import { PauRateLimits } from "./ActorPauRateLimits";
 import { PauContracts } from "./PauContracts";
 import { PauParams } from "./ActorPauParams";
 import { PauAuditLink } from "./PauAuditLink";
+import { PauPlumbing } from "./PauPlumbing";
 import { PauWiring } from "./PauWiring";
 import { anchorProps } from "./PauSectionHeading";
 import { CopyLink } from "../CopyLink";
@@ -47,6 +48,7 @@ export function PauDeployment({ snap, keyIndex, namedIn, verdicts, anchor }: Pro
           {loading && <span className="text-[11px]" style={{ color: "var(--accent)" }}>history still being read</span>}
         </summary>
         <PauContracts snap={snap} />
+        <PauPlumbing kind={snap.kind} anchor={anchor} />
         <PauFacets snap={snap} anchor={anchor} />
         <PauHolders snap={snap} anchor={anchor} />
         <PauRateLimits

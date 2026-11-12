@@ -4,7 +4,6 @@ import { AtlasLink } from "../AtlasLink";
 import { Callout } from "../Callout";
 import { ActorPageShell } from "./ActorPageShell";
 import { ActorPau } from "./ActorPau";
-import { PauPlumbing } from "./PauPlumbing";
 
 export interface ActorPauPageProps {
   profile: ActorProfile;
@@ -22,7 +21,6 @@ export function ActorPauPage({ profile }: ActorPauPageProps) {
         <AtlasLink to={atlasHref(ALLOCATION_SYSTEM_DOC)} className="text-accent hover:underline">Allocation System Primitive</AtlasLink>. It lists the contracts, rate limits and on-chain
         parameters of its controllers on each chain. On a chain, a Prime Agent runs a monolithic ALM Controller, a Diamond PAU (a controller that dispatches to facets), or both.
       </Callout>
-      <PauPlumbing />
       <ActorPau prime={profile.entity} instances={profile.instances} />
     </ActorPageShell>
   );

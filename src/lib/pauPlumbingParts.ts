@@ -52,6 +52,10 @@ export interface Plumbing {
   w: number;
   h: number;
   frameLabel: string;
+  /** What an outlined (`own`) part is, for the key. */
+  ownNote?: string;
+  /** What the diagram covers, above it where a page shows more than one. */
+  title?: string;
   lanes?: PlumbingLane[];
   /** The contracts that are the PAU itself, framed together. */
   frame: { x: number; y: number; w: number; h: number };
