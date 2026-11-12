@@ -35,7 +35,7 @@
 
 ## 2026-11-12
 
-- Added renumberings and document type changes to every document's history
+- Added title changes, renumberings and document type changes to every document's history
 - Highlighted the parts of a doc number that changed in a renumbering
 
 ## 2026-11-10

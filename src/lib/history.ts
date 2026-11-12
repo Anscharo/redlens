@@ -11,8 +11,9 @@ export type DiffLine = ["=" | "+" | "-", string] | ["~", WordSegment[]] | ["…"
 export interface HistoryEntry {
   date: string;
   commitHash: string;
-  /** `renumbered`: the doc number changed. `retyped`: the heading's `[Type]` changed. */
-  changeType: "added" | "modified" | "removed" | "moved" | "renumbered" | "retyped";
+  /** `modified`: the body changed. `retitled`: the title changed. `renumbered`:
+   *  the doc number changed. `retyped`: the heading's `[Type]` changed. */
+  changeType: "added" | "modified" | "removed" | "moved" | "retitled" | "renumbered" | "retyped";
   pr?: number;
   prTitle?: string;
   prAuthor?: string;
@@ -32,10 +33,11 @@ export interface HistoryEntry {
    *  it is stricter than "≤8 chars", which this comment used to claim). Only set for
    *  `changeType: "modified"`. */
   changeKind?: "lint" | "typo" | "semantic";
-  /** The value before: the source path of a `moved` entry, the old doc number of
-   *  a `renumbered` one, the old type of a `retyped` one. */
+  /** The value before: the source path of a `moved` entry, the old title of a
+   *  `retitled` one, the old doc number of a `renumbered` one, the old type of a
+   *  `retyped` one. */
   movedFrom?: string;
-  /** The value after, for the same three change types. */
+  /** The value after, for the same four change types. */
   movedTo?: string;
   /** Reconstruction era. "html" = a pre-#117 entry auto-translated from the
    *  original HTML tables, with lineage traced (deterministic matching + AI
@@ -135,8 +137,9 @@ export const CHANGE_COLOR: Record<string, string> = {
   // color) nor --warn/--error-text (which carry their own meaning); it just has to
   // be distinct from added-green, removed-pink and modified-tan. 6.1:1 on --bg.
   moved: "var(--depth-4)",
-  // A renumbering and a type change: the lilac the preview's renumber note uses,
-  // so the two histories colour them alike.
+  // A retitling, a renumbering and a type change: the lilac the preview's
+  // renumber note uses, so the two histories colour them alike.
+  retitled: "var(--lilac)",
   renumbered: "var(--lilac)",
   retyped: "var(--lilac)",
 };
@@ -145,18 +148,28 @@ export const CHANGE_COLOR: Record<string, string> = {
  *  spells out its document's number. */
 const numberInPath = (path: string, docNo: string) => path.includes(`/${docNo.split(".").join("/")}/`);
 
-/** Drop each `moved` entry that only restates a same-commit renumbering: in the
+/** A `moved` entry that only restates a same-commit renumbering: in the
  *  atomized layout a document's path spelled out its number, so every
- *  renumbering of that era also moved its file. The renumbered entry says it
- *  better; a move between files that is more than that stays. */
-export function foldRenumberMoves(entries: HistoryEntry[]): HistoryEntry[] {
-  const renumbers = new Map<string, HistoryEntry>();
-  for (const e of entries) if (e.changeType === "renumbered") renumbers.set(e.commitHash, e);
-  return entries.filter((e) => {
-    const r = e.changeType === "moved" ? renumbers.get(e.commitHash) : undefined;
-    if (!r?.movedFrom || !r.movedTo || !e.movedFrom || !e.movedTo) return true;
-    return !(numberInPath(e.movedFrom, r.movedFrom) && numberInPath(e.movedTo, r.movedTo));
-  });
+ *  renumbering of that era also moved its file. */
+function restatesRenumber(e: HistoryEntry, r: HistoryEntry | undefined): boolean {
+  if (e.changeType !== "moved" || !r?.movedFrom || !r.movedTo || !e.movedFrom || !e.movedTo) return false;
+  return numberInPath(e.movedFrom, r.movedFrom) && numberInPath(e.movedTo, r.movedTo);
+}
+
+/** Drop the entries a more specific same-commit entry says better: a file move
+ *  that only restates a renumbering, and an edit with no diff beside a
+ *  retitling (rows written before retitles were events record a title change
+ *  as an edit of nothing). A move between files that is more than a
+ *  renumbering, and any edit with a diff, stay. */
+export function foldRestatedEntries(entries: HistoryEntry[]): HistoryEntry[] {
+  const by = (type: HistoryEntry["changeType"]) => new Map(entries.filter((e) => e.changeType === type).map((e) => [e.commitHash, e]));
+  const renumbers = by("renumbered");
+  const retitles = by("retitled");
+  return entries.filter(
+    (e) =>
+      !restatesRenumber(e, renumbers.get(e.commitHash)) &&
+      !(e.changeType === "modified" && !e.diff?.length && retitles.has(e.commitHash)),
+  );
 }
 
 // Shared shape for every /api/history/* GET below: a 404 (no backend on this

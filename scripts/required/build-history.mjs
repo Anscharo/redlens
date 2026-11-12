@@ -45,9 +45,9 @@ import { runMigrations } from "../../src/server/migrate.ts";
 import {
   eventToRow,
   gitCommitSeq,
-  hasNumberingRows,
+  hasBackfilledRows,
   htmlEraRows,
-  NUMBERING_CHANGE_TYPES,
+  BACKFILLED_CHANGE_TYPES,
   preEraRows,
   readHistoryCursor,
   stampMigrationSeam,
@@ -89,15 +89,15 @@ const getCommits = () => atlasCommits();
 // Main
 // ---------------------------------------------------------------------------
 
-// Renumberings and type changes became events after most databases were
-// written, so the incremental cursor alone would never reach the commits that
-// made them. A database with a cursor but none of those rows walks the whole
-// log once, keeping only those events below the cursor: they are new keys, so
-// the upsert adds rows and rewrites none. Only commits that carry one fetch PR
-// metadata (58 of ~200 today). Returns the cursor's index, or 0 for no backfill.
-async function numberingBackfillFrom(startIndex, commitCount) {
-  if (await hasNumberingRows(sql)) return 0;
-  console.error(`  no renumbering or type-change rows yet: walking all ${commitCount} commits once to add them`);
+// Retitlings, renumberings and type changes became events after most databases
+// were written, so the incremental cursor alone would never reach the commits
+// that made them. A database with a cursor but none of those rows walks the
+// whole log once, keeping only those events below the cursor: they are new keys,
+// so the upsert adds rows and rewrites none. Only commits that carry one fetch PR
+// metadata. Returns the cursor's index, or 0 for no backfill.
+async function backfillFrom(startIndex, commitCount) {
+  if (await hasBackfilledRows(sql)) return 0;
+  console.error(`  no retitle, renumbering or type-change rows yet: walking all ${commitCount} commits once to add them`);
   return startIndex;
 }
 
@@ -162,8 +162,8 @@ async function main() {
     }
   }
 
-  const numberingOnlyBelow = !OUT_JSON && startIndex > 0 ? await numberingBackfillFrom(startIndex, allCommits.length) : 0;
-  if (numberingOnlyBelow) {
+  const backfillBelow = !OUT_JSON && startIndex > 0 ? await backfillFrom(startIndex, allCommits.length) : 0;
+  if (backfillBelow) {
     startIndex = 0;
     prevSnapshot = new Map();
   }
@@ -195,11 +195,11 @@ async function main() {
     // This records the creation of all nodes that haven't changed since.
 
     const changed = diffSnapshots(prevSnapshot, snapshot);
-    const { added, modified, removed } = changed;
-    // A node can appear more than once (modified, moved, renumbered, retyped) —
-    // every entry is emitted.
-    const backfilling = startIndex + i < numberingOnlyBelow;
-    const events = snapshotEvents(changed).filter((ev) => !backfilling || NUMBERING_CHANGE_TYPES.includes(ev.changeType));
+    const { added, retitled, modified, removed } = changed;
+    // A node can appear more than once (retitled, modified, moved, renumbered,
+    // retyped) — every entry is emitted.
+    const backfilling = startIndex + i < backfillBelow;
+    const events = snapshotEvents(changed).filter((ev) => !backfilling || BACKFILLED_CHANGE_TYPES.includes(ev.changeType));
 
     // The HTML→Markdown migration commit (PR #117, "Migrate To Markdown File")
     // is the very first commit that touches Sky Atlas.md, so every doc shows
@@ -228,14 +228,14 @@ async function main() {
     const prKindHint = pr ? classifyPrTitle(pr.title) : null;
 
     // Try to match bullets to nodes for edit proposals. Pass the unique nodes
-    // (modified ∪ added ∪ removed) so a moved-and-modified node isn't scored twice.
+    // (added ∪ retitled ∪ modified ∪ removed) so a node in two lists isn't scored twice.
     let bulletMatches = new Map();
     let prHasInlineBullets = false;
     if (pr?.body) {
       const prBullets = parsePrBullets(pr.body);
       prHasInlineBullets = prBullets.length > 0;
       if (prBullets.length > 0) {
-        const matchTargets = [...added, ...modified, ...removed];
+        const matchTargets = [...new Map([...added, ...retitled, ...modified, ...removed].map((n) => [n.id, n])).values()];
         bulletMatches = matchBulletsToNodes(prBullets, matchTargets, snapshot, {
           agentNamePrefixes,
         });

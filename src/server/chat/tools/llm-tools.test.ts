@@ -163,7 +163,7 @@ test("tools that read empty args as absent offer null exactly on their optional 
   // Both vocabularies (2026-09-23): the history tools say modified/moved, this
   // tool historically took the stored content/structural names, and query.ts
   // normalizes either — so the enum carries all of them plus the null-for-unset.
-  expect(aq.change_type.enum).toEqual(["added", "modified", "removed", "moved", "renumbered", "retyped", "content", "structural", null]);
+  expect(aq.change_type.enum).toEqual(["added", "modified", "removed", "moved", "retitled", "renumbered", "retyped", "content", "structural", null]);
   expect(aq.direction.enum).toContain(null);
   // Strings keep "" as their unset value (a null there made gemma send query:null);
   // defaulted fields keep their default.

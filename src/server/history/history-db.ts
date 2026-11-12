@@ -226,16 +226,17 @@ export async function readHistoryCursor(sql: SQL): Promise<string | null> {
   }
 }
 
-/** The change types a renumbering and a `[Type]` change write (history-events.ts). */
-export const NUMBERING_CHANGE_TYPES = ["renumbered", "retyped"] as const;
+/** The change types history-events.ts added after most databases were written:
+ *  a retitling, a renumbering and a `[Type]` change. */
+export const BACKFILLED_CHANGE_TYPES = ["retitled", "renumbered", "retyped"] as const;
 
-/** Whether this database holds any renumbering or type-change row. A database
- *  whose cursor predates those events holds none, and build-history walks the
- *  whole log once to add them. A failed read says yes, so it never triggers that walk. */
-export async function hasNumberingRows(sql: SQL): Promise<boolean> {
+/** Whether this database holds any row of those types. A database whose cursor
+ *  predates them holds none, and build-history walks the whole log once to add
+ *  them. A failed read says yes, so it never triggers that walk. */
+export async function hasBackfilledRows(sql: SQL): Promise<boolean> {
   try {
     const rows = await sql<{ one: number }[]>`
-      SELECT 1 AS one FROM atlas_history WHERE change_type IN ${sql([...NUMBERING_CHANGE_TYPES])} LIMIT 1
+      SELECT 1 AS one FROM atlas_history WHERE change_type IN ${sql([...BACKFILLED_CHANGE_TYPES])} LIMIT 1
     `;
     return rows.length > 0;
   } catch {

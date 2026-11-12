@@ -25,7 +25,8 @@ describe("commitRowLabel", () => {
     // The numbers and types themselves are rendered beside the label, highlighted (ChangePair).
     expect(commitRowLabel({ ...row, changeType: "renumbered", prevDocNo: "A.1" })).toBe("renumbered");
     expect(commitRowLabel({ ...row, changeType: "retyped", prevDocType: "Core", docType: "Section" })).toBe("type changed");
-    expect(commitRowLabel({ ...row, changeType: "modified", prevTitle: "Old", bothSides: true })).toBe("edited · both sides' edits met here");
+    expect(commitRowLabel({ ...row, changeType: "modified", bothSides: true })).toBe("edited · both sides' edits met here");
+    expect(commitRowLabel({ ...row, changeType: "retitled", prevTitle: "Old" })).toBe("retitled");
   });
 });
 

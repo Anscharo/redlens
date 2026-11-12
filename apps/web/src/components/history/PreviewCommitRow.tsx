@@ -19,7 +19,7 @@ function CommitEntry({ row }: { row: Row }) {
         {row.changeType === "renumbered" && row.prevDocNo && <> <DocNoDiff prev={row.prevDocNo} next={row.docNo} /></>}
         {row.changeType === "retyped" && row.prevDocType && row.docType && <> <TypeDiff prev={row.prevDocType} next={row.docType} /></>}
       </p>
-      {row.prevTitle && <TitleDiff prev={row.prevTitle} next={row.title} />}
+      {row.changeType === "retitled" && row.prevTitle && <TitleDiff prev={row.prevTitle} next={row.title} />}
       {row.diff && <DiffView lines={row.diff} />}
     </>
   );

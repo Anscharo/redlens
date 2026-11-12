@@ -60,8 +60,8 @@ function attachMoveDetail(affected: AffectedDoc, entry: HistoryEntry): void {
 }
 
 // Rows are keyed per commit (mirroring byCommit's own keying). A doc can carry
-// several events in the same commit — the history builder emits a "modified", a
-// "moved", a "renumbered" and a "retyped" event independently
+// several events in the same commit — the history builder emits "retitled",
+// "modified", "moved", "renumbered" and "retyped" events independently
 // (scripts/lib/history-events.ts). Keying rows through this map lets the second event for a
 // (commit, docId) pair merge onto the first one's row instead of being dropped,
 // so neither the changeKind nor the movedFrom/movedTo detail is lost whichever
@@ -116,9 +116,9 @@ function newAffected(doc: DocRef, entry: HistoryEntry): AffectedDoc {
 }
 
 // Which of a doc's same-commit events names its row: a content event beats a
-// type change, which beats a renumbering, which beats a bare move (edit
-// significance says more than a structural change).
-const RANK: Record<HistoryEntry["changeType"], number> = { moved: 0, renumbered: 1, retyped: 2, added: 3, modified: 3, removed: 3 };
+// retitling, which beats a type change, which beats a renumbering, which beats a
+// bare move (edit significance says more than a structural change).
+const RANK: Record<HistoryEntry["changeType"], number> = { moved: 0, renumbered: 1, retyped: 2, retitled: 3, added: 4, modified: 4, removed: 4 };
 
 function upsertAffected({ commitEntry, rows }: CommitGroup, doc: DocRef, entry: HistoryEntry): void {
   let affected = rows.get(doc.docId);

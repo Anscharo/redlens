@@ -23,9 +23,10 @@ describe("commitEntries", () => {
     expect(rows.r).toEqual([{ changeType: "renumbered", docNo: "A.5", title: "Tr", prevDocNo: "A.4" }]);
   });
 
-  test("a retitle carries the old title; an unchanged commit has no rows", () => {
+  test("a retitle is its own row carrying the old title; an unchanged commit has no rows", () => {
     const prev = snap(["a", "A.1", "body", "Old"]);
-    expect(commitEntries(prev, snap(["a", "A.1", "body", "New"])).a[0]).toMatchObject({ changeType: "modified", title: "New", prevTitle: "Old" });
+    expect(commitEntries(prev, snap(["a", "A.1", "body", "New"])).a).toEqual([{ changeType: "retitled", docNo: "A.1", title: "New", prevTitle: "Old" }]);
+    expect(commitEntries(prev, snap(["a", "A.1", "edited", "New"])).a.map((r) => r.changeType)).toEqual(["retitled", "modified"]);
     expect(commitEntries(prev, prev)).toEqual({});
   });
 

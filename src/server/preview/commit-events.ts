@@ -11,6 +11,7 @@ export interface CommitEntry extends EventDiff {
   docNo: string;
   title: string;
   prevDocNo?: string;
+  /** On a `retitled` row: the title before. */
   prevTitle?: string;
   /** On a `retyped` row: the `[Type]` before and after. */
   docType?: string;
@@ -27,16 +28,15 @@ function push(out: CommitEntries, id: string, e: CommitEntry): void {
   (out[id] ??= []).push(e);
 }
 
-/** One event as a row. The wire names a renumbering's and a type change's two
- *  values for what they are, not as the engine's movedFrom/movedTo. */
+/** One event as a row. The wire names a retitling's, a renumbering's and a type
+ *  change's two values for what they are, not as the engine's movedFrom/movedTo. */
 function entryOf(ev: SnapshotEvent, prev: GitSnapshot, curr: GitSnapshot): CommitEntry {
   const { doc_no, title, prevTitle, prevDocNo, prevType, type } = ev.node;
   const base = { changeType: ev.changeType, docNo: doc_no, title };
+  if (ev.changeType === "retitled") return { ...base, prevTitle };
   if (ev.changeType === "renumbered") return { ...base, prevDocNo };
   if (ev.changeType === "retyped") return { ...base, docType: type, prevDocType: prevType };
-  const entry: CommitEntry = { ...base, ...eventDiff(ev, prev, curr, { midHistory: true }) };
-  if (prevTitle !== undefined && prevTitle !== title) entry.prevTitle = prevTitle;
-  return entry;
+  return { ...base, ...eventDiff(ev, prev, curr, { midHistory: true }) };
 }
 
 /** Every document event from `prev` to `curr`. */

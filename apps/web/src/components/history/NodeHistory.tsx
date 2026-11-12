@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { foldRenumberMoves, loadHistory, PRE_MD_PR, RECONSTRUCTED_ERAS, type HistoryEntry } from "@/lib/history";
+import { foldRestatedEntries, loadHistory, PRE_MD_PR, RECONSTRUCTED_ERAS, type HistoryEntry } from "@/lib/history";
 import { ApprovedByPoll } from "./ApprovedByPoll";
 import { EntryRow } from "./EntryRow";
 import { SeamFooter } from "./SeamFooter";
@@ -77,7 +77,7 @@ export function NodeHistory({
   // sort as "smallest" — after even the earliest MIP date — which is chronologically
   // backwards. commitSeq is populated on every row once ingested; date compare is a
   // defensive fallback only.
-  const sorted = foldRenumberMoves(entries).sort((a, b) =>
+  const sorted = foldRestatedEntries(entries).sort((a, b) =>
     a.commitSeq != null && b.commitSeq != null ? b.commitSeq - a.commitSeq : b.date.localeCompare(a.date),
   );
   const hasReconstructed = sorted.some((e) => e.era && RECONSTRUCTED_ERAS.has(e.era));

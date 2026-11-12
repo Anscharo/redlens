@@ -123,6 +123,13 @@ describe("EntryRow change label", () => {
     expect(container.querySelector("ins")).toHaveTextContent("3");
   });
 
+  it("shows a retitling as a word diff of the title under its label", () => {
+    const { container } = render(<EntryRow entry={entry({ changeType: "retitled", movedFrom: "Bootstrapping Phase", movedTo: "Delegate Onboarding Process" })} />);
+    expect(container.textContent).toContain("retitled");
+    expect(container.querySelector("del")).toHaveTextContent("Bootstrapping Phase");
+    expect(container.querySelector("ins")).toHaveTextContent("Delegate Onboarding Process");
+  });
+
   it("shows a type change with both types", () => {
     const { container } = render(<EntryRow entry={entry({ changeType: "retyped", movedFrom: "Core", movedTo: "Section" })} />);
     expect(container.textContent).toContain("type changed [Core] → [Section]");

@@ -26,6 +26,7 @@ export const CHANGE_INDICATOR: Record<string, string> = {
   modified: "~",
   removed: "−",
   moved: "→",
+  retitled: "Aa",
   renumbered: "#",
   retyped: "T",
 };

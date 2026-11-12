@@ -6,9 +6,9 @@ import { readOnlyAtlasTool, type AtlasTool } from "./tool-types.ts";
 
 const CHANGE_TYPE = () =>
   z
-    .enum(["added", "modified", "removed", "moved", "renumbered", "retyped"])
+    .enum(["added", "modified", "removed", "moved", "retitled", "renumbered", "retyped"])
     .optional()
-    .describe("added | modified (text or title change) | removed | moved (file move) | renumbered (doc number changed; moved_from/moved_to hold the old and new number) | retyped ([Type] changed; moved_from/moved_to hold the old and new type).");
+    .describe("added | modified (body text changed) | removed | moved (file move) | retitled (title changed; moved_from/moved_to hold the old and new title) | renumbered (doc number changed; moved_from/moved_to hold the old and new number) | retyped ([Type] changed; moved_from/moved_to hold the old and new type).");
 
 export const HISTORY_TOOLS: AtlasTool[] = [
   {

@@ -33,10 +33,14 @@ describe("diffSnapshots / snapshotEvents", () => {
     expect(snapshotEvents(diffSnapshots(prev, curr))).toEqual([]);
   });
 
-  it("a title change alone is a modification", () => {
+  it("a title change is a retitling, carrying both titles; with a body edit it is two events", () => {
     const prev = snap(["a", "A.1", "body"]);
     const curr: GitSnapshot = new Map([["a", { ...prev.get("a")!, title: "Renamed" }]]);
-    expect(snapshotEvents(diffSnapshots(prev, curr)).map((e) => e.changeType)).toEqual(["modified"]);
+    const events = snapshotEvents(diffSnapshots(prev, curr));
+    expect(events.map((e) => e.changeType)).toEqual(["retitled"]);
+    expect(eventDiff(events[0], prev, curr, { midHistory: true })).toEqual({ movedFrom: "T A.1", movedTo: "Renamed" });
+    const both: GitSnapshot = new Map([["a", { ...curr.get("a")!, contentHash: "other" }]]);
+    expect(snapshotEvents(diffSnapshots(prev, both)).map((e) => e.changeType)).toEqual(["retitled", "modified"]);
   });
 });
 

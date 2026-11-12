@@ -10,9 +10,10 @@ This file covers how the atlas change history is built and stored. It holds the 
   - **`--out-json`:** writes the legacy `public/history/<uuid>.json` files. This sink needs no database and serves the canary and artifact tests.
 - The shared DB write path lives in `src/server/history/history-db.ts` (`eventToRow`, `upsertHistory`, `gitCommitSeq`, `readHistoryCursor`).
 - It reads each commit through `lib/atlas-git-source.ts` and turns two snapshots into events and diff bodies with `lib/history-events.ts`, which a preview's commit history shares, so a commit row means the same on both. PR metadata and bullet matching stay in the script.
-- **Renumberings and type changes are events of their own** (`change_type` `renumbered` / `retyped`), because inside a consolidated bucket file neither changes content, title or path. Their old and new doc number or `[Type]` sit in `moved_from` / `moved_to`. They never count as modifications (`mod-counts`, `mod-timeline` read `content` rows only).
-  - **A database whose cursor predates them backfills itself.** When the cursor is set but `hasNumberingRows` finds none, the run walks the whole log once (~30s), keeping only those two event types below the cursor. They are new keys, so the upsert adds rows and rewrites none, and only the ~58 commits that carry one look up PR metadata. Nothing has to be run by hand in any environment.
-  - In the atomized layout (#236–#294) a path spelled out its doc number, so each renumbering of that era also left a `moved` row. Those rows stay; the reader folds a `moved` row that only restates a same-commit renumbering (`foldRenumberMoves`, `src/lib/history.ts`), and the radar actor history merges the two into one row.
+- **Title changes, renumberings and type changes are events of their own** (`change_type` `retitled` / `renumbered` / `retyped`); a `content` row means the body changed. Inside a consolidated bucket file a renumbering or type change touches no content, title or path, and a title change used to be stored as a `content` row with no diff and no record of either title. Their old and new title, doc number or `[Type]` sit in `moved_from` / `moved_to`. They never count as modifications (`mod-counts`, `mod-timeline` read `content` rows only).
+  - **A database whose cursor predates them backfills itself.** When the cursor is set but `hasBackfilledRows` finds none, the run walks the whole log once (~30s), keeping only those three event types below the cursor. They are new keys, so the upsert adds rows and rewrites none, and only the commits that carry one look up PR metadata. Nothing has to be run by hand in any environment.
+  - The 117 title-only `content` rows written before then stay; the reader folds a diff-less edit beside a same-commit retitle (`foldRestatedEntries`, `src/lib/history.ts`).
+  - In the atomized layout (#236–#294) a path spelled out its doc number, so each renumbering of that era also left a `moved` row. Those rows stay; the reader folds a `moved` row that only restates a same-commit renumbering (`foldRestatedEntries`), and the radar actor history merges the two into one row.
 
 ## History commands
 
@@ -51,7 +52,7 @@ These scripts are about history, but they are off the `pnpm build` chain.
 
 **`atlas_history.change_kind` is backfilled — done 2026-09, do not re-run it.** The migration-006 walk landed: 7,494 of ~7,635 `modified` rows carry a `lint` / `typo` / `semantic` label. The ~141 without one are rows whose diff is empty, which `classifyDiff` returns `null` for by design.
 
-`change_kind` is NULL on every `added` / `removed` / `moved` / `renumbered` / `retyped` row **by design**, because the classifier needs a diff. So the ~51.5k NULLs in a bare `GROUP BY change_kind` are not a backlog. Count with `COUNT(change_kind)` grouped by `change_type` instead.
+`change_kind` is NULL on every `added` / `removed` / `moved` / `retitled` / `renumbered` / `retyped` row **by design**, because the classifier needs a diff. So the ~51.5k NULLs in a bare `GROUP BY change_kind` are not a backlog. Count with `COUNT(change_kind)` grouped by `change_type` instead.
 
 Two consequences:
 

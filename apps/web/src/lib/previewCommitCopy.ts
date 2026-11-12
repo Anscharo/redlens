@@ -5,6 +5,7 @@ const CHANGE_WORD: Record<PreviewCommitRow["changeType"], string> = {
   modified: "edited",
   removed: "removed",
   moved: "moved",
+  retitled: "retitled",
   renumbered: "renumbered",
   retyped: "type changed",
 };
