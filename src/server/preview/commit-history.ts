@@ -11,7 +11,7 @@ import path from "node:path";
 
 import { createSemaphore } from "../pool.ts";
 import { makeAtlasTreeReader, type GitSnapshot } from "../../../scripts/lib/atlas-git-source.ts";
-import { writeCommitCache, type CommitHistoryFile } from "./commit-cache.ts";
+import { COMMIT_CACHE_VERSION, writeCommitCache, type CommitHistoryFile } from "./commit-cache.ts";
 import { fetchCommits, isoBackend, type FetchOpts } from "./commit-git.ts";
 import { commitRange, type CommitMeta } from "./commit-range.ts";
 import { openWalk, walkKey, type Send } from "./commit-stream.ts";
@@ -115,7 +115,7 @@ export async function runWalk(plan: WalkPlan, emit: Send, d: WalkDeps = defaultW
     emit({ type: "range", total: range.total, walking: range.commits.length });
     const out = range.commits.length ? await describe(plan, range.commits, emit, d, deadline) : { records: [], truncated: false };
     const truncated = out.truncated || range.total > out.records.length;
-    keep(plan, d, { version: 1, base: plan.base, mergeBase: plan.mergeBase, head: plan.sha, total: range.total, truncated, commits: out.records });
+    keep(plan, d, { version: COMMIT_CACHE_VERSION, base: plan.base, mergeBase: plan.mergeBase, head: plan.sha, total: range.total, truncated, commits: out.records });
     emit({ type: "done", truncated });
   } catch (e) {
     if (!(e instanceof WalkError)) console.error(`[preview] commit history ${plan.sha.slice(0, 7)}/${plan.base} failed:`, (e as Error).message);

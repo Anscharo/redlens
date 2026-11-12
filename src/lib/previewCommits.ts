@@ -3,16 +3,20 @@
 // the reader's state as its events arrive. The server's events are typed
 // against these declarations, so the two cannot drift.
 
-import type { DiffLine } from "./history";
+import type { DiffLine, HistoryEntry } from "./history";
 
 /** What one commit did to the asked-for document. */
 export interface PreviewCommitRow {
-  /** A live history change type, or `renumbered`: a new doc number with nothing else changed. */
-  changeType: "added" | "modified" | "removed" | "moved" | "renumbered";
+  /** A live history change type (src/lib/history.ts). */
+  changeType: HistoryEntry["changeType"];
   docNo: string;
   title: string;
   prevDocNo?: string;
+  /** On a `retitled` row: the title before. */
   prevTitle?: string;
+  /** On a `retyped` row: the `[Type]` before and after. */
+  docType?: string;
+  prevDocType?: string;
   /** On a merge commit: the merged document matches neither parent. */
   bothSides?: true;
   diff?: DiffLine[];

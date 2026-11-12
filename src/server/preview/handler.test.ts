@@ -1506,7 +1506,7 @@ const OTHER = "99999999-2222-3333-4444-555555555555";
 function writeCommitHistory(previewPaths: (sha: string) => { outDir: string }, sha: string): void {
   const commit = (s: string, entries: Record<string, unknown[]>) => ({ sha: s, parents: [], date: "d", author: "a", message: s, merge: false, entries });
   const file = {
-    version: 1,
+    version: 2,
     base: "repo",
     mergeBase: "mb",
     head: sha,

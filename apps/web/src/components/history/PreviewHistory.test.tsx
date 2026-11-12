@@ -35,6 +35,7 @@ function setDiff(over: Partial<PreviewDiff>) {
     changed: new Set(),
     renumbered: {},
     retitled: {},
+    retyped: {},
     reusedSlot: {},
     identitySwap: {},
     formerUuid: {},
@@ -122,6 +123,20 @@ describe("PreviewHistory preview entry", () => {
         (_content, el) => el?.tagName === "P" && el.textContent === "renumbered A.1.2 → A.2.3",
       ),
     ).toBeInTheDocument();
+    // Only the segments that changed are highlighted: A.[1.2] → A.[2.3].
+    expect([...document.querySelectorAll("del")].map((e) => e.textContent)).toEqual(["1", "2"]);
+    expect([...document.querySelectorAll("ins")].map((e) => e.textContent)).toEqual(["2", "3"]);
+  });
+
+  it("shows a type change with both types highlighted", () => {
+    setDiff({ changed: new Set(["n1"]), retyped: { n1: ["Core", "Section"] } });
+    render(<PreviewHistory nodeId="n1" />);
+    expect(
+      screen.getByText((_content, el) => el?.tagName === "P" && el.textContent === "type changed [Core] → [Section]"),
+    ).toBeInTheDocument();
+    expect(document.querySelector("del")).toHaveTextContent("Core");
+    expect(document.querySelector("ins")).toHaveTextContent("Section");
+    expect(screen.queryByText(/No visible difference/)).toBeNull();
   });
 
   it("shows a changed title as a word diff right above the body diff box", () => {

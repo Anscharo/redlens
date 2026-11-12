@@ -2,6 +2,7 @@
 // MCP tool (mcp.ts, zod-v3 raw shape) AND the chat agentic loop (llm-tools.ts,
 // converted to JSON Schema for the OpenAI tool-calling API). Keep descriptions
 // terse-but-complete — the model reads them to decide how to call the tool.
+import { CHANGE_TYPES } from "../../lib/changeTypes.ts";
 import { z } from "zod";
 import { pageShape } from "./result-page.ts";
 
@@ -21,13 +22,13 @@ export const atlasQueryShape = {
   since: z.string().optional().describe("ISO date (YYYY-MM-DD) or relative ('30d') — docs changed on/after."),
   until: z.string().optional().describe("ISO date or relative — docs changed on/before."),
   // Both vocabularies are accepted (query.ts normalizes): the history tools use
-  // added|modified|removed|moved, this tool historically used the stored
+  // added|modified|removed|moved|retitled|renumbered|retyped, this tool historically used the stored
   // content/structural names, and a model that learned one got silent 0-row
   // answers from the other.
   change_type: z
-    .enum(["added", "modified", "removed", "moved", "content", "structural"])
+    .enum([...CHANGE_TYPES, "content", "structural"] as const)
     .optional()
-    .describe("added | modified (text change) | moved (renumber/move) | removed — same values as the history tools."),
+    .describe("added | modified (text change) | moved (file move) | retitled (title changed) | renumbered (doc number changed) | retyped ([Type] changed) | removed — same values as the history tools."),
   status: z.string().optional().describe("Filter by instance status: Active, Suspended, Completed, Inactive."),
   ancestor_id: z.string().optional().describe("UUID or doc_no — restrict to descendants of this node."),
   include_params: z.boolean().optional().describe("Inline immediate child docs as 'params'."),

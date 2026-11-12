@@ -12,8 +12,11 @@ import type { BaseKey } from "./cache.ts";
 import type { CommitStreamEvent } from "./commit-stream.ts";
 import type { CommitRecord } from "./commit-walk.ts";
 
+/** Bumped when a walk's rows gain a kind: an older file is walked again rather than served short. */
+export const COMMIT_CACHE_VERSION = 2;
+
 export interface CommitHistoryFile {
-  version: 1;
+  version: number;
   base: BaseKey;
   mergeBase: string;
   head: string;
@@ -58,7 +61,7 @@ function readFile(p: string): CommitHistoryFile | null {
 export function cachedCommitEvents(sha: string, base: BaseKey, mergeBase: string, root?: string): CommitStreamEvent[] | null {
   const p = commitCachePath(sha, base, root);
   const f = readFile(p);
-  if (f?.mergeBase !== mergeBase) return (held.delete(p), null);
+  if (f?.mergeBase !== mergeBase || f.version !== COMMIT_CACHE_VERSION) return (held.delete(p), null);
   return [
     { type: "range", total: f.total, walking: f.commits.length },
     ...f.commits.map((commit, index): CommitStreamEvent => ({ type: "commit", index, commit })),
