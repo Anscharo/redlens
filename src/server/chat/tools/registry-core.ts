@@ -71,7 +71,7 @@ export const CORE_TOOLS: AtlasTool[] = [
     description:
       "Look up an on-chain address. Returns merged atlas + chain metadata (label, chainlog id, etherscan name, " +
       "roles, aliases, expected tokens, chain_state snapshot), the linked entity, and the doc edges that reference it. " +
-      "When the address is a PAU contract, a role holder, or an asset a rate limit is keyed by, `onchain` carries those live values.",
+      "When the address is a liquidity-layer contract, a role holder, or an asset a rate limit is keyed by, `onchain` carries those live values.",
     shape: {
       address: z.string().describe("0x… (EVM) or base58 (Solana)."),
       chain: z.string().optional().describe("Optional chain filter (e.g. 'ethereum', 'solana')."),

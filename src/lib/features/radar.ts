@@ -59,7 +59,7 @@ export const radar: FeatureGroup = {
           "In Roles, ✓ means the chain confirms the role or the AdministeredAgent membership, ✗ means the history says granted or added but the chain says no, ? means the check could not be read. A member the AdministeredAgent lists that the stored history lacks says `not in the stored history`.",
           "The date in the `Last updated` column opens the transaction that last set that limit, and the chip beside it names where the value came from (a spell, a spell relayed to Solana through LayerZero governance, an operator, a deployment) and jumps to its `Change history` row. Hover an amount to see where its decimals came from: read from the token, fixed by the controller, or inferred from the limit's size. `Configurator limits` says how far the Configurator may raise a limit without a spell (a factor, once per waiting period per key) and lists any default limits it may raise a key to.",
         ],
-        note: "Appears once the atlas worker has read the PAU contracts; a deployment whose history is still being read says `history still being read`. Chat and MCP clients can ask for the same values (`atlas_onchain`), across every Prime Agent at once.",
+        note: "Appears once the atlas worker has read the controller contracts; a deployment whose history is still being read says `history still being read`. Chat on this page, and MCP clients, can ask for the same rate limits, parameters and spells (`redline_onchain`, `redline_liquidity_changes`), including where a number matches the Atlas, where it differs, and the live readings the Atlas names but does not hold.",
       },
     ],
   };

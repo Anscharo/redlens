@@ -176,6 +176,18 @@ test("a turn with no change-log evidence gets the prompt byte-for-byte unchanged
   expect(String(system.content)).not.toContain("CHANGE LOG");
 });
 
+test("buildRefutePrompt marks chain evidence and adds the chain rule only then", () => {
+  const [system, user] = buildRefutePrompt({
+    question: "q",
+    answer: "a",
+    evidence: [{ label: "[E1]", tool: "redline_onchain", args: "{}", content: '{"relation":"pointed"}', sourceClass: "chain" }],
+  });
+  expect(String(user.content)).toContain("[E1] [CHAIN, not Atlas]");
+  expect(String(system.content)).toContain("values Redline Portal read from the chain");
+  const [plain] = buildRefutePrompt({ question: "q", answer: "a", evidence: [ev("some atlas text", "atlas")] });
+  expect(plain.content).toBe(REFUTE_PROMPT);
+});
+
 test("buildRefutePrompt marks PR preview evidence as a proposal and adds the proposal rule only then", () => {
   const [system, user] = buildRefutePrompt({
     question: "q",

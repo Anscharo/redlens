@@ -76,6 +76,7 @@ test("describeCall reads the standardized `query` arg for both atlas_search and 
   // No `query` present (e.g. an entity/target_type-only atlas_query call) falls
   // back to the generic "Consulting <tool>…" line rather than crashing.
   expect(describeCall("atlas_query", { entity: "spark" })).toBe("Consulting atlas_query…");
+  expect(describeCall("redline_onchain", { query: "deposit" })).toBe("Reading stored chain values (not Atlas)…");
 });
 
 test("describeCall falls back to the deprecated `q` alias — an MCP-era caller can still send it", () => {

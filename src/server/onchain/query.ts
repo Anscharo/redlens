@@ -1,4 +1,4 @@
-// atlas_onchain: the stored on-chain facts filtered by entity, chain, kind,
+// redline_onchain: the stored on-chain facts filtered by entity, chain, kind,
 // address and words, with how far each deployment has been read. The question
 // "what is set on-chain" is answered from the chain side, so it also lists what
 // the atlas never mentions.
@@ -7,6 +7,7 @@ import { resolveEntity } from "../retrieval/entity-resolve.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { ONCHAIN_SOURCES } from "./sources.ts";
 import { factIndex, factOutput, SOURCES_FAILED_NOTE, type OnchainFact } from "./facts.ts";
+import { factRelation, type FactRelation } from "./relation.ts";
 
 export interface OnchainQuery {
   entity?: string;
@@ -15,6 +16,8 @@ export interface OnchainQuery {
   address?: string;
   query?: string;
   include_off?: boolean;
+  /** mirrors, differs, pointed, or chain-only. See src/lib/pauLayout.ts. */
+  relation?: FactRelation;
   limit: number;
 }
 
@@ -29,7 +32,7 @@ const ALIASES: [RegExp, string][] = [
 ];
 
 function haystack(f: OnchainFact): string {
-  const text = [f.name, f.entity, f.chain, f.kind, JSON.stringify(f.values)].join(" ");
+  const text = [f.name, f.entity, f.chain, f.kind, factRelation(f), JSON.stringify(f.values)].join(" ");
   return [text, ...ALIASES.filter(([re]) => re.test(text)).map(([, add]) => add)].join(" ").toLowerCase();
 }
 
@@ -43,6 +46,7 @@ function matches(f: OnchainFact, q: OnchainQuery, entityId: string | null, words
   if (entityId && f.entity_id !== entityId) return false;
   if (!sameChain(f.chain, q.chain)) return false;
   if (q.kind && f.kind !== q.kind) return false;
+  if (q.relation && factRelation(f) !== q.relation) return false;
   if (q.address && !f.match.addresses.includes(q.address.toLowerCase())) return false;
   if (!q.include_off && f.values.switched_off === true) return false;
   const hay = haystack(f);
@@ -66,6 +70,6 @@ export async function onchainState(ix: Indexes, q: OnchainQuery): Promise<ToolRe
     coverage,
     count: facts.length,
     ...(facts.length > limit ? { truncated: true } : {}),
-    facts: facts.slice(0, limit).map(factOutput),
+    facts: facts.slice(0, limit).map((f) => ({ ...factOutput(f), relation: factRelation(f) })),
   };
 }

@@ -9,6 +9,7 @@ describe("looksLikeToolCallLine", () => {
     expect(looksLikeToolCallLine('<invoke name="atlas_query">')).toBe(true);
     expect(looksLikeToolCallLine('{"name":"atlas_query","arguments":{}}')).toBe(true);
     expect(looksLikeToolCallLine('  "name": "atlas_search",')).toBe(true);
+    expect(looksLikeToolCallLine('  "name": "redline_onchain",')).toBe(true);
     expect(looksLikeToolCallLine('  "arguments": {')).toBe(true);
     expect(looksLikeToolCallLine("```tool_call")).toBe(true);
   });

@@ -259,6 +259,9 @@ test("sourceClass is an allowlist: only registry tools are atlas, everything els
   expect(classifyToolSource("atlas_preview_diff")).toBe("preview"); // a PR's proposed text
   expect(classifyToolSource("atlas_preview_get")).toBe("preview");
   expect(classifyToolSource("atlas_open_prs")).toBe("history"); // PR metadata, no text
+  expect(classifyToolSource("redline_onchain")).toBe("chain");
+  expect(classifyToolSource("redline_liquidity_changes")).toBe("chain");
+  expect(isAtlasText("chain")).toBe(true);
   expect(isAtlasText("preview")).toBe(true);
 
   // Real leaks this closed, not hypotheticals: export_findings is appended to

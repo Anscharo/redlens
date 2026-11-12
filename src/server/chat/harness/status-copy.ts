@@ -6,6 +6,9 @@ export function describeCall(name: string, args: Record<string, unknown>): strin
   if (name === "ask_external_msc" || name === "external_msc") {
     return "Consulting settlement sources (not Atlas)…";
   }
+  if (name === "redline_onchain" || name === "redline_liquidity_changes") {
+    return "Reading stored chain values (not Atlas)…";
+  }
   // `query` is the standardized arg name (feedback_query_param_standard); `q`
   // is a deprecated alias kept for MCP back-compat — an MCP-era caller can
   // still send it, and without this fallback the ticker silently degrades to

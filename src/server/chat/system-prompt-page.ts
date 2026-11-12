@@ -4,6 +4,7 @@ import { REPORT_TITLES, REPORT_DESCRIPTIONS } from "../../lib/routes.ts";
 import { decodeId } from "../preview/resolve.ts";
 import { SHA_RE } from "../../lib/patterns.ts";
 import { actorPageDef, isActorPageKey } from "../../lib/radarPages.ts";
+import { pauPageBlock } from "./system-prompt-pau.ts";
 
 // reportName on the wire is the display title (REPORT_TITLES[id]), not the id.
 const TITLE_TO_REPORT_ID: Record<string, string> = Object.fromEntries(
@@ -85,11 +86,18 @@ function reportToolGuidance(reportTool: string, ctx?: PageContext): string {
   return ` This report is backed by the \`${reportTool}\` tool — a one-call rollup of exactly this report's data. When the user asks about "this report", this page, or its contents, call \`${reportTool}\` to load it rather than reassembling the data from narrower tools. That tool takes a \`filter\` argument (same text matching as the page): pass one to scope large reports to the rows in question instead of pulling every row.${filtered}`;
 }
 
+function viewingSubject(ctx: PageContext | undefined, reportTool: string | null): string {
+  if (!ctx) return "node";
+  if (validPreviewContext(ctx)) return "PR";
+  if (reportTool || ctx.reportName) return "report";
+  if (pauPageBlock(ctx)) return "Liquidity Layer page";
+  return "node";
+}
+
 export function currentPageSection(ctx?: PageContext): string {
   const page = pageContextLine(ctx);
   if (!page) return "";
   const reportTool = validReportTool(ctx);
-  const guidance = reportTool ? reportToolGuidance(reportTool, ctx) : "";
-  const subject = validPreviewContext(ctx) ? "PR" : reportTool || ctx?.reportName ? "report" : "node";
-  return `\n## Current page\nThe user is viewing: ${page}.${guidance} Treat references like "this", "here", or "this primitive" as that ${subject} unless they say otherwise.`;
+  const guidance = reportTool ? reportToolGuidance(reportTool, ctx) : pauPageBlock(ctx);
+  return `\n## Current page\nThe user is viewing: ${page}.${guidance} Treat references like "this", "here", or "this primitive" as that ${viewingSubject(ctx, reportTool)} unless they say otherwise.`;
 }

@@ -1,6 +1,6 @@
 // On-chain facts for the tools: which atlas documents a PAU key belongs to,
 // the facts a snapshot becomes, the `onchain` block a tool result carries for
-// the keys, documents and addresses it names, and atlas_onchain's filters.
+// the keys, documents and addresses it names, and redline_onchain's filters.
 import { describe, expect, it, mock } from "bun:test";
 import type { AtlasNode } from "../../types.ts";
 import type { StoredPauSnapshot } from "../../lib/pau.ts";
@@ -63,6 +63,7 @@ const SNAP: StoredPauSnapshot = {
 const { primeAtlasRefs } = await import("./pau-atlas-refs.ts");
 const { paramSide } = await import("../../lib/pauParams.ts");
 const { snapshotFacts } = await import("./pau-source.ts");
+const { factRelation } = await import("./relation.ts");
 const { valueFacts } = await import("./pau-value-facts.ts");
 const fake: OnchainSource = { id: "pau", describe: "fake", read: async () => ({ facts: snapshotFacts(SNAP, primeAtlasRefs(ix, P, [SNAP])), coverage: [{ source: "pau", entity: "Grove", entity_id: P, chain: "ethereum", label: "diamond", contracts: 2, history_complete: false, read_at: SNAP.fetchedAt }] }) };
 // A second source that fails while `failing` is set, read only by indexes built for that purpose.
@@ -113,6 +114,22 @@ describe("snapshotFacts", () => {
     expect(byKey(KOFF)).toMatchObject({ name: null, name_source: null });
     expect(byKey(KADDR)).toMatchObject({ name: "Vault · BUIDLI_DEPOSIT", name_source: "atlas-address", atlas_doc_id: "d-listed", values: { listed_address: LISTED } });
     expect(byKey(KADDR).match.docs).toEqual(["d-listed"]);
+  });
+  it("lists an in-use slippage and a recipient, and leaves a guard no rate limit lets act", () => {
+    const pool = "0x" + "1".repeat(40);
+    const slip = { event: "MaxSlippageSet", subject: pool, args: { pool, maxSlippage: "999000000000000000" }, setAt: at };
+    const dead = { event: "MaxExchangeRateSet", subject: pool, args: { vault: pool, maxExchangeRate: "1" }, setAt: at };
+    const mint = { event: "MintRecipientSet", subject: "6", args: { domain: "6", mintRecipient: "0x" + "2".repeat(40) }, setAt: at };
+    const curve = limit(k("a"), "1000", "0", { derived: { constant: "LIMIT_CURVE_DEPOSIT", args: [pool] } });
+    const withParams: StoredPauSnapshot = {
+      ...SNAP,
+      contracts: SNAP.contracts.map((c) => c.role === "rateLimits" ? { ...c, rateLimits: [...(c.rateLimits ?? []), curve], params: [slip, dead, mint] } : c),
+    };
+    const params = snapshotFacts(withParams, primeAtlasRefs(ix, P, [withParams])).filter((f) => f.kind === "parameter");
+    expect(params.map((f) => f.name)).toEqual([`Max slippage · ${pool}`, "CCTP mint recipient · CCTP destination domain 6 (Base)"]);
+    expect(params[0].values.shown).toEqual(["at most 0.1% loss (≥ 99.9% back)"]);
+    expect(params[0].values.in_use).toBe("on");
+    expect(factRelation(params[0])).toBe("pointed");
   });
   it("lists role holders and members with the history state of their contract", () => {
     expect(facts.filter((f) => f.kind === "role" || f.kind === "member").map((f) => [f.kind, f.name, f.history_complete])).toEqual([["role", "RELAYER", false], ["member", "actors", false]]);
@@ -177,7 +194,7 @@ describe("a source that cannot be read", () => {
   });
 });
 
-describe("atlas_onchain", () => {
+describe("redline_onchain", () => {
   it("takes a chain by full, abbreviated or qualified name", async () => {
     for (const chain of ["ethereum", "eth", "Ethereum Mainnet"]) {
       const res = (await onchainState(ix, { chain, kind: "role", limit: 5 })) as { count: number; coverage: unknown[] };
@@ -208,6 +225,17 @@ describe("atlas_onchain", () => {
         ["Ethereum Mainnet - Vault · Outflow maxAmount", "not set"],
       ]);
     }
+    extra = [];
+  });
+  it("splits facts into mirrors, differs, pointed and chain-only", async () => {
+    extra = valueFacts(ix, P, [SNAP]);
+    const fresh = buildIndexes([doc(P, "A.6.1.1.2", "Grove")], [], [], {});
+    const names = async (relation: "mirrors" | "differs" | "pointed" | "chain-only") =>
+      ((await onchainState(fresh, { relation, limit: 50 })) as { facts: { name: string; relation: string }[] }).facts.map((f) => f.name);
+    expect(await names("mirrors")).toEqual(["Ethereum Mainnet - Vault · Inflow maxAmount"]);
+    expect(await names("differs")).toEqual(["Ethereum Mainnet - Vault · Outflow maxAmount"]);
+    expect(await names("pointed")).toEqual(["Configurator limits (BeamState)", "actors", "USDS Mint", "Vault · BUIDLI_DEPOSIT", "Vault · Inflow", "RELAYER"]);
+    expect(await names("chain-only")).toEqual([`LIMIT_4626_DEPOSIT · ${VAULT}`, `LIMIT_4626_DEPOSIT · ${VAULT}`]);
     extra = [];
   });
   it("filters by an address a fact is about, and refuses an unknown entity", async () => {
