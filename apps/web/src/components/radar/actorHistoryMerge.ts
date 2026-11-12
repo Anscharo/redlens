@@ -1,6 +1,6 @@
 // React-free half of the Radar actor history panel: how per-doc history merges
 // into per-commit rows (which docs count as relevant is actorHistoryCategories.ts).
-import { movePaths, type HistoryEntry } from "@/lib/history";
+import { foldRestatedEntries, movePaths, type HistoryEntry } from "@/lib/history";
 import type { AtlasNode } from "@/types";
 
 export type Category = "definition" | "instance" | "param" | "primitive" | "reward" | "config";
@@ -20,6 +20,8 @@ export interface AffectedDoc {
    *  "moved from X to X". */
   movedFrom?: string;
   movedTo?: string;
+  /** For a `retitled` event: the title before and after. */
+  retitled?: [string, string];
   /** For a `renumbered` event: the doc number before and after. */
   renumbered?: [string, string];
   /** For a `retyped` event: the `[Type]` before and after. */
@@ -49,6 +51,7 @@ export interface MergedEntry {
 // same-commit events is processed first.
 function attachMoveDetail(affected: AffectedDoc, entry: HistoryEntry): void {
   const pair = entry.movedFrom && entry.movedTo ? ([entry.movedFrom, entry.movedTo] as [string, string]) : undefined;
+  if (entry.changeType === "retitled") affected.retitled = pair;
   if (entry.changeType === "renumbered") affected.renumbered = pair;
   if (entry.changeType === "retyped") affected.retyped = pair;
   if (entry.changeType !== "moved") return;
@@ -145,7 +148,9 @@ export function mergeByCommit(
   for (const [docId, entries] of perDoc) {
     const category = docCategory.get(docId);
     if (!category) continue;
-    for (const entry of entries) {
+    // Fold per doc first, as the reader's history does, so an entry another one
+    // restates never names the row.
+    for (const entry of foldRestatedEntries(entries)) {
       upsertAffected(commitGroup(byCommit, rowsByCommit, entry), { docId, category, node: docs[docId] }, entry);
     }
   }

@@ -199,6 +199,20 @@ describe("ActorHistory", () => {
     expect(screen.getAllByText("A.2")).toHaveLength(1);
   });
 
+  it("names a row for a retitle, not for the empty edit stored beside it, and shows the old title", async () => {
+    historyByDoc = new Map<string, HistoryEntry[]>([
+      ["def-1", [
+        { date: "2025-07-01", commitHash: "ttl0001", changeType: "modified" },
+        { date: "2025-07-01", commitHash: "ttl0001", changeType: "retitled", movedFrom: "Bootstrapping Phase", movedTo: "Delegate Onboarding Process" },
+      ]],
+    ]);
+    renderHistory();
+    fireEvent.click(await screen.findByRole("button", { name: /2025-07-01/ }));
+    expect(screen.getAllByText("Aa").length).toBeGreaterThan(0);
+    expect(screen.queryByText("~")).toBeNull();
+    expect(screen.getByText("was “Bootstrapping Phase”")).toBeInTheDocument();
+  });
+
   it("shows a severed-era month range instead of a blank heading when the date is empty (H3)", async () => {
     historyByDoc = new Map<string, HistoryEntry[]>([
       ["def-1", [{ date: "", commitHash: "severed:2024-09-02..2025-05-28", changeType: "removed", era: "severed" }]],

@@ -95,20 +95,20 @@ export async function loadBaseSnapshot(
   }
 }
 
+/** The document's `[Type]` differs. A side that carries no type is not a change. */
+export function typeChanged(before: SnapshotDoc, after: SnapshotDoc): boolean {
+  return !!before.type && !!after.type && before.type !== after.type;
+}
+
 /**
  * Compare two snapshots by document identity.
  *
  * `added` / `changed` split on uuid presence, not on any file status: a document
  * whose number changed is CHANGED (same uuid, new position), and a brand-new
  * uuid at an existing doc number is ADDED even though its file was "modified".
- * `title` and `doc_no` count as changes alongside content so a pure rename or
- * renumber still surfaces a redline.
+ * `title`, `doc_no` and `type` count as changes alongside content so a pure
+ * rename, renumber or type change still surfaces a redline.
  */
-/** The document's `[Type]` differs. A side that carries no type is not a change. */
-export function typeChanged(before: SnapshotDoc, after: SnapshotDoc): boolean {
-  return !!before.type && !!after.type && before.type !== after.type;
-}
-
 export function diffSnapshots(base: Snapshot, head: Snapshot): SnapshotDiff {
   const added: string[] = [];
   const changed: string[] = [];

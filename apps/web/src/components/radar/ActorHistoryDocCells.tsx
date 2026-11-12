@@ -27,6 +27,11 @@ export function TitleCell({ doc: d }: { doc: AffectedDoc }) {
           </span>
         )
       )}
+      {d.retitled && (
+        <span className="block truncate text-[9px]" style={{ color: "var(--tan-3)" }}>
+          was “{d.retitled[0]}”
+        </span>
+      )}
       {d.retyped && (
         <span className="block truncate text-[9px]" style={{ color: "var(--tan-3)" }}>
           <TypeDiff prev={d.retyped[0]} next={d.retyped[1]} />

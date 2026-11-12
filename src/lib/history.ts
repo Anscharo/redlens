@@ -158,9 +158,8 @@ function restatesRenumber(e: HistoryEntry, r: HistoryEntry | undefined): boolean
 
 /** Drop the entries a more specific same-commit entry says better: a file move
  *  that only restates a renumbering, and an edit with no diff beside a
- *  retitling (rows written before retitles were events record a title change
- *  as an edit of nothing). A move between files that is more than a
- *  renumbering, and any edit with a diff, stay. */
+ *  retitling, which records nothing the retitling does not. A move between
+ *  files that is more than a renumbering, and any edit with a diff, stay. */
 export function foldRestatedEntries(entries: HistoryEntry[]): HistoryEntry[] {
   const by = (type: HistoryEntry["changeType"]) => new Map(entries.filter((e) => e.changeType === type).map((e) => [e.commitHash, e]));
   const renumbers = by("renumbered");

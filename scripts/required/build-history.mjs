@@ -89,12 +89,11 @@ const getCommits = () => atlasCommits();
 // Main
 // ---------------------------------------------------------------------------
 
-// Retitlings, renumberings and type changes became events after most databases
-// were written, so the incremental cursor alone would never reach the commits
-// that made them. A database with a cursor but none of those rows walks the
-// whole log once, keeping only those events below the cursor: they are new keys,
-// so the upsert adds rows and rewrites none. Only commits that carry one fetch PR
-// metadata. Returns the cursor's index, or 0 for no backfill.
+// A database with a cursor but no row of BACKFILLED_CHANGE_TYPES holds none of
+// those events below its cursor, and the incremental walk never revisits those
+// commits. Such a run walks the whole log once, keeping only those events below
+// the cursor: they are new keys, so the upsert adds rows and rewrites none. Only
+// commits that carry one fetch PR metadata. Returns the cursor's index, or 0 for no backfill.
 async function backfillFrom(startIndex, commitCount) {
   if (await hasBackfilledRows(sql)) return 0;
   console.error(`  no retitle, renumbering or type-change rows yet: walking all ${commitCount} commits once to add them`);
