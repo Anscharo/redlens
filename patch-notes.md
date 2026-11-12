@@ -33,14 +33,17 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-11-10
+## 2026-11-12
 
-- Improved how the chat and MCP search pick the best matching document among similar ones
-- Opened the reader's side panel on History by default, with History as the first section
 - Marked an on-chain value with a grey clock instead of ✗ while the spell its Atlas pull request names, or the Atlas update recording a spell, is still coming
 - Showed who can change each differing rate limit, and whether the Operator can reach the Atlas value without a spell
 - Compared Keel's Solana rate limits with the Atlas, showed when each last changed, which spell changed it and who can change it, and flagged Atlas-named relayers that are suspended on chain
 - Tidied instance cards: each holder of a role on its own line, and a value stated in a sentence shown as just the value, with the sentence on hover
+
+## 2026-11-10
+
+- Improved how the chat and MCP search pick the best matching document among similar ones
+- Opened the reader's side panel on History by default, with History as the first section
 
 ## 2026-11-09
 
