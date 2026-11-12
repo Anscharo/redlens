@@ -1,4 +1,4 @@
-import { PLUMBING_VIEW, type PlumbingEdge, type PlumbingKind, type PlumbingNode } from "@/lib/pauPlumbing";
+import { PLUMBING_NODE_H, type PlumbingEdge, type PlumbingKind, type PlumbingNode } from "@/lib/pauPlumbing";
 
 /** The colour each kind of edge is drawn in. */
 export const PLUMBING_COLOR: Record<PlumbingKind, string> = { flow: "var(--tan-2)", rule: "var(--accent)", stop: "var(--error-text)" };
@@ -9,8 +9,8 @@ export const plumbingMarker = (kind: PlumbingKind) => `pau-plumbing-arrow-${kind
 export function PlumbingNodeBox({ node }: { node: PlumbingNode }) {
   const tx = node.x + 10;
   return (
-    <g data-node={node.id}>
-      <rect x={node.x} y={node.y} width={node.w} height={PLUMBING_VIEW.nodeH} rx={6} style={{ fill: "var(--surface)", stroke: "var(--border)" }} />
+    <g data-node={node.id} data-own={node.own || undefined}>
+      <rect x={node.x} y={node.y} width={node.w} height={PLUMBING_NODE_H} rx={6} style={{ fill: "var(--surface)", stroke: node.own ? "var(--accent)" : "var(--border)" }} />
       <text x={tx} y={node.y + 16} fontSize={9} letterSpacing="0.06em" style={{ fill: "var(--tan-3)", textTransform: "uppercase" }}>{node.nick}</text>
       <text x={tx} y={node.y + 33} fontSize={13} fontWeight={600} style={{ fill: "var(--tan)" }}>{node.name}</text>
       {node.lines.map((line, i) => (
