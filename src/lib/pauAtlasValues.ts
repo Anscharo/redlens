@@ -11,6 +11,9 @@ import { paramQualifier, parseStated, VALUE_PARAM_RE, type StatedValue } from ".
 import { instanceKeys, sharedAddresses, valueSide, type InstanceKey, type ValueSource } from "./pauInstanceKeys.ts";
 import { chainSnaps, instanceChain } from "./pauInstanceChain.ts";
 import { verdict } from "./pauValueVerdict.ts";
+import { isSvmSource, svmAbsence, svmKeys, svmMints } from "./pauSvm.ts";
+import type { OnchainStep } from "./pauPending.ts";
+import type { KeyRoutes } from "./pauKeyRoutes.ts";
 
 export type { ValueSource };
 
@@ -27,7 +30,9 @@ export type { ValueSource };
  */
 export type ValueStatus =
   | "match" | "mismatch" | "units-unknown" | "ambiguous" | "not-set" | "unread"
-  | "no-deployment" | "unknown-chain" | "no-key" | "not-stated" | "unparsed";
+  | "no-deployment" | "unknown-chain" | "no-key" | "not-stated" | "unparsed"
+  /** A side the deployment's program sets no limit on (the Solana ALM program limits only outflow), where the atlas states it unlimited too. */
+  | "no-limit";
 
 export interface ValueCheck {
   /** The document stating the value. */
@@ -54,6 +59,10 @@ export interface ValueCheck {
   limit: LiveRateLimit | null;
   /** When the worker read the contract. */
   readAt: string | null;
+  /** On a mismatch or a limit never set: what governance did about the atlas change, followed from its pull request's spell (pauPending.ts), set by `withOnchain`. */
+  onchain?: OnchainStep;
+  /** On a mismatch or a limit never set: who can change the limit, and whether the Operator can reach the stated value (pauKeyRoutes.ts), set by `withOnchain`. */
+  routes?: KeyRoutes;
 }
 
 type Base = Omit<ValueCheck, "status" | "key" | "chain" | "kind" | "contract" | "limit" | "readAt"> & { src: ValueSource };
@@ -69,22 +78,22 @@ function absence(src: ValueSource, snaps: StoredPauSnapshot[], key: string | nul
   if (own.length === 0) return "no-deployment";
   const limits = own.flatMap((s) => s.contracts.filter((c) => c.role === "rateLimits"));
   if (!key) return limits.length > 0 && limits.every((c) => c.historyComplete) ? "no-key" : "unread";
-  return limits.length > 0 && limits.every((c) => c.unsetKeys?.includes(key)) ? "not-set" : "unread";
+  return limits.length > 0 && limits.every((c) => c.unsetKeys?.includes(key.toLowerCase())) ? "not-set" : "unread";
 }
 
-/** Every deployment on the instance's chain that holds the key. */
+/** Every deployment on the instance's chain that holds the key, whatever case it is written in (a Solana key keeps the chain's). */
 const holdings = (snaps: StoredPauSnapshot[], key: string, src: ValueSource) =>
   chainSnaps(snaps, src).flatMap((s) =>
-    s.contracts.flatMap((c) => (c.rateLimits ?? []).filter((r) => r.key.toLowerCase() === key).map((limit) => ({ chain: s.chain, kind: s.kind, contract: c.address, limit, readAt: s.fetchedAt }))),
+    s.contracts.flatMap((c) => (c.rateLimits ?? []).filter((r) => r.key.toLowerCase() === key.toLowerCase()).map((limit) => ({ chain: s.chain, kind: s.kind, contract: c.address, limit, readAt: s.fetchedAt }))),
   );
 
-/** One check per deployment holding the key, or one saying why none can be made. */
-function check({ src, ...base }: Base, stated: StatedValue | null, key: string | null, snaps: StoredPauSnapshot[]): ValueCheck[] {
+/** One check per deployment holding the key, or one saying why none can be made (`absent`, where the caller knows better than `absence`). */
+function check({ src, ...base }: Base, stated: StatedValue | null, key: string | null, snaps: StoredPauSnapshot[], absent?: ValueStatus | null): ValueCheck[] {
   const none = { ...base, key, chain: instanceChain(src), kind: null, contract: null, limit: null, readAt: null };
   if (!stated) return [{ ...none, status: "unparsed" }];
   if (stated.kind === "none") return [{ ...none, status: "not-stated" }];
   const held = key ? holdings(snaps, key, src) : [];
-  if (held.length === 0) return [{ ...none, status: absence(src, snaps, key) }];
+  if (held.length === 0) return [{ ...none, status: absent ?? absence(src, snaps, key) }];
   return held.map((h) => {
     const { data } = h.limit;
     return { ...base, key, ...h, status: data ? verdict(stated, base.field, { ...h.limit, data }) : ("unread" as const) };
@@ -130,8 +139,9 @@ export function valueParam(name: string): { side: string; field: ValueCheck["fie
   return { side: m[1], field, qualifier, label: `${m[1].trim() || "Rate limit"} ${field}${asset ? ` (${asset})` : ""}` };
 }
 
-function sourceChecks(src: ValueSource, snaps: StoredPauSnapshot[], shared: Set<string>): ValueCheck[] {
-  const keys = instanceKeys(src, snaps, shared);
+function sourceChecks(src: ValueSource, snaps: StoredPauSnapshot[], shared: Set<string>, mints: Map<string, string>): ValueCheck[] {
+  const svm = isSvmSource(src);
+  const keys = svm ? svmKeys(src, snaps, mints) : instanceKeys(src, snaps, shared);
   const values = Object.entries(src.params).flatMap(([name, [text, docId]]) => {
     const v = valueParam(name);
     return v && docId ? [{ v, text, docId }] : [];
@@ -141,7 +151,7 @@ function sourceChecks(src: ValueSource, snaps: StoredPauSnapshot[], shared: Set<
     const base = { docId, instance: src.name, instanceDocId: src.docId ?? null, label, field, stated: text, src, ...(qualifier ? { qualifier } : {}) };
     const mine = ownKeys(keys, valueSide(side), qualifier);
     const stated = parseStated(text);
-    if (mine.length === 0) return check(base, stated, null, snaps);
+    if (mine.length === 0) return check(base, stated, null, snaps, svm ? svmAbsence(valueSide(side), stated?.kind === "unlimited", src, snaps) : null);
     return unambiguous(mine.flatMap((k) => check(base, stated, k.key, snaps).map((c) => (k.via ? { ...c, via: k.via } : c))), mine, sides);
   });
 }
@@ -149,5 +159,6 @@ function sourceChecks(src: ValueSource, snaps: StoredPauSnapshot[], shared: Set<
 /** Every stated maxAmount and slope of the prime's instances, each against the chain. */
 export function checkAtlasValues(sources: ValueSource[], snaps: StoredPauSnapshot[]): ValueCheck[] {
   const shared = sharedAddresses(sources);
-  return sources.flatMap((src) => sourceChecks(src, snaps, shared));
+  const mints = svmMints(sources);
+  return sources.flatMap((src) => sourceChecks(src, snaps, shared, mints));
 }

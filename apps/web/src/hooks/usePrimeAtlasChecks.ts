@@ -6,6 +6,7 @@ import { loadGraph } from "../lib/graph";
 import { loadAtlas } from "../lib/docs";
 import { loadPau, snapshotsForPrime } from "../lib/pau";
 import { useLoaded } from "./useAtlasData";
+import { useOnchainSteps } from "./useOnchainSteps";
 import { checkAtlasAddresses } from "@/lib/pauAddressChecks";
 import { checkAgentInstances } from "@/lib/agentChecks";
 import { checkGuardParams } from "@/lib/paramGuardChecks";
@@ -15,14 +16,15 @@ import { indexParamChecks } from "../lib/paramChecks";
 import { heldKeyId, type CardMarks } from "../lib/rowMark";
 import type { LiveRateLimit } from "@/lib/pau";
 
-/** Every value the atlas states for the prime's keys, in its instances and in its limit documents, beside the chain (pauAtlasValues.ts); empty until the graph loads. */
+/** Every value the atlas states for the prime's keys, in its instances and in its limit documents, beside the chain (pauAtlasValues.ts), a mismatch still waiting on a spell marked pending; empty until the graph loads. */
 export function usePrimeAtlasChecks(primeId: string | undefined, snaps: StoredPauSnapshot[]): ValueCheck[] {
   const graph = useLoaded(loadGraph, { soft: true });
   const atlas = useLoaded(loadAtlas, { soft: true });
-  return useMemo(() => {
+  const checks = useMemo(() => {
     const sources = primeId ? graphPrimeSources(primeId, graph, atlas ?? undefined) : null;
     return sources ? checkAtlasValues(sources, snaps) : [];
   }, [graph, atlas, primeId, snaps]);
+  return useOnchainSteps(checks);
 }
 
 /** Every key the snapshots hold, by chain and key. */
@@ -41,11 +43,13 @@ export function usePrimeCardMarks(primeId: string | undefined): CardMarks | null
   const graph = useLoaded(loadGraph, { soft: true });
   const atlas = useLoaded(loadAtlas, { soft: true });
   const chain = useLoaded(loadChainState, { soft: true });
-  return useMemo(() => {
+  const snaps = useMemo(() => (res && primeId ? snapshotsForPrime(res, primeId) : []), [res, primeId]);
+  const values = usePrimeAtlasChecks(primeId, snaps);
+  const rest = useMemo(() => {
     const sources = res && primeId ? graphPrimeSources(primeId, graph, atlas ?? undefined) : null;
     // A failed /api/pau resolves to no deployments at all: say nothing rather than mark every row unindexed.
     if (!res || res.deployments.length === 0 || !primeId || !sources) return null;
-    const snaps = snapshotsForPrime(res, primeId);
-    return { values: indexParamChecks(checkAtlasValues(sources, snaps)), addresses: checkAtlasAddresses(sources, snaps), plain: new Map([...checkAgentInstances(sources, snaps, chain?.values ?? null), ...checkGuardParams(sources, snaps), ...checkVaultRoles(sources, snaps)]), held: heldKeys(snaps) };
-  }, [res, graph, atlas, chain, primeId]);
+    return { addresses: checkAtlasAddresses(sources, snaps), plain: new Map([...checkAgentInstances(sources, snaps, chain?.values ?? null), ...checkGuardParams(sources, snaps), ...checkVaultRoles(sources, snaps)]), held: heldKeys(snaps) };
+  }, [res, graph, atlas, chain, primeId, snaps]);
+  return useMemo(() => (rest ? { ...rest, values: indexParamChecks(values) } : null), [rest, values]);
 }

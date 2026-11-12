@@ -6,9 +6,14 @@
 import type { StoredPauSnapshot } from "./pau.ts";
 import { AUDIT_GROUPS, AUDIT_REASONS, checkReason, type AuditGroup, type AuditReason } from "./pauAudit.ts";
 import type { ValueCheck } from "./pauAtlasValues.ts";
+import type { HistoryEntry } from "./history.ts";
+import type { OnchainStep } from "./pauPending.ts";
+import type { KeyRoutes } from "./pauKeyRoutes.ts";
+import { valueChange } from "./pauValueDate.ts";
 import { checkChainValue } from "./pauCheckValue.ts";
 import type { PauIgnored } from "./pauRegistry.ts";
 import { controllerWiring } from "./pauWiring.ts";
+import { roleRows } from "./pauAuditRoles.ts";
 
 export interface AuditRow {
   /** One value, controller or claim; several rows can share it. */
@@ -33,6 +38,10 @@ export interface AuditRow {
   contract: string | null;
   chainSetAt: string | null;
   atlasChangedAt: string | null;
+  /** What became of the spell the atlas change's pull request names (pauPending.ts, the check's `onchain`); null when it cannot be followed. */
+  step: OnchainStep | null;
+  /** Who can change the limit, and whether the Operator can reach the stated value; null for a row that is not a rate-limit value. */
+  routes: KeyRoutes | null;
 }
 
 export interface PrimeChecks {
@@ -47,18 +56,25 @@ export const groupDigits = (s: string): string => s.replace(/^\d+/, (n) => BigIn
 /** What the chain holds for a checked value, in the atlas's own style. */
 const onchainText = (c: ValueCheck): string => (c.status === "not-set" ? "never set" : c.limit ? groupDigits(checkChainValue(c)) : "");
 
-/** The atlas documents whose last change places a disagreement: those stating a mismatch. */
-export const docsToDate = (primes: PrimeChecks[]): string[] => [...new Set(primes.flatMap((p) => p.checks.filter((c) => c.status === "mismatch").map((c) => c.docId)))];
+const DATED = new Set<ValueCheck["status"]>(["mismatch", "not-set"]);
 
-function valueRows({ primeId, prime, checks }: PrimeChecks, atlasChanged: Map<string, string>): AuditRow[] {
+/** The atlas documents whose history places an item: those stating a mismatch or a limit never set. */
+export const docsToDate = (primes: PrimeChecks[]): string[] => [...new Set(primes.flatMap((p) => p.checks.filter((c) => DATED.has(c.status)).map((c) => c.docId)))];
+
+/** A row's values, each disagreement carrying the step and routes `withOnchain` attached (`onchain`, `routes`), the same the reader shows. */
+function valueRows({ primeId, prime, checks }: PrimeChecks, input: AuditInput): AuditRow[] {
   return checks.flatMap((c) => {
-    const dates = { chain: c.limit?.setAt?.time.slice(0, 10) ?? null, atlas: atlasChanged.get(c.docId) ?? null };
-    const reason = checkReason(c, checks, dates);
+    const entries = DATED.has(c.status) ? input.history.get(c.docId) : undefined;
+    const at = { chain: c.limit?.setAt?.time || null, atlas: (entries && valueChange(entries, c.stated)?.entry.date) || null, chainBefore: c.limit?.setAt?.before };
+    const dates = { chain: at.chain?.slice(0, 10) ?? (at.chainBefore ? `before ${at.chainBefore.slice(0, 10)}` : null), atlas: at.atlas?.slice(0, 10) ?? null };
+    const step = c.onchain ?? null;
+    const routes = c.routes;
+    const reason = checkReason(c, checks, at, step, routes);
     if (!reason) return [];
     return [{
       item: `value:${c.docId}:${c.field}`, group: AUDIT_REASONS[reason].group, reason, note: AUDIT_REASONS[reason].text, primeId, prime,
       chain: c.chain ?? "", kind: c.kind, subject: c.instance, label: c.label, stated: c.stated, onchain: onchainText(c),
-      docId: c.docId, key: c.key, contract: c.contract, chainSetAt: dates.chain, atlasChangedAt: dates.atlas,
+      docId: c.docId, key: c.key, contract: c.contract, chainSetAt: dates.chain, atlasChangedAt: dates.atlas, step, routes: routes ?? null,
     }];
   });
 }
@@ -73,7 +89,7 @@ function wiringRows(snaps: StoredPauSnapshot[]): AuditRow[] {
     return [{
       item: `wiring:${s.deployment}`, group: "spell", reason, note: AUDIT_REASONS[reason].text, primeId: s.prime, prime: s.primeName,
       chain: s.chain, kind: s.kind, subject: "Controller", label: "CONTROLLER role", stated: "on its ALM proxy and rate limits", onchain: holds ? `on its ${holds} only` : "on neither",
-      docId: controller.atlasDocs?.[0] ?? null, key: null, contract: controller.address, chainSetAt: null, atlasChangedAt: null,
+      docId: controller.atlasDocs?.[0] ?? null, key: null, contract: controller.address, chainSetAt: null, atlasChangedAt: null, step: null, routes: null,
     }];
   });
 }
@@ -84,7 +100,7 @@ function claimRows(claims: PauIgnored[], primeNames: Map<string, string>): Audit
     (g.docs?.length ? g.docs : [null]).map((docId) => ({
       item: `claim:${g.prime ?? "shared"}:${g.chain}:${g.role}:${g.address}`, group: "registry" as const, reason: "rejected-claim" as const, note: g.reason,
       primeId: g.prime, prime: g.prime ? (primeNames.get(g.prime) ?? "") : "Shared", chain: g.chain, kind: g.kind ?? null, subject: "Atlas role claim",
-      label: g.role, stated: g.address, onchain: "", docId, key: null, contract: g.address, chainSetAt: null, atlasChangedAt: null,
+      label: g.role, stated: g.address, onchain: "", docId, key: null, contract: g.address, chainSetAt: null, atlasChangedAt: null, step: null, routes: null,
     })),
   );
 }
@@ -98,14 +114,15 @@ export interface AuditInput {
   primes: PrimeChecks[];
   snaps: StoredPauSnapshot[];
   claims: PauIgnored[];
-  /** Atlas document id → its last content change, YYYY-MM-DD. */
-  atlasChanged: Map<string, string>;
+  /** Atlas document id → its history, for the documents `docsToDate` names. */
+  history: ReadonlyMap<string, readonly HistoryEntry[]>;
 }
 
 /** Every audit row, sorted by group, then prime, chain, subject and value. */
-export function buildPauAudit({ primes, snaps, claims, atlasChanged }: AuditInput): AuditRow[] {
+export function buildPauAudit(input: AuditInput): AuditRow[] {
+  const { primes, snaps, claims } = input;
   const primeNames = new Map(primes.map((p) => [p.primeId, p.prime]));
-  return [...primes.flatMap((p) => valueRows(p, atlasChanged)), ...wiringRows(snaps), ...claimRows(claims, primeNames)].sort(cmp);
+  return [...primes.flatMap((p) => valueRows(p, input)), ...wiringRows(snaps), ...claimRows(claims, primeNames), ...roleRows(snaps)].sort(cmp);
 }
 
 /** How many items (values, controllers, claims) the rows hold. */

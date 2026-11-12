@@ -60,13 +60,27 @@ function changeMaker() {
 
 type ExecutiveOf = (spell: string) => ExecutiveRef;
 
+const SVM_ROLE: Record<string, string> = { ReserveUpdate: "reserve", IntegrationUpdate: "integration", PermissionUpdate: "permission" };
+
+/**
+ * An event's owner: its contract's, else, for a Solana account the registry
+ * does not list yet (a Reserve, Integration or Permission a spell just made),
+ * the owner of the controller its state names, under the account's own role.
+ */
+function ownerOf(e: EventRow, owners: Map<string, Owner>): Owner | undefined {
+  const listed = owners.get(`${e.chain}:${e.contract}`);
+  const state = (e.args.new ?? e.args.old) as { controller?: string } | null | undefined;
+  const controller = listed || !state?.controller ? undefined : owners.get(`${e.chain}:${state.controller}`);
+  return listed ?? (controller && { ...controller, role: SVM_ROLE[e.event] ?? controller.role });
+}
+
 export function buildEntries(rows: EventRow[], owners: Map<string, Owner>, origins: Map<string, PauOrigin>, executiveOf: ExecutiveOf): PauHistoryEntry[] {
   const byTx = new Map<string, PauHistoryEntry>();
   const changeOf = changeMaker();
   const blank = (e: EventRow, key: string): PauHistoryEntry => ({ chain: e.chain, tx: e.tx, block: e.block, time: e.time, primes: [], origin: origins.get(key) ?? null, executive: null, changes: [] });
   for (const e of rows.filter((x) => !ORIGIN_EVENTS.has(x.event))) {
     const key = `${e.chain}:${e.tx}`;
-    const owner = owners.get(`${e.chain}:${e.contract}`);
+    const owner = ownerOf(e, owners);
     const entry = byTx.get(key) ?? blank(e, key);
     for (const p of owner?.primes ?? []) if (!entry.primes.includes(p)) entry.primes.push(p);
     entry.changes.push(changeOf(e, owner));

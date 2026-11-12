@@ -23,7 +23,7 @@ function rateLimitValues(r: LiveRateLimit) {
     ...scale,
     /** False when the live read failed and the values are the last ones its history set. */
     read_live: r.data !== null,
-    switched_off: max === "0",
+    switched_off: max === "0" || r.svm?.status === "Suspended",
     ...(r.derived ? { derivation: r.derived } : {}),
     times_set: r.changes,
   };
@@ -50,7 +50,7 @@ function holderFacts(base: Base, c: ContractState): OnchainFact[] {
     ...base, ...named, kind: "role", name: h.name ?? null,
     values: { role: h.name ?? h.role, role_hash: h.role, account: h.account, holds: h.holds },
     summary: { account: h.account, holds: h.holds },
-    set_at: setAt(base.chain, h.since), match: { hashes: [], addresses: [base.contract, h.account], docs: [] },
+    set_at: h.since ? setAt(base.chain, h.since) : null, match: { hashes: [], addresses: [base.contract, h.account], docs: [] },
   }));
   const members = Object.entries(c.agent ?? {}).flatMap(([as, list]) => list.map((m) => ({
     ...base, ...named, kind: "member", name: as,

@@ -22,7 +22,7 @@ vi.mock("../history/PreviewHistory", () => ({
 }));
 // The vote record: one cast Executive Vote links doc "node-1".
 let voteRecord: { index: unknown; overlay: null } = { index: null, overlay: null };
-vi.mock("../../lib/votes", () => ({ loadVoteRecord: () => Promise.resolve(voteRecord) }));
+vi.mock("../../lib/votes", () => ({ loadVoteRecord: () => Promise.resolve(voteRecord), loadVoteIndex: () => Promise.resolve(voteRecord.index) }));
 vi.mock("@/lib/balances", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   loadBalancesCached: () => new Promise(() => {}),

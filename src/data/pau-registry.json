@@ -289,6 +289,17 @@
               "doc": "5e1f82c7-bcd6-46f8-aec0-3e767e55a93c"
             }
           ]
+        },
+        {
+          "role": "lzGovSender",
+          "address": "0x27fc1dd771817b53be48dc28789533bea53c9cca",
+          "label": "LayerZero Governance Sender",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "GovernanceOAppSender (Sourcify exact match): sendTx emits GovernanceCallSent(guid) for each governance call it sends over LayerZero. Its CanCallTargetSet log lets the Keel SubProxy call the Solana ALM program on eid 30168, the whitelisting the atlas requires (b319a7e6-d484-44e7-b622-6df9754c5973)."
+            }
+          ]
         }
       ]
     },
@@ -526,6 +537,22 @@
             {
               "source": "onchain",
               "note": "holds DEFAULT_ADMIN_ROLE on Spark's X Layer PAU contracts; actionsSetCount() and GUARDIAN_ROLE() answer as a spark-gov-relay Executor"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "chain": "solana",
+      "members": [
+        {
+          "role": "lzGovernance",
+          "address": "SKYGRikJcGSa3jC5HDyzDrVsmkCk3e5SqAurycny8PW",
+          "label": "Sky LayerZero Governance",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "The Solana peer of the LayerZero Governance Sender (ElodinLTD/crosschain-gov-solana-spell-payloads src/constants.ts SKY_LZ_GOVERNANCE_PROGRAM_ID). Its LzReceive instruction carries each message's guid and runs the call, signing as the sending SubProxy's CPI authority."
             }
           ]
         }
@@ -1123,6 +1150,267 @@
             {
               "source": "onchain",
               "note": "subProxy() is 0x355cd90ecb1b409fdf8b64c4473c3b858da2c310, the DEFAULT_ADMIN_ROLE holder of Keel's RateLimits"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "prime": "bc6aed17-2969-4d04-9af6-c7bf3e4497e6",
+      "primeName": "Keel",
+      "chain": "solana",
+      "kind": "svm",
+      "members": [
+        {
+          "role": "program",
+          "address": "ALM1JSnEhc5PkNecbSZotgprBuJujL5objTbwGtpTgTd",
+          "label": "svm-alm-controller",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "286d26d1-4737-4c3a-9344-4a6d0cdefa93"
+            }
+          ]
+        },
+        {
+          "role": "rateLimits",
+          "address": "EeobZr57FSmNvw8Hs719iULJNqv3XLrTB5uPezvC2ND3",
+          "label": "Controller",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "725952f6-ed88-4869-8105-c43de12bb9a5"
+            }
+          ]
+        },
+        {
+          "role": "permission",
+          "address": "2MeJkkKPfHs6qJgTKZJGnrpq8jBRsvty6zB5iA8SkoVU",
+          "label": "Primary Relayer",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "b9643943-7dac-4ba6-bd47-56d907ed802e"
+            }
+          ]
+        },
+        {
+          "role": "permission",
+          "address": "6TdcW3qX25JcN9nMgSkFka5wXTXBFhb5J2tVRdG3pw3w",
+          "label": "Secondary Relayer",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "03cabe40-5ddf-47ef-9cf2-d2f33e8c39a1"
+            }
+          ]
+        },
+        {
+          "role": "permission",
+          "address": "2YLLgUuWHwf8hFnWXWUL9V5Vk68yBswVtJED1h4vnPjX",
+          "label": "Core Operator Relayer",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "310849fb-a67d-4e9a-aadb-8c39ff2a8b8e"
+            }
+          ]
+        },
+        {
+          "role": "permission",
+          "address": "B24DtbKAV25fcZ6e3buqfB8CSuuiFLRsHHojBGigntff",
+          "label": "Freezer",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "f9d1c2bc-5903-4581-9b0d-9c68f7c64ac8"
+            }
+          ]
+        },
+        {
+          "role": "permission",
+          "address": "Gwn4JH8UZYxtx1w5WAwapJSFw97Pwo6gzRF3hSvCmC81",
+          "label": "Default Admin",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "The controller's Permission for FDFsoboECfazAq1eLvwBLZXhoxjPvTy4wCzPdbqnk7Zk, the Keel SubProxy's CPI authority on Solana (ElodinLTD/crosschain-gov-solana-spell-payloads src/constants.ts KEEL_SUB_PROXY_CPI_AUTHORITY); it may manage permissions, reserves and integrations."
+            }
+          ]
+        },
+        {
+          "role": "permission",
+          "address": "EREEUH114dTibhZcgdQfL8gRgfDA8psNkqrkqdrd7btk",
+          "label": "Deployer",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "The controller's Permission for PcJcgdWmFZznhhfN28i6T8GHcwA6jmFGuUeNNGvcSY2, which set the controller up; the Freezer suspended it on 2025-11-24."
+            }
+          ]
+        },
+        {
+          "role": "reserve",
+          "address": "FfpyJhTfxKfDJSode3YNZCxEkPRZ2shBv9gU5PTWCCEk",
+          "label": "USDS Reserve",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "The controller's Reserve for mint USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA, read from the program's accounts."
+            }
+          ]
+        },
+        {
+          "role": "reserve",
+          "address": "ELdtQWuDKswV5ddhWqHn1EgRDdv5E6mtuhEVhqksYEpi",
+          "label": "USDC Reserve",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "The controller's Reserve for mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v, read from the program's accounts."
+            }
+          ]
+        },
+        {
+          "role": "reserve",
+          "address": "3g74M93WWad6KuZoiwkAxPQsVZBuHhzpirBs73WPJ27W",
+          "label": "USDT Reserve",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "The controller's Reserve for mint Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB, read from the program's accounts."
+            }
+          ]
+        },
+        {
+          "role": "integration",
+          "address": "H5Vix4RGchYq1cemoe61y7J4j4v3XgWPGLBeqvPEgvzr",
+          "label": "Kamino Main USDS",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "28537d8e-fe00-46db-b2ce-726fd718bd86"
+            }
+          ]
+        },
+        {
+          "role": "integration",
+          "address": "GZ6vUcBZk4QiaBUhhn1TpX6S7FiXK71Pogke1RnBc3zA",
+          "label": "Kamino Main USDC",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "9f0cdd10-d1fe-4da5-9b64-6757195ebf8b"
+            }
+          ]
+        },
+        {
+          "role": "integration",
+          "address": "ArpjQUCqHvtDQZFR2tFbPPEKYiQHuaJkcFQBdW5NQC4U",
+          "label": "Kamino Main USDT",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "77b012a2-0e1f-4674-9984-86ac5eb2b53c"
+            }
+          ]
+        },
+        {
+          "role": "integration",
+          "address": "DFrV1Nyfvoucz3nofVRGFmhWAxV1qz1xQxz5rQi4MNot",
+          "label": "Drift Main USDS",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "19468eb6-4192-4db4-9289-b3110b296b29"
+            }
+          ]
+        },
+        {
+          "role": "integration",
+          "address": "ET3k7uBeXLmeVQW5Tm8xBnLte9FgUSRebgneT57wjuqL",
+          "label": "Drift Main USDC",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "69610d1d-df89-4169-966e-808d96b35044"
+            }
+          ]
+        },
+        {
+          "role": "integration",
+          "address": "Gb8TLtzWtUVVm5VaEXeZS7hdeXMc675PBvWimeep6aU1",
+          "label": "Drift Main USDT",
+          "provenance": [
+            {
+              "source": "atlas",
+              "doc": "5eb625d1-f3ea-4b5a-99ab-0fd668aeb19f"
+            }
+          ]
+        },
+        {
+          "role": "integration",
+          "address": "3vAnLvHHERj4xdnrGhMcBpdL7p4RtyisgggHq78MWGSw",
+          "label": "USDS->USDC AtomicSwap",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "An Integration account of the controller, read from the program's accounts; its description names it."
+            }
+          ]
+        },
+        {
+          "role": "integration",
+          "address": "6JEuqPoGUedeTwC74UvYh3qosnYwxpEM6V2dyNpbdEUU",
+          "label": "USDC->USDS AtomicSwap",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "An Integration account of the controller, read from the program's accounts; its description names it."
+            }
+          ]
+        },
+        {
+          "role": "integration",
+          "address": "Efy1EWHmJzckFqpAbDzxnsMXwBu5Jf13BMXXf2fMUUcs",
+          "label": "USDC->USDT AtomicSwap",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "An Integration account of the controller, read from the program's accounts; its description names it."
+            }
+          ]
+        },
+        {
+          "role": "integration",
+          "address": "EGbTPmtHB4MJ99pjbrZhquqhMGGixEev9TKQbsX4ioyV",
+          "label": "USDT->USDC AtomicSwap",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "An Integration account of the controller, read from the program's accounts; its description names it."
+            }
+          ]
+        },
+        {
+          "role": "integration",
+          "address": "93bmMnKLgBXLMMfqVk53DzMAR4JcE3m5WX5hdTrUopuM",
+          "label": "USDS LzBridge",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "An Integration account of the controller, read from the program's accounts; its description names it."
+            }
+          ]
+        },
+        {
+          "role": "integration",
+          "address": "zYyBzzLkH97TdBH7xNcM2TJEyvYejCnPCdCh2LYC3q8",
+          "label": "USDC CctpBridge",
+          "provenance": [
+            {
+              "source": "onchain",
+              "note": "An Integration account of the controller, read from the program's accounts; its description names it."
             }
           ]
         }

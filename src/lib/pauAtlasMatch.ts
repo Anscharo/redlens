@@ -1,7 +1,9 @@
 // How the atlas stands against each on-chain rate-limit key, for the Radar PAUs
 // table's Atlas column: "match" when every value the atlas states for the key,
 // on that RateLimits contract, is a certain match (pauAtlasValues.ts);
-// "mismatch" when any is a certain difference; "unsure" when a document states
+// "mismatch" when any is a certain difference, or "pending" when every such
+// difference is an atlas change the chain is still expected to catch up on
+// (pauPending.ts); "unsure" when a document states
 // a value for it but none differs for certain and not all certainly agree
 // (an ambiguous key, unconfirmed units, an unread contract). Each verdict
 // carries the document to read it in. A key no document states a value for has
@@ -9,13 +11,14 @@
 // (`elsewhereId`) naming them.
 import type { ValueCheck } from "./pauAtlasValues.ts";
 import { refsOnChain } from "./pauKeyChains.ts";
+import { allPending } from "./pauPending.ts";
 import type { AtlasKeyRef } from "./pauView.ts";
 
 /** The `contract|key` id the verdicts use, both lowercased. */
 export const matchId = (contract: string, key: string) => `${contract.toLowerCase()}|${key.toLowerCase()}`;
 
 export interface AtlasVerdict {
-  mark: "match" | "mismatch" | "unsure" | "elsewhere";
+  mark: "match" | "mismatch" | "pending" | "unsure" | "elsewhere";
   /** The first document stating a value for the key, whose Onchain tab shows the comparison. */
   docId: string;
   /** For "elsewhere": the deployments the key's value is stated for, as "<chain> <kind>". */
@@ -35,7 +38,7 @@ export function atlasVerdicts(checks: ValueCheck[]): Map<string, AtlasVerdict> {
   }
   const out = new Map<string, AtlasVerdict>(
     [...byKey].map(([id, cs]) => {
-      const mark = cs.some((c) => c.status === "mismatch") ? "mismatch" : cs.every((c) => c.status === "match") ? "match" : "unsure";
+      const mark = allPending(cs) ? "pending" : cs.some((c) => c.status === "mismatch") ? "mismatch" : cs.every((c) => c.status === "match") ? "match" : "unsure";
       return [id, { mark, docId: cs[0].docId }] as const;
     }),
   );

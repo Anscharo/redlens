@@ -10,8 +10,8 @@
 
 import chainRegistry from "../data/chain-registry.json";
 
-/** Monolithic = MainnetController / ForeignController; diamond = Controller + Facets. */
-export type PauKind = "monolithic" | "diamond";
+/** Monolithic = MainnetController / ForeignController; diamond = Controller + Facets; svm = the Solana ALM program (keel-fi/svm-alm-controller), whose limits live on its Reserve and Integration accounts. */
+export type PauKind = "monolithic" | "diamond" | "svm";
 
 export const PAU_ROLES = [
   "controller",
@@ -27,6 +27,14 @@ export const PAU_ROLES = [
   "relayer",
   "starGuard",
   "executor",
+  // LayerZero governance: the Ethereum sender a spell's SubProxy calls, and the Solana program that runs each message it delivers.
+  "lzGovSender",
+  "lzGovernance",
+  // An svm deployment: the program, its Reserve and Integration accounts (each holds one rate limit), and its Permission accounts (each one authority's role).
+  "program",
+  "reserve",
+  "integration",
+  "permission",
 ] as const;
 export type PauRole = (typeof PAU_ROLES)[number];
 
@@ -42,7 +50,7 @@ export interface PauProvenance {
 
 export interface PauMember {
   role: PauRole;
-  /** Lowercase 0x address. */
+  /** Lowercase 0x address; base58, as written, on a chain without EVM addresses (Solana). */
   address: string;
   /** Free-text label, e.g. the facet name; `freezable` on an ALM proxy that is an ALMProxyFreezable (its FREEZER can remove a controller). */
   label?: string;
@@ -85,16 +93,27 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // A chain name the registry does not know has no RPC and never matches an
 // atlas observation, so it would fail every check and re-propose every claim.
 const KNOWN_CHAINS = new Set<string>(chainRegistry.chains.map((c) => c.chain));
-const KINDS = new Set<string>(["monolithic", "diamond"]);
+const KINDS = new Set<string>(["monolithic", "diamond", "svm"]);
 const chainError = (where: string, chain: string) => (KNOWN_CHAINS.has(chain) ? [] : [`${where}: unknown chain "${chain}"`]);
 const ADDR_RE = /^0x[0-9a-f]{40}$/;
+const BASE58_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+/** Whether a text is written as a Solana address is: base58, 32 to 44 characters. */
+export const isBase58Address = (a: string): boolean => BASE58_RE.test(a);
+/** Chains read over Solana's JSON-RPC (the registry gives them a `solanaRpcUrl`): base58 addresses, case-sensitive. */
+const SVM_CHAINS = new Set<string>(chainRegistry.chains.filter((c) => "solanaRpcUrl" in c).map((c) => c.chain));
+
+/** Whether a chain is read over Solana's JSON-RPC rather than an EVM's. */
+export const isSvmChain = (chain: string): boolean => SVM_CHAINS.has(chain);
+
+/** Whether an address is written as the chain writes it: lowercase 0x hex on an EVM chain, base58 on Solana. */
+const addressOk = (chain: string, a: string) => (isSvmChain(chain) ? BASE58_RE.test(a) : ADDR_RE.test(a));
 const SOURCES = new Set<PauSource>(["atlas", "onchain", "llm", "manual"]);
 const ROLES = new Set<string>(PAU_ROLES);
 
-function memberErrors(m: PauMember, where: string): string[] {
+function memberErrors(m: PauMember, where: string, chain: string): string[] {
   const errs: string[] = [];
   if (!ROLES.has(m.role)) errs.push(`${where}: unknown role "${m.role}"`);
-  if (!ADDR_RE.test(m.address)) errs.push(`${where}: address must be lowercase 0x hex, got "${m.address}"`);
+  if (!addressOk(chain, m.address)) errs.push(`${where}: address must be ${isSvmChain(chain) ? "base58" : "lowercase 0x hex"}, got "${m.address}"`);
   if (!m.provenance?.length) errs.push(`${where}: no provenance`);
   for (const p of m.provenance ?? []) {
     if (!SOURCES.has(p.source)) errs.push(`${where}: unknown provenance source "${p.source}"`);
@@ -108,10 +127,11 @@ function deploymentErrors(d: PauDeployment, i: number): string[] {
   const errs: string[] = [];
   if (!UUID_RE.test(d.prime)) errs.push(`${where}: prime must be an entity UUID`);
   if (!KINDS.has(d.kind)) errs.push(`${where}: unknown kind "${d.kind}"`);
+  if ((d.kind === "svm") !== isSvmChain(d.chain)) errs.push(`${where}: kind "svm" is for a Solana chain, and only it`);
   errs.push(...chainError(where, d.chain));
   const seen = new Set<string>();
   d.members.forEach((m, j) => {
-    errs.push(...memberErrors(m, `${where}.members[${j}]`));
+    errs.push(...memberErrors(m, `${where}.members[${j}]`, d.chain));
     const key = `${m.role}:${m.address}`;
     if (seen.has(key)) errs.push(`${where}: duplicate member ${key}`);
     seen.add(key);
@@ -125,7 +145,7 @@ function ignoredErrors(g: PauIgnored, where: string): string[] {
   const errs = chainError(where, g.chain);
   if (g.prime !== null && !UUID_RE.test(g.prime)) errs.push(`${where}: prime must be an entity UUID or null`);
   if (g.kind !== undefined && !KINDS.has(g.kind)) errs.push(`${where}: unknown kind "${g.kind}"`);
-  if (!ADDR_RE.test(g.address)) errs.push(`${where}: address must be lowercase 0x hex`);
+  if (!addressOk(g.chain, g.address)) errs.push(`${where}: address must be ${isSvmChain(g.chain) ? "base58" : "lowercase 0x hex"}`);
   if (!ROLES.has(g.role)) errs.push(`${where}: unknown role "${g.role}"`);
   if (!g.reason?.trim()) errs.push(`${where}: needs a reason`);
   if (g.docs?.some((d) => !UUID_RE.test(d))) errs.push(`${where}: docs must be document UUIDs`);
@@ -144,7 +164,7 @@ export function validatePauRegistry(reg: PauRegistry): string[] {
   });
   reg.shared.forEach((s, i) => {
     errs.push(...chainError(`shared[${i}]`, s.chain));
-    s.members.forEach((m, j) => errs.push(...memberErrors(m, `shared[${i}].members[${j}]`)));
+    s.members.forEach((m, j) => errs.push(...memberErrors(m, `shared[${i}].members[${j}]`, s.chain)));
   });
   reg.ignored.forEach((g, i) => errs.push(...ignoredErrors(g, `ignored[${i}]`)));
   return errs;

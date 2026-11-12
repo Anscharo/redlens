@@ -3,6 +3,7 @@ import { AtlasLink } from "../AtlasLink";
 import { prepareWithSegments, measureNaturalWidth } from "@chenglou/pretext";
 import type { RadarInstance } from "../../lib/actorIndex";
 import { ParamLine } from "./ParamLine";
+import { ParamValueLine } from "./ParamValueLine";
 import { ParamAddressKeys, type PauPrime } from "./ParamAddressKeys";
 import { listedAddress } from "../../lib/pau";
 import { atlasHref } from "@/lib/routes";
@@ -31,7 +32,7 @@ function ParamRow({ prime, ...line }: ComponentProps<typeof ParamLine> & { prime
   const { p } = line;
   return (
     <div>
-      <ParamLine {...line} />
+      <ParamValueLine {...line} />
       {prime && listedAddress(p.key, p.value) && <ParamAddressKeys prime={prime} paramKey={p.key} value={p.value} />}
     </div>
   );

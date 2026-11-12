@@ -60,10 +60,15 @@ function LimitRow({ row: { r, shown, keyDocId, flag }, chain, keyIndex, namedIn 
         <PauAtlasMark verdict={shown} keyDocId={keyDocId} flag={flag} />
       </td>
       <td className={`${cell} text-right whitespace-nowrap`} style={colRule}>
-        <a href={explorerTxUrl(chain, r.setAt.tx)} target="_blank" rel="noopener" className="hover:underline" style={dim}>
-          {r.setAt.time.slice(0, 10)}
-        </a>{" "}
-        <PauOriginChip chain={chain} tx={r.setAt.tx} />
+        {r.setAt.time && (
+          <>
+            <a href={explorerTxUrl(chain, r.setAt.tx)} target="_blank" rel="noopener" className="hover:underline" style={dim}>
+              {r.setAt.time.slice(0, 10)}
+            </a>{" "}
+            <PauOriginChip chain={chain} tx={r.setAt.tx} />
+          </>
+        )}
+        {!r.setAt.time && r.setAt.before && <span style={dim} title="The history read since then holds no change to this limit">before {r.setAt.before.slice(0, 10)}</span>}
       </td>
     </tr>
   );

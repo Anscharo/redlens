@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { explorerUrl, EXPLORER } from "./explorer";
+import { explorerTxUrl, explorerUrl, EXPLORER } from "./explorer";
 
 const EVM = "0x1234567890abcdef1234567890abcdef12345678";
 const SOL = "So11111111111111111111111111111111111111112";
@@ -64,5 +64,12 @@ describe("explorerUrl", () => {
     expect(
       explorerUrl(EVM, { chain: [undefined, "Base - Morpho Blue USDC ERC4626 Vault"] }),
     ).toBe(EXPLORER.base + EVM);
+  });
+});
+
+describe("explorerTxUrl", () => {
+  it("links a transaction beside each explorer's address path, a Solana signature on Solscan", () => {
+    expect(explorerTxUrl("ethereum", "0xabc")).toBe("https://etherscan.io/tx/0xabc");
+    expect(explorerTxUrl("solana", "5oRUD")).toBe("https://solscan.io/tx/5oRUD");
   });
 });

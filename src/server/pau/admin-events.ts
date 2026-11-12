@@ -8,7 +8,7 @@
 // delegatecall), so they are listed under the controller, not the facet.
 import { decodeEventLog, parseAbi, toEventSelector, type AbiEvent } from "viem";
 import type { PauKind, PauRole } from "../../lib/pauRegistry.ts";
-import { CONFIGURATOR_EVENTS, EXECUTOR_EVENTS, STAR_GUARD_EVENTS } from "./governance-events.ts";
+import { CONFIGURATOR_EVENTS, EXECUTOR_EVENTS, LZ_SENDER_EVENTS, STAR_GUARD_EVENTS } from "./governance-events.ts";
 
 const ROLE_EVENTS = [
   "event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender)",
@@ -98,6 +98,7 @@ const GOVERNANCE: Partial<Record<PauRole, AbiEvent[]>> = {
   starGuard: events(STAR_GUARD_EVENTS),
   executor: events(EXECUTOR_EVENTS),
   configurator: events(CONFIGURATOR_EVENTS),
+  lzGovSender: events(LZ_SENDER_EVENTS),
 };
 
 /** Admin events per (generation, role). A role with none (relayer, freezer, facet) is not polled. */
@@ -118,6 +119,8 @@ const BY_ROLE: Record<PauKind, Partial<Record<PauRole, AbiEvent[]>>> = {
     beacon: events([...INTEGRATION_EVENTS, ...ROLE_EVENTS]),
     beamState: events(BEAM_STATE_EVENTS),
   },
+  // A Solana program emits no EVM logs: its accounts are read live (svm-snapshot.ts).
+  svm: {},
 };
 
 /** The admin events a contract in `role` emits, one entry per distinct topic0. */

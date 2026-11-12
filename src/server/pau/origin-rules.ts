@@ -40,7 +40,9 @@ export interface OriginDeps {
   /** The stored events of one Ethereum transaction (empty when it changed nothing on Ethereum). */
   ethereumEvents: (tx: string) => Promise<TxEvent[]>;
   tx: (chain: string, hash: string, block: number) => Promise<{ from: string; to: string | null } | null>;
-  /** Whether every governance contract's events on `chain` are read past `block`, so an absent one is truly absent. */
+  /** The Ethereum transaction whose GovernanceCallSent names a LayerZero guid; null while none is stored. */
+  lzSent: (guid: string) => Promise<Located | null>;
+  /** Whether every governance contract's events on `chain` are read past `block` (on Solana: the governance programs' receipts), so an absent one is truly absent. */
   evidenceRead: (chain: string, block: number) => Promise<boolean>;
 }
 

@@ -89,9 +89,12 @@ const getCommits = () => atlasCommits();
 // Main
 // ---------------------------------------------------------------------------
 
-/** A history entry's PR fields; review, approval and comment counts only when nonzero. */
-function prEntryFields(pr) {
-  const out = { pr: pr.number, prTitle: pr.title, prAuthor: pr.author, prUrl: pr.url };
+/** A history entry's PR fields: the number the commit names, then the fetched
+ *  record's title, author and url, and its review, approval and comment counts
+ *  when nonzero. */
+function prEntryFields(prNum, pr) {
+  if (!pr) return prNum ? { pr: prNum } : {};
+  const out = { pr: prNum ?? pr.number, prTitle: pr.title, prAuthor: pr.author, prUrl: pr.url };
   if (pr.reviewCount > 0) out.reviewCount = pr.reviewCount;
   if (pr.approvalCount > 0) out.approvalCount = pr.approvalCount;
   if (pr.commentCount > 0) out.commentCount = pr.commentCount;
@@ -254,7 +257,9 @@ async function main() {
         ...eventDiff(ev, prevSnapshot, snapshot, { midHistory: startIndex + i > 0, kindHint: prKindHint }),
       };
 
-      if (pr) Object.assign(entry, prEntryFields(pr));
+      // The commit names its PR even when the record cannot be fetched; the
+      // worker's pr-spells step fills the PR's metadata and spells later.
+      Object.assign(entry, prEntryFields(prNum, pr));
 
       const bulletMatch = bulletMatches.get(node.id);
       if (bulletMatch) {

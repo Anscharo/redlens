@@ -7,16 +7,18 @@
 import type { PauOrigin } from "../../lib/pauHistory.ts";
 import type { PauRegistry } from "../../lib/pauRegistry.ts";
 import type { SqlTag } from "../sql-types.ts";
+import { isSvmChain } from "../../lib/pauRegistry.ts";
 import { OPERATOR_RULE, TX_RULE } from "./origin-direct.ts";
 import { RELAY_RULE } from "./origin-relay.ts";
 import { CAST_RULE, STAR_GUARD_RULE, origin, type OriginDeps, type OriginRule, type TxContext } from "./origin-rules.ts";
-import { cursorsPast, eventsOfTx, pendingTxs, plotOf, queuedOf, saveOrigin } from "./origin-store.ts";
+import { cursorsPast, eventsOfTx, lzSentOf, pendingTxs, plotOf, queuedOf, receiptsPast, saveOrigin } from "./origin-store.ts";
+import { SVM_RULE } from "./origin-svm.ts";
 import { castIn } from "./casts.ts";
 import { eventTargets } from "./sync-events.ts";
 
-export const ORIGIN_RULES: OriginRule[] = [STAR_GUARD_RULE, RELAY_RULE, CAST_RULE, OPERATOR_RULE, TX_RULE];
+export const ORIGIN_RULES: OriginRule[] = [STAR_GUARD_RULE, RELAY_RULE, CAST_RULE, OPERATOR_RULE, SVM_RULE, TX_RULE];
 
-const GOVERNANCE_ROLES = new Set(["starGuard", "executor", "configurator"]);
+const GOVERNANCE_ROLES = new Set(["starGuard", "executor", "configurator", "lzGovSender"]);
 
 export async function resolveOrigin(c: TxContext, d: OriginDeps): Promise<PauOrigin> {
   if (!(await d.evidenceRead(c.chain, c.block))) return origin({ kind: "unknown", evidence: `governance events on ${c.chain} are not read to block ${c.block} yet` });
@@ -50,7 +52,9 @@ export function originDeps(db: SqlTag, reg: PauRegistry, io: OriginIo): OriginDe
     plot: (sg, star, block) => plotOf(db, sg, star, block),
     queued: (chain, ex, id) => queuedOf(db, chain, ex, id),
     ethereumEvents: (tx) => eventsOfTx(db, "ethereum", tx),
+    lzSent: (guid) => lzSentOf(db, guid),
     evidenceRead: (chain, block) => {
+      if (isSvmChain(chain)) return receiptsPast(db, chain, block);
       const mine = gov.filter((t) => t.chain === chain);
       return cursorsPast(db, chain, [...new Set(mine.map((t) => t.contract))], mine.length, block);
     },
