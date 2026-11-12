@@ -1,14 +1,17 @@
 import {
-  ATLAS_REPO,
   CHANGE_COLOR,
   RECONSTRUCTED_ERAS,
   isGitSha,
-  prHref,
   severedRange,
   type HistoryEntry,
 } from "@/lib/history";
 import { DiffView } from "./DiffView";
 import { ChangeLabel } from "./ChangeLabel";
+import { EntryCommitLink, EntryCommitTag } from "./EntryCommit";
+import { EntryPrLink } from "./EntryPrLink";
+import { EntrySourceLink } from "./EntrySourceLink";
+import { EntryTitle } from "./EntryTitle";
+import { EntryDate, EntryRange } from "./EntryWhen";
 import { LINE1_H, TimelineRow } from "./Timeline";
 import { Tooltip } from "../Tooltip";
 import { HtmlEraDisclaimer, PreGitDisclaimer } from "./HistoryDisclaimers";
@@ -42,13 +45,12 @@ const PRE_GIT_ADDED_ERAS = new Set(["mip", "genesis", "severed"]);
 
 export function EntryRow({ entry, labelOverride, isFirst }: Props) {
   const color = CHANGE_COLOR[entry.changeType];
-  const hasPr = !!entry.pr;
+  const pr = entry.pr;
   const gitSha = isGitSha(entry.commitHash);
   const hideChangeLabel =
     !labelOverride && entry.changeType === "added" && !!entry.era && PRE_GIT_ADDED_ERAS.has(entry.era);
 
-  // Title of the unit (line 2): the matched PR-body bullet, else the PR title.
-  const title = entry.summary ?? (hasPr ? entry.prTitle : undefined);
+  const title = entry.summary ?? (pr ? entry.prTitle : undefined);
   const range = entry.date ? null : severedRange(entry.commitHash);
 
   return (
@@ -63,15 +65,7 @@ export function EntryRow({ entry, labelOverride, isFirst }: Props) {
           className="flex items-baseline gap-2 flex-wrap mono text-[13px]"
           style={{ lineHeight: `${LINE1_H}px` }}
         >
-          {/* A severed-era birth has no date, only the window it happened in —
-              shown as a month range (not a <time>, which can't express one). */}
-          {entry.date ? (
-            <time dateTime={entry.date} style={{ color: "var(--tan-3)" }}>
-              {entry.date}
-            </time>
-          ) : range ? (
-            <span style={{ color: "var(--tan-3)" }}>{range}</span>
-          ) : null}
+          {entry.date ? <EntryDate date={entry.date} /> : range ? <EntryRange range={range} /> : null}
 
           {/* Reconstructed / pre-git entries flag their provenance with an info
               icon by the date; its tooltip carries the disclaimer + learn-more link. */}
@@ -89,47 +83,14 @@ export function EntryRow({ entry, labelOverride, isFirst }: Props) {
             </Tooltip>
           )}
 
-          {hasPr ? (
-            <a
-              href={prHref(entry)}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`Atlas Pull Request #${entry.pr}`}
-              className="hover:underline focus-visible:underline"
-              style={{ color: "var(--accent)" }}
-            >
-              PR {entry.pr}
-            </a>
+          {pr ? (
+            <EntryPrLink pr={pr} prUrl={entry.prUrl} />
           ) : gitSha ? (
-            <span style={{ color: "var(--tan-3)" }}>
-              commit{" "}
-              <a
-                href={`${ATLAS_REPO}/commit/${entry.commitHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:underline focus-visible:underline"
-                style={{ color: "var(--tan-3)" }}
-              >
-                {entry.commitHash}
-              </a>
-            </span>
+            <EntryCommitLink hash={entry.commitHash} />
           ) : entry.sourceUrl ? (
-            // Reconstructed pre-git origin (era mip/genesis): a synthetic tag, not a
-            // commit — link the external source (mips-repo section / genesis snapshot)
-            // instead of a dead github.com/.../commit/ URL.
-            <a
-              href={entry.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:underline focus-visible:underline"
-              style={{ color: "var(--tan-3)" }}
-            >
-              source <span className="enlargen">→</span>
-            </a>
+            <EntrySourceLink href={entry.sourceUrl} />
           ) : range ? null : (
-            // No real sha and no external source to link. A severed-era birth is
-            // already covered by the range above; anything else shows its tag.
-            <span style={{ color: "var(--tan-3)" }}>{entry.commitHash}</span>
+            <EntryCommitTag hash={entry.commitHash} />
           )}
 
           {/* per-change provenance for reconstructed entries: only the exceptions (AI / human)
@@ -149,12 +110,7 @@ export function EntryRow({ entry, labelOverride, isFirst }: Props) {
           )}
         </h4>
 
-        {/* Line 2: the change's title. */}
-        {title ? (
-          <p className="italic text-[12px] leading-snug mt-1" style={{ color: "var(--tan)" }}>
-            {title}
-          </p>
-        ) : null}
+        {title ? <EntryTitle text={title} /> : null}
 
         {/* Line 3: the type of edit. */}
         {!hideChangeLabel && <ChangeLabel entry={entry} label={labelOverride} />}
