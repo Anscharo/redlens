@@ -1,19 +1,22 @@
 // What one branch commit did to each document, as rows the reader's history
 // tab renders. Built on the live history's own engine (history-events.ts), so a
 // commit row here means what it means on the live atlas, with two additions a
-// branch needs: a renumbering is its own event (inside a composed bucket file
-// it changes no content, title or path, so the shared engine never reports it),
-// and a merge commit keeps only the documents where both sides' edits met.
+// branch needs: a renumbering and a `[Type]` change are each their own event
+// (inside a composed bucket file neither changes content, title or path, so the
+// shared engine never reports them), and a merge commit keeps only the documents where both sides' edits met.
 
 import { diffSnapshots, eventDiff, snapshotEvents, type ChangeType, type EventDiff } from "../../../scripts/lib/history-events.ts";
 import type { GitSnapshot, GitSnapshotEntry } from "../../../scripts/lib/atlas-git-parse.ts";
 
 export interface CommitEntry extends EventDiff {
-  changeType: ChangeType | "renumbered";
+  changeType: ChangeType | "renumbered" | "retyped";
   docNo: string;
   title: string;
   prevDocNo?: string;
   prevTitle?: string;
+  /** On a `retyped` row: the `[Type]` before and after. */
+  docType?: string;
+  prevDocType?: string;
   /** On a merge commit: the merged state matches neither parent, so edits from
    *  both sides met in this document (combined by git, or resolved by hand). */
   bothSides?: true;
@@ -37,12 +40,16 @@ export function commitEntries(prev: GitSnapshot, curr: GitSnapshot): CommitEntri
   }
   for (const [id, node] of curr) {
     const old = prev.get(id);
-    if (old && old.doc_no !== node.doc_no) push(out, id, { changeType: "renumbered", docNo: node.doc_no, title: node.title, prevDocNo: old.doc_no });
+    if (!old) continue;
+    if (old.doc_no !== node.doc_no) push(out, id, { changeType: "renumbered", docNo: node.doc_no, title: node.title, prevDocNo: old.doc_no });
+    if (old.type && node.type && old.type !== node.type) {
+      push(out, id, { changeType: "retyped", docNo: node.doc_no, title: node.title, docType: node.type, prevDocType: old.type });
+    }
   }
   return out;
 }
 
-const stateOf = (e: GitSnapshotEntry | undefined) => (e ? `${e.doc_no}\0${e.title}\0${e.contentHash}` : "");
+const stateOf = (e: GitSnapshotEntry | undefined) => (e ? `${e.doc_no}\0${e.title}\0${e.type}\0${e.contentHash}` : "");
 
 /** A merge commit's rows: only documents whose merged state matches no parent.
  *  Everything else the merge carries was settled on one side already: either in

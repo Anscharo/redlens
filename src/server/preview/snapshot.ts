@@ -26,6 +26,8 @@ export interface SnapshotDoc {
   id: string;
   doc_no: string;
   title?: string;
+  /** The heading's `[Type]`. Optional so a snapshot without it never reads as a type change. */
+  type?: string;
   content?: string;
   contentHash?: string;
 }
@@ -44,7 +46,7 @@ export function snapshotFromSrcDir(srcDir: string): Snapshot {
   return new Map(
     nodes.map((n: SnapshotDoc) => [
       n.id,
-      { id: n.id, doc_no: n.doc_no, title: n.title, content: n.content, contentHash: n.contentHash },
+      { id: n.id, doc_no: n.doc_no, title: n.title, type: n.type, content: n.content, contentHash: n.contentHash },
     ]),
   );
 }
@@ -57,7 +59,7 @@ export function snapshotFromDocsJson(outDir: string): Snapshot {
   return new Map(
     nodes.map((n) => [
       n.id,
-      { id: n.id, doc_no: n.doc_no, title: n.title, content: n.content, contentHash: n.contentHash },
+      { id: n.id, doc_no: n.doc_no, title: n.title, type: n.type, content: n.content, contentHash: n.contentHash },
     ]),
   );
 }
@@ -102,6 +104,11 @@ export async function loadBaseSnapshot(
  * `title` and `doc_no` count as changes alongside content so a pure rename or
  * renumber still surfaces a redline.
  */
+/** The document's `[Type]` differs. A side that carries no type is not a change. */
+export function typeChanged(before: SnapshotDoc, after: SnapshotDoc): boolean {
+  return !!before.type && !!after.type && before.type !== after.type;
+}
+
 export function diffSnapshots(base: Snapshot, head: Snapshot): SnapshotDiff {
   const added: string[] = [];
   const changed: string[] = [];
@@ -120,7 +127,7 @@ export function diffSnapshots(base: Snapshot, head: Snapshot): SnapshotDiff {
       h.contentHash && b.contentHash
         ? h.contentHash !== b.contentHash
         : (h.content ?? "") !== (b.content ?? "");
-    if (bodyDiffers || h.title !== b.title || h.doc_no !== b.doc_no) changed.push(id);
+    if (bodyDiffers || h.title !== b.title || h.doc_no !== b.doc_no || typeChanged(b, h)) changed.push(id);
   }
   for (const id of base.keys()) if (!head.has(id)) removed.push(id);
 

@@ -66,6 +66,7 @@ export function buildPreviewDiff(ix: Indexes, open: Extract<ToolOpen, { status: 
     parent: parentOf(node, docs, ix),
     ...(diff.renumbered[node.id] ? { renumbered: diff.renumbered[node.id] } : {}),
     ...(diff.retitled[node.id] ? { retitled: diff.retitled[node.id] } : {}),
+    ...(diff.retyped?.[node.id] ? { retyped: diff.retyped[node.id] } : {}),
     ...(diff.reusedSlot[node.id] ? { reused_slot: diff.reusedSlot[node.id] } : {}),
     ...(diff.identitySwap[node.id] ? { identity_swap: diff.identitySwap[node.id] } : {}),
     ...(a.patch_lines > 0 && patches[node.id] ? { patch: renderPatch(patches[node.id], a.patch_lines) } : {}),

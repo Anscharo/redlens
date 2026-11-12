@@ -7,12 +7,15 @@ import type { DiffLine } from "./history";
 
 /** What one commit did to the asked-for document. */
 export interface PreviewCommitRow {
-  /** A live history change type, or `renumbered`: a new doc number with nothing else changed. */
-  changeType: "added" | "modified" | "removed" | "moved" | "renumbered";
+  /** A live history change type, `renumbered` (a new doc number) or `retyped` (a new `[Type]`). */
+  changeType: "added" | "modified" | "removed" | "moved" | "renumbered" | "retyped";
   docNo: string;
   title: string;
   prevDocNo?: string;
   prevTitle?: string;
+  /** On a `retyped` row: the `[Type]` before and after. */
+  docType?: string;
+  prevDocType?: string;
   /** On a merge commit: the merged document matches neither parent. */
   bothSides?: true;
   diff?: DiffLine[];

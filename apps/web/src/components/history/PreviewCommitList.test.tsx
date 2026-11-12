@@ -43,7 +43,9 @@ describe("PreviewCommitList", () => {
     expect(screen.getByRole("link", { name: "a1b2c3d" })).toHaveAttribute("href", `https://github.com/o/r/commit/${touched.sha}`);
     expect(screen.getByText("2026-10-07")).toBeInTheDocument();
     expect(screen.getByText("subject a1b2c3d")).toBeInTheDocument();
-    expect(screen.getByText("renumbered A.1.2 → A.1.3")).toBeInTheDocument();
+    expect(screen.getByText((_c, el) => el?.tagName === "P" && el.textContent === "renumbered A.1.2 → A.1.3")).toBeInTheDocument();
+    expect(document.querySelector("del")).toHaveTextContent("2");
+    expect(document.querySelector("ins")).toHaveTextContent("3");
     expect(screen.getByText("Merge main").closest("article")).toHaveAttribute("data-merge", "true");
     expect(screen.queryByText("subject quiet01")).toBeNull();
     expect(screen.getByText("1 of 3 commits in this branch touched this doc.")).toBeInTheDocument();

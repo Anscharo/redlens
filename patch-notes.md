@@ -33,6 +33,11 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-11-12
+
+- Highlighted the parts of a doc number that changed when a preview's history shows a renumbering
+- Showed a change to a document's type in a preview's history
+
 ## 2026-11-10
 
 - Improved how the chat and MCP search pick the best matching document among similar ones

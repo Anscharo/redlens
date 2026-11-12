@@ -37,6 +37,9 @@ export interface PreviewDiff {
   /** Changed docs whose title differs from the live atlas (title-only or
    *  title+content edits). id → [live title, preview title]. */
   retitled: Record<string, [string, string]>;
+  /** Changed docs whose `[Type]` differs from the live atlas: id → [live type,
+   *  preview type]. Absent on bundles built before it was recorded. */
+  retyped?: Record<string, [string, string]>;
   /** Added docs whose doc number exists on the live atlas under another uuid:
    *  id → the old occupant's title + where it sits in this preview (absent =
    *  removed by the preview). */
@@ -149,6 +152,7 @@ export function PreviewDiffProvider({ children }: { children: ReactNode }) {
         renumberedOnly: d.renumberedOnly ? new Set<string>(d.renumberedOnly) : undefined,
         // Absent on bundles built before retitle detection shipped.
         retitled: d.retitled ?? {},
+        retyped: d.retyped ?? {},
         // Older bundles shipped reusedSlot as a bare id array — normalize.
         reusedSlot: Array.isArray(d.reusedSlot)
           ? Object.fromEntries((d.reusedSlot as string[]).map((id) => [id, {}]))

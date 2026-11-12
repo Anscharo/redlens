@@ -1,12 +1,14 @@
 import { CHANGE_COLOR } from "@/lib/history";
 import type { PreviewCommit, PreviewCommitRow as Row } from "@/lib/previewCommits";
 import { commitRowLabel } from "../../lib/previewCommitCopy";
+import { DocNoDiff, TypeDiff } from "./ChangePair";
 import { DiffView } from "./DiffView";
 import { LINE1_H } from "./Timeline";
 import { TitleDiff } from "./TitleDiff";
 import { TimelineBranch } from "./TimelineBranch";
 
-const rowColor = (r: Row) => CHANGE_COLOR[r.changeType === "renumbered" ? "moved" : r.changeType] ?? "var(--tan-3)";
+const RENAME_TYPES = new Set<Row["changeType"]>(["renumbered", "retyped"]);
+const rowColor = (r: Row) => CHANGE_COLOR[RENAME_TYPES.has(r.changeType) ? "moved" : r.changeType] ?? "var(--tan-3)";
 
 /** What one commit did to this document: its change line, its title change
  *  if any, then its diff. */
@@ -15,6 +17,8 @@ function CommitEntry({ row }: { row: Row }) {
     <>
       <p className="mono text-[12px] mt-1 break-all" style={{ color: rowColor(row) }}>
         {commitRowLabel(row)}
+        {row.changeType === "renumbered" && row.prevDocNo && <> <DocNoDiff prev={row.prevDocNo} next={row.docNo} /></>}
+        {row.changeType === "retyped" && row.prevDocType && row.docType && <> <TypeDiff prev={row.prevDocType} next={row.docType} /></>}
       </p>
       {row.prevTitle && <TitleDiff prev={row.prevTitle} next={row.title} />}
       {row.diff && <DiffView lines={row.diff} />}

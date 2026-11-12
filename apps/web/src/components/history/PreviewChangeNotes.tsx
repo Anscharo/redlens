@@ -1,6 +1,7 @@
 import { usePreviewDiff, type PreviewDiff } from "../../lib/previewDiff";
 import { isReassigned } from "../../lib/identitySwap";
 import { diffBaseLabel, type PreviewMeta } from "../../lib/previewMetaCopy";
+import { DocNoDiff, TypeDiff } from "./ChangePair";
 
 // The ⚠ glyph renders small for its weight next to 11px mono — size it up 25%.
 export const WARN_GLYPH = { fontSize: "1.25em" };
@@ -24,12 +25,14 @@ function docChanges(diff: PreviewDiff, nodeId: string) {
     renumber: diff.renumbered[nodeId],
     // A changed doc whose title differs from the live atlas.
     retitle: diff.retitled[nodeId],
+    // A changed doc whose [Type] differs ([live, preview]).
+    retype: diff.retyped?.[nodeId],
   };
 }
 
 // Prose notes about *how* a doc changed in this preview: the ⚠ identity
 // paragraphs (and the plain "rewritten" one for a swap with no sign of where
-// the old content went), the renumber line, and — when a Changed doc has none
+// the old content went), the renumber and type-change lines, and — when a Changed doc has none
 // of those and no line diff either — one neutral fallback sentence. Neutral
 // on purpose: the cause may be main having caught up with the branch's edit,
 // a raw-only edit the parser normalises away, or a hash-only change — the
@@ -38,10 +41,10 @@ function docChanges(diff: PreviewDiff, nodeId: string) {
 // shows it as a word diff above the body diff.
 export function PreviewChangeNotes({ nodeId, meta, source, hasPatch, status }: PreviewChangeNotesProps) {
   const diff = usePreviewDiff();
-  const { swap, former, renumber, retitle } = docChanges(diff, nodeId);
+  const { swap, former, renumber, retitle, retype } = docChanges(diff, nodeId);
   // "the live atlas" or "{repo}:{ref}": what the redlines are compared against.
   const label = diffBaseLabel(meta ?? {}, diff.activeBase ?? null);
-  const silent = status === "Changed" && !hasPatch && !renumber && !retitle && !swap;
+  const silent = status === "Changed" && !hasPatch && !renumber && !retitle && !retype && !swap;
   return (
     <>
       {/* ⚠ only where the displaced content was found (movedTo). Without that
@@ -65,8 +68,12 @@ export function PreviewChangeNotes({ nodeId, meta, source, hasPatch, status }: P
       )}
       {renumber && (
         <p className="mt-1" style={{ color: "var(--lilac)" }}>
-          renumbered {renumber[0]}{" "}
-          <span className="enlargen">→</span> {renumber[1]}
+          renumbered <DocNoDiff prev={renumber[0]} next={renumber[1]} />
+        </p>
+      )}
+      {retype && (
+        <p className="mt-1" style={{ color: "var(--lilac)" }}>
+          type changed <TypeDiff prev={retype[0]} next={retype[1]} />
         </p>
       )}
       {silent && (

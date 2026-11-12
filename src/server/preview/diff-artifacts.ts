@@ -19,7 +19,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { contentDiff } from "./patch-diff.ts";
-import { diffSnapshots, type Snapshot } from "./snapshot.ts";
+import { diffSnapshots, typeChanged, type Snapshot } from "./snapshot.ts";
 import type { DiffLine } from "../../lib/history";
 import { detectIdentitySwaps, type IdentitySwap, type FormerUuid } from "./identity.ts";
 import { diffSides, findRenumberedOnly } from "./renumber-only.ts";
@@ -34,6 +34,8 @@ export interface PreviewDiffJson {
    *  Absent on bundles built before it was recorded. */
   renumberedOnly?: string[];
   retitled: Record<string, [string, string]>;
+  /** Changed docs whose `[Type]` differs: id → [before, after]. Absent on bundles built before it was recorded. */
+  retyped?: Record<string, [string, string]>;
   reusedSlot: Record<string, { title: string; movedTo?: string }>;
   identitySwap: Record<string, IdentitySwap>;
   formerUuid: Record<string, FormerUuid>;
@@ -67,6 +69,7 @@ export function computeDiffArtifacts(
   // falls back to the base side rather than being skipped — it still needs a patch.
   const renumbered: Record<string, [string, string]> = {};
   const retitled: Record<string, [string, string]> = {};
+  const retyped: Record<string, [string, string]> = {};
   for (const id of changed) {
     const beforeNode = reference.get(id) ?? base.get(id);
     const afterNode = head.get(id);
@@ -77,6 +80,7 @@ export function computeDiffArtifacts(
     if (dl.length) patches[id] = dl;
     if (beforeNode.doc_no !== afterNode.doc_no) renumbered[id] = [beforeNode.doc_no, afterNode.doc_no];
     if (beforeNode.title !== afterNode.title) retitled[id] = [beforeNode.title ?? "", afterNode.title ?? ""];
+    if (typeChanged(beforeNode, afterNode)) retyped[id] = [beforeNode.type!, afterNode.type!];
   }
 
   // ADDED docs in a reused slot (new uuid at a doc number that exists on the
@@ -119,7 +123,7 @@ export function computeDiffArtifacts(
   const renumberedOnly = findRenumberedOnly(changed, diffSides(base, head, reference));
 
   return {
-    diff: { added, changed, removed, renumbered, renumberedOnly, retitled, reusedSlot, identitySwap, formerUuid },
+    diff: { added, changed, removed, renumbered, renumberedOnly, retitled, retyped, reusedSlot, identitySwap, formerUuid },
     patches,
   };
 }
