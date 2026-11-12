@@ -40,6 +40,7 @@ describe("queuedSteps", () => {
       row({ chain: "solana", contract: "SKYGRik", event: "LzReceive", time: "2026-05-11T00:01:00.000Z", args: { guid: "0xaa" } }),
     ];
     expect(queuedSteps(rows, owners)).toEqual([]);
-    expect(queuedSteps(rows, owners, "2026-01-03T00:00:00.000Z")).toEqual([{ kind: "lz-message", chain: "ethereum", contract: "0xlz", id: "0xbb", tx: "0x0xbb", time: "2026-11-09T00:00:00.000Z", at: null, primes: [] }]);
+    expect(queuedSteps(rows, owners, { from: "2026-01-03T00:00:00.000Z", through: "2026-11-08T00:00:00.000Z" })).toEqual([]);
+    expect(queuedSteps(rows, owners, { from: "2026-01-03T00:00:00.000Z", through: "2026-11-10T00:00:00.000Z" })).toEqual([{ kind: "lz-message", chain: "ethereum", contract: "0xlz", id: "0xbb", tx: "0x0xbb", time: "2026-11-09T00:00:00.000Z", at: null, primes: [] }]);
   });
 });

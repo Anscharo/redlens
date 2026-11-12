@@ -35,9 +35,10 @@ describe("valueChangedAt", () => {
 });
 
 describe("setOrder", () => {
-  it("orders by full timestamp, and a key set before its read window before any atlas change", () => {
+  it("orders by full timestamp, and a key set before its read window before an atlas change inside it only", () => {
     expect(setOrder({ time: "2026-05-01T00:00:00Z" }, "2026-04-01")).toBe("chain");
-    expect(setOrder({ time: "", before: "2026-01-03T00:00:00Z" }, "2025-06-01")).toBe("atlas");
+    expect(setOrder({ time: "", before: "2026-01-03T00:00:00Z" }, "2026-06-01")).toBe("atlas");
+    expect(setOrder({ time: "", before: "2026-01-03T00:00:00Z" }, "2025-06-01")).toBeNull();
     expect(setOrder({ time: "", before: "2026-01-03T00:00:00Z" }, null)).toBeNull();
     expect(setOrder({ time: "" }, "2026-04-01")).toBeNull();
   });

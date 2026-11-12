@@ -13,7 +13,7 @@ import type { SqlTag } from "../sql-types.ts";
 import { loadVoteIndexFromDisk } from "../votes.ts";
 import { ARCHIVE_BLOB } from "./vote-archive.ts";
 import { buildEntries, ownersOf, type EventRow } from "./history-entries.ts";
-import { queuedSteps } from "./history-queued.ts";
+import { queuedSteps, type ReceiptsRead } from "./history-queued.ts";
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v));
 const parse = (v: unknown) => (typeof v === "string" ? JSON.parse(v) : v);
@@ -48,15 +48,15 @@ async function executives(db: SqlTag, votes: VoteRecord): Promise<(spell: string
   return (spell) => record.get(spell) ?? archive.get(spell) ?? { title: null, date: null, url: null, source: null };
 }
 
-/** Where the Solana window a full pass has read LayerZero receipts over starts (svm-sync.ts `stampOf`); null before one has. */
-async function receiptsFrom(db: SqlTag): Promise<string | null> {
-  const rows = (await db`SELECT min(start_time) AS start FROM pau_svm_cursor WHERE position('|' in controllers) > 0 AND reached_at IS NOT NULL`) as { start: unknown }[];
-  return rows[0]?.start ? iso(rows[0].start) : null;
+/** The Solana window a full pass has read LayerZero receipts over (svm-sync.ts `stampOf`): its start, and when a pass last reached the head; null before one has. */
+async function receiptsRead(db: SqlTag): Promise<ReceiptsRead | null> {
+  const rows = (await db`SELECT min(start_time) AS start, max(reached_at) AS through FROM pau_svm_cursor WHERE position('|' in controllers) > 0 AND reached_at IS NOT NULL`) as { start: unknown; through: unknown }[];
+  return rows[0]?.start && rows[0].through ? { from: iso(rows[0].start), through: iso(rows[0].through) } : null;
 }
 
 /** Every change to a prime's PAU; changes to shared contracts alone (a Beacon's setup) belong to no prime's history. */
 export async function readPauHistory(db: SqlTag = sql, votes: VoteRecord = loadVoteIndexFromDisk, reg = registry as PauRegistry): Promise<PauHistoryResponse> {
-  const [rows, origins, executiveOf, from] = await Promise.all([eventRows(db), originRows(db), executives(db, votes), receiptsFrom(db)]);
+  const [rows, origins, executiveOf, from] = await Promise.all([eventRows(db), originRows(db), executives(db, votes), receiptsRead(db)]);
   const owners = ownersOf(reg);
   return { entries: buildEntries(rows, owners, origins, executiveOf).filter((e) => e.primes.length > 0), queued: queuedSteps(rows, owners, from) };
 }
@@ -68,15 +68,15 @@ const RECHECK_MS = 60_000;
 
 /**
  * What the history is built from, as one string a change to any input moves:
- * an event added, an origin resolved again, an archive entry checked. The vote
- * record is read from disk and changes only with a deploy, which restarts the
- * process.
+ * an event added, an origin resolved again, an archive entry checked, a Solana
+ * pass reaching the head (which moves what `queued` may list). The vote record
+ * is read from disk and changes only with a deploy, which restarts the process.
  */
 async function inputsVersion(db: SqlTag): Promise<string> {
   const rows = (await db`SELECT
     (SELECT count(*) FROM pau_events)::text AS events_version, (SELECT max(block) FROM pau_events)::text AS head,
     (SELECT count(*) FROM pau_tx_origin)::text AS origins, (SELECT max(resolved_at) FROM pau_tx_origin)::text AS resolved,
-    (SELECT max(checked_at) FROM executive_archive)::text AS archive`) as Record<string, unknown>[];
+    (SELECT max(checked_at) FROM executive_archive)::text AS archive, (SELECT max(reached_at) FROM pau_svm_cursor)::text AS svm_reached`) as Record<string, unknown>[];
   return Object.values(rows[0] ?? {}).join("|");
 }
 

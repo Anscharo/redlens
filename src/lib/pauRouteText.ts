@@ -19,10 +19,13 @@ const REACH: Record<Reach["kind"], (r: Reach) => string> = {
   locked: () => "cannot move it: the limit is locked as unlimited",
 };
 
-/** A Solana limit's route: a spell alone, relayed through LayerZero governance to the admin it signs as. */
+/** A Solana limit's route: a spell, relayed through LayerZero governance to the admin it signs as, and any other admin directly. */
 function relayText(r: KeyRoutes): string {
   const cite = r.relay?.cites?.length ? ` (Atlas ${r.relay.cites.join(", ")})` : "";
-  return `Set by spell, relayed to Solana through LayerZero governance and signed by ${r.admins.map(shortAddress).join(" or ")}${cite}; the Operator has no route to a Solana limit`;
+  const others = r.relay?.direct?.map(shortAddress).join(" and ");
+  const spell = r.admins.length ? `Set by spell, relayed to Solana through LayerZero governance and signed by ${r.admins.map(shortAddress).join(" or ")}${cite}` : "";
+  const direct = !others ? "" : spell ? `; ${others} can also set it directly as an admin, with no spell` : `Set directly by its admin ${others}, with no spell (the governance authority is not an active admin)`;
+  return `${spell}${direct}; the Operator has no route to a Solana limit`;
 }
 
 /** Who can set the value, as one clause: a spell through its admins, and what the Operator can do. */

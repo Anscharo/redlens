@@ -16,6 +16,14 @@ describe("paramTable", () => {
   it("keeps the note after the table, and no value where the lead names no address", () => {
     expect(paramTable(ALLOCATOR)).toMatchObject({ main: null, note: "The Morpho Blue Public Allocator is a permissionless contract.", rows: [{ label: "Steakhouse Financial" }, { label: "Morpho Blue Public Allocator" }] });
   });
+  it("pairs a wider row's first cell with its one address, and keeps an escaped pipe in its cell", () => {
+    const wide = "Holders:\n\n| Entity | Address | Notes |\n| --- | --- | --- |\n| A \\| B | `0xbCc126c3b6E2EbF0C895bb38c96D8afbEC126Ab3` | signer |";
+    expect(paramTable(wide)?.rows).toEqual([{ label: "A | B", value: "0xbCc126c3b6E2EbF0C895bb38c96D8afbEC126Ab3" }]);
+  });
+  it("is null for a table it cannot split whole: a wider row with no one address, or a lead naming two", () => {
+    expect(paramTable("| Entity | Share | Notes |\n| --- | --- | --- |\n| A | 10% | signer |")).toBeNull();
+    expect(paramTable(CURATOR.replace("through the", "at `0x827e86072B06674a077f592A531dcE4590aDeCdB` through the"))).toBeNull();
+  });
   it("is null for a value with no table", () => {
     expect(paramTable("`0x622E19d6903BD4507cfc70b31d5B99535114C0FC`")).toBeNull();
     expect(paramTable("a | b")).toBeNull();

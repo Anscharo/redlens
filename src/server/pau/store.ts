@@ -129,7 +129,7 @@ async function refreshEach(db: SqlTag, reg: PauRegistry, read: ChainReader, opts
     try {
       // The Solana program is read from its accounts, timed by its stored event window; the EVM controllers from their event history and live reads.
       const snap = d.kind === "svm"
-        ? await svmSnapshot(d, (opts.svmRead ?? svmAccounts)(d.chain), svmProbes.get(d.prime), svmSetTimes(await svmHistory(db, d), now))
+        ? await svmSnapshot(d, (opts.svmRead ?? svmAccounts)(d.chain), svmProbes.get(d.prime), svmSetTimes(await svmHistory(db, d), now), now)
         : await snapshotOf(d, read, historyOf, await beamOf(d.chain), { nameKeys: opts.nameKeys, probe: atlasKeys.get(d.prime), prev: prevs.get(deploymentId(d)), roles });
       await upsertSnapshot(db, snap, new Date(now));
     } catch (e) {

@@ -35,6 +35,7 @@ import { isThreadRef } from "./atlasPrSpell.ts";
 import { chainLedStep, type OpenAtlasPr } from "./pauChainLed.ts";
 import { namedStep, pollStep } from "./pauSpellStep.ts";
 import { keyRoutes, type KeyRoutes } from "./pauKeyRoutes.ts";
+import { isSvmChain } from "./pauRegistry.ts";
 import { setOrder, valueChange } from "./pauValueDate.ts";
 import type { PrimePoll } from "./primePolls.ts";
 import type { IndexedExecutive } from "./votes/vote-index.ts";
@@ -133,17 +134,21 @@ function linkedStep(c: ValueCheck, base: Omit<Named, "date">, spells: readonly s
  * key after the atlas last wrote the value, who made that change; else
  * the spell the writing change is linked to: through its PR's poll even while
  * the PR's own record is unread. Null when the writing change cannot be told
- * apart, neither a poll nor the PR record links it yet, or its PR links only a
- * forum thread (whose items can belong to different spells).
+ * apart, neither a poll nor the PR record links it yet, its PR links only a
+ * forum thread (whose items can belong to different spells), or the key was set
+ * and the value written both before the window its history was read over, which
+ * holds none of that spell's changes.
  */
 export function onchainStep(c: ValueCheck, entries: readonly HistoryEntry[], ctx: PendingContext): OnchainStep | null {
   const change = valueChange(entries, c.stated);
   if (!change) return null;
+  const order = setOrder(c.limit?.setAt, change.entry.date);
+  if (c.limit?.setAt?.before && !order) return null;
   const base = { atlasChanged: change.entry.date.slice(0, 10), at: change.entry.date, pr: change.entry.pr ?? null };
   const spells = change.exact ? change.entry.spells : undefined;
   const linked = change.exact ? linkedStep(c, base, spells ?? [], ctx) : null;
   if (linked?.kind === "set") return linked;
-  if (setOrder(c.limit?.setAt, change.entry.date) === "chain") return chainLedStep(c, entries, ctx);
+  if (order === "chain") return chainLedStep(c, entries, ctx);
   const polled = base.pr != null && !!ctx.pollsByPr?.get(base.pr)?.length;
   if (linked || polled || !spells || !ctx.pollsByPr || spells.some(isThreadRef)) return linked;
   return { kind: "unnamed", ...base };
@@ -155,13 +160,17 @@ export const datedDocs = (checks: ValueCheck[]): string[] => [...new Set(checks.
 
 const DATED = new Set<ValueCheck["status"]>(["mismatch", "not-set"]);
 
+/** Whether a Solana check's change history is not read through: its crawl stops on an event it cannot decode, so no step can say what a spell did or did not set there. */
+const svmHistoryUnread = (c: ValueCheck, snaps: readonly StoredPauSnapshot[]) =>
+  !!c.chain && isSvmChain(c.chain) && snaps.some((s) => s.chain === c.chain && s.contracts.some((x) => x.historyComplete === false));
+
 /** The checks, each mismatch or limit never set carrying what governance did about it (`onchain`) and who can change it (`routes`). */
 export function withOnchain(checks: ValueCheck[], history: ReadonlyMap<string, readonly HistoryEntry[]>, ctx: PendingContext): ValueCheck[] {
   return checks.map((c) => {
     if (!DATED.has(c.status)) return c;
     const routes = keyRoutes(c, ctx.snaps, ctx.pau, ctx.now, ctx.docNo);
     const entries = history.get(c.docId);
-    const onchain = entries && !switchedOffSlope(c, checks) ? onchainStep(c, entries, ctx) : null;
+    const onchain = entries && !switchedOffSlope(c, checks) && !svmHistoryUnread(c, ctx.snaps) ? onchainStep(c, entries, ctx) : null;
     return { ...c, ...(onchain ? { onchain } : {}), ...(routes ? { routes } : {}) };
   });
 }

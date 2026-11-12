@@ -53,8 +53,8 @@ export interface KeyRoutes {
   admins: string[];
   /** Null when BeamState does not manage the RateLimits, the Configurator holds no admin role on it, or the snapshot carries no Configurator; `reach` is null where the stated value's units or BeamState's bounds are not read. `cites` holds the doc_no of each rule the reach rests on, where the documents are at hand. */
   operator: { reach: Reach | null; cites?: string[] } | null;
-  /** A Solana limit (pauSvmRoutes.ts): the spell's call reaches the admins over LayerZero governance; `cites` holds the doc_nos the route rests on. */
-  relay?: { via: "layerzero"; cites?: string[] };
+  /** A Solana limit (pauSvmRoutes.ts): the spell's call reaches the admins over LayerZero governance; `cites` holds the doc_nos the route rests on; `direct`, any other admin, which can set the limit with no spell. */
+  relay?: { via: "layerzero"; cites?: string[]; direct?: string[] };
 }
 
 const rateLimitsOf = (c: ValueCheck, snaps: readonly StoredPauSnapshot[]) =>

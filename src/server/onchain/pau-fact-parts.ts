@@ -10,7 +10,8 @@ import type { PrimeAtlasRefs } from "./pau-atlas-refs.ts";
 
 export type Base = Omit<OnchainFact, "kind" | "name" | "name_source" | "atlas_doc_id" | "values" | "summary" | "set_at" | "match">;
 
-export const setAt = (chain: string, s: { time: string; tx: string }) => ({ time: s.time, tx: s.tx, url: explorerTxUrl(chain, s.tx) });
+/** When and where a value was last set; null when the history read holds no such change (a Solana limit set before its window). */
+export const setAt = (chain: string, s: { time: string; tx: string }) => (s.time && s.tx ? { time: s.time, tx: s.tx, url: explorerTxUrl(chain, s.tx) } : null);
 export const amount = (raw: string, dec: number) => ({ raw, amount: exactAmount(raw, dec) });
 export const perDay = (slope: string, dec: number) => {
   const raw = (BigInt(slope) * 86_400n).toString();

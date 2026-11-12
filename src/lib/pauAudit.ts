@@ -11,6 +11,7 @@
 import type { ValueCheck } from "./pauAtlasValues.ts";
 import type { KeyRoutes } from "./pauKeyRoutes.ts";
 import type { OnchainStep } from "./pauPending.ts";
+import { isSvmChain } from "./pauRegistry.ts";
 import { operatorFallsShort, operatorReaches } from "./pauRouteText.ts";
 import { setOrder } from "./pauValueDate.ts";
 
@@ -42,6 +43,7 @@ export const AUDIT_REASONS = {
   "not-wired": { group: "spell", text: "The controller holds the CONTROLLER role on neither its ALM proxy nor its rate limits, so it cannot move funds." },
   "partly-wired": { group: "spell", text: "The controller holds the CONTROLLER role on only one of its ALM proxy and its rate limits." },
   "no-key": { group: "detail", text: "The atlas states no Rate Limit ID for this value, and nothing the document or its instance names derives a key the contract holds." },
+  "no-account": { group: "detail", text: "The Solana program holds no account for this value: it names no listed Integration, Reserve, swap or bridge, or it is a limit on a side the program never limits." },
   "rejected-claim": { group: "registry", text: "The atlas names this address for a role the chain contradicts." },
   "role-not-held": { group: "registry", text: "The atlas names this account to a role, and the chain says it does not hold it now: its Permission is suspended." },
   "several-keys": { group: "ambiguous", text: "More than one key could be this value's, and they do not all agree with the atlas." },
@@ -105,7 +107,7 @@ export function checkReason(c: ValueCheck, all: ValueCheck[], dates: MoveDates, 
     return order === "atlas-newer" ? spellReason(step, routes, "atlas-newer") : order;
   }
   if (c.status === "not-set") return spellReason(step, routes, "not-set");
-  if (c.status === "no-key") return "no-key";
+  if (c.status === "no-key") return c.kind === "svm" || (c.chain !== null && isSvmChain(c.chain)) ? "no-account" : "no-key";
   if (c.status === "ambiguous") return "several-keys";
   if (c.status === "units-unknown") return "units-unknown";
   return null;

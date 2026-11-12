@@ -15,7 +15,8 @@ const STAR = "0x63fa202a7020e8ee0837196783f0fb768cbfe2f1";
 const SPELL = "0xed3de16bdf69f697fecf1b4103b9f48d71bddf20";
 const GUID = "0x410dd975b765e87168ac2a1837452aff2a39e08afb4f95f4909d6c0e8325be5f";
 const SUBPROXY = "0x355cd90ecb1b409fdf8b64c4473c3b858da2c310";
-const ROLES: Record<string, string> = { [`solana:${GOV}`]: "lzGovernance", [`ethereum:${SG}`]: "starGuard" };
+const ALM = "ALM1JSnEhc5PkNecbSZotgprBuJujL5objTbwGtpTgTd";
+const ROLES: Record<string, string> = { [`solana:${GOV}`]: "lzGovernance", [`solana:${ALM}`]: "program", [`ethereum:${SG}`]: "starGuard" };
 
 function deps(over: Partial<OriginDeps> = {}): OriginDeps {
   return {
@@ -33,10 +34,14 @@ function deps(over: Partial<OriginDeps> = {}): OriginDeps {
 }
 
 const change: TxEvent = { contract: "H5Vix4RGchYq1cemoe61y7J4j4v3XgWPGLBeqvPEgvzr", event: "IntegrationUpdate", args: { authority: "FDFsoboECfazAq1eLvwBLZXhoxjPvTy4wCzPdbqnk7Zk" } };
-const receipt: TxEvent = { contract: GOV, event: "LzReceive", args: { guid: GUID, nonce: "6", origin: SUBPROXY } };
+const receipt: TxEvent = { contract: GOV, event: "LzReceive", args: { guid: GUID, nonce: "6", origin: SUBPROXY, target: ALM } };
 const ctx = (events: TxEvent[]): TxContext => ({ chain: "solana", tx: "sig", block: 420_000_000, events });
 
 describe("SVM_RULE", () => {
+  it("takes a receipt whose message calls another program for no evidence about the change", async () => {
+    const other = { ...receipt, args: { ...receipt.args, target: "SKYTAiJRkgexqQqFoqhXdCANyfziwrVrzjhBaCzdbKW" } };
+    expect(await resolveOrigin(ctx([other, change]), deps())).toMatchObject({ kind: "direct", from: "FDFsoboECfazAq1eLvwBLZXhoxjPvTy4wCzPdbqnk7Zk" });
+  });
   it("names the spell that sent the message the receipt carries", async () => {
     const o = await resolveOrigin(ctx([receipt, change]), deps());
     expect(o).toMatchObject({ kind: "spell", path: "layerzero", spell: SPELL, starSpell: STAR, l1Tx: "0xsend" });

@@ -97,6 +97,8 @@ const KINDS = new Set<string>(["monolithic", "diamond", "svm"]);
 const chainError = (where: string, chain: string) => (KNOWN_CHAINS.has(chain) ? [] : [`${where}: unknown chain "${chain}"`]);
 const ADDR_RE = /^0x[0-9a-f]{40}$/;
 const BASE58_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+/** Whether a text is written as a Solana address is: base58, 32 to 44 characters. */
+export const isBase58Address = (a: string): boolean => BASE58_RE.test(a);
 /** Chains read over Solana's JSON-RPC (the registry gives them a `solanaRpcUrl`): base58 addresses, case-sensitive. */
 const SVM_CHAINS = new Set<string>(chainRegistry.chains.filter((c) => "solanaRpcUrl" in c).map((c) => c.chain));
 

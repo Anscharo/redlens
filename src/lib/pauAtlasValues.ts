@@ -78,13 +78,13 @@ function absence(src: ValueSource, snaps: StoredPauSnapshot[], key: string | nul
   if (own.length === 0) return "no-deployment";
   const limits = own.flatMap((s) => s.contracts.filter((c) => c.role === "rateLimits"));
   if (!key) return limits.length > 0 && limits.every((c) => c.historyComplete) ? "no-key" : "unread";
-  return limits.length > 0 && limits.every((c) => c.unsetKeys?.includes(key)) ? "not-set" : "unread";
+  return limits.length > 0 && limits.every((c) => c.unsetKeys?.includes(key.toLowerCase())) ? "not-set" : "unread";
 }
 
-/** Every deployment on the instance's chain that holds the key. */
+/** Every deployment on the instance's chain that holds the key, whatever case it is written in (a Solana key keeps the chain's). */
 const holdings = (snaps: StoredPauSnapshot[], key: string, src: ValueSource) =>
   chainSnaps(snaps, src).flatMap((s) =>
-    s.contracts.flatMap((c) => (c.rateLimits ?? []).filter((r) => r.key.toLowerCase() === key).map((limit) => ({ chain: s.chain, kind: s.kind, contract: c.address, limit, readAt: s.fetchedAt }))),
+    s.contracts.flatMap((c) => (c.rateLimits ?? []).filter((r) => r.key.toLowerCase() === key.toLowerCase()).map((limit) => ({ chain: s.chain, kind: s.kind, contract: c.address, limit, readAt: s.fetchedAt }))),
   );
 
 /** One check per deployment holding the key, or one saying why none can be made (`absent`, where the caller knows better than `absence`). */

@@ -23,6 +23,14 @@ describe("buildEntries", () => {
     expect(entries[1]).toMatchObject({ primes: [P], executive: { title: "exec 0xs" }, changes: [{ event: "RateLimitDataSet", role: "rateLimits", deployments: [`${P}:ethereum:monolithic`] }] });
     expect(entries[0]).toMatchObject({ origin: null, executive: null });
   });
+  it("gives a Solana account the registry does not list its controller's prime, under its own role", () => {
+    const svm = { ...reg, deployments: [{ prime: P, primeName: "Keel", chain: "solana", kind: "svm", members: [{ role: "rateLimits", address: "Ctrl", provenance: [] }] }] } as unknown as PauRegistry;
+    const made = row({ chain: "solana", contract: "NewIntegration", event: "IntegrationUpdate", args: { authority: "A", old: null, new: { controller: "Ctrl" } } });
+    const stray = row({ chain: "solana", tx: "0xb", contract: "Other", event: "IntegrationUpdate", args: { old: null, new: { controller: "Elsewhere" } } });
+    const entries = buildEntries([made, stray], ownersOf(svm), new Map(), () => ({ title: null, date: null, url: null, source: null }));
+    expect(entries.find((e) => e.tx === "0xa")).toMatchObject({ primes: [P], changes: [{ contract: "NewIntegration", role: "integration", deployments: [`${P}:solana:svm`] }] });
+    expect(entries.find((e) => e.tx === "0xb")?.primes).toEqual([]);
+  });
   it("leaves out a transaction that holds only governance evidence", () => {
     expect(buildEntries([row({ event: "Plot", contract: "0xsg" })], ownersOf(reg), new Map(), () => ({ title: null, date: null, url: null, source: null }))).toEqual([]);
   });

@@ -23,7 +23,7 @@ function rateLimitValues(r: LiveRateLimit) {
     ...scale,
     /** False when the live read failed and the values are the last ones its history set. */
     read_live: r.data !== null,
-    switched_off: max === "0",
+    switched_off: max === "0" || r.svm?.status === "Suspended",
     ...(r.derived ? { derivation: r.derived } : {}),
     times_set: r.changes,
   };

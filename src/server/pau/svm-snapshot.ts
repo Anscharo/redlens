@@ -5,11 +5,16 @@
 // its authority as the role holder, holding while its status is Active. The
 // program stores a slope per day and an unlimited maximum as u64::MAX; they
 // are stored as the EVM controllers keep them (per second, rounded down, and
-// the uint256 maximum), so one verdict reads both.
+// the uint256 maximum), so one verdict reads both. The program accrues what is
+// available only when an instruction touches the account, so the amount
+// available now is worked out from its last refresh.
 //
 // Not set: a stated Integration account, or the Reserve of a stated mint, that
 // does not exist (svm-probe.ts), lowercased as every reader compares keys; a
-// missing Reserve is keyed "reserve:<mint>", since its address is derived.
+// missing Reserve is keyed "reserve:<mint>", since its address is derived. A
+// stated address holding some other account is neither a limit nor not set: a
+// wrong address in the atlas never stops the read, as a listed member of an
+// unknown layout does.
 //
 // When each limit and Permission was last set comes from the stored history
 // (svm-history.ts): a recent window, complete only once it covers every change
@@ -46,22 +51,37 @@ const only = (d: PauDeployment, role: PauRole) => {
   return m.address;
 };
 
-/** The accounts among `addresses` that exist and belong to the controller, decoded. */
-function decodeAll<T extends { controller: string }>(acc: Map<string, Uint8Array | null>, addresses: string[], decode: (b: Uint8Array) => T, controller: string): Map<string, T> {
+/** The accounts among `addresses` that exist and belong to the controller, decoded; one of another layout throws when it is `listed`, and is passed over when only the atlas states it. */
+function decodeAll<T extends { controller: string }>(acc: Map<string, Uint8Array | null>, addresses: string[], decode: (b: Uint8Array) => T, controller: string, listed: Set<string>): Map<string, T> {
+  const decoded = (a: string, b: Uint8Array) => {
+    try {
+      return decode(b);
+    } catch (e) {
+      if (listed.has(a)) throw e;
+      return null;
+    }
+  };
   return new Map(addresses.flatMap((a) => {
     const b = acc.get(a);
-    const x = b ? decode(b) : null;
+    const x = b ? decoded(a, b) : null;
     return x && x.controller === controller ? [[a, x] as const] : [];
   }));
 }
 
+/** What is available at `now` (unix seconds): the stored amount plus the slope since the last refresh, up to the maximum. */
+function availableAt(s: SvmLimitState, now: number): string {
+  if (s.maxOutflow === U64_MAX) return UNLIMITED;
+  const accrued = s.available + (s.slope * BigInt(Math.max(0, now - s.refreshedAt))) / DAY;
+  return (accrued < s.maxOutflow ? accrued : s.maxOutflow).toString();
+}
+
 /** A limit in the EVM controllers' terms, with its last set from the history. */
-function limit(address: string, s: SvmLimitState, svm: NonNullable<LiveRateLimit["svm"]>, decimals: number | null, times: SvmSetTimes): LiveRateLimit {
+function limit(address: string, s: SvmLimitState, svm: NonNullable<LiveRateLimit["svm"]>, decimals: number | null, at: { times: SvmSetTimes; now: number }): LiveRateLimit {
   const maxAmount = s.maxOutflow === U64_MAX ? UNLIMITED : s.maxOutflow.toString();
   const slope = (s.slope / DAY).toString();
   return {
-    key: address, configured: { maxAmount, slope }, ...times.limit(address),
-    data: { maxAmount, slope, lastAmount: s.available.toString(), lastUpdated: "0" }, available: s.available.toString(), svm,
+    key: address, configured: { maxAmount, slope }, ...at.times.limit(address),
+    data: { maxAmount, slope, lastAmount: s.available.toString(), lastUpdated: String(s.refreshedAt) }, available: availableAt(s, at.now), svm,
     ...(decimals !== null && svm.mint ? { unit: { decimals, symbol: null, token: svm.mint, source: "token" as const } } : {}),
   };
 }
@@ -90,8 +110,8 @@ async function integrationMints(read: SvmAccounts, ints: Map<string, SvmIntegrat
   return out;
 }
 
-/** The deployment's snapshot, read live. */
-export async function svmSnapshot(d: PauDeployment, read: SvmAccounts, probe: SvmProbe = { integrations: [], mints: [] }, times: SvmSetTimes = svmSetTimes(null, 0)): Promise<PauSnapshot> {
+/** The deployment's snapshot, read live at `now` (milliseconds). */
+export async function svmSnapshot(d: PauDeployment, read: SvmAccounts, probe: SvmProbe = { integrations: [], mints: [] }, times: SvmSetTimes = svmSetTimes(null, 0), now = Date.now()): Promise<PauSnapshot> {
   const program = only(d, "program");
   const controller = only(d, "rateLimits");
   const reserveOf = new Map(probe.mints.map((m) => [m, reserveAddress(program, controller, m)]));
@@ -99,15 +119,17 @@ export async function svmSnapshot(d: PauDeployment, read: SvmAccounts, probe: Sv
   const intAddrs = [...new Set([...membersOf(d, "integration").map((m) => m.address), ...probe.integrations])];
   const perms = membersOf(d, "permission").map((m) => m.address);
   const acc = await read([...reserveAddrs, ...intAddrs, ...perms]);
-  const reserves: Map<string, SvmReserve> = decodeAll(acc, reserveAddrs, decodeReserve, controller);
-  const ints: Map<string, SvmIntegration> = decodeAll(acc, intAddrs, decodeIntegration, controller);
+  const listed = (role: PauRole) => new Set(membersOf(d, role).map((m) => m.address));
+  const at = { times, now: Math.floor(now / 1000) };
+  const reserves: Map<string, SvmReserve> = decodeAll(acc, reserveAddrs, decodeReserve, controller, listed("reserve"));
+  const ints: Map<string, SvmIntegration> = decodeAll(acc, intAddrs, decodeIntegration, controller, listed("integration"));
   const intMint = await integrationMints(read, ints);
   const mints = [...new Set([...[...reserves.values()].map((r) => r.mint), ...intMint.values()])];
   const mintAcc = await read(mints);
   const dec = (m: string | undefined) => (m && mintAcc.get(m) ? mintDecimals(mintAcc.get(m)!) : null);
   const limits = [
-    ...[...reserves].map(([a, r]) => limit(a, r, { account: "reserve", type: "Reserve", mint: r.mint, status: r.status }, dec(r.mint), times)),
-    ...[...ints].map(([a, x]) => limit(a, x, { account: "integration", type: x.config.type, description: x.description, mint: intMint.get(a), ...(x.config.output ? { output: x.config.output } : {}), status: x.status }, dec(intMint.get(a)), times)),
+    ...[...reserves].map(([a, r]) => limit(a, r, { account: "reserve", type: "Reserve", mint: r.mint, status: r.status }, dec(r.mint), at)),
+    ...[...ints].map(([a, x]) => limit(a, x, { account: "integration", type: x.config.type, description: x.description, mint: intMint.get(a), ...(x.config.output ? { output: x.config.output } : {}), status: x.status }, dec(intMint.get(a)), at)),
   ];
   const unsetKeys = [...probe.integrations.filter((a) => acc.get(a) === null), ...[...reserveOf].filter(([, a]) => acc.get(a) === null).map(([m]) => `reserve:${m}`)].map((k) => k.toLowerCase());
   const contracts = [contract(times, "program", program), contract(times, "rateLimits", controller, { rateLimits: limits, unsetKeys }), ...permissionContracts(acc, perms, times)];

@@ -65,9 +65,9 @@ export const svmSnap = (adminHolds = true): StoredPauSnapshot => {
     ],
   };
 };
-/** A Solana Integration's limit the atlas states, as the check keys it (the account, lowercased). */
+/** A Solana Integration's limit the atlas states, keyed by its account as the chain writes it. */
 export const svmCheck = (status: ValueCheck["status"], extra: Partial<ValueCheck> = {}): ValueCheck =>
-  check(status, "2026-07-01", { chain: "solana", kind: "svm", contract: "EeobZr57FSmNvw8Hs719iULJNqv3XLrTB5uPezvC2ND3", key: SVM_ACCOUNT.toLowerCase(), ...extra });
+  check(status, "2026-07-01", { chain: "solana", kind: "svm", contract: "EeobZr57FSmNvw8Hs719iULJNqv3XLrTB5uPezvC2ND3", key: SVM_ACCOUNT, ...extra });
 /** A LayerZero governance message sent on `sent` that no Solana receipt holds. */
 export const lzMessage = (sent: string): PauQueuedStep => ({
   kind: "lz-message", chain: "ethereum", contract: "0x27fc1dd771817b53be48dc28789533bea53c9cca", id: "0xguid", tx: "0xsend", time: `${sent}T00:00:00Z`, at: null, primes: [],

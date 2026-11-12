@@ -9,13 +9,17 @@
 //     and "Maximum <SYM> Bridged … Via SkyLink" / "… Via Circle CCTP" the
 //     LzBridge / CctpBridge of that mint. Each symbol's mint is the one the
 //     prime's own instances state for it (their Asset Supplied and Underlying
-//     Asset Address), never assumed.
+//     Asset Address), never assumed: a symbol they state two mints for has
+//     none. A title several accounts fit takes them all, so the value reads
+//     ambiguous unless every one agrees.
 // A Reserve the chain does not hold is keyed "reserve:<mint>", as the snapshot
-// records it unset; a swap or bridge it does not hold has no key. Pure.
+// records it unset; a swap or bridge it does not hold has no key. A stated
+// address that is not base58 ("N/A", "To be specified") names no account. Keys
+// keep the case the chain writes them in. Pure.
 import type { LiveRateLimit, StoredPauSnapshot } from "./pau.ts";
 import { chainSnaps, instanceChain } from "./pauInstanceChain.ts";
 import type { InstanceKey, ValueSource } from "./pauInstanceKeys.ts";
-import { isSvmChain } from "./pauRegistry.ts";
+import { isBase58Address, isSvmChain } from "./pauRegistry.ts";
 
 /** Whether a value source is on a chain the Solana ALM program serves. */
 export const isSvmSource = (src: ValueSource): boolean => {
@@ -26,42 +30,56 @@ export const isSvmSource = (src: ValueSource): boolean => {
 /** The sides the program sets no limit on: it limits only what flows out. */
 export const UNLIMITED_SIDES = new Set(["out"]);
 
-const param = (src: ValueSource, re: RegExp) => Object.entries(src.params).find(([n]) => re.test(n))?.[1][0]?.trim() ?? null;
+/** The param stating an instance's Integration account, and the one stating its token's mint. */
+export const INTEGRATION_PARAM_RE = /^integration account address$/i;
+export const MINT_PARAM_RE = /^underlying asset address$/i;
 
-/** Each token symbol's mint (lowercased), from the sources that state both. */
+const param = (src: ValueSource, re: RegExp) => Object.entries(src.params).find(([n]) => re.test(n))?.[1][0]?.trim() ?? null;
+/** A param's value when it is written as an address. */
+const address = (src: ValueSource, re: RegExp) => {
+  const v = param(src, re);
+  return v && isBase58Address(v) ? v : null;
+};
+
+/** Each token symbol's mint, from the sources that state both; a symbol stated with two mints has none. */
 export function svmMints(sources: ValueSource[]): Map<string, string> {
   const out = new Map<string, string>();
+  const clash = new Set<string>();
   for (const s of sources.filter(isSvmSource)) {
-    const sym = param(s, /^asset supplied/i);
-    const mint = param(s, /^underlying asset address$/i);
-    if (sym && mint) out.set(sym.toLowerCase(), mint.toLowerCase());
+    const sym = param(s, /^asset supplied/i)?.toLowerCase();
+    const mint = address(s, MINT_PARAM_RE);
+    if (!sym || !mint) continue;
+    if (out.has(sym) && out.get(sym) !== mint) clash.add(sym);
+    out.set(sym, mint);
   }
+  for (const sym of clash) out.delete(sym);
   return out;
 }
 
 const limitsOf = (snaps: StoredPauSnapshot[]): LiveRateLimit[] => snaps.flatMap((s) => s.contracts.flatMap((c) => c.rateLimits ?? [])).filter((r) => r.svm);
-const lower = (s: string | undefined) => s?.toLowerCase();
 
-/** The account a prime-level title names, among the limits held; "reserve:<mint>" for a Reserve not held; null when the title names none, or a swap or bridge not held. */
-function titleKey(title: string, limits: LiveRateLimit[], mints: Map<string, string>): string | null {
+/** The accounts a prime-level title names, among the limits held; "reserve:<mint>" for a Reserve not held; none when the title names none, or a swap or bridge not held. */
+function titleKeys(title: string, limits: LiveRateLimit[], mints: Map<string, string>): string[] {
   const mint = (sym: string) => mints.get(sym.toLowerCase()) ?? null;
   const find = (type: string, m: string | null, out?: string | null) =>
-    limits.find((r) => r.svm!.type === type && lower(r.svm!.mint) === m && (out === undefined || lower(r.svm!.output) === out))?.key.toLowerCase() ?? null;
+    (m ? limits.filter((r) => r.svm!.type === type && r.svm!.mint === m && (out === undefined || r.svm!.output === out)) : []).map((r) => r.key);
   let m: RegExpExecArray | null;
-  if ((m = /^(\w+) Reserve$/i.exec(title))) return mint(m[1]) && (find("Reserve", mint(m[1])) ?? `reserve:${mint(m[1])}`);
-  if ((m = /^(\w+) For (\w+) Swap(?: Maximum)?$/i.exec(title))) return mint(m[1]) && mint(m[2]) ? find("AtomicSwap", mint(m[1]), mint(m[2])) : null;
+  if ((m = /^(\w+) Reserve$/i.exec(title))) {
+    const held = find("Reserve", mint(m[1]));
+    return held.length || !mint(m[1]) ? held : [`reserve:${mint(m[1])}`];
+  }
+  if ((m = /^(\w+) For (\w+) Swap(?: Maximum)?$/i.exec(title))) return mint(m[2]) ? find("AtomicSwap", mint(m[1]), mint(m[2])) : [];
   if ((m = /^Maximum (\w+) Bridged .* Via SkyLink$/i.exec(title))) return find("LzBridge", mint(m[1]));
   if ((m = /^Maximum (\w+) Bridged .* Via Circle CCTP$/i.exec(title))) return find("CctpBridge", mint(m[1]));
-  return null;
+  return [];
 }
 
-/** The keys of a Solana value source: its Integration account, else the account its title names. */
+/** The keys of a Solana value source: its Integration account, else the accounts its title names. */
 export function svmKeys(src: ValueSource, snaps: StoredPauSnapshot[], mints: Map<string, string>): InstanceKey[] {
-  const integration = param(src, /^integration account address$/i);
-  if (integration) return [{ side: "in", key: integration.toLowerCase() }];
+  const integration = address(src, INTEGRATION_PARAM_RE);
+  if (integration) return [{ side: "in", key: integration }];
   const title = src.name.includes(" - ") ? src.name.slice(src.name.indexOf(" - ") + 3) : src.name;
-  const key = titleKey(title, limitsOf(chainSnaps(snaps, src)), mints);
-  return key ? [{ side: "", key }] : [];
+  return titleKeys(title, limitsOf(chainSnaps(snaps, src)), mints).map((key) => ({ side: "", key }));
 }
 
 /**

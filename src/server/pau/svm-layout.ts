@@ -1,8 +1,8 @@
 // The accounts of the Solana ALM program (keel-fi/svm-alm-controller, build
 // v1.0.1, src/state/*.rs): Borsh, one discriminator byte, fixed sizes. A
-// decoder throws on an account of any other size or discriminator, because a
-// program upgrade that changes a layout must stop the read rather than be
-// decoded into wrong numbers. Pure.
+// decoder throws on an account of any other size or discriminator, and on an
+// enum byte it has no name for, because a program upgrade that changes a
+// layout must stop the read rather than be decoded into wrong numbers. Pure.
 import { encodeBase58 } from "../../../scripts/lib/solana-pda.mjs";
 
 /** u64::MAX: a Reserve's or Integration's `max_outflow` when it is unlimited. */
@@ -13,7 +13,10 @@ export interface SvmLimitState {
   /** Raw units per day. */
   slope: bigint;
   maxOutflow: bigint;
+  /** What was available when the program last touched the account (`refreshedAt`); it accrues the slope only then. */
   available: bigint;
+  /** Unix seconds of that last accrual. */
+  refreshedAt: number;
 }
 
 export interface SvmReserve extends SvmLimitState {
@@ -85,20 +88,31 @@ function open(b: Uint8Array, kind: keyof typeof SIZES): Reader {
   return r;
 }
 
-/** The rate-limit fields both a Reserve and an Integration hold: status, then slope, max_outflow and available (remainder and refresh times follow). */
-const limitState = (r: Reader): SvmLimitState => ({ status: STATUS[r.u8()], slope: r.u64(), maxOutflow: r.u64(), available: r.u64() });
+/** The name of an enum byte; a byte the program's build does not define throws. */
+function pick<T>(names: readonly T[], byte: number, what: string): T {
+  if (byte >= names.length) throw new Error(`unknown ${what} ${byte}`);
+  return names[byte];
+}
+
+/** The rate-limit fields both a Reserve and an Integration hold: status, slope, max_outflow, available, remainder, then `between` bytes of the account's own and the last refresh time. */
+function limitState(r: Reader, between = 0): SvmLimitState {
+  const s = { status: pick(STATUS, r.u8(), "status"), slope: r.u64(), maxOutflow: r.u64(), available: r.u64() };
+  r.skip(8 + between);
+  return { ...s, refreshedAt: Number(r.u64()) };
+}
 
 export function decodeReserve(b: Uint8Array): SvmReserve {
   const r = open(b, "reserve");
   const controller = r.pk();
   const mint = r.pk();
   r.pk();
-  return { controller, mint, ...limitState(r) };
+  // A Reserve keeps its last balance before the refresh time.
+  return { controller, mint, ...limitState(r, 8) };
 }
 
 /** An Integration's config: the enum tag and, for each type, the mints it names (`IntegrationConfig`, 225 bytes). */
 function config(r: Reader): SvmIntegrationConfig {
-  const type = CONFIG[r.u8()] ?? "Undefined";
+  const type = pick(CONFIG, r.u8(), "integration config");
   if (type === "SplTokenExternal") return (r.pk(), { type, mint: r.pk() });
   if (type === "CctpBridge") return (r.pk(), r.pk(), { type, mint: r.pk() });
   if (type === "LzBridge") return (r.pk(), { type, mint: r.pk() });
@@ -123,14 +137,14 @@ export function decodeController(b: Uint8Array): SvmController {
   const r = open(b, "controller");
   const id = r.u16();
   r.skip(1);
-  return { id, status: CONTROLLER_STATUS[r.u8()], authority: r.pk() };
+  return { id, status: pick(CONTROLLER_STATUS, r.u8(), "controller status"), authority: r.pk() };
 }
 
 export function decodePermission(b: Uint8Array): SvmPermission {
   const r = open(b, "permission");
   const controller = r.pk();
   const authority = r.pk();
-  const status = STATUS[r.u8()];
+  const status = pick(STATUS, r.u8(), "status");
   return { controller, authority, status, flags: FLAGS.filter(() => r.u8() === 1) };
 }
 

@@ -21,6 +21,17 @@ describe("paramGist", () => {
     expect(paramGist("StarGuard Max Delay", "The Skybase StarGuard `maxDelay` is seven (7) days.")).toBe("Seven (7) days");
     expect(paramGist("Integration Boost Data Submission Responsible Actor", "The Data Submission Responsible Actor is the Core Council Risk Advisor..")).toBe("The Core Council Risk Advisor");
   });
+  it("gives no gist that would drop what changes the meaning", () => {
+    expect(paramGist("Capital Ratio Requirement", "The Capital Ratio Requirement is 7%, applied to the full amount transferred, including funds not yet drawn.")).toBeNull();
+    expect(paramGist("Fee", "The fee is 0.01%. It is 0.5% for withdrawals.")).toBeNull();
+    expect(paramGist("Maximum Allocation", "The maximum allocation is $50 million, or 10% of TVL, whichever is lower.")).toBeNull();
+    expect(paramGist("Owner Role Address", "The Owner role is no longer held by `0xB597026150552bB3F6092aC685A2241C5FA77Ed0`.")).toBeNull();
+    expect(paramGist("Token Address", "The token is not yet deployed; the deployer is `0xB597026150552bB3F6092aC685A2241C5FA77Ed0`.")).toBeNull();
+  });
+  it("keeps an initial's full stop inside the value", () => {
+    expect(paramGist("Maximum Allocation", "The maximum allocation is 50 million U.S. Dollars.")).toBe("50 million U.S. Dollars");
+    expect(paramGist("Underlying Asset", "The underlying asset is U.S. Treasury Bills.")).toBe("U.S. Treasury Bills");
+  });
   it("leaves a sentence that defers, describes or garbles", () => {
     expect(paramGist("Rate Limits", "The Rate Limits for this Instance are defined in [A.6.1 - Rate Limits](abc0b1fc-4922-40f1-8ea9-60fba89f0e5f).")).toBeNull();
     expect(paramGist("Integration Boost Savings Rate Adjustment Strategy", "The Integration Boost is calculated based on per block values for USDS in Aave.")).toBeNull();

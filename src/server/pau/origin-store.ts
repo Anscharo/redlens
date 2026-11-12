@@ -72,16 +72,16 @@ export const lzSentOf = (db: SqlTag, guid: string) =>
       AND args->>'guid' = ${guid.toLowerCase()} ORDER BY block LIMIT 1`);
 
 /**
- * Whether every svm cursor on `chain` reads the governance programs' receipts
- * (its stamp has a `|` part, svm-sync.ts `stampOf`) and has read past `slot`
- * without an error, and there is one.
+ * Whether an svm cursor on `chain` reads the governance programs' receipts (its
+ * stamp has a `|` part, svm-sync.ts `stampOf`) and has read past `slot` without
+ * an error. One is enough: each query carries every governance program of the
+ * chain, so a cursor of a program the registry dropped holds nothing up.
  */
 export async function receiptsPast(db: SqlTag, chain: string, slot: number): Promise<boolean> {
   const rows = (await db`
-    SELECT count(*)::int AS total,
-      (count(*) FILTER (WHERE next_slot > ${slot} AND last_error IS NULL AND position('|' in controllers) > 0))::int AS read
-    FROM pau_svm_cursor WHERE chain = ${chain}`) as { total: number; read: number }[];
-  return (rows[0]?.total ?? 0) > 0 && rows[0].read === rows[0].total;
+    SELECT count(*)::int AS read FROM pau_svm_cursor
+    WHERE chain = ${chain} AND next_slot > ${slot} AND last_error IS NULL AND position('|' in controllers) > 0`) as { read: number }[];
+  return (rows[0]?.read ?? 0) > 0;
 }
 
 export async function saveOrigin(db: SqlTag, p: PendingTx, o: PauOrigin, at: Date): Promise<void> {

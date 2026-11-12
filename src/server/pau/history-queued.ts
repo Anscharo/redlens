@@ -39,21 +39,28 @@ function starSpells(rows: EventRow[], owners: Owners): PauQueuedStep[] {
   }));
 }
 
+/** The Solana window LayerZero receipts are read over (svm-sync.ts): from its start, through the last pass that reached the head. */
+export interface ReceiptsRead {
+  from: string;
+  through: string;
+}
+
 /**
- * The LayerZero governance messages sent on or after `receiptsFrom` (the start
- * of the Solana window a pass has read receipts over, svm-sync.ts) that no
- * stored receipt holds. None before a pass has read receipts, and none sent
- * before the window, whose receipts were never read.
+ * The LayerZero governance messages sent inside the window receipts are read
+ * over that no stored receipt holds. None before a pass has read receipts; none
+ * sent before the window, whose receipts were never read; and none sent after
+ * the last pass reached the head, which could not have seen its receipt, so a
+ * stalled crawl never reads as a message not received.
  */
-function lzMessages(rows: EventRow[], receiptsFrom: string | null): PauQueuedStep[] {
-  if (!receiptsFrom) return [];
+function lzMessages(rows: EventRow[], read: ReceiptsRead | null): PauQueuedStep[] {
+  if (!read) return [];
   const received = new Set(rows.filter((r) => r.event === "LzReceive").map((r) => lower(r.args.guid)));
   return rows
-    .filter((r) => r.event === "GovernanceCallSent" && r.time >= receiptsFrom && !received.has(lower(r.args.guid)))
+    .filter((r) => r.event === "GovernanceCallSent" && r.time >= read.from && r.time <= read.through && !received.has(lower(r.args.guid)))
     .map((r) => ({ kind: "lz-message", chain: r.chain, contract: r.contract, id: lower(r.args.guid), tx: r.tx, time: r.time, at: null, primes: [] }));
 }
 
 /** Every step still to run, oldest first; `rows` are in chain order, as `pau_events` is read. */
-export function queuedSteps(rows: EventRow[], owners: Owners, receiptsFrom: string | null = null): PauQueuedStep[] {
-  return [...actionSets(rows), ...starSpells(rows, owners), ...lzMessages(rows, receiptsFrom)].sort((a, b) => a.time.localeCompare(b.time));
+export function queuedSteps(rows: EventRow[], owners: Owners, receipts: ReceiptsRead | null = null): PauQueuedStep[] {
+  return [...actionSets(rows), ...starSpells(rows, owners), ...lzMessages(rows, receipts)].sort((a, b) => a.time.localeCompare(b.time));
 }

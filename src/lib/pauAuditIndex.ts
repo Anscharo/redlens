@@ -66,7 +66,7 @@ function valueRows({ primeId, prime, checks }: PrimeChecks, input: AuditInput): 
   return checks.flatMap((c) => {
     const entries = DATED.has(c.status) ? input.history.get(c.docId) : undefined;
     const at = { chain: c.limit?.setAt?.time || null, atlas: (entries && valueChange(entries, c.stated)?.entry.date) || null, chainBefore: c.limit?.setAt?.before };
-    const dates = { chain: at.chain?.slice(0, 10) ?? null, atlas: at.atlas?.slice(0, 10) ?? null };
+    const dates = { chain: at.chain?.slice(0, 10) ?? (at.chainBefore ? `before ${at.chainBefore.slice(0, 10)}` : null), atlas: at.atlas?.slice(0, 10) ?? null };
     const step = c.onchain ?? null;
     const routes = c.routes;
     const reason = checkReason(c, checks, at, step, routes);

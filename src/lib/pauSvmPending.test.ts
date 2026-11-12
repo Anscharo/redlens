@@ -3,11 +3,12 @@
 // governance message sent in the spell's window that no Solana receipt holds
 // is the relay still due, until READ_DAYS after it was sent or the next spell
 // executed; a limit set before the history's window is the chain moving
-// before the atlas, so the atlas's spell is followed.
+// before an atlas change inside the window, so that change's spell is
+// followed, and gets no step against a change older than the window.
 import { describe, expect, it } from "vitest";
 import { ctx, edit, exec, lzMessage, svmCheck, svmSnap, SVM_ACCOUNT } from "./pauPending.fixture.ts";
 import type { PauHistoryEntry } from "./pauHistory.ts";
-import { onchainStep } from "./pauPending.ts";
+import { onchainStep, withOnchain } from "./pauPending.ts";
 import { keySetBy, messageInFlight } from "./pauPendingEvidence.ts";
 import { pendingStepText } from "./pauStepText.ts";
 
@@ -37,6 +38,16 @@ describe("Solana evidence", () => {
 
 describe("Solana pending clock", () => {
   const executives = [exec("2026-11-05", true, "2026-11-07")];
+  it("gives no step while the Solana history is not read through, and still says who can change the limit", () => {
+    const c = svmCheck("mismatch");
+    const history = new Map([[c.docId, [edit("2026-10-29", ["2026-11-05"])]]]);
+    const unread = { ...svmSnap(), contracts: svmSnap().contracts.map((x, i) => (i === 0 ? { ...x, historyComplete: false } : x)) };
+    const [read] = withOnchain([c], history, svmCtx("2026-11-20", { executives }));
+    const [held] = withOnchain([c], history, ctx("2026-11-20", { executives, snaps: [unread] }));
+    expect(read.onchain?.kind).toBe("executed");
+    expect(held.onchain).toBeUndefined();
+    expect(held.routes?.relay?.via).toBe("layerzero");
+  });
   it("waits on a LayerZero message the spell's window holds, until READ_DAYS after it was sent", () => {
     const pau = { entries: [], queued: [lzMessage("2026-11-08")] };
     const s = step("2026-11-10", { executives, pau });
@@ -55,5 +66,7 @@ describe("Solana pending clock", () => {
   it("follows the atlas's spell for a limit set before the history's window", () => {
     const before = svmCheck("mismatch", { limit: { ...svmCheck("mismatch").limit!, setAt: { block: 0, time: "", tx: "", before: "2026-01-03T00:00:00Z" } } });
     expect(step("2026-11-20", { executives }, before)?.kind).toBe("executed");
+    const older = { ...before, limit: { ...before.limit!, setAt: { ...before.limit!.setAt, before: "2026-11-01T00:00:00Z" } } };
+    expect(step("2026-11-20", { executives }, older)).toBeNull();
   });
 });

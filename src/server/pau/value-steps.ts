@@ -104,16 +104,21 @@ export async function readValueSteps(deps: StepDeps = DEPS, now = Date.now()): P
   return { steps, unread };
 }
 
-let cache: { at: number; built: Promise<ValueStepsResponse> } | null = null;
+let cache: { at: number; built: Promise<ValueStepsResponse>; done: boolean } | null = null;
 
-/** The steps as last built, rebuilt once CACHE_MS old; one build at a time, and a failed one is not kept. */
+/** The steps as last built, rebuilt once CACHE_MS old; one build at a time (a build still running is the answer, however old), and a failed one is not kept. */
 export function currentValueSteps(now = Date.now()): Promise<ValueStepsResponse> {
-  if (cache && now - cache.at < CACHE_MS) return cache.built;
-  const entry = { at: now, built: readValueSteps(DEPS, now) };
+  if (cache && (now - cache.at < CACHE_MS || !cache.done)) return cache.built;
+  const entry = { at: now, built: readValueSteps(DEPS, now), done: false };
   cache = entry;
-  entry.built.catch(() => {
-    if (cache === entry) cache = null;
-  });
+  entry.built.then(
+    () => {
+      entry.done = true;
+    },
+    () => {
+      if (cache === entry) cache = null;
+    },
+  );
   return entry.built;
 }
 

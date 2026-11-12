@@ -32,8 +32,12 @@ const FULL = `query ($ids: [String]) {
 /** One page of proposals a query matches. */
 export type HubRead = <T>(query: string, variables: Record<string, unknown>) => Promise<T[]>;
 
+/** How long one hub request may take: a stalled hub fails the refresh, so the steps answer without polls rather than hang. */
+const HUB_TIMEOUT_MS = 15_000;
+
 const hubRead: HubRead = async <T,>(query: string, variables: Record<string, unknown>) => {
-  const res = await politeFetch(HUB, { method: "POST", headers: { "content-type": "application/json", "user-agent": "redlens-prime-polls" }, body: JSON.stringify({ query, variables }) });
+  const init = { method: "POST", headers: { "content-type": "application/json", "user-agent": "redlens-prime-polls" }, body: JSON.stringify({ query, variables }), signal: AbortSignal.timeout(HUB_TIMEOUT_MS) };
+  const res = await politeFetch(HUB, init);
   if (!res.ok) throw new Error(`snapshot hub → HTTP ${res.status}`);
   const body = (await res.json()) as { data?: { proposals?: T[] }; errors?: unknown[] };
   if (!body.data?.proposals) throw new Error(`snapshot hub → ${JSON.stringify(body.errors ?? "no data").slice(0, 200)}`);
@@ -67,14 +71,16 @@ let cache: { at: number; polls: Map<string, PrimePoll> } | null = null;
 let failedAt = -Infinity;
 let refreshing: Promise<void> | null = null;
 
+/** One shared read; a failure holds the next off for FAILED_MS from when it failed, however long it took. */
 function refresh(spaces: string[], read: HubRead, now: number): Promise<void> {
+  const began = performance.now();
   refreshing ??= readPrimePolls(spaces, cache?.polls ?? new Map(), read)
     .then(
       (polls) => {
         cache = { at: now, polls };
       },
       (e) => {
-        failedAt = now;
+        failedAt = now + (performance.now() - began);
         console.warn(`prime polls: ${(e as Error).message}`);
       },
     )

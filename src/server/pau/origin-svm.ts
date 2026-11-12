@@ -15,7 +15,9 @@ import type { PauOrigin, RelayRef } from "../../lib/pauHistory.ts";
 import { isSvmChain } from "../../lib/pauRegistry.ts";
 import { ethereumOrigin, origin, type OriginDeps, type OriginRule, type TxContext } from "./origin-rules.ts";
 
-const receiptOf = (c: TxContext, d: OriginDeps) => c.events.find((e) => e.event === "LzReceive" && d.roleOf(c.chain, e.contract) === "lzGovernance");
+/** The tx's governance receipt whose message calls a listed ALM program: anyone may run a pending message for another program beside a change of their own. */
+const receiptOf = (c: TxContext, d: OriginDeps) =>
+  c.events.find((e) => e.event === "LzReceive" && d.roleOf(c.chain, e.contract) === "lzGovernance" && d.roleOf(c.chain, String(e.args.target)) === "program");
 
 /** A change signed by an account on Solana itself. */
 function signed(c: TxContext): PauOrigin {

@@ -25,6 +25,16 @@ describe("svm key routes", () => {
     expect(keyRoutes(svmCheck("not-set", { key: "reserve:usdswr9apdhk5bvjkmjzff41ffux8bsxdkcr81vtwca", limit: undefined }), [svmSnap()], PAU, NOW, docNo)?.relay?.cites?.[0]).toBe("A.reserve");
     expect(keyRoutes(svmCheck("mismatch"), [svmSnap()], PAU, NOW)?.relay).toEqual({ via: "layerzero" });
   });
+  it("names any other active admin as able to set the limit directly, outside the cited spell route", () => {
+    const snap = svmSnap();
+    const both = { ...snap, contracts: snap.contracts.map((c) => (c.roles?.[0].account.startsWith("PcJcgd") ? { ...c, roles: [{ ...c.roles[0], holds: true }] } : c)) };
+    const r = keyRoutes(svmCheck("mismatch"), [both], PAU, NOW, docNo)!;
+    expect(r).toMatchObject({ admins: [SVM_ADMIN], relay: { direct: ["PcJcgdWmFZznhhfN28i6T8GHcwA6jmFGuUeNNGvcSY2"] } });
+    expect(routesText(r)).toContain("signed by FDFsob…k7Zk (Atlas A.integration, A.admin, A.whitelist); PcJcgd…cSY2 can also set it directly as an admin, with no spell; the Operator");
+    const only = keyRoutes(svmCheck("mismatch"), [{ ...both, contracts: both.contracts.filter((c) => c.roles?.[0].account !== SVM_ADMIN) }], PAU, NOW, docNo)!;
+    expect(only).toEqual({ admins: [], operator: null, relay: { via: "layerzero", direct: ["PcJcgdWmFZznhhfN28i6T8GHcwA6jmFGuUeNNGvcSY2"] } });
+    expect(routesText(only)).toMatch(/^Set directly by its admin PcJcgd…cSY2, with no spell/);
+  });
   it("names no route when no admin Permission is active", () => {
     expect(keyRoutes(svmCheck("mismatch"), [svmSnap(false)], PAU, NOW)).toBeNull();
   });

@@ -67,11 +67,11 @@ export function moveOrder(chainAt: string | null | undefined, atlasAt: string | 
 
 /**
  * `moveOrder` from a key's last set. A key set before the window its history
- * was read over (`SetAt.before`) moved before any atlas change: the window
- * covers every change a step can still wait on, so an older one is past
- * pending either way.
+ * was read over (`SetAt.before`) moved before an atlas change inside the
+ * window; against a change older than the window the order is not known, since
+ * the history holds neither.
  */
 export function setOrder(set: Pick<SetAt, "time" | "before"> | null | undefined, atlasAt: string | null | undefined): "chain" | "atlas" | null {
-  if (set?.before) return atlasAt && !Number.isNaN(Date.parse(atlasAt)) ? "atlas" : null;
+  if (set?.before) return moveOrder(set.before, atlasAt) === "atlas" ? "atlas" : null;
   return moveOrder(set?.time, atlasAt);
 }
