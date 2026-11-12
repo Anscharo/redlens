@@ -9,7 +9,7 @@ import { ONCHAIN_SOURCES } from "./sources.ts";
 export interface OnchainFact {
   /** The source that read it ("pau"). */
   source: string;
-  /** What it is: "rate-limit", "rate-limit-default", "beam-state", "atlas-vs-contract", "role", "member". */
+  /** What it is: "rate-limit", "rate-limit-default", "beam-state", "atlas-vs-contract", "role", "member", "parameter". */
   kind: string;
   chain: string;
   /** The atlas entity whose contract it is, by name and id. */
@@ -77,7 +77,7 @@ export function indexFacts(facts: OnchainFact[], coverage: Coverage[] = [], fail
   return ix;
 }
 
-/** A fact as atlas_onchain returns it: without its match keys or the summary that repeats its values. */
+/** A fact as redline_onchain returns it: without its match keys or the summary that repeats its values. */
 export function factOutput({ match: _m, summary: _s, ...rest }: OnchainFact): Omit<OnchainFact, "match" | "summary"> {
   return rest;
 }

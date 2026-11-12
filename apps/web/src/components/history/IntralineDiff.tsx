@@ -1,11 +1,11 @@
 import type { WordSegment } from "@/lib/history";
 
-const WORD_ADDED_STYLE: React.CSSProperties = {
+export const WORD_ADDED_STYLE: React.CSSProperties = {
   background: "var(--diff-added-bg)",
   color: "var(--diff-added-fg)",
   borderRadius: 2,
 };
-const WORD_REMOVED_STYLE: React.CSSProperties = {
+export const WORD_REMOVED_STYLE: React.CSSProperties = {
   background: "var(--diff-removed-bg)",
   color: "var(--diff-removed-fg)",
   borderRadius: 2,

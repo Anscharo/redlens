@@ -9,6 +9,7 @@ function diff(over: Partial<PreviewDiff> = {}): PreviewDiff {
     renumbered: { r1: ["A.1", "A.2"] },
     renumberedOnly: new Set(["r1"]),
     retitled: { t1: ["Old", "New"] },
+    retyped: {},
     reusedSlot: { n2: {} },
     identitySwap: { e1: { oldTitle: "a", newTitle: "b" } },
     formerUuid: {},

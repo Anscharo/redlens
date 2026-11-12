@@ -19,6 +19,7 @@ import path from "node:path";
 // .mjs from scripts/lib — the same loader the build pipeline uses, so a preview
 // and a real build can never disagree about what a checkout contains.
 import { loadAtlasSource } from "../../../scripts/lib/atlas-source.mjs";
+import { typeChanged } from "../../../scripts/lib/history-events.ts";
 
 export interface SnapshotDoc {
   /** Structurally compatible with identity.ts's SwapNode, so the live atlas's
@@ -26,6 +27,8 @@ export interface SnapshotDoc {
   id: string;
   doc_no: string;
   title?: string;
+  /** The heading's `[Type]`. Optional so a snapshot without it never reads as a type change. */
+  type?: string;
   content?: string;
   contentHash?: string;
 }
@@ -44,7 +47,7 @@ export function snapshotFromSrcDir(srcDir: string): Snapshot {
   return new Map(
     nodes.map((n: SnapshotDoc) => [
       n.id,
-      { id: n.id, doc_no: n.doc_no, title: n.title, content: n.content, contentHash: n.contentHash },
+      { id: n.id, doc_no: n.doc_no, title: n.title, type: n.type, content: n.content, contentHash: n.contentHash },
     ]),
   );
 }
@@ -57,7 +60,7 @@ export function snapshotFromDocsJson(outDir: string): Snapshot {
   return new Map(
     nodes.map((n) => [
       n.id,
-      { id: n.id, doc_no: n.doc_no, title: n.title, content: n.content, contentHash: n.contentHash },
+      { id: n.id, doc_no: n.doc_no, title: n.title, type: n.type, content: n.content, contentHash: n.contentHash },
     ]),
   );
 }
@@ -99,8 +102,8 @@ export async function loadBaseSnapshot(
  * `added` / `changed` split on uuid presence, not on any file status: a document
  * whose number changed is CHANGED (same uuid, new position), and a brand-new
  * uuid at an existing doc number is ADDED even though its file was "modified".
- * `title` and `doc_no` count as changes alongside content so a pure rename or
- * renumber still surfaces a redline.
+ * `title`, `doc_no` and `type` count as changes alongside content so a pure
+ * rename, renumber or type change still surfaces a redline.
  */
 export function diffSnapshots(base: Snapshot, head: Snapshot): SnapshotDiff {
   const added: string[] = [];
@@ -120,7 +123,7 @@ export function diffSnapshots(base: Snapshot, head: Snapshot): SnapshotDiff {
       h.contentHash && b.contentHash
         ? h.contentHash !== b.contentHash
         : (h.content ?? "") !== (b.content ?? "");
-    if (bodyDiffers || h.title !== b.title || h.doc_no !== b.doc_no) changed.push(id);
+    if (bodyDiffers || h.title !== b.title || h.doc_no !== b.doc_no || typeChanged(b, h)) changed.push(id);
   }
   for (const id of base.keys()) if (!head.has(id)) removed.push(id);
 

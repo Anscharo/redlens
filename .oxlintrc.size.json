@@ -27,7 +27,6 @@
     { "files": ["apps/web/src/components/atlas/CollapsibleNode.tsx"], "rules": { "max-lines": ["error", { "max": 370, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 328, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/atlas/JuniorPane.tsx"], "rules": { "max-lines": ["error", { "max": 197, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 164, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/feedback/FeedbackModal.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 124, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/components/history/EntryRow.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 125, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/preview/PreviewGate.tsx"], "rules": { "max-lines": ["error", { "max": 192, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 123, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/preview/PreviewHome.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 146, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/preview/PreviewPrTabs.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 112, "skipBlankLines": true, "skipComments": true }] } },
@@ -83,19 +82,11 @@
     { "files": ["scripts/lib/patch-notes-validate.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 75, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/settlement-xlsx.mjs"], "rules": { "max-lines": ["error", { "max": 341, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 92, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/required/build-graph.mjs"], "rules": { "max-lines": ["error", { "max": 443, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["scripts/required/build-history.mjs"], "rules": { "max-lines": ["error", { "max": 246, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 187, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/required/check-chains-census.mjs"], "rules": { "max-lines": ["error", { "max": 231, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/required/fetch-chain-state.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 75, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/activeDataIndex.ts"], "rules": { "max-lines": ["error", { "max": 344, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 159, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/conceptsCensus.ts"], "rules": { "max-lines": ["error", { "max": 280, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/crossviewShape.ts"], "rules": { "max-lines-per-function": ["error", { "max": 125, "skipBlankLines": true, "skipComments": true }] } },
-    // One catalog of Features-guide entries (search lanes, Radar search, …). Adding an
-    // entry is how the guide is meant to grow; a split would scatter one catalog.
-    // The Features guide is the one list of what the app does, so every
-    // user-visible feature is described here (a Prime's subpages, each report,
-    // the PAU Values Needing Audit report and the instance-card on-chain marks among them). It is data with no seam to
-    // split along, so the pin rises by exactly what a new entry needs.
-    { "files": ["src/lib/featuresData.ts"], "rules": { "max-lines": ["error", { "max": 436, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/oeaTasks.ts"], "rules": { "max-lines-per-function": ["error", { "max": 97, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/onchainAddressesIndex.ts"], "rules": { "max-lines": ["error", { "max": 345, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 57, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/rewardsIndex.ts"], "rules": { "max-lines": ["error", { "max": 299, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }] } },

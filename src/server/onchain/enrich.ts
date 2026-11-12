@@ -6,6 +6,7 @@ import type { AtlasHandler } from "../chat/tools/tool-types.ts";
 import type { ToolResult } from "../chat/tools/tools.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { factIndex, SOURCES_FAILED_NOTE, type FactIndex, type OnchainFact } from "./facts.ts";
+import { factRelation } from "./relation.ts";
 
 const MAX_FACTS = 15;
 const HASH_RE = /0x[0-9a-fA-F]{64}(?![0-9a-fA-F])/g;
@@ -16,7 +17,7 @@ export const ONCHAIN_NOTE =
   "Read from the chain by the atlas worker, not atlas text; cite set_tx_url, not an atlas document, for these values. " +
   "Amounts are scaled by the token's decimals (decimals_source token or constant) or, where neither is known, by decimals inferred from the limit's size. " +
   "Where history_complete is false the contract is still being read, " +
-  "so a missing fact is not proof of absence. atlas_onchain lists the complete set.";
+  "so a missing fact is not proof of absence. redline_onchain lists the complete set.";
 
 const found = (text: string, re: RegExp, map: Map<string, OnchainFact[]>) =>
   [...new Set(text.match(re) ?? [])].flatMap((x) => map.get(x.toLowerCase()) ?? []);
@@ -27,7 +28,7 @@ export function factsNamedIn(text: string, idx: FactIndex): OnchainFact[] {
 }
 
 const brief = (f: OnchainFact) => ({
-  entity: f.entity, chain: f.chain, kind: f.kind, name: f.name, name_source: f.name_source, contract: f.contract,
+  entity: f.entity, chain: f.chain, kind: f.kind, relation: factRelation(f), name: f.name, name_source: f.name_source, contract: f.contract,
   ...f.summary,
   set_tx_url: f.set_at?.url ?? null, history_complete: f.history_complete,
 });

@@ -1,19 +1,12 @@
+import { CHANGE_LABEL } from "@/lib/changeTypes";
 import type { PreviewCommitError, PreviewCommitRow, PreviewCommitsState } from "@/lib/previewCommits";
 
-const CHANGE_WORD: Record<PreviewCommitRow["changeType"], string> = {
-  added: "added",
-  modified: "edited",
-  removed: "removed",
-  moved: "moved",
-  renumbered: "renumbered",
-};
-
 /** One row's change line, as the live history words it plus what a branch adds.
- *  A title change is not part of it: CommitEntry shows that as a TitleDiff. */
+ *  A title change, the renumbering's numbers and the type change's types are not
+ *  part of it: CommitEntry shows those as TitleDiff, DocNoDiff and TypeDiff. */
 export function commitRowLabel(row: PreviewCommitRow): string {
-  const parts = [CHANGE_WORD[row.changeType]];
+  const parts = [CHANGE_LABEL[row.changeType]];
   if (row.changeType === "modified" && row.changeKind && row.changeKind !== "semantic") parts[0] += ` (${row.changeKind})`;
-  if (row.changeType === "renumbered" && row.prevDocNo) parts[0] += ` ${row.prevDocNo} → ${row.docNo}`;
   if (row.changeType === "moved" && row.movedTo) parts[0] += `${row.movedFrom ? ` from ${row.movedFrom}` : ""} to ${row.movedTo}`;
   if (row.bothSides) parts.push("both sides' edits met here");
   return parts.join(" · ");

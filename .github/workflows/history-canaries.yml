@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - "scripts/required/build-history.mjs"
+      - "scripts/required/history-cursor.mjs"
+      - "scripts/required/history-walk.mjs"
+      - "scripts/required/history-sink.mjs"
       - "scripts/lib/history-classify.mjs"
       - "scripts/lib/github-pr-cache.mjs"
       - "scripts_tests/history-canaries.test.ts"

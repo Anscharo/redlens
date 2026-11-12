@@ -1,10 +1,15 @@
 // An optional `change_type` enum sets emptyArgsAbsent: a property-filling model
 // has no empty value for it, so `null` and "" must read as unset.
+import { CHANGE_TYPES } from "../../../lib/changeTypes.ts";
 import { z } from "zod";
 import { atlasHistory, atlasRecentChanges, atlasHistoryStats, atlasPr, atlasChangedBetween } from "./tools-history.ts";
 import { readOnlyAtlasTool, type AtlasTool } from "./tool-types.ts";
 
-const CHANGE_TYPE = () => z.enum(["added", "modified", "removed", "moved"]).optional();
+const CHANGE_TYPE = () =>
+  z
+    .enum(CHANGE_TYPES)
+    .optional()
+    .describe("added | modified (body text changed) | removed | moved (file move) | retitled (title changed; moved_from/moved_to hold the old and new title) | renumbered (doc number changed; moved_from/moved_to hold the old and new number) | retyped ([Type] changed; moved_from/moved_to hold the old and new type).");
 
 export const HISTORY_TOOLS: AtlasTool[] = [
   {
@@ -95,7 +100,7 @@ export const HISTORY_TOOLS: AtlasTool[] = [
     whenToUse:
       "The question compares two atlas versions — what changed between two commits/SHAs.",
     annotations: readOnlyAtlasTool("Atlas Changed Between"),
-    description: "Which docs changed between two atlas commits? Pass two short SHAs and get every doc added/modified/moved/removed in that window. Uses commit_seq for exact topological ordering.",
+    description: "Which docs changed between two atlas commits? Pass two short SHAs and get every doc added/modified/moved/retitled/renumbered/retyped/removed in that window. Uses commit_seq for exact topological ordering.",
     shape: {
       commit_a: z.string().describe("First boundary commit SHA (7-char prefix or full)."),
       commit_b: z.string().describe("Second boundary commit SHA."),

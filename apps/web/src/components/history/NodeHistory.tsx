@@ -1,9 +1,7 @@
-import { Fragment, useEffect, useState } from "react";
-import { loadHistory, PRE_MD_PR, RECONSTRUCTED_ERAS, type HistoryEntry } from "@/lib/history";
-import { ApprovedByPoll } from "./ApprovedByPoll";
-import { EntryRow } from "./EntryRow";
-import { SeamFooter } from "./SeamFooter";
-import { CONTENT_INDENT, TimelineRow } from "./Timeline";
+import { useEffect, useState } from "react";
+import { loadHistory, type HistoryEntry } from "@/lib/history";
+import { HistoryList } from "./HistoryList";
+import { CONTENT_INDENT } from "./Timeline";
 
 // Before PR #117 (commit 22cc27b5, 2025-11-21) the atlas was a single HTML file
 // with no per-doc identities. Two cases:
@@ -20,10 +18,6 @@ import { CONTENT_INDENT, TimelineRow } from "./Timeline";
 // just where git-tracked history starts) — relabel it "committed" instead. Commit
 // hashes throughout this pipeline are truncated to 7 chars (gitCommitSeq, buildEvents,
 // etc.) — 8 would never match and silently disable the relabel.
-const ROOT_SHA = "4e931df";
-
-const PRE_GIT_ERAS = new Set(["mip", "genesis", "severed"]);
-
 export function NodeHistory({
   nodeId,
   railAbove = false,
@@ -37,78 +31,36 @@ export function NodeHistory({
   const [entries, setEntries] = useState<HistoryEntry[] | null>(undefined as unknown as null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setEntries(null);
-    loadHistory(nodeId).then((data) => {
-      if (cancelled) return;
-      setEntries(data);
-      setLoading(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [nodeId]);
+  useEffect(() => loadNodeHistory(nodeId, setEntries, setLoading), [nodeId]);
 
-  // Status lines carry no timeline node of their own — indent them to the entry
-  // column so they line up with the entry text rather than with the rail.
-  const statusStyle = { color: "var(--tan-3)", marginLeft: CONTENT_INDENT };
+  if (loading) return <HistoryStatus>loading history…</HistoryStatus>;
+  if (!entries || entries.length === 0) return <HistoryStatus>no history recorded</HistoryStatus>;
+  return <HistoryList entries={entries} railAbove={railAbove} />;
+}
 
-  if (loading) {
-    return (
-      <p className="mono text-[11px]" style={statusStyle}>
-        loading history…
-      </p>
-    );
-  }
+function loadNodeHistory(
+  nodeId: string,
+  setEntries: (entries: HistoryEntry[] | null) => void,
+  setLoading: (loading: boolean) => void,
+) {
+  let cancelled = false;
+  setLoading(true);
+  setEntries(null);
+  loadHistory(nodeId).then((data) => {
+    if (cancelled) return;
+    setEntries(data);
+    setLoading(false);
+  });
+  return () => {
+    cancelled = true;
+  };
+}
 
-  if (!entries || entries.length === 0) {
-    return (
-      <p className="mono text-[11px]" style={statusStyle}>
-        no history recorded
-      </p>
-    );
-  }
-
-  // Order by commit_seq (real git position for git-derived eras; a reserved negative
-  // block for mip/genesis/severed — docs/plans/pre-git-history.md) rather than by date
-  // string: a severed-interval birth has NO date at all, and an empty string would
-  // sort as "smallest" — after even the earliest MIP date — which is chronologically
-  // backwards. commitSeq is populated on every row once ingested; date compare is a
-  // defensive fallback only.
-  const sorted = [...entries].sort((a, b) =>
-    a.commitSeq != null && b.commitSeq != null ? b.commitSeq - a.commitSeq : b.date.localeCompare(a.date),
-  );
-  const hasReconstructed = sorted.some((e) => e.era && RECONSTRUCTED_ERAS.has(e.era));
-  const hasPreGit = sorted.some((e) => e.era && PRE_GIT_ERAS.has(e.era));
-  // Always show the full history — reconstructed and pre-git entries included.
-  // Each such entry flags its own provenance with an info-icon tooltip (EntryRow),
-  // so there is no longer a toggle or interleaved disclaimer blocks.
-  const visible = sorted;
-  const trimTop = !railAbove;
-
+function HistoryStatus({ children }: { children: string }) {
   return (
-    <div>
-      {visible.map((entry, i) => {
-        const isRootSnapshot =
-          hasPreGit && entry.era === "html" && entry.changeType === "added" && entry.commitHash.startsWith(ROOT_SHA);
-        return (
-          <Fragment key={i}>
-            <EntryRow
-              entry={entry}
-              labelOverride={isRootSnapshot ? "committed" : undefined}
-              isFirst={trimTop && i === 0}
-            />
-            <ApprovedByPoll pr={entry.pr} />
-            {!hasReconstructed && entry.pr === PRE_MD_PR && (
-              <TimelineRow>
-                <SeamFooter seam={entry.seam} />
-              </TimelineRow>
-            )}
-          </Fragment>
-        );
-      })}
-    </div>
+    <p className="mono text-[11px]" style={{ color: "var(--tan-3)", marginLeft: CONTENT_INDENT }}>
+      {children}
+    </p>
   );
 }
+

@@ -14,7 +14,7 @@ const XML_INVOKE = /<\/?(?:invoke|parameter|function)\b/i;
 const TOOL_FENCE = /^```(?:tool_call|tool)\b/i;
 const JSON_PAYLOAD = /^\s*\{[\s\S]*"name"\s*:\s*"[^"]+"[\s\S]*"arguments"\s*:/;
 const JSON_NAME_LINE =
-  /^\s*"name"\s*:\s*"(atlas_[a-z0-9_]+|ask_external_msc|export_findings|external_msc)"/i;
+  /^\s*"name"\s*:\s*"(atlas_[a-z0-9_]+|redline_[a-z0-9_]+|ask_external_msc|export_findings|external_msc)"/i;
 const JSON_ARGS_LINE = /^\s*"arguments"\s*:/;
 
 export function looksLikeToolCallLine(line: string): boolean {

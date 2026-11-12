@@ -6,9 +6,9 @@ import { describe, expect, test } from "bun:test";
 import { makeNodeEntry, type GitSnapshot } from "../../../scripts/lib/atlas-git-parse.ts";
 import { commitEntries, mergeEntries } from "./commit-events.ts";
 
-type Doc = [id: string, docNo: string, body: string, title?: string];
+type Doc = [id: string, docNo: string, body: string, title?: string, type?: string];
 const snap = (...docs: Doc[]): GitSnapshot =>
-  new Map(docs.map(([id, docNo, body, title = `T${id}`]) => [id, makeNodeEntry(docNo, title, "Core", body, "content/A.md")]));
+  new Map(docs.map(([id, docNo, body, title = `T${id}`, type = "Core"]) => [id, makeNodeEntry(docNo, title, type, body, "content/A.md")]));
 
 describe("commitEntries", () => {
   test("adds, edits, removes, and reports a renumbering as its own row", () => {
@@ -23,10 +23,20 @@ describe("commitEntries", () => {
     expect(rows.r).toEqual([{ changeType: "renumbered", docNo: "A.5", title: "Tr", prevDocNo: "A.4" }]);
   });
 
-  test("a retitle carries the old title; an unchanged commit has no rows", () => {
+  test("a retitle is its own row carrying the old title; an unchanged commit has no rows", () => {
     const prev = snap(["a", "A.1", "body", "Old"]);
-    expect(commitEntries(prev, snap(["a", "A.1", "body", "New"])).a[0]).toMatchObject({ changeType: "modified", title: "New", prevTitle: "Old" });
+    expect(commitEntries(prev, snap(["a", "A.1", "body", "New"])).a).toEqual([{ changeType: "retitled", docNo: "A.1", title: "New", prevTitle: "Old" }]);
+    expect(commitEntries(prev, snap(["a", "A.1", "edited", "New"])).a.map((r) => r.changeType)).toEqual(["retitled", "modified"]);
     expect(commitEntries(prev, prev)).toEqual({});
+  });
+
+  test("a [Type] change is its own row, beside a renumbering in the same commit", () => {
+    const prev = snap(["a", "A.1.2", "body", "T", "Core"]);
+    const rows = commitEntries(prev, snap(["a", "A.1.3", "body", "T", "Section"]));
+    expect(rows.a).toEqual([
+      { changeType: "renumbered", docNo: "A.1.3", title: "T", prevDocNo: "A.1.2" },
+      { changeType: "retyped", docNo: "A.1.3", title: "T", docType: "Section", prevDocType: "Core" },
+    ]);
   });
 });
 
@@ -37,6 +47,11 @@ describe("mergeEntries", () => {
   test("a clean merge has no rows: every document matches one parent", () => {
     const merged = snap(["a", "A.1", "one EDIT"], ["b", "A.2", "two UPSTREAM"]);
     expect(mergeEntries([ours, theirs], merged)).toEqual({});
+  });
+
+  test("a merge that changed a type neither side had is reported", () => {
+    const merged = snap(["a", "A.1", "one EDIT", "Ta", "Section"], ["b", "A.2", "two"]);
+    expect(mergeEntries([ours, snap(["a", "A.1", "one EDIT"], ["b", "A.2", "two"])], merged).a?.[0]).toMatchObject({ changeType: "retyped", bothSides: true });
   });
 
   test("a document both sides edited is reported against the first parent and flagged", () => {

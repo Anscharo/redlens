@@ -23,7 +23,7 @@ const have =
 interface HistoryEntry {
   date: string;
   commitHash: string;
-  changeType: "added" | "modified" | "removed" | "moved";
+  changeType: "added" | "retitled" | "modified" | "removed" | "moved" | "renumbered" | "retyped";
   pr?: number;
   prTitle?: string;
   summary?: string;

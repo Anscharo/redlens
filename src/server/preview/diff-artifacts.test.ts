@@ -68,6 +68,24 @@ describe("computeDiffArtifacts", () => {
     expect(patches[ID1]).toBeUndefined(); // content identical vs live → no patch
   });
 
+  test("type-only edit: the doc is changed and retyped, not renumber-only", () => {
+    const base = snap([{ id: ID1, doc_no: "A.1", title: "One", type: "Core", content: "same", contentHash: "h1" }]);
+    const head = snap([{ id: ID1, doc_no: "A.1", title: "One", type: "Section", content: "same", contentHash: "h1" }]);
+    const { diff, patches } = computeDiffArtifacts(base, head, base);
+    expect(diff.changed).toEqual([ID1]);
+    expect(diff.retyped).toEqual({ [ID1]: ["Core", "Section"] });
+    expect(diff.renumberedOnly).toEqual([]);
+    expect(patches[ID1]).toBeUndefined();
+  });
+
+  test("a side with no type is never a type change", () => {
+    const base = snap([{ id: ID1, doc_no: "A.1", title: "One", content: "same", contentHash: "h1" }]);
+    const head = snap([{ id: ID1, doc_no: "A.1", title: "One", type: "Section", content: "same", contentHash: "h1" }]);
+    const { diff } = computeDiffArtifacts(base, head, base);
+    expect(diff.changed).toEqual([]);
+    expect(diff.retyped).toEqual({});
+  });
+
   test("title-only edit: retitled set, no patch", () => {
     const base = snap([{ id: ID1, doc_no: "A.1", title: "Old Title", content: "body", contentHash: "h1" }]);
     const live = snap([{ id: ID1, doc_no: "A.1", title: "Old Title", content: "body", contentHash: "h1" }]);

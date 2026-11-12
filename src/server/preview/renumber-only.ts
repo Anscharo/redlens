@@ -1,4 +1,4 @@
-// Changed docs whose only change is their doc number: same title, and a body
+// Changed docs whose only change is their doc number: same title and type, and a body
 // that matches once every doc number it mentions is read through this
 // preview's renumbering. A parent moving renumbers its whole subtree, and the
 // children's bodies often cite their siblings ("per A.1.2.3"), so a strict
@@ -7,6 +7,7 @@
 // The reader's Exclude › "Renumber-only changes" filter reads this list; patches are loaded
 // lazily, so the browser cannot work it out itself.
 import type { Snapshot, SnapshotDoc } from "./snapshot.ts";
+import { typeChanged } from "../../../scripts/lib/history-events.ts";
 
 // Same shape the votes subject parser uses for doc numbers in prose: a scope
 // letter, dotted segments, ending on a digit (so a trailing full stop is not
@@ -38,7 +39,7 @@ export function findRenumberedOnly(changed: string[], sides: Sides): string[] {
   for (const id of changed) {
     const b = sides.before(id);
     const a = sides.after(id);
-    if (!b || !a || b.doc_no === a.doc_no || b.title !== a.title) continue;
+    if (!b || !a || b.doc_no === a.doc_no || b.title !== a.title || typeChanged(b, a)) continue;
     const bodyBefore = b.content ?? "";
     const bodyAfter = a.content ?? "";
     if (bodyBefore === bodyAfter || rewrite(bodyBefore) === bodyAfter) out.push(id);

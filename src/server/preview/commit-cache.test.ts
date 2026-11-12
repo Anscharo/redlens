@@ -13,7 +13,7 @@ const ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "redlens-commit-cache-"));
 const SHA = "c".repeat(40);
 afterAll(() => fs.rmSync(ROOT, { recursive: true, force: true }));
 
-const FILE: CommitHistoryFile = { version: 1, base: "repo", mergeBase: "mb1", head: SHA, total: 0, truncated: false, commits: [] };
+const FILE: CommitHistoryFile = { version: 2, base: "repo", mergeBase: "mb1", head: SHA, total: 0, truncated: false, commits: [] };
 
 describe("cachedCommitEvents", () => {
   test("replays a walk for its own merge base, and never for another", () => {

@@ -1,3 +1,5 @@
+import type { ChangeType } from "./changeTypes";
+
 /** Word-level segment within an intraline diff */
 export type WordSegment = ["=" | "+" | "-", string];
 
@@ -11,7 +13,9 @@ export type DiffLine = ["=" | "+" | "-", string] | ["~", WordSegment[]] | ["…"
 export interface HistoryEntry {
   date: string;
   commitHash: string;
-  changeType: "added" | "modified" | "removed" | "moved";
+  /** `modified`: the body changed. `retitled`: the title changed. `renumbered`:
+   *  the doc number changed. `retyped`: the heading's `[Type]` changed. */
+  changeType: ChangeType;
   pr?: number;
   prTitle?: string;
   prAuthor?: string;
@@ -31,9 +35,11 @@ export interface HistoryEntry {
    *  it is stricter than "≤8 chars", which this comment used to claim). Only set for
    *  `changeType: "modified"`. */
   changeKind?: "lint" | "typo" | "semantic";
-  /** Source path for `changeType: "moved"` */
+  /** The value before: the source path of a `moved` entry, the old title of a
+   *  `retitled` one, the old doc number of a `renumbered` one, the old type of a
+   *  `retyped` one. */
   movedFrom?: string;
-  /** Destination path for `changeType: "moved"` */
+  /** The value after, for the same four change types. */
   movedTo?: string;
   /** Reconstruction era. "html" = a pre-#117 entry auto-translated from the
    *  original HTML tables, with lineage traced (deterministic matching + AI
@@ -123,168 +129,42 @@ export function movePaths(e: HistoryEntry): { from?: string; to: string } | null
   return e.pr === PRE_MD_PR ? PRE_MD_MOVE : null;
 }
 
-/** Single source of truth for change-type → CSS color, shared by the atlas
- *  history panel (EntryRow) and the radar actor history (ActorHistory).
- *  added/removed reuse the diff-view tokens so the label color matches the
- *  diff body; modified/moved have no diff equivalent. */
-export const CHANGE_COLOR: Record<string, string> = {
-  added: "var(--diff-added-fg)",
-  modified: "var(--tan-3)",
-  removed: "var(--diff-removed-fg)",
-  // Blue from the decorative depth cycle — deliberately NOT --accent (the link
-  // color) nor --warn/--error-text (which carry their own meaning); it just has to
-  // be distinct from added-green, removed-pink and modified-tan. 6.1:1 on --bg.
-  moved: "var(--depth-4)",
-};
+/** Change-type → CSS colour (src/lib/changeTypes.ts), shared by the atlas
+ *  history panel and the radar actor history. */
+export { CHANGE_COLOR } from "./changeTypes";
 
-// Shared shape for every /api/history/* GET below: a 404 (no backend on this
-// deploy, or no such doc) is a stable outcome and IS cached; any other
-// failure — a transient DB hiccup (503), a real fetch rejection — must NOT be
-// cached as permanent "no data", so it evicts the cache entry via `onFail` and
-// resolves to null for just this call. Callers never see a rejection.
-function fetchCached<T>(url: string, label: string, onFail: () => void): Promise<T | null> {
-  const p = fetch(url)
-    .then((r) => {
-      if (r.ok) return r.json() as Promise<T>;
-      if (r.status === 404) return null;
-      throw new Error(`${label} fetch failed with status ${r.status}`); // transient
-    })
-    .catch((err) => {
-      onFail();
-      throw err;
-    });
-  return p.catch(() => null);
+/** `content/A/1/9/document.md` holds doc A.1.9: in the atomized layout a path
+ *  spells out its document's number. */
+const numberInPath = (path: string, docNo: string) => path.includes(`/${docNo.split(".").join("/")}/`);
+
+/** A `moved` entry that only restates a same-commit renumbering: in the
+ *  atomized layout a document's path spelled out its number, so every
+ *  renumbering of that era also moved its file. */
+function restatesRenumber(e: HistoryEntry, r: HistoryEntry | undefined): boolean {
+  if (e.changeType !== "moved" || !r?.movedFrom || !r.movedTo || !e.movedFrom || !e.movedTo) return false;
+  return numberInPath(e.movedFrom, r.movedFrom) && numberInPath(e.movedTo, r.movedTo);
 }
 
-// Module-level cache: nodeId → promise
-const cache = new Map<string, Promise<HistoryEntry[] | null>>();
-
-export function loadHistory(nodeId: string): Promise<HistoryEntry[] | null> {
-  let p = cache.get(nodeId);
-  if (!p) {
-    // Mirrors loadHistoryBatch below, which already only seeds the cache on a
-    // real response.
-    p = fetchCached<HistoryEntry[]>(`/api/history/${nodeId}`, "history", () => cache.delete(nodeId));
-    cache.set(nodeId, p);
-  }
-  return p;
+/** Drop the entries a more specific same-commit entry says better: a file move
+ *  that only restates a renumbering, and an edit with no diff beside a
+ *  retitling, which records nothing the retitling does not. A move between
+ *  files that is more than a renumbering, and any edit with a diff, stay. */
+export function foldRestatedEntries(entries: HistoryEntry[]): HistoryEntry[] {
+  const by = (type: ChangeType) => new Map(entries.filter((e) => e.changeType === type).map((e) => [e.commitHash, e]));
+  const renumbers = by("renumbered");
+  const retitles = by("retitled");
+  return entries.filter(
+    (e) =>
+      !restatesRenumber(e, renumbers.get(e.commitHash)) &&
+      !(e.changeType === "modified" && !e.diff?.length && retitles.has(e.commitHash)),
+  );
 }
 
-/** One doc's strict-modification tally from GET /api/history/mod-counts —
- *  content edits only (no moves/renames/renumbers), and of those only semantic
- *  ones. Docs with no content history at all are absent from the response;
- *  the Modification Frequency report zero-fills them from docs.json. */
-export interface ModCount {
-  docId: string;
-  /** Semantic content edits (the report's "modifications"). */
-  count: number;
-  /** YYYY-MM-DD of the latest counted edit; null when count is 0. */
-  lastModified: string | null;
-  /** All content rows incl. lint/typo/unclassified — context, not the metric. */
-  contentCount: number;
-}
-
-let modCountsCache: Promise<ModCount[] | null> | null = null;
-
-/** Fetch the all-docs modification tallies. Same contract as loadHistory. */
-export function loadModCounts(): Promise<ModCount[] | null> {
-  if (!modCountsCache) {
-    modCountsCache = fetchCached<ModCount[]>("/api/history/mod-counts", "mod-counts", () => {
-      modCountsCache = null;
-    });
-  }
-  return modCountsCache;
-}
-
-export type TimelineGranularity = "month" | "week" | "commit";
-
-/** One time bucket's semantic-edit tally from GET /api/history/mod-timeline
- *  (granularity=month|week). Periods with no matching edit are absent — the
- *  Modification Frequency report's timeline chart zero-fills the gaps
- *  client-side. */
-export interface ModTimelinePeriodRow {
-  /** "YYYY-MM" (month) or the Monday-start date of the week, "YYYY-MM-DD". */
-  period: string;
-  count: number;
-}
-
-/** One commit's semantic-edit tally from GET /api/history/mod-timeline
- *  (granularity=commit). No zero-fill — an absent commit touched no matching
- *  content, not a gap in a continuous axis. */
-export interface ModTimelineCommitRow {
-  seq: number;
-  sha: string;
-  /** null for a severed-era commit, which carries only a date window. */
-  date: string | null;
-  count: number;
-}
-
-// Cached per granularity (like loadGraph's per-base cache in ./graph.ts) —
-// each mode is a genuinely different dataset, not a filtered view of one.
-const modTimelineCache = new Map<
-  TimelineGranularity,
-  Promise<(ModTimelinePeriodRow | ModTimelineCommitRow)[] | null>
->();
-
-/** Fetch the semantic-edits timeline at the given granularity. Same contract
- *  as loadModCounts, cached per granularity. Returns the row shape matching
- *  the requested granularity — narrow with the granularity value at the call
- *  site (see useModFrequencyTimeline). */
-export function loadModTimeline(
-  granularity: TimelineGranularity = "month",
-): Promise<(ModTimelinePeriodRow | ModTimelineCommitRow)[] | null> {
-  let p = modTimelineCache.get(granularity);
-  if (!p) {
-    p = fetchCached<(ModTimelinePeriodRow | ModTimelineCommitRow)[]>(
-      `/api/history/mod-timeline?granularity=${granularity}`,
-      "mod-timeline",
-      () => modTimelineCache.delete(granularity),
-    );
-    modTimelineCache.set(granularity, p);
-  }
-  return p;
-}
-
-/** Max ids per /api/history/batch request — shared by the server (hard cap on
- *  a hostile payload) and the client (chunk size). Comfortably above the
- *  largest real actor doc-set (~1.2k for Spark). */
-export const BATCH_MAX = 2000;
-
-/** Fetch history for many docs in one round-trip via POST /api/history/batch,
- *  keyed by docId. Used by the radar actor view so it doesn't fan out into
- *  hundreds of per-doc `/api/history/:id` requests. Docs with no history map to
- *  `[]`. On a backend-less deploy (GitHub Pages) the fetch fails and every id
- *  resolves to `[]`, matching `loadHistory`'s graceful-null behaviour.
- *
- *  Successful responses also seed the per-doc `cache` so a later single-doc
- *  `loadHistory` (e.g. the atlas history panel) reuses the result. */
-export async function loadHistoryBatch(nodeIds: string[]): Promise<Map<string, HistoryEntry[]>> {
-  const ids = [...new Set(nodeIds)];
-  const out = new Map<string, HistoryEntry[]>();
-  for (let i = 0; i < ids.length; i += BATCH_MAX) {
-    const chunk = ids.slice(i, i + BATCH_MAX);
-    let data: Record<string, HistoryEntry[]> | null = null;
-    try {
-      const r = await fetch("/api/history/batch", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ids: chunk }),
-      });
-      data = r.ok ? ((await r.json()) as Record<string, HistoryEntry[]>) : null;
-    } catch {
-      data = null;
-    }
-    for (const id of chunk) {
-      if (data) {
-        const entries = data[id] ?? [];
-        out.set(id, entries);
-        // Seed the single-doc cache (only on a real response, so a transient
-        // failure doesn't poison it with empties).
-        if (!cache.has(id)) cache.set(id, Promise.resolve(entries.length ? entries : null));
-      } else {
-        out.set(id, []);
-      }
-    }
-  }
-  return out;
-}
+export {
+  BATCH_MAX,
+  loadHistory,
+  loadHistoryBatch,
+  loadModCounts,
+  loadModTimeline,
+} from "./history-load.ts";
+export type { ModCount, ModTimelineCommitRow, ModTimelinePeriodRow, TimelineGranularity } from "./history-load.ts";
