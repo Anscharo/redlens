@@ -4,9 +4,9 @@
 // drawing of the page, not Atlas text.
 
 export const PAU_LAYOUT = [
-  "Map of the Liquidity Layer page (a Prime's PAU). This is Redline Portal's drawing, not Atlas text. Do not cite it. A rule about who may act comes from an atlas document.",
+  "Map of a Prime's Liquidity Layer page. This is Redline Portal's drawing, not Atlas text. Do not cite it. A rule about who may act comes from an atlas document.",
   "The page holds, per chain: the contracts and who holds each role, the rate limits, the parameters (max slippage, max exchange rate, recipients), Configurator bounds on a Diamond, and the change history (spells and other setters).",
-  "One PAU is one set of contracts on one chain. The page draws the same path twice: Monolithic controller, and Diamond PAU. A dashed arrow exists only on some deployments. A box drawn with an outline exists only on a Diamond PAU.",
+  "One deployment is one set of contracts on one chain. The page draws the same path twice: Monolithic controller, and Diamond PAU. PAU names only the Diamond design, a Parallelized Allocation Unit. The monolithic controller is the same Liquidity Layer. A dashed arrow exists only on some deployments. A box drawn with an outline exists only on a Diamond PAU.",
   "Admin (owner). The Prime's governance contract. Executive spells run it. Its arrow grants every role, and sets limits and parameters.",
   "Relayer (operator). The everyday key. It asks the Controller for a move. It holds no funds.",
   "Controller (control panel). The fixed menu of moves a relayer can ask for. It checks the rate limits, then draws them down. It executes the move through the ALM proxy.",
@@ -25,6 +25,6 @@ export const PAU_CLASSES = [
   "chain-only. A rate limit the Atlas does not name. name_source is derived or null. Say that the Atlas does not name it.",
 ].join("\n");
 
-/** What atlas_pau_changes returns, beside the rows. Chain evidence, not Atlas text. */
+/** What atlas_liquidity_changes returns, beside the rows. Chain evidence, not Atlas text. */
 export const PAU_CHANGES_NOTE =
   "Configuration changes read from the chain, not Atlas text. A spell is named only where the chain proves one. Cite the row's url, never an atlas document. origin spell is an executive spell. origin operator is the Configurator, without a spell. origin relayed is an action set whose Ethereum spell is not proven. origin deployment is contract setup. queued lists steps that are scheduled and not yet run. An empty queued list is not proof that nothing is queued while a governance contract is still being read. A queued step on a shared executor names no prime, so an entity filter leaves it out.";

@@ -1,6 +1,6 @@
-// atlas_pau_changes: one prime's configuration changes, newest first, and the
+// atlas_liquidity_changes: one prime's configuration changes, newest first, and the
 // queued steps that belong to it. The history is injected; no database.
-import { describe, expect, it, mock } from "bun:test";
+import { afterAll, describe, expect, it, mock } from "bun:test";
 import type { PauHistoryEntry, PauHistoryResponse } from "../../lib/pauHistory.ts";
 import { buildIndexes, type Entity } from "../retrieval/indexes.ts";
 
@@ -30,12 +30,15 @@ const HISTORY: PauHistoryResponse = {
 };
 
 let fail = false;
+const historyExports = { ...(await import("../pau/history.ts")) };
 mock.module("../pau/history.ts", () => ({
+  ...historyExports,
   currentPauHistory: async () => {
     if (fail) throw new Error("down");
     return HISTORY;
   },
 }));
+afterAll(() => void mock.module("../pau/history.ts", () => historyExports));
 
 const { pauChanges } = await import("./pau-changes.ts");
 

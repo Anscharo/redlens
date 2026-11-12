@@ -244,7 +244,7 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("Relayer (operator). The everyday key.");
     expect(prompt).toContain("mirrors. The Atlas states the number");
     expect(prompt).toContain('atlas_onchain entity="osero"');
-    expect(prompt).toContain('atlas_pau_changes entity="osero"');
+    expect(prompt).toContain('atlas_liquidity_changes entity="osero"');
     expect(prompt).toContain("as that Liquidity Layer page unless they say otherwise.");
   });
 

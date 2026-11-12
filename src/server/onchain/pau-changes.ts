@@ -1,4 +1,4 @@
-// atlas_pau_changes: the configuration changes the Liquidity Layer page lists,
+// atlas_liquidity_changes: the configuration changes the Liquidity Layer page lists,
 // one row per transaction, newest first. The history is the one GET
 // /api/pau/history serves (src/server/pau/history.ts).
 import { explorerTxUrl } from "../../lib/explorer.ts";

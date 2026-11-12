@@ -80,7 +80,7 @@ const coverageOf = (s: StoredPauSnapshot): Coverage => ({
 export const pauSource: OnchainSource = {
   id: "pau",
   describe:
-    "Prime Agent PAU controllers (src/data/pau-registry.json): every rate limit's live maximum, refill per day and available amount in its token's units, every role holder and AdministeredAgent member, every parameter the page lists (max slippage, max exchange rate, recipients), what BeamState lets the Configurator set without a spell (its default rate limits and step limits), and each rate limit an instance states in the atlas against what its contract holds, read from the chain by the atlas worker.",
+    "Prime Liquidity Layer controllers (src/data/pau-registry.json), a monolithic ALM Controller or a Diamond PAU: every rate limit's live maximum, refill per day and available amount in its token's units, every role holder and AdministeredAgent member, every parameter the page lists (max slippage, max exchange rate, recipients), what BeamState lets the Configurator set without a spell (its default rate limits and step limits), and each rate limit an instance states in the atlas against what its contract holds, read from the chain by the atlas worker.",
   async read(ix: Indexes) {
     const snaps = await readPauState();
     const refs = new Map<string, PrimeAtlasRefs>();
