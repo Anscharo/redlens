@@ -228,6 +228,12 @@ test("forkGate: bare fork branch tiers — refused owner is rejected outright; t
     const whitelisted = await forkGate({ repo: "Endgame-Edge/next-gen-atlas", sha: "x", kind: "branch", ref: "wip", private: false });
     expect(whitelisted).toMatchObject({ tier: "trusted", quota: config.previewTrustedForkDailyQuota });
 
+    // An unmetered repo is trusted with no cap; its owner is never scored.
+    const unmetered = await forkGate({ repo: "SoterLabs/next-gen-atlas-private", sha: "x", kind: "branch", ref: "wip", private: false });
+    expect(unmetered).toMatchObject({ tier: "trusted", quota: Infinity });
+    if (unmetered === "fork-not-trusted") throw new Error("unreachable");
+    expect(await unmetered.count()).toBe(0);
+
     globalThis.fetch = stubTrustFetch({ orgMerged: 1 });
     const known = await forkGate({ repo: "branch-known-owner/next-gen-atlas", sha: "x", kind: "branch", ref: "wip", private: false });
     expect(known).toMatchObject({ tier: "known", quota: config.previewForkDailyQuota });

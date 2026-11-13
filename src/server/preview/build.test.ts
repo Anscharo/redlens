@@ -250,6 +250,27 @@ test("private build: a fresh sha over the per-repo daily quota fails as quota-ex
   expect(ev.code).toBe("quota-exceeded");
 });
 
+test("private build: an unmetered repo builds over the per-repo daily quota, in any letter case", async () => {
+  const sha = "priv0004";
+  builtShas.push(sha);
+  let counted = false;
+  const resolved: Resolved = { ...privateResolved(sha), repo: "SoterLabs/Next-Gen-Atlas-Private" };
+  const ev = await __runBuildForTest(resolved, {
+    isBlockedSha: async () => false,
+    isKnownSha: async () => false,
+    previewsTodayCountForRepo: async () => {
+      counted = true;
+      return config.previewPrivateDailyQuota * 10; // far over the cap
+    },
+    installationToken: async () => "inst-tok",
+    fetchAndExtract: async () => ({ srcDir: previewPaths(sha).srcDir, docCount: 3 }),
+    spawnBuild: fakeSpawn({ "0xabc": {} }),
+    upsertPreview: async () => {},
+  });
+  expect(ev.phase).toBe("ready");
+  expect(counted).toBe(false);
+});
+
 test("public canonical build: forkGate path, service token, no private flag", async () => {
   const sha = "pub00001";
   builtShas.push(sha);

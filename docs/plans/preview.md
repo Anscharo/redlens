@@ -212,6 +212,8 @@ Two-layer identity:
     10/day pool per owner), `known` (org-merged: shared 7/day pool), `unknown` (no history,
     established account: shared 2/day pool + loud warnings), `refused` (no history + account
     <30 days: `fork-not-trusted`). Whitelist: `Endgame-Edge`, `Redline-Group`.
+    Unmetered repos (`UNMETERED_REPOS`: `Redline-Group/next-gen-atlas-private`,
+    `soterlabs/next-gen-atlas-private`) are `trusted` and count against no pool, public or private.
     **PRs are trust-scored too, by their AUTHOR** — opening a PR is cheap, so PR-ness never
     upgrades treatment; it only un-refuses (`effectivePrTier`: refused→unknown, so newcomers'
     draft PRs build with full unknown-tier warnings in the 2/day pool). Trusted-author PRs +
@@ -634,6 +636,7 @@ singleton, unauthenticated. Three attack classes and their answers:
      canonical (branches + PRs, NULL tier) shared `PREVIEW_DAILY_QUOTA` 10; each trusted-tier
      fork owner its own `PREVIEW_TRUSTED_FORK_DAILY_QUOTA` 10; known shared
      `PREVIEW_FORK_DAILY_QUOTA` 7; unknown shared `PREVIEW_UNKNOWN_FORK_DAILY_QUOTA` 2.
+     Repos in `trust.ts` `UNMETERED_REPOS` skip every pool, including the private per-repo one.
    - **Compare 300-file cap** (GitHub compare doesn't paginate files): recovered by unioning
      files across the branch's ahead-of-merge-base commits (bounded at 100 commits →
      `meta.diffTruncated` + banner note beyond that).
