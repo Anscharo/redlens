@@ -11,6 +11,7 @@
 // not obvious. Doc references go by uuid — `{doc_no:<uuid>}` in `q` and
 // `pageNode` are resolved against the served atlas at run time.
 import { NO_TOOL, type ToolCase } from "./eval-tools-score.ts";
+import { RADAR_CASES } from "./eval-tools-cases-radar.ts";
 
 const LOOKUP = ["atlas_query", "atlas_search"];
 // Every lookup-shaped case: a search first, OR — when a fact that carries doc
@@ -140,4 +141,5 @@ export const TOOL_CASES: ToolCase[] = [
   { id: "fu-threshold", category: "follow-up", q: "What's its signing threshold?", history: [{ role: "user", content: "What is the Spark Freezer Multisig?" }, { role: "assistant", content: FREEZER_ANSWER }], acceptFirst: ["atlas_entity", "atlas_entities", "atlas_report_multisigs", "atlas_entity_params"], note: "Prompt: a multisig's threshold comes from atlas_entity; the multisig report has it per row." },
   { id: "fu-ad-comp", category: "follow-up", q: "How are they compensated?", history: [{ role: "user", content: "What are Aligned Delegates?" }, { role: "assistant", content: AD_ANSWER }], ...LOOKUP_RULE, note: "" },
   { id: "fu-msc-numbers", category: "follow-up", q: "And what were the actual numbers for Grove last month?", history: [{ role: "user", content: "What is the Monthly Settlement Cycle?" }, { role: "assistant", content: MSC_ANSWER }], acceptFirst: ["ask_external_msc"], note: "Turns from the process (atlas) to the published results (not atlas)." },
+  ...RADAR_CASES,
 ];

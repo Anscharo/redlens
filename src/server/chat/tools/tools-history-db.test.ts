@@ -93,16 +93,24 @@ test("atlasRecentChanges errors on an unknown entity slug", async () => {
   expect(res).toEqual({ error: "Entity 'nope' not found" });
 });
 
-test("atlasRecentChanges short-circuits with an empty result when the entity has no linked docs", async () => {
+test("atlasRecentChanges short-circuits with an empty result when the entity has no documents", async () => {
   mockDb([]);
   const { atlasRecentChanges } = await import("./tools-history.ts");
-  const ix = makeIx();
-  // "ent" resolves but has no responsible_party_for/etc. edges in this fixture's D0-rooted set... it does (D1 via E).
-  // Use a differently-shaped fixture entity with zero linked docs instead: reuse buildIndexes directly.
-  const ix2 = buildIndexes([doc("D0", "A.1", "Core", 1, null)], [entity("E2", "empty-ent", "agent", "prime", "D0")], [], {});
-  const res = await atlasRecentChanges(ix2, { entity: "empty-ent", k: 10 });
+  const ix = buildIndexes([doc("D0", "A.1", "Core", 1, null)], [entity("E2", "empty-ent", "ecosystem_actor", null, null)], [], {});
+  const res = await atlasRecentChanges(ix, { entity: "empty-ent", k: 10 });
   expect(res).toEqual({ since: expect.any(String), count: 0, events: [] });
-  void ix;
+});
+
+test("atlasRecentChanges scopes a Prime to its whole artifact, not only its edge-linked docs", async () => {
+  const seen: unknown[][] = [];
+  mockDb([]);
+  const { sql } = await import("../../db.ts");
+  const unsafe = sql.unsafe.bind(sql);
+  (sql as unknown as { unsafe: unknown }).unsafe = (text: string, params: unknown[]) => (seen.push(params), unsafe(text, params));
+  const { atlasRecentChanges } = await import("./tools-history.ts");
+  const ix = buildIndexes([doc("D0", "A.1", "Core", 1, null), doc("D1", "A.1.1", "Core", 2, "D0")], [entity("E", "ent", "agent", "prime", "D0")], [], {});
+  await atlasRecentChanges(ix, { entity: "ent", k: 10 });
+  expect(seen[0]).toEqual(expect.arrayContaining(["D0", "D1"]));
 });
 
 test("atlasRecentChanges applies default since, entity filter, and shapes rows", async () => {

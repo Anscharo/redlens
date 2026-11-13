@@ -123,6 +123,6 @@ export function buildSystemPrompt(
     ...REPORTING_AND_DRAFTING,
     ...citationSection(citations),
     ...sessionSection(ix, today),
-    currentPageSection(ctx),
+    currentPageSection(ctx, ix),
   ].filter((s) => s !== "").join("\n");
 }

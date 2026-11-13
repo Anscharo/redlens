@@ -60,6 +60,8 @@ export async function onchainState(ix: Indexes, q: OnchainQuery): Promise<ToolRe
   const ent = q.entity ? resolveEntity(ix, q.entity) : null;
   if (q.entity && !ent) return { error: `No entity matches '${q.entity}'. Use atlas_entities to find its slug.` };
   const idx = await factIndex(ix);
+  // Every source unread is a failed lookup, not an empty answer: nothing below could tell "none set" from "not read".
+  if (idx.failed.length && idx.facts.length === 0) return { error: `${SOURCES_FAILED_NOTE} Unread: ${idx.failed.join(", ")}. Say the reading is unavailable; do not report that nothing is set or that nothing differs.` };
   const words = (q.query ?? "").toLowerCase().split(/\s+/).filter((w) => w.length >= 2);
   const facts = idx.facts.filter((f) => matches(f, q, ent?.id ?? null, words)).sort(order);
   const limit = Math.min(Math.max(1, q.limit || 50), 200);
