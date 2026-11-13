@@ -45,17 +45,27 @@ function rateLimitFact(base: Base, r: LiveRateLimit, refs: PrimeAtlasRefs): Onch
   };
 }
 
-function holderFacts(base: Base, c: ContractState): OnchainFact[] {
+/** The part an address plays in its deployment ("controller", "almProxy"), by lowercase address. */
+type Parts = ReadonlyMap<string, string>;
+const partOf = (parts: Parts, account: string) => {
+  const part = parts.get(account.toLowerCase());
+  return part ? { account_part: part } : {};
+};
+
+// A role fact says which part of the deployment the role is on (`on`) and, when
+// the holder is another contract of the same deployment, which part that is
+// (`account_part`), so a reader is not left with two bare addresses.
+function holderFacts(base: Base, c: ContractState, parts: Parts): OnchainFact[] {
   const named = { name_source: null, atlas_doc_id: null } as const;
   const roles = (c.roles ?? []).map((h) => ({
     ...base, ...named, kind: "role", name: h.name ?? null,
-    values: { role: h.name ?? h.role, role_hash: h.role, account: h.account, holds: h.holds },
+    values: { role: h.name ?? h.role, role_hash: h.role, on: c.role, account: h.account, ...partOf(parts, h.account), holds: h.holds },
     summary: { account: h.account, holds: h.holds },
     set_at: h.since ? setAt(base.chain, h.since) : null, match: { hashes: [], addresses: [base.contract, h.account], docs: [] },
   }));
   const members = Object.entries(c.agent ?? {}).flatMap(([as, list]) => list.map((m) => ({
     ...base, ...named, kind: "member", name: as,
-    values: { as, account: m.account, holds: m.holds ?? null },
+    values: { as, on: c.role, account: m.account, ...partOf(parts, m.account), holds: m.holds ?? null },
     summary: { account: m.account, holds: m.holds ?? null },
     set_at: m.since ? setAt(base.chain, m.since) : null, match: { hashes: [], addresses: [base.contract, m.account], docs: [] },
   })));
@@ -63,12 +73,13 @@ function holderFacts(base: Base, c: ContractState): OnchainFact[] {
 }
 
 export function snapshotFacts(s: StoredPauSnapshot, refs: PrimeAtlasRefs): OnchainFact[] {
+  const parts: Parts = new Map(s.contracts.map((c) => [c.address.toLowerCase(), c.role]));
   return s.contracts.flatMap((c) => {
     const base: Base = {
       source: "pau", chain: s.chain, entity: s.primeName, entity_id: s.prime,
       contract: c.address, read_at: s.fetchedAt, history_complete: c.historyComplete,
     };
-    return [...(c.rateLimits ?? []).map((r) => rateLimitFact(base, r, refs)), ...(c.beam ? beamFacts(base, c.beam, refs) : []), ...holderFacts(base, c), ...paramFacts(base, s, c.params ?? [])];
+    return [...(c.rateLimits ?? []).map((r) => rateLimitFact(base, r, refs)), ...(c.beam ? beamFacts(base, c.beam, refs) : []), ...holderFacts(base, c, parts), ...paramFacts(base, s, c.params ?? [])];
   });
 }
 

@@ -7,6 +7,7 @@ import { type Indexes, type AtlasNode, ancestorChain, descendantIds, resolveNode
 import { runLexical, runSemantic, rrfMerge, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type SemanticResult, type Via } from "./search.ts";
 import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "./leaf-attribution.ts";
 import { resolveEntity } from "./entity-resolve.ts";
+import { artifactDocIds, outsideScope } from "./entity-docs.ts";
 import { resolveTargetType } from "./doc-types.ts";
 import { fitWithExtra, pageOf, poolSize, UNPAGED_HINT } from "./result-page.ts";
 import { sql } from "../db.ts";
@@ -355,11 +356,13 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   }
 
   // ── entity doc set (for narrow / intersection) ───────────────────────────────
-  let entityDocIds: Set<string> | null = null;
-  if (entityId) {
-    const docs = entityDocs(ix, entityId, a.edge_types, a.target_type, dir);
-    entityDocIds = new Set(constrain([...new Set(docs.map((d) => d.doc.id))]));
-  }
+  // With a query the hits are constrained below, so the scope stays whole: the
+  // filter hint then counts each candidate once, and an empty `scoped` means the
+  // query matched nothing about the entity, not that a filter emptied it.
+  const scopeIds = entityId
+    ? [...new Set([...entityDocs(ix, entityId, a.edge_types, a.target_type, dir).map((d) => d.doc.id), ...(query && !a.edge_types?.length ? artifactDocIds(ix, entityId, a.target_type) : [])])]
+    : null;
+  const entityDocIds = scopeIds ? new Set(query ? scopeIds : constrain(scopeIds)) : null;
 
   // ── search ───────────────────────────────────────────────────────────────────
   let searchHits: { id: string; rrf_score: number; score: number; sources: string[]; snippet?: string; via?: Via }[] = [];
@@ -403,10 +406,9 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
     return withBudget(nodes, row, { entity: a.entity, resolved_entity: resolvedEntity, mode: "entity_narrow" });
   }
 
-  let hits = query && entityDocIds ? searchHits.filter((h) => entityDocIds!.has(h.id)) : searchHits;
-  const constrained = new Set(constrain(hits.map((h) => h.id)));
-  hits = hits.filter((h) => constrained.has(h.id));
-  const mode = query && entityDocIds ? "hybrid_graph" : "search";
+  const scoped = query && entityDocIds ? searchHits.filter((h) => entityDocIds!.has(h.id)) : searchHits;
+  const constrained = new Set(constrain(scoped.map((h) => h.id)));
+  const hits = scoped.filter((h) => constrained.has(h.id));
   const toRow = (h: (typeof hits)[number]) => {
     const n = ix.docMap.get(h.id)!;
     // `sources` lets the caller tell agreed hits (lexical ∩ semantic) apart from
@@ -423,7 +425,8 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   };
   return withBudget(hits, toRow, {
     ...(resolvedEntity ? { entity: a.entity, resolved_entity: resolvedEntity } : {}),
-    mode,
+    mode: query && entityDocIds ? "hybrid_graph" : "search",
+    ...(entityDocIds && resolvedEntity ? outsideScope(ix, resolvedEntity.name, searchHits, scoped.length) : {}),
     ...(semSkipped ? { semantic_skipped: semSkipped } : {}),
   }, lexCut);
 }

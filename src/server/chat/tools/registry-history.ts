@@ -40,7 +40,7 @@ export const HISTORY_TOOLS: AtlasTool[] = [
       until: z.string().optional(),
       type: z.string().optional().describe("Atlas doc type filter."),
       change_type: CHANGE_TYPE(),
-      entity: z.string().optional().describe("Entity slug — restricts to docs linked via responsible_party_for / active_data_for."),
+      entity: z.string().optional().describe("Entity slug — restricts to that entity's documents: its artifact (a Prime Agent's whole subtree) and the documents its edges link."),
       k: z.number().int().min(1).max(200).default(50),
     },
     handler: (ix, a) => atlasRecentChanges(ix, a as Parameters<typeof atlasRecentChanges>[1]),

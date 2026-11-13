@@ -33,13 +33,13 @@
       {
         "uuid": "6ada67c6-0cf1-4456-b280-57e8ae7edc13",
         "doc_no": "A.1.10.1.3.3.2.1",
-        "title": "List Of Top-Tier Audit Firms",
+        "title": "List Of Category 1 Audit Firms",
         "bucket": "live"
       },
       {
         "uuid": "dea3a182-4b89-4fda-9eed-232562e5f057",
         "doc_no": "A.1.10.1.3.3.2.2",
-        "title": "List Of Mid-Tier Audit Firms",
+        "title": "List Of Category 2 Audit Firms",
         "bucket": "live"
       },
       {
@@ -7090,7 +7090,7 @@
   },
   "transitionary-measures": {
     "counts": {
-      "total": 22
+      "total": 6
     },
     "members": [
       {
@@ -7114,93 +7114,13 @@
         "title": "Short Term Transitionary Measures"
       },
       {
-        "uuid": "3a6675c3-2bd6-49b0-8d2c-e9d4fe847a62",
-        "doc_no": "A.6.1.1.1.2.2.2.2.1.2.1.1.2",
-        "title": "Short-Term Transitionary Measures"
-      },
-      {
-        "uuid": "6a9b3956-c4f0-4f59-bc7d-2028a642fc19",
-        "doc_no": "A.6.1.1.1.2.2.2.2.1.2.1.4.1",
-        "title": "Short Term Transitionary Measures"
-      },
-      {
         "uuid": "6ecef2b2-42c7-4bea-80f0-1cb1cd4e735d",
         "doc_no": "A.6.1.1.1.2.2.2.2.1.2.4",
         "title": "Short-Term Transitionary Measures"
       },
       {
-        "uuid": "a0b401ae-1ced-43af-ab0b-2eb16b797270",
-        "doc_no": "A.6.1.1.2.2.2.2.2.1.2.1.1.2",
-        "title": "Short-Term Transitionary Measures"
-      },
-      {
-        "uuid": "c05f5877-d0e5-49dd-9608-86aa70d58cc0",
-        "doc_no": "A.6.1.1.2.2.2.2.2.1.2.1.5.1",
-        "title": "Short-Term Transitionary Measures"
-      },
-      {
         "uuid": "a65302b4-5222-48a9-b37f-282498acb4d6",
         "doc_no": "A.6.1.1.2.2.2.2.2.1.2.4",
-        "title": "Short-Term Transitionary Measures"
-      },
-      {
-        "uuid": "d4c3c15b-7cdc-4c57-9bf0-53bbfd95e52c",
-        "doc_no": "A.6.1.1.3.2.2.2.2.1.2.1.1.2",
-        "title": "Short-Term Transitionary Measures"
-      },
-      {
-        "uuid": "d76d266f-50b3-4100-b198-c9d403ad50fd",
-        "doc_no": "A.6.1.1.3.2.2.2.2.1.2.1.5.1",
-        "title": "Short-Term Transitionary Measures"
-      },
-      {
-        "uuid": "f88fc097-7e41-41d7-aac9-992a9a11919f",
-        "doc_no": "A.6.1.1.4.2.2.2.2.1.2.1.1.2",
-        "title": "Short-Term Transitionary Measures"
-      },
-      {
-        "uuid": "1adf5e90-53a8-4036-9964-11430891137e",
-        "doc_no": "A.6.1.1.4.2.2.2.2.1.2.1.5.1",
-        "title": "Short-Term Transitionary Measures"
-      },
-      {
-        "uuid": "e0020160-9ee8-4f35-90f1-ba375d625689",
-        "doc_no": "A.6.1.1.5.2.2.2.2.1.2.1.1.1",
-        "title": "Short-Term Transitionary Measures"
-      },
-      {
-        "uuid": "a418eef2-bbfc-43eb-8d79-62c7bb940c3d",
-        "doc_no": "A.6.1.1.5.2.2.2.2.1.2.1.5.1",
-        "title": "Short-Term Transitionary Measures"
-      },
-      {
-        "uuid": "351f7eac-691a-4bcb-868e-5ca56787d53a",
-        "doc_no": "A.6.1.1.6.2.2.2.2.1.2.1.1.1",
-        "title": "Short-Term Transitionary Measures"
-      },
-      {
-        "uuid": "058a9110-5c05-4b0d-9602-1d0429ab6fbb",
-        "doc_no": "A.6.1.1.6.2.2.2.2.1.2.1.5.1",
-        "title": "Short-Term Transitionary Measures"
-      },
-      {
-        "uuid": "caafe932-8fa7-4ee6-ba0b-dd49bcef1ee1",
-        "doc_no": "A.6.1.1.7.2.2.2.2.1.2.1.1.1",
-        "title": "Short-Term Transitionary Measures"
-      },
-      {
-        "uuid": "6de8c6b8-2e65-4a0b-940f-c509eb0661cd",
-        "doc_no": "A.6.1.1.7.2.2.2.2.1.2.1.5.1",
-        "title": "Short-Term Transitionary Measures"
-      },
-      {
-        "uuid": "0048952f-30e2-484a-975a-62cc9e84c715",
-        "doc_no": "A.6.1.1.8.2.2.2.2.1.2.1.1.1",
-        "title": "Short-Term Transitionary Measures"
-      },
-      {
-        "uuid": "f46cd437-80bb-4f7c-b8c0-eef464465349",
-        "doc_no": "A.6.1.1.8.2.2.2.2.1.2.1.5.1",
         "title": "Short-Term Transitionary Measures"
       }
     ]
@@ -7495,7 +7415,7 @@
   },
   "numbered-step-docs": {
     "counts": {
-      "total": 48
+      "total": 49
     },
     "members": [
       {
@@ -7597,6 +7517,11 @@
         "uuid": "8ee36ed9-cae6-462b-a6b4-9aa5479fee18",
         "doc_no": "A.1.10.2.4.13.4.2",
         "title": "Execution Of Spell"
+      },
+      {
+        "uuid": "c968c501-b955-4cdb-b06a-fa4c97a3a44f",
+        "doc_no": "A.1.10.6.5.4.2",
+        "title": "Valid Votes"
       },
       {
         "uuid": "918bfa13-3390-4524-bd9e-759089ea643e",
@@ -7742,7 +7667,7 @@
   },
   "prohibition-language": {
     "counts": {
-      "total": 55
+      "total": 54
     },
     "members": [
       {
@@ -7941,11 +7866,6 @@
         "title": "Restrictions On Investments On Plume"
       },
       {
-        "uuid": "d281c572-ff98-43ba-a01d-e54657b50ab9",
-        "doc_no": "A.3.2.2.1.2.2.5.1.2",
-        "title": "Effectiveness Coefficient"
-      },
-      {
         "uuid": "5e300cdb-b221-4b6f-9c4a-11502133a1f9",
         "doc_no": "A.3.3.2.2.1.2.2",
         "title": "Maximum Latent Actively Stabilizing Collateral"
@@ -8024,13 +7944,13 @@
   },
   "title-templates": {
     "counts": {
-      "total": 862,
+      "total": 865,
       "Primitive Hub Document": 136,
       "Global Activation Status": 140,
       "Hub Data Repository": 136,
       "Single Instance Configuration Document": 48,
-      "Parameters": 242,
-      "Rate Limits": 152,
+      "Parameters": 244,
+      "Rate Limits": 153,
       "Initial Planning": 0,
       "Operational GovOps Review": 0,
       "Artifact Edit Proposal": 0,
@@ -10468,6 +10388,12 @@
         "bucket": "Parameters"
       },
       {
+        "uuid": "76612d55-7c9a-45d6-8fea-8a949d869102",
+        "doc_no": "A.6.1.1.2.3.7.4",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
         "uuid": "b001c1e5-89c6-4141-bc59-b4e7b86d5f47",
         "doc_no": "A.6.1.1.3.2.1.1.1",
         "title": "Primitive Hub Document",
@@ -12748,6 +12674,18 @@
         "bucket": "Rate Limits"
       },
       {
+        "uuid": "e2b7ef44-bcba-4dd2-bd52-2a4201a84c72",
+        "doc_no": "A.6.1.1.7.2.6.1.3.2.1.1.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "12ead830-00ef-40ae-a520-db8495007efb",
+        "doc_no": "A.6.1.1.7.2.6.1.3.2.1.1.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
         "uuid": "71bf4607-f3cc-45e6-a79d-917af5bd95ef",
         "doc_no": "A.6.1.1.7.2.6.1.4.1.1.1.2",
         "title": "Parameters",
@@ -13720,7 +13658,7 @@
   },
   "cross-scope-duplication": {
     "counts": {
-      "total": 156,
+      "total": 157,
       "groups": 64
     },
     "members": [
@@ -13785,6 +13723,12 @@
         "bucket": "general provisions"
       },
       {
+        "uuid": "19f5f5b9-be0d-4a91-a5aa-3888c1c9b7e8",
+        "doc_no": "A.1.10.1.3.4",
+        "title": "Short-Term Transitionary Measures",
+        "bucket": "short-term transitionary measures"
+      },
+      {
         "uuid": "aaa621d0-8886-4b32-a903-eee6e4a2f66f",
         "doc_no": "A.1.10.2.4.8.2.8",
         "title": "Resources",
@@ -13821,6 +13765,12 @@
         "bucket": "plasma skylink freezer multisig"
       },
       {
+        "uuid": "f53911a4-c11a-4cff-959d-e2337bcd867c",
+        "doc_no": "A.1.10.6.5.4.1",
+        "title": "Voting Period",
+        "bucket": "voting period"
+      },
+      {
         "uuid": "84f1702d-1faf-42fb-a9f6-fbc197f40b9c",
         "doc_no": "A.1.14.2",
         "title": "Agent Artifacts",
@@ -13843,6 +13793,18 @@
         "doc_no": "A.2.1.1.4",
         "title": "Resources",
         "bucket": "resources"
+      },
+      {
+        "uuid": "0ca3f0ee-92ee-420e-915d-37aae1ab4848",
+        "doc_no": "A.2.2.6.2.2.2.4",
+        "title": "Voting Period",
+        "bucket": "voting period"
+      },
+      {
+        "uuid": "02fb768f-d21e-4c00-baf4-3bc9ac999269",
+        "doc_no": "A.2.2.6.2.2.2.8.1.1",
+        "title": "Voting Period",
+        "bucket": "voting period"
       },
       {
         "uuid": "d59a233c-11b9-4140-b15f-51df37475fd8",
@@ -13873,12 +13835,6 @@
         "doc_no": "A.2.2.10.1.1.1.2.3.1.2.2",
         "title": "Basin Facet",
         "bucket": "basin facet"
-      },
-      {
-        "uuid": "05f5d939-712b-4204-8f77-4ef5ea598dcc",
-        "doc_no": "A.2.2.10.1.1.1.2.3.1.2.7",
-        "title": "ERC-4626 Facet",
-        "bucket": "erc-4626 facet"
       },
       {
         "uuid": "b808a829-2f31-42f1-ac9f-6801d3eb8437",
@@ -13921,12 +13877,6 @@
         "doc_no": "A.2.2.10.1.1.1.2.5.2.5.2",
         "title": "Remove Liquidity From Uniswap v3",
         "bucket": "remove liquidity from uniswap v3"
-      },
-      {
-        "uuid": "22251fe1-fabd-42e0-a11b-8fea8fead748",
-        "doc_no": "A.2.2.10.1.1.1.2.5.2.6",
-        "title": "ERC-4626 Facet",
-        "bucket": "erc-4626 facet"
       },
       {
         "uuid": "36511d72-f1b3-479d-b0e9-445fdb960987",
@@ -14101,12 +14051,6 @@
         "doc_no": "A.3.2.2.4.2.3.3.1",
         "title": "Sky Spread",
         "bucket": "sky spread"
-      },
-      {
-        "uuid": "d33ac81e-bab1-4969-b46d-e605da2afae3",
-        "doc_no": "A.3.2.2.4.5",
-        "title": "Short Term Transitionary Measures",
-        "bucket": "short term transitionary measures"
       },
       {
         "uuid": "5435f680-aaaa-461a-bcae-4056bb8964d9",
@@ -14451,10 +14395,10 @@
         "bucket": "spark"
       },
       {
-        "uuid": "6a9b3956-c4f0-4f59-bc7d-2028a642fc19",
-        "doc_no": "A.6.1.1.1.2.2.2.2.1.2.1.4.1",
-        "title": "Short Term Transitionary Measures",
-        "bucket": "short term transitionary measures"
+        "uuid": "6ecef2b2-42c7-4bea-80f0-1cb1cd4e735d",
+        "doc_no": "A.6.1.1.1.2.2.2.2.1.2.4",
+        "title": "Short-Term Transitionary Measures",
+        "bucket": "short-term transitionary measures"
       },
       {
         "uuid": "64f794c9-db5f-4875-a800-3da12f4c5bec",
@@ -14521,6 +14465,12 @@
         "doc_no": "A.6.1.1.1.3.4.2.1",
         "title": "Encumbrance Ratio",
         "bucket": "encumbrance ratio"
+      },
+      {
+        "uuid": "a65302b4-5222-48a9-b37f-282498acb4d6",
+        "doc_no": "A.6.1.1.2.2.2.2.2.1.2.4",
+        "title": "Short-Term Transitionary Measures",
+        "bucket": "short-term transitionary measures"
       },
       {
         "uuid": "7e90e505-42b9-474d-9cc5-9b4da6af7375",
@@ -14644,15 +14594,9 @@
       },
       {
         "uuid": "f983e134-c97d-4e90-94d6-4cad14d0702f",
-        "doc_no": "A.6.1.1.7.2.6.1.2.2.1.2.2",
+        "doc_no": "A.6.1.1.7.2.6.1.2.2.1.2.1.2",
         "title": "Aave v3 Facet",
         "bucket": "aave v3 facet"
-      },
-      {
-        "uuid": "ff53173e-9c7a-4a31-baeb-185339d0780e",
-        "doc_no": "A.6.1.1.7.2.6.1.2.2.1.2.3",
-        "title": "ERC-4626 Facet",
-        "bucket": "erc-4626 facet"
       },
       {
         "uuid": "8cfee319-727d-459b-ae67-cac3bec157d9",

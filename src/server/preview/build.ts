@@ -30,7 +30,7 @@ import {
 } from "./db.ts";
 import { isFork, repoOwner, makeGhClient, type Resolved } from "./resolve.ts";
 import { installationToken, appInstallUrl } from "./github-app.ts";
-import { computeTrust, effectivePrTier, type TrustTier } from "./trust.ts";
+import { computeTrust, effectivePrTier, isUnmeteredRepo, type TrustTier } from "./trust.ts";
 
 export type PreviewErrorCode =
   | "gate-rejected"
@@ -223,9 +223,8 @@ export function isForkPreview(resolved: Resolved): boolean {
 export async function forkGate(
   resolved: Resolved,
 ): Promise<{ tier?: TrustTier; count: () => Promise<number>; quota: number } | "fork-not-trusted"> {
-  if (resolved.kind !== "pr" && !isFork(resolved.repo)) {
+  if (resolved.kind !== "pr" && !isFork(resolved.repo))
     return { count: () => previewsTodayCount("canonical"), quota: config.previewDailyQuota };
-  }
   const gh = makeGhClient(config.githubToken);
   // `kind`, not the presence of `pr`, is the discriminator: a fork's own
   // owner:repo:pull-N preview carries `pr` metadata too (see isForkPreview),
@@ -238,6 +237,8 @@ export async function forkGate(
       return { tier, count: () => previewsTodayCount("known"), quota: config.previewForkDailyQuota };
     return { tier, count: () => previewsTodayCount("unknown"), quota: config.previewUnknownForkDailyQuota };
   }
+  // An unmetered repo is trusted and never counted (see trust.ts).
+  if (isUnmeteredRepo(resolved.repo)) return { tier: "trusted", count: async () => 0, quota: Infinity };
   const owner = repoOwner(resolved.repo);
   const trust = await computeTrust(owner, gh);
   if (trust.tier === "refused") return "fork-not-trusted";
@@ -338,8 +339,9 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
     }
     let gate: { tier?: TrustTier; count: () => Promise<number>; quota: number } | undefined;
     if (priv) {
-      // Quota gates only NEW analyses; re-builds of a known sha are free.
-      if (!(await deps.isKnownSha(sha)) && (await deps.previewsTodayCountForRepo(resolved.repo)) >= config.previewPrivateDailyQuota) {
+      // Quota gates only NEW analyses; re-builds of a known sha and every
+      // build of an unmetered repo (see trust.ts) are free.
+      if (!isUnmeteredRepo(resolved.repo) && !(await deps.isKnownSha(sha)) && (await deps.previewsTodayCountForRepo(resolved.repo)) >= config.previewPrivateDailyQuota) {
         fail(f, sha, "quota-exceeded");
         return;
       }

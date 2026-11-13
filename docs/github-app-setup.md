@@ -107,7 +107,7 @@ Set these on the server (Railway → the web service → Variables, or your loca
 |---|---|
 | `GITHUB_APP_ID` | the numeric App ID from §2.11 |
 | `GITHUB_APP_PRIVATE_KEY` | the PEM from §2.12 — **base64-encoded** (see below) |
-| `PREVIEW_PRIVATE_DAILY_QUOTA` | *(optional)* max new private-preview builds per repo per UTC day (default `20`) |
+| `PREVIEW_PRIVATE_DAILY_QUOTA` | *(optional)* max new private-preview builds per repo per UTC day (default `20`); repos in `UNMETERED_REPOS` (`src/server/preview/trust.ts`) have no cap |
 
 Notes on the PEM:
 

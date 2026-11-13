@@ -85,7 +85,8 @@ export async function touchPreview(sha: string): Promise<void> {
 /** Count NEW previews analyzed today (UTC) in a quota pool. Re-builds of known
  *  SHAs don't insert, so they're exempt — regeneration is free, new analysis is
  *  quota'd. Pools (see trust.ts): "canonical" counts canonical branches (NULL
- *  tier) plus trusted-author PRs; "known"/"unknown" count that effective tier
+ *  tier) plus trusted-author PRs, never a private row, which also has a NULL
+ *  tier but draws on its own per-repo pool; "known"/"unknown" count that effective tier
  *  across PR and fork previews alike. */
 export async function previewsTodayCount(pool: "canonical" | "known" | "unknown"): Promise<number> {
   const rows = (
@@ -93,6 +94,7 @@ export async function previewsTodayCount(pool: "canonical" | "known" | "unknown"
       ? await sql`
           SELECT count(*)::int AS n FROM previews
           WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'utc')
+            AND NOT private
             AND (trust_tier IS NULL OR (kind = 'pr' AND trust_tier = 'trusted'))`
       : await sql`
           SELECT count(*)::int AS n FROM previews

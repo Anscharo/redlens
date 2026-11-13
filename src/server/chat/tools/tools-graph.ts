@@ -4,6 +4,7 @@ import { type Indexes, resolveNode, descendantIds, type AtlasNode, type Entity }
 import { type ToolResult, livenessOf, withLivenessHint } from "./tools.ts";
 import { fitEachToBudget, fitToBudget, rowBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { matchEntities, resolveEntity } from "../../retrieval/entity-resolve.ts";
+import { entityScopeDocIds } from "../../retrieval/entity-docs.ts";
 import { entityAddresses } from "./tools-entity-addresses.ts";
 import { docRow, linkedDocs } from "./tools-entity-links.ts";
 import { parseDocNos } from "../../../lib/meta.ts";
@@ -171,21 +172,10 @@ export function atlasEntity(
   const entity = matches[0].entity;
   const alternatives = matches.slice(1).map((m) => entityRow(m.entity));
   const entityId = entity.id;
-  const rootId = entity.defining_doc_id;
 
-  // The entity's node set = (a) docs linked from the entity via outbound edges
-  // ∪ (b) the entity's defining-doc subtree. Deduped by id, edge-linked first.
-  // For a Prime Agent this subtree is huge (2000+ nodes), so it MUST be paged.
-  const seen = new Set<string>();
-  const collect: AtlasNode[] = [];
-  const push = (n: AtlasNode | undefined) => {
-    if (n && !seen.has(n.id)) {
-      seen.add(n.id);
-      collect.push(n);
-    }
-  };
-  for (const e of ix.edges) if (e.from_id === entityId && e.to_type === "doc") push(ix.docMap.get(e.to_id));
-  if (rootId) for (const did of descendantIds(ix, rootId)) push(ix.docMap.get(did));
+  // The entity's node set (entity-docs.ts). For a Prime Agent the subtree is
+  // huge (2000+ nodes), so it MUST be paged.
+  const collect = entityScopeDocIds(ix, entity).map((id) => ix.docMap.get(id)!);
 
   // Type histogram over the FULL set so the caller can pick a `type` filter to
   // narrow the next call, even when this page only shows a slice.
