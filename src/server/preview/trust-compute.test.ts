@@ -3,7 +3,7 @@
 // fake GhClient — no network, no module mocking needed since the function takes
 // gh as a parameter.
 import { test, expect } from "bun:test";
-import { computeTrust, TRUSTED_FORK_OWNERS } from "./trust.ts";
+import { computeTrust, isUnmeteredRepo, TRUSTED_FORK_OWNERS } from "./trust.ts";
 import type { GhClient } from "./resolve.ts";
 
 function fakeGh(handlers: Record<string, { ok?: boolean; json: any }>, calls?: string[]): GhClient {
@@ -96,4 +96,12 @@ test("caches by owner: a second call within TTL does not re-hit GitHub", async (
   const second = await computeTrust(owner, gh);
   expect(calls.length).toBe(callsAfterFirst); // no new calls
   expect(second).toEqual(first);
+});
+
+test("isUnmeteredRepo matches the listed repos in any letter case and nothing else of the same owner", () => {
+  expect(isUnmeteredRepo("Redline-Group/next-gen-atlas-private")).toBe(true);
+  expect(isUnmeteredRepo("soterlabs/next-gen-atlas-private")).toBe(true);
+  expect(isUnmeteredRepo("SOTERLABS/Next-Gen-Atlas-Private")).toBe(true);
+  expect(isUnmeteredRepo("soterlabs/next-gen-atlas")).toBe(false);
+  expect(isUnmeteredRepo("Redline-Group/other-repo")).toBe(false);
 });

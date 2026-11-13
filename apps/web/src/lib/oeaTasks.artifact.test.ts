@@ -62,8 +62,9 @@ describe("enumerateOeaTasks (real artifacts)", () => {
     expect(tasks.filter((t) => !t.assessedText?.trim() && t.category !== "assignment")).toEqual([]);
   });
 
-  it("marks some process-steps [automated] and most duty rows quoted", () => {
-    expect(tasks.some((t) => t.automated)).toBe(true);
+  // The live atlas may carry no `[automated]` marker at all, so the flag is
+  // tested on synthetic fixtures in src/lib/oeaTasks.test.ts, not here.
+  it("marks most duty rows quoted", () => {
     const quoted = tasks.filter((t) => t.quoted).length;
     expect(quoted).toBeGreaterThan(tasks.length / 2);
   });

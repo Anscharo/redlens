@@ -14,7 +14,8 @@
 //   refused — no merged history AND a fresh account (don't build)
 //
 // Whitelist exists because org-owned forks (the orgs don't author PRs) score 0
-// by search. Trust affects quota + warnings only — every fork keeps the lineage
+// by search. UNMETERED_REPOS goes further for a few named repos: no daily quota
+// on either the private or the bare-fork path. Trust affects quota + warnings only — every fork keeps the lineage
 // screen, fork banner, interstitial, and address warning.
 
 import { CANONICAL_REPO, type GhClient } from "./resolve.ts";
@@ -31,6 +32,16 @@ export interface Trust {
 }
 
 export const TRUSTED_FORK_OWNERS = new Set(["Endgame-Edge", "Redline-Group"]);
+
+/** Repos whose previews draw on no daily quota, on the private path and on the
+ *  bare-fork path alike. Keyed on the whole `owner/name`, not the owner, so the
+ *  grant reaches no other repo of the same owner. Stored lowercase: GitHub
+ *  names are case-insensitive and resolve.ts keeps the case the reader typed. */
+export const UNMETERED_REPOS = new Set(["redline-group/next-gen-atlas-private", "soterlabs/next-gen-atlas-private"]);
+
+export function isUnmeteredRepo(repo: string): boolean {
+  return UNMETERED_REPOS.has(repo.toLowerCase());
+}
 
 const MIN_ACCOUNT_AGE_DAYS = config.previewMinAccountAgeDays;
 
