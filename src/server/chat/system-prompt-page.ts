@@ -5,6 +5,8 @@ import { decodeId } from "../preview/resolve.ts";
 import { SHA_RE } from "../../lib/patterns.ts";
 import { actorPageDef, isActorPageKey } from "../../lib/radarPages.ts";
 import { pauPageBlock } from "./system-prompt-pau.ts";
+import { radarPageBlock } from "./system-prompt-radar.ts";
+import type { Indexes } from "../retrieval/indexes.ts";
 
 // reportName on the wire is the display title (REPORT_TITLES[id]), not the id.
 const TITLE_TO_REPORT_ID: Record<string, string> = Object.fromEntries(
@@ -91,13 +93,15 @@ function viewingSubject(ctx: PageContext | undefined, reportTool: string | null)
   if (validPreviewContext(ctx)) return "PR";
   if (reportTool || ctx.reportName) return "report";
   if (pauPageBlock(ctx)) return "Liquidity Layer page";
+  if (radarPageBlock(ctx)) return "actor";
   return "node";
 }
 
-export function currentPageSection(ctx?: PageContext): string {
+// `ix` tells a Prime Agent's page from any other actor's; without it only the path does.
+export function currentPageSection(ctx?: PageContext, ix?: Indexes): string {
   const page = pageContextLine(ctx);
   if (!page) return "";
   const reportTool = validReportTool(ctx);
-  const guidance = reportTool ? reportToolGuidance(reportTool, ctx) : pauPageBlock(ctx);
+  const guidance = reportTool ? reportToolGuidance(reportTool, ctx) : radarPageBlock(ctx, ix) + pauPageBlock(ctx);
   return `\n## Current page\nThe user is viewing: ${page}.${guidance} Treat references like "this", "here", or "this primitive" as that ${viewingSubject(ctx, reportTool)} unless they say otherwise.`;
 }

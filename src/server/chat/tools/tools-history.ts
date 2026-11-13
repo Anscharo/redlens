@@ -5,6 +5,7 @@
 import { sql } from "../../db.ts";
 import { type ToolResult } from "./tools.ts";
 import { type Indexes, resolveNode } from "../../retrieval/indexes.ts";
+import { entityScopeDocIds } from "../../retrieval/entity-docs.ts";
 import { pgType, userType } from "../../history/change-type.ts";
 import { countBy } from "../../../lib/collections.ts";
 import { UUID_RE } from "../../../lib/patterns.ts";
@@ -321,10 +322,7 @@ export async function atlasRecentChanges(
   // Entity filter uses in-memory edges to build a doc-id IN list.
   let rows: RecentRow[];
   if (entityId) {
-    // Collect doc IDs linked to this entity
-    const linkedDocIds = ix.edges
-      .filter((e) => e.from_id === entityId && ["responsible_party_for", "active_data_for", "process_step_responsible_party_for", "duty_for"].includes(e.edge_type))
-      .map((e) => e.to_id);
+    const linkedDocIds = entityScopeDocIds(ix, ix.entityById.get(entityId)!);
     if (linkedDocIds.length === 0) return { since, count: 0, events: [] };
     const placeholders = linkedDocIds.map((_, i) => `$${params.push(linkedDocIds[i])}`).join(",");
     rows = await sql.unsafe<RecentRow[]>(
@@ -479,9 +477,7 @@ export async function atlasChangedBetween(
   if (opts.entity) {
     const ent = ix.entityBySlug.get(opts.entity.toLowerCase());
     if (!ent) return { error: `Entity '${opts.entity}' not found` };
-    linkedDocIds = ix.edges
-      .filter((e) => e.from_id === ent.id && ["responsible_party_for", "active_data_for", "process_step_responsible_party_for", "duty_for"].includes(e.edge_type))
-      .map((e) => e.to_id);
+    linkedDocIds = entityScopeDocIds(ix, ent);
     if (linkedDocIds.length === 0) return { commit_a: sha_a, commit_b: sha_b, seq_lo, seq_hi, doc_count: 0, docs: [] };
   }
 

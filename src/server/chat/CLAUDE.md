@@ -9,6 +9,12 @@ Context injected before the model runs is the fact registry, and the similarity 
 - **This chat vs the whole web app**: enforced by the features fact's `chat` / `app` split.
 - **The Atlas vs our extraction**: the Atlas is the source documents; entities, relations, roles, addresses, params, censuses and every report built on them are SAbR's parse of them. The system prompt's "Entity traversal (live graph)" section states it, and the features fact's `vocabulary` block and `CENSUSES_NOTE` reinforce it.
 
+## Page context
+
+- The system prompt's "Current page" section is `system-prompt-page.ts`. What each Radar page shows and which tool reads it is `system-prompt-radar.ts`, one entry per page in `src/lib/radarPages.ts`; the Liquidity Layer page's block is `system-prompt-pau.ts`. The settlements and Liquidity Layer pages take no text beyond their own call: more text after it makes the model ask which figure is meant.
+- An actor's documents are one set, `src/server/retrieval/entity-docs.ts`: the documents its edges link and its defining document's subtree. `atlas_entity`, the `entity` filter of `atlas_recent_changes` and `atlas_changed_between`, and `atlas_query` with `entity` and `query` all read it. A scoped search with no match returns `outside_entity_scope`, the nearest matches outside the scope.
+- `pnpm eval:tools` holds one case per Radar page (`scripts/eval/eval-tools-cases-radar.ts`). Run it after changing either.
+
 ## Verifier
 
 - The verifier is refutation-only: it reports what the evidence contradicts, never what an answer gets right. Two concurrent auditors (`refute`, `overreach`) run on every answer, and a `confirm` call runs only when at least one candidate survives code span validation, so a clean answer pays nothing extra.

@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-11-13
+
+- Fixed Chat missing a Prime Agent's own documents and recent changes when asked from its Radar pages.
+
 ## 2026-11-12
 
 - Let Chat and MCP read a Prime's Liquidity Layer page: its rate limits, parameters and spells, and where each Atlas number matches or differs
