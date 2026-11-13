@@ -10,10 +10,15 @@ interface EntityRef {
   defining_doc_id: string | null;
 }
 
-/** Edge-linked documents first, then the defining-doc subtree, each once. */
+/**
+ * Edge-linked documents first, then the defining-doc subtree, each once. An
+ * entity's id often equals its defining doc's id, so an edge counts only when
+ * its source is declared `entity`: the doc's own `cites` and `instance_of`
+ * edges are not the entity's (the same guard as `entityDocs` in query.ts).
+ */
 export function entityScopeDocIds(ix: Indexes, entity: EntityRef): string[] {
   const ids = new Set<string>();
-  for (const e of ix.edges) if (e.from_id === entity.id && e.to_type === "doc" && ix.docMap.has(e.to_id)) ids.add(e.to_id);
+  for (const e of ix.edges) if (e.from_id === entity.id && e.from_type === "entity" && e.to_type === "doc" && ix.docMap.has(e.to_id)) ids.add(e.to_id);
   if (entity.defining_doc_id) for (const id of descendantIds(ix, entity.defining_doc_id)) if (ix.docMap.has(id)) ids.add(id);
   return [...ids];
 }
