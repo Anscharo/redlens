@@ -5,6 +5,8 @@ import { atlasHref } from "@/lib/routes";
 import type { StoredPauSnapshot } from "../../lib/pau";
 import { roleWhy } from "@/lib/pauRoleWhy";
 import { contractLabel } from "@/lib/pauHolderNames";
+import { PLUMBING } from "@/lib/pauPlumbing";
+import { contractLinks, entityLink, plumbLitTint } from "@/lib/pauPlumbingLinks";
 
 const dim = { color: "var(--tan-3)" };
 
@@ -25,13 +27,16 @@ function AtlasDocLink({ docs, title, className, style, children, ...rest }: Atla
   );
 }
 
-/** A deployment's contracts by role, each role linked to the atlas document that states it. */
+/** A deployment's contracts by role, each role linked to the atlas document that states it, and to its box in the diagram. */
 export function PauContracts({ snap }: { snap: StoredPauSnapshot }) {
   return (
     <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
       {snap.contracts.map((c) => (
         <li key={c.address} className="mono text-[11px]" style={dim}>
-          <AtlasDocLink docs={c.atlasDocs} title={roleWhy(c, snap)}>{contractLabel(c)}</AtlasDocLink> <Address address={c.address} chain={snap.chain} />
+          <span className="rounded" style={{ background: plumbLitTint("transparent") }} data-link={contractLinks(c, PLUMBING[snap.kind]) || undefined} data-ent={entityLink(c.address)}>
+            <AtlasDocLink docs={c.atlasDocs} title={roleWhy(c, snap)}>{contractLabel(c)}</AtlasDocLink>
+          </span>{" "}
+          <Address address={c.address} chain={snap.chain} />
         </li>
       ))}
     </ul>

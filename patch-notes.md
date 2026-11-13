@@ -44,6 +44,7 @@
 - Showed who can change each differing rate limit, and whether the Operator can reach the Atlas value without a spell
 - Compared Keel's Solana rate limits with the Atlas, showed when each last changed, which spell changed it and who can change it, and flagged Atlas-named relayers that are suspended on chain
 - Tidied instance cards: each holder of a role on its own line, and a value stated in a sentence shown as just the value, with the sentence on hover
+- Added diagrams to a Prime Agent's Liquidity Layer Architecture page: each chain shows how its controller's relayers, rate limits, funds, admin and freezers connect (monolithic, Diamond or Solana), and a second diagram shows the ways the settings change. Hovering a box highlights every mention of the contracts or accounts it stands for, hovering a name highlights its box and every other mention of it, and hovering a role grant highlights its arrow
 - Added title changes, renumberings and document type changes to every document's history
 - Highlighted the parts of a doc number that changed in a renumbering
 
