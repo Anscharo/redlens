@@ -6,7 +6,7 @@ import type { StoredPauSnapshot } from "../../lib/pau";
 import { roleWhy } from "@/lib/pauRoleWhy";
 import { contractLabel } from "@/lib/pauHolderNames";
 import { PLUMBING } from "@/lib/pauPlumbing";
-import { contractLinks, plumbLitTint } from "@/lib/pauPlumbingLinks";
+import { contractLinks, entityLink, plumbLitTint } from "@/lib/pauPlumbingLinks";
 
 const dim = { color: "var(--tan-3)" };
 
@@ -32,8 +32,11 @@ export function PauContracts({ snap }: { snap: StoredPauSnapshot }) {
   return (
     <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
       {snap.contracts.map((c) => (
-        <li key={c.address} className="mono text-[11px] rounded" style={{ ...dim, background: plumbLitTint("transparent") }} data-link={contractLinks(c, PLUMBING[snap.kind]) || undefined}>
-          <AtlasDocLink docs={c.atlasDocs} title={roleWhy(c, snap)}>{contractLabel(c)}</AtlasDocLink> <Address address={c.address} chain={snap.chain} />
+        <li key={c.address} className="mono text-[11px]" style={dim}>
+          <span className="rounded" style={{ background: plumbLitTint("transparent") }} data-link={contractLinks(c, PLUMBING[snap.kind]) || undefined} data-ent={entityLink(c.address)}>
+            <AtlasDocLink docs={c.atlasDocs} title={roleWhy(c, snap)}>{contractLabel(c)}</AtlasDocLink>
+          </span>{" "}
+          <Address address={c.address} chain={snap.chain} />
         </li>
       ))}
     </ul>

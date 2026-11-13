@@ -8,6 +8,8 @@ import { PauParams } from "./ActorPauParams";
 import { PauAuditLink } from "./PauAuditLink";
 import { PauPlumbing } from "./PauPlumbing";
 import { PauWiring } from "./PauWiring";
+import { entityLinkCss } from "@/lib/pauPlumbingLinks";
+import { holderRows } from "../../lib/pau";
 import { anchorProps } from "./PauSectionHeading";
 import { CopyLink } from "../CopyLink";
 import type { Anchor } from "@/lib/pauAnchors";
@@ -47,6 +49,7 @@ export function PauDeployment({ snap, keyIndex, namedIn, verdicts, anchor }: Pro
           <span className="text-[11px]" style={dim} title={hidden ? `${hidden} more, switched off and derived from an address the Atlas no longer lists, are not shown` : undefined}>{limits.length} rate limits</span>
           {loading && <span className="text-[11px]" style={{ color: "var(--accent)" }}>history still being read</span>}
         </summary>
+        <style>{entityLinkCss([...snap.contracts.map((c) => c.address), ...holderRows(snap).map((r) => r.account)])}</style>
         <PauContracts snap={snap} />
         <PauPlumbing kind={snap.kind} anchor={anchor} />
         <PauFacets snap={snap} anchor={anchor} />

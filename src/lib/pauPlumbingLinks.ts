@@ -1,9 +1,11 @@
-// Which boxes and arrows of a deployment's "How it fits together" diagram a
-// contract or a role-holder row is about, as space-separated link tokens
-// (`n:<node>`, `e:<from>-<to>`), and the stylesheet that lights both sides
-// when either is hovered. A row lights an arrow only when the arrow's `grants`
-// names the row's role on its contract and the arrow starts at the holder's
-// box, so a grant the diagram does not draw lights the two boxes alone. Pure.
+// Which box or arrow of a deployment's "How it fits together" diagram each
+// word of the contract and role lists names, as a link token (`n:<node>`,
+// `e:<from>-<to>`), and the stylesheets that light them together on hover. A
+// word naming a contract or account links to its box and, by address
+// (`a:<address>`), to every other word naming the same one. A grant ("holds
+// CONTROLLER") links only to an arrow, and only when the arrow's `grants`
+// names that role on that contract and the arrow starts at the holder's box,
+// so a grant the diagram does not draw links to nothing. Pure.
 import type { ContractState, PauSnapshot } from "./pau.ts";
 import { holderNames } from "./pauHolderNames.ts";
 import type { HolderRow } from "./pauView.ts";
@@ -51,15 +53,25 @@ function holderNode(r: HolderRow, snap: PauSnapshot, names: Map<string, string>)
   return r.status === "holds" && ADMIN_GRANTS.has(r.name) ? "admin" : undefined;
 }
 
-/** For each row of holderRows(snap), the link tokens of the holder's box, the contract's box, and the arrow the grant makes true. */
-export function rowLinker(snap: PauSnapshot, p: Plumbing): (r: HolderRow) => string {
+/** A role-holder row's links, one per part of the row; each names one drawn element or is absent. */
+export interface RowLinks {
+  /** The box the account is (its name and address). */
+  holder?: string;
+  /** The arrow the grant makes true (the verb and role name); absent when the diagram draws no arrow for it. */
+  grant?: string;
+  /** The box of the contract the role is held on (the contract's name after "on"). */
+  on?: string;
+}
+
+/** For each row of holderRows(snap), the link of each of its parts. */
+export function rowLinker(snap: PauSnapshot, p: Plumbing): (r: HolderRow) => RowLinks {
   const names = holderNames(snap);
   return (r) => {
     const from = drawn(p, holderNode(r, snap, names));
     const on = drawn(p, ROLE_NODE[r.on]);
     const grant = `${r.name} on ${r.on}`;
-    const edge = r.status === "holds" ? p.edges.find((e) => e.from === from && e.grants?.includes(grant)) : undefined;
-    return [from && nodeLink(from), on && nodeLink(on), edge && edgeLink(edge.from, edge.to)].filter(Boolean).join(" ");
+    const edge = r.status === "holds" && from ? p.edges.find((e) => e.from === from && e.grants?.includes(grant)) : undefined;
+    return { holder: from && nodeLink(from), grant: edge && edgeLink(edge.from, edge.to), on: on && nodeLink(on) };
   };
 }
 
@@ -67,17 +79,27 @@ export function rowLinker(snap: PauSnapshot, p: Plumbing): (r: HolderRow) => str
 export const plumbingLinks = (p: Plumbing) => [...p.nodes.map((n) => nodeLink(n.id)), ...p.edges.map((e) => edgeLink(e.from, e.to))];
 
 /**
- * One rule pair per token, scoped to a deployment card so two open cards never
- * light each other: hovering a list item (`data-link`) lights the drawn part
- * (`data-fig`), and hovering a drawn part lights itself and the list items.
- * A lit element sets `--plumb-lit: 1`, which its own styles read (plumbLitTint).
+ * The rules for each token, scoped to a deployment card so two open cards never
+ * light each other: hovering a list element marked `data-link` lights the drawn
+ * part (`data-fig`) it names, and hovering the part lights it back. A lit
+ * element sets `--plumb-lit: 1`, which its own styles read (plumbLitTint).
  */
 export function plumbingLinkCss(p: Plumbing): string {
   const card = ".pau-deployment:has(";
-  const pairs = plumbingLinks(p).map(
+  const rules = plumbingLinks(p).map(
     (t) => `${card}[data-link~="${t}"]:is(:hover,:focus-within)) [data-fig~="${t}"],${card}[data-fig~="${t}"]:hover) [data-link~="${t}"]{--plumb-lit:1}`,
   );
-  return [".pau-deployment [data-fig]:hover{--plumb-lit:1}", ...pairs].join("\n");
+  return [".pau-deployment [data-fig]:hover{--plumb-lit:1}", ...rules].join("\n");
+}
+
+/** A word naming one account or contract, by its address: every word naming the same one lights with it. */
+export const entityLink = (address: string) => `a:${address.toLowerCase()}`;
+
+/** The rules lighting every word that names the same address as the hovered one, within its card. */
+export function entityLinkCss(addresses: Iterable<string>): string {
+  return [...new Set([...addresses].map(entityLink))]
+    .map((t) => `.pau-deployment:has([data-ent~="${t}"]:is(:hover,:focus-within)) [data-ent~="${t}"]{--plumb-lit:1}`)
+    .join("\n");
 }
 
 /** Styles that follow `--plumb-lit`: an accent tint of the given share, none when unlit. */

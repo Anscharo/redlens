@@ -20,15 +20,30 @@ const snap = { deployment: "d", prime: "p", primeName: "P", chain: "ethereum", k
 ] } as StoredPauSnapshot;
 
 describe("diagram links on the lists", () => {
-  it("tags each contract with its box", () => {
+  it("tags each contract's name, not its address, with its box and its address", () => {
     const { container } = render(<PauContracts snap={snap} />);
-    expect([...container.querySelectorAll("li")].map((li) => li.getAttribute("data-link"))).toEqual(["n:controller", "n:almProxy"]);
+    const names = [...container.querySelectorAll("[data-ent]")];
+    expect(names.map((n) => [n.textContent, n.getAttribute("data-link"), n.getAttribute("data-ent")])).toEqual([
+      ["Controller", "n:controller", `a:${CTRL}`],
+      ["ALM proxy (freezable)", "n:almProxy", `a:${FPROXY}`],
+    ]);
+    expect([...container.querySelectorAll("li")].every((li) => !li.hasAttribute("data-link"))).toBe(true);
   });
-  it("tags a relayer's CONTROLLER grant on a freezable proxy with its two boxes and no arrow", () => {
+  it("links each part of a row to one drawn element: the account and contract names to their boxes, the grant to its arrow", () => {
     const { container } = render(<PauHolders snap={snap} anchor={{ id: "ethereum", aliases: [] }} />);
-    const row = [...container.querySelectorAll("li")].find((li) => li.textContent?.includes("Relayer") && li.textContent.includes("freezable proxy"));
-    expect(row).toHaveAttribute("data-link", "n:relayer n:almProxy");
-    const ctl = [...container.querySelectorAll("li")].find((li) => li.textContent?.includes("Controller") && li.textContent.includes("CONTROLLER"));
-    expect(ctl).toHaveAttribute("data-link", "n:controller n:almProxy e:controller-almProxy");
+    const part = (row: Element | undefined, name: string) => row?.querySelector(`[data-part="${name}"]`);
+    const rows = [...container.querySelectorAll("li")];
+    const relayer = rows.find((li) => li.textContent?.includes("Relayer") && li.textContent.includes("on ALM proxy (freezable)"));
+    expect(part(relayer, "holder")).toHaveAttribute("data-link", "n:relayer");
+    expect(part(relayer, "holder")).toHaveTextContent(/^Relayer$/);
+    expect(part(relayer, "grant")).toHaveTextContent("holds CONTROLLER");
+    expect(part(relayer, "grant")).not.toHaveAttribute("data-link");
+    expect(part(relayer, "on")).toHaveAttribute("data-link", "n:almProxy");
+    expect(part(relayer, "on")).toHaveAttribute("data-ent", `a:${FPROXY}`);
+    expect(part(relayer, "on")).toHaveTextContent(/^ALM proxy \(freezable\)$/);
+    const ctl = rows.find((li) => li.textContent?.includes("Controller") && li.textContent.includes("CONTROLLER"));
+    expect(part(ctl, "holder")).toHaveAttribute("data-ent", `a:${CTRL}`);
+    expect(part(ctl, "grant")).toHaveAttribute("data-link", "e:controller-almProxy");
+    expect(rows.every((li) => !li.hasAttribute("data-link"))).toBe(true);
   });
 });

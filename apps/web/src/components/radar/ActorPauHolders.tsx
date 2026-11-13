@@ -1,12 +1,12 @@
-import { Address } from "../Address";
 import { AtlasLink } from "../AtlasLink";
 import { Callout } from "../Callout";
 import { atlasHref } from "@/lib/routes";
 import { holderRows, type HolderStatus, type PauSnapshot } from "../../lib/pau";
 import type { Anchor } from "@/lib/pauAnchors";
-import { holderNames, isFreezable } from "@/lib/pauHolderNames";
+import { contractLabel, holderNames } from "@/lib/pauHolderNames";
 import { PLUMBING } from "@/lib/pauPlumbing";
-import { plumbLitTint, rowLinker } from "@/lib/pauPlumbingLinks";
+import { entityLink, plumbLitTint, rowLinker } from "@/lib/pauPlumbingLinks";
+import { HolderName } from "./PauHolderName";
 import { PauOriginChip } from "./PauOriginChip";
 import { PauSectionHeading } from "./PauSectionHeading";
 import { MARK_TIP_MS } from "./PauAtlasMark";
@@ -16,14 +16,6 @@ const STATUS: Record<HolderStatus, { mark: string; color: string; role: string; 
   holds: { mark: "✓", color: "var(--tan-2)", role: "holds the role", member: "the AdministeredAgent lists it" },
   denied: { mark: "✗", color: "var(--accent)", role: "granted in the history but the chain says it does not hold the role", member: "added in the history but the AdministeredAgent no longer lists it" },
   unread: { mark: "?", color: "var(--tan-3)", role: "hasRole could not be read", member: "membership could not be read" },
-};
-
-const ON_LABEL: Record<string, string> = {
-  controller: "controller",
-  almProxy: "proxy",
-  rateLimits: "rate limits",
-  accessControls: "access controls",
-  administeredAgent: "agent",
 };
 
 /** The atlas document defining the Diamond PAU's access-control roles (A.2.2.10.1.1.1.2.2). */
@@ -39,7 +31,19 @@ const RolesNote = () => (
   </Callout>
 );
 
+/** The tint a row part takes while lit (pauPlumbingLinks.ts). */
+const lit = { background: plumbLitTint("transparent") };
+
 const VERB = { role: { denied: "was granted", else: "holds" }, member: { denied: "was added as", else: "is" } };
+
+/** What a row says its role is held on: the contract's name in the deployment's contract list, so "on ALM proxy (freezable)" names the one listed. */
+function onLabeller(snap: PauSnapshot) {
+  const byAddress = new Map(snap.contracts.map((c) => [c.address.toLowerCase(), c]));
+  return (on: string, contract: string) => {
+    const c = byAddress.get(contract.toLowerCase());
+    return c ? contractLabel(c) : on;
+  };
+}
 
 /** Who holds which role on which PAU contract, each marked as the chain confirms it. */
 export function PauHolders({ snap, anchor }: { snap: PauSnapshot; anchor: Anchor }) {
@@ -47,8 +51,7 @@ export function PauHolders({ snap, anchor }: { snap: PauSnapshot; anchor: Anchor
   if (rows.length === 0) return null;
   const names = holderNames(snap);
   const links = rowLinker(snap, PLUMBING[snap.kind]);
-  const freezable = new Set(snap.contracts.filter(isFreezable).map((c) => c.address.toLowerCase()));
-  const onLabel = (on: string, contract: string) => (freezable.has(contract.toLowerCase()) ? "freezable proxy" : ON_LABEL[on] ?? on);
+  const onLabel = onLabeller(snap);
   return (
     <div className="mt-3">
       <PauSectionHeading deployment={anchor} section="roles">Roles</PauSectionHeading>
@@ -57,18 +60,19 @@ export function PauHolders({ snap, anchor }: { snap: PauSnapshot; anchor: Anchor
         {rows.map((r) => {
           const s = STATUS[r.status];
           const text = s[r.check];
+          const l = links(r);
           return (
-            <li key={`${r.contract}:${r.name}:${r.account}`} className="mono text-[11px] flex flex-wrap items-baseline gap-x-2 rounded" data-status={r.status}
-              data-link={links(r) || undefined} style={{ background: plumbLitTint("transparent") }}
-            >
+            <li key={`${r.contract}:${r.name}:${r.account}`} className="mono text-[11px] flex flex-wrap items-baseline gap-x-2" data-status={r.status}>
               <Tooltip content={text} delay={MARK_TIP_MS}>
                 <span role="img" style={{ color: s.color }} aria-label={text}>{s.mark}</span>
               </Tooltip>
-              {names.get(r.account.toLowerCase()) && <span style={{ color: "var(--tan-2)" }}>{names.get(r.account.toLowerCase())}</span>}
-              <Address address={r.account} chain={snap.chain} />
-              <span style={{ color: "var(--tan-3)" }}>{VERB[r.check][r.status === "denied" ? "denied" : "else"]}</span>
-              <span style={{ color: "var(--tan-2)" }}>{r.name}</span>
-              <span style={{ color: "var(--tan-3)" }}>on {onLabel(r.on, r.contract)}</span>
+              <HolderName name={names.get(r.account.toLowerCase())} link={l.holder} account={r.account} chain={snap.chain} />
+              <span className="rounded" style={lit} data-link={l.grant} data-part="grant">
+                <span style={{ color: "var(--tan-3)" }}>{VERB[r.check][r.status === "denied" ? "denied" : "else"]}</span> <span style={{ color: "var(--tan-2)" }}>{r.name}</span>
+              </span>
+              <span style={{ color: "var(--tan-3)" }}>
+                on <span className="rounded" style={lit} data-link={l.on} data-ent={entityLink(r.contract)} data-part="on">{onLabel(r.on, r.contract)}</span>
+              </span>
               <span style={{ color: "var(--tan-3)" }}>{r.since ? `since ${r.since.time.slice(0, 10)}` : "not in the stored history"}</span>
               {r.since && <PauOriginChip chain={snap.chain} tx={r.since.tx} />}
             </li>
