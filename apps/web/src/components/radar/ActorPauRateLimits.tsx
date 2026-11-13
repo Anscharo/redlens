@@ -14,6 +14,7 @@ import { atlasRank, nextSort, sortLimits, type LimitSort } from "@/lib/pauLimitS
 import { rowNamedIn, type NamedIn } from "@/lib/pauConstantDocs";
 import { PauLimitName } from "./PauLimitName";
 import { formatPerDay, limitDecimals, loadPauHistory, unitNote, type AtlasKeyRef, type LiveRateLimit, type PauHistoryResponse } from "../../lib/pau";
+import { nodeLink } from "@/lib/pauPlumbingLinks";
 
 /** A limit with the RateLimits contract holding it: two contracts of one deployment can hold the same key. */
 export type ContractLimit = LiveRateLimit & { contract: string };
@@ -94,7 +95,7 @@ export function PauRateLimits(props: Props) {
   const history = useLoaded(loadPauHistory, { soft: true });
   return (
     <section className="mt-3">
-      <PauSectionHeading deployment={anchor} section="rate-limits">Rate limits</PauSectionHeading>
+      <PauSectionHeading deployment={anchor} section="rate-limits" link={nodeLink("rateLimits")}>Rate limits</PauSectionHeading>
       {review}
       {limits.length === 0 ? <p className="mono text-[11px]" style={dim}>{none(hidden)}</p> : <table className="w-full border-collapse text-[12px]">
         <PauRateLimitsHead sort={sort} onSort={(by) => setSort((s) => nextSort(s, by))} />

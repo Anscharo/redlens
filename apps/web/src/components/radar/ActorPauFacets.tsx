@@ -8,6 +8,7 @@ import type { Anchor } from "@/lib/pauAnchors";
 import { atlasHref } from "@/lib/routes";
 import { PauOriginChip } from "./PauOriginChip";
 import { PauSectionHeading } from "./PauSectionHeading";
+import { nodeLink } from "@/lib/pauPlumbingLinks";
 
 const dim = { color: "var(--tan-3)" };
 const head = "py-0.5 font-normal align-bottom";
@@ -42,7 +43,7 @@ export function PauFacets({ snap, anchor }: { snap: Pick<StoredPauSnapshot, "cha
   if (rows.length === 0) return null;
   return (
     <div className="mt-3">
-      <PauSectionHeading deployment={anchor} section="facets">Facets in use</PauSectionHeading>
+      <PauSectionHeading deployment={anchor} section="facets" link={nodeLink("facets")}>Facets in use</PauSectionHeading>
       <table className="w-full border-collapse text-[12px]">
         <thead>
           <tr className="mono text-[11px] uppercase tracking-wider" style={dim}>

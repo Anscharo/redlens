@@ -25,10 +25,10 @@ export const SVM_PLUMBING: Plumbing = {
   ],
   edges: [
     {
-      from: "admin", to: "program", kind: "rule", label: "grants permissions · sets limits · adds integrations",
+      from: "admin", to: "program", kind: "rule", grants: ["DEFAULT_ADMIN_ROLE on permission"], label: "grants permissions · sets limits · adds integrations",
       rule: "a Permission with can_manage_permissions and can_manage_reserves_and_integrations (the Default Admin Role)", d: "M500 90 V132", lx: 510, ly: 116,
     },
-    { from: "relayer", to: "program", kind: "flow", label: "asks for a move", rule: "each instruction is signed by the holder of a Permission account", d: "M180 213 H284", lx: 225, ly: 204, align: "middle" },
+    { from: "relayer", to: "program", kind: "flow", grants: ["RELAYER on permission"], label: "asks for a move", rule: "each instruction is signed by the holder of a Permission account", d: "M180 213 H284", lx: 225, ly: 204, align: "middle" },
     {
       from: "program", to: "permission", kind: "flow", label: "checks the caller's flags",
       rule: "a Permission's flags (can_execute_swap, can_reallocate, can_invoke_external_transfer, …) count only while its status is Active", d: "M370 256 V324", lx: 380, ly: 294,
@@ -40,7 +40,7 @@ export const SVM_PLUMBING: Plumbing = {
     },
     { from: "reserve", to: "venues", kind: "flow", label: "sends", rule: "the controller's authority, a program-derived address, signs the token move", d: "M710 213 H784", lx: 760, ly: 204, align: "middle" },
     {
-      from: "freezer", to: "program", kind: "stop", label: "freezes the controller",
+      from: "freezer", to: "program", kind: "stop", grants: ["FREEZER on permission"], label: "freezes the controller",
       rule: "a Permission with can_freeze_controller sets the Controller account's status to Frozen", d: "M180 367 H230 V235 H284", lx: 222, ly: 300, align: "end",
     },
   ],

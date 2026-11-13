@@ -37,6 +37,8 @@ export interface PlumbingEdge {
   both?: boolean;
   /** Holds only for some deployments. */
   optional?: boolean;
+  /** The role grants that make it true, as `<role name> on <contract role>`; a role-holder row with one of them lights it (pauPlumbingLinks.ts). */
+  grants?: string[];
 }
 
 /** A row's name in the left gutter, for a diagram read as lanes. */

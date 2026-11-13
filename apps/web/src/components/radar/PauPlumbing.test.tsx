@@ -40,6 +40,12 @@ describe("PauPlumbing", () => {
     const ids = [...container.querySelectorAll("marker, title[id]")].map((m) => m.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
+  it("tags each part and arrow with its link token and scopes the hover rules to a deployment card", () => {
+    const { container } = render(<PauPlumbing kind="monolithic" anchor={anchor} />);
+    expect(container.querySelector('[data-node="relayer"]')).toHaveAttribute("data-fig", "n:relayer");
+    expect(container.querySelector('[data-edge="controller-almProxy"]')).toHaveAttribute("data-fig", "e:controller-almProxy");
+    expect(container.querySelector("style")?.textContent).toContain('.pau-deployment:has([data-fig~="n:relayer"]:hover) [data-link~="n:relayer"]');
+  });
 });
 
 describe("PauChangePaths", () => {

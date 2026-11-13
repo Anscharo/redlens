@@ -5,6 +5,8 @@ import { atlasHref } from "@/lib/routes";
 import { holderRows, type HolderStatus, type PauSnapshot } from "../../lib/pau";
 import type { Anchor } from "@/lib/pauAnchors";
 import { holderNames, isFreezable } from "@/lib/pauHolderNames";
+import { PLUMBING } from "@/lib/pauPlumbing";
+import { plumbLitTint, rowLinker } from "@/lib/pauPlumbingLinks";
 import { PauOriginChip } from "./PauOriginChip";
 import { PauSectionHeading } from "./PauSectionHeading";
 import { MARK_TIP_MS } from "./PauAtlasMark";
@@ -44,6 +46,7 @@ export function PauHolders({ snap, anchor }: { snap: PauSnapshot; anchor: Anchor
   const rows = holderRows(snap);
   if (rows.length === 0) return null;
   const names = holderNames(snap);
+  const links = rowLinker(snap, PLUMBING[snap.kind]);
   const freezable = new Set(snap.contracts.filter(isFreezable).map((c) => c.address.toLowerCase()));
   const onLabel = (on: string, contract: string) => (freezable.has(contract.toLowerCase()) ? "freezable proxy" : ON_LABEL[on] ?? on);
   return (
@@ -55,7 +58,9 @@ export function PauHolders({ snap, anchor }: { snap: PauSnapshot; anchor: Anchor
           const s = STATUS[r.status];
           const text = s[r.check];
           return (
-            <li key={`${r.contract}:${r.name}:${r.account}`} className="mono text-[11px] flex flex-wrap items-baseline gap-x-2" data-status={r.status}>
+            <li key={`${r.contract}:${r.name}:${r.account}`} className="mono text-[11px] flex flex-wrap items-baseline gap-x-2 rounded" data-status={r.status}
+              data-link={links(r) || undefined} style={{ background: plumbLitTint("transparent") }}
+            >
               <Tooltip content={text} delay={MARK_TIP_MS}>
                 <span role="img" style={{ color: s.color }} aria-label={text}>{s.mark}</span>
               </Tooltip>

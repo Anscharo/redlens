@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
 import { PLUMBING } from "@/lib/pauPlumbing";
+import { plumbingLinkCss } from "@/lib/pauPlumbingLinks";
 import type { Anchor } from "@/lib/pauAnchors";
 import type { PauKind } from "@/lib/pauRegistry";
 import { PauSectionHeading } from "./PauSectionHeading";
@@ -16,13 +17,15 @@ export interface PauPlumbingProps extends ComponentProps<"section"> {
 /**
  * How one deployment is plumbed, at the top of its card: a static picture of
  * which part answers to which for its controller generation (pauPlumbing.ts).
- * It reads no data.
+ * It reads no data. Its style links each part to the card's contract and role
+ * rows that name it, lighting both on hover (pauPlumbingLinks.ts).
  */
 export function PauPlumbing({ kind, anchor, className, ...props }: PauPlumbingProps) {
   const plumbing = PLUMBING[kind];
   return (
     <section className={`mt-3 ${className ?? ""}`} data-plumbing={kind} {...props}>
       <PauSectionHeading deployment={anchor} section="how-it-fits">How it fits together</PauSectionHeading>
+      <style>{plumbingLinkCss(plumbing)}</style>
       <figure>
         <div className="overflow-x-auto">
           <PlumbingSvg plumbing={plumbing} scope={`${plumbing.id}-${anchor.id}`} />

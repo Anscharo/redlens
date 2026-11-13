@@ -27,24 +27,24 @@ export const DIAMOND_PLUMBING: Plumbing = {
   ],
   edges: [
     {
-      from: "admin", to: "controller", kind: "rule", label: "grants every role · sets limits · wires in facets",
+      from: "admin", to: "controller", kind: "rule", grants: ["DEFAULT_ADMIN_ROLE on accessControls", "DEFAULT_ADMIN_ROLE on almProxy", "DEFAULT_ADMIN_ROLE on rateLimits", "admin on administeredAgent"], label: "grants every role · sets limits · wires in facets",
       rule: "DEFAULT_ADMIN_ROLE in AccessControls (updateIntegrations is onlyAdmin), on the ALM proxy and on the rate limits", d: "M585 90 V132", lx: 595, ly: 116,
     },
-    { from: "relayer", to: "agent", kind: "flow", label: "calls through", rule: "onlyActor on AdministeredAgent.call", d: "M180 205 H234", lx: 200, ly: 168, align: "end" },
-    { from: "agent", to: "controller", kind: "flow", label: "forwards", rule: "AdministeredAgent.call calls its target as itself", d: "M400 205 H474", lx: 437, ly: 196, align: "middle" },
+    { from: "relayer", to: "agent", kind: "flow", grants: ["actor on administeredAgent"], label: "calls through", rule: "onlyActor on AdministeredAgent.call", d: "M180 205 H234", lx: 200, ly: 168, align: "end" },
+    { from: "agent", to: "controller", kind: "flow", grants: ["ALLOCATOR_ROLE on accessControls"], label: "forwards", rule: "AdministeredAgent.call calls its target as itself", d: "M400 205 H474", lx: 437, ly: 196, align: "middle" },
     {
       from: "controller", to: "accessControls", kind: "flow", label: "checks the caller's role",
       rule: "a facet's onlyRole asks AccessControls.hasRole(role, msg.sender)", d: "M480 235 H440 V367 H406", lx: 432, ly: 300, align: "end",
     },
     { from: "controller", to: "facets", kind: "flow", label: "runs the move in", rule: "the Controller's fallback delegatecalls the facet wired to the selector", d: "M560 256 V324", lx: 570, ly: 294 },
-    { from: "controller", to: "almProxy", kind: "flow", label: "executes through", rule: "onlyRole(CONTROLLER) on doCall", d: "M640 205 H764", lx: 702, ly: 196, align: "middle" },
+    { from: "controller", to: "almProxy", kind: "flow", grants: ["CONTROLLER on almProxy"], label: "executes through", rule: "onlyRole(CONTROLLER) on doCall", d: "M640 205 H764", lx: 702, ly: 196, align: "middle" },
     {
-      from: "controller", to: "rateLimits", kind: "flow", label: "checks, then draws down",
+      from: "controller", to: "rateLimits", kind: "flow", grants: ["CONTROLLER on rateLimits"], label: "checks, then draws down",
       rule: "onlyRole(CONTROLLER) on triggerRateLimitDecrease / Increase", d: "M646 235 H720 V367 H764", lx: 728, ly: 300, both: true,
     },
     { from: "almProxy", to: "venues", kind: "flow", label: "calls", rule: "the proxy is the account the venue sees", d: "M930 213 H984", lx: 968, ly: 204, align: "middle" },
     {
-      from: "freezer", to: "agent", kind: "stop", label: "removes a relayer",
+      from: "freezer", to: "agent", kind: "stop", grants: ["revoker on administeredAgent"], label: "removes a relayer",
       rule: "AdministeredAgent.removeActor, open to its revokers and admins", d: "M180 350 H206 V235 H234", lx: 198, ly: 300, align: "end",
     },
   ],

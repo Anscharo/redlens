@@ -22,19 +22,19 @@ export const MONOLITHIC_PLUMBING: Plumbing = {
   ],
   edges: [
     {
-      from: "admin", to: "controller", kind: "rule", label: "grants every role · sets limits and parameters",
+      from: "admin", to: "controller", kind: "rule", grants: ["DEFAULT_ADMIN_ROLE on controller", "DEFAULT_ADMIN_ROLE on almProxy", "DEFAULT_ADMIN_ROLE on rateLimits"], label: "grants every role · sets limits and parameters",
       rule: "DEFAULT_ADMIN_ROLE on the controller, the ALM proxy and the rate limits", d: "M500 90 V132", lx: 510, ly: 116,
     },
-    { from: "relayer", to: "controller", kind: "flow", label: "asks for a move", rule: "onlyRole(RELAYER) on every controller action", d: "M180 213 H284", lx: 225, ly: 204, align: "middle" },
+    { from: "relayer", to: "controller", kind: "flow", grants: ["RELAYER on controller"], label: "asks for a move", rule: "onlyRole(RELAYER) on every controller action", d: "M180 213 H284", lx: 225, ly: 204, align: "middle" },
     {
-      from: "controller", to: "rateLimits", kind: "flow", label: "checks, then draws down",
+      from: "controller", to: "rateLimits", kind: "flow", grants: ["CONTROLLER on rateLimits"], label: "checks, then draws down",
       rule: "onlyRole(CONTROLLER) on triggerRateLimitDecrease / Increase", d: "M370 256 V324", lx: 380, ly: 294, both: true,
     },
-    { from: "controller", to: "almProxy", kind: "flow", label: "executes through", rule: "onlyRole(CONTROLLER) on doCall", d: "M450 213 H544", lx: 497, ly: 204, align: "middle" },
+    { from: "controller", to: "almProxy", kind: "flow", grants: ["CONTROLLER on almProxy"], label: "executes through", rule: "onlyRole(CONTROLLER) on doCall", d: "M450 213 H544", lx: 497, ly: 204, align: "middle" },
     { from: "almProxy", to: "venues", kind: "flow", label: "calls", rule: "the proxy is the account the venue sees", d: "M710 213 H784", lx: 760, ly: 204, align: "middle" },
-    { from: "freezer", to: "relayer", kind: "stop", label: "removes a relayer", rule: "onlyRole(FREEZER) on the controller's removeRelayer", d: "M100 330 V256", lx: 110, ly: 294 },
+    { from: "freezer", to: "relayer", kind: "stop", grants: ["FREEZER on controller"], label: "removes a relayer", rule: "onlyRole(FREEZER) on the controller's removeRelayer", d: "M100 330 V256", lx: 110, ly: 294 },
     {
-      from: "freezer", to: "almProxy", kind: "stop", label: "on a freezable proxy: removes its controller", optional: true,
+      from: "freezer", to: "almProxy", kind: "stop", grants: ["FREEZER on almProxy"], label: "on a freezable proxy: removes its controller", optional: true,
       rule: "onlyRole(FREEZER) on ALMProxyFreezable.removeController", d: "M100 404 V446 H630 V256", lx: 112, ly: 462,
     },
   ],

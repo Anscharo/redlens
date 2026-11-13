@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { sectionAnchor, type Anchor, type PauSection } from "@/lib/pauAnchors";
+import { plumbLitTint } from "@/lib/pauPlumbingLinks";
 import { CopyLink } from "../CopyLink";
 
 const aliasAttr = (a: Anchor) => (a.aliases.length ? a.aliases.join(" ") : undefined);
@@ -19,11 +20,19 @@ export function PauPartHeading({ anchor, children }: { anchor: Anchor; children:
   );
 }
 
+interface PauSectionHeadingProps {
+  deployment: Anchor;
+  section: PauSection;
+  /** The diagram part the section is about, as a link token (pauPlumbingLinks.ts); hovering either lights both. */
+  link?: string;
+  children: ReactNode;
+}
+
 /** A deployment section's h4, linkable as `#<deployment>-<section>` and by the bare section name, with its copy link. */
-export function PauSectionHeading({ deployment, section, children }: { deployment: Anchor; section: PauSection; children: ReactNode }) {
+export function PauSectionHeading({ deployment, section, link, children }: PauSectionHeadingProps) {
   const a = sectionAnchor(deployment, section);
   return (
-    <div className="relative mb-1">
+    <div className="relative mb-1 rounded" data-link={link} style={link ? { background: plumbLitTint("transparent") } : undefined}>
       <CopyLink id={a.id} label={`${deployment.id} ${section.replace(/-/g, " ")}`} />
       <h4 {...anchorProps(a)} className="mono text-[11px] uppercase tracking-wider" style={{ ...anchorProps(a).style, color: "var(--tan-3)" }}>
         {children}
