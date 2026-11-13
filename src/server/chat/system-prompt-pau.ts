@@ -1,10 +1,11 @@
 // The Liquidity Layer page's addition to the chat system prompt.
 import { PAU_CLASSES, PAU_LAYOUT } from "../../lib/pauLayout.ts";
 
-const SLUG = /^[a-z0-9-]{1,64}$/;
+/** A Radar slug safe to quote into the prompt as a tool argument. */
+export const SLUG = /^[a-z0-9-]{1,64}$/;
 
 /** The path segment after /radar/<slug>/, ignoring a query or a hash. */
-function subpage(path: string | undefined): string | undefined {
+export function subpage(path: string | undefined): string | undefined {
   return path?.match(/\/radar\/[^/?#]+\/([^/?#]+)/)?.[1];
 }
 

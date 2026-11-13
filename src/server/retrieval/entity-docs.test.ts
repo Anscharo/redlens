@@ -9,13 +9,14 @@ const ix = {
   childrenIndex: new Map([["root", [{ id: "child" }]], ["child", [{ id: "grandchild" }]]]),
   entityById: new Map([["root", prime]]),
   edges: [
-    { from_id: "root", to_id: "linked", to_type: "doc", edge_type: "responsible_party_for" },
-    { from_id: "root", to_id: "0xabc", to_type: "address", edge_type: "has_address" },
-    { from_id: "other", to_id: "elsewhere", to_type: "doc", edge_type: "duty_for" },
+    { from_id: "root", from_type: "entity", to_id: "linked", to_type: "doc", edge_type: "responsible_party_for" },
+    { from_id: "root", from_type: "entity", to_id: "0xabc", to_type: "address", edge_type: "has_address" },
+    { from_id: "root", from_type: "doc", to_id: "elsewhere", to_type: "doc", edge_type: "cites" },
+    { from_id: "other", from_type: "entity", to_id: "elsewhere", to_type: "doc", edge_type: "duty_for" },
   ],
 } as unknown as Indexes;
 
-test("an entity's documents are its edge-linked docs and its whole artifact subtree", () => {
+test("an entity's documents are its edge-linked docs and its whole artifact subtree, not its defining doc's own edges", () => {
   expect(entityScopeDocIds(ix, prime).sort()).toEqual(["child", "grandchild", "linked", "root"]);
 });
 

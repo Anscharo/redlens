@@ -45,3 +45,7 @@ test("a slug that is not a slug enters no tool argument", () => {
 test("on an actor page, \"this\" is the actor", () => {
   expect(currentPageSection({ path: "/radar/osero", actorSlug: "osero" }, ix)).toContain("as that actor unless they say otherwise.");
 });
+
+test("on the Radar index, \"this\" is the page, not an actor", () => {
+  expect(currentPageSection({ path: "/radar" }, ix)).toContain("as that page unless they say otherwise.");
+});

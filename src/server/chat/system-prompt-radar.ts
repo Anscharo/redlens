@@ -5,8 +5,7 @@
 import { hasActorPages, isActorPageKey, type ActorPageKey } from "../../lib/radarPages.ts";
 import { ROUTES } from "../../lib/routes.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
-
-const SLUG = /^[a-z0-9-]{1,64}$/;
+import { SLUG, subpage } from "./system-prompt-pau.ts";
 
 type PageKey = ActorPageKey | "info";
 
@@ -42,8 +41,6 @@ interface RadarCtx {
   actorSlug?: string;
   path?: string;
 }
-
-const subpage = (path: string | undefined) => path?.match(/\/radar\/[^/?#]+\/([^/?#]+)/)?.[1];
 
 function isPrime(ix: Indexes | undefined, slug: string, sub: string | undefined): boolean {
   if (isActorPageKey(sub)) return true;

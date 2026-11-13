@@ -356,11 +356,13 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   }
 
   // ── entity doc set (for narrow / intersection) ───────────────────────────────
-  let entityDocIds: Set<string> | null = null;
-  if (entityId) {
-    const linked = entityDocs(ix, entityId, a.edge_types, a.target_type, dir).map((d) => d.doc.id);
-    entityDocIds = new Set(constrain([...new Set([...linked, ...(query && !a.edge_types?.length ? artifactDocIds(ix, entityId, a.target_type) : [])])]));
-  }
+  // With a query the hits are constrained below, so the scope stays whole: the
+  // filter hint then counts each candidate once, and an empty `scoped` means the
+  // query matched nothing about the entity, not that a filter emptied it.
+  const scopeIds = entityId
+    ? [...new Set([...entityDocs(ix, entityId, a.edge_types, a.target_type, dir).map((d) => d.doc.id), ...(query && !a.edge_types?.length ? artifactDocIds(ix, entityId, a.target_type) : [])])]
+    : null;
+  const entityDocIds = scopeIds ? new Set(query ? scopeIds : constrain(scopeIds)) : null;
 
   // ── search ───────────────────────────────────────────────────────────────────
   let searchHits: { id: string; rrf_score: number; score: number; sources: string[]; snippet?: string; via?: Via }[] = [];
@@ -424,7 +426,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   return withBudget(hits, toRow, {
     ...(resolvedEntity ? { entity: a.entity, resolved_entity: resolvedEntity } : {}),
     mode: query && entityDocIds ? "hybrid_graph" : "search",
-    ...(entityDocIds && resolvedEntity ? outsideScope(ix, resolvedEntity.name, searchHits, hits.length) : {}),
+    ...(entityDocIds && resolvedEntity ? outsideScope(ix, resolvedEntity.name, searchHits, scoped.length) : {}),
     ...(semSkipped ? { semantic_skipped: semSkipped } : {}),
   }, lexCut);
 }
